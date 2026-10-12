@@ -22,7 +22,7 @@ This is a **campaign**, not a workstream. It does not replace the Research Docum
 | [`ITERATIVE_METHODOLOGY.md`](../ITERATIVE_METHODOLOGY.md) | Master framework — 9 principles, 6 phases, 12 quality gates. This campaign obeys all of them. |
 | [`RESEARCH_DOCUMENTATION_WORKSTREAM.md`](RESEARCH_DOCUMENTATION_WORKSTREAM.md) | Parent workstream. Defines the Claim-Source Map (Phase 3), Claim-Source Audit (Phase 6), and standard sampling-based Audit Mode. |
 | [`AUDIT_WORKSTREAM.md`](AUDIT_WORKSTREAM.md) | Sibling workstream. Audit-mode sessions in this campaign follow its review-session pattern (Phases 1-4 + 6, skip 5). |
-| [`SESSION_RUNNER.md`](../../../SESSION_RUNNER.md) | Operational checklist — every session in the campaign runs against it. |
+| `SESSION_RUNNER.md` | Operational checklist — every session in the campaign runs against it. |
 
 ---
 
@@ -285,6 +285,8 @@ Parallel sub-agents (one per claim or one per section) are appropriate when:
 - Claim count per unit exceeds ~50
 - Sub-agent permission asymmetry permits read-but-not-write (parent must apply edits anyway — see [`RESEARCH_DOCUMENTATION_WORKSTREAM.md`](RESEARCH_DOCUMENTATION_WORKSTREAM.md) §Sub-Agent Permission Asymmetry)
 - Claims are independent (cross-claim consistency checks happen at the parent level)
+
+Fan-out never adds a writer: sub-agents read and return the quoted passage and status/verdict, and only the parent writes to the working tree or commits — no sub-agent edits, builds, or runs tests in the shared tree (failure mode #29; see [Iterative Methodology §Parallel Actors](../ITERATIVE_METHODOLOGY.md#parallel-actors)).
 
 ### Verdict and status calibration
 

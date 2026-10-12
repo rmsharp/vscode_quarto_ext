@@ -7,6 +7,7 @@
 ## SESSION PROTOCOL — FOLLOW BEFORE DOING ANYTHING
 
 Read and follow `SESSION_RUNNER.md` step by step. It is your operating procedure for every session. It tells you what to read, when to stop, and how to close out.
+<!-- If your project keeps its methodology files in methodology/, write methodology/SESSION_RUNNER.md above (BOOTSTRAP.md, section Two layouts). -->
 
 **Three rules you will be tempted to violate:**
 1. **Orient first** — Read SAFEGUARDS.md → SESSION_NOTES.md → run `methodology_dashboard.py` → git status → report findings → WAIT FOR THE USER TO SPEAK

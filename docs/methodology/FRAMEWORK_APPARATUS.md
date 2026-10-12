@@ -444,7 +444,11 @@ hook checks, so each commit carries its own entry, and each non-commit action ge
   revert as its own entry.
 - **A committed entry is never edited.** A correction is a new entry that names what was wrong. The
   one exception is removing content that must not be published — a credential, personal data — and
-  that removal is recorded by an entry of its own.
+  that removal is recorded by an entry of its own. The canonical ledger hook
+  ([`.githooks/pre-commit`](https://github.com/KJ5HST/methodology/blob/main/.githooks/pre-commit))
+  holds this mechanically: it refuses a staged ledger that changes or drops a committed entry,
+  unless the same commit stages a `docs/archive/` shard (a trim); the exception goes through with
+  `--no-verify`.
 - **A Phase 0 backfill is the one entry that may span several commits**: it records history that no
   close-out reached.
 - **The Phase 1B `CHANGELOG: pending` marker lives in `SESSION_NOTES.md`.** A project that keeps no
@@ -479,6 +483,10 @@ lossless. The tool's trigger is the only statement of *when* — these rules nam
 ```sh
 python3 methodology_trim.py --file CHANGELOG.md --check
 ```
+
+In a project that keeps its methodology files under `methodology/`, write
+`python3 methodology/methodology_trim.py --file methodology/CHANGELOG.md --check`
+(`SESSION_RUNNER.md` §Where the files are).
 
 `--check` evaluates the trigger, reports whether it fires, and never writes. For a project that has
 chosen not to archive, its report is information, not a fault. `--write` performs the trim; a dry
@@ -520,6 +528,17 @@ An archive is a **shard** — a new frozen file, same format, same newest-on-top
 **A trim is an action, not a side effect.** It earns its own commit and its own `[ad hoc]` entry
 here — one ledger, one shard, one commit, one revert. It does **not** belong in Phase 0, which is
 read-only apart from the reconcile backfill.
+
+**Trim while record 0 is complete — before the claim, or after the finalize is committed — never in
+the commit that finalizes it.** A session's claim leaves record 0 of `HANDOFFS.md` as a
+`status: pending` stub that close-out overwrites in place. A trim that lands in that same commit
+makes the generated `.verify.sh` read the receipt as *edited*, because its pre-trim bytes are the
+stub: the proof ends red (exit 4, named as a stub finalize since nothing else went missing, but
+still a FAIL) with nothing lost. `methodology_trim.py` warns when it sees the state coming
+(`FRONTIER_PENDING_STUB`, `FRONTIER_FINALIZE_UNCOMMITTED`); the warning is advisory and refuses
+nothing. A `.verify.sh` already written is frozen and never changes; to ask what today's template
+says about an old shard, run `methodology_trim.py --reverify <shard>` — read-only, it prints a verdict
+that is a claim about today's logic, not about the artifact that was shipped.
 
 **Not everything that grows can be archived this way.** Archiving moves *history*. A file that grows
 because someone keeps adding *procedure* has no past to move — extract a section to a sibling file

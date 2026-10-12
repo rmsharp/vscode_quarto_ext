@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-10-11 · [ad hoc] Sync the methodology files from the methodology repository (22 files)
+- **Change:** `bin/sync` (the methodology checkout at `8df554b`, v4.2-1754) updated 21 files and created `.gitattributes` (the ledger merge-driver seed); the seeds already present (`SESSION_NOTES.md`, `CHANGELOG.md`, `HANDOFFS.md`, `ROADMAP.md`, `.context-budget.json`, `.quality-gates.json`) were left as written and two files were already current. No file was refused and `--force` was not used. The one new root file, `.gitattributes`, is not packaged by vsce (measured in clones: 42 files before and after).
+- **Commit/PR:** this commit
+- **Session:** none of this project's own; run from the methodology repository's session S298 (BL-101 P17). **Verified:** the same sync in a clone changed no result of `npm test` (68 files, 4,583 tests), `check-package` (42 files), `check-backlog`, `check-types` or the ratchet (2/2).
+- **Model:** Claude Sonnet 5.5
+
 ### 2026-10-11 · [ad hoc] Deny `methodology/` in `.vscodeignore`, before the methodology files move there
 - **Change:** `.vscodeignore` gains the line `methodology/**` and a comment. The layout migration (methodology repository BL-101, P17) moves the framework files, ledgers and notes under `methodology/`; vsce matches `.vscodeignore` without `matchBase`, so the bare names already listed cover the root only, and without the line `npm run check-package` reads 78 files against 42 and `release-gate` fails. Measured in six clones of this repository on 2026-10-11: with the line the packaged set is identical to today's (42 files; a real `vsce package` gives 44 entries and 1,935,373 B, before and after).
 - **Commit/PR:** this commit

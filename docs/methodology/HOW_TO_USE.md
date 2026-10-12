@@ -743,7 +743,7 @@ Workstream prompts          ← Mission procedures (EXECUTE these)
 
 | Layer | Document | Read it to... | Length |
 |-------|----------|---------------|--------|
-| **Operating procedure** | `SESSION_RUNNER.md` (project root) | Know what to do RIGHT NOW, step by step | ~400 lines |
+| **Operating procedure** | `SESSION_RUNNER.md` (project root, or `methodology/`) | Know what to do RIGHT NOW, step by step | ~400 lines |
 | **Master framework** | `ITERATIVE_METHODOLOGY.md` | Understand WHY the steps exist | ~580 lines |
 | **Reference apparatus** | `FRAMEWORK_APPARATUS.md` | Fill in a session document, validate a scope, score a claim, write a ledger entry | ~535 lines |
 | **Workstream prompts** | e.g., `DEVELOPMENT_WORKSTREAM.md` | Know HOW to execute for a specific domain | Varies |
@@ -823,19 +823,20 @@ This mirrors a well-known finding in aviation safety: pilots who understand aero
 
 To use the session runner in your own project:
 
-1. **Place `SESSION_RUNNER.md` at the project root** (alongside your CLAUDE.md or equivalent agent instructions file).
+1. **Place `SESSION_RUNNER.md` at the project root** (alongside your CLAUDE.md or equivalent agent instructions file), or in a `methodology/` directory with the rest of the methodology files (`BOOTSTRAP.md` §Two layouts).
 
 2. **Reference it at the top of your agent instructions:**
    ```
    ## SESSION PROTOCOL — FOLLOW BEFORE DOING ANYTHING
    Read and follow SESSION_RUNNER.md step by step.
    ```
+   (In a `methodology/` project, write `methodology/SESSION_RUNNER.md`.)
 
 3. **Update the task-to-workstream mapping table** (Phase 1) to match your project's workstream prompts.
 
 4. **Update the failure modes table** with any tendencies specific to your project. The 27 documented modes are common to most AI agent work, but your project may surface additional ones.
 
-5. **Put the methodology framework in a known location** (e.g., `docs/methodology/`) so the session runner can reference it.
+5. **Put the methodology framework in a known location** (e.g., `docs/methodology/`, or `methodology/` beside the runner) so the session runner can reference it.
 
 The session runner is project-independent. The 4 phases and the failure modes table apply to any project using the iterative methodology. What changes per project is the task-to-workstream mapping and any project-specific failure modes.
 
@@ -867,7 +868,11 @@ Beyond the session runner, AI agents benefit from these adaptations. These findi
 
 ### Multi-Agent Teams
 
-For large workstreams, agents can work in parallel on different sessions:
+Parallel work comes in two shapes, told apart by who closes out:
+- **Shape A — one session, many hands.** One lead session runs orient and close-out for the whole deliverable. Workers build units of it and return their work to the lead, who alone commits it; workers write no session records.
+- **Shape B — many sessions, many closers.** Several independent sessions run at the same time, each following the full session runner on its own deliverable. Their work joins by merge.
+
+For large workstreams, Shape B lets agents work in parallel on different sessions:
 - Agent A: Session for resource X
 - Agent B: Session for resource Y
 - Both read the same prior session outputs
@@ -875,7 +880,9 @@ For large workstreams, agents can work in parallel on different sessions:
 
 The session documents are the coordination mechanism. Agents don't need to communicate directly — they communicate through accumulated patterns and anti-patterns.
 
-Each agent should follow its own copy of the session runner. The orient phase is the same; the deliverable is different; the close-out feeds into the shared workstream prompt.
+Each concurrent session follows its own copy of the session runner, on its own branch or worktree. The orient phase is the same; the deliverable is different; the close-out feeds into the shared workstream prompt. In either shape, **a working tree has one writer** (`SAFEGUARDS.md` §Blast Radius Limits): agents that edit, build or test in the same tree at once read each other's half-finished changes as defects.
+
+The contract for both shapes — who may write what, how the lead integrates workers' units, and how two lines of sessions join — is [`ITERATIVE_METHODOLOGY.md` §Parallel Actors](ITERATIVE_METHODOLOGY.md#parallel-actors).
 
 ---
 

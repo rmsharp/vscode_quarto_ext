@@ -20,7 +20,7 @@ This is a **campaign**, not a workstream. It does not replace the Audit workstre
 | [`ITERATIVE_METHODOLOGY.md`](../ITERATIVE_METHODOLOGY.md) | Master framework — 9 principles, 6 phases, 12 quality gates. This campaign obeys all of them. See §Multi-Session Campaigns. |
 | [`AUDIT_WORKSTREAM.md`](AUDIT_WORKSTREAM.md) | Parent workstream. Defines audit-criteria definition, scope inventory, evidence-bearing findings, and the review-session pattern (Phases 1-4 + 6, skip 5). |
 | [`DEVELOPMENT_WORKSTREAM.md`](DEVELOPMENT_WORKSTREAM.md) | Sibling workstream. The consolidation session's prioritized backlog feeds into Development sessions; the per-unit dependency analysis informs blast-radius estimates for those sessions. |
-| [`SESSION_RUNNER.md`](../../../SESSION_RUNNER.md) | Operational checklist — every session in the campaign runs against it. |
+| `SESSION_RUNNER.md` | Operational checklist — every session in the campaign runs against it. |
 
 ---
 
@@ -266,6 +266,8 @@ Parallel sub-agents (one per call-graph cluster) are appropriate when:
 - The unit's public API has more than ~10 entry points
 - Entry points are largely independent (cross-entry-point shared state is the integration-step concern, not the per-entry-point concern)
 - Sub-agent permission asymmetry permits read-only — the unit deliverable is written by the parent, so sub-agents do not need write access
+
+Fan-out never adds a writer: sub-agents read and return their cluster's findings, and only the parent writes to the working tree or commits — no sub-agent edits, builds, or runs tests in the shared tree (failure mode #29; see [Iterative Methodology §Parallel Actors](../ITERATIVE_METHODOLOGY.md#parallel-actors)).
 
 ### Calibration
 

@@ -27,6 +27,11 @@ WHY THREE ASSERTIONS AND NOT ONE
     None of the three is the whole-file check, and that is deliberate: the unscoped whole-file form
     is unsatisfiable on any run that regenerates the pointer (design §4.2).
 
+RE-DERIVING AN OLD PROOF
+    A generated `.verify.sh` is frozen, so a later fix to the template never reaches it. `--reverify
+    <shard>` runs TODAY'S template over the grammar lifted out of the shard's frozen proof and prints
+    that verdict, read-only and under a banner saying it is not the artifact that was shipped.
+
 DEFAULTS THAT ARE INVERTED ON PURPOSE
     Dry run is the default; `--write` is required to touch anything. The tool never commits, and
     it never runs `git mv` (design P2): a trim writes a new shard and edits the live ledger in
@@ -38,15 +43,86 @@ Python 3 stdlib only, cross-platform — this file is destined for adopter roots
 from __future__ import annotations
 
 import argparse
+import ast
+import collections
 import datetime
 import os
+import posixpath
 import re
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
-TRIM_VERSION = "1.5.0"   # 1.5.0: Phase C2 — the Class A archive threshold, and the byte budget
+TRIM_VERSION = "1.8.0"   # 1.8.0: BL-101 P3 (the methodology/ directory plan, section 7.2, coupling C7) -- a ledger
+                         # may sit under methodology/. Where a shard goes and how a link is rebased now come
+                         # from the DIRECTORY of the ledger being trimmed (`layout_for`): a root ledger keeps
+                         # docs/archive/ and the two-level prefix, exactly as before and byte for byte; a
+                         # ledger under methodology/ writes methodology/archive/ (decision D5) and climbs one
+                         # level, and a link target that already starts with ../ is ordinary there (the
+                         # ledger is one level down and a project file is exactly such a link), so the
+                         # rebase stays invertible. The action ledger is found by the embedded layout
+                         # resolver, whose framework-anchor tie rule needs no request, and a half-migrated tree is refused
+                         # by name (LAYOUT_HALF_MIGRATED). The trigger reads the shards of BOTH archive
+                         # directories, since D5 moves the archive last, and a shard name is never reused
+                         # across them. `--reverify` needs no new lift: the layout comes from the lifted
+                         # LIVE path. Minor, not patch: a new finding code and a second output location.
+                         # What a trim in the legacy layout WRITES is unchanged.
+                         #
+                         # 1.7.0: issue #93, cause 3 — a proof is a FROZEN artifact, so a fix to the
+                         # template (1.5.1's whole-line `leaked`, 1.6.0's stub label) never reaches a
+                         # proof already written, and an adopter holds red proofs of lossless trims
+                         # with no way to ask what today's template says. `--reverify <shard>` lifts
+                         # LIVE, SHARD and the record grammar out of the shard's frozen `.verify.sh`,
+                         # fills THIS tool's template with them, runs it, and prints the verdict under
+                         # a banner that says it is a claim about today's logic and not the artifact
+                         # that was shipped. It writes nothing and leaves the frozen proof alone. Its
+                         # exit status is the proof's own (0 holds, 1 a FAIL, 4 a recognised stub
+                         # finalize) or 3 for a shard it will not re-derive. A line that is not in the
+                         # exact form the template writes is REFUSED by name: the lifted text is spliced
+                         # into a shell assignment and into Python the proof then executes, so the
+                         # flag is safe to point at a tree you do not trust. A frozen proof that
+                         # predates a line gets today's value (the stub marker from the ledger table
+                         # by live basename; no regenerated fields), and the banner says so. Minor,
+                         # not patch: a new flag, new finding codes, a new exit-3 path. What the tool
+                         # WRITES is unchanged (`build_verify` is `render_verify` over a spec).
+                         #
+                         # 1.6.0: issue #93, cause 1 — a commit that FINALIZES a session's pending claim
+                         # stub and trims in the same breath made the proof read record 0 as EDITED
+                         # and end red with nothing lost (BL-27 refused to excuse it: a real loss can
+                         # have that shape). The proof can now tell the stub shape from the loss
+                         # shape. A ledger spec may declare `stub_marker` (HANDOFFS.md: a line
+                         # `status: pending`; CHANGELOG.md declares none, because a committed entry
+                         # there is never edited in place), it travels in the proof as STUB_PATTERN
+                         # beside REGEN_PATTERNS, and a frontier edit whose pre-trim record 0 matches
+                         # it, whose replacement no longer does, with L2 holding and every other
+                         # record byte-identical and in order, prints a labelled FAIL INSTEAD of the
+                         # generic L1/L3 pair and exits 4. Still a FAIL by design; every near-miss
+                         # keeps exit 1. The writer also WARNS before the bad state is committed:
+                         # two advisory findings (no exit code, nothing refused),
+                         # FRONTIER_PENDING_STUB (record 0 still carries the marker when the trimmer
+                         # runs) and FRONTIER_FINALIZE_UNCOMMITTED (HEAD's record 0 was a stub that
+                         # the working tree no longer holds), each stating the timing rule: trim
+                         # while record 0 is complete, before the claim or after the finalize is
+                         # committed, never in the same commit. Minor, not patch: a new exit status,
+                         # two new finding codes and a new LedgerSpec field. The note a bundled
+                         # frontier edit prints no longer calls bundling "this repository's own
+                         # practice" (a trim earns its own commit) and states the timing rule, which
+                         # FRAMEWORK_APPARATUS.md now states in the same words. Proofs already
+                         # written are frozen artifacts and do not change.
+                         #
+                         # 1.5.1: issue #93 — the GENERATED .verify.sh's L2 "leaked" clause compared by
+                         # substring (`ln in sfront or ln in "".join(sr)`), so an archived record that
+                         # merely QUOTED a front-matter line mid-line (in backticks, inside a longer
+                         # line) read as that line having travelled into the shard: a false red on a
+                         # lossless trim. It now tests membership in the sets of WHOLE lines, which is
+                         # what a migration moves; the `> 24` length filter is kept, and a whole-line
+                         # copy into the shard (its front matter or a record) still fails. No new
+                         # finding code and no exit-status change: patch, not minor — a correctness
+                         # fix to what the tool WRITES, the class of 1.1.2 and 1.1.3. Proofs already
+                         # written are frozen artifacts and do not change.
+                         #
+                         # 1.5.0: Phase C2 — the Class A archive threshold, and the byte budget
                          # raised to meet it. An adopter's ROOT CHANGELOG.md/HANDOFFS.md now fires
                          # at 196,608 B instead of 65,536 and cuts back to 98,304 instead of
                          # 32,768, so a ledger that reported FIRES yesterday can report
@@ -200,9 +276,64 @@ DEFAULT_BUDGET_BYTES = 192 * 1024  # 196,608 — the per-file byte budget, still
 # rather than on taste; the arithmetic is in read-cap-premise-correction-plan.md, Phase B.
 BYTE_STOP_FRACTION = 0.5       # hysteresis — stops a trim re-firing on the next record
 SRF_RED = 1.00                 # plan §3.3 H3: at or above this, a reset is the wrong move
-ARCHIVE_DIR = "docs/archive"
+ARCHIVE_DIR = "docs/archive"   # layout: ok -- the legacy half of the shard-directory table (LEGACY below)
 REBASE_PREFIX = "../../"       # docs/archive/<shard>.md -> repo root is exactly two levels
+NEW_DIR = "methodology"        # layout: ok -- the directory a migrated project keeps its framework files in (plan 4.1)
+NEW_ARCHIVE_DIR = NEW_DIR + "/archive"   # decision D5: the archive moves with the ledgers
+TOOL = "methodology_trim.py"   # layout: ok -- this tool's own file name, printed in messages and written into proofs
+LEDGER_NAME = "CHANGELOG.md"   # layout: ok -- the action ledger's own file name: the resolver's anchor
+RUNNER = "SESSION_RUNNER.md"   # layout: ok -- the framework anchor the resolver reads, named in a refusal
+APPARATUS = "FRAMEWORK_APPARATUS.md"   # layout: ok -- a document cited by bare name inside the proof (names are relative to the runner's directory, plan 4.4)
 SHARD_SUFFIX_MAX = 99          # BL-41 — bound on collision disambiguation; past it, refuse
+
+# === LAYOUT ===
+# A ledger sits at its project's root (legacy) or under methodology/ (new): the plan's section 4.3. The
+# block is the resolver, embedded byte for byte; the canonical suite asserts that. The trimmer uses it
+# for ONE question, where the action ledger is, because a trim of any file writes its entry there.
+
+# --- layout resolver: BEGIN ---
+import os as _os
+from pathlib import Path as _Path
+
+
+def resolve_layout(root, anchor="SESSION_RUNNER.md"):
+    """Return (kind, directory, found): kind is new|legacy|half|none, directory a Path or None,
+    found the anchor paths that exist. A half-migrated tree has no directory, by design.
+    A file found in both places is the framework's under methodology/ when the runner is under
+    methodology/ and not at the root: the root copy is the project's own and is left alone, kind new,
+    and found still names both. Any other tie stays half, and the runner cannot decide a tie about itself."""
+    root = _Path(root)
+    new, old = root / "methodology" / anchor, root / anchor
+    found = tuple(p for p in (new, old) if _os.path.isfile(p))
+    if len(found) == 2:
+        if _os.path.isfile(root / "methodology" / "SESSION_RUNNER.md") and not _os.path.isfile(root / "SESSION_RUNNER.md"):
+            return "new", new.parent, found
+        return "half", None, found
+    if not found:
+        return "none", None, ()
+    return ("new", new.parent, found) if found[0] == new else ("legacy", root, found)
+# --- layout resolver: END ---
+
+# Where a shard goes and how a link is rebased follow the DIRECTORY of the ledger being trimmed:
+#   ledger_dir    the directory the ledger's own relative links are written against ('' = the root)
+#   archive_dir   where this layout's shards and their proofs are written
+#   rebase_prefix the climb from archive_dir back to ledger_dir, applied to every in-domain link
+#   parent_links  whether a link target that already starts with ../ is ordinary (it is, one level down)
+ShardLayout = collections.namedtuple("ShardLayout", "ledger_dir archive_dir rebase_prefix parent_links")
+LEGACY = ShardLayout("", ARCHIVE_DIR, REBASE_PREFIX, False)
+NEW = ShardLayout(NEW_DIR, NEW_ARCHIVE_DIR, "../", True)
+ARCHIVE_DIRS = (ARCHIVE_DIR, NEW_ARCHIVE_DIR)   # every directory a shard of any layout may sit in
+
+
+def layout_for(live_rel):
+    """The shard layout of the ledger at `live_rel` (repository-relative, posix): new when it sits directly
+    in methodology/, legacy for anything else (a root ledger, or a nested one such as starter-kit/)."""
+    return NEW if posixpath.dirname(live_rel) == NEW_DIR else LEGACY
+
+
+def ledger_link(layout, rel):
+    """The link target for the repository-relative path `rel` as written INSIDE a ledger of this layout."""
+    return posixpath.relpath(rel, layout.ledger_dir) if layout.ledger_dir else rel
 
 # --- "is this plausibly a fresh seed?" — a DIFFERENT question from "is it over its budget" ----
 # Deliberately its own literal rather than an alias of DEFAULT_BUDGET_BYTES, and deliberately not
@@ -275,7 +406,7 @@ class Result:
 class LedgerSpec:
     def __init__(self, basename, record_kind, footer_mode, date_of_record,
                  record_start=None, fence_info=None, regenerated=(), budget_bytes=DEFAULT_BUDGET_BYTES,
-                 content_probe=None, seed_negation=None):
+                 content_probe=None, seed_negation=None, stub_marker=None):
         self.basename = basename
         self.record_kind = record_kind        # "heading" | "fence"
         self.record_start = record_start      # compiled regex, for record_kind == "heading"
@@ -286,6 +417,13 @@ class LedgerSpec:
         self.budget_bytes = budget_bytes
         self.content_probe = content_probe    # loose "this LOOKS like a record" regex, or None
         self.seed_negation = seed_negation    # the seed comment's own "and there are no X below"
+        # What a PENDING STUB looks like (compiled with re.M, matched against one record's text), or
+        # None. A stub is a record a session commits at its claim and OVERWRITES IN PLACE at
+        # close-out. Declare one only for a ledger whose records are finalized by editing: a
+        # ledger that never edits a committed record has no stub in this sense, and a marker there
+        # would label a final record "pending" (see the HANDOFFS.md and CHANGELOG.md entries below).
+        # It travels in the generated proof as STUB_PATTERN, so a frozen script can still use it.
+        self.stub_marker = stub_marker
 
 
 def _changelog_date(text):
@@ -299,8 +437,8 @@ def _handoff_date(text):
 
 
 LEDGERS = {
-    "CHANGELOG.md": LedgerSpec(
-        basename="CHANGELOG.md",
+    "CHANGELOG.md": LedgerSpec(   # layout: ok -- a ledger's own file name, matched at any depth by basename
+        basename="CHANGELOG.md",   # layout: ok -- the same name, the spec's key
         record_kind="heading",
         # Anchored on the dated, source-tagged heading the ledger's own audit grep uses.
         record_start=re.compile(r"^### \d{4}-\d{2}-\d{2} · \["),
@@ -324,8 +462,8 @@ LEDGERS = {
         # guard. HANDOFFS.md keeps one because its records are fences, where that is not true.
         seed_negation=None,
     ),
-    "HANDOFFS.md": LedgerSpec(
-        basename="HANDOFFS.md",
+    "HANDOFFS.md": LedgerSpec(   # layout: ok -- a ledger's own file name, matched at any depth by basename
+        basename="HANDOFFS.md",   # layout: ok -- the same name, the spec's key
         record_kind="fence",
         fence_info="handoff",
         # Declared to have NO footer: trailing prose below the last fence belongs to that receipt.
@@ -349,6 +487,15 @@ LEDGERS = {
         # is present AND there are no `session:` blocks below" — so the negation is `session:`,
         # not a dated heading. Fence-aware, so the seed's wrapped example does not count itself.
         seed_negation=re.compile(r"^session:\s"),
+        # Phase 1B commits this ledger's record 0 as `status: pending` and Phase 3D overwrites it to
+        # `status: complete` IN PLACE, so a pending record 0 is a stub by the runner's own design.
+        # One whole line (`status:` is a single-line key), so a receipt that merely QUOTES the
+        # marker mid-line in a long field is not one. CHANGELOG.md declares none, deliberately: its
+        # lifecycle is "a committed entry is never edited" and a claim's `(in progress)` entry
+        # stays as written when close-out adds its own (FRAMEWORK_APPARATUS.md, The Action
+        # Ledger), so such an entry is a FINAL record: every claim in this repo's own ledger still
+        # reads (in progress).
+        stub_marker=re.compile(r"^status: pending\s*$", re.M),
     ),
 }
 
@@ -529,6 +676,13 @@ def shard_name_taken(shard_path):
     return shard_path.exists() or Path(str(shard_path) + ".verify.sh").exists()
 
 
+def shard_name_taken_anywhere(repo, name):
+    """True if a shard of this NAME exists in any archive directory. A project that moved its ledger
+    still holds the shards its legacy trims wrote under docs/archive/ (D5 moves the archive last), and
+    "-through-<date>" is a span label, so a name is never reused across the two."""
+    return any(shard_name_taken(repo / d / name) for d in ARCHIVE_DIRS)
+
+
 def _indent(s, pad="    | "):
     return "\n".join(pad + ln for ln in s.splitlines())
 
@@ -545,7 +699,7 @@ _LINK = re.compile(r"\]\(([^)\s]*)\)")
 _SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:")
 
 
-def _in_domain(target):
+def _in_domain(target, parent_links=False):
     if not target:
         return False
     if _SCHEME.match(target):          # absolute URL / mailto:
@@ -554,8 +708,8 @@ def _in_domain(target):
         return False
     if target.startswith("/"):         # absolute path
         return False
-    if target.startswith("../"):       # already relative — prefixing it is not invertible
-        return False
+    if target.startswith("../") and not parent_links:   # already relative — prefixing it is not invertible
+        return False                                     # (in the new layout it is: the prefix is one ../)
     return True
 
 
@@ -580,20 +734,20 @@ def _map_links(text, fn):
     return "".join(out)
 
 
-def transform_record(text):
-    return _map_links(text, lambda t: REBASE_PREFIX + t if _in_domain(t) else None)
+def transform_record(text, layout=LEGACY):
+    return _map_links(text, lambda t: layout.rebase_prefix + t if _in_domain(t, layout.parent_links) else None)
 
 
-def invert_record(text):
+def invert_record(text, layout=LEGACY):
     def back(t):
-        if not t.startswith(REBASE_PREFIX):
+        if not t.startswith(layout.rebase_prefix):
             return None
-        stripped = t[len(REBASE_PREFIX):]
-        return stripped if _in_domain(stripped) else None
+        stripped = t[len(layout.rebase_prefix):]
+        return stripped if _in_domain(stripped, layout.parent_links) else None
     return _map_links(text, back)
 
 
-def check_invertible(records, result):
+def check_invertible(records, result, layout=LEGACY):
     """Apply the transform then its inverse and assert the round-trip is the identity.
 
     "Uniform because uniform is invertible and therefore provable" — operationally, this. A record
@@ -602,14 +756,14 @@ def check_invertible(records, result):
     """
     bad = []
     for idx, rec in enumerate(records):
-        if invert_record(transform_record(rec)) != rec:
+        if invert_record(transform_record(rec, layout), layout) != rec:
             bad.append(idx)
     if bad:
         result.add(
             "TRANSFORM_NOT_INVERTIBLE",
-            "the ../../ rebase does not round-trip to the identity on record(s) %s — refusing. A "
+            "the %s rebase does not round-trip to the identity on record(s) %s — refusing. A "
             "record carrying an already-relative ('../') link target cannot be rebased provably."
-            % ", ".join(str(b) for b in bad),
+            % (layout.rebase_prefix, ", ".join(str(b) for b in bad)),
             exit_code=2,
         )
         return False
@@ -621,7 +775,7 @@ def check_invertible(records, result):
 # one RED with a corrupted triple and watch it fail before any green is trusted.
 # =============================================================================================
 
-def assert_L1(before_records, retained_records, shard_records, result):
+def assert_L1(before_records, retained_records, shard_records, result, layout=LEGACY):
     """records(live_after) ++ invert(transform(records(shard))) == records(live_before).
 
     Scoped to the RECORDS zone. The unscoped whole-file form is unsatisfiable on any run that
@@ -635,7 +789,7 @@ def assert_L1(before_records, retained_records, shard_records, result):
     total length: not loss, just the two halves swapped. Found by implementing it; recorded in the
     S37 close-out rather than silently corrected.
     """
-    reconstructed = "".join(retained_records) + "".join(invert_record(r) for r in shard_records)
+    reconstructed = "".join(retained_records) + "".join(invert_record(r, layout) for r in shard_records)
     original = "".join(before_records)
     if reconstructed != original:
         i = _first_diff(reconstructed, original)
@@ -651,7 +805,7 @@ def assert_L1(before_records, retained_records, shard_records, result):
 
 
 def assert_L2(before_zones, after_front, after_footer, shard_text, declared_inserts, reversals,
-              result):
+              result, layout=LEGACY):
     """Zone pinning — every FOOTER byte stays live and is absent from the shard; the FRONT MATTER
     diff is confined to the declared regenerated fields and the pointer block.
 
@@ -675,7 +829,7 @@ def assert_L2(before_zones, after_front, after_footer, shard_text, declared_inse
         # substring test misses it — including on the real 020ba3f footer, whose one link is
         # exactly the kind the transform rewrites.
         if footer.strip() and (footer.strip() in shard_text
-                               or footer.strip() in invert_record(shard_text)):
+                               or footer.strip() in invert_record(shard_text, layout)):
             result.add(
                 "L2_FOOTER_MOVED",
                 "the FOOTER zone appears in the shard. In a newest-on-top file the footer sits "
@@ -906,28 +1060,34 @@ class Trigger:
         return byte_ok and read_ok
 
 
-def archive_events(repo, spec):
+def archive_events(repo, spec, layout=LEGACY):
     """[(sha, pre_size, post_size, relpath)] for every shard of this ledger, oldest first.
 
-    Derived by GLOB over docs/archive/, never from hardcoded literal paths: `bin/tests.sh` wires
-    exactly one shard by literal path in two places, so a second shard would never be checked and
-    the suite would still pass (design §8.2).
+    Derived by GLOB over the archive directory, never from hardcoded literal paths: `bin/tests.sh`
+    wires exactly one shard by literal path in two places, so a second shard would never be checked
+    and the suite would still pass (design §8.2). A ledger under methodology/ reads BOTH directories:
+    the shards its legacy trims wrote are its history, since the archive moves last (D5).
     """
-    adir = repo / ARCHIVE_DIR
-    if not adir.is_dir():
-        return []
     stem = spec.basename[:-3] if spec.basename.endswith(".md") else spec.basename
+    dirs = [layout.archive_dir] + [d for d in ARCHIVE_DIRS if d != layout.archive_dir and layout == NEW]
     events = []
-    for shard in sorted(adir.glob("%s-*.md" % stem)):
-        rel = shard.relative_to(repo).as_posix()
-        sha = git(repo, "log", "--diff-filter=A", "-1", "--format=%H", "--", rel)
-        if not sha:
+    for d in dirs:
+        adir = repo / d
+        if not adir.is_dir():
             continue
-        pre = size_at(repo, sha + "^", spec.basename)
-        post = size_at(repo, sha, spec.basename)
-        if pre is None or post is None or pre <= post:
-            continue
-        events.append((sha, pre, post, rel))
+        for shard in sorted(adir.glob("%s-*.md" % stem)):
+            rel = shard.relative_to(repo).as_posix()
+            sha = git(repo, "log", "--diff-filter=A", "-1", "--format=%H", "--", rel)
+            if not sha:
+                continue
+            # The ledger sat where THIS shard's own layout puts it when the shard was written: a shard in
+            # the legacy directory was trimmed from a root ledger, even if the ledger has moved since.
+            ledger_path = posixpath.join(NEW_DIR, spec.basename) if d == NEW_ARCHIVE_DIR else spec.basename
+            pre = size_at(repo, sha + "^", ledger_path)
+            post = size_at(repo, sha, ledger_path)
+            if pre is None or post is None or pre <= post:
+                continue
+            events.append((sha, pre, post, rel))
     # Order by position in the commit graph, NEWEST first, then reverse — never by %ct. Two
     # archives committed in the same second are ordinary (a script, a test), and a timestamp tie
     # falls back to sha order, which is arbitrary: "the most recent archive" would then be a coin
@@ -945,7 +1105,7 @@ def archive_events(repo, spec):
 
 
 def is_root_class_a(repo, path, spec):
-    """Is this file a Class A ledger AT THE REPOSITORY ROOT?
+    """Is this file a Class A ledger AT THE REPOSITORY ROOT, or directly under methodology/?
 
     PHASE C2, and the whole point is that this asks a different question from `LEDGERS.get(name)`.
     That lookup is by BASENAME at any depth, so `starter-kit/CHANGELOG.md` and a hypothetical
@@ -957,12 +1117,16 @@ def is_root_class_a(repo, path, spec):
     and answers None -- neither A nor B -- for a nested one. The two tools were already asking
     different questions here; before C2 the difference cost nothing because both arms used the
     same constant. Returns False on anything it cannot resolve, which routes the caller to the
-    tighter arm."""
+    tighter arm.
+
+    BL-101 P3: a ledger a project moved under methodology/ is the same ledger at its new address, the
+    one the protocol reads, so it earns the same arm. `starter-kit/CHANGELOG.md` and a ledger nested
+    anywhere else still do not."""
     try:
         rel = path.resolve().relative_to(repo).as_posix()
     except (ValueError, OSError):
         return False
-    return rel == spec.basename
+    return rel in (spec.basename, posixpath.join(NEW_DIR, spec.basename))
 
 
 def evaluate_trigger(repo, path, spec, zones, budget, result):
@@ -972,7 +1136,7 @@ def evaluate_trigger(repo, path, spec, zones, budget, result):
     text = read_text(path)
     t.size_bytes = len(text.encode("utf-8"))
 
-    events = archive_events(repo, spec)
+    events = archive_events(repo, spec, layout_for(posixpath.relpath(str(path.resolve()), str(repo))))
 
     # --- SRF: reported for BOTH boundaries, because they differ by 3x on the same file ---------
     if not events:
@@ -1090,13 +1254,17 @@ def assemble_live(front, retained, footer):
     return front + "".join(retained) + footer
 
 
-def build_pointer_block(spec, shard_rel, verify_rel, count, span, live_rel):
+def build_pointer_block(spec, shard_rel, verify_rel, count, span, live_rel, layout=None):
+    """The block a trim writes into the live ledger's front matter. The displayed path is repository-rooted;
+    the link target is written against the ledger's own directory, which is the root in the legacy layout."""
+    layout = layout or layout_for(live_rel)
     first, last = span
     return (
         "**Archived %d record(s), %s → %s** into [`%s`](%s) — same format, same order, frozen.\n"
         "Losslessness is proved by [`%s`](%s), which re-derives L1/L2/L3 from git; run it rather\n"
-        "than trusting this sentence. Written by `methodology_trim.py` v%s.\n\n"
-        % (count, first, last, shard_rel, shard_rel, verify_rel, verify_rel, TRIM_VERSION)
+        "than trusting this sentence. Written by `%s` v%s.\n\n"
+        % (count, first, last, shard_rel, ledger_link(layout, shard_rel),
+           verify_rel, ledger_link(layout, verify_rel), TOOL, TRIM_VERSION)
     )
 
 
@@ -1140,10 +1308,11 @@ def apply_regenerated(front, spec, ctx, result):
     return out, reversals
 
 
-def build_shard(spec, live_rel, shard_rel, records, span, cut_key):
+def build_shard(spec, live_rel, shard_rel, records, span, cut_key, layout=None):
+    layout = layout or layout_for(live_rel)
     first, last = span
-    body = "".join(transform_record(r) for r in records)
-    back = REBASE_PREFIX + live_rel
+    body = "".join(transform_record(r, layout) for r in records)
+    back = posixpath.relpath(live_rel, posixpath.dirname(shard_rel) or ".")   # the live ledger, from the shard
     head = (
         "# %s — archive: %s → %s\n"
         "\n"
@@ -1165,21 +1334,29 @@ LEDGER_ENTRY_TEMPLATE = (
     "### %(date)s · [ad hoc] Ledger trim: `%(live)s` → `%(shard)s` "
     "(%(n)d record(s), %(before)s B → %(after)s B)\n"
     "\n"
-    "**Written by:** `methodology_trim.py` v%(ver)s — a tool action, not a session's judgment.\n"
-    "Moved the oldest **%(n)d** record(s) (%(first)s → %(last)s) out of [`%(live)s`](%(live)s) into\n"
-    "[`%(shard)s`](%(shard)s). Losslessness is asserted by L1 (records-zone concatenation), L2 (zone\n"
-    "pinning) and L3 (record partition), and is **re-derivable** — run [`%(verify)s`](%(verify)s)\n"
+    "**Written by:** `%(tool)s` v%(ver)s — a tool action, not a session's judgment.\n"
+    "Moved the oldest **%(n)d** record(s) (%(first)s → %(last)s) out of [`%(live)s`](%(live_link)s) into\n"
+    "[`%(shard)s`](%(shard_link)s). Losslessness is asserted by L1 (records-zone concatenation), L2 (zone\n"
+    "pinning) and L3 (record partition), and is **re-derivable** — run [`%(verify)s`](%(verify_link)s)\n"
     "rather than trusting a digest printed here. Live file %(before)s B → %(after)s B (%(pct)s).\n"
     "\n"
 )
 
 
-def build_ledger_entry(live_rel, shard_rel, verify_rel, n, span, before_b, after_b, today):
+def build_ledger_entry(live_rel, shard_rel, verify_rel, n, span, before_b, after_b, today, ledger_rel=None):
+    """The entry a trim prepends to the ACTION ledger. Its link targets are written against that ledger's
+    own directory (`ledger_rel`'s), which is the root in the legacy layout, so they are not the trimmed
+    file's: a HANDOFFS.md trim writes into CHANGELOG.md, and the two sit in one directory only by layout."""
     first, last = span
+    base = posixpath.dirname(ledger_rel) if ledger_rel else ""
+
+    def link(rel):
+        return posixpath.relpath(rel, base) if base else rel
     pct = "−%.1f%%" % (100.0 * (before_b - after_b) / before_b) if before_b else "n/a"
     return LEDGER_ENTRY_TEMPLATE % {
         "date": today, "live": live_rel, "shard": shard_rel, "verify": verify_rel,
-        "n": n, "first": first, "last": last, "ver": TRIM_VERSION,
+        "live_link": link(live_rel), "shard_link": link(shard_rel), "verify_link": link(verify_rel),
+        "tool": TOOL, "n": n, "first": first, "last": last, "ver": TRIM_VERSION,
         "before": "{:,}".format(before_b), "after": "{:,}".format(after_b), "pct": pct,
     }
 
@@ -1216,7 +1393,7 @@ def insert_ledger_entry(ledger_text, spec, entry, today, result):
 # =============================================================================================
 
 VERIFY_TEMPLATE = r"""#!/usr/bin/env bash
-# Losslessness proof for @@SHARD@@ — generated by methodology_trim.py v@@VER@@.
+# Losslessness proof for @@SHARD@@ — generated by @@TOOL@@ v@@VER@@.
 #
 # Self-contained and FROZEN: it embeds the record grammar it was written against, so a later change
 # to the trimmer cannot silently change what this shard's proof means. Re-derives L1 (records-zone
@@ -1241,13 +1418,20 @@ RECORD_KIND = "@@KIND@@"
 RECORD_START = r"@@START@@"
 FENCE_INFO = "@@INFO@@"
 FOOTER_MODE = "@@FOOTER@@"
-PREFIX = "../../"
+PREFIX = "@@PREFIX@@"
+PARENT_LINKS = @@PARENT@@
 
 # BL-27 fix 1: the same declared front-matter fields assert_L2's reversal exception already knows
 # about (design's regenerated-field table), so a line that changed ONLY inside one of these spans
 # is not "lost" — every OTHER line still must survive verbatim, unchanged from before this fix.
 REGEN_PATTERNS = @@REGEN@@
 REGEN = [re.compile(p) for p in REGEN_PATTERNS]
+
+# Issue #93: what a PENDING STUB looks like in this ledger, or '' when it declares none. A frozen
+# script cannot consult the trimmer's ledger table, so the marker travels here, beside REGEN. It
+# decides only how a failing frontier edit is LABELLED (below); it never turns a failure into a pass.
+STUB_PATTERN = @@STUB@@
+STUB = re.compile(STUB_PATTERN, re.M) if STUB_PATTERN else None
 
 FENCE = re.compile(r"^(`{3,}|~{3,})(.*)$")
 LINK = re.compile(r"\]\(([^)\s]*)\)")
@@ -1303,7 +1487,7 @@ def spans(line):
 
 
 def indomain(t):
-    return bool(t) and not SCHEME.match(t) and not t.startswith(("#", "/", "../"))
+    return bool(t) and not SCHEME.match(t) and not t.startswith(("#", "/") if PARENT_LINKS else ("#", "/", "../"))
 
 
 def maplinks(text, fn):
@@ -1505,8 +1689,16 @@ missing = [ln for ln in bfront.splitlines()
            if ln.strip() and ln not in afront_lines and not field_reversible(ln)]
 if missing:
     fails.append("L2 FRONT MATTER lost %d line(s), first: %r" % (len(missing), missing[0][:70]))
+# Issue #93 fix: whole-line membership, not substring containment. `ln in sfront` and
+# `ln in "".join(sr)` asked whether the front-matter line occurs ANYWHERE in the shard's text,
+# so an archived record that merely QUOTED it mid-line (in backticks, in a longer line) read as
+# the line having travelled into the shard. A migration moves WHOLE lines, so the test is
+# membership in the sets of whole lines of the shard's front matter and of its records; the
+# `> 24` length filter is kept. Same class of fix as BL-28 just above, on the other clause.
+sfront_lines = set(sfront.splitlines())
+sr_lines = set("".join(sr).splitlines())
 leaked = [ln for ln in bfront.splitlines()
-          if ln.strip() and len(ln.strip()) > 24 and (ln in sfront or ln in "".join(sr))]
+          if ln.strip() and len(ln.strip()) > 24 and (ln in sfront_lines or ln in sr_lines)]
 if leaked:
     fails.append("L2 FRONT MATTER leaked %d line(s) into the shard, first: %r"
                  % (len(leaked), leaked[0][:70]))
@@ -1527,12 +1719,14 @@ else:
     if bad:
         fails.append("L3 record(s) out of order across the move: %s" % bad)
 
-# BL-27 fix 2: a same-commit close-out bundling (this repo's own established practice — a
-# session's own frontier receipt going status: pending -> complete, committed together with the
-# archive write) makes position 0 (newest) legitimately differ between this commit's parent and
-# itself. NOT an exemption — this stays a FAIL, loud, because a real loss can have this exact
-# shape too — only a NOTE naming the known pattern, so a reader does not mistake it for an
-# unqualified loss. Narrow on purpose: any OTHER record differing (bad != [0]) gets no such note.
+# BL-27 fix 2: a same-commit close-out bundling (a session's own frontier receipt going
+# status: pending -> complete, committed together with the archive write) makes position 0 (newest)
+# differ between this commit's parent and itself. That bundling is NOT this framework's practice --
+# @@APPARATUS@@ says a trim earns its own commit, and issue #93 measured what it costs --
+# but sessions have done it, so the proof must still judge it. NOT an exemption: this stays a FAIL,
+# loud, because a real loss can have this exact shape too -- only a NOTE naming the pattern, so a
+# reader does not mistake it for an unqualified loss. Narrow on purpose: any OTHER record differing
+# (bad != [0]) gets no such note.
 #
 # BL-36 re-expressed the gate in the new vocabulary. It was `bad == [0]` — the record-ALTERED
 # shape under the old positional comparison — which is why it never fired for the busier ledger,
@@ -1545,14 +1739,47 @@ notes = []
 frontier_edit = (len(absent_records) == 1 and br and absent_records[0] == br[0]
                  and anchor(absent_records[0]) != ""
                  and any(anchor(a) == anchor(absent_records[0]) for a in added_records))
-if fails and frontier_edit:
+
+# Issue #93, cause 1: ONE shape of frontier edit can be NAMED rather than merely noted -- a pending
+# stub that this commit finalized. The discriminator is not a guess: it is every one of (a) the
+# frontier edit above, (b) the pre-trim record 0 matches the ledger's declared stub marker, (c) the
+# record that replaced it no longer does (an edit made while still pending was not a finalize),
+# (d) nothing else failed, and (e) the OTHER records are byte-identical and still in order. A stub
+# is a claim placeholder meant to be replaced, so what its replacement removed was never data. Any
+# one missing and the edit keeps the generic note and exit 1, which is what BL-27 protected: a
+# record 0 that was COMPLETE before the trim and differs after it is a real-loss shape.
+stub_finalized = False
+if fails and frontier_edit and STUB is not None and STUB.search(absent_records[0]):
+    successor = next(a for a in added_records if anchor(a) == anchor(absent_records[0]))
+    other_fails = [f for f in fails if not (f.startswith("L1 ") or f.startswith("L3 "))]
+    stub_finalized = (not STUB.search(successor) and not other_fails and rebuilt == br[1:])
+
+if stub_finalized:
+    # The generic L1/L3 pair is this edit's own symptom (record 0's pre-trim bytes are the stub, and
+    # they exist nowhere afterwards), and (d) and (e) established nothing else is wrong, so the label
+    # REPLACES the pair instead of sitting beside it. Still a FAIL: exit 4, never 0 (the plan's D2).
+    fails[:] = [f for f in fails if not (f.startswith("L1 ") or f.startswith("L3 "))]
+    fails.append("record 0 was a pending stub (%d B) and was finalized in the trim commit; the "
+                 "other %d record(s) are byte-identical across the move, in order, and L2 holds"
+                 % (len(absent_records[0].encode("utf-8")), len(br) - 1))
+    notes.append(
+        "exit 4, not 1: a recognised stub finalize is NAMED, but it is still a FAIL, because a "
+        "real loss can have this exact shape too. The proof certifies that nothing but record 0 "
+        "changed and that record 0 was a stub; it cannot certify that the finalized text is right. "
+        "To avoid it, trim while record 0 is complete -- before the claim, or after the finalize "
+        "is committed -- never in the same commit.")
+elif fails and frontier_edit:
     notes.append(
         "the only missing record is the frontier one (position 0, newest), and an added record "
-        "carries the same anchor -- matches a known, accepted pattern (BL-27): this repository's "
-        "own practice bundles a session's close-out finalize edit into the same commit as an "
-        "archive write, so the frontier record can legitimately differ between this commit's "
-        "parent and itself. This does NOT confirm losslessness -- manually diff record 0 by hand "
-        "to be sure it is a receipt finalize, not real data loss.")
+        "carries the same anchor -- the shape (BL-27) a bundled finalize leaves: record 0 was "
+        "edited in the same commit as the archive write, so it differs between this commit's "
+        "parent and itself. That bundling is not this framework's practice: trim while record 0 "
+        "is complete -- before the claim, or after the finalize is committed -- never in the "
+        "same commit. This does NOT confirm losslessness -- a real loss can have this exact "
+        "shape -- so diff record 0 by hand to be sure it is a finalize and not data loss."
+        + ("" if STUB is not None else
+           " This ledger declares no stub marker, so a pending-stub finalize cannot be told from "
+           "any other edit of record 0."))
 
 print("source : %s" % origin)
 print("records: %d before = %d retained + %d archived; added by the trim commit: %d"
@@ -1567,7 +1794,7 @@ for f in fails:
 for n in notes:
     print("NOTE:", n)
 if fails:
-    sys.exit(1)
+    sys.exit(4 if stub_finalized else 1)
 # State what actually ran, never a blanket claim: on a ledger with no footer the footer clause is
 # genuinely inapplicable, and saying "L2 holds" would be asserting something nothing tested.
 print("OK: %s hold for %s" % (", ".join(ran), SHARD))
@@ -1575,22 +1802,228 @@ PYEOF_VERIFY
 """
 
 
-def build_verify(spec, live_rel, shard_rel):
+def render_verify(live_rel, shard_rel, kind, record_start, fence_info, footer_mode, regen_patterns,
+                  stub_pattern):
+    """The proof for one shard, from the plain values that fill VERIFY_TEMPLATE.
+
+    `build_verify` calls this with a ledger spec's values and `--reverify` calls it with the values
+    lifted out of a frozen proof, so the two cannot drift: one template, one filler.
+    """
     # REGEN travels as a repr()'d list of plain (non-raw) pattern strings, not a wrapped r-string
     # like @@START@@ — spec.regenerated is 0-or-more patterns, and an r-string wrapper only ever
     # holds one. repr() doubles each backslash; the generated script parses that back as a normal
     # (non-raw) Python string literal, which un-doubles it — the round trip restores the exact
     # pattern .compile() would see. Safe only because no config pattern contains a quote character
     # (true of both entries in LEDGERS today); a pattern that did would need a different encoding.
-    regen_patterns = repr([rx.pattern for _name, rx, _fn in spec.regenerated])
+    # The stub marker travels the same way, as one repr()'d string ('' when the spec declares none),
+    # under the same caveat.
+    layout = layout_for(live_rel)
     out = VERIFY_TEMPLATE
     for key, val in (("@@SHARD@@", shard_rel), ("@@LIVE@@", live_rel), ("@@VER@@", TRIM_VERSION),
-                     ("@@KIND@@", spec.record_kind),
-                     ("@@START@@", spec.record_start.pattern if spec.record_start else ""),
-                     ("@@INFO@@", spec.fence_info or ""), ("@@FOOTER@@", spec.footer_mode),
-                     ("@@REGEN@@", regen_patterns)):
+                     ("@@TOOL@@", TOOL), ("@@APPARATUS@@", APPARATUS),
+                     ("@@PREFIX@@", layout.rebase_prefix), ("@@PARENT@@", repr(layout.parent_links)),
+                     ("@@KIND@@", kind), ("@@START@@", record_start), ("@@INFO@@", fence_info),
+                     ("@@FOOTER@@", footer_mode), ("@@REGEN@@", repr(list(regen_patterns))),
+                     ("@@STUB@@", repr(stub_pattern))):
         out = out.replace(key, val)
     return out
+
+
+def build_verify(spec, live_rel, shard_rel):
+    return render_verify(live_rel, shard_rel, spec.record_kind,
+                         spec.record_start.pattern if spec.record_start else "",
+                         spec.fence_info or "", spec.footer_mode,
+                         [rx.pattern for _name, rx, _fn in spec.regenerated],
+                         spec.stub_marker.pattern if spec.stub_marker else "")
+
+
+# =============================================================================================
+# `--reverify` — what does TODAY'S template say about a shard whose proof was written long ago?
+#
+# A proof is frozen on purpose: it embeds the grammar it was written against, so a later change to
+# the trimmer cannot silently change what an old shard's proof means. The cost is that a fix to the
+# template never reaches an old proof (issue #93: ten of one adopter's 54 proofs read red on trims
+# that lost nothing, and no fix to this file could turn them green). This produces a SECOND verdict
+# and leaves the artifact alone: it lifts the grammar out of the frozen script, fills the current
+# template, runs it, and writes nothing. The verdict is a claim about today's logic against that
+# shard, NOT the artifact that was shipped, and the banner says so.
+#
+# WHY THE LIFT IS STRICT. The values are spliced into a shell assignment (`LIVE=...`, unquoted) and
+# into Python source the proof then EXECUTES. So each line must match, whole, the form VERIFY_TEMPLATE
+# writes and anything else is refused by name; a looser lift would make a read-only inspection tool a
+# way to run whatever a hostile frozen script says. REGEN and STUB are parsed as literals, never
+# evaluated, and re-emitted through repr(), so they cannot carry code.
+# =============================================================================================
+
+class ReverifyRefusal(Exception):
+    """A frozen proof this tool will not splice into today's template. `code` is the finding."""
+
+    def __init__(self, code, message):
+        Exception.__init__(self, message)
+        self.code = code
+
+
+_PATH_TEXT = r"[A-Za-z0-9._/+-]+"
+_LIFT_REQUIRED = (
+    ("LIVE", "live", r"LIVE=(%s)" % _PATH_TEXT),
+    ("SHARD", "shard", r"SHARD=(%s)" % _PATH_TEXT),
+    ("RECORD_KIND", "kind", r'RECORD_KIND = "(heading|fence)"'),
+    ("RECORD_START", "start", r'RECORD_START = r"([^"\n]*)"'),
+    ("FENCE_INFO", "info", r'FENCE_INFO = "([A-Za-z0-9_-]*)"'),
+    ("FOOTER_MODE", "footer", r'FOOTER_MODE = "(separator|none)"'),
+)
+
+
+def _lift_line(text, key):
+    """The one line that begins `KEY=` or `KEY = `, or None when there is none. Two is a refusal:
+    a proof that says two different things is not one this tool can claim to have read."""
+    hits = re.findall(r"^%s(?:=| = ).*$" % key, text, re.M)
+    if len(hits) > 1:
+        raise ReverifyRefusal("REVERIFY_NOT_LIFTABLE",
+                              "%s appears %d times in the frozen proof; refusing to guess which one "
+                              "it ran under" % (key, len(hits)))
+    return hits[0] if hits else None
+
+
+def _lift_pattern(key, value):
+    """A pattern text that will be spliced into the template: it must compile and must not collide
+    with the template's own placeholders (the filler substitutes them one after another, so a
+    placeholder inside a value would be rewritten by a later pass). Two things need no check of
+    their own: a newline (START's form excludes it; REGEN and STUB go through repr(), which escapes
+    it) and a trailing unpaired backslash, which would end START's raw string early but does not
+    compile either."""
+    if "@@" in value:
+        raise ReverifyRefusal("REVERIFY_NOT_LIFTABLE", "%s carries a template placeholder" % key)
+    try:
+        re.compile(value)
+    except re.error as e:
+        raise ReverifyRefusal("REVERIFY_NOT_LIFTABLE", "%s is not a valid regular expression: %s" % (key, e))
+
+
+def lift_grammar(text):
+    """Read a frozen proof's grammar back out. Returns a dict with `version` (the trimmer that wrote
+    it, or None), `live`, `shard`, `kind`, `start`, `info`, `footer`, `regen` (a list), `stub` (a
+    string, or None when the proof predates the line) and `absent` (the soft lines it did not
+    carry). Raises ReverifyRefusal, naming the line, for anything it will not splice."""
+    m = re.search(re.escape(TOOL) + r" v([0-9][0-9.]*[0-9])", text)
+    out = {"version": m.group(1) if m else None, "absent": []}
+    for key, field, shape in _LIFT_REQUIRED:
+        line = _lift_line(text, key)
+        if line is None:
+            raise ReverifyRefusal("REVERIFY_NOT_LIFTABLE",
+                                  "%s is not in the frozen proof: it predates the grammar lines this "
+                                  "tool lifts, or it is not a proof" % key)
+        mm = re.fullmatch(shape, line)
+        if mm is None:
+            raise ReverifyRefusal("REVERIFY_NOT_LIFTABLE",
+                                  "%s is not in the form %s writes it: %s"
+                                  % (key, TOOL, line[:70]))
+        out[field] = mm.group(1)
+    for key, field in (("LIVE", "live"), ("SHARD", "shard")):
+        if out[field].startswith("/") or ".." in out[field].split("/"):
+            raise ReverifyRefusal("REVERIFY_NOT_LIFTABLE",
+                                  "%s is not a path inside the repository: %s" % (key, out[field]))
+    _lift_pattern("RECORD_START", out["start"])
+    for key, field in (("REGEN_PATTERNS", "regen"), ("STUB_PATTERN", "stub")):
+        line = _lift_line(text, key)
+        if line is None:
+            out["absent"].append(key)
+            out[field] = [] if field == "regen" else None
+            continue
+        rhs = line[len(key) + 3:] if line.startswith(key + " = ") else None
+        try:
+            val = ast.literal_eval(rhs) if rhs is not None else None
+        except (ValueError, SyntaxError, TypeError, MemoryError, RecursionError):
+            val = None
+        shaped = (isinstance(val, list) and all(isinstance(x, str) for x in val) if field == "regen"
+                  else isinstance(val, str))
+        if not shaped:
+            raise ReverifyRefusal("REVERIFY_NOT_LIFTABLE",
+                                  "%s is not a plain %s literal: %s"
+                                  % (key, "list of strings" if field == "regen" else "string", line[:70]))
+        for pat in (val if field == "regen" else [val]):
+            if pat:
+                _lift_pattern(key, pat)
+        out[field] = val
+    return out
+
+
+def stub_pattern_for(live_rel):
+    """The stub marker the ledger table declares for a ledger, keyed by basename as the table is;
+    '' when it has no entry (a project's own local ledger) or declares none (CHANGELOG.md)."""
+    spec = LEDGERS.get(Path(live_rel).name)
+    return spec.stub_marker.pattern if spec is not None and spec.stub_marker else ""
+
+
+def reverify(arg, result):
+    path = Path(arg)
+    if path.name.endswith(".verify.sh"):
+        path = path.with_name(path.name[:-len(".verify.sh")])
+    if not path.is_file():
+        result.add("FILE_ABSENT", "%s does not exist" % path, exit_code=3)
+        return result
+    path = path.resolve()
+    repo = repo_root(path)
+    if repo is None:
+        result.add("NOT_A_REPO", "%s is not inside a git work tree" % path, exit_code=3)
+        return result
+    shard_rel = os.path.relpath(str(path), str(repo.resolve())).replace(os.sep, "/")
+    proof = path.with_name(path.name + ".verify.sh")
+    if not proof.is_file():
+        result.add("REVERIFY_NO_PROOF",
+                   "%s has no proof beside it (%s): there is no frozen grammar to lift"
+                   % (shard_rel, proof.name), exit_code=3)
+        return result
+    try:
+        g = lift_grammar(read_text(proof))
+    except ReverifyRefusal as e:
+        result.add(e.code, "%s: %s" % (proof.name, e), exit_code=3)
+        return result
+    if g["shard"] != shard_rel:
+        result.add("REVERIFY_SHARD_MISMATCH",
+                   "%s names the shard %s, not %s: its grammar was written for a different file, so "
+                   "re-deriving this one from it would be a verdict about neither"
+                   % (proof.name, g["shard"], shard_rel), exit_code=3)
+        return result
+
+    stub = g["stub"]
+    result.add("REVERIFY_BANNER",
+               "%s: re-derived by %s v%s from the grammar lifted out of its frozen "
+               "proof (written by v%s): ledger %s, record kind %s, footer %s. This is a claim about "
+               "today's logic against this shard, NOT the artifact that was shipped; the frozen "
+               "proof is untouched. Nothing was written."
+               % (shard_rel, TOOL, TRIM_VERSION, g["version"] or "?", g["live"], g["kind"], g["footer"]))
+    if "REGEN_PATTERNS" in g["absent"]:
+        result.add("REVERIFY_SUBSTITUTED",
+                   "REGEN_PATTERNS is not in the frozen proof (it predates the declared regenerated "
+                   "fields): re-derived with none.")
+    if stub is None:
+        stub = stub_pattern_for(g["live"])
+        result.add("REVERIFY_SUBSTITUTED",
+                   "STUB_PATTERN is not in the frozen proof (it predates the stub label): %s"
+                   % ("supplied from this tool's ledger table by the live basename %s: %r"
+                      % (Path(g["live"]).name, stub) if stub else
+                      "the ledger table declares none for the live basename %s, so no stub finalize "
+                      "is recognised" % Path(g["live"]).name))
+    script = render_verify(g["live"], g["shard"], g["kind"], g["start"], g["info"], g["footer"],
+                           g["regen"], stub)
+    try:
+        run = subprocess.run(["bash", "-c", script], cwd=str(repo), stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT, encoding="utf-8", errors="replace")
+    except OSError as e:
+        result.add("REVERIFY_CANNOT_RUN",
+                   "bash is needed to run a proof and could not be started: %s" % e, exit_code=3)
+        return result
+    # A child killed by a signal reports a NEGATIVE status, which `Result.add` would read as "no
+    # worse than 0" and let through as a pass. A verdict tool must never turn "did not finish" into
+    # "holds", so anything below zero is exit 3 (the proof could not be run to a verdict).
+    rc = run.returncode if run.returncode >= 0 else 3
+    result.add("REVERIFY_VERDICT",
+               "exit %d (0: every assertion holds; 1: a FAIL; 4: a recognised stub finalize, still a "
+               "FAIL; 3: the proof did not finish). The proof's own output:\n%s"
+               % (rc, _indent(run.stdout.rstrip("\n"))),
+               exit_code=rc or None)
+    return result
 
 
 # =============================================================================================
@@ -1684,6 +2117,66 @@ def check_P1a(ledger_path, spec_for_ledger, expected_after_partition, result):
     result.add("P1A_OK", "ledger gained exactly one entry (%d → %d)"
                % (expected_after_partition, after))
     return True
+
+
+
+# =============================================================================================
+# Issue #93, cause 1 -- the PREVENT half. The generated proof can only NAME a stub finalize after
+# the fact (the VERIFY_TEMPLATE's `stub_finalized`); the writer can see the bad state coming. A
+# session's claim leaves record 0 as a pending stub, and Phase 3D overwrites it in place, so a trim
+# that lands in the finalize's commit makes the proof read record 0 as EDITED. Two orders get there:
+#
+#   A. the claim is committed and record 0 still carries the stub marker when the trimmer runs;
+#   B. the session finalized record 0 FIRST and has not committed it, so record 0 is complete here
+#      but HEAD's record 0 was a stub that the working tree no longer holds.
+#
+# Both are ADVISORY (no exit code, the write proceeds): the finding names the consequence and the
+# two ways out and refuses nothing, because a trim that bundles a finalize loses nothing and is
+# still the operator's call. It keys on the ledger's declared stub_marker, so a ledger that
+# declares none is silent, and it asks whether HEAD's stub is ABSENT from the working ledger (the
+# proof's own test), not whether record 0 moved, so a record prepended above an intact stub is quiet.
+# What it cannot see: a session that trims by hand-editing never reaches it, and which commit order
+# an adopter used is not recoverable from git (the proof sees only a stub in the parent).
+# =============================================================================================
+
+# The same words as the proof's notes (VERIFY_TEMPLATE) and FRAMEWORK_APPARATUS.md, pinned together
+# by a test: this rule used to live only in the repo's habits, and its verifier contradicted it.
+TRIM_TIMING_RULE = ("trim while record 0 is complete -- before the claim, or after the finalize is "
+                    "committed -- never in the same commit")
+
+
+def check_stub_frontier(repo, path, spec, records, result):
+    marker = spec.stub_marker
+    if marker is None or not records:
+        return
+    live_rel = path.relative_to(repo).as_posix()
+    if marker.search(records[0]):
+        result.add(
+            "FRONTIER_PENDING_STUB",
+            "record 0 of %s is a pending stub (it matches this ledger's stub marker): a session has "
+            "claimed it and not finalized it. A trim that lands in the same commit as that finalize "
+            "makes the generated .verify.sh read record 0 as EDITED, and the proof ends red (exit 4: "
+            "named, because nothing else went missing, but still a FAIL). %s: either finalize "
+            "record 0 and commit that first, then trim in its own commit, or trim before the claim. "
+            "Advisory: nothing is refused." % (live_rel, TRIM_TIMING_RULE.capitalize()))
+        return
+    head = git_bytes(repo, "show", "HEAD:%s" % live_rel)
+    if head is None:
+        return                      # no committed version to compare: order B cannot be judged
+    hz = classify_zones(head.decode("utf-8", "replace"), spec, Result(path))
+    if hz is None or not hz.starts:
+        return
+    h0 = hz.records()[0]
+    # \r\n folded on both sides: a checkout that converts line endings must not read as an edit.
+    now = {r.replace("\r\n", "\n") for r in records}
+    if marker.search(h0) and h0.replace("\r\n", "\n") not in now:
+        result.add(
+            "FRONTIER_FINALIZE_UNCOMMITTED",
+            "HEAD's record 0 of %s is a pending stub and the working tree no longer holds it: it "
+            "was finalized or replaced and the change is uncommitted. If that edit and this trim "
+            "land in one commit, the generated .verify.sh reads record 0 as EDITED and ends red "
+            "(exit 4: named, but still a FAIL). %s: commit the finalize first, then trim in its "
+            "own commit. Advisory: nothing is refused." % (live_rel, TRIM_TIMING_RULE.capitalize()))
 
 
 # =============================================================================================
@@ -1803,6 +2296,23 @@ def evaluate(path, opts, result):
         result.add("NOT_A_REPO", "%s is not inside a git work tree" % path, exit_code=3)
         return result
 
+    # BL-101 P3. Every trim writes an entry into the ACTION ledger, wherever the trimmed file sits, so
+    # where that ledger is must be settled before anything else reads the tree. A tree that holds it
+    # in both places and that the framework anchor does not decide is half-migrated: never guessed.
+    ledger_rel, ledger_found = _ledger_resolution(repo)
+    if ledger_rel is None:
+        result.add("LAYOUT_HALF_MIGRATED",
+                   "the action ledger is in both places (%s), and the framework anchor does not decide "
+                   "which is authoritative: that needs %s under %s/ and not at the root. This is a "
+                   "half-migrated tree. A trim writes an entry into the action ledger and will not "
+                   "guess which file that is. Finish the move (the older file is renamed onto the "
+                   "newer, or removed) or revert it, then run the trim again."
+                   % (", ".join(f.relative_to(repo).as_posix() for f in ledger_found), RUNNER, NEW_DIR),
+                   exit_code=2)
+        return result
+    live_rel = path.relative_to(repo).as_posix()
+    layout = layout_for(live_rel)
+
     text = read_text(path)
     zones = classify_zones(text, spec, result)
     if zones is None:
@@ -1818,10 +2328,10 @@ def evaluate(path, opts, result):
     if opts.cut and not opts.cut.isdigit() and not _safe_cut_key(opts.cut.lstrip("@")):
         result.add("CUT_KEY_UNSAFE",
                    "cut key %r would not produce a flat, single-level shard name. §4.5(b) makes "
-                   "the flat docs/archive/<BASENAME>-through-<CUTKEY>.md shape mandatory precisely "
+                   "the flat %s/<BASENAME>-through-<CUTKEY>.md shape mandatory precisely "
                    "because a nested or differently-cased name is silently excluded from the glob, "
                    "and the trigger then computes against the wrong baseline."
-                   % opts.cut.lstrip("@"), exit_code=3)
+                   % (opts.cut.lstrip("@"), layout.archive_dir), exit_code=3)
         return result
 
     budget = opts.budget_bytes or spec.budget_bytes
@@ -1889,7 +2399,7 @@ def evaluate(path, opts, result):
         result.add("NOTHING_TO_DO", "under budget and above the line floor — nothing to do")
         return result
 
-    if not check_P1(repo, ledger_rel_for(repo), result):
+    if not check_P1(repo, ledger_rel, result):
         return result
 
     if trigger.srf and trigger.srf[0] is not None and trigger.srf[0] >= SRF_RED and not opts.force:
@@ -1918,8 +2428,10 @@ def evaluate(path, opts, result):
         result.add("NOTHING_TO_DO", "the computed cut archives zero records")
         return result
 
-    if not check_invertible(archived, result):
+    if not check_invertible(archived, result, layout):
         return result
+
+    check_stub_frontier(repo, path, spec, records, result)
 
     dates = [spec.date_of_record(r) for r in archived]
     dates = [d for d in dates if d]
@@ -1934,9 +2446,9 @@ def evaluate(path, opts, result):
     if not _safe_cut_key(cut_key):
         result.add("CUT_KEY_UNSAFE",
                    "cut key %r would not produce a flat, single-level shard name. §4.5(b) makes the "
-                   "flat docs/archive/<BASENAME>-through-<CUTKEY>.md shape mandatory precisely "
+                   "flat %s/<BASENAME>-through-<CUTKEY>.md shape mandatory precisely "
                    "because a nested or differently-cased name is silently excluded from the glob, "
-                   "and the trigger then computes against the wrong baseline." % cut_key,
+                   "and the trigger then computes against the wrong baseline." % (cut_key, layout.archive_dir),
                    exit_code=3)
         return result
 
@@ -1952,7 +2464,7 @@ def evaluate(path, opts, result):
             "--cut <earlier date> if you want a clean calendar seam." % cut_key)
 
     stem = spec.basename[:-3]
-    base_rel = "%s/%s-through-%s.md" % (ARCHIVE_DIR, stem, cut_key)
+    base_rel = "%s/%s-through-%s.md" % (layout.archive_dir, stem, cut_key)
 
     # Write-once, and it stays write-once: overwriting would destroy the earlier shard's records
     # while L1/L2/L3 all still pass — they quantify only over THIS run's triple, so it is the one
@@ -1969,7 +2481,7 @@ def evaluate(path, opts, result):
     # to a name that does not exist — and the rename is REPORTED, because a shard whose name no
     # longer uniquely says "through this date" must not arrive silently.
     shard_rel, suffix = base_rel, 1
-    while shard_name_taken(repo / shard_rel):
+    while shard_name_taken_anywhere(repo, posixpath.basename(shard_rel)):
         suffix += 1
         if suffix > SHARD_SUFFIX_MAX:
             result.add("SHARD_EXISTS",
@@ -1977,9 +2489,9 @@ def evaluate(path, opts, result):
                        "collision destroys the earlier shard's records while all three assertions "
                        "still pass, because none of them quantifies over any other file in %s. "
                        "Archive by hand, or clear the stale names."
-                       % (base_rel, SHARD_SUFFIX_MAX, ARCHIVE_DIR), exit_code=2)
+                       % (base_rel, SHARD_SUFFIX_MAX, layout.archive_dir), exit_code=2)
             return result
-        shard_rel = "%s/%s-through-%s-%d.md" % (ARCHIVE_DIR, stem, cut_key, suffix)
+        shard_rel = "%s/%s-through-%s-%d.md" % (layout.archive_dir, stem, cut_key, suffix)
 
     if shard_rel != base_rel:
         result.add("SHARD_NAME_DISAMBIGUATED",
@@ -1992,12 +2504,12 @@ def evaluate(path, opts, result):
     shard_path = repo / shard_rel
     verify_rel = shard_rel + ".verify.sh"
 
-    live_rel = path.relative_to(repo).as_posix()
     plan = TrimPlan()
     plan.retained, plan.archived = retained, archived
     plan.shard_rel, plan.verify_rel, plan.cut_key, plan.span = shard_rel, verify_rel, cut_key, span
-    plan.shard_text = build_shard(spec, live_rel, shard_rel, archived, span, cut_key)
-    plan.pointer_block = build_pointer_block(spec, shard_rel, verify_rel, len(archived), span, live_rel)
+    plan.shard_text = build_shard(spec, live_rel, shard_rel, archived, span, cut_key, layout=layout)
+    plan.pointer_block = build_pointer_block(spec, shard_rel, verify_rel, len(archived), span, live_rel,
+                                            layout=layout)
 
     front, reversals = apply_regenerated(zones.front, spec, {"retained": len(retained)}, result)
     front = insert_pointer(front, plan.pointer_block)
@@ -2005,7 +2517,6 @@ def evaluate(path, opts, result):
 
     plan.before_bytes = len(text.encode("utf-8"))
     today = opts.today or datetime.date.today().isoformat()
-    ledger_rel = ledger_rel_for(repo)
     trims_the_ledger = (live_rel == ledger_rel)
 
     # The reported "after" size must be the size of the file actually written — and when the trimmed
@@ -2016,7 +2527,7 @@ def evaluate(path, opts, result):
     month_heading = ""
     for _ in range(5):
         entry = build_ledger_entry(live_rel, shard_rel, verify_rel, len(archived), span,
-                                   plan.before_bytes, plan.after_bytes, today)
+                                   plan.before_bytes, plan.after_bytes, today, ledger_rel)
         if trims_the_ledger:
             candidate, month_heading = insert_ledger_entry(live_after_core, spec, entry,
                                                            today, Result(path))
@@ -2074,11 +2585,11 @@ def evaluate(path, opts, result):
     injected = 1 if trims_the_ledger else 0
     after_records = live_zones.records()[injected:]
     shard_records = shard_zones.records()
-    shard_source = [invert_record(r) for r in shard_records]
+    shard_source = [invert_record(r, layout) for r in shard_records]
 
-    ok = assert_L1(records, after_records, shard_records, result)
+    ok = assert_L1(records, after_records, shard_records, result, layout)
     ok = assert_L2(zones, live_zones.front, live_zones.footer, plan.shard_text,
-                   [plan.pointer_block, month_heading], reversals, result) and ok
+                   [plan.pointer_block, month_heading], reversals, result, layout) and ok
     ok = assert_L3(records, after_records, shard_source, result) and ok
     if not ok:
         return result
@@ -2121,8 +2632,21 @@ def evaluate(path, opts, result):
     return result
 
 
+def _ledger_resolution(repo):
+    """(repository-relative path of the action ledger, the copies found). The path is None for a tree the
+    resolver calls half-migrated. The framework anchor decides a tie without being asked (decided
+    2026-10-06 and 2026-10-07, plan 7.2a and 7.2b): a project's own product changelog may sit at the root beside the ledger. A tree with no
+    ledger yet gets the legacy default, as it always did."""
+    kind, _directory, found = resolve_layout(repo, LEDGER_NAME)
+    if kind == "half":
+        return None, found
+    if kind == "new":
+        return posixpath.join(NEW_DIR, LEDGER_NAME), found
+    return LEDGER_NAME, found
+
+
 def ledger_rel_for(repo):
-    return "CHANGELOG.md"
+    return _ledger_resolution(repo)[0]
 
 
 def report(result, opts):
@@ -2133,8 +2657,9 @@ def report(result, opts):
         print("\n  WRITTEN (uncommitted — this tool never commits):")
         for w in result.written:
             print("    %s" % w)
-        live = [w for w in result.written if not w.startswith(ARCHIVE_DIR)]
-        shards = [w for w in result.written if w.startswith(ARCHIVE_DIR)]
+        prefixes = tuple(d + "/" for d in ARCHIVE_DIRS)
+        live = [w for w in result.written if not w.startswith(prefixes)]
+        shards = [w for w in result.written if w.startswith(prefixes)]
         print("\n  Rollback:  git checkout -- %s && rm -f %s"
               % (" ".join(live), " ".join(shards)))
         print("  Verify:    bash %s" % (result.plan.verify_rel if result.plan else ""))
@@ -2143,7 +2668,7 @@ def report(result, opts):
 
 def main(argv=None):
     p = argparse.ArgumentParser(
-        prog="methodology_trim.py",
+        prog=TOOL,
         description="Trim a grow-and-must-be-read ledger into a frozen shard, provably losslessly.")
     p.add_argument("--file", action="append", default=[], metavar="PATH",
                    help="the ledger to trim (repeatable). Required.")
@@ -2154,17 +2679,36 @@ def main(argv=None):
     p.add_argument("--force", action="store_true", help="proceed despite the SRF-RED refusal")
     p.add_argument("--check", action="store_true",
                    help="evaluate the trigger and report; never writes, even with --write")
+    p.add_argument("--reverify", metavar="SHARD",
+                   help="re-derive a frozen shard's proof under THIS tool's template and print the "
+                        "verdict. Read-only: writes nothing. Takes the shard (or its .verify.sh) "
+                        "and no other mode flag. Exit is the proof's own (0 holds, 1 a FAIL, 4 a "
+                        "recognised stub finalize), or 3 when the shard cannot be re-derived.")
     p.add_argument("--today", help=argparse.SUPPRESS)   # test seam: deterministic dates
-    p.add_argument("--version", action="version", version="methodology_trim.py v" + TRIM_VERSION)
+    p.add_argument("--version", action="version", version=TOOL + " v" + TRIM_VERSION)
     opts = p.parse_args(argv)
+
+    if opts.reverify is not None:
+        clash = [flag for flag, on in (("--file", opts.file), ("--write", opts.write),
+                                       ("--check", opts.check), ("--cut", opts.cut),
+                                       ("--budget-bytes", opts.budget_bytes is not None),
+                                       ("--force", opts.force)) if on]
+        if clash:
+            print("%s: --reverify is read-only and takes its own shard; it cannot "
+                  "be combined with %s." % (TOOL, ", ".join(clash)), file=sys.stderr)
+            return 3
+        result = Result(Path(opts.reverify))
+        reverify(opts.reverify, result)
+        report(result, opts)
+        return result.exit
 
     if not opts.file:
         p.print_usage(sys.stderr)
-        print("methodology_trim.py: --file is required", file=sys.stderr)
+        print("%s: --file is required" % TOOL, file=sys.stderr)
         return 3
     if opts.write and not opts.check and len(opts.file) > 1:
-        print("methodology_trim.py: one --file per --write. A batched trim has a rollback that "
-              "cannot be expressed as one revert, and the 5-file per-commit cap applies regardless.",
+        print("%s: one --file per --write. A batched trim has a rollback that "
+              "cannot be expressed as one revert, and the 5-file per-commit cap applies regardless." % TOOL,
               file=sys.stderr)
         return 3
 
