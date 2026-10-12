@@ -11294,8 +11294,55 @@ class BlockBoundaries {
     }
     return true;
   }
+  private dashCounts: number[] | null = null;
+  private dashNext: number[] | null = null;
+  private buildDashIndex(): void {
+    const n = this.lines.length;
+    const counts = [0];
+    for (let j = 0; j < n; j++) {
+      counts.push(counts[j] + (DASH_ONLY_LINE.test(this.lines[j]) ? 1 : 0));
+    }
+    const next = new Array<number>(n + 1);
+    next[n] = n;
+    for (let j = n - 1; j >= 0; j--) {
+      next[j] = counts[j + 1] > counts[j] ? j : next[j + 1];
+    }
+    this.dashCounts = counts;
+    this.dashNext = next;
+  }
+  /** How many dash-only lines lie above line `x` (a prefix count, built once per document). */
+  dashRulesBefore(x: number): number {
+    if (this.dashCounts === null) {
+      this.buildDashIndex();
+    }
+    return (this.dashCounts as number[])[Math.min(x, this.lines.length)];
+  }
+  /** The first dash-only line at or below `j`, or the line count if there is none. */
+  firstDashRuleFrom(j: number): number {
+    if (this.dashNext === null) {
+      this.buildDashIndex();
+    }
+    return (this.dashNext as number[])[Math.min(j, this.lines.length)];
+  }
+  private readonly closes: boolean[] = [];
+  /** Whether the dash-only line at `x` closes a simple table (`computeClosesSimpleTable`), answered in line order so no answer asks one that is not yet known. */
+  closesAt(x: number): boolean {
+    while (this.closes.length <= x) {
+      const j = this.closes.length;
+      this.closes.push(false);
+      this.closes[j] = computeClosesSimpleTable(this, j);
+    }
+    return this.closes[x];
+  }
   private compute(k: number): boolean {
-    if (this.boundaryAbove(k) || this.ends.has(k - 1)) {
+    if (this.ends.has(k - 1)) {
+      return true;
+    }
+    // The rows of an open simple table end nothing: a fence pair, a break or a definition under its dash line are rows up to the blank line (rendered `review3b/codes/r3b_028`).
+    if (this.readers.simpleTables && !BLANK_LINE.test(this.lines[k - 1]) && inSimpleTableRows(this, k - 1) && !this.closesAt(k - 1)) {
+      return false;
+    }
+    if (this.boundaryAbove(k)) {
       return true;
     }
     // Inside a closed `<pre>`, `<script>`, `<style>` or `<textarea>` everything is raw text, so no self-ending construct ends a block there (rendered, `review1/r1_001`).
@@ -11371,17 +11418,9 @@ function inSimpleTableRows(b: BlockBoundaries, x: number): boolean {
     return false;
   }
   const rs = b.runStartOf("nonblank", (l) => !BLANK_LINE.test(l), x);
-  let rules = 0;
-  let first = -1;
-  for (let u = rs; u < x; u++) {
-    if (DASH_ONLY_LINE.test(b.lines[u])) {
-      rules++;
-      if (first < 0) {
-        first = u;
-      }
-    }
-  }
-  if (rules % 2 === 0 || first <= rs || !DASH_COLUMN_LINE.test(b.lines[first]) || !hasRowBelow(b.lines, first)) {
+  const rules = b.dashRulesBefore(x) - b.dashRulesBefore(rs);
+  const first = b.firstDashRuleFrom(rs);
+  if (rules % 2 === 0 || first <= rs || first >= x || !DASH_COLUMN_LINE.test(b.lines[first]) || !hasRowBelow(b.lines, first)) {
     return false;
   }
   return !isBoundaryLine(b.lines[first - 1]) && startsAtBoundary(b, first - 1);
@@ -11427,8 +11466,11 @@ function isBoundaryLine(line: string): boolean {
 }
 /** A line that can belong to a line block: a bar line or an indented (continuation) line. */
 const LINEBLOCKISH = (l: string): boolean => LINE_BLOCK_START.test(l) || /^[ \t]+\S/.test(l);
-/** A run of dashes separated by blanks, at least two runs (`- - -`, `-  -  -`): the column line of a simple table, and a bullet-spelled thematic break to pandoc's `hrule`. */
-const DASH_COLUMN_LINE = /^ {0,3}-+(?:[ \t]+-+)+[ \t]*$/;
+/**
+ * A run of dashes separated by blanks, at least two runs (`- - -`, `-  -  -`): the column line of a simple table, and a bullet-spelled thematic break to pandoc's `hrule`; or ONE run indented one to three
+ * columns (` ---`), which a column-0 run is not (that is a setext underline or a break) and which pandoc reads as the dash line of a ONE-column table (Session 298, rendered `review3b/tables/r3b_008`-`011`).
+ */
+const DASH_COLUMN_LINE = /^ {0,3}-+(?:[ \t]+-+)+[ \t]*$|^ {1,3}-+[ \t]*$/;
 /** A line made only of dashes and blanks: a simple table's rule, a setext underline or a thematic break. */
 const DASH_ONLY_LINE = /^ {0,3}-+(?:[ \t]+-+)*[ \t]*$/;
 /**
@@ -11465,20 +11507,50 @@ function hasRowBelow(lines: readonly string[], x: number): boolean {
   return x + 1 < lines.length && !BLANK_LINE.test(lines[x + 1]) && !DASH_ONLY_LINE.test(lines[x + 1]);
 }
 /**
- * Whether the dash-only line at `x` is the CLOSING rule of a simple table opened by a dash-column line above it (Session 298): the nearest dash-only line above is a table's rule with a row below
- * it. A table ends at its closing rule, so the line below begins a fresh block whatever kind of rule it is (rendered `dev/tables/dtbl_018_simple_headerless_dash_frame`).
+ * Whether the dash-only line at `x` is the CLOSING rule of a simple table opened above it (Session 298): the nearest dash-only line above is a table's rule with a row below it. A table ends at its closing
+ * rule, so the line below begins a fresh block whatever kind of rule it is (rendered `dev/tables/dtbl_018_simple_headerless_dash_frame`). Three refinements, each rendered (`review3b/tables`):
+ *   - a HEADED simple table (no top rule above its header) ends at the first BLANK line, so a rule after one opens a second table instead of closing the first (`r3b_003`-`005`); only a headerless or a
+ *     multiline table (a top rule above its header) keeps its rows across blank lines;
+ *   - a ONE-run opener (`-----` / `a` / blank / `-----`) is a headerless multiline table that begins a block, unless it is itself a closing rule (`r3b_001`, `r3b_002`: the rule below it is a break).
+ * Answered once per line, in line order (`BlockBoundaries.closesAt`), so a long ladder of rules costs no recursion.
  */
 function closesSimpleTable(b: BlockBoundaries, x: number): boolean {
+  return b.closesAt(x);
+}
+function computeClosesSimpleTable(b: BlockBoundaries, x: number): boolean {
   const lines = b.lines;
   if (!b.readers.simpleTables || !DASH_ONLY_LINE.test(lines[x])) {
     return false;
   }
   for (let u = x - 1; u >= 0 && x - u <= 1000; u--) {
-    if (DASH_ONLY_LINE.test(lines[u])) {
-      return u + 2 <= x && DASH_COLUMN_LINE.test(lines[u]) && hasRowBelow(lines, u) && simpleTableBeginsBlock(b, u);
+    if (!DASH_ONLY_LINE.test(lines[u])) {
+      continue;
     }
+    if (u + 2 > x || !hasRowBelow(lines, u)) {
+      return false;
+    }
+    if (!DASH_COLUMN_LINE.test(lines[u])) {
+      // a one-run rule (`-----`) that begins a block opens a headerless multiline table, and so does not close one itself
+      return startsAtBoundary(b, u) && !b.closesAt(u);
+    }
+    if (!simpleTableBeginsBlock(b, u)) {
+      return false;
+    }
+    let blank = false;
+    for (let j = u + 1; j < x && !blank; j++) {
+      blank = BLANK_LINE.test(lines[j]);
+    }
+    return !blank || startsAtBoundary(b, u) || topRuleAbove(b, u);
   }
   return false;
+}
+/** Whether the column line at `u` has a TOP rule above its header line(s): a dash-only line that begins a block, with only non-blank text lines between (the mark of a multiline table). */
+function topRuleAbove(b: BlockBoundaries, u: number): boolean {
+  let j = u - 1;
+  while (j >= 0 && !BLANK_LINE.test(b.lines[j]) && !DASH_ONLY_LINE.test(b.lines[j])) {
+    j--;
+  }
+  return j >= 0 && j < u - 1 && DASH_ONLY_LINE.test(b.lines[j]) && startsAtBoundary(b, j);
 }
 /** Whether the dash-column line at `x` is the rule under a HEADER ROW: a one-line block `table` is tried on first sits directly above it (Session 298, rendered `stk`, `wide_blank`). */
 function dashLineHasHeaderAbove(b: BlockBoundaries, x: number): boolean {
@@ -11516,10 +11588,15 @@ function isTableHeaderCandidate(b: BlockBoundaries, y: number): boolean {
   const lines = b.lines;
   const line = lines[y];
   // A run of dashes directly under a line of text is that line's setext UNDERLINE, which starts no block of its own; it is a break (and a header-row candidate) only under a blank line or a boundary.
-  // ⚠ An ATX heading line counts as TEXT here: pandoc tries `setextHeader` before `atxHeader`, so `## Before` / `---` is a setext heading whose text is `## Before` (rendered, `wh_hr_dash3__hr_sdash`).
+  // ⚠ An ATX heading line counts as TEXT here: pandoc tries `setextHeader` before `atxHeader`, so `## Before` / `---` is a setext heading whose text is `## Before` (rendered, `wh_hr_dash3__hr_sdash`) — but only for a COLUMN-0
+  // run: an indented ` ---` is no underline, so it begins a block and is a header-row candidate (rendered `review3b/tables/r3b_006`, `r3b_007`).
   // Another single dash or equals run directly above one that begins a block is TEXT to it as well (`-----` / `-----`, rendered `review2/r2_001`).
-  const textAbove = (): boolean => /^#{1,6}(?:[ \t]|$)/.test(lines[y - 1]) || !isBoundaryLine(lines[y - 1]) || (/^ {0,3}(?:-+|=+)[ \t]*$/.test(lines[y - 1]) && (y === 1 || BLANK_LINE.test(lines[y - 2])));
+  const textAbove = (): boolean => (line[0] === "-" && /^#{1,6}(?:[ \t]|$)/.test(lines[y - 1])) || !isBoundaryLine(lines[y - 1]) || (/^ {0,3}(?:-+|=+)[ \t]*$/.test(lines[y - 1]) && (y === 1 || BLANK_LINE.test(lines[y - 2])));
   if (/^ {0,3}-+[ \t]*$/.test(line) && y > 0 && textAbove()) {
+    return false;
+  }
+  // the CLOSING rule of a table is part of that table, not a header row for the line below (rendered `review3b/tables/r3b_001`, `r3b_002`)
+  if (DASH_ONLY_LINE.test(line) && closesSimpleTable(b, y)) {
     return false;
   }
   if (THEMATIC_BREAK.test(line) || linkDefinitionAt(lines, y)) {
@@ -11542,7 +11619,8 @@ function isTableHeaderCandidate(b: BlockBoundaries, y: number): boolean {
   while (j >= 0 && BLANK_LINE.test(lines[j])) {
     j--;
   }
-  return j < 0 || !indentedCodeLine(lines[j], [0]);
+  // an indented line under a prose line is a lazy continuation of it, not code, so the code BEGINS at `y` (rendered `review3b/codes/r3b_024`)
+  return j < 0 || !indentedCodeLine(lines[j], [0]) || !startsAtBoundary(b, b.runStartOf("code", (l) => indentedCodeLine(l, [0]), j));
 }
 /**
  * Whether the line at `x` is a one-line block, or the last line of a run of one kind, that ENDS ITSELF and BEGAN at a block boundary (Session 295),

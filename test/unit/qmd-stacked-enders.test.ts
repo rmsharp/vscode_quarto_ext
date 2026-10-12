@@ -57,6 +57,42 @@ describe("Session 298 — stacked block enders in the free case", () => {
   const LISTED = ["Before", "In", "After"]; // the opener is indented CODE: quarto lists the heading inside it
   const SWALLOWED = ["Before", "After"]; //   the opener is paragraph text or a raw continuation: quarto swallows it
 
+  // SLICE 32. THE SIMPLE-TABLE RULES OF THE ROUND-3b TABLES HUNTER (`scratchpad/s298/review3b/tables`: 40,000 generated documents, 10 candidates in 5 classes, every kept document rendered with quarto 1.7.33 in ne mode, exit 0).
+  // (a) THE CLOSING RULE OF A MULTILINE OR HEADERLESS TABLE IS NO HEADER ROW: `-----` / `a` / blank / `-----` (and the headed form with a top rule) is one table that its second rule closes, so a `- - -` below the second rule is
+  // a break and the opener below it is indented code; the first stacking took the closing rule for a header row and deleted the heading (`r3b_001`, `r3b_002`: quarto lists `In`).
+  // (b) A BLANK LINE ENDS A HEADED SIMPLE TABLE (one with no top rule): a dash-column line after the blank is the rule of a SECOND table, not the closing rule of the first, and the rows under it, a comment among them, are
+  // rows (`r3b_003`-`005`: swallowed). A table keeps its rows across a blank line only when it is multiline (a top rule above its header) or headerless.
+  // (c) AN INDENTED DASH RUN IS NO SETEXT UNDERLINE: ` ---` under `## Before` begins a block, a one-column table's header row, and the `- - -` below it is that table's dash line (`r3b_006`, `r3b_007`: swallowed).
+  // (d) AN INDENTED DASH RUN IS A ONE-COLUMN TABLE'S DASH LINE (` ---` / ` ---` / `***`, `---` / ` ---` / `***`): pandoc needs the indent to tell it from an underline (`r3b_008`-`011`: swallowed).
+  // (e) A CODE LINE UNDER A PROSE LINE IS A LAZY CONTINUATION, NOT CODE, so the indented line after the blank line below it BEGINS the code block, and `- - -` under that one line is a table's dash line (`r3b_024`).
+  // (f) THE ROWS OF AN OPEN SIMPLE TABLE END NOTHING: a fence pair, a break and a definition under `- - - -` directly below a prose line are all rows up to the blank line (`r3b_028`).
+  it.each<[string, "blank" | "heading", string[], string | null, string[]]>([
+    ["(a) a multiline one-column table's closing rule and a dash column", "blank", ["-----", "a", "", "-----", "- - -"], null, LISTED],
+    ["(a) a headed multiline table's closing rule and a dash column", "blank", ["----------", "H  H", "---  ---", "a  b", "", "----------", "- - -"], null, LISTED],
+    ["(b) a second table after a blank line, then a comment", "blank", ["H  H", "--  --", "a  b", "", "c  d", "--  --", "<!-- c -->"], null, SWALLOWED],
+    ["(b) a second table after a blank line, then a multi-line comment", "heading", ["Hdr  Hd2", "---  ---", "a    b", "", "c    d", "---  ---", "<!--", "n", "-->"], null, SWALLOWED],
+    ["(b) a second table after a blank line, then a comment, under markdown-grid_tables", "blank", ["Hdr  Hd2", "---  ---", "a    b", "", "c    d", "---  ---", "<!-- c -->"], "markdown-grid_tables", SWALLOWED],
+    ["(c) an indented dash run under the heading, then a dash column", "heading", [" ---", "- - -"], null, SWALLOWED],
+    ["(c) a dash run indented three under the heading, then a dash column", "heading", ["   ---", "- - -"], null, SWALLOWED],
+    ["(d) two indented dash runs and a break", "blank", [" ---", " ---", "***"], null, SWALLOWED],
+    ["(d) two indented dash runs and a definition under the heading", "heading", [" ---", " ---", "[a]: /u"], null, SWALLOWED],
+    ["(d) a break, an indented dash run and a break", "blank", ["---", " ---", "***"], null, SWALLOWED],
+    ["(d) an indented break, an indented dash run and a break", "blank", [" ***", " ---", "***"], null, SWALLOWED],
+    ["(e) a lazy code line, a blank line, a code line and a dash column", "blank", ["Para above.", "    code", "", "    more", "- - -"], null, SWALLOWED],
+    ["(f) a dash column under a prose line, a fence pair, a break and a definition", "blank", ["Para above.", "- - - -", "~~~", "~~~", "* * *", "[a]: /u"], null, SWALLOWED],
+  ])("RED->GREEN: an indent-4 `{bash}` opener below %s", (_label, ctx, x, from, expected) => {
+    claim(probe("markdown", ctx, x, "    ", from), "markdown", expected, `${from ?? "no from"}, ${ctx} context`);
+  });
+  // The same shapes with the pieces that keep them apart (quarto lists `In` for each; every one is a grid pair or a corpus row already rendered): a table closed by a blank line and a break after it, a real underline, a code run that
+  // begins a block.
+  it.each<[string, string[], string[]]>([
+    ["a headed simple table, a blank line and a break", ["H  H", "--  --", "a  b", "", "***"], LISTED],
+    ["a setext heading with a column-0 dash underline and a dash column", ["Title", "-----", "- - -"], ["Before", "Title", "In", "After"]],
+    ["two code lines that begin a block and a dash column", ["    a", "", "    b", "- - -"], LISTED],
+  ])("GUARD: an indent-4 `{bash}` opener below %s", (_label, x, expected) => {
+    claim(probe("markdown", "blank", x), "markdown", expected, "markdown");
+  });
+
   // SLICE 31. THE BASE READER'S DEFAULTS ARE NOT IN THE `from:` STRING. `simple_tables`, `native_divs` and `markdown_in_html_blocks` are on in pandoc's own `markdown` unless a `-` removes them and OFF in `markdown_strict`, `_github`,
   // `_mmd` and `_phpextra` unless a `+` adds them. The first reader gates read "not turned off", so `markdown_strict+simple_tables` had no simple tables (`***` / `- - -` was two breaks and the opener
   // was listed where quarto swallows it) and `markdown_strict-markdown_in_html_blocks` took `<div>x</div>` for a native div whose text swallows the opener (quarto lists it: with `native_divs` off the element is raw HTML). A lone `<div>` ends
