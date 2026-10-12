@@ -15,6 +15,12 @@ keeps current. ledger-format: 2 — keep this marker; `bin/status` reads it.
 Losslessness is proved by [`docs/archive/CHANGELOG-through-2026-08-24.md.verify.sh`](docs/archive/CHANGELOG-through-2026-08-24.md.verify.sh), which re-derives L1/L2/L3 from git; run it rather
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
+## 2026-10
+
+### 2026-10-11 · [ad hoc] Layout migration: the methodology files now live under `methodology/` (tier all, 38 files)
+
+`bin/migrate-layout` (KJ5HST/methodology @ 8df554b) moved them in one commit with `git mv`; paths were rewritten in `CLAUDE.md`, `methodology/.context-budget.json`, `methodology/.quality-gates.json`. No older entry or shard was edited, so a link in an older entry is relative to the root, where the ledger sat when it was written.
+
 ## 2026-09
 
 ### 2026-10-11 · [ad hoc] Sync the methodology files from the methodology repository (22 files)

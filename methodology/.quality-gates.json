@@ -1,7 +1,7 @@
 {
   "_": "Declared quality gates for this project — the thresholds every actor (any agent, any tier, any human) must clear, held by quality_ratchet.py. STARTS EMPTY ON PURPOSE: a ratchet begins where the project IS, not where an article says it should be. Measure first, then declare each gate at its current value; `python3 quality_ratchet.py --run` reports every gate, and `install-hook` makes the pre-commit ratchet refuse any later commit that loosens one. Thresholds only tighten. Loosening one is a plan-mode decision made in its own commit with the reason in the ledger, committed with --no-verify — a recorded bypass, not an exemption (SAFEGUARDS.md Blast Radius Limits; SESSION_RUNNER.md failure mode #17; ITERATIVE_METHODOLOGY.md §Mechanical Gates Bind Every Actor).",
   "version": 1,
-  "results_file": ".quality-gates-results.json",
+  "results_file": "methodology/.quality-gates-results.json",
   "_results_file": "Where --run writes its results (gitignored by default — add it to .gitignore; the receipt cites the summary line, and the dashboard reads the file where it exists). Commit it instead if you want every clone to score the last run.",
   "_gate_schema": "Each gate: `name` (unique; the ratchet keys on it), `direction` (`min`: measured >= threshold, or `max`: measured <= threshold), `threshold` (a number), and optionally `command` (run via the shell from the project root) plus `extract` (a regex whose FIRST capture group is the measured number; without `extract` the command's exit code is the measurement, so `max 0` means `must exit 0`). A gate with no command is declared, not measured: --run reports it UNMEASURED and exits 1 — never pass. `why` and `unit` are free text for the reader.",
   "_example": {
@@ -19,7 +19,7 @@
       "direction": "max",
       "threshold": 0,
       "unit": "commits",
-      "command": "git rev-list --count --no-merges \"$(git log -1 --format=%H -- CHANGELOG.md)..HEAD\"",
+      "command": "git rev-list --count --no-merges \"$(git log -1 --format=%H -- methodology/CHANGELOG.md)..HEAD\"",
       "extract": "^(\\d+)$",
       "why": "Commits after the newest commit that touched CHANGELOG.md -- Phase 0's reconcile set, and the set that makes methodology_trim.py refuse with P1_UNDOCUMENTED. Measured 0 at Session 264 (operator's decision; PROJECT_LEARNINGS #544). It catches an unrecorded commit at the END of a session, not a mid-session commit followed by a recorded one: the one-entry-per-commit rule itself is the canonical pre-commit hook's to enforce, which is not installed."
     },

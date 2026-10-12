@@ -2,14 +2,14 @@
 
 ## SESSION PROTOCOL — FOLLOW BEFORE DOING ANYTHING
 
-Read and follow `SESSION_RUNNER.md` step by step. It is your operating procedure for every session. It tells you what to read, when to stop, and how to close out.
+Read and follow `methodology/SESSION_RUNNER.md` step by step. It is your operating procedure for every session. It tells you what to read, when to stop, and how to close out.
 
 **Three rules you will be tempted to violate:**
-1. **Orient first** — Read SAFEGUARDS.md → SESSION_NOTES.md → run `methodology_dashboard.py` → git status → report findings → WAIT FOR THE USER TO SPEAK
+1. **Orient first** — Read methodology/SAFEGUARDS.md → methodology/SESSION_NOTES.md → run `methodology/methodology_dashboard.py` → git status → report findings → WAIT FOR THE USER TO SPEAK
 2. **1 and done** — One deliverable per session. When it's complete, close out. Do not start the next thing.
 3. **Auto-close** — When done: evaluate previous handoff, self-assess, document learnings, write handoff notes, commit, report, STOP.
 
-`SESSION_RUNNER.md` documents known failure modes and their countermeasures. The protocol compensates for documented tendencies to skip orientation, skip close-out, and continue past the deliverable.
+`methodology/SESSION_RUNNER.md` documents known failure modes and their countermeasures. The protocol compensates for documented tendencies to skip orientation, skip close-out, and continue past the deliverable.
 
 ---
 
@@ -49,7 +49,7 @@ The goal is feature parity *reimplemented independently under MIT licensing*, no
 
 ## Build / Test / Verify
 
-**The build equivalent (record the run in close-out, see SAFEGUARDS.md) is:**
+**The build equivalent (record the run in close-out, see methodology/SAFEGUARDS.md) is:**
 
 ```bash
 npm run compile      # type-checks src AND test/unit, then bundles — seconds
@@ -99,7 +99,7 @@ automated form of that check.
 - **`test:integration` and `test:lsp` take over the screen** — each launches a real VS Code
   Extension Development Host window. Get the operator's explicit go-ahead before running either.
 - **A red `check-backlog` is not fixed by deleting the block.** It means a completed record is
-  sitting in an open-work file: record the outcome in `CHANGELOG.md` and anything worth carrying
+  sitting in an open-work file: record the outcome in `methodology/CHANGELOG.md` and anything worth carrying
   forward in `PROJECT_LEARNINGS.md` **first**, then delete. ⚠ Verify per block — Session 195 found
   an OPEN, operator-pending decision (the lone `+` gate suspension, 2 recovered against 32 new
   phantoms) buried inside a tombstone, recorded in no other tracked file.
@@ -119,7 +119,7 @@ tools/realdoc-score/run.sh head      # head: scored 2438 agree 2419 (99.22%) div
   change that moves a corpus document into the losing column is a defect, whatever the unit tests say.
   Any directory holding `src/` scores, so a past build is `run.sh <sha> /tmp/build-<sha>`.
 - ⚠ **It is machine-specific and can never be a gate.** The corpus is personal and is never
-  committed: `.quality-gates.json` and CI cannot run this, which is exactly why the habit has to be
+  committed: `methodology/.quality-gates.json` and CI cannot run this, which is exactly why the habit has to be
   written down here instead.
 - ⚠ **Name a corpus document only by its ORDINAL** in any tracked file (Learning #548).
 - The scripts are tracked and the corpus is not; `tools/realdoc-score/README.md` says which files it
@@ -129,16 +129,16 @@ tools/realdoc-score/run.sh head      # head: scored 2438 agree 2419 (99.22%) div
 
 ## Project-Specific Methodology Adaptations
 
-*Additions and overrides to the base methodology at `SESSION_RUNNER.md` and `SAFEGUARDS.md` (synced from the methodology repo, not project-owned). The base files govern unless explicitly overridden here.*
+*Additions and overrides to the base methodology at `methodology/SESSION_RUNNER.md` and `methodology/SAFEGUARDS.md` (synced from the methodology repo, not project-owned). The base files govern unless explicitly overridden here.*
 
-> **Why this file and not a synced one:** `SESSION_RUNNER.md`, `SAFEGUARDS.md`, and everything under `docs/methodology/` (including the workstream docs) are synced byte-identical from the canonical methodology repo — editing them blocks future syncs (BOOTSTRAP, "Customizations Go in CLAUDE.md, Not in Synced Files"). Every project-specific rule, including the one below, lives here.
+> **Why this file and not a synced one:** `methodology/SESSION_RUNNER.md`, `methodology/SAFEGUARDS.md`, and everything under `docs/methodology/` (including the workstream docs) are synced byte-identical from the canonical methodology repo — editing them blocks future syncs (BOOTSTRAP, "Customizations Go in CLAUDE.md, Not in Synced Files"). Every project-specific rule, including the one below, lives here.
 
 ### Mandatory development practice — strict TDD (operator directive, project-wide)
 
 **For the entire duration of this project, all implementation and bug-fix work MUST follow strict test-driven development.** This is a hard gate, an override that strengthens the base Development-workstream guidance (which lists "Test-last" as anti-pattern #3 and already says "write the failing test first"). It is not optional and does not lapse between sessions.
 
 - **Red → Green → Refactor, one test at a time.** Write ONE failing test for the next behavior, run it and confirm it fails *for the right reason* (RED), write the minimal code to pass (GREEN), then refactor with tests green. Repeat.
-- **Vertical slices, never horizontal.** Do NOT write all tests first then all implementation — that produces tests of imagined behavior. One test → one implementation → repeat (see the `/tdd` skill, which is the operative how-to; cited in `RECOMMENDED_SKILLS.md`).
+- **Vertical slices, never horizontal.** Do NOT write all tests first then all implementation — that produces tests of imagined behavior. One test → one implementation → repeat (see the `/tdd` skill, which is the operative how-to; cited in `methodology/RECOMMENDED_SKILLS.md`).
 - **Test behavior through the public interface,** not implementation details, so tests survive refactors. For this project the pure `core/` library (the §3.3 guardrail) is where most logic lives and is unit-tested headlessly with `npm test` (vitest); `vscode` adapters are verified with `@vscode/test-electron` (Learning #3).
 - **Scope of the gate:** anything with logic (parsers, arg-builders, indexers, providers, lifecycle/state machines). Pure declarative/config/doc edits with no logic (e.g. a `package.json` command contribution, grammar JSON) are exempt from a unit test but still require their normal verification (compile, integration registration, render).
 - **Enforcement at close-out:** a session's self-assessment must state that implementation was TDD (RED shown before GREEN). A commit that adds logic with no preceding failing test is a protocol violation to flag in the handoff.
@@ -165,7 +165,7 @@ code taken from it into a `.vsix` that ships MIT.
   score against `quarto render` because that is mechanical over thousands of documents; the product
   **defaults to mirroring Posit**, because Posit is the *product* oracle — what a user expects an
   Outline to do. **Seven such decisions are now recorded** in `BACKLOG.md`'s RECORD item and in
-  `CHANGELOG.md`; five mirror Posit, and ⚠ **two deliberately do not.**
+  `methodology/CHANGELOG.md`; five mirror Posit, and ⚠ **two deliberately do not.**
 - ⚠ **The default is rebuttable, and decisions (6) and (7) are the cases that rebutted it (Sessions
   274 and 277).**
   Mirroring Posit rests on Posit's behaviour being *intended*. Where Posit's own maintainers have
@@ -189,7 +189,7 @@ Posit's markdown-it (CommonMark) Outline hides.*
 
 *Origin: operator directive, Session 75 (2026-07-11) — formalizes a pattern already used ad hoc in Sessions 71/73/74 into a standing procedural step, so it fires automatically at every future Phase 0 rather than being re-derived per session. See also the standing `feedback` memory `candidate-list-selection` (general interaction preference: arrow+enter selection over a typed-digit prose list).*
 
-### `SESSION_NOTES.md` retention — it is TRANSIENT, not append-only (Session 256)
+### `methodology/SESSION_NOTES.md` retention — it is TRANSIENT, not append-only (Session 256)
 
 **At Phase 3D, after writing your own close-out pair, DELETE the oldest pair so the live file holds
 at most three. Do not append indefinitely.** A close-out pair is what one closing session writes:
@@ -199,10 +199,10 @@ two you inherited, and you drop one — the count never moves. Roughly 65 lines 
 the 400-line ceiling, leaving real headroom instead of the next session inheriting a full file.
 
 **A dropped pair is not lost — it is one command away**, and the file is small enough that this is
-trivial: `git show <sha>:SESSION_NOTES.md`. Records through Session 253 additionally live in
+trivial: `git show <sha>:methodology/SESSION_NOTES.md`. Records through Session 253 additionally live in
 [`docs/archive/SESSION_NOTES-through-S253.md`](docs/archive/SESSION_NOTES-through-S253.md). The
 live file's job is only to answer *"what is the active task, and whose handoff am I scoring?"* The
-durable record is `HANDOFFS.md` (the receipts), `CHANGELOG.md` (the ledger) and git.
+durable record is `methodology/HANDOFFS.md` (the receipts), `methodology/CHANGELOG.md` (the ledger) and git.
 
 **Why this rule exists, because the reason is not obvious and the canonical seed argues both sides.**
 `../methodology/starter-kit/SESSION_NOTES.md` says at line 5 *"This file is transient — it is
@@ -212,10 +212,10 @@ sessions** and reached **3,949,501 B / 13,942 lines** — 33x its declared ceili
 both ledgers combined before the Session 254 trim — in the one file Phase 0 step 2 *orders* every
 session to read. Sessions 254 and 255 each read ~160 of its ~13,900 lines and inferred the rest,
 which is failure mode #28 committed by the sessions that documented it. Canonical's own repo, 110
-sessions of dogfooding, has **no `SESSION_NOTES.md` at all**.
+sessions of dogfooding, has **no `methodology/SESSION_NOTES.md` at all**.
 
 **Two things that make this rule non-obvious in practice:**
-- ⚠ **`methodology_trim.py` cannot enforce it.** `--file SESSION_NOTES.md` exits 3 with `NO_CONFIG`
+- ⚠ **`methodology/methodology_trim.py` cannot enforce it.** `--file methodology/SESSION_NOTES.md` exits 3 with `NO_CONFIG`
   by design, and a `LedgerSpec` cannot be authored for this file at all: `date_of_record` is
   required and `evaluate()` freezes the oldest **by date**, while **458 of 740 records carried no
   date**. The reduction axis here is the **session number**. Upstream **BL-32** (open, undecided)
@@ -225,7 +225,7 @@ sessions of dogfooding, has **no `SESSION_NOTES.md` at all**.
   by construction otherwise (upstream BL-36). Rewrite `## ACTIVE TASK` in the close-out commit, not
   the trim commit.
 
-**The gate that actually catches regrowth is `python3 context_budget.py`** — `max_lines: 400`,
+**The gate that actually catches regrowth is `python3 methodology/context_budget.py`** — `max_lines: 400`,
 `max_bytes: 120000`, `max_line_bytes: 280`. The line ceiling binds ~4.7x harder than the byte one,
 and `max_line_bytes` is the one that stays red after a trim: keep every ACTIVE TASK line under
 280 B rather than writing one 620 B paragraph.
@@ -234,9 +234,9 @@ and `max_line_bytes` is the one that stays red after a trim: keep every ACTIVE T
 rule attached regrows — this file had already been drained twice under an instruction to "keep it
 clean", which is what `BACKLOG.md`'s own header records about itself.*
 
-### `CHANGELOG.md` conventions (Session 264)
+### `methodology/CHANGELOG.md` conventions (Session 264)
 
-**The rules are [§The Action Ledger](docs/methodology/FRAMEWORK_APPARATUS.md#the-action-ledger).**
+**The rules are [§The Action Ledger](methodology/FRAMEWORK_APPARATUS.md#the-action-ledger).**
 This project adds:
 - **Tag a `BACKLOG.md` item `[BL-<item title>]`.** Its items carry no ids, so the title is the id;
   leave out any `]`, which ends the tag early. Methodology-repo work (a sync, BL-57) is `[ad hoc]`,
@@ -246,9 +246,9 @@ This project adds:
   longer resolve (`BACKLOG.md`'s header). Most entries before S264 cover a whole session, not one
   commit. The Keep-a-Changelog `## [Unreleased]` heading is gone; entries group under `## YYYY-MM`.
   The headings the audit skips:
-  `cat CHANGELOG.md $(git ls-files 'docs/archive/CHANGELOG-*.md') | grep '^### ' | grep -vE '^### [0-9]{4}-[0-9]{2}-[0-9]{2} · \[(issue #[0-9]+|BL-[^]]+|ad hoc)\]'`
-- **`CHANGELOG.md` is not in `.context-budget.json`.** No session reads it whole, so it has no read
-  budget. Its only size trigger is `python3 methodology_trim.py --file CHANGELOG.md --check`, and
+  `cat methodology/CHANGELOG.md $(git ls-files 'docs/archive/CHANGELOG-*.md') | grep '^### ' | grep -vE '^### [0-9]{4}-[0-9]{2}-[0-9]{2} · \[(issue #[0-9]+|BL-[^]]+|ad hoc)\]'`
+- **`methodology/CHANGELOG.md` is not in `methodology/.context-budget.json`.** No session reads it whole, so it has no read
+  budget. Its only size trigger is `python3 methodology/methodology_trim.py --file methodology/CHANGELOG.md --check`, and
   archiving is optional.
 
 *Origin: Session 264 (2026-09-18), BL-57 P8. Operator decisions: the tag form, recording the legacy

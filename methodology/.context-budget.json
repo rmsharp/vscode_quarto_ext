@@ -26,7 +26,7 @@
       "_protected_min_bytes": "Derived, not inherited. This project's statement of purpose measures 732 B at Session 255; the seed shipped 800, which this file could never satisfy. 700 leaves the fence real (a compaction cannot cut more than ~4% of it) without being unsatisfiable on day one."
     },
     {
-      "path": "SESSION_NOTES.md",
+      "path": "methodology/SESSION_NOTES.md",
       "class": "read-mandated",
       "max_lines": 400,
       "max_bytes": 120000,
@@ -46,7 +46,7 @@
       "_": "Phase 0 step 2 ORDERS a read of this file. ⚠ MEASURED 3,946,063 B / 13,912 lines at Session 255 -- 33x this ceiling, and larger than BOTH ledgers were before the Session 254 trim. Sessions 254 and 255 each read ~160 lines of it and inferred the rest, which is failure mode #28 committed twice by the session that then wrote the finding down. The ceiling is canonical's, kept deliberately rather than raised to make this green -- raising it would record the problem as the standard. Reducing this file is a NAMED next deliverable, not housekeeping."
     },
     {
-      "path": "HANDOFFS.md",
+      "path": "methodology/HANDOFFS.md",
       "class": "read-mandated",
       "max_bytes": 65536,
       "_": "The durable receipt ledger; Phase 0 reconciles it and Phase 3D writes to it. 65,536 B is this project's ceiling, no longer the trimmer's: trim v1.5.0 (synced at Session 264) archives it only above 196,608 B, so this entry stays `over` until a trim is run by hand. KEPT deliberately: the operator decided at methodology Session 191 (the upstream plan's D7) that the remedy is a trim in this project, not dropping the warning as CHANGELOG.md's was -- and that trim needs `--budget-bytes` or `--cut N --force`, since the trimmer's own trigger will not fire. 52,850 B after the Session 254 trim (was 1,801,150 -- 27x over, refusing to trim at all because of a stale bootstrap seed footer); 62,521 B when this config was written at Session 255. Measure, don't trust this sentence: `python3 methodology_trim.py --check --file HANDOFFS.md`."
@@ -66,48 +66,48 @@
   ],
   "synced": [
     {
-      "path": "SESSION_RUNNER.md",
+      "path": "methodology/SESSION_RUNNER.md",
       "canonical": "../methodology/starter-kit/SESSION_RUNNER.md",
       "_": "⚠ ALL BUT TWO OF THESE WERE SILENTLY BEHIND CANONICAL UNTIL SESSION 255. An adopter may not edit these files, so zero local edits means `git diff` shows nothing and drift is invisible -- SESSION_RUNNER.md, FRAMEWORK_LEARNINGS.md, RECOMMENDED_SKILLS.md, BOOTSTRAP.md, methodology_dashboard.py and methodology_trim.py had ALL drifted, and context_budget.py plus .context-budget.json were never installed at all. This block is the check that makes that visible. Adjust the paths if the methodology checkout moves."
     },
     {
-      "path": "SAFEGUARDS.md",
+      "path": "methodology/SAFEGUARDS.md",
       "canonical": "../methodology/starter-kit/SAFEGUARDS.md"
     },
     {
-      "path": "FRAMEWORK_LEARNINGS.md",
+      "path": "methodology/FRAMEWORK_LEARNINGS.md",
       "canonical": "../methodology/starter-kit/FRAMEWORK_LEARNINGS.md"
     },
     {
-      "path": "RECOMMENDED_SKILLS.md",
+      "path": "methodology/RECOMMENDED_SKILLS.md",
       "canonical": "../methodology/starter-kit/RECOMMENDED_SKILLS.md"
     },
     {
-      "path": "BOOTSTRAP.md",
+      "path": "methodology/BOOTSTRAP.md",
       "canonical": "../methodology/starter-kit/BOOTSTRAP.md"
     },
     {
-      "path": "CLAUDE_TEMPLATE.md",
+      "path": "methodology/CLAUDE_TEMPLATE.md",
       "canonical": "../methodology/starter-kit/CLAUDE_TEMPLATE.md"
     },
     {
-      "path": "CONTEXT_TEMPLATE.md",
+      "path": "methodology/CONTEXT_TEMPLATE.md",
       "canonical": "../methodology/starter-kit/CONTEXT_TEMPLATE.md"
     },
     {
-      "path": "methodology_dashboard.py",
+      "path": "methodology/methodology_dashboard.py",
       "canonical": "../methodology/starter-kit/methodology_dashboard.py"
     },
     {
-      "path": "methodology_trim.py",
+      "path": "methodology/methodology_trim.py",
       "canonical": "../methodology/starter-kit/methodology_trim.py"
     },
     {
-      "path": "context_budget.py",
+      "path": "methodology/context_budget.py",
       "canonical": "../methodology/starter-kit/context_budget.py"
     },
     {
-      "path": "quality_ratchet.py",
+      "path": "methodology/quality_ratchet.py",
       "canonical": "../methodology/starter-kit/quality_ratchet.py"
     }
   ]
