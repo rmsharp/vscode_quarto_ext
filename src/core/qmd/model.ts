@@ -11211,9 +11211,14 @@ class BlockBoundaries {
     return this.known[Math.max(0, k)];
   }
   private compute(k: number): boolean {
+    if (isBoundaryLine(this.lines[k - 1]) || this.ends.has(k - 1)) {
+      return true;
+    }
+    // Inside an open `<pre>`, `<script>`, `<style>` or `<textarea>` everything is raw text, so no self-ending construct ends a block there (rendered, `review1/r1_001`).
+    if (this.rawDepthBefore[k] > 0) {
+      return false;
+    }
     return (
-      isBoundaryLine(this.lines[k - 1]) ||
-      this.ends.has(k - 1) ||
       endsFreshBlock(this, k - 1) ||
       closesSimpleTable(this, k - 1) ||
       endsFreshComment(this, k - 1) ||
@@ -11231,11 +11236,12 @@ class BlockBoundaries {
  */
 function endsFreshHtml(b: BlockBoundaries, x: number): boolean {
   return (
+    b.lines[x].includes("<") &&
     b.readers.html &&
     b.rawDepthBefore[x + 1] === 0 &&
     // an element with TEXT between its tags is a raw block only where markdown is parsed inside HTML blocks (rendered, `-markdown_in_html_blocks`)
     (b.readers.htmlContent || !htmlLineHasText(b.lines[x])) &&
-    endsHtmlBlock(b.lines[x], startsAtBoundary(b, x), !b.readers.pandocMarkdown && !htmlRunBeginsWithTag(b.lines, x), b.readers.rawHtml, b.readers.nativeDivs, (b.divDepthBefore[x] ?? 0) > 0)
+    endsHtmlBlock(b.lines[x], startsAtBoundary(b, x), !b.readers.pandocMarkdown && !startsAtBoundary(b, x) && !htmlRunBeginsWithTag(b.lines, x), b.readers.rawHtml, b.readers.nativeDivs, (b.divDepthBefore[x] ?? 0) > 0)
   );
 }
 /** Whether the line at `x` is a whole-line HTML comment at column 0 that began at a block boundary, so pandoc is between blocks after it (Session 295; stackable, Session 298). */
@@ -11487,6 +11493,10 @@ function endsHtmlBlock(line: string, beganFresh: boolean, againstParagraph: bool
     return nativeDivs; // a lone opening `<div ...>`: pandoc reads an unclosed div as markdown content (a NATIVE div: it needs `native_divs`, and not raw HTML; rendered, `rdr2_298`)
   }
   const m = HTML_ELEMENT_COMPLETES.exec(line);
+  // An EMPTY native div opened and closed on one line (`<div></div>`) is a closed Div whatever `raw_html` says; `<div>x</div>` is not (the text swallows the closer without raw HTML; rendered `review1/r1_002`).
+  if (!rawHtml && nativeDivs && /^[ \t]*<div\b[^>]*>[ \t]*<\/div>[ \t]*$/i.test(line)) {
+    return true;
+  }
   // Without raw HTML a closing tag is text, EXCEPT the `</div>` that closes an open native div (a container, not raw HTML).
   if (m === null || (!rawHtml && !(nativeDivs && closesNativeDiv && line[lt + 1] === "/" && first.name.toLowerCase() === "div"))) {
     return false;

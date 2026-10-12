@@ -265,6 +265,30 @@ describe("Session 298 — stacked block enders in the free case", () => {
     claim(probe("markdown", "blank", x, "    ", null, after), "markdown", SWALLOWED, "markdown");
   });
 
+  // SLICE 21. THREE FINDINGS OF THE INDEPENDENT CODE REVIEW (`scratchpad/s298/review1`, each rendered). (1) NOTHING ENDS A BLOCK INSIDE AN OPEN RAW-CONTENT ELEMENT: everything in a `<pre>` (or a
+  // `<script>`, `<style>`, `<textarea>`) is raw text, so a stack of enders inside it ends nothing and the opener is swallowed; only the HTML rule asked the scanner's raw-content depth (the parent was right
+  // here by accident: stacking was refused). (2) A `<div></div>` OPENED AND CLOSED ON ONE LINE is an empty native div under `-raw_html` too (`<div>x</div>` is not: the text swallows the closer). (3) A
+  // CLOSING TAG UNDER A READER OUTSIDE PANDOC'S MARKDOWN begins its own block when the line above ended one, so the run-must-begin-with-a-tag refusal does not apply to a tag that begins at a boundary.
+  it("RED->GREEN: a stack of enders inside an open <pre> ends nothing, so the opener is swallowed", () => {
+    claim(
+      doc("---", 'title: "T"', "engine: markdown", "---", "", "## Before", "", "Prose before.", "", "<pre>", "", "***", "[a]: http://x", "    ```{bash}", "## In", "x = 1", "    ```", "</pre>", "", "## After", "", "tail"),
+      "markdown", SWALLOWED, "markdown");
+  });
+  it("RED->GREEN: the opener below `<div></div>` under `-raw_html` is indented code (an empty native div closes at once)", () => {
+    claim(probe("markdown", "blank", ["<div></div>"], "    ", "markdown-raw_html"), "markdown", LISTED, "markdown-raw_html");
+  });
+  it.each(
+    ["markdown_strict", "markdown_github", "markdown_mmd", "markdown_phpextra"].flatMap((r) =>
+      [
+        ["a thematic break", ["***"]],
+        ["a link definition", ["[a]: /u"]],
+        ["an indented code line", ["    c"]],
+      ].map(([l, x]): [string, string, string[]] => [`${l as string} under ${r}`, r, x as string[]]),
+    ),
+  )("RED->GREEN: the opener below a closing div under %s is indented code (the tag begins its own block)", (_label, reader, x) => {
+    claim(probe("markdown", "blank", [...x, "</div>"], "    ", reader), "markdown", LISTED, reader);
+  });
+
   // SLICE 20. A SIMPLE TABLE NEEDS A ROW, AND ITS CLOSING RULE ENDS IT. (1) A dash-column line whose next line is another dash-only line has no row between them: `- - -` / `-----` is a setext
   // heading whose text is `- - -`, not a table, and the opener below is indented code (rendered, `dev/stack3/dst3_032_five_thematic_spellings`: `Before`, `- - -`, `In`, `After`). (2) The rule
   // that closes a headerless table ends it, so the opener below the closing rule is indented code, whatever kind of rule it is (rendered, `dev/tables/dtbl_018_simple_headerless_dash_frame`).
