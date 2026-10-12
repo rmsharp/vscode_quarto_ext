@@ -8,15 +8,37 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 298 (IN PROGRESS): row (3)(a) of "Kernel-cell closing and the unbounded second look" -- STACKED BLOCK ENDERS in the free case.**
-Operator picked it at Phase 0. Workstream: `DEVELOPMENT_WORKSTREAM.md`, strict TDD. Quarto lists the heading in 298 of 450 `stk` documents, this build in 94.
-**⚠ Gotchas:** (1) never `git add -A`. (2) CAP and ANNOUNCE renders: authors never render, the caller renders 3 wide, load gate 25. (3) mutation edits `src/`: run it alone.
+**Task:** NONE -- Session 298 closed out. Row (3)(a) of the Kernel-cell backlog item (stacked block enders in the free case) is delivered.
+**Next:** pick from `BACKLOG.md` "Up Next" (Active is empty) via the ranked AskUserQuestion step; the open rows of this work are the new item "Stacked block enders in the free case".
+**⚠ Gotchas:** (1) never `git add -A`. (2) renders 3 wide and niced; hunters 2 workers with a load gate. (3) mutation rewrites `src/`: run it alone, restore with `git checkout`.
 
-### What Session 298 Did
-**Deliverable:** make the free case's block-boundary test accept a second ender of any kind after an ender, where quarto does (IN PROGRESS)
-**Started:** 2026-10-12
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+## Session 297 Handoff Evaluation (by Session 298)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its receipt said `BACKLOG.md` "Active" was empty and listed the open items; all 14
+`key_files` line numbers I checked (`frontMatterProvesReader` 2960 ... `commonmarkProven` 7699, the four gate sites, the `describe` at 23279) were exact at `e0a90931`, the
+commit it closed on (HEAD had moved on by then, so checking HEAD would have said otherwise); the ratchet citation (2/2, `bba236856bad`) matched the stored results.
+**Helped:** `render.sh`, `score.cjs` and its stale-bundle refusal, `mutate297.py`, `mutdiff.cjs` and `killers297.cjs` (copied forward and extended), Learnings #650 and #663 (the
+stale-string check and the three-way survivor split), and gotchas 1, 3, 4 (mutation edits `src/`: I edited neither tests nor `BACKLOG.md` beside it), 5 and 6 (zsh word-splitting bit again).
+**Missing:** that row (3)(a) was a design space and not a rule (35 slices; each stacking fix unmasked an older accident the parent hid, which S295 and S296 had said
+and this receipt did not repeat), and that the item's own figure "94 of 450" was 96. **Wrong:** only that figure (S295's, carried). **ROI: high.**
+
+## Session 298 Self-Assessment
+
+**Score: 8/10.**
+**Went right.** I measured before coding (the 225-pair `stk` grid, a 70 x 70 spelling grid in three contexts: 4,932 documents, quarto and pandoc as judges) and showed RED
+before GREEN for every class (299 rows). Every hunter and reviewer candidate was rendered before a line moved and scored against the PARENT and the previous slice
+(`slicediff.sh`, `bisect.cjs`); round-3b's 51 documents: 47 fixed, 2 pinned; a round-4 re-sweep of my own fixes found 109 table candidates (83 one wrong rule of mine) and brought
+them to 4. Final: 4,932 grid documents 891 wrong in the parent and 318 now, 0 regressed; probe corpora 288 fixed, 3 regressed (pinned); corpus 0 of 3,383 changed; score unchanged
+2,423/2,438; 319 of 319 row documents confirmed by quarto; tests 4,583 to 4,882; mutation 191 mutants (11 observable given rows, 1 net-harmful fixed, 49 unobservable).
+**Went wrong.** (1) Scope: one row became 35 slices and four fix rounds, each forced by a measured defect of mine. (2) My first stacking took `endsBlock` textually (34 HTML regressions),
+and slice 28's refusal needed positive evidence and deleted 83 table candidates before it asked for a proof; an ensemble with the scanner cost an hour and lost 6 documents. (3) Five
+hunters at ten workers drove the load to 250-360 beside other projects' work: 2 of 5 completed, three were rerun throttled. (4) The mutation harness ignored SIGINT as a background job
+and left a mutated `model.ts` in the tree for minutes (restored from git). (5) The scorer's `REFUSED` line is hidden by a grep for the tally. (6) The oracle ignores `from:`: the readers
+hunter's 18 candidates were false alarms. (7) I fixed no further class once the sweeps fell to paragraph-context stacks of random constructs (38 codes candidates, 4 tables ones): filed
+with counts, not fixed. (8) No `test:integration` run (needs the screen; core-only change).
+**TDD:** RED shown before GREEN for every fix slice (slices 1-33 and the P07 fix); slice 34's per-construct reader rows were shown RED against the previous slice's bundle
+(`dev33`) after the code was written; the mutation killers, guards and RESIDUAL rows pass on arrival (disclosed).
+**Cost:** 3 blind rounds, 2 code reviews and 8 hunters (5 round 3, 3 round 3b), renders by the caller at 3 wide, 191 mutants, about 130,000 fuzz documents, no screen-taking run.
 
 ## Session 296 Handoff Evaluation (by Session 297)
 
@@ -82,35 +104,3 @@ below it with NO opener in the document (154 regressions) and needed eight gates
 `test:integration` run (needs the screen; core-only change). (8) `mutate296.py` wrote its bundles into the S295 directory until I moved them.
 **TDD:** RED shown before GREEN for slices 1-8 and every gate family; the guard rows, the pinned RESIDUAL rows and the mutation killers and witnesses pass on arrival (disclosed).
 **Cost:** 26 authoring agents (about 4.7M subagent tokens, none rendered) in three workflows, about 3,660 renders by the caller at 3 wide, no screen-taking run; load peaks of 64 were other apps.
-
-## Session 294 Handoff Evaluation (by Session 295)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its receipt said `BACKLOG.md` "Active" was empty and listed the open
-items; all four key_files line numbers I checked (`endsBlock` 10564, `indentedCellFenceFor` 10512, `closesOnOwnIndent` 10603, `HANDLER_CELL_LANGUAGES`
-10501) were exact at HEAD; the ratchet citation (2/2, `bba236856bad`, `8845021a4049`) matched the stored results at Phase 0.
-**Helped:** `render.sh`, `score.cjs`, `build.sh` and `h/engine.cjs` (copied forward, only the paths changed), the backlog item's witness list (I read 35
-of them to design the grid), and gotcha 3 (the stale-bundle refusal: I rebuilt before every score). **Missing:** that the scanner's `paragraphOpen` is NOT
-a usable "began fresh" signal after raw TeX, a comment or a break (Learning #625 says so for the raw-construct trap; my first cut paid seven regressions),
-and that the free case had only ever been measured under the default reader (a `markdown_strict` regression followed). **Wrong:** item (3) said pandoc is
-between blocks after "a table caption" and "an adjacent chain": a tight `: Caption` is paragraph text in every context, and a chain of bash cells ends
-nothing (only a closed KERNEL cell does); gotcha 2's load of 37-55 was gone at my start (load 5). **ROI: high.**
-
-## Session 295 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** I measured before every rule: an 87-construct grid x three contexts, 129 tag names x six shapes (774 documents), an outer-element grid, a
-225-pair stacking matrix and a 16 x 10 reader grid (320 documents); every unit row's claim was re-derived from quarto (`gen_rows.cjs` + `check_rows.cjs`:
-392 claims, it caught 3 wrong claims and 6 wrong expected lists). Two blind rounds (542 + 532 documents) found 9 documents my rules broke; the reader grid
-found the `markdown_strict` regression no author wrote; three mutation rounds (final 67 mutants, 60 killed, 7 proved unobservable) removed three harmful or
-dead terms. Final: 4,689 probe documents, 1,588 fixed, 0 regressions; Session 293/294's 2,160 probes 0; corpus 0 of 3,383; score unchanged 2,423/2,438;
-4,225 tests (was 4,028).
-**Went wrong.** (1) My first cut used `paragraphOpen` as the freshness signal although Learning #625 warns that raw constructs make it false: seven
-regressions only the blind authors found. (2) The reader dimension was missing from my first design; a `markdown_strict` regression lived for several
-commits. (3) My first HTML measurement used `Text.` as filler, a list marker: a confound that cost two render passes. (4) Three figures written from
-memory ("about 90 of 140", "about 6,400", "eleven killers"): two caught and corrected, one remains in commit `8cc5001d` (the true figure was 6,320).
-(5) Scope: the item named one list; six slices, a refactor and reader gating shipped, each forced by a measured defect, but more than listed. (6) One unit
-test failed once under load (~40-60) during a mutation run and not in three reruns: a flaky test exists, uncaptured. (7) No `test:integration` run
-(needs the screen; core-only change). (8) The dashboard run took over two minutes because `scratchpad/` is 65 GB.
-**TDD:** RED shown before GREEN for each slice and fix; the GUARD and MUTATION KILLER rows pass on arrival by construction (they pin behaviour HEAD
-already had right), disclosed.
-**Cost:** 21 authoring agents (about 1.63M subagent tokens), 4,707 renders at 3 wide or fewer; no screen-taking run.
