@@ -106,6 +106,34 @@ describe("Session 298 — stacked block enders in the free case", () => {
       }
     },
   );
+  // SLICE 7. A MULTI-LINE COMMENT UNDER WHICH ANOTHER BLOCK IS STACKED. A comment region that opens at column 0 on a fresh block and closes at the end of a line is one raw block that ends
+  // itself; the scanner knows its last line (it skipped the region), no text-only test does. Rendered (`scratchpad/s295/stk`: `st_cmt2_then_{hr,hrb,ref,code,cmt,pipe}`, both engines): listed.
+  it.each<[string, string[]]>([
+    ["a thematic break", ["<!--", "note", "-->", "***"]],
+    ["a bullet-spelled thematic break", ["<!--", "note", "-->", "- - -"]],
+    ["a link definition", ["<!--", "note", "-->", "[a]: https://a.example"]],
+    ["an indented code line", ["<!--", "note", "-->", "    some code"]],
+    ["a one-line comment", ["<!--", "note", "-->", "<!-- c -->"]],
+    ["a pipe table", ["<!--", "note", "-->", "| a | b |", "|---|---|", "| 1 | 2 |"]],
+    ["a second multi-line comment", ["<!--", "note", "-->", "<!--", "more", "-->"]],
+  ])("RED->GREEN: an indent-4 `{bash}` opener below %s stacked under a multi-line comment is indented code", (_label, x) => {
+    for (const eng of ["jupyter", "markdown"] as const) {
+      expect(texts(probe(eng, "blank", x), eng), `${eng}: after a blank line`).toEqual(LISTED);
+    }
+  });
+
+  // SLICE 6. THE STACK IS EVALUATED WITHOUT RECURSING THROUGH ITS DEPTH. "Is pandoc between blocks above this line" asks the same question of the line above it, so a stack of N enders was
+  // N frames deep: a document with 15,000 thematic breaks and link definitions stacked directly (a generated reference list, an auto-built separator ladder) overflowed the JavaScript stack
+  // inside `findHeadings`. The answer is computed once per line, bottom-up, and memoised per document and reader.
+  it("RED->GREEN: a stack of 15,000 alternating thematic breaks and link definitions does not overflow the stack", () => {
+    const stack: string[] = [];
+    for (let n = 0; n < 15000; n++) {
+      stack.push(n % 2 === 0 ? "***" : "[a]: https://a.example");
+    }
+    for (const eng of ["jupyter", "markdown"] as const) {
+      expect(() => texts(probe(eng, "blank", stack), eng), eng).not.toThrow();
+    }
+  });
   // SLICE 5. A LINE BLOCK STACKED UNDER ANOTHER FRESH BLOCK. The run of `| ` lines and indented continuation lines that makes a line block was searched back over EVERY indented line, so an indented
   // CODE line directly above it was taken for the start of the run and the line block was thought to begin at a non-boundary. The block begins at its first `| ` line (rendered,
   // `scratchpad/s295/stk` `st_code_then_lb`: listed). The same line block under a thematic break, a link definition and a comment already passes (slice 4).

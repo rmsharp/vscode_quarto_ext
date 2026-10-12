@@ -7542,12 +7542,6 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   // The line at which a CommonMark fence was ended by its list item ending (Session 296): that line closes the containers deeper than itself even where the line
   // above is not blank, which is the one case where the container stack would otherwise outlive the item.
   let boundEndedLine = -1;
-  // The last line the scanner found to END ITS OWN BLOCK having begun it fresh (Session 295), for the constructs whose end the line's own bytes cannot
-  // tell: the closer of a comment region that opened fresh, and a line of seven or more hashes. `-2` = none. Read by the free case.
-  let freshBlockEndLine = -2;
-  // The line that closed a REAL KERNEL CELL (a jupyter cell in the document's kernel language that closed at its own indent, `OpenCellFence.indent`).
-  // Quarto cuts such a cell out of the markdown it hands pandoc, so the line below it starts fresh whatever was above the cell (Session 295).
-  let kernelCellCloserLine = -2;
   // How many raw-content elements (`HTML_RAW_CONTENT_TAG`) are open above, counted over ordinary body lines only (fences and comments are skipped by the
   // scanner before they reach the count), floored at zero.
   let rawContentDepth = 0;
@@ -7763,6 +7757,10 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     fromValueLine === null ||
     (FREE_CASE_TABLE_READER_BASES.has(fromReaderBase(fromValueLine) ?? "") &&
       !["pipe_tables", "line_blocks", "grid_tables"].some((extension) => fromExtensionState(fromValueLine, extension) === false));
+  // Where pandoc is between blocks, asked of any line above the current one and answered once (Session 298). The scanner reports into it the lines whose end only IT can tell: a REAL
+  // KERNEL CELL's closer (a jupyter cell in the document's kernel language that closed at its own indent, `OpenCellFence.indent`: quarto cuts such a cell out of the markdown it hands
+  // pandoc, so the line below it starts fresh whatever was above the cell, Session 295), the closer of a comment region that opened fresh, and a line of seven or more hashes.
+  const boundaries = new BlockBoundaries(lines, freeCaseTableReader);
   // Whether the resolved reader honours a trailing heading ATTRIBUTE block — see
   // `fromHonoursHeaderAttributes` (Session 216). A SEVENTH flag rather than a refinement of any
   // of the six around it, for the reason each of those gives: it answers its own question, about
@@ -8403,7 +8401,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       if (!knitrConsumed && isCloser(line, open)) {
         if (open.isCell) {
           if (open.indent !== null) {
-            kernelCellCloserLine = i;
+            boundaries.ends.add(i);
           }
           cells.push(makeCell(open, i, lines, true));
         } else {
@@ -8427,7 +8425,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       if (commentClose.test(line)) {
         inComment = false;
         if (commentFresh && COMMENT_CLOSE_AT_END.test(line)) {
-          freshBlockEndLine = i;
+          boundaries.ends.add(i);
         }
       }
       continue;
@@ -8628,7 +8626,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         // the line is paragraph text and keeps the over-accepting column (the safe direction, above), and inside any container or quote
         // nothing is claimed.
         const opened =
-          startsAtBoundary(lines, i, freeCaseTableReader) && contentColumns.length === 0 && !stripQuote && BULLET_THEMATIC_BREAK.test(line)
+          contentColumns.length === 0 && !stripQuote && BULLET_THEMATIC_BREAK.test(line) && startsAtBoundary(boundaries, i)
             ? null
             : listItemContentColumn(line, commonmarkDialect);
         if (opened !== null) {
@@ -8722,7 +8720,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     ) {
       inComment = true;
       commentClose = COMMENT_CLOSE;
-      commentFresh = !stripQuote && COMMENT_OPEN_COL0.test(line) && startsAtBoundary(lines, i, freeCaseTableReader);
+      commentFresh = !stripQuote && COMMENT_OPEN_COL0.test(line) && startsAtBoundary(boundaries, i);
       consecutiveBody = 0;
       paragraphOpen = false;
       inPipeTable = false;
@@ -8831,19 +8829,18 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
               contentColumns.length === 0 &&
               (i === 0 ||
                 endsBlock(lines[i - 1]) ||
-                endsFreshBlock(lines, i - 1, freeCaseTableReader) ||
-                freshBlockEndLine === i - 1 ||
-                kernelCellCloserLine === i - 1 ||
+                endsFreshBlock(boundaries, i - 1) ||
+                boundaries.ends.has(i - 1) ||
                 // a whole-line comment at column 0: the same under every reader measured (`scratchpad/s295/rdr`)
-                endsFreshComment(lines, i - 1, freeCaseTableReader) ||
+                endsFreshComment(boundaries, i - 1) ||
                 // tables and line blocks: measured under pandoc's markdown and the CommonMark family, and NOT `markdown_strict` (see `freeCaseTableReader`)
-                (freeCaseTableReader && tableOrLineBlockEndsAt(lines, i - 1, freeCaseTableReader)) ||
+                (freeCaseTableReader && tableOrLineBlockEndsAt(boundaries, i - 1)) ||
                 // a raw HTML block element completes on the line above, outside any open raw-content element (see `endsHtmlBlock`); pandoc's markdown only:
                 // `markdown_strict` ends one only after a blank line (the CommonMark family never reaches this: it is free wherever the opener sits)
                 (rawContentDepth === 0 &&
                   endsHtmlBlock(
                     lines[i - 1],
-                    startsAtBoundary(lines, i - 1, freeCaseTableReader),
+                    startsAtBoundary(boundaries, i - 1),
                     // OUTSIDE pandoc's markdown (`markdown_strict`, `markdown_github`, `markdown_mmd`, `markdown_phpextra`, the CommonMark family) the raw block is the
                     // whole run of non-blank lines and must BEGIN with a tag: a prose line that starts the run makes the tag lazy paragraph text there
                     !measuredRefusalReader && !htmlRunBeginsWithTag(lines, i - 1),
@@ -10075,8 +10072,8 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
           }
         }
       }
-      if (deepHeaderHere && !stripQuote && startsAtBoundary(lines, i, freeCaseTableReader)) {
-        freshBlockEndLine = i; // a header is one line and ends itself (Session 295; the Outline never shows it)
+      if (deepHeaderHere && !stripQuote && startsAtBoundary(boundaries, i)) {
+        boundaries.ends.add(i); // a header is one line and ends itself (Session 295; the Outline never shows it)
       }
       // Read `paragraphOpen` for the line ABOVE before overwriting it for this one —
       // whether these bytes open a block or merely continue a paragraph depends on it.
@@ -11144,19 +11141,49 @@ function endsBlock(line: string): boolean {
  * `paragraphOpen` is false after a raw TeX environment, an HTML comment and a thematic break although pandoc is still inside the raw block or the
  * paragraph, which is how the first cut regressed seven documents HEAD had right (`scratchpad/s295/adv`; the adversarial round).
  */
-function startsAtBoundary(lines: readonly string[], k: number, tables: boolean): boolean {
-  return (
-    k <= 0 ||
-    isBoundaryLine(lines[k - 1]) ||
-    endsFreshBlock(lines, k - 1, tables) ||
-    endsFreshComment(lines, k - 1, tables) ||
-    // a table or a line block that ends on the line above (the reader gate is `freeCaseTableReader`: `markdown_strict` has none of the three)
-    (tables && tableOrLineBlockEndsAt(lines, k - 1, tables))
-  );
+function startsAtBoundary(b: BlockBoundaries, k: number): boolean {
+  return b.startsAt(k);
+}
+/**
+ * The answers to `startsAtBoundary` for ONE SCAN of ONE document (Session 298), and the scanner's own report of the lines whose end only it can tell.
+ *
+ * ⚠ **A BLOCK THAT ENDS ITSELF ENDS THE BLOCK ABOVE THE NEXT ONE TOO.** Session 295 asked whether the line above a construct is a boundary and accepted only a blank line, a heading, a
+ * fence line or a run of the construct's own kind. A second ender stacked DIRECTLY under a first one (a thematic break under a link definition, a comment under a table) began at no
+ * boundary and was refused, though pandoc is between blocks after the first ender and so before the second: 204 of Session 295's 450 `stk` documents stayed deleted. The question is
+ * the same one asked of the line above, so it recurses; answered by recursion, 15,000 stacked lines overflowed the stack inside `findHeadings`, so every answer is computed once, in line
+ * order, and every question the computation asks is already known. The answer for a line depends only on the text above it and on lines the scanner has already passed.
+ *
+ * `tables` is the reader gate (`freeCaseTableReader`): `markdown_strict` has no pipe table, line block or grid table, so under it none of them ends a block.
+ */
+class BlockBoundaries {
+  /** Lines the SCANNER found to end their own block, having begun it fresh: a real kernel cell's closer, a fresh comment region's closer, a seven-hash line. */
+  readonly ends = new Set<number>();
+  private readonly known: boolean[] = [true];
+  constructor(
+    readonly lines: readonly string[],
+    readonly tables: boolean,
+  ) {}
+  /** Whether the line at `k` BEGINS AT A BLOCK BOUNDARY: pandoc is between blocks before it. `k` is at most the line the scanner is on. */
+  startsAt(k: number): boolean {
+    while (this.known.length <= k) {
+      this.known.push(this.compute(this.known.length));
+    }
+    return this.known[Math.max(0, k)];
+  }
+  private compute(k: number): boolean {
+    return (
+      isBoundaryLine(this.lines[k - 1]) ||
+      this.ends.has(k - 1) ||
+      endsFreshBlock(this, k - 1) ||
+      endsFreshComment(this, k - 1) ||
+      // a table or a line block that ends on the line above (the reader gate is `freeCaseTableReader`: `markdown_strict` has none of the three)
+      (this.tables && tableOrLineBlockEndsAt(this, k - 1))
+    );
+  }
 }
 /** Whether the line at `x` is a whole-line HTML comment at column 0 that began at a block boundary, so pandoc is between blocks after it (Session 295; stackable, Session 298). */
-function endsFreshComment(lines: readonly string[], x: number, tables: boolean): boolean {
-  return COMMENT_FULL_LINE_COL0.test(lines[x]) && startsAtBoundary(lines, x, tables);
+function endsFreshComment(b: BlockBoundaries, x: number): boolean {
+  return COMMENT_FULL_LINE_COL0.test(b.lines[x]) && startsAtBoundary(b, x);
 }
 /**
  * A line after which pandoc is certainly between blocks, STRICTER than `endsBlock` where that one over-accepts (Session 295, adversarial round 2): an
@@ -11199,7 +11226,8 @@ function runStart(lines: readonly string[], x: number, same: (line: string) => b
  * read it as one: seven documents regressed. The boundary requirement above is what refuses it now — its run starts under the paragraph — so the
  * `lastFenceLine` guard that first fixed it was dropped: it was redundant, and it cost one document (`cell_026`, a mermaid cell and its tab opener).
  */
-function endsFreshBlock(lines: readonly string[], x: number, tables: boolean): boolean {
+function endsFreshBlock(b: BlockBoundaries, x: number): boolean {
+  const lines = b.lines;
   const line = lines[x];
   if (THEMATIC_BREAK.test(line)) {
     // ⚠ A DASH-COLUMN LINE DIRECTLY UNDER A ONE-LINE BLOCK IS A SIMPLE TABLE'S DASH LINE, NOT A BREAK (Session 298): pandoc tries `table` before `hrule`, a link definition and an
@@ -11207,14 +11235,14 @@ function endsFreshBlock(lines: readonly string[], x: number, tables: boolean): b
     if (DASH_COLUMN_LINE.test(line) && x > 0 && isTableHeaderCandidate(lines[x - 1])) {
       return false;
     }
-    return startsAtBoundary(lines, x, tables);
+    return startsAtBoundary(b, x);
   }
   if (LINK_REFERENCE_DEFINITION.test(line)) {
-    return startsAtBoundary(lines, runStart(lines, x, (l) => LINK_REFERENCE_DEFINITION.test(l)), tables);
+    return startsAtBoundary(b, runStart(lines, x, (l) => LINK_REFERENCE_DEFINITION.test(l)));
   }
   // The columns are `[0]` because the caller's free case has no container open.
   if (indentedCodeLine(line, [0])) {
-    return startsAtBoundary(lines, runStart(lines, x, (l) => indentedCodeLine(l, [0])), tables);
+    return startsAtBoundary(b, runStart(lines, x, (l) => indentedCodeLine(l, [0])));
   }
   return false;
 }
@@ -11230,7 +11258,8 @@ function endsFreshBlock(lines: readonly string[], x: number, tables: boolean): b
  *   - a GRID table: the run of lines starting `|` or `+` begins with a plain dash border at a boundary and holds two or more borders (a lone border,
  *     a `+====+` top and an indented border are text; `tbl_029`'s spanning border still closes it).
  */
-function tableOrLineBlockEndsAt(lines: readonly string[], x: number, tables: boolean): boolean {
+function tableOrLineBlockEndsAt(b: BlockBoundaries, x: number): boolean {
+  const lines = b.lines;
   const line = lines[x];
   if (/\\[ \t]*$/.test(line)) {
     return false;
@@ -11242,7 +11271,7 @@ function tableOrLineBlockEndsAt(lines: readonly string[], x: number, tables: boo
     while (k < x && !LINE_BLOCK_START.test(lines[k])) {
       k++;
     }
-    if (LINE_BLOCK_START.test(lines[k]) && startsAtBoundary(lines, k, tables)) {
+    if (LINE_BLOCK_START.test(lines[k]) && startsAtBoundary(b, k)) {
       return true;
     }
   }
@@ -11251,14 +11280,14 @@ function tableOrLineBlockEndsAt(lines: readonly string[], x: number, tables: boo
     if (
       x > k &&
       PIPE_DELIMITER_ROW.test(lines[k + 1]) &&
-      startsAtBoundary(lines, k, tables)
+      startsAtBoundary(b, k)
     ) {
       return true;
     }
   }
   if (/^[|+]/.test(line)) {
     const k = runStart(lines, x, (l) => /^[|+]/.test(l));
-    if (GRID_PLAIN_BORDER.test(lines[k]) && startsAtBoundary(lines, k, tables)) {
+    if (GRID_PLAIN_BORDER.test(lines[k]) && startsAtBoundary(b, k)) {
       let borders = 0;
       for (let j = k; j <= x; j++) {
         if (GRID_TABLE_BORDER.test(lines[j])) {
