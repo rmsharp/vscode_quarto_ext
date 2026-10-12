@@ -109,3 +109,8 @@ dashboard_history.jsonl
 # tracked file. `scratchpad/**` below is what keeps ALL of it out of the .vsix,
 # at any size.
 scratchpad/**
+
+# Methodology files live under methodology/ after the layout move (methodology repo BL-101, P17). vsce matches
+# these patterns without matchBase, so the bare names above cover the project root only: without this line
+# `npm run check-package` reads 78 files against 42 and the release-gate fails (measured in clones, 2026-10-11).
+methodology/**
