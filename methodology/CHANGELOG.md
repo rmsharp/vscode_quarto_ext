@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-12 · [BL-Kernel-cell closing and the unbounded second look — what Sessions 293, 294 and 295's rules still leave: containers deeper than their code depth, the free case's stacked and multi-line block enders, the kernels the reader declines, and the surfaces that still read the validation view; all measured, corpus reach 0 of 3,383] Session 298 (in progress): claim
+
+Session claimed; the operator picked this item's row (3)(a) at Phase 0 from the ranked candidates. Where one block ender follows another (a rule, a link definition, a code line, a comment, a table, a closing tag, a heading), quarto ends the block twice over and lists a heading the model still deletes: 204 of 450 documents of Session 295's `stk` grid (`scratchpad/s295/stk`, `stktable.cjs`). Each shape is rendered before any rule changes (Learning #623) and the fix is gated on the grid with a parent-build score (Learning #645). This entry is replaced by the outcome entry at close-out.
+
 ### 2026-10-11 · [ad hoc] Layout migration: the methodology files now live under `methodology/` (tier all, 38 files)
 
 `bin/migrate-layout` (KJ5HST/methodology @ 8df554b) moved them in one commit with `git mv`; paths were rewritten in `CLAUDE.md`, `methodology/.context-budget.json`, `methodology/.quality-gates.json`. No older entry or shard was edited, so a link in an older entry is relative to the root, where the ledger sat when it was written.

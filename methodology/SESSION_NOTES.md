@@ -8,10 +8,15 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 297 closed out (the four run-to-the-end rules of the CommonMark readers fire only where the front matter PROVES the reader: a whitelist, three blind rounds).**
-`BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
-**#1 NEXT:** operator picks. Open: the new "proof of the reader declines more than it must" item (measured lost fixes), the CommonMark item (container stack, quote extent), then "Kernel-cell closing ..." residual 2 and (3)(a).
-**⚠ Gotchas:** (1) never `git add -A`. (2) `scratchpad/` is 70+ GB: dashboard ~4 min, `npm run package` ~15-20 min. (3) mutation edits `src/`: run it alone, and edit no test file or BACKLOG.md beside it.
+**Task:** **Session 298 (IN PROGRESS): row (3)(a) of "Kernel-cell closing and the unbounded second look" -- STACKED BLOCK ENDERS in the free case.**
+Operator picked it at Phase 0. Workstream: `DEVELOPMENT_WORKSTREAM.md`, strict TDD. Quarto lists the heading in 298 of 450 `stk` documents, this build in 94.
+**⚠ Gotchas:** (1) never `git add -A`. (2) CAP and ANNOUNCE renders: authors never render, the caller renders 3 wide, load gate 25. (3) mutation edits `src/`: run it alone.
+
+### What Session 298 Did
+**Deliverable:** make the free case's block-boundary test accept a second ender of any kind after an ender, where quarto does (IN PROGRESS)
+**Started:** 2026-10-12
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
 
 ## Session 296 Handoff Evaluation (by Session 297)
 
