@@ -11145,7 +11145,7 @@ function endsBlock(line: string): boolean {
  * paragraph, which is how the first cut regressed seven documents HEAD had right (`scratchpad/s295/adv`; the adversarial round).
  */
 function startsAtBoundary(lines: readonly string[], k: number): boolean {
-  return k <= 0 || isBoundaryLine(lines[k - 1]);
+  return k <= 0 || isBoundaryLine(lines[k - 1]) || endsFreshBlock(lines, k - 1);
 }
 /**
  * A line after which pandoc is certainly between blocks, STRICTER than `endsBlock` where that one over-accepts (Session 295, adversarial round 2): an
@@ -11161,6 +11161,12 @@ function isBoundaryLine(line: string): boolean {
     /^ {0,3}:{3,}/.test(line) ||
     /^ {0,3}(?:`{3,}|~{3,})[ \t]*$/.test(line)
   );
+}
+/** A run of dashes separated by blanks, at least two runs (`- - -`, `-  -  -`): the column line of a simple table, and a bullet-spelled thematic break to pandoc's `hrule`. */
+const DASH_COLUMN_LINE = /^ {0,3}-+(?:[ \t]+-+)+[ \t]*$/;
+/** A one-line block that pandoc's `table` parser is tried on BEFORE the block's own parser (Session 298): a thematic break, a link definition and an indented code line. */
+function isTableHeaderCandidate(line: string): boolean {
+  return THEMATIC_BREAK.test(line) || LINK_REFERENCE_DEFINITION.test(line) || indentedCodeLine(line, [0]);
 }
 /** The first line of the contiguous, non-blank run ending at `x` in which every line satisfies `same` (capped, so a pathological file cannot make each opener scan it all). */
 function runStart(lines: readonly string[], x: number, same: (line: string) => boolean): number {
@@ -11185,6 +11191,11 @@ function runStart(lines: readonly string[], x: number, same: (line: string) => b
 function endsFreshBlock(lines: readonly string[], x: number): boolean {
   const line = lines[x];
   if (THEMATIC_BREAK.test(line)) {
+    // ⚠ A DASH-COLUMN LINE DIRECTLY UNDER A ONE-LINE BLOCK IS A SIMPLE TABLE'S DASH LINE, NOT A BREAK (Session 298): pandoc tries `table` before `hrule`, a link definition and an
+    // indented code block, so such a line above it is the header row and the table swallows everything below it up to a blank line (rendered, `scratchpad/s295/stk`).
+    if (DASH_COLUMN_LINE.test(line) && x > 0 && isTableHeaderCandidate(lines[x - 1])) {
+      return false;
+    }
     return startsAtBoundary(lines, x);
   }
   if (LINK_REFERENCE_DEFINITION.test(line)) {
