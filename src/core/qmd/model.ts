@@ -7573,6 +7573,8 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   // `consecutiveBody`: that counter serves the setext disambiguation and folding it
   // into this one would change which setext underlines are recognized.
   let paragraphOpen = false;
+  // The depth of a list column pushed for a bullet-spelled break (a simple table's dash line), which the next blank line ends; null when there is none.
+  let tableDashColumns: number | null = null;
   // Whether the currently-open paragraph began inside a BLOCK QUOTE (Session 183). The
   // `paragraphOpen` gate is suspended there: measured, a 4-space-indented `---` in a quote's
   // lazy continuation IS a setext underline and closes the block, so the heading below it is
@@ -7756,10 +7758,14 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   // `_github` were not measured and are left out; an extension that switches one of the three OFF wins, as everywhere in this family of flags.
   const fancyListsReader =
     fromValueLine !== null && fromReaderBase(fromValueLine) === "commonmark_x" && fromExtensionState(fromValueLine, "fancy_lists") !== false;
-  const freeCaseTableReader =
-    fromValueLine === null ||
-    (FREE_CASE_TABLE_READER_BASES.has(fromReaderBase(fromValueLine) ?? "") &&
-      !["pipe_tables", "line_blocks", "grid_tables"].some((extension) => fromExtensionState(fromValueLine, extension) === false));
+  // ⚠ ONE FLAG PER CONSTRUCT (Session 298, round 4, rendered `review4/tables`): `markdown-line_blocks` still has pipe and grid tables, so a pipe table above ends a block there, and the first cut switched all three off
+  // together and lost the headings the parent had right.
+  const tableConstructReader = (extension: string): boolean =>
+    fromValueLine === null || (FREE_CASE_TABLE_READER_BASES.has(fromReaderBase(fromValueLine) ?? "") && fromExtensionState(fromValueLine, extension) !== false);
+  const pipeTablesReader = tableConstructReader("pipe_tables");
+  const lineBlocksReader = tableConstructReader("line_blocks");
+  const gridTablesReader = tableConstructReader("grid_tables");
+  const freeCaseTableReader = pipeTablesReader || lineBlocksReader || gridTablesReader;
   // Where pandoc is between blocks, asked of any line above the current one and answered once (Session 298). The scanner reports into it the lines whose end only IT can tell: a REAL
   // KERNEL CELL's closer (a jupyter cell in the document's kernel language that closed at its own indent, `OpenCellFence.indent`: quarto cuts such a cell out of the markdown it hands
   // pandoc, so the line below it starts fresh whatever was above the cell, Session 295), the closer of a comment region that opened fresh, and a line of seven or more hashes.
@@ -7783,7 +7789,9 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   const rawHtmlReader = fromValueLine === null || fromExtensionState(fromValueLine, "raw_html") !== false;
   const htmlContentReader = readerExtension("markdown_in_html_blocks");
   const boundaries = new BlockBoundaries(lines, {
-    tables: freeCaseTableReader,
+    pipeTables: pipeTablesReader,
+    lineBlocks: lineBlocksReader,
+    gridTables: gridTablesReader,
     html: !commonmarkDialect,
     rawHtml: rawHtmlReader,
     nativeDivs: readerExtension("native_divs"),
@@ -7791,6 +7799,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     loneDivEnds: readerExtension("native_divs") || !htmlContentReader,
     pandocMarkdown: measuredRefusalReader,
     simpleTables: simpleTablesReader,
+    blankBeforeHeader: readerExtension("blank_before_header"),
   });
   // Whether the resolved reader honours a trailing heading ATTRIBUTE block — see
   // `fromHonoursHeaderAttributes` (Session 216). A SEVENTH flag rather than a refinement of any
@@ -8668,6 +8677,9 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
             : listItemContentColumn(line, commonmarkDialect);
         if (opened !== null) {
           contentColumns.push(opened);
+          // A bullet-spelled break at top level opens no list to pandoc: where this model still pushes a column for it (a simple table's dash line, kept for the rows below it) the column ends at the
+          // table's blank line, so an indent-4 opener after the table is not read as inside an item (rendered `review4/r4a_022`)
+          tableDashColumns = contentColumns.length === 1 && !stripQuote && BULLET_THEMATIC_BREAK.test(line) ? 1 : null;
           columnKinds.push("list");
           columnIsCommonmark.push(COMMONMARK_LIST_MARKER.test(line));
           // ⚠ Set HERE, inside the arm that has already decided this line opens a list item and
@@ -8864,11 +8876,11 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
             (!stripQuote &&
               (firstExampleMarker < 0 || firstExampleMarker >= i) &&
               contentColumns.length === 0 &&
-              // The line above ENDS A BLOCK (`endsBlock`), or pandoc is between blocks before this line by the stacked-block answer (`BlockBoundaries`): a boundary line, a thematic
+              // Pandoc is between blocks before this line by the block-boundary answer (`BlockBoundaries`; Session 298 dropped the textual `endsBlock` term, which took an indented underline for a heading's): a boundary line, a thematic
               // break, a link definition or indented code that began fresh, a whole-line comment, a table or a line block (not under `markdown_strict`), a raw HTML element that completes,
               // the closer of a real kernel cell or a fresh comment region or a seven-hash line (the scanner's own report), the closing rule of a simple table.
               // The opener is itself the INDENTED line a line block absorbs as its continuation, so the free case asks the line block above unguarded (`nextContinues` off): the heading after it is a heading.
-              (i === 0 || endsBlock(lines[i - 1]) || boundaries.startsAt(i) || endsFreshHtml(boundaries, i - 1) || (freeCaseTableReader && tableOrLineBlockEndsAt(boundaries, i - 1))))),
+              (i === 0 || boundaries.startsAt(i) || endsFreshHtml(boundaries, i - 1) || (freeCaseTableReader && tableOrLineBlockEndsAt(boundaries, i - 1))))),
       );
     // ⚠ **A KERNEL OPENER QUARTO NEVER CLOSES IS DROPPED, NOT TEXT (Session 293).** See `closesOnOwnIndent`
     // and the use below; `null` for every other line, so no other path moves.
@@ -9134,6 +9146,14 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       tableRowsOpen = false;
       simpleTableRowsOpen = false;
       quoteOpen = stripQuote;
+      if (tableDashColumns !== null) {
+        if (contentColumns.length === tableDashColumns && columnKinds[columnKinds.length - 1] === "list") {
+          contentColumns.pop();
+          columnKinds.pop();
+          columnIsCommonmark.pop();
+        }
+        tableDashColumns = null;
+      }
       // A blank line ends a CommonMark type-6 or type-7 raw HTML block — and ONLY those two
       // types, which is why the state names its end condition rather than being a boolean
       // (Session 204).
@@ -11112,7 +11132,7 @@ function indentedCellFenceFor(
   free: () => boolean,
 ): RegExpExecArray | null {
   const m = indentedCellFenceAt(line);
-  // ⚠ Only the FREE case is narrowed: the line above ENDS A BLOCK (`endsBlock`, which also means no
+  // ⚠ Only the FREE case is narrowed: the line above ENDS A BLOCK (`BlockBoundaries.startsAt`, which also means no
   // paragraph is open — measured redundant over 1,272 probes and the corpus), no container is open, and
   // the line is not quoted (the `BACKLOG.md` item's own title said "no container, no paragraph"). Elsewhere pairing the cell is right by ACCIDENT — pandoc's inline code
   // span runs from the opener's backticks to the closer's across the heading between, a raw construct
@@ -11149,24 +11169,6 @@ function indentedCellFenceFor(
 }
 
 /**
- * Whether `line` is a line after which pandoc is certainly BETWEEN blocks (Session 293): a blank line, an
- * ATX heading, a setext underline or thematic break, a div fence line, or a bare fence line. The skip of
- * the unbounded cell look needs one of these directly above, because a RAW construct there (an HTML
- * comment, a `\newpage` macro, the inside of a `<table>` or a `<pre>`) leaves pandoc's paragraph or raw
- * block open where this model's `paragraphOpen` is already false — a state nothing here can see, which
- * is the filed raw-block family. Rendered, round 2 (`scratchpad/s293/adv/R3`, `scratchpad/s293/rows4`).
- */
-function endsBlock(line: string): boolean {
-  return (
-    BLANK_LINE.test(line) ||
-    /^ {0,3}#{1,6}(?:[ \t]|$)/.test(line) ||
-    /^ {0,3}(?:=+|-+)[ \t]*$/.test(line) ||
-    /^ {0,3}:{3,}/.test(line) ||
-    /^ {0,3}(?:`{3,}|~{3,})[ \t]*$/.test(line)
-  );
-}
-
-/**
  * Whether the line at `k` BEGINS AT A BLOCK BOUNDARY (Session 295; stacked, Session 298): the document starts there, or the line above it is blank, a heading, a setext
  * underline, a div fence or a bare fence, OR a self-ending block that itself began at a boundary (`BlockBoundaries.compute`). This is the freshness every rule below asks, and it is TEXTUAL on purpose: the scanner's own
  * `paragraphOpen` is false after a raw TeX environment, an HTML comment and a thematic break although pandoc is still inside the raw block or the
@@ -11177,8 +11179,10 @@ function startsAtBoundary(b: BlockBoundaries, k: number): boolean {
 }
 /** The reader gates the stacked-block question reads, each measured by rendering (`scratchpad/s298/rdr298`, `rdr2_298`). */
 interface BoundaryReaders {
-  /** Pipe tables, line blocks and grid tables end a block (`freeCaseTableReader`: `markdown_strict` has none of the three). */
-  readonly tables: boolean;
+  /** Pipe tables, line blocks and grid tables end a block, each only where the reader has the construct (`markdown_strict` has none of the three). */
+  readonly pipeTables: boolean;
+  readonly lineBlocks: boolean;
+  readonly gridTables: boolean;
   /** A raw HTML element that completes on its line ends the block: pandoc's rule and not CommonMark's (an HTML block there runs to the next blank line), and only with raw HTML on. */
   readonly html: boolean;
   /** Raw HTML is on: a whole-line comment and a raw element end a block (`-raw_html` makes them paragraph text). */
@@ -11193,6 +11197,8 @@ interface BoundaryReaders {
   readonly pandocMarkdown: boolean;
   /** The reader has simple tables, so a dash-column line under a one-line block is a table's dash line. */
   readonly simpleTables: boolean;
+  /** `blank_before_header` is on (pandoc's markdown default): an ATX line under a paragraph line is text; without it the line interrupts the paragraph. */
+  readonly blankBeforeHeader: boolean;
 }
 /**
  * The answers to `startsAtBoundary` for ONE SCAN of ONE document (Session 298), and the scanner's own report of the lines whose end only it can tell.
@@ -11266,9 +11272,11 @@ class BlockBoundaries {
   }
   /**
    * Whether the line above `k` is a block-ending line that REALLY ends a block (Session 298, round-3b, rendered `review3b/codes/r3b_010`-`020`, `023`, `review3b/tables/r3b_012`-`014`): a heading, an
-   * underline or a fenced-div opener ends a block only where it BEGINS one. Under a prose line `# H` is paragraph text (`blank_before_header`), a `=====` under two text lines is text (a setext heading takes ONE
-   * text line) and so is `::: {.x}`, so what is stacked under them is lazy text. Outside pandoc's own markdown the old, textual answer stays (a heading interrupts a paragraph in `markdown_strict` and in the
-   * CommonMark family).
+   * underline or a fenced-div opener ends a block only where it BEGINS one. Under a prose line `# H` is paragraph text (`blank_before_header`), a `=====` under two text lines is text (a setext heading
+   * takes ONE text line) and so is `::: {.x}`, so what is stacked under them is lazy text. A bare fence line ends a block only where it CLOSES a fence the scanner opened.
+   * ⚠ **THE REFUSALS ARE PROVEN, NOT PRESUMED**: the heading, underline or opener is taken for text only where a PROSE line sits directly above the paragraph it would interrupt (`provableProse`); everywhere else
+   * the old, textual answer stands (a first cut asked `startsAt` instead and deleted headings the parent had right under a reader with no pipe or grid tables, where this model cannot see a table end:
+   * 83 of the 109 candidates of the round-4 tables sweep). Outside pandoc's own markdown the old answer stands everywhere (a heading interrupts a paragraph in `markdown_strict` and in the CommonMark family).
    */
   private boundaryAbove(k: number): boolean {
     const above = this.lines[k - 1];
@@ -11282,15 +11290,25 @@ class BlockBoundaries {
     if (!this.readers.pandocMarkdown || BLANK_LINE.test(above)) {
       return true;
     }
-    if (/^#{1,6}(?:[ \t]|$)/.test(above) || /^ {0,3}:{3,}/.test(above)) {
-      return this.startsAt(k - 1);
+    if (/^#{1,6}(?:[ \t]|$)/.test(above)) {
+      // without `blank_before_header` an ATX line interrupts a paragraph and is a heading wherever it sits (rendered `dev/reader/drdr_056`)
+      return !this.readers.blankBeforeHeader || !continuesParagraph(this.lines, k - 1);
+    }
+    if (/^ {0,3}:{3,}/.test(above)) {
+      return !continuesParagraph(this.lines, k - 1);
     }
     if (/^ {0,3}(?:`{3,}|~{3,})[ \t]*$/.test(above)) {
       return this.fenceCloses.has(k - 1);
     }
     if (SETEXT_UNDERLINE_RUN.test(above)) {
-      // a dash run that begins a block is a thematic break; any other run is the underline of the single text line above it, which must begin a block itself
-      return (above[0] === "-" && this.startsAt(k - 1)) || (k >= 2 && !BLANK_LINE.test(this.lines[k - 2]) && !this.startsAt(k - 1) && this.startsAt(k - 2));
+      // an underline of a text line that is itself a LATER line of a paragraph is text
+      const text = k >= 2 ? this.lines[k - 2] : "";
+      // an equals run under a blank line (or the top of the document) is a paragraph of its own: nothing is there to underline
+      // (a table row, a line that does not begin a block and starts with a bar or a plus sign, is no text to underline either; a line block's FIRST line is: setext is tried first, `| one` / `===` is a heading)
+      if (above[0] === "=" && (k < 2 || BLANK_LINE.test(text) || (/^[ \t]*[|+]/.test(text) && !this.startsAt(k - 2)))) {
+        return false;
+      }
+      return !(k >= 2 && !BLANK_LINE.test(text) && paragraphLine(text) && continuesParagraph(this.lines, k - 2));
     }
     return true;
   }
@@ -11359,7 +11377,7 @@ class BlockBoundaries {
       endsFreshComment(this, k - 1) ||
       // a table or a line block that ends on the line above (the reader gate is `freeCaseTableReader`: `markdown_strict` has none of the three) — unless a BAR LINE is what sits
       // here: a line starting `| ` or holding a pipe is the next line of that block (a row, a line-block line), not a block that begins fresh (Session 298, rendered `wb_lb_cont__pipe`)
-      (this.readers.tables && !LINE_BLOCK_START.test(this.lines[k]) && !this.lines[k].includes("|") && tableOrLineBlockEndsAt(this, k - 1, LINEBLOCKISH(this.lines[k]))) ||
+      ((this.readers.pipeTables || this.readers.lineBlocks || this.readers.gridTables) && !LINE_BLOCK_START.test(this.lines[k]) && !this.lines[k].includes("|") && tableOrLineBlockEndsAt(this, k - 1, LINEBLOCKISH(this.lines[k]))) ||
       // a raw HTML line makes the NEXT line fresh only where it begins a block itself, at column 0 (the line directly above the opener keeps the lenient rule: a block-class tag interrupts a paragraph)
       (this.readers.pandocMarkdown && endsFreshHtml(this, k - 1, true))
     );
@@ -11450,10 +11468,9 @@ function htmlLineHasText(line: string): boolean {
   return /^[ \t]*<\/?[A-Za-z]/.test(line) && line.replace(/<(?:[^>"']|"[^"]*"|'[^']*')*>/g, "").trim() !== "";
 }
 /**
- * A line after which pandoc is certainly between blocks, STRICTER than `endsBlock` where that one over-accepts (Session 295, adversarial round 2): an
- * ATX heading and a `===` / `---` run count only at COLUMN 0 (indented one to three spaces they are paragraph text to pandoc — `SETEXT_UNDERLINE_RUN`
- * and the ATX row's own docstrings measured both), where `endsBlock` (Session 293) takes ` {0,3}` for both. Blank lines, a div fence and a bare
- * fence line are as in `endsBlock`.
+ * A line after which pandoc is certainly between blocks (Session 295, adversarial round 2; Session 293 first had it as `endsBlock`, which took ` {0,3}` for the ATX heading and the underline, and was dropped in Session 298):
+ * an ATX heading and a `===` / `---` run count only at COLUMN 0 (indented one to three spaces they are paragraph text to pandoc — `SETEXT_UNDERLINE_RUN`
+ * and the ATX row's own docstrings measured both). Blank lines, a div fence and a bare fence line complete the list; `BlockBoundaries.boundaryAbove` then asks whether the line is a real one.
  */
 function isBoundaryLine(line: string): boolean {
   return (
@@ -11463,6 +11480,32 @@ function isBoundaryLine(line: string): boolean {
     /^ {0,3}:{3,}/.test(line) ||
     /^ {0,3}(?:`{3,}|~{3,})[ \t]*$/.test(line)
   );
+}
+/** A line that is certainly PROSE (Session 298): it starts with a letter and has no pipe, tag or other construct start, so the line below it, if it is not blank, continues its paragraph. */
+function provableProse(line: string): boolean {
+  return (
+    (/^[A-Za-z][^|<>]*$/.test(line) && !LINK_REFERENCE_DEFINITION.test(line) && !/^[A-Za-z][A-Za-z.]*[.)][ \t]/.test(line)) ||
+    // an indented heading-shaped line is text to pandoc's markdown (an ATX heading needs column 0), and so is a comment with text after it on the line
+    /^ {1,3}#{1,6}(?:[ \t]|$)/.test(line) ||
+    /^ {0,3}<!--(?:(?!-->).)*-->[ \t]*[A-Za-z]/.test(line)
+  );
+}
+/** Whether line `j` CERTAINLY continues a paragraph that began above it: walking up through lines that can sit inside a paragraph, a line of certain prose comes before any blank line or any line that could not be inside one. */
+function continuesParagraph(lines: readonly string[], j: number): boolean {
+  for (let i = j - 1; i >= 0 && j - i <= 50; i--) {
+    if (provableProse(lines[i])) {
+      return true;
+    }
+    if (BLANK_LINE.test(lines[i]) || !paragraphLine(lines[i])) {
+      return false;
+    }
+  }
+  return false;
+}
+/** A line that can sit INSIDE a paragraph without ending it, and so is lazy text there: prose, an indented or heading-shaped line, a comment line or a thematic break (rendered: `x` / `<!-- c -->` / `-----`). */
+function paragraphLine(line: string): boolean {
+  // (a column-0 dash or equals run is not listed: it may be the UNDERLINE that ended the paragraph, and a `---` / `k: v` / `---` block is no paragraph)
+  return provableProse(line) || /^ {0,3}(?:#{1,6}(?:[ \t]|$)|<!--)/.test(line) || /^ {1,3}\S/.test(line) || /^ {0,3}\*{3,}[ \t]*$/.test(line) || /^[A-Za-z]/.test(line);
 }
 /** A line that can belong to a line block: a bar line or an indented (continuation) line. */
 const LINEBLOCKISH = (l: string): boolean => LINE_BLOCK_START.test(l) || /^[ \t]+\S/.test(l);
@@ -11500,8 +11543,10 @@ function linkDefinitionAt(lines: readonly string[], y: number): boolean {
  */
 function simpleTableBeginsBlock(b: BlockBoundaries, u: number): boolean {
   const above = u > 0 ? b.lines[u - 1] : "";
-  return (u > 0 && !BLANK_LINE.test(above) && !isBoundaryLine(above) && startsAtBoundary(b, u - 1)) || startsAtBoundary(b, u);
+  // a `Table:` or `:` line is a CAPTION (table_captions), no header row: the dash lines under it are paragraph text (rendered `review4/r4a_001`, `005`, `007`, `018`)
+  return (u > 0 && !BLANK_LINE.test(above) && !isBoundaryLine(above) && !TABLE_CAPTION_LINE.test(above) && startsAtBoundary(b, u - 1)) || startsAtBoundary(b, u);
 }
+const TABLE_CAPTION_LINE = /^ {0,3}(?:[Tt]able)?:[ \t]/;
 /** A table needs a ROW: the line after the dash line at `x` is neither blank nor another rule (`- - -` over `-----` is a setext heading, rendered `dev/stack3/dst3_032`). */
 function hasRowBelow(lines: readonly string[], x: number): boolean {
   return x + 1 < lines.length && !BLANK_LINE.test(lines[x + 1]) && !DASH_ONLY_LINE.test(lines[x + 1]);
@@ -11550,7 +11595,8 @@ function topRuleAbove(b: BlockBoundaries, u: number): boolean {
   while (j >= 0 && !BLANK_LINE.test(b.lines[j]) && !DASH_ONLY_LINE.test(b.lines[j])) {
     j--;
   }
-  return j >= 0 && j < u - 1 && DASH_ONLY_LINE.test(b.lines[j]) && startsAtBoundary(b, j);
+  // a rule under a text line is that line's setext UNDERLINE, not the top of a table (rendered `review4/r4a_022`)
+  return j >= 0 && j < u - 1 && DASH_ONLY_LINE.test(b.lines[j]) && startsAtBoundary(b, j) && (j === 0 || BLANK_LINE.test(b.lines[j - 1]) || isBoundaryLine(b.lines[j - 1]) && !/^#{1,6}(?:[ \t]|$)/.test(b.lines[j - 1]));
 }
 /** Whether the dash-column line at `x` is the rule under a HEADER ROW: a one-line block `table` is tried on first sits directly above it (Session 298, rendered `stk`, `wide_blank`). */
 function dashLineHasHeaderAbove(b: BlockBoundaries, x: number): boolean {
@@ -11674,7 +11720,7 @@ function tableOrLineBlockEndsAt(b: BlockBoundaries, x: number, nextContinues = f
   }
   // A line block ABSORBS an indented line below it as a continuation line, so what follows it is the same block's, not a fresh one (`nextContinues`: asked by the stacked question; the free case's own
   // opener is the absorbed line and the heading after it is a heading).
-  if (!nextContinues && LINEBLOCKISH(line)) {
+  if (b.readers.lineBlocks && !nextContinues && LINEBLOCKISH(line)) {
     let k = b.runStartOf("lineblockish", LINEBLOCKISH, x);
     // The block BEGINS at its first `| ` line: an indented line above it (a code line, text) is no part of it (Session 298, rendered `st_code_then_lb`).
     if (b.lastIndexOf("bar", (l) => LINE_BLOCK_START.test(l), x) >= k) {
@@ -11686,7 +11732,7 @@ function tableOrLineBlockEndsAt(b: BlockBoundaries, x: number, nextContinues = f
       return true;
     }
   }
-  if (line.includes("|")) {
+  if (b.readers.pipeTables && line.includes("|")) {
     const k = b.runStartOf("pipe", (l) => l.includes("|"), x);
     if (
       x > k &&
@@ -11696,7 +11742,7 @@ function tableOrLineBlockEndsAt(b: BlockBoundaries, x: number, nextContinues = f
       return true;
     }
   }
-  if (/^[|+]/.test(line)) {
+  if (b.readers.gridTables && /^[|+]/.test(line)) {
     let k = b.runStartOf("bars", (l) => /^[|+]/.test(l), x);
     // The table BEGINS at its first border line: a line block (or a pipe row) above it is no part of it (Session 298, rendered `wb_lb1__grid`).
     while (k < x && !GRID_PLAIN_BORDER.test(lines[k])) {
