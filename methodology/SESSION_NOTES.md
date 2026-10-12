@@ -8,9 +8,15 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** NONE -- Session 298 closed out. Row (3)(a) of the Kernel-cell backlog item (stacked block enders in the free case) is delivered.
-**Next:** pick from `BACKLOG.md` "Up Next" (Active is empty) via the ranked AskUserQuestion step; the open rows of this work are the new item "Stacked block enders in the free case".
-**⚠ Gotchas:** (1) never `git add -A`. (2) renders 3 wide and niced; hunters 2 workers with a load gate. (3) mutation rewrites `src/`: run it alone, restore with `git checkout`.
+**Task:** **Session 299 (IN PROGRESS): pin `LANG_COMMENT_CHARS` -- 32 of its 46 rows are pinned by nothing (a one-row typo survives the unit suite).**
+Operator picked it at Phase 0. Workstream: `DEVELOPMENT_WORKSTREAM.md`, strict TDD. Plan: diff the table against quarto's own installed `lang-comment-chars.yml`.
+**⚠ Gotchas:** (1) never `git add -A`. (2) `scratchpad/` is 70+ GB: dashboard ~4 min, `npm run package` ~15-20 min. (3) mutation edits `src/`: run it alone.
+
+### What Session 299 Did
+**Deliverable:** pin every row of `LANG_COMMENT_CHARS` non-circularly against quarto's installed table (IN PROGRESS)
+**Started:** 2026-10-12
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
 
 ## Session 297 Handoff Evaluation (by Session 298)
 

@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-12 · [BL-32 of the 46 rows in `LANG_COMMENT_CHARS` are pinned by nothing — a one-row typo survives the whole unit suite, in the cardinal-sin direction] Session 299 (in progress): claim
+
+Session claimed; the operator picked this item at Phase 0 from the ranked candidates. The table of comment characters per cell language is hand-transcribed and only about 9 rows are pinned by a test, so a one-row typo (`lua: ["--"]` to `["#"]`) passes all unit tests while quarto exits 0 on the same document. The non-circular pin diffs our table against quarto's own installed `lang-comment-chars.yml`. This entry is replaced by the outcome entry at close-out.
+
 ### 2026-10-12 · [ad hoc] Backfilled (reconcile-on-read): undocumented commits 692d514e..340e1617 -- Session 298 receipt citations
 
 Phase 0 of Session 299 found two commits past the ledger frontier (`a13b5584`), both receipt-only edits to Session 298's `HANDOFFS.md` block that the close-out entry above does not record: `692d514e` cited the `quality_ratchet.py --run` result (2/2 pass at `a13b5584`, results `bba236856bad`, matching `.quality-gates-results.json`) and appended one line to `.context-budget-history.jsonl`; `340e1617` recorded the release gate (`npm run package`, exit 0). Source: `git log`. No behaviour change.
