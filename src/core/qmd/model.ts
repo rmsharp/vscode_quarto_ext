@@ -8424,6 +8424,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       // region opened ABOVE the chunk runs on past it (Session 275; `knitrSilentChunkClosers`).
       const knitrConsumed = knitrSilent.has(i) && knitrPastOpeners.has(open.startLine);
       if (!knitrConsumed && isCloser(line, open)) {
+        boundaries.fenceCloses.add(i);
         if (open.isCell) {
           if (open.indent !== null) {
             boundaries.ends.add(i);
@@ -11196,6 +11197,8 @@ class BlockBoundaries {
   readonly ends = new Set<number>();
   /** The lines strictly inside a CLOSED `<pre>`, `<script>`, `<style>` or `<textarea>` element: raw text, where no self-ending construct ends a block (an unclosed one swallows nothing: rendered `review3/html/r3_016`). */
   readonly rawLines: ReadonlySet<number>;
+  /** The lines that CLOSE a fence the scanner opened (a code fence or a cell): a bare fence line above a block is a boundary only if it is one of these, where a tilde fence under a prose line is text (Session 298). */
+  readonly fenceCloses = new Set<number>();
   /** `fdivOpenBefore[i]`: whether a fenced div is open above line `i`, as the scanner tracked it (a bare `:::` closes one; with none open it is text). */
   readonly fdivOpenBefore: boolean[] = [];
   /** `containerBefore[i]`: whether a list item, a definition or a block quote is open after the lines above `i` (so what stacks there is not a top-level block: rendered `review3/contexts/r3_008`, `r3_009`). */
@@ -11223,7 +11226,7 @@ class BlockBoundaries {
    * `runStart` memoised per predicate (`id` names `same`): the first line of the contiguous run of lines satisfying `same` that ends at `x`, capped at 1,000 lines back, exactly as `runStart` answers.
    * Each line's start follows from the line above it, so every predicate is evaluated once per line instead of scanning back from every line (an indented file of 40,000 lines cost 16 times its scan).
    */
-  runStartOf(id: string, same: (line: string) => boolean, x: number): number {
+  runStartOf(id: string, same: (line: string, index: number) => boolean, x: number): number {
     let starts = this.runs.get(id);
     if (starts === undefined) {
       starts = [0];
@@ -11231,7 +11234,7 @@ class BlockBoundaries {
     }
     while (starts.length <= x) {
       const j = starts.length;
-      starts.push(same(this.lines[j - 1]) ? Math.max(starts[j - 1], j - 1000) : j);
+      starts.push(same(this.lines[j - 1], j - 1) ? Math.max(starts[j - 1], j - 1000) : j);
     }
     return starts[x];
   }
@@ -11268,6 +11271,9 @@ class BlockBoundaries {
     }
     if (/^#{1,6}(?:[ \t]|$)/.test(above) || /^ {0,3}:{3,}/.test(above)) {
       return this.startsAt(k - 1);
+    }
+    if (/^ {0,3}(?:`{3,}|~{3,})[ \t]*$/.test(above)) {
+      return this.fenceCloses.has(k - 1);
     }
     if (SETEXT_UNDERLINE_RUN.test(above)) {
       // a dash run that begins a block is a thematic break; any other run is the underline of the single text line above it, which must begin a block itself
@@ -11412,6 +11418,27 @@ const DASH_COLUMN_LINE = /^ {0,3}-+(?:[ \t]+-+)+[ \t]*$/;
 /** A line made only of dashes and blanks: a simple table's rule, a setext underline or a thematic break. */
 const DASH_ONLY_LINE = /^ {0,3}-+(?:[ \t]+-+)*[ \t]*$/;
 /**
+ * Whether the line at `y` is a link-reference definition pandoc ACCEPTS (Session 298, round-3b, rendered `review3b/codes/r3b_001`-`008`; the prefix test `LINK_REFERENCE_DEFINITION` is the first half). Pandoc's
+ * grammar is wide: the URL may sit on the next line (a bare `[a]:` over any line that does not start with `[`), unquoted junk after the URL is part of it (`[a]: /u x y`), and an unclosed quote is junk too. It
+ * refuses three shapes, each of which is then paragraph text and ends nothing: a URL that starts with `[` (`[a]:[b]: /u`, `[a]: [x]`, a bare `[a]:` over a line starting `[`), a quoted or parenthesised title with
+ * junk after it (`[a]: /u 't' x`), and link attributes with junk after them (`[a]: /u {#id} x`). A bare `[a]:` over a blank line has no URL at all.
+ */
+function linkDefinitionAt(lines: readonly string[], y: number): boolean {
+  const m = /^ {0,3}\[[^\^\]][^\]]*\]:[ \t]*(.*)$/.exec(lines[y]);
+  if (m === null) {
+    return false;
+  }
+  let rest = m[1].trim();
+  if (rest === "") {
+    const next = lines[y + 1];
+    if (next === undefined || BLANK_LINE.test(next)) {
+      return false;
+    }
+    rest = next.trim();
+  }
+  return !rest.startsWith("[") && !/^\S+[ \t]+(?:"[^"]*"|'[^']*'|\([^)]*\))[ \t]*\S/.test(rest) && !/^\S+[ \t]*\{[^}]*\}[ \t]*\S/.test(rest);
+}
+/**
  * Whether the simple table whose dash-column rule is at `u` BEGINS A BLOCK (Session 298, rendered `review3/contexts/r3_001`-`r3_004`): its header line above the rule, a plain text line that is not a heading or
  * a fence line, begins one; or, with no header, the rule itself does. Under a paragraph line, a quote line, a raw TeX environment or a line block the same four lines are no table, so their rules close nothing.
  */
@@ -11481,7 +11508,7 @@ function isTableHeaderCandidate(b: BlockBoundaries, y: number): boolean {
   if (/^ {0,3}-+[ \t]*$/.test(line) && y > 0 && textAbove()) {
     return false;
   }
-  if (THEMATIC_BREAK.test(line) || LINK_REFERENCE_DEFINITION.test(line)) {
+  if (THEMATIC_BREAK.test(line) || linkDefinitionAt(lines, y)) {
     return true;
   }
   // A ONE-LINE line block (`| one`), whose own parser comes after `table`, wherever it BEGINS A BLOCK (under a code line, a comment or a link definition too; rendered `review2/r2_002`, `r2_018`, `r2_019`); two
@@ -11526,8 +11553,8 @@ function endsFreshBlock(b: BlockBoundaries, x: number): boolean {
     }
     return startsAtBoundary(b, x);
   }
-  if (LINK_REFERENCE_DEFINITION.test(line)) {
-    return startsAtBoundary(b, b.runStartOf("ref", (l) => LINK_REFERENCE_DEFINITION.test(l), x));
+  if (linkDefinitionAt(lines, x)) {
+    return startsAtBoundary(b, b.runStartOf("ref", (_l, j) => linkDefinitionAt(lines, j), x));
   }
   // The columns are `[0]` because the caller's free case has no container open.
   if (indentedCodeLine(line, [0])) {

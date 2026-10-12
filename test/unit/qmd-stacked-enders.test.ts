@@ -57,6 +57,51 @@ describe("Session 298 — stacked block enders in the free case", () => {
   const LISTED = ["Before", "In", "After"]; // the opener is indented CODE: quarto lists the heading inside it
   const SWALLOWED = ["Before", "After"]; //   the opener is paragraph text or a raw continuation: quarto swallows it
 
+  // SLICE 29. A `[a]:` LINE THAT PANDOC READS AS TEXT IS NO LINK DEFINITION, AND A TILDE FENCE UNDER PROSE IS NO FENCE. Pandoc's definition grammar is wide (the URL may sit on the next line, unquoted junk after it
+  // is part of it) but refuses three shapes, each of which is then paragraph text and ends nothing: a URL that starts with `[` (`[a]:[b]: /u`, a bare `[a]:` over a line that starts `[`), a quoted title
+  // with junk after it (`[a]: /u 't' x`) and a bare `[a]: ` with no URL to follow it (`linkDefinitionAt`). A bare fence line ends a block only where it CLOSES a fence the scanner opened: a `~~~` line
+  // under a prose line is text to pandoc (a backtick fence interrupts a paragraph, a tilde fence does not), so its twin below is text too, and so is an unclosed ``` line. A first, stricter cut (`[label]: url`
+  // and nothing else) deleted 9 headings the parent had right (a bare `[a]:` over the opener, a URL on the next line, link attributes), which is why the grammar above is the wide one. Found by the round-3b
+  // codes hunter, rendered with quarto 1.7.33 in ne mode, exit 0, all swallowed (`scratchpad/s298/review3b/codes/r3b_001`-`008`, `013`, `015`).
+  it.each<[string, "blank" | "heading", string[]]>([
+    ["two bare definitions and a break", "heading", ["[a]:", "[a]:", "***"]],
+    ["a break and two bare definitions", "blank", ["***", "[a]:", "[a]:"]],
+    ["a bare definition, a definition and a break", "blank", ["[a]:", "[a]: /u", "***"]],
+    ["two definitions on one line and a code line", "blank", ["[a]:[b]: /u", "    code"]],
+    ["two definitions on one line and a break", "heading", ["[a]:[b]: /u", "***"]],
+    ["a definition with junk after its title and a break", "heading", ["[a]: /u 't' x", "***  "]],
+    ["a definition with junk after its title and a code line", "blank", ["[a]: /u 't' x", "     code"]],
+    ["a definition with no URL and an indented definition", "blank", ["[a]: ", "    [a]: /u"]],
+    ["a tilde fence under a prose line, two comments", "blank", ["Para above.", "~~~", "x", "~~~", "<!-- a -->", "<!-- b -->"]],
+    ["a raw tilde fence under a prose line, two comments", "blank", ["Para above.", "~~~{=html}", "<i>x</i>", "~~~", "<!-- a -->", "<!-- b -->"]],
+  ])("RED->GREEN: an indent-4 `{bash}` opener below %s is swallowed", (_label, ctx, x) => {
+    claim(probe("markdown", ctx, x), "markdown", SWALLOWED, `markdown, ${ctx} context`);
+  });
+  // RESIDUAL, kept on purpose (PHANTOM; rendered `review3b/codes/r3b_009`, quarto swallows the opener): a bare `[a]:` directly above a tilde fence and two comments. The scanner reads the bare `[a]:` as a
+  // definition, not as an open paragraph, so it opens the fence (which pandoc reads as text under the paragraph) and its closer is recorded. The parent refused every stack and was right by accident.
+  it("RESIDUAL, kept on purpose: the opener below a bare definition, a tilde fence and two comments is listed here (quarto swallows it)", () => {
+    expect(texts(probe("markdown", "heading", ["[a]:", "~~~~ {.cls}", "x", "~~~~", "<!-- a -->", "<!-- b -->"]), "markdown")).toEqual(["Before", "In", "After"]); // quarto: Before, After
+  });
+  // The real shapes still end a block: a definition with a quoted or parenthesised title, an angle-bracket URL and a fence under a blank line (quarto lists `In`; the first three are grid pairs of slice 1).
+  it.each<[string, string[]]>([
+    ["a definition with a double-quoted title and a break", ["[a]: /u \"T\"", "***"]],
+    ["a definition with a parenthesised title and a break", ["[a]: /u (T)", "***"]],
+    ["a definition with an angle-bracket URL and a break", ["[a]: <b c>", "***"]],
+    ["a closed tilde fence after a blank line and two comments", ["", "~~~", "x", "~~~", "<!-- a -->", "<!-- b -->"]],
+    ["a closed backtick fence under a prose line and two comments", ["Para above.", "```", "x", "```", "<!-- a -->", "<!-- b -->"]],
+    // the wide grammar: the first stricter cut deleted each of these (rendered `dev2/adv/advr_053`-`055`, `dev2/lookalike/lkal_011`, `dev2/long/long_002`, `long_039`, all quarto-listed)
+    ["a bare label, the opener being its URL line", ["[a]:"]],
+    ["a bare label with its URL on the next, indented line", ["[a]:", "    /url"]],
+    ["a definition with link attributes", ["[a]: /url {.cls}"]],
+    ["a chain of definitions, one with its URL on the next line", ["[a1]: http://example.com/one", "[a2]: /two \"Title Two\"", "[a3]:", "    /three", "[a4]: /four (Four)"]],
+    ["a break, a definition and a bare label", ["***", "[a1]: /a1", "[a2]:"]],
+  ])("GUARD: an indent-4 `{bash}` opener below %s is indented code", (_label, x) => {
+    claim(probe("markdown", "blank", x), "markdown", LISTED, "markdown");
+  });
+  it("GUARD: an indent-4 `{bash}` opener below a definition with unquoted junk after its URL is indented code under markdown_mmd (rendered `dev/reader/drdr_041`)", () => {
+    claim(probe("markdown", "heading", ["[a]: /u width=20 height=30"], "    ", "markdown_mmd"), "markdown", LISTED, "markdown_mmd");
+  });
+
   // SLICE 28. A LINE THAT LOOKS LIKE A BLOCK ENDER ENDS ONE ONLY WHERE IT BEGINS A BLOCK. Slice 1 took an ATX heading, a setext underline and a fenced-div opener above a line as proof that pandoc is between
   // blocks, which is true only where the heading, the underline or the opener is a real one. Directly under a prose line `# H` is paragraph text (`blank_before_header`), a `=====` under two text lines
   // is text (a setext heading takes ONE line), `::: {.x}` is text, and an underline under a comment line that sits inside a paragraph is text, so two comments (or a comment and a definition)
@@ -344,14 +389,14 @@ describe("Session 298 — stacked block enders in the free case", () => {
     expect(texts(probe("markdown", "heading", [": def", "", "</div>", "- - -"]), "markdown")).toEqual(["Before", "In", "After"]); // quarto: Before, After
   });
 
-  // RESIDUAL, kept on purpose (PHANTOM; rendered `review3/contexts/r3_018`, `r3_019`, quarto swallows the opener): an UNCLOSED backtick fence line directly under the heading, then a tag or a rule, then more.
-  // Pandoc reads the lone ``` as the start of an inline code span that runs to the next ``` (the opener's own closer line) and swallows the whole stack; `isBoundaryLine` counts a bare fence line as a
-  // boundary whether or not a fence is open. The parent was right by accident (stacking refused). Filed with the orphan-fence rows.
+  // SLICE 29 (promoted from a RESIDUAL row; rendered `review3/contexts/r3_018`, `r3_019`, quarto swallows the opener): an UNCLOSED backtick fence line directly under the heading, then a tag or a rule, then more.
+  // Pandoc reads the lone ``` as the start of an inline code span that runs to the next ``` (the opener's own closer line) and swallows the whole stack. A bare fence line is a boundary only where it
+  // closes a fence the scanner opened, and nothing closes this one, so the stack is lazy text.
   it.each<[string, string[]]>([
     ["a closing tag and a thematic break", ["```", "</div>", "***"]],
     ["a simple table's rule and a comment", ["```", "  --- ---", "<!-- c -->"]],
-  ])("RESIDUAL, kept on purpose: under an unclosed fence line, %s are taken for enders here (quarto swallows the opener)", (_label, x) => {
-    expect(texts(probe("markdown", "heading", x), "markdown")).toEqual(["Before", "In", "After"]); // quarto: Before, After
+  ])("RED->GREEN: under an unclosed fence line, %s are no enders (the opener is swallowed)", (_label, x) => {
+    claim(probe("markdown", "heading", x), "markdown", SWALLOWED, "markdown, heading context");
   });
 
   // SLICE 26. THE HTML HUNTER OF ROUND 3 (`scratchpad/s298/review3/html`: a differential fuzz of 232,032 generated documents against the parent and pandoc kept 40; 34 were regressions, each rendered).
