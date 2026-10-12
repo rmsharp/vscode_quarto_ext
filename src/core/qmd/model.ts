@@ -7545,6 +7545,9 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   // How many raw-content elements (`HTML_RAW_CONTENT_TAG`) are open above, counted over ordinary body lines only (fences and comments are skipped by the
   // scanner before they reach the count), floored at zero.
   let rawContentDepth = 0;
+  // How many native HTML divs (`<div>` opened at the start of a body line, `</div>` anywhere) are open above, floored at zero: a `</div>` that closes one ends the block even with `-raw_html`
+  // (Session 298, `dev2/readers/rdr2_035_norh_div_closed`).
+  let nativeDivDepth = 0;
   // Whether the HTML comment region now open began FRESH at column 0 — no paragraph open before its first line (a comment under a prose line is part
   // of that paragraph). The same under every reader measured (`scratchpad/s295/rdr`), the CommonMark family included.
   let commentFresh = false;
@@ -8069,6 +8072,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     const raw = lines[i];
     // How many raw-content elements are open ABOVE this line, kept per line so the stacked-block question can ask it of any line above (Session 298).
     boundaries.rawDepthBefore[i] = rawContentDepth;
+    boundaries.divDepthBefore[i] = nativeDivDepth;
     // ⚠ **THE BLOCK-QUOTE STRIP (Session 225).** Quarto strips a quote's markers and re-parses
     // what is left, so everything below this point classifies the quote's CONTENT rather than
     // the marker line. See `BLOCK_QUOTE_PREFIX` for the marker grammar and for why the strip
@@ -10073,6 +10077,16 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         deepAtxHeaderLineIsBlock(line, rawTexColumns, tightAtxDialect && literalHtmlLines?.has(i) !== true) &&
         (!paragraphOpen || (markdownFamilyDialect && !blankBeforeHeaderDialect));
       if (line.includes("<")) {
+        for (const tag of line.matchAll(HTML_DIV_TAG)) {
+          if (tag[2] === "/") {
+            continue; // self-closing: opens nothing
+          }
+          if (tag[1] === "/") {
+            nativeDivDepth = Math.max(0, nativeDivDepth - 1);
+          } else if (/^ {0,3}$/.test(line.slice(0, tag.index))) {
+            nativeDivDepth += 1;
+          }
+        }
         for (const tag of line.matchAll(HTML_RAW_CONTENT_TAG)) {
           if (tag[3] === "/") {
             continue; // self-closing: opens nothing
@@ -11148,25 +11162,14 @@ function endsBlock(line: string): boolean {
 }
 
 /**
- * Whether the line at `k` BEGINS AT A BLOCK BOUNDARY (Session 295): the document starts there, or the line above it is blank, a heading, a setext
- * underline, a div fence or a bare fence (`endsBlock`). This is the freshness every rule below asks, and it is TEXTUAL on purpose: the scanner's own
+ * Whether the line at `k` BEGINS AT A BLOCK BOUNDARY (Session 295; stacked, Session 298): the document starts there, or the line above it is blank, a heading, a setext
+ * underline, a div fence or a bare fence, OR a self-ending block that itself began at a boundary (`BlockBoundaries.compute`). This is the freshness every rule below asks, and it is TEXTUAL on purpose: the scanner's own
  * `paragraphOpen` is false after a raw TeX environment, an HTML comment and a thematic break although pandoc is still inside the raw block or the
  * paragraph, which is how the first cut regressed seven documents HEAD had right (`scratchpad/s295/adv`; the adversarial round).
  */
 function startsAtBoundary(b: BlockBoundaries, k: number): boolean {
   return b.startsAt(k);
 }
-/**
- * The answers to `startsAtBoundary` for ONE SCAN of ONE document (Session 298), and the scanner's own report of the lines whose end only it can tell.
- *
- * ⚠ **A BLOCK THAT ENDS ITSELF ENDS THE BLOCK ABOVE THE NEXT ONE TOO.** Session 295 asked whether the line above a construct is a boundary and accepted only a blank line, a heading, a
- * fence line or a run of the construct's own kind. A second ender stacked DIRECTLY under a first one (a thematic break under a link definition, a comment under a table) began at no
- * boundary and was refused, though pandoc is between blocks after the first ender and so before the second: 204 of Session 295's 450 `stk` documents stayed deleted. The question is
- * the same one asked of the line above, so it recurses; answered by recursion, 15,000 stacked lines overflowed the stack inside `findHeadings`, so every answer is computed once, in line
- * order, and every question the computation asks is already known. The answer for a line depends only on the text above it and on lines the scanner has already passed.
- *
- * `tables` is the reader gate (`freeCaseTableReader`): `markdown_strict` has no pipe table, line block or grid table, so under it none of them ends a block.
- */
 /** The reader gates the stacked-block question reads, each measured by rendering (`scratchpad/s298/rdr298`, `rdr2_298`). */
 interface BoundaryReaders {
   /** Pipe tables, line blocks and grid tables end a block (`freeCaseTableReader`: `markdown_strict` has none of the three). */
@@ -11184,11 +11187,24 @@ interface BoundaryReaders {
   /** The reader has simple tables, so a dash-column line under a one-line block is a table's dash line. */
   readonly simpleTables: boolean;
 }
+/**
+ * The answers to `startsAtBoundary` for ONE SCAN of ONE document (Session 298), and the scanner's own report of the lines whose end only it can tell.
+ *
+ * ⚠ **A BLOCK THAT ENDS ITSELF ENDS THE BLOCK ABOVE THE NEXT ONE TOO.** Session 295 asked whether the line above a construct is a boundary and accepted only a blank line, a heading, a
+ * fence line or a run of the construct's own kind. A second ender stacked DIRECTLY under a first one (a thematic break under a link definition, a comment under a table) began at no
+ * boundary and was refused, though pandoc is between blocks after the first ender and so before the second: 204 of Session 295's 450 `stk` documents stayed deleted. The question is
+ * the same one asked of the line above, so it recurses; answered by recursion, 15,000 stacked lines overflowed the stack inside `findHeadings`, so every answer is computed once, in line
+ * order, and every question the computation asks is already known. The answer for a line depends only on the text above it and on lines the scanner has already passed.
+ *
+ * Each reader gate (`BoundaryReaders`) was measured by rendering; an extension that switches the construct off makes it paragraph text, which ends nothing.
+ */
 class BlockBoundaries {
   /** Lines the SCANNER found to end their own block, having begun it fresh: a real kernel cell's closer, a fresh comment region's closer, a seven-hash line. */
   readonly ends = new Set<number>();
   /** `rawDepthBefore[i]`: how many raw-content elements (`<pre>`, `<script>`, `<style>`, `<textarea>`) are open above line `i`, as the scanner counted them. */
   readonly rawDepthBefore: number[] = [];
+  /** `divDepthBefore[i]`: how many native `<div>` openers are still open above line `i`, as the scanner counted them. */
+  readonly divDepthBefore: number[] = [];
   private readonly known: boolean[] = [true];
   constructor(
     readonly lines: readonly string[],
@@ -11225,7 +11241,7 @@ function endsFreshHtml(b: BlockBoundaries, x: number): boolean {
     b.rawDepthBefore[x + 1] === 0 &&
     // an element with TEXT between its tags is a raw block only where markdown is parsed inside HTML blocks (rendered, `-markdown_in_html_blocks`)
     (b.readers.htmlContent || !htmlLineHasText(b.lines[x])) &&
-    endsHtmlBlock(b.lines[x], startsAtBoundary(b, x), !b.readers.pandocMarkdown && !htmlRunBeginsWithTag(b.lines, x), b.readers.rawHtml, b.readers.nativeDivs)
+    endsHtmlBlock(b.lines[x], startsAtBoundary(b, x), !b.readers.pandocMarkdown && !htmlRunBeginsWithTag(b.lines, x), b.readers.rawHtml, b.readers.nativeDivs, (b.divDepthBefore[x] ?? 0) > 0)
   );
 }
 /** Whether the line at `x` is a whole-line HTML comment at column 0 that began at a block boundary, so pandoc is between blocks after it (Session 295; stackable, Session 298). */
@@ -11407,7 +11423,7 @@ const FREE_CASE_TABLE_READER_BASES: ReadonlySet<string> = new Set(["markdown", "
  * ⚠ The caller refuses this inside an open RAW-CONTENT element (`rawContentDepth`). It is never asked under a CommonMark-family reader (Session 296: the free case
  * holds there wherever the opener sits). `againstParagraph` is the refusal outside pandoc's markdown: the rule holds there only for a block whose run begins with a tag.
  */
-function endsHtmlBlock(line: string, beganFresh: boolean, againstParagraph: boolean, rawHtml = true, nativeDivs = true): boolean {
+function endsHtmlBlock(line: string, beganFresh: boolean, againstParagraph: boolean, rawHtml = true, nativeDivs = true, closesNativeDiv = false): boolean {
   if (againstParagraph) {
     return false; // outside pandoc's markdown a raw HTML block ends only after a blank line, so one that began against a paragraph does not end anything
   }
@@ -11427,7 +11443,8 @@ function endsHtmlBlock(line: string, beganFresh: boolean, againstParagraph: bool
     return nativeDivs; // a lone opening `<div ...>`: pandoc reads an unclosed div as markdown content (a NATIVE div: it needs `native_divs`, and not raw HTML; rendered, `rdr2_298`)
   }
   const m = HTML_ELEMENT_COMPLETES.exec(line);
-  if (m === null || !rawHtml) {
+  // Without raw HTML a closing tag is text, EXCEPT the `</div>` that closes an open native div (a container, not raw HTML).
+  if (m === null || (!rawHtml && !(nativeDivs && closesNativeDiv && line[lt + 1] === "/" && first.name.toLowerCase() === "div"))) {
     return false;
   }
   return beganFresh || ![m[1], m[2], m[3]].some((name) => name !== undefined && HTML_EITHER_NAME.test(name));
@@ -11450,6 +11467,8 @@ const HTML_EITHER_NAME = new RegExp("^(?:" + PANDOC_EITHER_TAGS + ")$", "i");
  * start of a line (a block position); a closer counts anywhere.
  */
 const HTML_RAW_CONTENT_TAG = /<(\/?)(pre|script|style|textarea)\b[^>]*?(\/?)>/gi;
+/** A `<div>` or `</div>` tag, for the native-div depth the scanner keeps (Session 298). */
+const HTML_DIV_TAG = /<(\/?)div\b[^>]*?(\/?)>/gi;
 
 /** The run of whitespace a line starts with — `\s*`, the same class both cell regexes use. */
 function indentRun(line: string): string {

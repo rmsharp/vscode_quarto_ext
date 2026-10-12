@@ -245,6 +245,16 @@ describe("Session 298 — stacked block enders in the free case", () => {
     claim(probe("markdown", "blank", ["<div>"], "    ", reader), "markdown", SWALLOWED, reader);
   });
 
+  // SLICE 17. A `</div>` THAT CLOSES AN OPEN NATIVE DIV ENDS THE BLOCK EVEN WITHOUT RAW HTML. With `native_divs` on, `<div>` opens a container and the `</div>` that closes it ends the block whatever
+  // `raw_html` says; an ORPHAN `</div>` has nothing to close and is text under `-raw_html` (slice 15). The scanner counts the open native divs above each line. Found by the round-2 holdout
+  // (`dev2/readers/rdr2_035_norh_div_closed`: quarto lists `In`, the first `-raw_html` gate deleted it; the parent was right). `<div>` / `<div>` / `</div>` is not rendered here.
+  it("RED->GREEN: the opener below `<div>` / `</div>` under `-raw_html` is indented code (the native div closes)", () => {
+    claim(probe("markdown", "blank", ["<div>", "</div>"], "    ", "markdown-raw_html"), "markdown", LISTED, "markdown-raw_html");
+  });
+  it("GUARD: the opener below an ORPHAN `</div>` under `-raw_html` stays swallowed (nothing to close)", () => {
+    claim(probe("markdown", "blank", ["</div>"], "    ", "markdown-raw_html"), "markdown", SWALLOWED, "markdown-raw_html");
+  });
+
   // SLICE 13. A DASH RUN THAT UNDERLINES THE TEXT ABOVE IS NO BLOCK START, SO IT IS NO TABLE HEADER. `-----` directly under a text line is that line's setext underline, and the `- - -` below it
   // begins a fresh block (a break); the same dashes under a blank line or a heading ARE a break of their own and stay a header-row candidate (slice 2). Found by the full wide grid: the first cut of
   // slice 2 took every thematic break, an underline included, for a header and swallowed the opener (`wb_setext2__hr_sdash`: listed, with the setext heading `Title`). The same shape closes a
