@@ -57,6 +57,21 @@ describe("Session 298 — stacked block enders in the free case", () => {
   const LISTED = ["Before", "In", "After"]; // the opener is indented CODE: quarto lists the heading inside it
   const SWALLOWED = ["Before", "After"]; //   the opener is paragraph text or a raw continuation: quarto swallows it
 
+  // SLICE 30. A BULLET-SPELLED BREAK UNDER THE SECOND LINE OF A PARAGRAPH IS PARAGRAPH TEXT AND OPENS NO LIST. `- - -` and `* * *` open no list column where they begin a block (Session 295); under an open paragraph they kept
+  // the column, which was harmless while a bare `:::` under prose counted as a boundary (slice 26 made it text, and `- - -` under it began no block). The column then outlived the closed fence below it and the opener
+  // was read as inside the list item: quarto lists `In`, this build deleted it. Under the FIRST line of a paragraph the line is a simple table's dash line (a header row above it) and keeps its old reading.
+  // Rendered with quarto 1.7.33 in ne mode, exit 0 (`scratchpad/s298/review3b/codes/r3b_025`-`027`); found by the round-3b codes hunter.
+  it.each<[string, string[]]>([
+    ["a bare div fence, a dash-column line and an empty fence under a prose line", ["Para above.", ":::", "- - -", "```", "```"]],
+    ["a bare div fence, a star-column line and an empty fence under a prose line", ["Para above.", ":::", "* * *", "```", "```"]],
+    ["a bare div fence, a dash-column line and a raw fence under a prose line", ["Para above.", ":::", "- - -", "```{=html}", "```"]],
+  ])("RED->GREEN: an indent-4 `{bash}` opener below %s is indented code", (_label, x) => {
+    claim(probe("markdown", "blank", x), "markdown", LISTED, "markdown");
+  });
+  it("GUARD: an indent-4 `{bash}` opener below a dash-column line and a closed fence directly under a prose line stays swallowed (the simple table runs to the blank line)", () => {
+    claim(probe("markdown", "blank", ["Para above.", "- - -", "```", "x", "```"]), "markdown", SWALLOWED, "markdown");
+  });
+
   // SLICE 29. A `[a]:` LINE THAT PANDOC READS AS TEXT IS NO LINK DEFINITION, AND A TILDE FENCE UNDER PROSE IS NO FENCE. Pandoc's definition grammar is wide (the URL may sit on the next line, unquoted junk after it
   // is part of it) but refuses three shapes, each of which is then paragraph text and ends nothing: a URL that starts with `[` (`[a]:[b]: /u`, a bare `[a]:` over a line that starts `[`), a quoted title
   // with junk after it (`[a]: /u 't' x`) and a bare `[a]: ` with no URL to follow it (`linkDefinitionAt`). A bare fence line ends a block only where it CLOSES a fence the scanner opened: a `~~~` line

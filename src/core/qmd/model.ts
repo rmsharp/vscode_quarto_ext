@@ -8652,7 +8652,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         // the line is paragraph text and keeps the over-accepting column (the safe direction, above), and inside any container or quote
         // nothing is claimed.
         const opened =
-          contentColumns.length === 0 && !stripQuote && BULLET_THEMATIC_BREAK.test(line) && !(dashLineHasHeaderAbove(boundaries, i) && !dashFooterBelow(lines, i)) && startsAtBoundary(boundaries, i)
+          contentColumns.length === 0 && !stripQuote && BULLET_THEMATIC_BREAK.test(line) && !(dashLineHasHeaderAbove(boundaries, i) && !dashFooterBelow(lines, i)) && (startsAtBoundary(boundaries, i) || (i > 0 && !startsAtBoundary(boundaries, i - 1)))
             ? null
             : listItemContentColumn(line, commonmarkDialect);
         if (opened !== null) {
