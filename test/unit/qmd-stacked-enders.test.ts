@@ -147,6 +147,26 @@ describe("Session 298 — stacked block enders in the free case", () => {
     },
   );
 
+  // SLICE 9. A GRID TABLE UNDER A LINE BLOCK. The run of lines starting `|` or `+` that makes a grid table was searched back over every such line, so the `| one` line of a line block above the
+  // top border was taken for the start of the run and the table was thought to begin at a non-boundary. A grid table begins at its first border line, as a line block begins at its first bar
+  // line (slice 5). Rendered (`scratchpad/s298/wide_blank`, `wb_lb1__grid`, `wb_lb2__grid`, engine markdown): listed.
+  it.each<[string, string[]]>([
+    ["a grid table under a one-line line block", ["| one", "+---+---+", "| a | b |", "+---+---+"]],
+    ["a grid table under a two-line line block", ["| one", "| two", "+---+---+", "| a | b |", "+---+---+"]],
+  ])("RED->GREEN: an indent-4 `{bash}` opener below %s is indented code", (_label, x) => {
+    expect(texts(probe("markdown", "blank", x), "markdown")).toEqual(LISTED);
+  });
+
+  // SLICE 10. `- - -` UNDER A MULTI-LINE CODE BLOCK IS A BREAK. Pandoc tries `table` only at the FIRST line of a block, so an indented code block of two or more lines (a blank line inside
+  // it included) is read whole and the `- - -` below it starts a fresh block, a thematic break; only a ONE-line code block is a table's header row (slice 2). Rendered (`wb_code2__hr_sdash`,
+  // `wb_code_blank__hr_sdash`, engine markdown): listed.
+  it.each<[string, string[]]>([
+    ["two code lines", ["    a", "    b", "- - -"]],
+    ["two code lines with a blank line between", ["    a", "", "    b", "- - -"]],
+  ])("RED->GREEN: an indent-4 `{bash}` opener below `- - -` under %s is indented code", (_label, x) => {
+    expect(texts(probe("markdown", "blank", x), "markdown")).toEqual(LISTED);
+  });
+
   // SLICE 6. THE STACK IS EVALUATED WITHOUT RECURSING THROUGH ITS DEPTH. "Is pandoc between blocks above this line" asks the same question of the line above it, so a stack of N enders was
   // N frames deep: a document with 15,000 thematic breaks and link definitions stacked directly (a generated reference list, an auto-built separator ladder) overflowed the JavaScript stack
   // inside `findHeadings`. The answer is computed once per line, bottom-up, and memoised per document and reader.

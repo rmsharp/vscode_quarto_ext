@@ -11220,9 +11220,24 @@ function isBoundaryLine(line: string): boolean {
 }
 /** A run of dashes separated by blanks, at least two runs (`- - -`, `-  -  -`): the column line of a simple table, and a bullet-spelled thematic break to pandoc's `hrule`. */
 const DASH_COLUMN_LINE = /^ {0,3}-+(?:[ \t]+-+)+[ \t]*$/;
-/** A one-line block that pandoc's `table` parser is tried on BEFORE the block's own parser (Session 298): a thematic break, a link definition and an indented code line. */
-function isTableHeaderCandidate(line: string): boolean {
-  return THEMATIC_BREAK.test(line) || LINK_REFERENCE_DEFINITION.test(line) || indentedCodeLine(line, [0]);
+/**
+ * Whether the line at `y` is a ONE-LINE block that pandoc's `table` parser is tried on BEFORE the block's own parser (Session 298): a thematic break, a link definition, and the FIRST line of an
+ * indented code block. `table` is tried only where a block STARTS, so a code block of two or more lines (a blank line between its lines included) is read whole and the line below it is a fresh
+ * block (rendered `wb_code2__hr_sdash`, `wb_code_blank__hr_sdash`).
+ */
+function isTableHeaderCandidate(lines: readonly string[], y: number): boolean {
+  const line = lines[y];
+  if (THEMATIC_BREAK.test(line) || LINK_REFERENCE_DEFINITION.test(line)) {
+    return true;
+  }
+  if (!indentedCodeLine(line, [0])) {
+    return false;
+  }
+  let j = y - 1;
+  while (j >= 0 && BLANK_LINE.test(lines[j])) {
+    j--;
+  }
+  return j < 0 || !indentedCodeLine(lines[j], [0]);
 }
 /** The first line of the contiguous, non-blank run ending at `x` in which every line satisfies `same` (capped, so a pathological file cannot make each opener scan it all). */
 function runStart(lines: readonly string[], x: number, same: (line: string) => boolean): number {
@@ -11250,7 +11265,7 @@ function endsFreshBlock(b: BlockBoundaries, x: number): boolean {
   if (THEMATIC_BREAK.test(line)) {
     // ⚠ A DASH-COLUMN LINE DIRECTLY UNDER A ONE-LINE BLOCK IS A SIMPLE TABLE'S DASH LINE, NOT A BREAK (Session 298): pandoc tries `table` before `hrule`, a link definition and an
     // indented code block, so such a line above it is the header row and the table swallows everything below it up to a blank line (rendered, `scratchpad/s295/stk`).
-    if (DASH_COLUMN_LINE.test(line) && x > 0 && isTableHeaderCandidate(lines[x - 1])) {
+    if (DASH_COLUMN_LINE.test(line) && x > 0 && isTableHeaderCandidate(lines, x - 1)) {
       return false;
     }
     return startsAtBoundary(b, x);
@@ -11304,7 +11319,11 @@ function tableOrLineBlockEndsAt(b: BlockBoundaries, x: number): boolean {
     }
   }
   if (/^[|+]/.test(line)) {
-    const k = runStart(lines, x, (l) => /^[|+]/.test(l));
+    let k = runStart(lines, x, (l) => /^[|+]/.test(l));
+    // The table BEGINS at its first border line: a line block (or a pipe row) above it is no part of it (Session 298, rendered `wb_lb1__grid`).
+    while (k < x && !GRID_PLAIN_BORDER.test(lines[k])) {
+      k++;
+    }
     if (GRID_PLAIN_BORDER.test(lines[k]) && startsAtBoundary(b, k)) {
       let borders = 0;
       for (let j = k; j <= x; j++) {
