@@ -11277,7 +11277,8 @@ const DASH_COLUMN_LINE = /^ {0,3}-+(?:[ \t]+-+)+[ \t]*$/;
 function isTableHeaderCandidate(lines: readonly string[], y: number): boolean {
   const line = lines[y];
   // A run of dashes directly under a line of text is that line's setext UNDERLINE, which starts no block of its own; it is a break (and a header-row candidate) only under a blank line or a boundary.
-  if (/^ {0,3}-+[ \t]*$/.test(line) && y > 0 && !isBoundaryLine(lines[y - 1])) {
+  // ⚠ An ATX heading line counts as TEXT here: pandoc tries `setextHeader` before `atxHeader`, so `## Before` / `---` is a setext heading whose text is `## Before` (rendered, `wh_hr_dash3__hr_sdash`).
+  if (/^ {0,3}-+[ \t]*$/.test(line) && y > 0 && (/^#{1,6}(?:[ \t]|$)/.test(lines[y - 1]) || !isBoundaryLine(lines[y - 1]))) {
     return false;
   }
   if (THEMATIC_BREAK.test(line) || LINK_REFERENCE_DEFINITION.test(line)) {

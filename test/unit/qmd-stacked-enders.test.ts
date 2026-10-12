@@ -245,6 +245,12 @@ describe("Session 298 — stacked block enders in the free case", () => {
     claim(probe("markdown", "blank", ["<div>"], "    ", reader), "markdown", SWALLOWED, reader);
   });
 
+  // SLICE 18. AN ATX LINE IS TEXT TO A DASH RUN BELOW IT. Pandoc tries `setextHeader` before `atxHeader`, so `## Before` / `---` is a setext heading whose text is `## Before` (the model already reports
+  // it so): the `---` is an underline, not a break, and the `- - -` under it begins a fresh block. Found by the heading-context grid (`scratchpad/s298/wide_heading`, `wh_hr_dash3__hr_sdash`: listed).
+  it("RED->GREEN: an indent-4 `{bash}` opener below `---` / `- - -` directly under the `## Before` heading is indented code", () => {
+    claim(probe("markdown", "heading", ["---", "- - -"]), "markdown", ["## Before", "In", "After"], "markdown, heading context");
+  });
+
   // SLICE 17. A `</div>` THAT CLOSES AN OPEN NATIVE DIV ENDS THE BLOCK EVEN WITHOUT RAW HTML. With `native_divs` on, `<div>` opens a container and the `</div>` that closes it ends the block whatever
   // `raw_html` says; an ORPHAN `</div>` has nothing to close and is text under `-raw_html` (slice 15). The scanner counts the open native divs above each line. Found by the round-2 holdout
   // (`dev2/readers/rdr2_035_norh_div_closed`: quarto lists `In`, the first `-raw_html` gate deleted it; the parent was right). `<div>` / `<div>` / `</div>` is not rendered here.
