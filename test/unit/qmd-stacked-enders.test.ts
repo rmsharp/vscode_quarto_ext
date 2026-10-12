@@ -265,6 +265,35 @@ describe("Session 298 — stacked block enders in the free case", () => {
     claim(probe("markdown", "blank", x, "    ", null, after), "markdown", SWALLOWED, "markdown");
   });
 
+  // SLICE 22. THE BOUNDARIES ARE LINEAR IN THE DOCUMENT. A late question (`startsAt` for a multi-line comment, an opener, a thematic break far down a long file) fills the memo for every line above it, and each
+  // line asked its run start by scanning back up to 1,000 lines: 40,000 indented lines then a comment cost 16 times the scan itself (101 ms to 1,653 ms), 40,000 link definitions 10 times, found by the independent
+  // review and re-measured here. The run starts are now memoised per predicate. The bound is a RATIO to the same document without the late question, so a loaded machine does not make it flaky.
+  const timeOf = (text: string): number => {
+    let best = Infinity;
+    for (let n = 0; n < 3; n++) {
+      const t0 = process.hrtime.bigint();
+      findHeadings(text + `\n<!-- unique ${n} ${best} -->\n`, "markdown");
+      best = Math.min(best, Number(process.hrtime.bigint() - t0) / 1e6);
+    }
+    return best;
+  };
+  const longDoc = (line: (i: number) => string, n: number, question: string[]): string =>
+    doc("---", 'title: "T"', "engine: markdown", "---", "", ...Array.from({ length: n }, (_v, i) => line(i)), ...question);
+  it.each<[string, (i: number) => string, number]>([
+    ["indented code lines", (i) => `    code ${i}`, 30000],
+    ["link definitions", (i) => `[r${i}]: /u${i}`, 30000],
+    ["indented text lines (a line-block run)", (i) => `  indented text ${i}`, 30000],
+  ])("RED->GREEN: a late multi-line comment after %s costs a small multiple of the scan alone", (_label, line, n) => {
+    const question = ["<!--", "c", "-->", "    ```{bash}", "x", "    ```"];
+    const base = timeOf(longDoc(line, n, ["", "plain text"]));
+    const late = timeOf(longDoc(line, n, ["", ...question]));
+    expect(late, `late ${late.toFixed(0)} ms against ${base.toFixed(0)} ms`).toBeLessThan(base * 4 + 150);
+  });
+  it("RED->GREEN: a line of 20,000 `<div` with no `>` does not make the tag scan quadratic", () => {
+    const text = doc("---", 'title: "T"', "engine: markdown", "---", "", "<div".repeat(20000), "", "***", "    ```{bash}", "x", "    ```");
+    expect(timeOf(text)).toBeLessThan(150);
+  });
+
   // SLICE 21. THREE FINDINGS OF THE INDEPENDENT CODE REVIEW (`scratchpad/s298/review1`, each rendered). (1) NOTHING ENDS A BLOCK INSIDE AN OPEN RAW-CONTENT ELEMENT: everything in a `<pre>` (or a
   // `<script>`, `<style>`, `<textarea>`) is raw text, so a stack of enders inside it ends nothing and the opener is swallowed; only the HTML rule asked the scanner's raw-content depth (the parent was right
   // here by accident: stacking was refused). (2) A `<div></div>` OPENED AND CLOSED ON ONE LINE is an empty native div under `-raw_html` too (`<div>x</div>` is not: the text swallows the closer). (3) A

@@ -10070,7 +10070,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         deepAtxHeaderLineIsBlock(line, rawTexColumns, tightAtxDialect && literalHtmlLines?.has(i) !== true) &&
         (!paragraphOpen || (markdownFamilyDialect && !blankBeforeHeaderDialect));
       if (line.includes("<")) {
-        for (const tag of line.matchAll(HTML_DIV_TAG)) {
+        for (const tag of line.includes(">") ? line.matchAll(HTML_DIV_TAG) : []) {
           if (tag[2] === "/") {
             continue; // self-closing: opens nothing
           }
@@ -11199,6 +11199,7 @@ class BlockBoundaries {
   /** `divDepthBefore[i]`: how many native `<div>` openers are still open above line `i`, as the scanner counted them. */
   readonly divDepthBefore: number[] = [];
   private readonly known: boolean[] = [true];
+  private readonly runs = new Map<string, number[]>();
   constructor(
     readonly lines: readonly string[],
     readonly readers: BoundaryReaders,
@@ -11209,6 +11210,35 @@ class BlockBoundaries {
       this.known.push(this.compute(this.known.length));
     }
     return this.known[Math.max(0, k)];
+  }
+  /**
+   * `runStart` memoised per predicate (`id` names `same`): the first line of the contiguous run of lines satisfying `same` that ends at `x`, capped at 1,000 lines back, exactly as `runStart` answers.
+   * Each line's start follows from the line above it, so every predicate is evaluated once per line instead of scanning back from every line (an indented file of 40,000 lines cost 16 times its scan).
+   */
+  runStartOf(id: string, same: (line: string) => boolean, x: number): number {
+    let starts = this.runs.get(id);
+    if (starts === undefined) {
+      starts = [0];
+      this.runs.set(id, starts);
+    }
+    while (starts.length <= x) {
+      const j = starts.length;
+      starts.push(same(this.lines[j - 1]) ? Math.max(starts[j - 1], j - 1000) : j);
+    }
+    return starts[x];
+  }
+  /** The last line at or above `x` satisfying `same`, or -1: memoised per predicate like `runStartOf`, so asking whether a run holds one at all costs nothing. */
+  lastIndexOf(id: string, same: (line: string) => boolean, x: number): number {
+    let last = this.runs.get(`last:${id}`);
+    if (last === undefined) {
+      last = [];
+      this.runs.set(`last:${id}`, last);
+    }
+    while (last.length <= x) {
+      const j = last.length;
+      last.push(same(this.lines[j]) ? j : j > 0 ? last[j - 1] : -1);
+    }
+    return last[x];
   }
   private compute(k: number): boolean {
     if (isBoundaryLine(this.lines[k - 1]) || this.ends.has(k - 1)) {
@@ -11241,7 +11271,7 @@ function endsFreshHtml(b: BlockBoundaries, x: number): boolean {
     b.rawDepthBefore[x + 1] === 0 &&
     // an element with TEXT between its tags is a raw block only where markdown is parsed inside HTML blocks (rendered, `-markdown_in_html_blocks`)
     (b.readers.htmlContent || !htmlLineHasText(b.lines[x])) &&
-    endsHtmlBlock(b.lines[x], startsAtBoundary(b, x), !b.readers.pandocMarkdown && !startsAtBoundary(b, x) && !htmlRunBeginsWithTag(b.lines, x), b.readers.rawHtml, b.readers.nativeDivs, (b.divDepthBefore[x] ?? 0) > 0)
+    endsHtmlBlock(b.lines[x], startsAtBoundary(b, x), !b.readers.pandocMarkdown && !startsAtBoundary(b, x) && !htmlRunBeginsWithTag(b, x), b.readers.rawHtml, b.readers.nativeDivs, (b.divDepthBefore[x] ?? 0) > 0)
   );
 }
 /** Whether the line at `x` is a whole-line HTML comment at column 0 that began at a block boundary, so pandoc is between blocks after it (Session 295; stackable, Session 298). */
@@ -11268,6 +11298,8 @@ function isBoundaryLine(line: string): boolean {
   );
 }
 /** A run of dashes separated by blanks, at least two runs (`- - -`, `-  -  -`): the column line of a simple table, and a bullet-spelled thematic break to pandoc's `hrule`. */
+/** A line that can belong to a line block: a bar line or an indented (continuation) line. */
+const LINEBLOCKISH = (l: string): boolean => LINE_BLOCK_START.test(l) || /^[ \t]+\S/.test(l);
 const DASH_COLUMN_LINE = /^ {0,3}-+(?:[ \t]+-+)+[ \t]*$/;
 /** A line made only of dashes and blanks: a simple table's rule, a setext underline or a thematic break. */
 const DASH_ONLY_LINE = /^ {0,3}-+(?:[ \t]+-+)*[ \t]*$/;
@@ -11293,7 +11325,7 @@ function closesSimpleTable(b: BlockBoundaries, x: number): boolean {
 }
 /** Whether the dash-column line at `x` is the rule under a HEADER ROW: a one-line block `table` is tried on first sits directly above it (Session 298, rendered `stk`, `wide_blank`). */
 function dashLineHasHeaderAbove(b: BlockBoundaries, x: number): boolean {
-  return b.readers.simpleTables && DASH_COLUMN_LINE.test(b.lines[x]) && x > 0 && isTableHeaderCandidate(b.lines, x - 1) && hasRowBelow(b.lines, x);
+  return b.readers.simpleTables && DASH_COLUMN_LINE.test(b.lines[x]) && x > 0 && isTableHeaderCandidate(b, x - 1) && hasRowBelow(b.lines, x);
 }
 /**
  * Whether the dash-column line at `x` is a SIMPLE TABLE's rule and not a thematic break (Session 298): the dash line under a header row (a one-line block `table` is tried on first), or the TOP
@@ -11323,7 +11355,8 @@ function dashLineStartsTable(b: BlockBoundaries, x: number): boolean {
  * indented code block. `table` is tried only where a block STARTS, so a code block of two or more lines (a blank line between its lines included) is read whole and the line below it is a fresh
  * block (rendered `wb_code2__hr_sdash`, `wb_code_blank__hr_sdash`).
  */
-function isTableHeaderCandidate(lines: readonly string[], y: number): boolean {
+function isTableHeaderCandidate(b: BlockBoundaries, y: number): boolean {
+  const lines = b.lines;
   const line = lines[y];
   // A run of dashes directly under a line of text is that line's setext UNDERLINE, which starts no block of its own; it is a break (and a header-row candidate) only under a blank line or a boundary.
   // ⚠ An ATX heading line counts as TEXT here: pandoc tries `setextHeader` before `atxHeader`, so `## Before` / `---` is a setext heading whose text is `## Before` (rendered, `wh_hr_dash3__hr_sdash`).
@@ -11335,7 +11368,7 @@ function isTableHeaderCandidate(lines: readonly string[], y: number): boolean {
   }
   // A ONE-LINE line block (`| one`), whose own parser comes after `table`; two lines are read whole. A bar line under a pipe-bearing line is a ROW of a pipe table, which is consumed whole.
   if (LINE_BLOCK_START.test(line)) {
-    return y === 0 || (!lines[y - 1].includes("|") && runStart(lines, y, (l) => LINE_BLOCK_START.test(l) || /^[ \t]+\S/.test(l)) === y);
+    return y === 0 || (!lines[y - 1].includes("|") && b.runStartOf("lineblockish", LINEBLOCKISH, y) === y);
   }
   // A raw HTML line that leaves TEXT behind its tag: `<div>x</div>` is the raw block `<div>` and then the text `x</div>`, which is the header row. A tag-only line (`</div>`) is consumed whole.
   if (/^[ \t]*<\/?[A-Za-z]/.test(line)) {
@@ -11349,14 +11382,6 @@ function isTableHeaderCandidate(lines: readonly string[], y: number): boolean {
     j--;
   }
   return j < 0 || !indentedCodeLine(lines[j], [0]);
-}
-/** The first line of the contiguous, non-blank run ending at `x` in which every line satisfies `same` (capped, so a pathological file cannot make each opener scan it all). */
-function runStart(lines: readonly string[], x: number, same: (line: string) => boolean): number {
-  let k = x;
-  while (k > 0 && x - k < 1000 && same(lines[k - 1])) {
-    k--;
-  }
-  return k;
 }
 /**
  * Whether the line at `x` is a one-line block, or the last line of a run of one kind, that ENDS ITSELF and BEGAN at a block boundary (Session 295),
@@ -11382,11 +11407,11 @@ function endsFreshBlock(b: BlockBoundaries, x: number): boolean {
     return startsAtBoundary(b, x);
   }
   if (LINK_REFERENCE_DEFINITION.test(line)) {
-    return startsAtBoundary(b, runStart(lines, x, (l) => LINK_REFERENCE_DEFINITION.test(l)));
+    return startsAtBoundary(b, b.runStartOf("ref", (l) => LINK_REFERENCE_DEFINITION.test(l), x));
   }
   // The columns are `[0]` because the caller's free case has no container open.
   if (indentedCodeLine(line, [0])) {
-    return startsAtBoundary(b, runStart(lines, x, (l) => indentedCodeLine(l, [0])));
+    return startsAtBoundary(b, b.runStartOf("code", (l) => indentedCodeLine(l, [0]), x));
   }
   return false;
 }
@@ -11408,19 +11433,20 @@ function tableOrLineBlockEndsAt(b: BlockBoundaries, x: number): boolean {
   if (/\\[ \t]*$/.test(line)) {
     return false;
   }
-  const lineBlockish = (l: string): boolean => LINE_BLOCK_START.test(l) || /^[ \t]+\S/.test(l);
-  if (lineBlockish(line)) {
-    let k = runStart(lines, x, lineBlockish);
+  if (LINEBLOCKISH(line)) {
+    let k = b.runStartOf("lineblockish", LINEBLOCKISH, x);
     // The block BEGINS at its first `| ` line: an indented line above it (a code line, text) is no part of it (Session 298, rendered `st_code_then_lb`).
-    while (k < x && !LINE_BLOCK_START.test(lines[k])) {
-      k++;
+    if (b.lastIndexOf("bar", (l) => LINE_BLOCK_START.test(l), x) >= k) {
+      while (k < x && !LINE_BLOCK_START.test(lines[k])) {
+        k++;
+      }
     }
     if (LINE_BLOCK_START.test(lines[k]) && startsAtBoundary(b, k)) {
       return true;
     }
   }
   if (line.includes("|")) {
-    const k = runStart(lines, x, (l) => l.includes("|"));
+    const k = b.runStartOf("pipe", (l) => l.includes("|"), x);
     if (
       x > k &&
       PIPE_DELIMITER_ROW.test(lines[k + 1]) &&
@@ -11430,7 +11456,7 @@ function tableOrLineBlockEndsAt(b: BlockBoundaries, x: number): boolean {
     }
   }
   if (/^[|+]/.test(line)) {
-    let k = runStart(lines, x, (l) => /^[|+]/.test(l));
+    let k = b.runStartOf("bars", (l) => /^[|+]/.test(l), x);
     // The table BEGINS at its first border line: a line block (or a pipe row) above it is no part of it (Session 298, rendered `wb_lb1__grid`).
     while (k < x && !GRID_PLAIN_BORDER.test(lines[k])) {
       k++;
@@ -11456,8 +11482,9 @@ const GRID_PLAIN_BORDER = /^\+(?:-+\+)+[ \t]*$/;
  * Whether the contiguous run of non-blank lines ending at `x` BEGINS with a tag line (Session 295). A run start is a boundary by construction (the line
  * above it is blank), so no boundary test is spelled: mutation round 3 showed it unobservable over 4,665 documents.
  */
-function htmlRunBeginsWithTag(lines: readonly string[], x: number): boolean {
-  return /^[ \t]*</.test(lines[runStart(lines, x, (l) => !BLANK_LINE.test(l))]);
+function htmlRunBeginsWithTag(b: BlockBoundaries, x: number): boolean {
+  const lines = b.lines;
+  return /^[ \t]*</.test(lines[b.runStartOf("nonblank", (l) => !BLANK_LINE.test(l), x)]);
 }
 /** The reader bases the free case's table and line-block rules were measured under (Session 295, `scratchpad/s295/rdr`). */
 const FREE_CASE_TABLE_READER_BASES: ReadonlySet<string> = new Set(["markdown", "gfm", "commonmark", "commonmark_x"]);
