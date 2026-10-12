@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import * as path from "node:path";
 import { describe, expect, it } from "vitest";
 import { findHeadings } from "../../src/core/qmd/model";
 
@@ -36,6 +38,21 @@ describe("Session 298 — stacked block enders in the free case", () => {
       "",
       "tail",
     );
+  // EMIT_ROWS=<dir> writes every row's document and its claimed headings there INSTEAD OF asserting, so the claims can be rendered and compared with quarto
+  // (`scratchpad/s298/render.sh` then `check_rows.cjs`; Learning #650: a row's claim is quarto's answer by construction, not mine).
+  const EMIT = process.env.EMIT_ROWS;
+  const emitted: Record<string, string[]> = {};
+  const claim = (text: string, eng: Eng, expected: string[], label: string): void => {
+    if (EMIT) {
+      mkdirSync(EMIT, { recursive: true });
+      const name = `r${String(Object.keys(emitted).length + 1).padStart(4, "0")}_${eng}`;
+      writeFileSync(path.join(EMIT, `${name}.qmd`), text);
+      emitted[name] = expected;
+      writeFileSync(path.join(EMIT, "expect.json"), JSON.stringify(emitted));
+      return;
+    }
+    expect(texts(text, eng), label).toEqual(expected);
+  };
   const LISTED = ["Before", "In", "After"]; // the opener is indented CODE: quarto lists the heading inside it
   const SWALLOWED = ["Before", "After"]; //   the opener is paragraph text or a raw continuation: quarto swallows it
 
@@ -46,7 +63,7 @@ describe("Session 298 — stacked block enders in the free case", () => {
     ["a link definition under a thematic break", ["***", "[a]: https://a.example"]],
   ])("RED->GREEN: an indent-4 `{bash}` opener below %s is indented code", (_label, x) => {
     for (const eng of ["jupyter", "markdown"] as const) {
-      expect(texts(probe(eng, "blank", x), eng), `${eng}: after a blank line`).toEqual(LISTED);
+      claim(probe(eng, "blank", x), eng, LISTED, `${eng}: after a blank line`);
     }
   });
 
@@ -64,7 +81,7 @@ describe("Session 298 — stacked block enders in the free case", () => {
     ["an indented code line", ["    some code", "- - -"]],
   ])("RED->GREEN: an indent-4 `{bash}` opener below `- - -` under %s is swallowed (a simple table's dash line)", (_label, x) => {
     for (const eng of ["jupyter", "markdown"] as const) {
-      expect(texts(probe(eng, "blank", x), eng), `${eng}: after a blank line`).toEqual(SWALLOWED);
+      claim(probe(eng, "blank", x), eng, SWALLOWED, `${eng}: after a blank line`);
     }
   });
 
@@ -79,7 +96,7 @@ describe("Session 298 — stacked block enders in the free case", () => {
     ["another comment", ["<!-- c -->", "<!-- d -->"]],
   ])("RED->GREEN: an indent-4 `{bash}` opener below %s stacked under a one-line comment is indented code", (_label, x) => {
     for (const eng of ["jupyter", "markdown"] as const) {
-      expect(texts(probe(eng, "blank", x), eng), `${eng}: after a blank line`).toEqual(LISTED);
+      claim(probe(eng, "blank", x), eng, LISTED, `${eng}: after a blank line`);
     }
   });
 
@@ -102,7 +119,7 @@ describe("Session 298 — stacked block enders in the free case", () => {
     "RED->GREEN: an indent-4 `{bash}` opener below %s is indented code",
     (_label, x) => {
       for (const eng of ["jupyter", "markdown"] as const) {
-        expect(texts(probe(eng, "blank", x), eng), `${eng}: after a blank line`).toEqual(LISTED);
+        claim(probe(eng, "blank", x), eng, LISTED, `${eng}: after a blank line`);
       }
     },
   );
@@ -118,7 +135,7 @@ describe("Session 298 — stacked block enders in the free case", () => {
     ["a second multi-line comment", ["<!--", "note", "-->", "<!--", "more", "-->"]],
   ])("RED->GREEN: an indent-4 `{bash}` opener below %s stacked under a multi-line comment is indented code", (_label, x) => {
     for (const eng of ["jupyter", "markdown"] as const) {
-      expect(texts(probe(eng, "blank", x), eng), `${eng}: after a blank line`).toEqual(LISTED);
+      claim(probe(eng, "blank", x), eng, LISTED, `${eng}: after a blank line`);
     }
   });
 
@@ -143,7 +160,7 @@ describe("Session 298 — stacked block enders in the free case", () => {
   it.each(HTML_FIRST.flatMap(([h, hx]) => HTML_BELOW.map(([b, bx]): [string, string[]] => [`${b} stacked under ${h}`, [...hx, ...bx]])))(
     "RED->GREEN: an indent-4 `{bash}` opener below %s is indented code",
     (_label, x) => {
-      expect(texts(probe("markdown", "blank", x), "markdown")).toEqual(LISTED);
+      claim(probe("markdown", "blank", x), "markdown", LISTED, "markdown");
     },
   );
 
@@ -157,14 +174,25 @@ describe("Session 298 — stacked block enders in the free case", () => {
     ["a one-line paragraph element", ["<p>x</p>", "- - -"]],
     ["a details element with its summary", ["<details>", "<summary>s</summary>", "- - -"]],
   ])("RED->GREEN: an indent-4 `{bash}` opener below `- - -` under %s is swallowed (a simple table's dash line)", (_label, x) => {
-    expect(texts(probe("markdown", "blank", x), "markdown")).toEqual(SWALLOWED);
+    claim(probe("markdown", "blank", x), "markdown", SWALLOWED, "markdown");
   });
   it.each<[string, string[]]>([
     ["a closing div", ["</div>", "- - -"]],
     ["a lone opening div", ["<div>", "- - -"]],
     ["a two-line line block", ["| one", "| two", "- - -"]],
   ])("GUARD: an indent-4 `{bash}` opener below `- - -` under %s is still indented code (the block is consumed whole first)", (_label, x) => {
-    expect(texts(probe("markdown", "blank", x), "markdown")).toEqual(LISTED);
+    claim(probe("markdown", "blank", x), "markdown", LISTED, "markdown");
+  });
+
+  // SLICE 13. A DASH RUN THAT UNDERLINES THE TEXT ABOVE IS NO BLOCK START, SO IT IS NO TABLE HEADER. `-----` directly under a text line is that line's setext underline, and the `- - -` below it
+  // begins a fresh block (a break); the same dashes under a blank line or a heading ARE a break of their own and stay a header-row candidate (slice 2). Found by the full wide grid: the first cut of
+  // slice 2 took every thematic break, an underline included, for a header and swallowed the opener (`wb_setext2__hr_sdash`: listed, with the setext heading `Title`). The same shape closes a
+  // mid-document `---` / `k: v` / `---` block (`wb_yaml__hr_sdash`: `In` is listed; the model still reports `k: v` as a heading there, the filed mid-document metadata item).
+  it("RED->GREEN: an indent-4 `{bash}` opener below `- - -` under a setext heading with a dash underline is indented code", () => {
+    claim(probe("markdown", "blank", ["Title", "-----", "- - -"]), "markdown", ["Before", "Title", "In", "After"], "markdown");
+  });
+  it("RED->GREEN: an indent-4 `{bash}` opener below `- - -` under a mid-document `---` / `k: v` / `---` block lists `In`", () => {
+    expect(texts(probe("markdown", "blank", ["---", "k: v", "---", "- - -"]), "markdown")).toContain("In");
   });
 
   // SLICE 12. A `|` LINE DIRECTLY UNDER A TABLE OR A LINE BLOCK CONTINUES IT. Line blocks, pipe tables and pipe rows all start with a bar, so a bar line under one is the same block's next line, not
@@ -175,7 +203,7 @@ describe("Session 298 — stacked block enders in the free case", () => {
     ["a pipe table without a body under a line block with a continuation line", ["| one", "  cont", "| a | b |", "|---|---|"]],
     ["an indented comment under a pipe table", ["| a | b |", "|---|---|", "| 1 | 2 |", " <!-- c -->"]],
   ])("RED->GREEN: an indent-4 `{bash}` opener below %s is swallowed", (_label, x) => {
-    expect(texts(probe("markdown", "blank", x), "markdown")).toEqual(SWALLOWED);
+    claim(probe("markdown", "blank", x), "markdown", SWALLOWED, "markdown");
   });
 
   // SLICE 9. A GRID TABLE UNDER A LINE BLOCK. The run of lines starting `|` or `+` that makes a grid table was searched back over every such line, so the `| one` line of a line block above the
@@ -185,7 +213,7 @@ describe("Session 298 — stacked block enders in the free case", () => {
     ["a grid table under a one-line line block", ["| one", "+---+---+", "| a | b |", "+---+---+"]],
     ["a grid table under a two-line line block", ["| one", "| two", "+---+---+", "| a | b |", "+---+---+"]],
   ])("RED->GREEN: an indent-4 `{bash}` opener below %s is indented code", (_label, x) => {
-    expect(texts(probe("markdown", "blank", x), "markdown")).toEqual(LISTED);
+    claim(probe("markdown", "blank", x), "markdown", LISTED, "markdown");
   });
 
   // SLICE 10. `- - -` UNDER A MULTI-LINE CODE BLOCK IS A BREAK. Pandoc tries `table` only at the FIRST line of a block, so an indented code block of two or more lines (a blank line inside
@@ -195,7 +223,7 @@ describe("Session 298 — stacked block enders in the free case", () => {
     ["two code lines", ["    a", "    b", "- - -"]],
     ["two code lines with a blank line between", ["    a", "", "    b", "- - -"]],
   ])("RED->GREEN: an indent-4 `{bash}` opener below `- - -` under %s is indented code", (_label, x) => {
-    expect(texts(probe("markdown", "blank", x), "markdown")).toEqual(LISTED);
+    claim(probe("markdown", "blank", x), "markdown", LISTED, "markdown");
   });
 
   // SLICE 6. THE STACK IS EVALUATED WITHOUT RECURSING THROUGH ITS DEPTH. "Is pandoc between blocks above this line" asks the same question of the line above it, so a stack of N enders was
@@ -219,7 +247,7 @@ describe("Session 298 — stacked block enders in the free case", () => {
     ["a line block with a continuation line under two code lines", ["    a", "    b", "| line one", "  cont"]],
   ])("RED->GREEN: an indent-4 `{bash}` opener below %s is indented code", (_label, x) => {
     for (const eng of ["jupyter", "markdown"] as const) {
-      expect(texts(probe(eng, "blank", x), eng), `${eng}: after a blank line`).toEqual(LISTED);
+      claim(probe(eng, "blank", x), eng, LISTED, `${eng}: after a blank line`);
     }
   });
 });
