@@ -207,6 +207,34 @@ describe("Session 298 — stacked block enders in the free case", () => {
     claim(probe("markdown", "blank", x, "    ", reader), "markdown", SWALLOWED, reader);
   });
 
+  // SLICE 15. COMMENTS AND HTML ELEMENTS END A BLOCK ONLY WHERE THE READER HAS RAW HTML. With `-raw_html` an HTML comment or a closing tag is paragraph text, so the opener below it is a lazy
+  // continuation and quarto swallows it; the free case believed the comment ended the block, wrongly for one construct (a phantom before Session 298) and, once enders stacked, for every stack through
+  // one. An element with TEXT between its tags (`<button>x</button>`, `<div>x</div>`) ends a block only where `markdown_in_html_blocks` is on. Rendered (`scratchpad/s298/rdr2_298`, 90 documents,
+  // `r2_<stack>__<reader>`): swallowed under `markdown-raw_html`, `markdown-raw_html-native_divs` and `markdown_strict-raw_html`; the one-line elements under `-markdown_in_html_blocks`.
+  const RAW_HTML_OFF = ["markdown-raw_html", "markdown-raw_html-native_divs", "markdown_strict-raw_html"];
+  it.each(
+    RAW_HTML_OFF.flatMap((r) =>
+      [
+        ["a one-line comment", ["<!-- c -->"]],
+        ["a multi-line comment", ["<!--", "n", "-->"]],
+        ["a closing div", ["</div>"]],
+        ["a complete table", ["<table>", "<tr><td>x</td></tr>", "</table>"]],
+        ["a comment under a thematic break", ["***", "<!-- c -->"]],
+        ["a thematic break under a comment", ["<!-- c -->", "***"]],
+        ["a link definition under a closing div", ["</div>", "[a]: /u"]],
+      ].map(([l, x]): [string, string, string[]] => [`${l as string} under ${r}`, r, x as string[]]),
+    ),
+  )("RED->GREEN: the opener below %s is swallowed (no raw HTML, so no raw block ends)", (_label, reader, x) => {
+    claim(probe("markdown", "blank", x, "    ", reader), "markdown", SWALLOWED, reader);
+  });
+  it.each<[string, string[]]>([
+    ["a one-line button", ["<button>x</button>"]],
+    ["a one-line div", ["<div>x</div>"]],
+    ["a thematic break under a one-line button", ["***", "<button>x</button>"]],
+  ])("RED->GREEN: the opener below %s under `-markdown_in_html_blocks` is swallowed", (_label, x) => {
+    claim(probe("markdown", "blank", x, "    ", "markdown-markdown_in_html_blocks"), "markdown", SWALLOWED, "markdown-markdown_in_html_blocks");
+  });
+
   // SLICE 13. A DASH RUN THAT UNDERLINES THE TEXT ABOVE IS NO BLOCK START, SO IT IS NO TABLE HEADER. `-----` directly under a text line is that line's setext underline, and the `- - -` below it
   // begins a fresh block (a break); the same dashes under a blank line or a heading ARE a break of their own and stay a header-row candidate (slice 2). Found by the full wide grid: the first cut of
   // slice 2 took every thematic break, an underline included, for a header and swallowed the opener (`wb_setext2__hr_sdash`: listed, with the setext heading `Title`). The same shape closes a

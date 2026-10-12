@@ -7765,7 +7765,18 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   // Whether the reader has SIMPLE tables (rendered, `scratchpad/s298/rdr298`): pandoc's own markdown with `simple_tables` left on. `markdown_strict`, `_mmd`, `_phpextra` and `_github` have none,
   // so `***` / `- - -` is two thematic breaks there.
   const simpleTablesReader = measuredRefusalReader && (fromValueLine === null || fromExtensionState(fromValueLine, "simple_tables") !== false);
-  const boundaries = new BlockBoundaries(lines, freeCaseTableReader, !commonmarkDialect, measuredRefusalReader, simpleTablesReader);
+  // Whether the reader has RAW HTML: with `-raw_html` a comment or a closing tag is paragraph text and ends no block (rendered, `scratchpad/s298/rdr2_298`). And whether it parses markdown inside
+  // HTML blocks: with `-markdown_in_html_blocks` an element with text between its tags ends nothing.
+  const rawHtmlReader = fromValueLine === null || fromExtensionState(fromValueLine, "raw_html") !== false;
+  const htmlContentReader = fromValueLine === null || fromExtensionState(fromValueLine, "markdown_in_html_blocks") !== false;
+  const boundaries = new BlockBoundaries(lines, {
+    tables: freeCaseTableReader,
+    html: !commonmarkDialect && rawHtmlReader,
+    comments: rawHtmlReader,
+    htmlContent: htmlContentReader,
+    pandocMarkdown: measuredRefusalReader,
+    simpleTables: simpleTablesReader,
+  });
   // Whether the resolved reader honours a trailing heading ATTRIBUTE block — see
   // `fromHonoursHeaderAttributes` (Session 216). A SEVENTH flag rather than a refinement of any
   // of the six around it, for the reason each of those gives: it answers its own question, about
@@ -8727,7 +8738,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     ) {
       inComment = true;
       commentClose = COMMENT_CLOSE;
-      commentFresh = !stripQuote && COMMENT_OPEN_COL0.test(line) && startsAtBoundary(boundaries, i);
+      commentFresh = !stripQuote && rawHtmlReader && COMMENT_OPEN_COL0.test(line) && startsAtBoundary(boundaries, i);
       consecutiveBody = 0;
       paragraphOpen = false;
       inPipeTable = false;
@@ -11155,22 +11166,30 @@ function startsAtBoundary(b: BlockBoundaries, k: number): boolean {
  *
  * `tables` is the reader gate (`freeCaseTableReader`): `markdown_strict` has no pipe table, line block or grid table, so under it none of them ends a block.
  */
+/** The reader gates the stacked-block question reads, each measured by rendering (`scratchpad/s298/rdr298`, `rdr2_298`). */
+interface BoundaryReaders {
+  /** Pipe tables, line blocks and grid tables end a block (`freeCaseTableReader`: `markdown_strict` has none of the three). */
+  readonly tables: boolean;
+  /** A raw HTML element that completes on its line ends the block: pandoc's rule and not CommonMark's (an HTML block there runs to the next blank line), and only with raw HTML on. */
+  readonly html: boolean;
+  /** A whole-line comment ends the block: raw HTML must be on (`-raw_html` makes it paragraph text). */
+  readonly comments: boolean;
+  /** An element with text between its tags ends the block: `markdown_in_html_blocks` must not be off. */
+  readonly htmlContent: boolean;
+  /** The reader is pandoc's own markdown (outside it only a run that BEGINS with a tag counts for HTML). */
+  readonly pandocMarkdown: boolean;
+  /** The reader has simple tables, so a dash-column line under a one-line block is a table's dash line. */
+  readonly simpleTables: boolean;
+}
 class BlockBoundaries {
   /** Lines the SCANNER found to end their own block, having begun it fresh: a real kernel cell's closer, a fresh comment region's closer, a seven-hash line. */
   readonly ends = new Set<number>();
   /** `rawDepthBefore[i]`: how many raw-content elements (`<pre>`, `<script>`, `<style>`, `<textarea>`) are open above line `i`, as the scanner counted them. */
   readonly rawDepthBefore: number[] = [];
   private readonly known: boolean[] = [true];
-  /**
-   * `tables` is the reader gate for tables and line blocks (`freeCaseTableReader`), `html` says whether a raw HTML element that completes on its line ends the block (pandoc's rule, not
-   * CommonMark's), `pandocMarkdown` whether the reader is pandoc's own markdown (outside it only a run that BEGINS with a tag counts) and `simpleTables` whether it has simple tables.
-   */
   constructor(
     readonly lines: readonly string[],
-    readonly tables: boolean,
-    readonly html: boolean,
-    readonly pandocMarkdown: boolean,
-    readonly simpleTables: boolean,
+    readonly readers: BoundaryReaders,
   ) {}
   /** Whether the line at `k` BEGINS AT A BLOCK BOUNDARY: pandoc is between blocks before it. `k` is at most the line the scanner is on. */
   startsAt(k: number): boolean {
@@ -11187,7 +11206,7 @@ class BlockBoundaries {
       endsFreshComment(this, k - 1) ||
       // a table or a line block that ends on the line above (the reader gate is `freeCaseTableReader`: `markdown_strict` has none of the three) — unless a BAR LINE is what sits
       // here: a line starting `| ` or holding a pipe is the next line of that block (a row, a line-block line), not a block that begins fresh (Session 298, rendered `wb_lb_cont__pipe`)
-      (this.tables && !LINE_BLOCK_START.test(this.lines[k]) && !this.lines[k].includes("|") && tableOrLineBlockEndsAt(this, k - 1)) ||
+      (this.readers.tables && !LINE_BLOCK_START.test(this.lines[k]) && !this.lines[k].includes("|") && tableOrLineBlockEndsAt(this, k - 1)) ||
       endsFreshHtml(this, k - 1)
     );
   }
@@ -11199,14 +11218,20 @@ class BlockBoundaries {
  */
 function endsFreshHtml(b: BlockBoundaries, x: number): boolean {
   return (
-    b.html &&
+    b.readers.html &&
     b.rawDepthBefore[x + 1] === 0 &&
-    endsHtmlBlock(b.lines[x], startsAtBoundary(b, x), !b.pandocMarkdown && !htmlRunBeginsWithTag(b.lines, x))
+    // an element with TEXT between its tags is a raw block only where markdown is parsed inside HTML blocks (rendered, `-markdown_in_html_blocks`)
+    (b.readers.htmlContent || !htmlLineHasText(b.lines[x])) &&
+    endsHtmlBlock(b.lines[x], startsAtBoundary(b, x), !b.readers.pandocMarkdown && !htmlRunBeginsWithTag(b.lines, x))
   );
 }
 /** Whether the line at `x` is a whole-line HTML comment at column 0 that began at a block boundary, so pandoc is between blocks after it (Session 295; stackable, Session 298). */
 function endsFreshComment(b: BlockBoundaries, x: number): boolean {
-  return COMMENT_FULL_LINE_COL0.test(b.lines[x]) && startsAtBoundary(b, x);
+  return b.readers.comments && COMMENT_FULL_LINE_COL0.test(b.lines[x]) && startsAtBoundary(b, x);
+}
+/** A raw HTML line that leaves TEXT behind its tag: `<div>x</div>` (a tag-only line such as `</div>` has none). */
+function htmlLineHasText(line: string): boolean {
+  return /^[ \t]*<\/?[A-Za-z]/.test(line) && line.replace(/<[^>]*>/g, "").trim() !== "";
 }
 /**
  * A line after which pandoc is certainly between blocks, STRICTER than `endsBlock` where that one over-accepts (Session 295, adversarial round 2): an
@@ -11245,7 +11270,7 @@ function isTableHeaderCandidate(lines: readonly string[], y: number): boolean {
   }
   // A raw HTML line that leaves TEXT behind its tag: `<div>x</div>` is the raw block `<div>` and then the text `x</div>`, which is the header row. A tag-only line (`</div>`) is consumed whole.
   if (/^[ \t]*<\/?[A-Za-z]/.test(line)) {
-    return line.replace(/<[^>]*>/g, "").trim() !== "";
+    return htmlLineHasText(line);
   }
   if (!indentedCodeLine(line, [0])) {
     return false;
@@ -11282,7 +11307,7 @@ function endsFreshBlock(b: BlockBoundaries, x: number): boolean {
   if (THEMATIC_BREAK.test(line)) {
     // ⚠ A DASH-COLUMN LINE DIRECTLY UNDER A ONE-LINE BLOCK IS A SIMPLE TABLE'S DASH LINE, NOT A BREAK (Session 298): pandoc tries `table` before `hrule`, a link definition and an
     // indented code block, so such a line above it is the header row and the table swallows everything below it up to a blank line (rendered, `scratchpad/s295/stk`).
-    if (b.simpleTables && DASH_COLUMN_LINE.test(line) && x > 0 && isTableHeaderCandidate(lines, x - 1)) {
+    if (b.readers.simpleTables && DASH_COLUMN_LINE.test(line) && x > 0 && isTableHeaderCandidate(lines, x - 1)) {
       return false;
     }
     return startsAtBoundary(b, x);
