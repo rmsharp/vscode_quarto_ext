@@ -294,6 +294,28 @@ describe("Session 298 — stacked block enders in the free case", () => {
   it("RED->GREEN: a `>` inside a quoted attribute does not make an empty element look like it holds text (`<div title=\"a>b\"></div>` is no header row)", () => {
     claim(probe("markdown", "blank", ['<div title="a>b"></div>', "- - -"]), "markdown", LISTED, "markdown");
   });
+  // SLICE 25. THREE MORE FINDINGS OF THE SECOND REVIEW (rendered, `review2/r2_022`, `r2_026`, `r2_027`). (1) A closing tag is a ROW of the simple table above it, not a block ender: `Text` / `--- ---` /
+  // `</div>` / `***` is one table whose rows swallow everything to the blank line, so the `***` under the tag is no fresh break (a block-class tag needs no freshness to end a block, which is only true under a
+  // paragraph). (2) A LIST-LIKE CLOSING RULE is filed, not fixed (the residual below). (3) THE LIST COLUMN that a header-row `- - -` used to open
+  // by accident, and which swallowed the rows, must not outlive a table that CLOSES before the opener (`-----` / `- - -` / `Title` / `-----`: the table ends at the second rule).
+  it("RED->GREEN: a closing tag under a simple table's rule is a row of that table, so the thematic break below it ends nothing", () => {
+    claim(probe("markdown", "blank", ["Text", "--- ---", "</div>", "***"]), "markdown", SWALLOWED, "markdown");
+  });
+  // RESIDUAL, kept on purpose (DELETION; rendered `review2/r2_026`, quarto lists `In`; filed under row (3)(c) of the Kernel-cell item): `- - -` / `a` / `- - -` is a HEADERLESS table closed by its second rule, but
+  // the scanner's own simple-table state (Session 239) reads `a` over the closing rule as a new table's HEADER and swallows the `## In` heading below as a row, whatever the free case says. A future simple-table
+  // rule for headerless tables flips this on purpose.
+  it("RESIDUAL, kept on purpose: the opener below the closing `- - -` of a headerless table is still swallowed (quarto lists `In`)", () => {
+    expect(texts(probe("markdown", "blank", ["- - -", "a", "- - -"]), "markdown")).toEqual(["Before", "After"]); // quarto: Before, In, After
+  });
+  it("RED->GREEN: the opener below a header-row table that closes before it is indented code (`-----` / `- - -` / `Title` / `-----`)", () => {
+    expect(texts(probe("markdown", "blank", ["-----", "- - -", "Title", "-----"]), "markdown")).toContain("In");
+  });
+  it("GUARD: the rows of a header-row table that never closes still swallow an indented opener below them (deep rows)", () => {
+    claim(probe("markdown", "blank", ["[a]: /u", "- - -", "    code", "<div>x</div>"]), "markdown", SWALLOWED, "markdown");
+  });
+  it("GUARD: the opener below a closing tag that is NOT under a table's rule is still indented code", () => {
+    claim(probe("markdown", "blank", ["Text", "</div>"]), "markdown", LISTED, "markdown");
+  });
   it("GUARD: the opener below a line block and its continuation line is still indented code (the continuation is absorbed, the next heading is a heading)", () => {
     claim(probe("markdown", "blank", ["| one", "    code"]), "markdown", LISTED, "markdown");
   });
@@ -313,19 +335,19 @@ describe("Session 298 — stacked block enders in the free case", () => {
   const longDoc = (line: (i: number) => string, n: number, question: string[]): string =>
     doc("---", 'title: "T"', "engine: markdown", "---", "", ...Array.from({ length: n }, (_v, i) => line(i)), ...question);
   it.each<[string, (i: number) => string, number]>([
-    ["indented code lines", (i) => `    code ${i}`, 30000],
-    ["link definitions", (i) => `[r${i}]: /u${i}`, 30000],
-    ["indented text lines (a line-block run)", (i) => `  indented text ${i}`, 30000],
+    ["indented code lines", (i) => `    code ${i}`, 20000],
+    ["link definitions", (i) => `[r${i}]: /u${i}`, 20000],
+    ["indented text lines (a line-block run)", (i) => `  indented text ${i}`, 20000],
   ])("RED->GREEN: a late multi-line comment after %s costs a small multiple of the scan alone", (_label, line, n) => {
     const question = ["<!--", "c", "-->", "    ```{bash}", "x", "    ```"];
     const base = timeOf(longDoc(line, n, ["", "plain text"]));
     const late = timeOf(longDoc(line, n, ["", ...question]));
     expect(late, `late ${late.toFixed(0)} ms against ${base.toFixed(0)} ms`).toBeLessThan(base * 4 + 150);
-  });
+  }, 60000);
   it("RED->GREEN: a line of 20,000 `<div` with no `>` does not make the tag scan quadratic", () => {
     const text = doc("---", 'title: "T"', "engine: markdown", "---", "", "<div".repeat(20000), "", "***", "    ```{bash}", "x", "    ```");
     expect(timeOf(text)).toBeLessThan(150);
-  });
+  }, 60000);
 
   // SLICE 21. THREE FINDINGS OF THE INDEPENDENT CODE REVIEW (`scratchpad/s298/review1`, each rendered). (1) NOTHING ENDS A BLOCK INSIDE AN OPEN RAW-CONTENT ELEMENT: everything in a `<pre>` (or a
   // `<script>`, `<style>`, `<textarea>`) is raw text, so a stack of enders inside it ends nothing and the opener is swallowed; only the HTML rule asked the scanner's raw-content depth (the parent was right

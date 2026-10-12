@@ -8649,7 +8649,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         // the line is paragraph text and keeps the over-accepting column (the safe direction, above), and inside any container or quote
         // nothing is claimed.
         const opened =
-          contentColumns.length === 0 && !stripQuote && BULLET_THEMATIC_BREAK.test(line) && !dashLineHasHeaderAbove(boundaries, i) && startsAtBoundary(boundaries, i)
+          contentColumns.length === 0 && !stripQuote && BULLET_THEMATIC_BREAK.test(line) && !(dashLineHasHeaderAbove(boundaries, i) && !dashFooterBelow(lines, i)) && startsAtBoundary(boundaries, i)
             ? null
             : listItemContentColumn(line, commonmarkDialect);
         if (opened !== null) {
@@ -11272,6 +11272,8 @@ function endsFreshHtml(b: BlockBoundaries, x: number): boolean {
     b.rawDepthBefore[x + 1] === 0 &&
     // pandoc's block quote absorbs every non-blank line below its marked lines, so a tag under one begins nothing (rendered `review2/r2_023`); a `>` line under a paragraph is text, not a quote (`wide_para`)
     !(x > 0 && insideQuote(b, x)) &&
+    // a tag under a simple table's rule is a ROW of that table, which swallows the lines to the blank line (rendered `review2/r2_022`)
+    !inSimpleTableRows(b, x) &&
     // an element with TEXT between its tags is a raw block only where markdown is parsed inside HTML blocks (rendered, `-markdown_in_html_blocks`)
     (b.readers.htmlContent || !htmlLineHasText(b.lines[x]) || !contentGatedElement(b.lines[x])) &&
     endsHtmlBlock(b.lines[x], startsAtBoundary(b, x), !b.readers.pandocMarkdown && !startsAtBoundary(b, x) && !htmlRunBeginsWithTag(b, x), b.readers.rawHtml, b.readers.nativeDivs, (b.divDepthBefore[x] ?? 0) > 0)
@@ -11280,6 +11282,40 @@ function endsFreshHtml(b: BlockBoundaries, x: number): boolean {
 /** Whether the line at `x` is a whole-line HTML comment at column 0 that began at a block boundary, so pandoc is between blocks after it (Session 295; stackable, Session 298). */
 function endsFreshComment(b: BlockBoundaries, x: number): boolean {
   return b.readers.rawHtml && COMMENT_FULL_LINE_COL0.test(b.lines[x]) && startsAtBoundary(b, x);
+}
+/**
+ * Whether line `x` is a ROW of a simple table still open above it (Session 298): in the non-blank run above `x` the first dash-only line is a dash-column rule with a row below it and a real header line
+ * above it (a plain text line that begins a block, not a heading or a fence line), and an ODD number of rules lies above `x`, so none has closed the table yet. Rendered `review2/r2_022`; a closed table
+ * (`simple_closed`) and a rule under an ATX heading (`## Before` / `- - -`) are no open table.
+ */
+function inSimpleTableRows(b: BlockBoundaries, x: number): boolean {
+  if (!b.readers.simpleTables) {
+    return false;
+  }
+  const rs = b.runStartOf("nonblank", (l) => !BLANK_LINE.test(l), x);
+  let rules = 0;
+  let first = -1;
+  for (let u = rs; u < x; u++) {
+    if (DASH_ONLY_LINE.test(b.lines[u])) {
+      rules++;
+      if (first < 0) {
+        first = u;
+      }
+    }
+  }
+  if (rules % 2 === 0 || first <= rs || !DASH_COLUMN_LINE.test(b.lines[first]) || !hasRowBelow(b.lines, first)) {
+    return false;
+  }
+  return !isBoundaryLine(b.lines[first - 1]) && startsAtBoundary(b, first - 1);
+}
+/** Whether a dash-only line lies below line `x` in its non-blank run (a rule that would CLOSE a table opened above it). */
+function dashFooterBelow(lines: readonly string[], x: number): boolean {
+  for (let j = x + 1; j < lines.length && j - x <= 1000 && !BLANK_LINE.test(lines[j]); j++) {
+    if (DASH_ONLY_LINE.test(lines[j])) {
+      return true;
+    }
+  }
+  return false;
 }
 /** Whether a block quote that BEGINS A BLOCK sits in the non-blank run above line `x`: it absorbs every line of the run below it. */
 function insideQuote(b: BlockBoundaries, x: number): boolean {
