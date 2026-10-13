@@ -73,3 +73,5 @@
 {"class_bytes": {"resident": 22524}, "files": {"BACKLOG.md": 384251, "CLAUDE.md": 22524, "HANDOFFS.md": 299478, "PROJECT_LEARNINGS.md": 1108482, "SESSION_NOTES.md": 12900}, "resident_bytes": 22524}
 {"class_bytes": {"resident": 22855}, "files": {"BACKLOG.md": 387201, "CLAUDE.md": 22855, "PROJECT_LEARNINGS.md": 1122332, "methodology/HANDOFFS.md": 305154, "methodology/SESSION_NOTES.md": 12792}, "resident_bytes": 22855}
 {"class_bytes": {"resident": 22855}, "files": {"BACKLOG.md": 386768, "CLAUDE.md": 22855, "PROJECT_LEARNINGS.md": 1126806, "methodology/HANDOFFS.md": 316325, "methodology/SESSION_NOTES.md": 12808}, "resident_bytes": 22855}
+{"class_bytes": {"resident": 22855}, "files": {"BACKLOG.md": 387645, "CLAUDE.md": 22855, "PROJECT_LEARNINGS.md": 1130974, "methodology/HANDOFFS.md": 316990, "methodology/SESSION_NOTES.md": 17006}, "resident_bytes": 22855}
+{"class_bytes": {"resident": 22855}, "files": {"BACKLOG.md": 387645, "CLAUDE.md": 22855, "PROJECT_LEARNINGS.md": 1130974, "methodology/HANDOFFS.md": 322030, "methodology/SESSION_NOTES.md": 12462}, "resident_bytes": 22855}
