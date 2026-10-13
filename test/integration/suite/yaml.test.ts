@@ -194,6 +194,64 @@ describe("Quarto: YAML cell-option key completion", () => {
 });
 
 /**
+ * S300 — a `{mermaid}` cell completes cell options on its own opener, `%%|`.
+ *
+ * Quarto reads `%%|` in a mermaid cell (its effective comment-char table has 47 rows, one more
+ * than its static literal, and the extra row is `mermaid: "%%"`). Until S300 this model had the
+ * 46, so the default `#` applied: the line a mermaid author actually types was silent and the key
+ * list was offered on `#|`. For `{mermaid}` (and `{dot}`) cell-option completion is the one live
+ * consumer of the option-line enumerator (`cellLanguageId` is null for both, so the embedded
+ * virtual documents never reach it), which makes this provider the only surface that can observe
+ * the row. The unit pins (`yaml-context.test.ts`, `lang-comment-chars.test.ts`) cover the same
+ * decision headlessly; this is the registered provider answering through the real editor.
+ */
+describe("Quarto: YAML cell-option completion in a {mermaid} cell (S300)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  const mermaidDoc = (optionLine: string): string =>
+    ["---", "title: T", "---", "", "```{mermaid}", optionLine, "flowchart LR", "  A --> B", "```", ""].join("\n");
+
+  it("offers cell-option keys on a `%%|` line", async () => {
+    const doc = await openInMemory(mermaidDoc("%%| ec"));
+    // Line 5 "%%| ec" — the cursor sits at the end of the key slot (col 6).
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(5, 6),
+    );
+    const labels = cellOptionLabels(list);
+    for (const expected of ["echo", "eval", "label", "fig-cap"]) {
+      assert.ok(
+        labels.includes(expected),
+        `should offer cell option ${expected} on a %%| line in a {mermaid} cell; got ${JSON.stringify(labels)}`,
+      );
+    }
+  });
+
+  it("offers NO cell-option keys on a `#|` line", async () => {
+    // Quarto reads no directive on `#|` in a mermaid cell, so the key list would advertise
+    // options on a line that is not an option line. This is also the control that makes the
+    // positive test above discriminate: a provider that offered keys on EVERY line of a
+    // `{mermaid}` cell would pass it alone.
+    const doc = await openInMemory(mermaidDoc("#| ec"));
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(5, 5),
+    );
+    assert.deepStrictEqual(cellOptionLabels(list), [], "no cell-option keys on a #| line in a {mermaid} cell");
+  });
+});
+
+/**
  * S169 — cell-option completion is scoped by the DOCUMENT's engine, not the cell's
  * language. This is the only surface that can observe it: `providers/yaml.ts` is where
  * `resolveDocumentEngine` is called, and nothing under `test/unit` or `test/oracle`

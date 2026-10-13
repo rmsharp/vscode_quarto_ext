@@ -1762,7 +1762,7 @@ describe("Quarto: a cell-HANDLER language is validated by no cell schema (.qmd, 
       "digraph {a->b}",                       // 12
       "```", "",                              // 13-14
       "```{mermaid}",                         // 15
-      "#| echo: banana",                      // 16 quarto exit 0 — mermaid handler schema
+      "%%| echo: banana",                     // 16 quarto exit 0 — mermaid handler schema (S300: `%%|`, the opener the enumerator now reads; a `#|` line here would be no option line at all and pass without the handler guard)
       "graph TD;A-->B;",                      // 17
       "```", "",                              // 18-19
       "```{sql}",                             // 20
