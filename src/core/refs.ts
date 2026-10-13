@@ -13,7 +13,9 @@
  *   1. `sec-` ids on ATX headings — `## Methods {#sec-methods}` (model `Heading.id`).
  *   2. `label: fig-…` cell options inside executable cells, read through the model's option
  *      scanner (`cellOptionLinesOf`) with the cell language's own comment character —
- *      `#| label:` in `{python}`/`{r}`, `//|` in `{ojs}`/`{dot}`, `%%|` in `{mermaid}`.
+ *      `#| label:` in `{python}`/`{r}`, `//|` in `{ojs}`/`{dot}`, `%%|` in `{mermaid}`. And, in a
+ *      KNITR document only, the chunk HEADER (`{r fig-x}`, `{r, label="fig-x"}`) — see
+ *      {@link indexLabels}'s `documentEngine`.
  *   3. Inline `{#fig-…}`/`{#tbl-…}`/`{#eq-…}`/`{#lst-…}` attribute blocks on
  *      images, divs, and display equations in prose (model body lines).
  *   4. Attribute blocks on PLAIN fenced code block openers — ```` ```{#lst-x .python} ````
@@ -21,6 +23,7 @@
  *      not a body line and Source 3 never sees it.
  */
 
+import type { DocumentEngine } from "./document-engine";
 import type { AttributeBlockReader, BraceGroup } from "./qmd/model";
 import {
   attributeBlockId,
@@ -31,6 +34,7 @@ import {
   findBodyLines,
   findCodeFenceOpeners,
   findHeadings,
+  knitrChunkHeaderLabel,
   maskInlineCode,
   quartoFenceTagRewrite,
 } from "./qmd/model";
@@ -140,6 +144,20 @@ const CELL_LABEL_VALUE = new RegExp(
     String.raw`*)`,
   "u",
 );
+/**
+ * A knitr chunk-HEADER label that defines a cross-reference: `fig-` or `tbl-` and a name, and NOTHING else
+ * in the slot (Session 303).
+ *
+ * ⚠ **A CELL DEFINES FIGURES AND TABLES ONLY.** `{r lst-x}`, `{r sec-x}` and `{r eq-x}` define nothing in
+ * quarto 1.7.33 (`scratchpad/s303/hdr`, b02-b04, k05, k06); a `#| label: lst-x` defines no listing either
+ * (k03, k04: a listing cell names itself with `lst-label`), which this pattern does not inherit.
+ *
+ * ⚠ **ANCHORED AT BOTH ENDS, UNLIKE {@link CELL_LABEL_VALUE}.** That pattern takes the longest id-shaped PREFIX
+ * of a `#|` value, so `#| label: fig-a$x` is read as `fig-a` and defines a phantom. The header slot is read
+ * whole: `{r "fig-a$x"}`, `{r 'fig-a b'}` and `{r fig-}` all define nothing (a20, a23, u25), and quoting is
+ * no licence to widen the class (the same measurement {@link CELL_LABEL_VALUE} records for the pipe path).
+ */
+const HEADER_LABEL_ID = new RegExp(String.raw`^(fig|tbl)-` + DEFINED_ID_CHAR_CLASS + String.raw`+$`, "u");
 /**
  * Cell languages quarto reads as a cell ONLY when the fence starts at column 0 — its three handler
  * languages (`mermaid`, `dot`, `ojs`).
@@ -283,8 +301,13 @@ function kindOf(id: string): RefKind | null {
 /**
  * Index every cross-reference label defined in `text`, in document order. Where
  * the same id is defined more than once, only the first definition is kept.
+ *
+ * `documentEngine` is the engine the document resolves to (`resolveDocumentEngine`). Only `"knitr"` turns
+ * on the chunk-HEADER label (`{r fig-x}`), which jupyter and markdown documents ignore (Session 303); every
+ * other value, `"ambiguous"` and an omitted argument included, leaves it off, because a wrong claim of knitr
+ * mints a label quarto does not define while a wrong refusal only loses a completion.
  */
-export function indexLabels(text: string): RefLabel[] {
+export function indexLabels(text: string, documentEngine?: DocumentEngine | "ambiguous"): RefLabel[] {
   const labels: RefLabel[] = [];
   const headingLines = new Set<number>();
 
@@ -324,6 +347,8 @@ export function indexLabels(text: string): RefLabel[] {
     // The folded indent of the block's first real key: YAML's top level. A `label` nested deeper
     // under another option is that option's own data, not the cell's label.
     let baseIndent: number | null = null;
+    // Whether the option block names the cell's label ITSELF, or may (see the header read below).
+    let pipeNamesLabel = false;
     for (const option of cellOptionLinesOf(readable)) {
       const { keySlot, valueSlot } = option;
       if (keySlot === null) {
@@ -349,6 +374,13 @@ export function indexLabels(text: string): RefLabel[] {
       // stripped, so a key spelled with a YAML escape sequence is left unread: a missing
       // completion, never a phantom.
       const key = /^(["'])(.*)\1$/.exec(keyToken)?.[2] ?? keyToken;
+      // ⚠ A `label` KEY in the option block overrides a header label whatever its VALUE is — valid, rejected or
+      // no cross-reference kind at all (`scratchpad/s303/hdr3` r17, r18) — and so does a whole-block flow
+      // mapping `#| {label: …}`, whose key this index cannot read (r22). Either way the header's label is NOT
+      // defined, so a block that might carry one must not be answered from the header.
+      if (key === "label" || keyToken.startsWith("{")) {
+        pipeNamesLabel = true;
+      }
       if (key !== "label" || valueSlot === null) {
         continue;
       }
@@ -367,6 +399,17 @@ export function indexLabels(text: string): RefLabel[] {
         line: option.line,
         column: removed + valueSlot.startCol + m[0].length - value.length,
       });
+    }
+    // ⚠ A HANDLER cell (`ojs`, `mermaid`, `dot`) is run by quarto's own handler and never reaches knitr, so its
+    // header is no chunk header (`scratchpad/s303/hdr`, d03, d04; `hdr2`, y11, y12). Every language knitr DOES run
+    // reads it, python through reticulate and bash included (y01, d02, y06).
+    const header =
+      documentEngine === "knitr" && !pipeNamesLabel && !COLUMN_ZERO_ONLY_LANGUAGES.has(cell.lang)
+        ? knitrChunkHeaderLabel(sourceLines[cell.startLine])
+        : null;
+    const headerId = header === null ? null : HEADER_LABEL_ID.exec(header.value);
+    if (header !== null && headerId !== null) {
+      labels.push({ id: header.value, kind: headerId[1] as RefKind, line: cell.startLine, column: header.column });
     }
   }
 
@@ -481,8 +524,8 @@ export function indexLabels(text: string): RefLabel[] {
 }
 
 /** The label defined with `id` in `text`, or `null` if none. Drives go-to-definition. */
-export function findLabel(text: string, id: string): RefLabel | null {
-  return indexLabels(text).find((label) => label.id === id) ?? null;
+export function findLabel(text: string, id: string, documentEngine?: DocumentEngine | "ambiguous"): RefLabel | null {
+  return indexLabels(text, documentEngine).find((label) => label.id === id) ?? null;
 }
 
 /**

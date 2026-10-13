@@ -10,6 +10,7 @@
  */
 
 import * as vscode from "vscode";
+import { resolveDocumentEngine } from "../core/document-engine-resolve";
 import {
   crossrefCompletionContext,
   findLabel,
@@ -69,7 +70,10 @@ class CrossrefCompletionProvider implements vscode.CompletionItemProvider {
         context.end,
       ),
     };
-    return indexLabels(text).map((label) => toCompletionItem(label, range));
+    // The engine is resolved HERE, where the file name is known: a knitr document also defines labels from its
+    // chunk headers (`{r fig-x}`), a jupyter or markdown one does not (Session 303).
+    const engine = resolveDocumentEngine(document.fileName, text);
+    return indexLabels(text, engine).map((label) => toCompletionItem(label, range));
   }
 }
 
@@ -110,7 +114,7 @@ class CrossrefDefinitionProvider implements vscode.DefinitionProvider {
     if (id === null) {
       return undefined;
     }
-    const label = findLabel(text, id);
+    const label = findLabel(text, id, resolveDocumentEngine(document.fileName, text));
     if (label === null) {
       return undefined;
     }

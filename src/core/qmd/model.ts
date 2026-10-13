@@ -7108,6 +7108,88 @@ function splitRHeaderArguments(tail: string): string[] | null {
   return segments;
 }
 /**
+ * A chunk-header label VALUE read as plain text: a quoted string with no escape in it, or a bare run of the
+ * characters a cross-reference id may hold (`label=fig-x.b` — knitr takes the bare spelling as the text it
+ * is written in, measured). `offset` is where the id starts inside `text`. Anything else (a call, an
+ * expression, a string with a backslash) is `null`: it is not text this can read with certainty.
+ */
+function readChunkLabelToken(text: string): { value: string; offset: number } | null {
+  const quoted = /^(["'])([^"'\\]*)\1$/.exec(text);
+  if (quoted !== null) {
+    return { value: quoted[2], offset: 1 };
+  }
+  return /^[\p{L}\p{N}_:.-]+$/u.test(text) ? { value: text, offset: 0 } : null;
+}
+/**
+ * The label a knitr chunk HEADER carries — `{r fig-x}` or `{r, label="fig-x"}` — and the column its text
+ * starts at in `openerLine`, or `null` when the header holds none (Session 303).
+ *
+ * The rule, every clause rendered through quarto 1.7.33 with knitr executing (`scratchpad/s303/hdr`,
+ * `hdr2`, `hdr3`; the ids in the comments below name the probe):
+ *  - the header is read as R arguments (`splitRHeaderArguments`, Session 288), so anything that splitter
+ *    declines (a comment, a backtick name, an unbalanced bracket, a raw string) yields NO label — a lost
+ *    completion, never an invented one;
+ *  - a `label=` argument names the label, quoted or bare, and WINS over any unnamed slot; two of them, an
+ *    empty one, or one that is a call or an expression, define nothing;
+ *  - otherwise exactly ONE unnamed slot is the label, wherever it sits among the named options; two unnamed
+ *    slots define nothing;
+ *  - separators BEFORE the first argument are skipped (`{r , fig-x}`, `{r, , fig-x}`: u04, u05, u17) and
+ *    ONE trailing comma is knitr's own trim (`{r fig-x,}`: a11), but any other empty slot is an unnamed
+ *    argument (`{r fig-x, , echo=FALSE}`: a24, u06).
+ * What the returned text MAY be — a figure or table id, a whole valid id — is the caller's decision, as is
+ * whether the document is knitr at all.
+ */
+export function knitrChunkHeaderLabel(openerLine: string): { value: string; column: number } | null {
+  const begin = KNITR_CHUNK_BEGIN.exec(openerLine);
+  if (begin === null) {
+    return null;
+  }
+  const info = begin[3];
+  const engine = /^\{[a-zA-Z0-9_]+/.exec(info);
+  if (engine === null) {
+    return null;
+  }
+  const tail = info.slice(engine[0].length, -1);
+  const lead = /^[\s,]*/.exec(tail)?.[0].length ?? 0;
+  const segments = splitRHeaderArguments(tail.slice(lead));
+  if (segments === null) {
+    return null;
+  }
+  // ONE trailing comma is knitr's own trim (`{r fig-x,}` defines); any other empty slot is an unnamed
+  // argument and leaves the label undefined (measured, a24, u06).
+  if (segments.length > 1 && segments[segments.length - 1].trim() === "") {
+    segments.pop();
+  }
+  const infoStart = openerLine.indexOf(info, begin[1].length + begin[2].length);
+  let segmentStart = infoStart + engine[0].length + lead;
+  const unnamed: { text: string; start: number }[] = [];
+  const named: { value: string; start: number }[] = [];
+  for (const segment of segments) {
+    if (segment.trim() === "") {
+      return null;
+    }
+    const assignment = /^(\s*([A-Za-z.][A-Za-z0-9._]*)\s*=(?!=)\s*)(\S(?:[\s\S]*\S)?)\s*$/.exec(segment);
+    if (assignment === null) {
+      unnamed.push({ text: segment, start: segmentStart });
+    } else if (assignment[2] === "label") {
+      named.push({ value: assignment[3], start: segmentStart + assignment[1].length });
+    }
+    segmentStart += segment.length + 1;
+  }
+  // A `label=` WINS over any unnamed slot, and two of them define nothing (measured, c02, c03, u07, u12).
+  if (named.length > 0) {
+    const read = named.length === 1 ? readChunkLabelToken(named[0].value) : null;
+    return read === null ? null : { value: read.value, column: named[0].start + read.offset };
+  }
+  if (unnamed.length !== 1) {
+    return null;
+  }
+  const text = unnamed[0].text.trim();
+  const read = readChunkLabelToken(text);
+  const column = unnamed[0].start + unnamed[0].text.indexOf(text) + (read?.offset ?? 0);
+  return read === null ? null : { value: read.value, column };
+}
+/**
  * The chunk's LEADING `#|` options, or `null` when any line of that run is not in the plain
  * `#| key: value` shape. knitr reads a `#|` block as YAML only in that shape and as something
  * else otherwise — measured, each of these ECHOES: `#| echo:false` (knitr takes it as a label),
