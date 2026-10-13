@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-13 · [ad hoc] `CLAUDE.md`: the learnings pointer no longer says `PROJECT_LEARNINGS.md` is at the project root (its own commit, before the layout top-up)
+
+The `### Project-specific Learnings` pointer read "(project root, committed)". `bin/migrate-layout`'s companion top-up, run next from the methodology repository (its session S309, BL-105 build phase 4), rewrites that line's link to `methodology/PROJECT_LEARNINGS.md` and leaves the parenthesis, which would then be false. It now reads "(committed)", true in either layout. One phrase; the tool's own rewrite of the other five occurrences of the name is its commit's. Rehearsed in a clone first: 5,155 tests, `check-package`, the ratchet and `vsce ls` read as before. Local commit; not pushed.
+
 ### 2026-10-13 · [ad hoc] Methodology sync: 5 files updated from the methodology repository (its session S309, BL-105 build phase 4)
 
 `bin/sync` from the methodology repository at `a9e550f` (version `v4.2-1866-ga9e550f`; the starter-kit is the same as at that commit) updated `methodology/SESSION_RUNNER.md`, `CLAUDE_TEMPLATE.md`, `BOOTSTRAP.md`, `HOW_TO_USE.md` and `quality_ratchet.py` (3 versions). The seeds were left as written, nothing was refused and no `--force` was used. It is the step `bin/migrate-layout` asks for first (`[not-current]`), in its own commit, before the companion top-up that follows. Local commit; not pushed.

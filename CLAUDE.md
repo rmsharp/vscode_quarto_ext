@@ -260,7 +260,7 @@ tags rather than retagging them, and dropping the budget entry.*
 
 ### Project-specific Learnings
 
-See [`PROJECT_LEARNINGS.md`](PROJECT_LEARNINGS.md) (project root, committed) — extracted there on
+See [`PROJECT_LEARNINGS.md`](PROJECT_LEARNINGS.md) (committed) — extracted there on
 2026-07-09 (Session 39). This table had grown to ~97% of this file's size (45 rows, 159 KB of
 CLAUDE.md's 164 KB) and CLAUDE.md is loaded in full into every session's context; PROJECT_LEARNINGS.md
 is not. **At Phase 3C (Document Learnings), append new rows to PROJECT_LEARNINGS.md, not here.**
