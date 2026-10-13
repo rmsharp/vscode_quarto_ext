@@ -7,8 +7,8 @@ import { findCellOptionLines } from "../../src/core/qmd/model";
  * Row-by-row pin of the cell-option comment-character table (`LANG_COMMENT_CHARS`,
  * `core/qmd/model.ts`), Session 299.
  *
- * Until now 12 of its 46 rows were pinned (measured: changing the opener of any of the other 34
- * failed no unit test), so a one-row typo (`lua: ["--"]` to `["#"]`) passed every unit test while
+ * Until S299 only 12 of its 46 rows then were pinned (measured: changing the opener of any of the
+ * other 34 failed no unit test; the table has 47 rows since S300 added `mermaid`), so a one-row typo (`lua: ["--"]` to `["#"]`) passed every unit test while
  * quarto renders `{lua}` + `#| echo: banana` exit 0 — the typo lands as a false positive, the
  * cardinal sin. Re-typing the table into a test would only
  * copy the transcription error, so the expectation here is a MACHINE-EXTRACTED excerpt of
@@ -107,4 +107,35 @@ describe("LANG_COMMENT_CHARS — every row of quarto's own table (S299)", () => 
     },
   );
 
+  // The pins above prove every quarto row is PRESENT and right; they cannot show the table holds no
+  // OTHER row, and an extra row is the cardinal-sin direction (it reads `%%|` where quarto reads
+  // `#|`, so it squiggles a document quarto accepts and drops a true positive). Added after the S300
+  // review ran two such mutants (`Mermaid: ["%%"]`, `typst: ["//"]`) through all 380 tests of the four
+  // files that pin the `mermaid` row, and both passed. Both samples are probed through the public API.
+  it.each(tuples(modelled.filter((r) => r.open !== "#")))(
+    "{%s}: its upper-case and capitalised spellings are unknown languages taking the `#` default (not `%s|`)",
+    (lang, open, close) => {
+      // Quarto does not fold case before the lookup: `{SQL}` (S161) and `{DOT}`/`{Dot}`/`{Mermaid}`
+      // (S162) each take the `#` default and the ordinary cell schema, measured against 1.7.33.
+      const variants = new Set([lang.toUpperCase(), lang[0].toUpperCase() + lang.slice(1)]);
+      for (const variant of variants) {
+        expect(
+          rows.some((r) => r.lang === variant),
+          `${variant} is itself a fixture row, so this test would be wrong`,
+        ).toBe(false);
+        expect(findCellOptionLines(cell(variant, directive("#", null))), `${variant} + #|`).toHaveLength(1);
+        expect(findCellOptionLines(cell(variant, directive(open, close))), `${variant} + ${open}|`).toEqual([]);
+      }
+    },
+  );
+
+  it.each(["typst", "banana", "html"])("{%s}: a language quarto has no row for takes the `#` default", (lang) => {
+    // `{banana}` was measured against 1.7.33 in S161; the other names go through the same lookup (an own
+    // property of the table, else `#`). A guard that the sample is really absent from quarto's table:
+    expect(rows.some((r) => r.lang === lang)).toBe(false);
+    expect(findCellOptionLines(cell(lang, directive("#", null)))).toHaveLength(1);
+    for (const other of ["//", "--", "%%", "%", "!"]) {
+      expect(findCellOptionLines(cell(lang, directive(other, null))), `${lang} + ${other}|`).toEqual([]);
+    }
+  });
 });

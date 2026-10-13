@@ -787,12 +787,17 @@ describe("cell fence tokens — the flag surface (Session 172)", () => {
   it("a {mermaid} cell's `%%|` line is exempt in its own right (S300: the line is now emitted)", () => {
     // Quarto swaps a handler cell's schema by LANGUAGE (`handlers/languages.yml` is exactly
     // `["mermaid","dot"]`), so `{mermaid}` + `%%| echo: banana` renders exit 0 in a markdown
-    // document (the oracle corpus row "S172 {mermaid} bare handler + echo", re-run each time
-    // `npm run test:oracle` runs). The enumerator reports the line since the `mermaid` row
-    // joined `LANG_COMMENT_CHARS`, so a handler guard that stopped matching `mermaid` would
-    // squiggle a document quarto accepts — the cardinal sin. The `{r}` canary above proves the
-    // flag pass runs at all.
-    expect(cellFlags(withCell("{mermaid}", "echo: banana", "%%"))).toEqual([]);
+    // document (the oracle corpus row "S172 {mermaid} bare handler + echo": a cached verdict, so
+    // `npm run test:oracle` re-measures it when the quarto version or the document changes). The
+    // enumerator reports the line since the `mermaid` row joined `LANG_COMMENT_CHARS`, so a
+    // handler guard that stopped matching `mermaid` would squiggle a document quarto accepts —
+    // the cardinal sin. The `{r}` canary above proves the flag pass runs at all. The first
+    // assertion is the precondition: this test must fail if the row goes missing, not pass
+    // vacuously because the line is never emitted (the S300 review: with the row deleted, this
+    // test and the control above it both passed).
+    const text = withCell("{mermaid}", "echo: banana", "%%");
+    expect(collectValueSources(text).cellLines.map((c) => c.line)).toEqual([5]);
+    expect(cellFlags(text)).toEqual([]);
   });
 
   it("NOW FLAGS a legitimate knitr header whose option value contains a '}'", () => {

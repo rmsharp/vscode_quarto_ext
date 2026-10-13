@@ -821,7 +821,7 @@ describe("completionContextAt — a {mermaid} cell completes on `%%|`, and no lo
   // `handlers/lang-comment-chars.yml` (47 rows) onto its 46-row literal, and `mermaid: "%%"` is the
   // one row the literal lacks. Until the row joined `LANG_COMMENT_CHARS` (S300) the default `#`
   // applied, so the one live consumer of the enumerator in a handler cell, cell-option completion
-  // (`cellLanguageId("mermaid")` is null, so the embedded virtual docs never reach it), was
+  // (`cellLanguageId("mermaid")` is null, so the embedded virtual docs never use its lines), was
   // silent on the line a mermaid author actually types and offered the key list on `#|`.
   it("offers cell-option key completion on a `%%|` line in a {mermaid} cell", () => {
     const text = ["```{mermaid}", "%%| ec", "flowchart LR", "```"].join("\n");

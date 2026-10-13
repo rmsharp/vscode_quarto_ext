@@ -907,12 +907,15 @@ describe("findCellOptionLines — a cell-HANDLER language still EMITS; only vali
     // it had no `LANG_COMMENT_CHARS` row, so its `%%|` lines were read as nothing (and its `#|`
     // lines, the default opener, as options). Quarto's directive pattern is `^%%\s*\| ?`, so a
     // mermaid comment (`%% note`, no pipe after the opener) is not a directive and ends the
-    // option block: it is mermaid source, not an option.
+    // option block: it is mermaid source, not an option. The `%%| fig-cap` line AFTER the comment
+    // is what makes that claim testable (the S300 review: with nothing after the comment, a block
+    // that never ended, or a comment read as a directive, passed this test unnoticed).
     const text = [
       "```{mermaid}",
       "%%| label: fig-flow",
       "%%| echo: banana",
       "%% a mermaid comment",
+      "%%| fig-cap: after the comment",
       "flowchart LR",
       "  A --> B",
       "```",
@@ -921,6 +924,27 @@ describe("findCellOptionLines — a cell-HANDLER language still EMITS; only vali
     expect(lines.map((o) => o.line)).toEqual([1, 2]);
     expect(lines.map((o) => o.cellLang)).toEqual(["mermaid", "mermaid"]);
     expect(lines.map((o) => o.prefix)).toEqual(["%%|", "%%|"]);
+  });
+
+  it("reads mermaid's `%%` as its own opener, not matlab's `%` (S300)", () => {
+    // `mermaid` is the first row whose opener extends another row's WHOLE opener (`%`, matlab and
+    // tikz). Quarto's directive pattern is `^<opener>\s*\| ?` for every row, so by that pattern a
+    // lone `%| ` line is no directive in a mermaid cell and ends its option block, and `%%| ` is no
+    // directive in a matlab or tikz cell. Derived from the pattern the per-row renders of S299
+    // confirmed for every row; this pair was not rendered itself.
+    const mermaid = [
+      "```{mermaid}",
+      "%%| label: fig-flow",
+      "%| echo: banana",
+      "%%| fig-cap: after the stray line",
+      "flowchart LR",
+      "```",
+    ].join("\n");
+    expect(findCellOptionLines(mermaid).map((o) => o.line)).toEqual([1]);
+    for (const lang of ["matlab", "tikz"]) {
+      const text = ["```{" + lang + "}", "%%| echo: banana", "x = 1", "```"].join("\n");
+      expect(findCellOptionLines(text), lang).toEqual([]);
+    }
   });
 });
 
