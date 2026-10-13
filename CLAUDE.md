@@ -100,7 +100,7 @@ automated form of that check.
   Extension Development Host window. Get the operator's explicit go-ahead before running either.
 - **A red `check-backlog` is not fixed by deleting the block.** It means a completed record is
   sitting in an open-work file: record the outcome in `methodology/CHANGELOG.md` and anything worth carrying
-  forward in `PROJECT_LEARNINGS.md` **first**, then delete. ⚠ Verify per block — Session 195 found
+  forward in `methodology/PROJECT_LEARNINGS.md` **first**, then delete. ⚠ Verify per block — Session 195 found
   an OPEN, operator-pending decision (the lone `+` gate suspension, 2 recovered against 32 new
   phantoms) buried inside a tombstone, recorded in no other tracked file.
 
@@ -260,11 +260,11 @@ tags rather than retagging them, and dropping the budget entry.*
 
 ### Project-specific Learnings
 
-See [`PROJECT_LEARNINGS.md`](PROJECT_LEARNINGS.md) (committed) — extracted there on
+See [`methodology/PROJECT_LEARNINGS.md`](methodology/PROJECT_LEARNINGS.md) (committed) — extracted there on
 2026-07-09 (Session 39). This table had grown to ~97% of this file's size (45 rows, 159 KB of
-CLAUDE.md's 164 KB) and CLAUDE.md is loaded in full into every session's context; PROJECT_LEARNINGS.md
-is not. **At Phase 3C (Document Learnings), append new rows to PROJECT_LEARNINGS.md, not here.**
-Before starting work in an area with prior sessions, grep PROJECT_LEARNINGS.md for relevant keywords
+CLAUDE.md's 164 KB) and CLAUDE.md is loaded in full into every session's context; methodology/PROJECT_LEARNINGS.md
+is not. **At Phase 3C (Document Learnings), append new rows to methodology/PROJECT_LEARNINGS.md, not here.**
+Before starting work in an area with prior sessions, grep methodology/PROJECT_LEARNINGS.md for relevant keywords
 (a phase name, a file path, a feature name) — it is not auto-loaded, so read/grep it explicitly, and
 prefer targeted greps over reading it in full as it keeps growing.
 

@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-13 · [ad hoc] Layout top-up: `PROJECT_LEARNINGS.md` now lives under `methodology/` (tier all, 1 file)
+
+`bin/migrate-layout` (KJ5HST/methodology @ a9e550f) moved it in one commit with `git mv`; paths were rewritten in `CLAUDE.md`, `methodology/.context-budget.json`. No older entry or shard was edited, so a link in an older entry is relative to the root, where the file sat when it was written.
+
 ### 2026-10-13 · [ad hoc] `CLAUDE.md`: the learnings pointer no longer says `PROJECT_LEARNINGS.md` is at the project root (its own commit, before the layout top-up)
 
 The `### Project-specific Learnings` pointer read "(project root, committed)". `bin/migrate-layout`'s companion top-up, run next from the methodology repository (its session S309, BL-105 build phase 4), rewrites that line's link to `methodology/PROJECT_LEARNINGS.md` and leaves the parenthesis, which would then be false. It now reads "(committed)", true in either layout. One phrase; the tool's own rewrite of the other five occurrences of the name is its commit's. Rehearsed in a clone first: 5,155 tests, `check-package`, the ratchet and `vsce ls` read as before. Local commit; not pushed.

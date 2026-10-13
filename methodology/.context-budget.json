@@ -58,7 +58,7 @@
       "_": "Phase 0 step 3 mandates reading this when there is no GitHub repo, which is this project's case -- so it is read every session. 284,130 B / 193 open items at Session 255. No trimmer governs it; open items are not archivable the way records are, so over-budget here means CLOSE or DOWNGRADE items, not shard them."
     },
     {
-      "path": "PROJECT_LEARNINGS.md",
+      "path": "methodology/PROJECT_LEARNINGS.md",
       "class": "on-demand",
       "max_bytes": 65536,
       "_": "This project's learnings live here, not in CLAUDE.md (moved at Session 39). CLAUDE.md instructs sessions to GREP it rather than read it whole, so it is on-demand -- but a file a pointer sends you to still has a budget. 950,857 B at Session 255, 502 rows. Ceiling matches canonical's for its own FRAMEWORK_LEARNINGS.md."
