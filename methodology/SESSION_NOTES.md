@@ -12,7 +12,7 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 **Next:** (1) The migration: `bin/migrate-layout` is in `../methodology/bin/`; its dirt test (`git status --porcelain=v1 -z --untracked-files=all`) returns nothing now. (2) Then pick from `BACKLOG.md` "Up Next" (Active is empty).
 **⚠ Gotchas:** (1) never `git add -A`. (2) `.git/info/exclude` now holds `scratchpad/` (THIS clone only), so `?? scratchpad/` no longer shows: remove the line after the migration if the signal is wanted back (Session 174 decision).
 (3) `scratchpad/` now: 235 entries, 101,867 files, 1.93 GB. Kept: `s251` and `s265` whole, `s299`, `s301`, `s270`, `s273`, the `posit-observation.txt` of `s271`, `s272` and `s277`, and about 225 small entries.
-(4) Tracked docs and comments cite the 31 deleted folders (647 mentions, 71 in `BACKLOG.md`): re-measure a witness before trusting a cited path. (5) The dashboard now takes about 1:12 (was 4:45).
+(4) Tracked docs and comments cite the 31 deleted folders (647 mentions, 71 in `BACKLOG.md`): re-measure a witness before trusting a cited path. (5) The dashboard now takes about 1:12 (was 4:45) and `npm run package` 1:04.5 (was 15-20 min).
 (6) `realdoc-score` now reads `agree 2423 of 2438 (99.38%)`; the 2419 in `CLAUDE.md` and `tools/realdoc-score/README.md` is a stale example (not fixed here).
 
 ## Session 301 Handoff Evaluation (by Session 302)
