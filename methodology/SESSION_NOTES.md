@@ -100,31 +100,3 @@ a comment changed; no host behaviour). (7) The corpus score was not re-run (no `
 **TDD:** the pins passed on arrival (no production logic changed), disclosed; each was shown RED on a seeded fault in a scratch copy first, and the review fixes were each shown
 RED on the reviewer's mutant (8) after the assertion was written; the previous test passing those mutants was replayed by the reviewer and by a skeptic, not by me.
 **Cost:** 16 agents (about 1.37M subagent tokens, none rendered), 98 renders at 2 wide, about 500 vitest runs in scratch trees, no screen-taking run.
-
-## Session 297 Handoff Evaluation (by Session 298)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its receipt said `BACKLOG.md` "Active" was empty and listed the open items; all 14
-`key_files` line numbers I checked (`frontMatterProvesReader` 2960 ... `commonmarkProven` 7699, the four gate sites, the `describe` at 23279) were exact at `e0a90931`, the
-commit it closed on (HEAD had moved on by then, so checking HEAD would have said otherwise); the ratchet citation (2/2, `bba236856bad`) matched the stored results.
-**Helped:** `render.sh`, `score.cjs` and its stale-bundle refusal, `mutate297.py`, `mutdiff.cjs` and `killers297.cjs` (copied forward and extended), Learnings #650 and #663 (the
-stale-string check and the three-way survivor split), and gotchas 1, 3, 4 (mutation edits `src/`: I edited neither tests nor `BACKLOG.md` beside it), 5 and 6 (zsh word-splitting bit again).
-**Missing:** that row (3)(a) was a design space and not a rule (35 slices; each stacking fix unmasked an older accident the parent hid, which S295 and S296 had said
-and this receipt did not repeat), and that the item's own figure "94 of 450" was 96. **Wrong:** only that figure (S295's, carried). **ROI: high.**
-
-## Session 298 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** I measured before coding (the 225-pair `stk` grid, a 70 x 70 spelling grid in three contexts: 4,932 documents, quarto and pandoc as judges) and showed RED
-before GREEN for every class (299 rows). Every hunter and reviewer candidate was rendered before a line moved and scored against the PARENT and the previous slice
-(`slicediff.sh`, `bisect.cjs`); round-3b's 51 documents: 47 fixed, 2 pinned; a round-4 re-sweep of my own fixes found 109 table candidates (83 one wrong rule of mine) and brought
-them to 4. Final: 4,932 grid documents 891 wrong in the parent and 318 now, 0 regressed; probe corpora 288 fixed, 3 regressed (pinned); corpus 0 of 3,383 changed; score unchanged
-2,423/2,438; 319 of 319 row documents confirmed by quarto; tests 4,583 to 4,882; mutation 191 mutants (11 observable given rows, 1 net-harmful fixed, 49 unobservable).
-**Went wrong.** (1) Scope: one row became 35 slices and four fix rounds, each forced by a measured defect of mine. (2) My first stacking took `endsBlock` textually (34 HTML regressions),
-and slice 28's refusal needed positive evidence and deleted 83 table candidates before it asked for a proof; an ensemble with the scanner cost an hour and lost 6 documents. (3) Five
-hunters at ten workers drove the load to 250-360 beside other projects' work: 2 of 5 completed, three were rerun throttled. (4) The mutation harness ignored SIGINT as a background job
-and left a mutated `model.ts` in the tree for minutes (restored from git). (5) The scorer's `REFUSED` line is hidden by a grep for the tally. (6) The oracle ignores `from:`: the readers
-hunter's 18 candidates were false alarms. (7) I fixed no further class once the sweeps fell to paragraph-context stacks of random constructs (38 codes candidates, 4 tables ones): filed
-with counts, not fixed. (8) No `test:integration` run (needs the screen; core-only change).
-**TDD:** RED shown before GREEN for every fix slice (slices 1-33 and the P07 fix); slice 34's per-construct reader rows were shown RED against the previous slice's bundle
-(`dev33`) after the code was written; the mutation killers, guards and RESIDUAL rows pass on arrival (disclosed).
-**Cost:** 3 blind rounds, 2 code reviews and 8 hunters (5 round 3, 3 round 3b), renders by the caller at 3 wide, 191 mutants, about 130,000 fuzz documents, no screen-taking run.
