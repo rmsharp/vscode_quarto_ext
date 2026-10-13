@@ -915,9 +915,10 @@ function completionEngineFor(
  * FIVE of those seven handler lines were flagged before S162 — the cardinal sin — and the two
  * that were not are informative rather than exceptions: `//| cache: banana` escaped because
  * `cache` is knitr-scoped and S161 L2's `"unknown"` scope already excluded it, and
- * `%%| echo: banana` escaped because our `LANG_COMMENT_CHARS` has no `mermaid` row, so a `%%|`
- * line is never emitted at all. Both are the two prior narrowings on this same axis already
- * doing their job; this scope closes what neither could reach.
+ * `%%| echo: banana` escaped because our `LANG_COMMENT_CHARS` then had no `mermaid` row, so a
+ * `%%|` line was never emitted at all. Both were the two prior narrowings on this same axis
+ * already doing their job; this scope closes what neither could reach. ⚠ The `mermaid` row was
+ * added in S300, so since then THIS scope is the only thing keeping `%%| echo: banana` silent.
  *
  * **The engine qualifier above is not decoration.** A handler cell is exempt from quarto's
  * cell SCHEMA under every engine, but a knitr document runs knitr's own chunk machinery over
@@ -990,16 +991,20 @@ function completionEngineFor(
  * over-flag is not (the same asymmetry that separates `"unknown"` from `undefined`).
  * Adopting it would hand `cellOptions` the EMPTY set and delete handler-cell completion
  * outright, which is the mutant the S162 §9 review caught and the pin below still guards.
- * Emission is untouched too: `findCellOptionLines` still reports handler-cell option lines.
- * Exactly two modules consume that enumerator — `completionContextAt` just above, and
- * `core/yaml-value-flags.ts` (the value decision; S168 lifted it out of
- * `features/yaml-value-diagnostics.ts`) — plus the embedded virtual-doc builders
- * (`embedded/virtual-doc.ts`). For a HANDLER language the vdoc builders are unreachable:
- * `cellLanguageId("dot")` and `cellLanguageId("mermaid")` are both `null`, and every vdoc
- * path bails on an unmapped language BEFORE it consults the option lines (`embeddedCellAt`
- * returns at the `el === null` guard; `buildVirtualContent` skips the cell). So for `{dot}`
- * and `{mermaid}` specifically, the only live consumer left is cell-option COMPLETION —
- * which is precisely what a mutant that suppressed emission here would break. The
+ * Emission is untouched too: `findCellOptionLines` still reports handler-cell option lines
+ * (for `{mermaid}`, since S300, its `%%|` lines). Exactly two modules consume that enumerator —
+ * `completionContextAt` just above, and `core/yaml-value-flags.ts` (the value decision; S168
+ * lifted it out of `features/yaml-value-diagnostics.ts`) — plus the embedded virtual-doc
+ * builders (`embedded/virtual-doc.ts`). For a HANDLER language the vdoc builders never USE its
+ * lines: `cellLanguageId("dot")` and `cellLanguageId("mermaid")` are both `null`.
+ * `embeddedCellAt` returns at its `el === null` guard BEFORE it consults the option lines;
+ * `buildVirtualContent`, `embeddedLanguagesIn` and `buildCellVirtualContent` DO call the
+ * enumerator over the whole document first, but they skip every cell without a mapped language
+ * (their callers return early for one), and option-line numbers are absolute, so a handler
+ * cell's lines never fall in a mapped cell's body (the S300 review probed this). So for `{dot}`
+ * and `{mermaid}` specifically, the only live consumer left is cell-option COMPLETION (plus the
+ * value decision, which this scope silences) — and completion is precisely what a mutant that
+ * suppressed emission here would break. The
  * cross-reference index is NOT a consumer at all: `core/refs.ts` scans labels with its own
  * private `CELL_LABEL_OPTION` regex (the second-scanner divergence tracked in BACKLOG), and
  * `core/cell-background.ts` uses `findAllCells` only.

@@ -23,10 +23,12 @@ import { quartoVersion } from "./load";
  * annotations, so it is no source for this.)
  *
  * When this goes red the table or the fixture moved. Overwrite the fixture with `REGENERATE`
- * below, read the diff in `git diff`, and decide each new or changed row: add it to
- * `LANG_COMMENT_CHARS`, or list it as deliberately not modelled in the unit test (and bump its
- * `QUARTO_ROW_COUNT`). If the quarto VERSION moved, also rename the file and edit `FIXTURE` here
- * and in the unit test.
+ * below, read the diff in `git diff`, and add each new or changed row to `LANG_COMMENT_CHARS`
+ * (and bump the unit test's `QUARTO_ROW_COUNT`): the unit test drives every cell-token row of
+ * the fixture through `findCellOptionLines`, so a row the model does not carry fails there.
+ * (Until S300 a row could be listed there as deliberately not modelled; `mermaid` was the one,
+ * and its row has since been added.) If the quarto VERSION moved, also rename the file and edit
+ * `FIXTURE` here and in the unit test.
  */
 
 const FIXTURE = path.resolve(process.cwd(), "test/fixtures/lang-comment-chars/quarto-1.7.33.json");
