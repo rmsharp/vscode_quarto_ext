@@ -296,7 +296,11 @@ export function indexLabels(text: string): RefLabel[] {
       continue;
     }
     const lineText = sourceLines[option.line];
-    if (lineText.slice(keySlot.startCol, keySlot.endCol) !== "label") {
+    // `"label":` and `'label':` are the key `label` in YAML. Only the one matching pair is
+    // stripped, so an escape (`"label"`) is left unread: a missing completion, never a phantom.
+    const keyToken = lineText.slice(keySlot.startCol, keySlot.endCol);
+    const key = /^(["'])(.*)\1$/.exec(keyToken)?.[2] ?? keyToken;
+    if (key !== "label") {
       continue;
     }
     const m = CELL_LABEL_VALUE.exec(lineText.slice(valueSlot.startCol, valueSlot.endCol));

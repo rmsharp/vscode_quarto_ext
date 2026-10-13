@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import * as path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   crossrefCompletionContext,
@@ -1768,5 +1770,181 @@ describe("Session 301 — a cell's label is read with the CELL'S OWN comment cha
     expect(indexLabels(text)).toEqual([
       { id: "fig-flow", kind: "fig", line: 1, column: 11 },
     ]);
+  });
+
+  // Every row below is a document rendered through quarto 1.7.33 (`quarto render --to html`,
+  // one `See @<id>.` paragraph above one cell, a `<kind>-cap` option beside the label), and the
+  // answer is read off the HTML: DEFINED is `<a href="#<id>" class="quarto-xref">`, UNDEFINED is
+  // the echoed `?@<id>` with quarto's "Unable to resolve crossref" warning. Documents of one
+  // `{mermaid}` or `{dot}` cell render under the markdown engine; python ones with `jupyter:
+  // python3 --no-execute`.
+  const ids = (text: string): string[] => indexLabels(text).map((l) => l.id);
+  const cell = (lang: string, ...body: string[]): string =>
+    ["```{" + lang + "}", ...body, "```"].join("\n");
+
+  it("a `{mermaid}` cell's `#|` and `//|` labels are NOT labels (quarto: `?@fig-wrong`, `?@fig-slash`)", () => {
+    // The phantom half of the same defect: the index offered a target quarto never defines.
+    expect(ids(cell("mermaid", "#| label: fig-wrong", '#| fig-cap: "Wrong"', "graph TD"))).toEqual([]);
+    expect(ids(cell("mermaid", "//| label: fig-slash", '//| fig-cap: "Slash"', "graph TD"))).toEqual([]);
+  });
+
+  it("a `{mermaid}` cell defines `lst-` and `tbl-` ids too (quarto resolves `@lst-m` and `@tbl-m`)", () => {
+    expect(ids(cell("mermaid", "%%| label: lst-m", '%%| lst-cap: "L"', "graph TD"))).toEqual(["lst-m"]);
+    expect(ids(cell("mermaid", "%%| label: tbl-m", '%%| tbl-cap: "T"', "graph TD"))).toEqual(["tbl-m"]);
+  });
+
+  it("`{dot}` reads `//|` and not `#|`; `{ojs}` reads `//|` and not `#|`; `{python}` reads `#|` and not `//|`", () => {
+    // Rendered: `{dot}` `//| label: fig-dot` is `Figure 1` and `#| label: fig-dothash` is
+    // `?@fig-dothash`; `{ojs}` the same two; `{python}` `//| label: fig-pyslash` is `?@fig-pyslash`.
+    expect(ids(cell("dot", "//| label: fig-dot", "digraph G { A -> B }"))).toEqual(["fig-dot"]);
+    expect(ids(cell("dot", "#| label: fig-dothash", "digraph G { A -> B }"))).toEqual([]);
+    expect(ids(cell("ojs", "#| label: fig-ojshash", "1+1"))).toEqual([]);
+    expect(ids(cell("python", "//| label: fig-pyslash", "print(1)"))).toEqual([]);
+  });
+
+  it("`%%|label:` and `%% | label:` both define (quarto reads `^%%\\s*\\| ?`), at the value's column", () => {
+    // Rendered: `%%|label: fig-gapless` and `%% | label: fig-spaced` are each `Figure 1`.
+    expect(indexLabels(cell("mermaid", "%%|label: fig-gapless", "graph TD"))).toEqual([
+      { id: "fig-gapless", kind: "fig", line: 1, column: 10 },
+    ]);
+    expect(indexLabels(cell("mermaid", "%% | label: fig-spaced", "graph TD"))).toEqual([
+      { id: "fig-spaced", kind: "fig", line: 1, column: 12 },
+    ]);
+  });
+});
+
+describe("Session 301 — a cell's label must sit in its LEADING option block, as quarto reads it", () => {
+  // Rendered, python, `jupyter: python3`, `--no-execute`: each shape below is `?@fig-…` with the
+  // unresolved-crossref warning, exit 0. The index used to define every one of them (`^\s*` and no
+  // block rule), which is what BACKLOG called the second-scanner divergence (Session 160).
+  const ids = (text: string): string[] => indexLabels(text).map((l) => l.id);
+  const py = (...body: string[]): string => ["```{python}", ...body, "```"].join("\n");
+
+  it("a label BELOW a code line is a comment, not an option", () => {
+    expect(ids(py("x = 1", "#| label: fig-below", '#| fig-cap: "Below"'))).toEqual([]);
+  });
+
+  it("a label after a BLANK line ends up below the block", () => {
+    expect(ids(py('#| fig-cap: "AB"', "", "#| label: fig-ab", "print(1)"))).toEqual([]);
+  });
+
+  it("a label after a plain `# comment` line is below the block", () => {
+    expect(ids(py("# plain comment", "#| label: fig-ac", '#| fig-cap: "AC"', "print(1)"))).toEqual([]);
+  });
+
+  it("an INDENTED `#|` line is code, so it ends the block before it begins", () => {
+    expect(ids(py("  #| label: fig-ind", '#| fig-cap: "Ind"', "print(1)"))).toEqual([]);
+  });
+
+  it("an indented or late `%%|` label in a `{mermaid}` cell is no label either", () => {
+    // Rendered: `  %%| label: fig-indent` and a `%%| label: fig-late` under `graph TD` are both `?@…`.
+    // Neither was a phantom before only because `%%` matched nothing: moving the opener must not
+    // trade the lost label for these two.
+    expect(ids(["```{mermaid}", "  %%| label: fig-indent", '%%| fig-cap: "I"', "graph TD", "```"].join("\n"))).toEqual([]);
+    expect(ids(["```{mermaid}", "graph TD", "  A --> B", "%%| label: fig-late", '%%| fig-cap: "L"', "```"].join("\n"))).toEqual([]);
+  });
+
+  it("a `label:` folded into a multi-line quoted value is text, not an option", () => {
+    // `#| fig-cap: "multi` / `#| label: fig-cont"` is ONE scalar (`?@fig-cont`).
+    expect(ids(py('#| fig-cap: "multi', '#| label: fig-cont"', "print(1)"))).toEqual([]);
+  });
+
+  it("a `label:` inside a block scalar is text, not an option", () => {
+    // `#| fig-cap: |` / `#|   label: fig-blk` is the caption's literal text (`?@fig-blk`).
+    expect(ids(py("#| fig-cap: |", "#|   label: fig-blk", "print(1)"))).toEqual([]);
+  });
+
+  it("a label that is not the FIRST option still defines (control)", () => {
+    // Rendered: `#| warning: false` then `#| label: fig-sec` is `Figure 1`. (The control must not
+    // use `echo: false`: under `--no-execute` an echo-less cell is empty and defines nothing.)
+    expect(indexLabels(py("#| warning: false", "#| label: fig-sec", '#| fig-cap: "S"', "print(1)"))).toEqual([
+      { id: "fig-sec", kind: "fig", line: 2, column: 10 },
+    ]);
+  });
+});
+
+describe("Session 301 — YAML spellings of the `label` key quarto reads", () => {
+  const py = (...body: string[]): string => ["```{python}", ...body, "```"].join("\n");
+
+  it("`# | label:` (a space before the pipe) defines — quarto reads `^#\\s*\\| ?`", () => {
+    // Rendered: `# | label: fig-hs` is `Figure 1`. The old scan had no gap and lost it.
+    expect(indexLabels(py("# | label: fig-hs", '#| fig-cap: "HS"', "print(1)"))).toEqual([
+      { id: "fig-hs", kind: "fig", line: 1, column: 11 },
+    ]);
+  });
+
+  it("`label : fig-x` (a space before the colon) defines", () => {
+    // Rendered: `#| label : fig-sc` is `Figure 1`.
+    expect(indexLabels(py("#| label : fig-sc", '#| fig-cap: "SC"', "print(1)"))).toEqual([
+      { id: "fig-sc", kind: "fig", line: 1, column: 11 },
+    ]);
+  });
+
+  it("a QUOTED key defines — `\"label\":` and `'label':` are the key `label` in YAML", () => {
+    // Rendered: `#| "label": fig-qk` and `#| 'label': fig-sk` are each `Figure 1`.
+    expect(indexLabels(py('#| "label": fig-qk', '#| fig-cap: "QK"', "print(1)"))).toEqual([
+      { id: "fig-qk", kind: "fig", line: 1, column: 12 },
+    ]);
+    expect(indexLabels(py("#| 'label': fig-sk", '#| fig-cap: "SK"', "print(1)"))).toEqual([
+      { id: "fig-sk", kind: "fig", line: 1, column: 12 },
+    ]);
+  });
+
+  it("only the key `label` defines: `sublabel:`, `labels:` and a label-shaped caption do not (control)", () => {
+    // Rendered: `#| sublabel: fig-ok` is `?@fig-ok`. The key is compared whole, not as a suffix or
+    // a prefix, and a label-SHAPED value under another key is not a definition.
+    expect(indexLabels(py("#| sublabel: fig-ok", '#| fig-cap: "OK"', "print(1)"))).toEqual([]);
+    expect(indexLabels(py("#| labels: fig-ok", "print(1)"))).toEqual([]);
+    expect(indexLabels(py("#| fig-cap: fig-not-a-label", "print(1)"))).toEqual([]);
+  });
+
+  it("a trailing YAML comment does not move the id (control)", () => {
+    // Rendered: `#| label: fig-ca # note` is `Figure 1`.
+    expect(indexLabels(py("#| label: fig-ca # note", '#| fig-cap: "CA"', "print(1)"))).toEqual([
+      { id: "fig-ca", kind: "fig", line: 1, column: 10 },
+    ]);
+  });
+
+  it("a single-quoted value defines, past its quote (control)", () => {
+    // Rendered: `#| label: 'fig-sq'` is `Figure 1`.
+    expect(indexLabels(py("#| label: 'fig-sq'", '#| fig-cap: "SQ"', "print(1)"))).toEqual([
+      { id: "fig-sq", kind: "fig", line: 1, column: 11 },
+    ]);
+  });
+});
+
+describe("Session 301 — the label scanner follows quarto's comment-character table row by row", () => {
+  // The closed-world pin S300's review asked for (Learning #685): a test of the rows quarto HAS
+  // cannot see an extra or a missing one, so each row of quarto's own table (a machine-extracted
+  // fixture, the same one `lang-comment-chars.test.ts` drives through the option scanner) is
+  // exercised through the public index. These rows are the TABLE's contract and are rendered only
+  // for `mermaid`, `dot`, `ojs` and `python` above: no other engine runs under `--no-execute`.
+  type RawRow = string | [string, string];
+  const FIXTURE = path.join(__dirname, "../fixtures/lang-comment-chars/quarto-1.7.33.json");
+  const rows = Object.entries(JSON.parse(readFileSync(FIXTURE, "utf8")) as Record<string, RawRow>)
+    // A token holding a digit (`d3`, `fortran95`) is never a cell in quarto's recognizer.
+    .filter(([lang]) => /^[=A-Za-z]+$/.test(lang))
+    .map(([lang, raw]) => {
+      const chars = typeof raw === "string" ? [raw] : raw;
+      return [lang, chars[0], chars[1] ?? null] as const;
+    });
+  const labelLine = (open: string, close: string | null): string =>
+    `${open}| label: fig-row` + (close === null ? "" : ` ${close}`);
+  const cellOf = (lang: string, line: string): string =>
+    ["```{" + lang + "}", line, "x", "```"].join("\n");
+
+  it("covers quarto's whole table (45 reachable rows of 47)", () => {
+    expect(rows).toHaveLength(45);
+  });
+
+  it.each(rows)("{%s}: `%s|` defines the label, at the value's column", (lang, open, close) => {
+    expect(indexLabels(cellOf(lang, labelLine(open, close)))).toEqual([
+      { id: "fig-row", kind: "fig", line: 1, column: open.length + "| label: ".length },
+    ]);
+  });
+
+  it.each(rows)("{%s}: another language's opener (not `%s|`) defines nothing", (lang, open, close) => {
+    const foreign = open === "#" ? "//" : "#";
+    expect(indexLabels(cellOf(lang, labelLine(foreign, close)))).toEqual([]);
   });
 });
