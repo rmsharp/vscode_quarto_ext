@@ -10600,11 +10600,13 @@ export function findAllCells(text: string): Cell[] {
  * a `{mermaid}` cell, so the handler scope is the only thing keeping `%%| echo: banana` silent
  * (`yaml-value-flags.test.ts` pins it; the `#|` spelling of that control stopped discriminating
  * the moment the row existed). What the row changes is what the enumerator EMITS. For these two
- * languages that means cell-option COMPLETION — no embedded virtual doc ever uses a handler
- * cell's lines (`cellLanguageId` is null for both: `embeddedCellAt` returns before it consults
- * the option lines, and the three vdoc builders skip a cell without a mapped language), and
- * neither `core/refs.ts` (its own `#|`/`//|` label scanner, so a `%%| label:` is not indexed)
- * nor `core/cell-background.ts` calls this enumerator at all.
+ * languages that means cell-option COMPLETION and, since Session 301, the cross-reference label
+ * index (`core/refs.ts` reads each cell's `label:` through `cellOptionLinesOf`, so a
+ * `{mermaid}` cell's `%%| label:` defines a label, as quarto resolves it, and its `#|` does
+ * not) — no embedded virtual doc ever uses a handler cell's lines (`cellLanguageId` is null for
+ * both: `embeddedCellAt` returns before it consults the option lines, and the three vdoc
+ * builders skip a cell without a mapped language), and `core/cell-background.ts` does not
+ * call this enumerator at all.
  *
  * Lookup is CASE-SENSITIVE and unknown languages fall back to `#`, both grounded firsthand
  * vs 1.7.33: `{SQL}` + `--| echo: banana` renders exit 0 while `{SQL}` + `#| echo: banana`

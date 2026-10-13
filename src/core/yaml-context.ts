@@ -992,22 +992,22 @@ function completionEngineFor(
  * Adopting it would hand `cellOptions` the EMPTY set and delete handler-cell completion
  * outright, which is the mutant the S162 §9 review caught and the pin below still guards.
  * Emission is untouched too: `findCellOptionLines` still reports handler-cell option lines
- * (for `{mermaid}`, since S300, its `%%|` lines). Exactly two modules consume that enumerator —
- * `completionContextAt` just above, and `core/yaml-value-flags.ts` (the value decision; S168
- * lifted it out of `features/yaml-value-diagnostics.ts`) — plus the embedded virtual-doc
- * builders (`embedded/virtual-doc.ts`). For a HANDLER language the vdoc builders never USE its
+ * (for `{mermaid}`, since S300, its `%%|` lines). Three modules consume that enumerator —
+ * `completionContextAt` just above, `core/yaml-value-flags.ts` (the value decision; S168
+ * lifted it out of `features/yaml-value-diagnostics.ts`) and, since S301, `core/refs.ts` (the
+ * cross-reference label index, through the per-cell `cellOptionLinesOf`) — plus the embedded
+ * virtual-doc builders (`embedded/virtual-doc.ts`). For a HANDLER language the vdoc builders never USE its
  * lines: `cellLanguageId("dot")` and `cellLanguageId("mermaid")` are both `null`.
  * `embeddedCellAt` returns at its `el === null` guard BEFORE it consults the option lines;
  * `buildVirtualContent`, `embeddedLanguagesIn` and `buildCellVirtualContent` DO call the
  * enumerator over the whole document first, but they skip every cell without a mapped language
  * (their callers return early for one), and option-line numbers are absolute, so a handler
  * cell's lines never fall in a mapped cell's body (the S300 review probed this). So for `{dot}`
- * and `{mermaid}` specifically, the only live consumer left is cell-option COMPLETION (plus the
- * value decision, which this scope silences) — and completion is precisely what a mutant that
- * suppressed emission here would break. The
- * cross-reference index is NOT a consumer at all: `core/refs.ts` scans labels with its own
- * private `CELL_LABEL_OPTION` regex (the second-scanner divergence tracked in BACKLOG), and
- * `core/cell-background.ts` uses `findAllCells` only.
+ * and `{mermaid}` specifically, the live consumers are cell-option COMPLETION and the
+ * cross-reference label index (plus the value decision, which this scope silences) — and
+ * completion is precisely what a mutant that suppressed emission here would break; so would the
+ * label index, whose `{mermaid}` rows in `test/unit/refs.test.ts` pin it. `core/cell-background.ts`
+ * uses `findAllCells` only.
  */
 const CELL_HANDLER_LANGUAGES: ReadonlySet<string> = new Set(["mermaid", "dot"]);
 

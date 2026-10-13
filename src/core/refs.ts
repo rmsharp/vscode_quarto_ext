@@ -11,7 +11,9 @@
  *
  * Labels come from three structural sources:
  *   1. `sec-` ids on ATX headings — `## Methods {#sec-methods}` (model `Heading.id`).
- *   2. `#| label: fig-…` cell options inside `{python}`/`{r}` cells (model cells).
+ *   2. `label: fig-…` cell options inside executable cells, read through the model's option
+ *      scanner (`cellOptionLinesOf`) with the cell language's own comment character —
+ *      `#| label:` in `{python}`/`{r}`, `//|` in `{ojs}`/`{dot}`, `%%|` in `{mermaid}`.
  *   3. Inline `{#fig-…}`/`{#tbl-…}`/`{#eq-…}`/`{#lst-…}` attribute blocks on
  *      images, divs, and display equations in prose (model body lines).
  *   4. Attribute blocks on PLAIN fenced code block openers — ```` ```{#lst-x .python} ````
@@ -98,7 +100,7 @@ const DEFINED_ID_CHAR_CLASS = String.raw`[\p{L}\p{N}_:.-]`;
  * of the value span, its column is the span's start plus `match[0].length - id.length`.
  *
  * Which LINES carry a `label:` option is not decided here: Source 2 reads them from the
- * shared option scanner ({@link findCellOptionLines}), which owns the cell language's
+ * shared option scanner ({@link cellOptionLinesOf}), which owns the cell language's
  * comment character, the leading-block rule and YAML's multi-line folding. This pattern
  * only decides what the VALUE may hold.
  *

@@ -877,19 +877,18 @@ describe("findCellOptionLines — a cell-HANDLER language still EMITS; only vali
     // That narrowing belongs to the DIAGNOSTICS path alone (`cellOptionScopeFor` →
     // `"none"`, `yaml-context.ts`); suppressing HERE instead is the plausible-looking fix
     // this pin exists to catch. Measured, the casualty of that mutant in a `{dot}` or
-    // `{mermaid}` cell is cell-option COMPLETION: those are the only two languages at issue,
-    // `cellLanguageId` returns `null` for both, and every embedded virtual-doc path bails on
-    // an unmapped language BEFORE it consults the option lines — so completion is the one
-    // live consumer left. (For an engine-MAPPED language the vdoc builders consume it too,
-    // which is why the enumerator's contract must hold generally, not just for handlers.)
-    // Deliberately NOT claimed here: the cross-reference index and cell-background
-    // highlighting. Neither calls this enumerator — `core/refs.ts` scans labels with its own
-    // `CELL_LABEL_OPTION` regex and `core/cell-background.ts` uses `findAllCells`. The
+    // `{mermaid}` cell is cell-option COMPLETION and, since S301, the cross-reference label
+    // index: those are the only two languages at issue, `cellLanguageId` returns `null` for
+    // both, and every embedded virtual-doc path bails on an unmapped language BEFORE it
+    // consults the option lines. (For an engine-MAPPED language the vdoc builders consume it
+    // too, which is why the enumerator's contract must hold generally, not just for handlers.)
+    // The label index reads each cell through `cellOptionLinesOf` (`core/refs.ts`); its own
+    // rows in `refs.test.ts` pin that, so it is not claimed here. Deliberately NOT claimed
+    // either: cell-background highlighting, which uses `findAllCells` and calls neither. The
     // `//| label: fig-g` below is a real label quarto resolves `@fig-g` against (measured:
-    // exit 0, `href="#fig-g"`, "Figure 1") and our index does register it — but through
-    // refs.ts's private scanner, so it is realistic fixture content, not evidence for this
-    // pin. An earlier revision of this comment cited all four consumers and was wrong on
-    // every one (S162 §9 review, adjudicated firsthand).
+    // exit 0, `href="#fig-g"`, "Figure 1"), so it is realistic fixture content, not evidence
+    // for this pin. An earlier revision of this comment cited all four consumers and was
+    // wrong on every one (S162 §9 review, adjudicated firsthand).
     const text = [
       "```{dot}",
       "//| label: fig-g",
