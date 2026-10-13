@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-13 · [ad hoc] `scratchpad/` taken out of `.git/info/exclude` (this clone only): the layout migration is done, the `?? scratchpad/` signal is back
+
+A non-commit action, on the operator's go-ahead at the methodology repository's S309 close-out picker. The three lines Session 302 appended (two comments and `scratchpad/`) were removed from `.git/info/exclude`, as their own note asked once the layout migration was done (the companion top-up `2057838c`, which the same session pushed with `f89ac407` and `741f8aad` to `origin/master`, read back equal). `git status --porcelain` reads `?? scratchpad/` again, in 0.014 s; the rest of the file is as it was (a copy of the file before is kept outside the repository). The decision to leave `scratchpad/` unignored (Session 174) is unchanged.
+
 ### 2026-10-13 · [ad hoc] Layout top-up: `PROJECT_LEARNINGS.md` now lives under `methodology/` (tier all, 1 file)
 
 `bin/migrate-layout` (KJ5HST/methodology @ a9e550f) moved it in one commit with `git mv`; paths were rewritten in `CLAUDE.md`, `methodology/.context-budget.json`. No older entry or shard was edited, so a link in an older entry is relative to the root, where the file sat when it was written.
