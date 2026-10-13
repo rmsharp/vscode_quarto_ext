@@ -10561,9 +10561,10 @@ export function findAllCells(text: string): Cell[] {
 
 /**
  * Quarto's OWN language → comment-character table (`kLangCommentChars`), transcribed from the
- * installed 1.7.33 (`share/editor/tools/yaml/web-worker.js`; `bin/quarto.js`, the copy `quarto
- * render` reads, holds the same 46 rows). ⚠ NOT `share/filters/modules/constants.lua`: that is a
- * DIFFERENT 57-row table, for code annotations (Session 299, firsthand; an earlier version of
+ * installed 1.7.33 (`share/editor/tools/yaml/web-worker.js`; `bin/quarto.js`, the reader `quarto
+ * render` uses, holds the same 46 rows and overlays the resource key below onto them at start-up).
+ * ⚠ NOT `share/filters/modules/constants.lua`: that is a DIFFERENT 57-row table, read by quarto's
+ * Lua filters and not by cell-option parsing (Session 299, firsthand; an earlier version of
  * this comment called it identical). A one-element entry is a line comment; a two-element
  * entry is a BLOCK comment whose closer must also terminate the directive line (see
  * `commentCharsFor`). Facts about another tool's syntax, not expression — the same
@@ -10572,7 +10573,8 @@ export function findAllCells(text: string): Cell[] {
  * ✅ PINNED row by row (Session 299): `test/unit/lang-comment-chars.test.ts` drives every row
  * through `findCellOptionLines` from a machine-extracted fixture of quarto's own resource, and
  * `test/oracle/lang-comment-chars.oracle.test.ts` diffs that fixture against the live install.
- * Before, only about nine rows were pinned and a one-row typo survived every unit test.
+ * Before, changing the opener of 34 of the 46 rows failed no unit test (measured, Session 299:
+ * 12 rows were pinned; 2 of the 34, `d3` and `fortran95`, are unreachable, see below).
  *
  * These are the 46 entries of quarto's STATIC literal. Its EFFECTIVE table has 47: at startup
  * quarto overlays the resource `handlers/lang-comment-chars.yml`

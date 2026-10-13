@@ -22,9 +22,11 @@ import { quartoVersion } from "./load";
  * with. (`share/filters/modules/constants.lua` holds a DIFFERENT 57-row table for code
  * annotations, so it is no source for this.)
  *
- * When this goes red the table or the fixture moved. Regenerate the fixture with `REGENERATE`
+ * When this goes red the table or the fixture moved. Overwrite the fixture with `REGENERATE`
  * below, read the diff in `git diff`, and decide each new or changed row: add it to
- * `LANG_COMMENT_CHARS`, or list it as deliberately not modelled in the unit test.
+ * `LANG_COMMENT_CHARS`, or list it as deliberately not modelled in the unit test (and bump its
+ * `QUARTO_ROW_COUNT`). If the quarto VERSION moved, also rename the file and edit `FIXTURE` here
+ * and in the unit test.
  */
 
 const FIXTURE = path.resolve(process.cwd(), "test/fixtures/lang-comment-chars/quarto-1.7.33.json");
@@ -37,7 +39,7 @@ const share = cp.execFileSync("quarto", ["--paths"], { encoding: "utf8" }).split
 const res = JSON.parse(fs.readFileSync(path.join(share, "editor/tools/yaml/yaml-intelligence-resources.json"), "utf8"));
 const t = res["${RESOURCE_KEY}"];
 console.log("{\\n" + Object.entries(t).map(([k, v]) => "  " + JSON.stringify(k) + ": " + JSON.stringify(v)).join(",\\n") + "\\n}");
-' > test/fixtures/lang-comment-chars/quarto-<version>.json`;
+' > ${path.relative(process.cwd(), FIXTURE)}`;
 
 /** The installed quarto's own table, exactly as its resource stores it. */
 function installedTable(): Record<string, unknown> {
@@ -76,7 +78,7 @@ describe("the comment-char fixture against the installed quarto (S299)", () => {
     expect(
       diff,
       `quarto ${quartoVersion()} reads a different comment-char table than the fixture. ` +
-        `Regenerate it with:\n${REGENERATE}`,
+        `Overwrite the fixture with (then read the git diff):\n${REGENERATE}`,
     ).toEqual({ added: [], removed: [], changed: {} });
   });
 });
