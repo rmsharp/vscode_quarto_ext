@@ -190,6 +190,57 @@ describe("Quarto: Cross-reference completion + definition", () => {
     assert.strictEqual(locs[0].range.start.line, 6, "jumps to the heading");
   });
 
+  it("a `{mermaid}` cell's `%%| label:` is offered after @ and is a definition target; its `#|` is not (Session 301)", async () => {
+    // Quarto 1.7.33 reads a mermaid cell's options with `%%` (rendered: `%%| label: fig-flow` is
+    // `<a href="#fig-flow">Figure 1</a>`, `#| label: fig-wrong` is `?@fig-wrong`). Until Session
+    // 301 the index read `#|`/`//|` in every cell, so the completion popup and Go to Definition
+    // missed the real label and offered a phantom one. Drives the real registered providers.
+    const open = async (content: string) => {
+      const doc = await vscode.workspace.openTextDocument({ language: "quarto", content });
+      await vscode.window.showTextDocument(doc);
+      return doc;
+    };
+    const labelsAfterAt = async (doc: vscode.TextDocument) => {
+      const line = doc.lineCount - 1;
+      const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+        "vscode.executeCompletionItemProvider",
+        doc.uri,
+        new vscode.Position(line, doc.lineAt(line).text.length),
+        "@",
+      );
+      return (list?.items ?? []).map(labelText);
+    };
+
+    const real = await open(
+      ["```{mermaid}", "%%| label: fig-flow", '%%| fig-cap: "Flow"', "graph TD", "```", "", "See @fig-flow and @"].join("\n"),
+    );
+    const realLabels = await labelsAfterAt(real);
+    assert.ok(realLabels.includes("@fig-flow"), `the %%| label is offered: ${JSON.stringify(realLabels)}`);
+    // Line 6 "See @fig-flow and @": col 8 is inside '@fig-flow'. The definition is the VALUE, col 11.
+    const locs = await vscode.commands.executeCommand<vscode.Location[]>(
+      "vscode.executeDefinitionProvider",
+      real.uri,
+      new vscode.Position(6, 8),
+    );
+    assert.ok(locs && locs.length > 0, "a definition should be returned");
+    assert.strictEqual(locs[0].range.start.line, 1, "jumps to the '%%| label:' line");
+    assert.strictEqual(locs[0].range.start.character, 11, "lands on the label's value");
+
+    // The phantom half — and the control that makes it mean something: the same cell with `#|`.
+    const phantom = await open(
+      ["# Ctl {#sec-ctl}", "", "```{mermaid}", "#| label: fig-wrong", '#| fig-cap: "Wrong"', "graph TD", "```", "", "See @"].join("\n"),
+    );
+    const phantomLabels = await labelsAfterAt(phantom);
+    assert.ok(
+      phantomLabels.includes("@sec-ctl"),
+      `the control: completion works in this document: ${JSON.stringify(phantomLabels)}`,
+    );
+    assert.ok(
+      !phantomLabels.includes("@fig-wrong"),
+      `a mermaid cell's '#|' label defines nothing in quarto: ${JSON.stringify(phantomLabels)}`,
+    );
+  });
+
   it("a reader without `header_attributes` defines no sec- label (Session 216)", async () => {
     // ⚠ THIS IS THE CONSUMER SESSION 215's CHANGE COULD NOT REACH AND THIS ONE CAN.
     // `HEADING_ATTRIBUTE` is the ONLY source of `Heading.id`, which `src/core/refs.ts` turns
