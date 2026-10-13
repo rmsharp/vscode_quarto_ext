@@ -901,6 +901,27 @@ describe("findCellOptionLines — a cell-HANDLER language still EMITS; only vali
     expect(lines.map((o) => o.line)).toEqual([1, 2]);
     expect(lines.map((o) => o.cellLang)).toEqual(["dot", "dot"]);
   });
+
+  it("still reports the `%%|` option lines of a `{mermaid}` cell, and only those (S300)", () => {
+    // The sibling of the `{dot}` pin above: `mermaid` is the other handler language, and until S300
+    // it had no `LANG_COMMENT_CHARS` row, so its `%%|` lines were read as nothing (and its `#|`
+    // lines, the default opener, as options). Quarto's directive pattern is `^%%\s*\| ?`, so a
+    // mermaid comment (`%% note`, no pipe after the opener) is not a directive and ends the
+    // option block: it is mermaid source, not an option.
+    const text = [
+      "```{mermaid}",
+      "%%| label: fig-flow",
+      "%%| echo: banana",
+      "%% a mermaid comment",
+      "flowchart LR",
+      "  A --> B",
+      "```",
+    ].join("\n");
+    const lines = findCellOptionLines(text);
+    expect(lines.map((o) => o.line)).toEqual([1, 2]);
+    expect(lines.map((o) => o.cellLang)).toEqual(["mermaid", "mermaid"]);
+    expect(lines.map((o) => o.prefix)).toEqual(["%%|", "%%|"]);
+  });
 });
 
 describe("Session 163 — CellOptionLine.cellStartLine", () => {

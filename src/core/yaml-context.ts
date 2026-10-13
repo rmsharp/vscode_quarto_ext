@@ -1020,8 +1020,10 @@ const CELL_HANDLER_LANGUAGES: ReadonlySet<string> = new Set(["mermaid", "dot"]);
  * Whether `lang` is one of quarto's cell-handler languages (case-sensitive).
  *
  * Deliberately NOT exported: `cellOptionScopeFor` is the only caller and the tested entry
- * point. Export it when a second consumer actually needs it — e.g. the deferred
- * `mermaid: ["%%"]` comment-char row, or a handler-aware completion narrowing.
+ * point. Export it when a second consumer actually needs it — e.g. a handler-aware completion
+ * narrowing. (The `mermaid: ["%%"]` comment-char row, once named here as a likely second
+ * consumer, needed no export: it is a data row in `qmd/model.ts` (S300), and the guard it leans on
+ * is this function's one caller, `cellOptionScopeFor`.)
  */
 function isCellHandlerLanguage(lang: string): boolean {
   return CELL_HANDLER_LANGUAGES.has(lang);

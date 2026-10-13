@@ -672,8 +672,9 @@ describe("cellOptionScopeFor — a cell-HANDLER language is validated by no cell
   // `{sql}` + `--| echo: banana` renders exit 1. Measured against the shipped tree, FIVE of
   // those seven lines are flagged today — the cardinal sin. The two that are not are the prior
   // narrowings already working: `cache` is knitr-scoped so S161 L2's `"unknown"` scope excludes
-  // it, and `%%|` is never emitted because `LANG_COMMENT_CHARS` has no `mermaid` row. An
-  // earlier revision of this comment claimed all seven (S162 §9 review).
+  // it, and `%%|` was never emitted because `LANG_COMMENT_CHARS` had no `mermaid` row (the row
+  // was added in S300, so the handler scope is now what keeps `%%|` silent). An earlier revision
+  // of this comment claimed all seven (S162 §9 review).
   //
   // The engine qualifier is load-bearing and was missing from the first revision of this
   // comment (S162 §9 review). A KNITR document also runs knitr's own chunk machinery over a
@@ -812,6 +813,39 @@ describe("completionContextAt — cell-option completion follows the LANGUAGE's 
   it("offers NO cell-option completion on a `//|` line in a {python} cell", () => {
     const text = ["```{python}", "//| ec", "x = 1", "```"].join("\n");
     expect(completionContextAt(text, offsetAt(text, 1, 6), () => undefined)).toBeNull();
+  });
+});
+
+describe("completionContextAt — a {mermaid} cell completes on `%%|`, and no longer on `#|` (S300)", () => {
+  // Quarto reads `%%|` in a mermaid cell: at start-up it overlays the resource key
+  // `handlers/lang-comment-chars.yml` (47 rows) onto its 46-row literal, and `mermaid: "%%"` is the
+  // one row the literal lacks. Until the row joined `LANG_COMMENT_CHARS` (S300) the default `#`
+  // applied, so the one live consumer of the enumerator in a handler cell, cell-option completion
+  // (`cellLanguageId("mermaid")` is null, so the embedded virtual docs never reach it), was
+  // silent on the line a mermaid author actually types and offered the key list on `#|`.
+  it("offers cell-option key completion on a `%%|` line in a {mermaid} cell", () => {
+    const text = ["```{mermaid}", "%%| ec", "flowchart LR", "```"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 1, 6), () => undefined);
+    expect(ctx?.kind).toBe("cell-option-key");
+    // `completionEngineFor` keeps the language approximation for a handler cell: no engine, so the
+    // provider offers the whole key list (an over-offer, benign) rather than the empty `"none"` set.
+    expect(ctx?.engine).toBeUndefined();
+    expect(ctx?.replaceRange).toEqual({ line: 1, startCol: 4, endCol: 6 });
+  });
+
+  it("offers cell-option VALUE completion on a `%%|` line in a {mermaid} cell", () => {
+    // Both emit sites read the same option line; pin the value slot too.
+    const text = ["```{mermaid}", "%%| echo: ", "flowchart LR", "```"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 1, 10), () => undefined);
+    expect(ctx?.kind).toBe("cell-option-value");
+    expect(ctx?.parentPath).toEqual(["echo"]);
+  });
+
+  it("offers NO cell-option completion on a `#|` line in a {mermaid} cell", () => {
+    // Quarto reads no directive there (exit 0 in a markdown document), so offering the key list
+    // would advertise options on a line that is not an option line at all.
+    const text = ["```{mermaid}", "#| ec", "flowchart LR", "```"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 1, 5), () => undefined)).toBeNull();
   });
 });
 

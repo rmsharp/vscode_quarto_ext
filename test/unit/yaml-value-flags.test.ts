@@ -748,8 +748,8 @@ describe("cell fence tokens quarto does not recognize (Session 172)", () => {
  * Every row names the exit code measured firsthand vs quarto 1.7.33.
  */
 describe("cell fence tokens — the flag surface (Session 172)", () => {
-  const withCell = (token: string, option: string) =>
-    "---\ntitle: t\n---\n\n```" + token + "\n#| " + option + "\n1\n```\n";
+  const withCell = (token: string, option: string, opener = "#") =>
+    "---\ntitle: t\n---\n\n```" + token + "\n" + opener + "| " + option + "\n1\n```\n";
 
   it("CANARY: the {r} control still flags, so the silences below are real", () => {
     // A suite of negative assertions passes against a dead provider (S163 gotcha 5). This
@@ -776,8 +776,23 @@ describe("cell fence tokens — the flag surface (Session 172)", () => {
     // `mermaid`, hit the handler guard, and stay silent — a lost true positive.
     expect(cellFlags(withCell("{mermaid=x}", "echo: banana"))).toEqual(["5:echo=banana"]);
     // …while the BARE handler token stays exempt. Without this control the pin above would
-    // also pass if the handler guard had been removed outright.
-    expect(cellFlags(withCell("{mermaid}", "echo: banana"))).toEqual([]);
+    // also pass if the handler guard had been removed outright. It is spelled `%%|`, the opener
+    // quarto reads in a mermaid cell: since S300 the enumerator emits that line, so the handler
+    // guard is the ONLY thing keeping it silent. (The `#|` spelling of this control passed
+    // whether or not the guard existed once the `mermaid` row was added, because `#|` is then no
+    // option line in a mermaid cell at all.)
+    expect(cellFlags(withCell("{mermaid}", "echo: banana", "%%"))).toEqual([]);
+  });
+
+  it("a {mermaid} cell's `%%|` line is exempt in its own right (S300: the line is now emitted)", () => {
+    // Quarto swaps a handler cell's schema by LANGUAGE (`handlers/languages.yml` is exactly
+    // `["mermaid","dot"]`), so `{mermaid}` + `%%| echo: banana` renders exit 0 in a markdown
+    // document (the oracle corpus row "S172 {mermaid} bare handler + echo", re-run each time
+    // `npm run test:oracle` runs). The enumerator reports the line since the `mermaid` row
+    // joined `LANG_COMMENT_CHARS`, so a handler guard that stopped matching `mermaid` would
+    // squiggle a document quarto accepts — the cardinal sin. The `{r}` canary above proves the
+    // flag pass runs at all.
+    expect(cellFlags(withCell("{mermaid}", "echo: banana", "%%"))).toEqual([]);
   });
 
   it("NOW FLAGS a legitimate knitr header whose option value contains a '}'", () => {
