@@ -2048,6 +2048,25 @@ describe("Session 301 — only a TOP-LEVEL `label` key is the cell's label", () 
       { id: "fig-e5", kind: "fig", line: 2, column: 12 },
     ]);
   });
+
+  it("a bare `#|` line or a YAML comment line before a uniformly indented block fixes no indent (`e7`, `e8`)", () => {
+    // Rendered: `#|` / `#|   fig-cap:` / `#|   label: fig-e7` and `#| # a note` / the same two lines are
+    // each `Figure 1`: the first REAL key sets the block's indent.
+    expect(ids(py("#|", '#|   fig-cap: "E7"', "#|   label: fig-e7", "print(1)"))).toEqual(["fig-e7"]);
+    expect(ids(py("#| # a note", '#|   fig-cap: "E8"', "#|   label: fig-e8", "print(1)"))).toEqual(["fig-e8"]);
+  });
+
+  it("a label AFTER a block sequence, a multi-line quote or a block scalar still defines (`k37`, `k38`, `k40`)", () => {
+    // Each is `Figure 1`. The continuation lines are folded into the previous option's value, so none of
+    // them is an option of its own and none moves the block's indent.
+    expect(
+      indexLabels(py("#| notes:", "#|   - one", "#|   - two", "#| label: fig-aftersec", '#| fig-cap: "S"', "print(1)")),
+    ).toEqual([{ id: "fig-aftersec", kind: "fig", line: 4, column: 10 }]);
+    expect(ids(py('#| fig-cap: "two', '#|   lines"', "#| label: fig-afterq", "print(1)"))).toEqual(["fig-afterq"]);
+    expect(ids(py("#| fig-cap: |", "#|   Block caption", "#| label: fig-afterblock", "print(1)"))).toEqual([
+      "fig-afterblock",
+    ]);
+  });
 });
 
 describe("Session 301 — a HANDLER cell is a cell only at column 0", () => {
