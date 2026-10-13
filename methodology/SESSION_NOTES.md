@@ -8,17 +8,34 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 302 (IN PROGRESS): trim `scratchpad/` (operator directive) and clear the dirty tree ahead of the layout migration.**
-Operator chose it at Phase 0. Keep `s265`, `s251/realfiles.txt` and `s299/ratchet_long.py`. Housekeeping with no logic, so the TDD gate does not apply. Confirm the delete list with the operator before deleting.
-**⚠ Gotchas:** (1) never `git add -A`. (2) `bin/migrate-layout` (in `../methodology/bin/`) reads `git status --untracked-files=all`, so every file left in `scratchpad/` is dirt.
-(3) A trim keeps three paths, so the migration run still needs the local `.git/info/exclude` line (F12) unless `scratchpad/` ends up empty. (4) The dashboard appends a line to tracked `dashboard_history.jsonl`: restored at Phase 0.
-(5) The dashboard (~5 min) and `npm run package` (~15-20 min) walk `scratchpad/`.
+**Task:** NONE -- Session 302 closed out. `scratchpad/` is trimmed (31 heavy entries gone) and `git status` is clean, ready for the operator's layout migration (its own session).
+**Next:** (1) The migration: `bin/migrate-layout` is in `../methodology/bin/`; its dirt test (`git status --porcelain=v1 -z --untracked-files=all`) returns nothing now. (2) Then pick from `BACKLOG.md` "Up Next" (Active is empty).
+**⚠ Gotchas:** (1) never `git add -A`. (2) `.git/info/exclude` now holds `scratchpad/` (THIS clone only), so `?? scratchpad/` no longer shows: remove the line after the migration if the signal is wanted back (Session 174 decision).
+(3) `scratchpad/` now: 235 entries, 101,867 files, 1.93 GB. Kept: `s251` and `s265` whole, `s299`, `s301`, `s270`, `s273`, the `posit-observation.txt` of `s271`, `s272` and `s277`, and about 225 small entries.
+(4) Tracked docs and comments cite the 31 deleted folders (647 mentions, 71 in `BACKLOG.md`): re-measure a witness before trusting a cited path. (5) The dashboard now takes about 1:12 (was 4:45).
+(6) `realdoc-score` now reads `agree 2423 of 2438 (99.38%)`; the 2419 in `CLAUDE.md` and `tools/realdoc-score/README.md` is a stale example (not fixed here).
 
-### What Session 302 Did
-**Deliverable:** trim `scratchpad/` and clear the dirty tree (IN PROGRESS)
-**Started:** 2026-10-13
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+## Session 301 Handoff Evaluation (by Session 302)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its receipt named the directive, the keep list and the costs, and they held: `tools/realdoc-score/run.sh` scored 2423 of 2438
+from `s265` and `s251/realfiles.txt` alone (sha256-identical intermediates before and after the trim), `s299/ratchet_long.py` is intact, and my Phase 0 found no ledger or receipt gap (both frontiers at HEAD).
+**Helped:** the keep list and "the corpus is personal" warning; gotchas 1 (never `git add -A`), 8 (stage history files by exact path) and 4 (the commit order that keeps `ledger-lag` at 0); the memory
+`project-trim-scratchpad-next-session`, whose "check tracked citations first" led to the numbers the operator chose with (2,038 mentions orphaned by the directive, 647 by the path taken).
+**Missing:** that five `posit-observation.txt` files (three of them inside folders a size cut deletes) are the only record of the black-box observations behind five DECIDED Outline questions, so a keep-three
+list would have deleted them; that the cost driver is 1,561,390 files and not 65.6 GiB (665,653 of them in `s291`); and that the operator planned a layout migration whose dirt test counts every untracked file.
+**Wrong:** nothing material ("261 entries" was 263). **ROI: high.**
+
+## Session 302 Self-Assessment
+
+**Score: 7/10.**
+**Went right.** I measured before proposing: sizes (65.6 GiB, 263 entries), file counts per entry (11 s), tracked citations per folder, and what tracked code reads from `scratchpad/` (only `realdoc-score` and a `mkdir -p` output
+path). A `find` for evidence-named files found the Posit records the keep list missed. The delete was by rename into a quarantine, verified (score 2423 of 2438 and `model.tsv`/`rawadj.tsv` sha256-identical before and after,
+the three kept files' sha256), and only then removed (159 s). `migrate-layout`'s own dirt test returns nothing. Dashboard 4:45 to 1:12; `npm run compile` exit 0; `npm test` 5,155 passing (unchanged).
+**Went wrong.** (1) I told the operator the `s266` folder and all five Posit files survive a 50 MB cut; `du` said `s266` and three of the five do not. They asked, I re-derived, I corrected it before anything moved.
+(2) My first pick list held four questions with an option that only made sense under one answer; the operator answered one and asked to clarify. (3) I answered "explain 1" about the wrong pick list, twice.
+(4) My first before/after comparison (`sed 1,0d`) reported a difference that was my own bug. (5) The first dashboard run overran a tool call and drew a "have not heard from you" nudge. (6) The CLAUDE.md stale example (2419) is noted, not fixed.
+**TDD:** not applicable (no logic changed; the gate exempts it). Verification was the byte-identical standing measure above, not a unit test. No `src/`, `test/` or `package.json` file changed, so no host run.
+**Cost:** 0 agents. Ultracode defaults to a workflow, but this was one writer doing a destructive, mechanical step and every read was a command I could run myself; the price is no independent reviewer of the delete list.
 
 ## Session 300 Handoff Evaluation (by Session 301)
 
