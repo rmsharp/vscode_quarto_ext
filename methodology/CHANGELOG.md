@@ -23,6 +23,8 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 Close-out commits: `8a9a4e29` (this entry, the receipt, the handoff evaluation and self-assessment, learnings 679-683, the rewritten backlog item) and `07a8d288` (`SESSION_NOTES.md` trimmed to three close-out pairs, dropping the Session 295/296 pair); the dashboard and context-budget runs appended one line each to their tracked history files. `context_budget.py` still exits 2 on the three long-standing oversize files (`HANDOFFS.md` 316,325 B, `BACKLOG.md` 386,768 B, `PROJECT_LEARNINGS.md` 1,126,806 B against 65,536 B); `SESSION_NOTES.md` is 12,808 B.
 
+Release gate, run after the ledger commit `ee80f6e8` (so `ledger-lag` read 0): `quality_ratchet.py --run` 2/2 pass (results `bba236856bad`, manifest `334939914945`), `npm run compile` exit 0, `npm run package` exit 0 (`check-package` OK with 42 files, a `.vsix` of 44 files and 1.85 MB, the same counts as Session 298).
+
 ### 2026-10-12 · [ad hoc] Backfilled (reconcile-on-read): undocumented commits 692d514e..340e1617 -- Session 298 receipt citations
 
 Phase 0 of Session 299 found two commits past the ledger frontier (`a13b5584`), both receipt-only edits to Session 298's `HANDOFFS.md` block that the close-out entry above does not record: `692d514e` cited the `quality_ratchet.py --run` result (2/2 pass at `a13b5584`, results `bba236856bad`, matching `.quality-gates-results.json`) and appended one line to `.context-budget-history.jsonl`; `340e1617` recorded the release gate (`npm run package`, exit 0). Source: `git log`. No behaviour change.
