@@ -141,6 +141,18 @@ const CELL_LABEL_VALUE = new RegExp(
   "u",
 );
 /**
+ * Cell languages quarto reads as a cell ONLY when the fence starts at column 0 — its three handler
+ * languages (`mermaid`, `dot`, `ojs`).
+ *
+ * ⚠ **MEASURED, NOT ASSUMED, AND NOT THE SAME RULE AS python/R.** Rendered with quarto 1.7.33 (markdown
+ * engine, `--no-execute`): a handler fence that is indented AT ALL defines nothing — in a list item at
+ * its content column, at the top level indented 2, 4 or a tab, in a definition body, in a footnote —
+ * where a python or R cell in a list item DOES define from options at its fence's indent. So the
+ * indent strip in {@link indexLabels} Source 2 is for the kernel languages only; applying it to a
+ * handler would mint a phantom label for a shape quarto renders as unresolved.
+ */
+const COLUMN_ZERO_ONLY_LANGUAGES: ReadonlySet<string> = new Set(["mermaid", "dot", "ojs"]);
+/**
  * A cross-ref id at the very start of a brace group's content — `{#fig-plot …}`. Group 1 is
  * the id; its column is the group's `start + 2` (past the `{#`). `sec-` is excluded on
  * purpose: section labels are owned by headings (Source 1), so a stray inline `{#sec-…}` is
@@ -295,31 +307,49 @@ export function indexLabels(text: string): RefLabel[] {
   //
   // ⚠ **AN INDENTED FENCE IS READ AS THE CELL WOULD BE AT COLUMN 0.** Quarto strips the fence's own
   // indent from each cell line that starts with it and leaves any other line alone (measured with
-  // knitr and jupyter alike, R4DS's list-item cells being the real-document witness): an option at
-  // the fence's indent or at column 0 is an option, one deeper or in between is code. The scanner
-  // only ever sees column 0, so the stripped copy is what it is handed.
+  // knitr and jupyter alike, a list-item cell of corpus ordinal 1887 being the real-document
+  // witness): an option at the fence's indent or at column 0 is an option, one deeper or in
+  // between is code. The scanner only ever sees column 0, so the stripped copy is what it is handed.
   const sourceLines = text.split(/\r?\n/);
   for (const cell of findAllCells(text)) {
     const indent = /^[ \t]*/.exec(sourceLines[cell.startLine])?.[0] ?? "";
+    if (indent !== "" && COLUMN_ZERO_ONLY_LANGUAGES.has(cell.lang)) {
+      continue;
+    }
     const stripLine = (raw: string): string => (raw.startsWith(indent) ? raw.slice(indent.length) : raw);
     const readable =
       indent === "" || cell.code.length === 0
         ? cell
         : { ...cell, code: cell.code.split("\n").map(stripLine).join("\n") };
+    // The folded indent of the block's first real key: YAML's top level. A `label` nested deeper
+    // under another option is that option's own data, not the cell's label.
+    let baseIndent: number | null = null;
     for (const option of cellOptionLinesOf(readable)) {
       const { keySlot, valueSlot } = option;
-      if (keySlot === null || valueSlot === null) {
+      if (keySlot === null) {
         continue;
       }
       const rawLine = sourceLines[option.line];
       const lineText = stripLine(rawLine);
       const removed = rawLine.length - lineText.length;
+      const keyToken = lineText.slice(keySlot.startCol, keySlot.endCol);
+      if (keyToken === "" || keyToken.startsWith("#")) {
+        continue; // a bare `#|` line or a YAML comment fixes no indent
+      }
+      // The whitespace between the pipe and the key, less the ONE space quarto's `| ?` consumes.
+      const gap = /[ \t]*$/.exec(lineText.slice(0, keySlot.startCol))?.[0] ?? "";
+      const foldedIndent = gap.startsWith(" ") ? gap.length - 1 : gap.length;
+      if (baseIndent === null) {
+        baseIndent = foldedIndent;
+      }
+      if (foldedIndent !== baseIndent) {
+        continue;
+      }
       // `"label":` and `'label':` are the key `label` in YAML. Only one matching pair of quotes is
       // stripped, so a key spelled with a YAML escape sequence is left unread: a missing
       // completion, never a phantom.
-      const keyToken = lineText.slice(keySlot.startCol, keySlot.endCol);
       const key = /^(["'])(.*)\1$/.exec(keyToken)?.[2] ?? keyToken;
-      if (key !== "label") {
+      if (key !== "label" || valueSlot === null) {
         continue;
       }
       const m = CELL_LABEL_VALUE.exec(lineText.slice(valueSlot.startCol, valueSlot.endCol));

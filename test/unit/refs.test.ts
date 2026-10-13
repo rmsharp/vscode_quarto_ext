@@ -1793,12 +1793,14 @@ describe("Session 301 — a cell's label is read with the CELL'S OWN comment cha
     expect(ids(cell("mermaid", "%%| label: tbl-m", '%%| tbl-cap: "T"', "graph TD"))).toEqual(["tbl-m"]);
   });
 
-  it("`{dot}` reads `//|` and not `#|`; `{ojs}` reads `//|` and not `#|`; `{python}` reads `#|` and not `//|`", () => {
+  it("`{dot}`, `{ojs}` read `//|` and not `#|`; `{python}` reads `#|` and not `//|`", () => {
     // Rendered: `{dot}` `//| label: fig-dot` is `Figure 1` and `#| label: fig-dothash` is
     // `?@fig-dothash`; `{ojs}` the same two; `{python}` `//| label: fig-pyslash` is `?@fig-pyslash`.
     expect(ids(cell("dot", "//| label: fig-dot", "digraph G { A -> B }"))).toEqual(["fig-dot"]);
     expect(ids(cell("dot", "#| label: fig-dothash", "digraph G { A -> B }"))).toEqual([]);
+    expect(ids(cell("ojs", "//| label: fig-ojs", "1+1"))).toEqual(["fig-ojs"]);
     expect(ids(cell("ojs", "#| label: fig-ojshash", "1+1"))).toEqual([]);
+    expect(ids(cell("python", "#| label: fig-py", "print(1)"))).toEqual(["fig-py"]);
     expect(ids(cell("python", "//| label: fig-pyslash", "print(1)"))).toEqual([]);
   });
 
@@ -1890,6 +1892,16 @@ describe("Session 301 — YAML spellings of the `label` key quarto reads", () =>
     ]);
   });
 
+  it("the key is matched WHOLE, case-sensitively, and with ONE matching pair of quotes", () => {
+    // Rendered: `#| LABEL: fig-upper` and `#| Label: fig-title` are `?@fig-upper` and `?@fig-title`
+    // (option names are case-sensitive). A mismatched quote (`"label:`, `label":`) is a YAML syntax
+    // error, so quarto exits 1 and there is no oracle: the row pins that nothing is invented from one.
+    expect(indexLabels(py("#| LABEL: fig-upper", "#| Label: fig-title", '#| fig-cap: "Case"', "print(1)"))).toEqual([]);
+    expect(indexLabels(py('#| "label: fig-mq', "print(1)"))).toEqual([]);
+    expect(indexLabels(py('#| label": fig-mq', "print(1)"))).toEqual([]);
+    expect(indexLabels(py("#| \"label': fig-mq", "print(1)"))).toEqual([]);
+  });
+
   it("only the key `label` defines: `sublabel:`, `labels:` and a label-shaped caption do not (control)", () => {
     // Rendered: `#| sublabel: fig-ok` is `?@fig-ok`. The key is compared whole, not as a suffix or
     // a prefix, and a label-SHAPED value under another key is not a definition.
@@ -1915,8 +1927,8 @@ describe("Session 301 — YAML spellings of the `label` key quarto reads", () =>
 
 describe("Session 301 — an INDENTED cell's options are read relative to its fence", () => {
   // Rendered, quarto 1.7.33, in a list item whose content column is 4 (`-   item`, a blank line,
-  // then a fence at column 4 — the shape of R4DS's joins chapter, which defines three labels this
-  // way). knitr documents were rendered WITH execution (`plot(1)`; `--no-execute` defines nothing
+  // then a fence at column 4 — the shape of corpus ordinal 1887, whose list-item cells define three
+  // labels this way). knitr documents were rendered WITH execution (`plot(1)`; `--no-execute` defines nothing
   // under knitr, even at top level); python documents with `jupyter: python3 --no-execute`. Both
   // engines gave the same answer for every shape: an option line is read after the fence's indent
   // is stripped from each line that starts with it, and a line that does not start with it is left
@@ -1952,7 +1964,7 @@ describe("Session 301 — an INDENTED cell's options are read relative to its fe
     expect(ids(listCell("r", "    plot(1)", "    #| label: fig-below", '    #| fig-cap: "B"'))).toEqual([]);
   });
 
-  it("only the options read BEFORE the block ends count: label at the fence's indent, caption deeper", () => {
+  it("a label at the fence's indent still defines when a DEEPER caption follows it (`r06`)", () => {
     // `r06`: `#| label: fig-r6` at 4 then `#| fig-cap` at 6 renders `Figure 1`.
     expect(ids(listCell("r", "    #| label: fig-mixed", '      #| fig-cap: "M"', "    plot(1)"))).toEqual([
       "fig-mixed",
@@ -1965,16 +1977,102 @@ describe("Session 301 — an INDENTED cell's options are read relative to its fe
     expect(ids(["> ```{r}", "> #| label: fig-quoted", '> #| fig-cap: "Q"', "> plot(1)", "> ```"].join("\n"))).toEqual([]);
   });
 
-  it("RESIDUAL (pre-existing, accepted): a fence quarto does not treat as a cell is still read", () => {
-    // `h04`: a TOP-LEVEL python fence indented two columns renders `?@fig-h4` — quarto has no cell
-    // there — and the index defines it. So do `{dot}`, `{ojs}` in a list item (`h03`, `h06`: `?@…`)
-    // and, since this change, `{mermaid}` in a list item (`j06`: `?@fig-j6`). This is the filed
-    // "only the Outline sees the RENDER view" item: every cell consumer except the engine-aware
-    // Outline reads the any-indent validation view (`findAllCells`), which the old `^\s*` scan did too.
+  it("RESIDUAL (pre-existing, accepted): a TOP-LEVEL indented python fence is still read", () => {
+    // `h04`: a top-level python fence indented two columns renders `?@fig-h4` — quarto has no cell
+    // there — and the index defines it, as the old `^\s*` scan did. Whether an indented fence is a
+    // cell depends on its CONTAINER (the same fence inside a list item at its content column IS one,
+    // `j00`), which `findAllCells` does not carry: the filed "only the Outline sees the RENDER view"
+    // item. Measured the same way: `r04` (knitr) top-level indents 1, 3, 4 and a tab are `?@…`.
     expect(ids(["  ```{python}", "  #| label: fig-h4", '  #| fig-cap: "H4"', "  print(1)", "  ```"].join("\n"))).toEqual([
       "fig-h4",
     ]);
-    expect(ids(listCell("mermaid", "    %%| label: fig-j6", "    graph TD"))).toEqual(["fig-j6"]);
+  });
+
+  it("an empty line INSIDE an indented cell does not stop its options being read (`e1`: `Figure 1`)", () => {
+    // The row that tells a per-line strip from an all-or-nothing one: the blank line below does not
+    // start with the fence's indent, and quarto still defines the label from the options above it.
+    expect(
+      indexLabels(
+        ["-   item", "", "    ```{python}", "    #| label: fig-e1", '    #| fig-cap: "E1"', "    x = 1", "", "    print(x)", "    ```"].join("\n"),
+      ),
+    ).toEqual([{ id: "fig-e1", kind: "fig", line: 3, column: 14 }]);
+  });
+
+  it("a TAB-indented cell defines, at the column counted in characters (`e3`: `Figure 1`)", () => {
+    // `-<TAB>item` / `<TAB>```{python}` / `<TAB>#| label: fig-e3`: one stripped character, so the value
+    // sits at column 11 of the raw line, not 14.
+    expect(
+      indexLabels(["-\titem", "", "\t```{python}", "\t#| label: fig-e3", '\t#| fig-cap: "E3"', "\tprint(1)", "\t```"].join("\n")),
+    ).toEqual([{ id: "fig-e3", kind: "fig", line: 3, column: 11 }]);
+  });
+
+  it("a fence indented with one whitespace kind and options with the other defines nothing", () => {
+    // `py17`/`r10`: a 4-space fence with tab options, and a tab fence with 4-space options, are
+    // `?@fig-…` (quarto strips the fence's own indent STRING). The old scan defined both.
+    expect(ids(["-   item", "", "    ```{python}", "\t#| label: fig-sptab", "    print(1)", "    ```"].join("\n"))).toEqual([]);
+    expect(ids(["-\titem", "", "\t```{python}", "    #| label: fig-tabsp", "\tprint(1)", "\t```"].join("\n"))).toEqual([]);
+  });
+
+  it("an option indented deeper than the fence, FIRST, ends the block before the label (`e2`: `?@fig-e2`)", () => {
+    expect(ids(["-   item", "", "    ```{python}", '      #| fig-cap: "E2"', "    #| label: fig-e2", "    print(1)", "    ```"].join("\n"))).toEqual([]);
+  });
+
+  it("CRLF line endings do not move the column", () => {
+    expect(indexLabels(["```{python}", "#| label: fig-crlf", '#| fig-cap: "C"', "print(1)", "```"].join("\r\n"))).toEqual([
+      { id: "fig-crlf", kind: "fig", line: 1, column: 10 },
+    ]);
+  });
+});
+
+describe("Session 301 — only a TOP-LEVEL `label` key is the cell's label", () => {
+  // Rendered, quarto 1.7.33, python (`k12`, `k13`, `k14`, `e4`) and mermaid (`m03`): a `label` key
+  // nested under another option (`#| opts:` then `#|   label: fig-x`) is `?@fig-x`. "Top level" is the
+  // indent of the block's FIRST option line, not column 0: a block indented uniformly by two
+  // (`#|   fig-cap:` / `#|   label:`) renders `Figure 1` (`e5`).
+  const ids = (text: string): string[] => indexLabels(text).map((l) => l.id);
+  const py = (...body: string[]): string => ["```{python}", ...body, "```"].join("\n");
+
+  it("a `label` nested under another key is not the cell's label (python and mermaid)", () => {
+    expect(ids(py("#| opts:", "#|   label: fig-nested", '#| fig-cap: "N"', "print(1)"))).toEqual([]);
+    expect(ids(["```{mermaid}", "%%| opts:", "%%|   label: fig-mmnest", '%%| fig-cap: "N"', "graph TD", "```"].join("\n"))).toEqual([]);
+  });
+
+  it("a nested `label` does not hide the real top-level one after it (`e4`: only `fig-e4b` is `Figure 1`)", () => {
+    expect(indexLabels(py("#| opts:", "#|   label: fig-e4a", "#| label: fig-e4b", '#| fig-cap: "E"', "print(1)"))).toEqual([
+      { id: "fig-e4b", kind: "fig", line: 3, column: 10 },
+    ]);
+  });
+
+  it("a block indented uniformly by two columns still has a top-level label (`e5`)", () => {
+    expect(indexLabels(py('#|   fig-cap: "E5"', "#|   label: fig-e5", "print(1)"))).toEqual([
+      { id: "fig-e5", kind: "fig", line: 2, column: 12 },
+    ]);
+  });
+});
+
+describe("Session 301 — a HANDLER cell is a cell only at column 0", () => {
+  // Rendered, quarto 1.7.33 (markdown engine, `--no-execute`): `{mermaid}`, `{dot}` and `{ojs}` fences
+  // that are indented at all — in a list item at the content column (`j06`, `h03`, `h06`), at the top
+  // level indented 2, 4 or a tab (`h02`, `h04`), in a definition body or a footnote (`h08`) — define
+  // NOTHING (`?@fig-…`), where python and R cells in a list item do (`j00`, `r00`). Inside a fenced div
+  // (callout, tabset, column) a handler fence is not indented and defines (`h01`, `h02`).
+  const ids = (text: string): string[] => indexLabels(text).map((l) => l.id);
+
+  it("mermaid, dot and ojs fences in a list item define nothing", () => {
+    expect(ids(["-   item", "", "    ```{mermaid}", "    %%| label: fig-j6", "    graph TD", "    ```"].join("\n"))).toEqual([]);
+    expect(ids(["-   item", "", "    ```{dot}", "    //| label: fig-h3", "    digraph G { A -> B }", "    ```"].join("\n"))).toEqual([]);
+    expect(ids(["-   item", "", "    ```{ojs}", "    //| label: fig-h6", "    1+1", "    ```"].join("\n"))).toEqual([]);
+  });
+
+  it("a top-level handler fence indented two columns or a tab defines nothing", () => {
+    expect(ids(["  ```{mermaid}", "  %%| label: fig-h2", "  graph TD", "  ```"].join("\n"))).toEqual([]);
+    expect(ids(["\t```{mermaid}", "\t%%| label: fig-mtab", "\tgraph TD", "\t```"].join("\n"))).toEqual([]);
+  });
+
+  it("the same handler fence at column 0 inside a fenced div defines (control)", () => {
+    expect(ids(["::: {.callout-note}", "", "```{mermaid}", "%%| label: fig-mcall", '%%| fig-cap: "C"', "graph TD", "```", "", ":::"].join("\n"))).toEqual([
+      "fig-mcall",
+    ]);
   });
 });
 
@@ -2000,6 +2098,9 @@ describe("Session 301 — the label scanner follows quarto's comment-character t
 
   it("covers quarto's whole table (45 reachable rows of 47)", () => {
     expect(rows).toHaveLength(45);
+    expect(rows.map((r) => r[0])).toEqual(
+      expect.arrayContaining(["mermaid", "dot", "ojs", "python", "r", "sql", "c", "ocaml", "apl"]),
+    );
   });
 
   it.each(rows)("{%s}: `%s|` defines the label, at the value's column", (lang, open, close) => {

@@ -877,14 +877,14 @@ describe("findCellOptionLines — a cell-HANDLER language still EMITS; only vali
     // That narrowing belongs to the DIAGNOSTICS path alone (`cellOptionScopeFor` →
     // `"none"`, `yaml-context.ts`); suppressing HERE instead is the plausible-looking fix
     // this pin exists to catch. Measured, the casualty of that mutant in a `{dot}` or
-    // `{mermaid}` cell is cell-option COMPLETION and, since S301, the cross-reference label
-    // index: those are the only two languages at issue, `cellLanguageId` returns `null` for
-    // both, and every embedded virtual-doc path bails on an unmapped language BEFORE it
-    // consults the option lines. (For an engine-MAPPED language the vdoc builders consume it
-    // too, which is why the enumerator's contract must hold generally, not just for handlers.)
-    // The label index reads each cell through `cellOptionLinesOf` (`core/refs.ts`); its own
-    // rows in `refs.test.ts` pin that, so it is not claimed here. Deliberately NOT claimed
-    // either: cell-background highlighting, which uses `findAllCells` and calls neither. The
+    // `{mermaid}` cell is cell-option COMPLETION: those are the only two languages at issue,
+    // `cellLanguageId` returns `null` for both, and every embedded virtual-doc path bails on
+    // an unmapped language BEFORE it consults the option lines. (For an engine-MAPPED language
+    // the vdoc builders consume it too, which is why the enumerator's contract must hold
+    // generally, not just for handlers.) The cross-reference label index also reads handler
+    // cells since S301, but through `cellOptionLinesOf`, one function BELOW this enumerator, so
+    // a mutant here never reaches it; its own rows in `refs.test.ts` pin that path. Deliberately
+    // NOT claimed either: cell-background highlighting, which uses `findAllCells` and calls neither. The
     // `//| label: fig-g` below is a real label quarto resolves `@fig-g` against (measured:
     // exit 0, `href="#fig-g"`, "Figure 1"), so it is realistic fixture content, not evidence
     // for this pin. An earlier revision of this comment cited all four consumers and was
