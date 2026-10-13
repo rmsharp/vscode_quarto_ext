@@ -24,8 +24,9 @@ import {
   attributeBlockId,
   braceGroups,
   attributeBlockReader,
+  cellOptionLinesOf,
+  findAllCells,
   findBodyLines,
-  findCellOptionLines,
   findCodeFenceOpeners,
   findHeadings,
   maskInlineCode,
@@ -289,35 +290,52 @@ export function indexLabels(text: string): RefLabel[] {
 
   // Source 2 — a `label: <id>` option inside an executable code cell, read through the shared
   // option scanner so the cell language's own comment character decides which lines are options.
+  //
+  // ⚠ **AN INDENTED FENCE IS READ AS THE CELL WOULD BE AT COLUMN 0.** Quarto strips the fence's own
+  // indent from each cell line that starts with it and leaves any other line alone (measured with
+  // knitr and jupyter alike, R4DS's list-item cells being the real-document witness): an option at
+  // the fence's indent or at column 0 is an option, one deeper or in between is code. The scanner
+  // only ever sees column 0, so the stripped copy is what it is handed.
   const sourceLines = text.split(/\r?\n/);
-  for (const option of findCellOptionLines(text)) {
-    const { keySlot, valueSlot } = option;
-    if (keySlot === null || valueSlot === null) {
-      continue;
+  for (const cell of findAllCells(text)) {
+    const indent = /^[ \t]*/.exec(sourceLines[cell.startLine])?.[0] ?? "";
+    const stripLine = (raw: string): string => (raw.startsWith(indent) ? raw.slice(indent.length) : raw);
+    const readable =
+      indent === "" || cell.code.length === 0
+        ? cell
+        : { ...cell, code: cell.code.split("\n").map(stripLine).join("\n") };
+    for (const option of cellOptionLinesOf(readable)) {
+      const { keySlot, valueSlot } = option;
+      if (keySlot === null || valueSlot === null) {
+        continue;
+      }
+      const rawLine = sourceLines[option.line];
+      const lineText = stripLine(rawLine);
+      const removed = rawLine.length - lineText.length;
+      // `"label":` and `'label':` are the key `label` in YAML. Only one matching pair of quotes is
+      // stripped, so a key spelled with a YAML escape sequence is left unread: a missing
+      // completion, never a phantom.
+      const keyToken = lineText.slice(keySlot.startCol, keySlot.endCol);
+      const key = /^(["'])(.*)\1$/.exec(keyToken)?.[2] ?? keyToken;
+      if (key !== "label") {
+        continue;
+      }
+      const m = CELL_LABEL_VALUE.exec(lineText.slice(valueSlot.startCol, valueSlot.endCol));
+      if (!m) {
+        continue;
+      }
+      const value = m[1];
+      const kind = kindOf(value);
+      if (kind === null) {
+        continue;
+      }
+      labels.push({
+        id: value,
+        kind,
+        line: option.line,
+        column: removed + valueSlot.startCol + m[0].length - value.length,
+      });
     }
-    const lineText = sourceLines[option.line];
-    // `"label":` and `'label':` are the key `label` in YAML. Only the one matching pair is
-    // stripped, so an escape (`"label"`) is left unread: a missing completion, never a phantom.
-    const keyToken = lineText.slice(keySlot.startCol, keySlot.endCol);
-    const key = /^(["'])(.*)\1$/.exec(keyToken)?.[2] ?? keyToken;
-    if (key !== "label") {
-      continue;
-    }
-    const m = CELL_LABEL_VALUE.exec(lineText.slice(valueSlot.startCol, valueSlot.endCol));
-    if (!m) {
-      continue;
-    }
-    const value = m[1];
-    const kind = kindOf(value);
-    if (kind === null) {
-      continue;
-    }
-    labels.push({
-      id: value,
-      kind,
-      line: option.line,
-      column: valueSlot.startCol + m[0].length - value.length,
-    });
   }
 
   // Source 3 — inline `{#fig-…}`/`{#tbl-…}`/`{#eq-…}`/`{#lst-…}` attribute

@@ -1913,6 +1913,71 @@ describe("Session 301 — YAML spellings of the `label` key quarto reads", () =>
   });
 });
 
+describe("Session 301 — an INDENTED cell's options are read relative to its fence", () => {
+  // Rendered, quarto 1.7.33, in a list item whose content column is 4 (`-   item`, a blank line,
+  // then a fence at column 4 — the shape of R4DS's joins chapter, which defines three labels this
+  // way). knitr documents were rendered WITH execution (`plot(1)`; `--no-execute` defines nothing
+  // under knitr, even at top level); python documents with `jupyter: python3 --no-execute`. Both
+  // engines gave the same answer for every shape: an option line is read after the fence's indent
+  // is stripped from each line that starts with it, and a line that does not start with it is left
+  // as it is. So an option at the fence's indent, or at column 0, is an option; one indented MORE
+  // than the fence, or at a column between 0 and the fence's, is code and ends the block.
+  const ids = (text: string): string[] => indexLabels(text).map((l) => l.id);
+  const listCell = (lang: string, ...body: string[]): string =>
+    ["-   item", "", "    ```{" + lang + "}", ...body, "    ```"].join("\n");
+
+  it("options at the fence's own indent define, at the column they are typed (R and python)", () => {
+    // `r00`: `#| label: fig-r0` is `Figure 1`; `j00`: the same in a python document.
+    for (const lang of ["r", "python"]) {
+      expect(
+        indexLabels(listCell(lang, "    #| label: fig-ind", '    #| fig-cap: "I"', "    plot(1)")),
+      ).toEqual([{ id: "fig-ind", kind: "fig", line: 3, column: 14 }]);
+    }
+  });
+
+  it("options at column 0 inside an indented cell define too (nothing to strip)", () => {
+    // `r02` and `j01`: `#| label: fig-r2` / `#| label: fig-j1` at column 0 are `Figure 1`.
+    expect(indexLabels(listCell("r", "#| label: fig-col0", '#| fig-cap: "C"', "    plot(1)"))).toEqual([
+      { id: "fig-col0", kind: "fig", line: 3, column: 10 },
+    ]);
+  });
+
+  it("an option indented MORE than the fence, or between column 0 and the fence, is code", () => {
+    // `r01`/`j02` (two columns deeper) and `r04`/`j03` (column 2 under a fence at 4): `?@fig-…`.
+    expect(ids(listCell("r", "      #| label: fig-deep", "    plot(1)"))).toEqual([]);
+    expect(ids(listCell("r", "  #| label: fig-shallow", "    plot(1)"))).toEqual([]);
+  });
+
+  it("a label below a code line of an indented cell is a comment (`r03`, `j04`: `?@fig-…`)", () => {
+    expect(ids(listCell("r", "    plot(1)", "    #| label: fig-below", '    #| fig-cap: "B"'))).toEqual([]);
+  });
+
+  it("only the options read BEFORE the block ends count: label at the fence's indent, caption deeper", () => {
+    // `r06`: `#| label: fig-r6` at 4 then `#| fig-cap` at 6 renders `Figure 1`.
+    expect(ids(listCell("r", "    #| label: fig-mixed", '      #| fig-cap: "M"', "    plot(1)"))).toEqual([
+      "fig-mixed",
+    ]);
+  });
+
+  it("RESIDUAL (pre-existing, accepted): a label in a BLOCK-QUOTED cell is not indexed", () => {
+    // `r05`, knitr executed: `> #| label: fig-r5` under `> ```{r}` IS `Figure 1`. The scanner sees
+    // `> #|` as code, and so did the old `^\s*` scan: a lost completion, the safe direction.
+    expect(ids(["> ```{r}", "> #| label: fig-quoted", '> #| fig-cap: "Q"', "> plot(1)", "> ```"].join("\n"))).toEqual([]);
+  });
+
+  it("RESIDUAL (pre-existing, accepted): a fence quarto does not treat as a cell is still read", () => {
+    // `h04`: a TOP-LEVEL python fence indented two columns renders `?@fig-h4` — quarto has no cell
+    // there — and the index defines it. So do `{dot}`, `{ojs}` in a list item (`h03`, `h06`: `?@…`)
+    // and, since this change, `{mermaid}` in a list item (`j06`: `?@fig-j6`). This is the filed
+    // "only the Outline sees the RENDER view" item: every cell consumer except the engine-aware
+    // Outline reads the any-indent validation view (`findAllCells`), which the old `^\s*` scan did too.
+    expect(ids(["  ```{python}", "  #| label: fig-h4", '  #| fig-cap: "H4"', "  print(1)", "  ```"].join("\n"))).toEqual([
+      "fig-h4",
+    ]);
+    expect(ids(listCell("mermaid", "    %%| label: fig-j6", "    graph TD"))).toEqual(["fig-j6"]);
+  });
+});
+
 describe("Session 301 — the label scanner follows quarto's comment-character table row by row", () => {
   // The closed-world pin S300's review asked for (Learning #685): a test of the rows quarto HAS
   // cannot see an extra or a missing one, so each row of quarto's own table (a machine-extracted
