@@ -97,31 +97,3 @@ could not discriminate; both were removed before commit. (4) The review ran 20 a
 **TDD:** RED shown before GREEN for the row. The consumer pins (emission, completion, the flags precondition) passed on arrival, disclosed; each was shown RED on a seeded fault (row deleted: 6
 failing; guard removed: 4). The review-fix tests were written after each reviewer mutant was reproduced and fail on it.
 **Cost:** 20 review agents (about 2.0M subagent tokens), no quarto render at all (the oracle cache was warm), one host run of about 2 minutes, no screen-taking run beyond it.
-
-## Session 298 Handoff Evaluation (by Session 299)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its receipt said `BACKLOG.md` "Active" was empty and listed the open items; all 18
-`key_files` line numbers I checked (`BoundaryReaders` 11181 ... `endsHtmlBlock` 11791, `tableDashColumns` 7577, `readerExtension` 7779) were exact at `a13b5584`, the commit it
-closed on; the ratchet citation (2/2, `bba236856bad`, manifest `334939914945`) matched the stored results, and gotcha 10 (`npm run package` about 15 minutes) held.
-**Helped:** the ranked open items (I took one it did not list, and the list made that a clean choice), `render.sh` and its load gate (copied and reused unchanged),
-`ratchet_long.py`, the receipt formats in `HANDOFFS.md` and the claim-commit pattern of `e0a90931`, and gotchas 1 and 9 (never `git add -A`; the dashboard appends to a tracked file).
-**Missing:** that the dashboard takes about 4 minutes (Session 297's ACTIVE TASK said so, this one dropped it, and it overran a 120 s tool call); and that its two post-close-out
-receipt commits (`692d514e`, `340e1617`) touched `HANDOFFS.md` and not `CHANGELOG.md`, which left a two-commit ledger gap that my Phase 0 had to backfill (`05252ee9`);
-Sessions 295-297 had put the ratchet citation in the ledger entry too. **Wrong:** nothing I could find. **ROI: high.**
-
-## Session 299 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** I measured before coding: the baseline against a `git archive` of the pre-session tree (changing the opener of 34 of 46 rows failed no unit test; 12 were pinned),
-and quarto's three tables by script (`bin/quarto.js` 46 rows, the resource 47, the Lua filter table a different 57). RED was shown before GREEN for each pin on a seeded fault in a
-scratch tree (the `lua` typo in both directions; a changed, a removed and an extra fixture row). I rendered all 98 per-row documents with quarto 1.7.33 at 2 wide (96 as the fixture
-predicts; the two `{dot}` ones fail in graphviz's syntax check). A 152-mutant sweep: 131 killed by a failing test, 21 equivalent. An adversarial review (16 agents) found 4 real
-defects in my first cut, all fixed with a row RED on exactly its mutant. Tests 4,882 to 4,982; type checks and `check-backlog` clean; no production logic changed.
-**Went wrong.** (1) My first sweep counted 46 delete mutants "killed" that were syntax errors, and my first baseline reported 46 of 46 rows pinned because the scratch copy lacked files
-the full suite reads; both were caught only because I distrusted a result that contradicted the backlog. (2) I wrote the review's "about nine rows" into two comments as fact,
-unmeasured; the baseline later said 12. (3) The first unit pin missed a closer with a leading space and pinned `mermaid` absent by one opener only: both found by review, not by me.
-(4) The dashboard overran a tool call (4 minutes). (5) The render gate waited about 15 minutes on Spotlight's load before the first render. (6) `test:integration` not run (tests and
-a comment changed; no host behaviour). (7) The corpus score was not re-run (no `findHeadings` change).
-**TDD:** the pins passed on arrival (no production logic changed), disclosed; each was shown RED on a seeded fault in a scratch copy first, and the review fixes were each shown
-RED on the reviewer's mutant (8) after the assertion was written; the previous test passing those mutants was replayed by the reviewer and by a skeptic, not by me.
-**Cost:** 16 agents (about 1.37M subagent tokens, none rendered), 98 renders at 2 wide, about 500 vitest runs in scratch trees, no screen-taking run.
