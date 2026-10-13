@@ -8,9 +8,17 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** NONE -- Session 301 closed out. The label index reads each cell through the shared option scanner (`%%|` in mermaid, list-item cells, the leading-block rule).
-**Next:** (1) OPERATOR DIRECTIVE: trim `scratchpad/` aggressively, keeping `s265`, `s251/realfiles.txt` and `s299/ratchet_long.py`. (2) Then pick from `BACKLOG.md` "Up Next" (Active is empty).
-**⚠ Gotchas:** (1) never `git add -A`. (2) the dashboard (~5 min) and `npm run package` (~15-20 min) walk the 70 GB scratchpad. (3) mutation scratch trees come from `git archive`. (4) S301's tools are in `scratchpad/s301/`.
+**Task:** **Session 302 (IN PROGRESS): trim `scratchpad/` (operator directive) and clear the dirty tree ahead of the layout migration.**
+Operator chose it at Phase 0. Keep `s265`, `s251/realfiles.txt` and `s299/ratchet_long.py`. Housekeeping with no logic, so the TDD gate does not apply. Confirm the delete list with the operator before deleting.
+**⚠ Gotchas:** (1) never `git add -A`. (2) `bin/migrate-layout` (in `../methodology/bin/`) reads `git status --untracked-files=all`, so every file left in `scratchpad/` is dirt.
+(3) A trim keeps three paths, so the migration run still needs the local `.git/info/exclude` line (F12) unless `scratchpad/` ends up empty. (4) The dashboard appends a line to tracked `dashboard_history.jsonl`: restored at Phase 0.
+(5) The dashboard (~5 min) and `npm run package` (~15-20 min) walk `scratchpad/`.
+
+### What Session 302 Did
+**Deliverable:** trim `scratchpad/` and clear the dirty tree (IN PROGRESS)
+**Started:** 2026-10-13
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
 
 ## Session 300 Handoff Evaluation (by Session 301)
 
