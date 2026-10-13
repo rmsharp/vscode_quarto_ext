@@ -1750,3 +1750,23 @@ describe("Session 263 — the fence-id reader reads the line quarto's tag rewrit
     ]);
   });
 });
+
+describe("Session 301 — a cell's label is read with the CELL'S OWN comment character", () => {
+  it("a `{mermaid}` cell's `%%| label:` defines the label, pointing at its value", () => {
+    // Rendered, quarto 1.7.33, a document of one `{mermaid}` cell and `See @fig-flow.`:
+    // `%%| label: fig-flow` + `%%| fig-cap: "Flow"` renders `<a href="#fig-flow"
+    // class="quarto-xref">Figure 1</a>`. Quarto reads a cell's option lines with the comment
+    // character of the cell's language (`mermaid` is `%%`), and the index used to read `#|`
+    // and `//|` in every cell whatever its language.
+    const text = [
+      "```{mermaid}", // 0
+      "%%| label: fig-flow", // 1  value 'fig-flow' starts at col 11
+      '%%| fig-cap: "Flow"', // 2
+      "graph TD", // 3
+      "```", // 4
+    ].join("\n");
+    expect(indexLabels(text)).toEqual([
+      { id: "fig-flow", kind: "fig", line: 1, column: 11 },
+    ]);
+  });
+});

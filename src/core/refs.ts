@@ -24,8 +24,8 @@ import {
   attributeBlockId,
   braceGroups,
   attributeBlockReader,
-  findAllCells,
   findBodyLines,
+  findCellOptionLines,
   findCodeFenceOpeners,
   findHeadings,
   maskInlineCode,
@@ -92,10 +92,14 @@ const KIND_PREFIX = /^(fig|tbl|sec|eq|lst)-/;
  */
 const DEFINED_ID_CHAR_CLASS = String.raw`[\p{L}\p{N}_:.-]`;
 /**
- * A Quarto cell-option line declaring a label: `#| label: fig-plot` (or `//|`
- * for ojs/js cells), with an optional surrounding YAML quote. Group 1 is the id;
- * because the pattern is anchored at `^`, its column is
- * `match[0].length - id.length`.
+ * The VALUE of a `label:` cell option — `fig-plot` out of `#| label: fig-plot` — with an
+ * optional opening YAML quote. Group 1 is the id; because the pattern is anchored at `^`
+ * of the value span, its column is the span's start plus `match[0].length - id.length`.
+ *
+ * Which LINES carry a `label:` option is not decided here: Source 2 reads them from the
+ * shared option scanner ({@link findCellOptionLines}), which owns the cell language's
+ * comment character, the leading-block rule and YAML's multi-line folding. This pattern
+ * only decides what the VALUE may hold.
  *
  * ⚠ **THIS IS THE SAME CLASS AS THE ATTRIBUTE-BLOCK PATH BECAUSE THE TWO WERE MEASURED TO ASK
  * ONE QUESTION — NOT BECAUSE ONE WAS PORTED TO THE OTHER.** (Session 222 split Source 3 into
@@ -126,8 +130,8 @@ const DEFINED_ID_CHAR_CLASS = String.raw`[\p{L}\p{N}_:.-]`;
  * differed in kind between the two sources: here a punctuation-first name yielded the bare
  * `fig-`, a kind prefix with an empty name, rather than being refused outright.
  */
-const CELL_LABEL_OPTION = new RegExp(
-  String.raw`^\s*(?:#|//)\|\s*label:\s*["']?(` +
+const CELL_LABEL_VALUE = new RegExp(
+  String.raw`^["']?(` +
     String.raw`[\p{L}\p{N}_]` +
     DEFINED_ID_CHAR_CLASS +
     String.raw`*)`,
@@ -283,25 +287,32 @@ export function indexLabels(text: string): RefLabel[] {
     });
   }
 
-  // Source 2 — `#| label: <id>` options inside executable code cells.
-  for (const cell of findAllCells(text)) {
-    const bodyLines = cell.code.length === 0 ? [] : cell.code.split("\n");
-    bodyLines.forEach((lineText, j) => {
-      const m = CELL_LABEL_OPTION.exec(lineText);
-      if (!m) {
-        return;
-      }
-      const value = m[1];
-      const kind = kindOf(value);
-      if (kind === null) {
-        return;
-      }
-      labels.push({
-        id: value,
-        kind,
-        line: cell.startLine + 1 + j,
-        column: m[0].length - value.length,
-      });
+  // Source 2 — a `label: <id>` option inside an executable code cell, read through the shared
+  // option scanner so the cell language's own comment character decides which lines are options.
+  const sourceLines = text.split(/\r?\n/);
+  for (const option of findCellOptionLines(text)) {
+    const { keySlot, valueSlot } = option;
+    if (keySlot === null || valueSlot === null) {
+      continue;
+    }
+    const lineText = sourceLines[option.line];
+    if (lineText.slice(keySlot.startCol, keySlot.endCol) !== "label") {
+      continue;
+    }
+    const m = CELL_LABEL_VALUE.exec(lineText.slice(valueSlot.startCol, valueSlot.endCol));
+    if (!m) {
+      continue;
+    }
+    const value = m[1];
+    const kind = kindOf(value);
+    if (kind === null) {
+      continue;
+    }
+    labels.push({
+      id: value,
+      kind,
+      line: option.line,
+      column: valueSlot.startCol + m[0].length - value.length,
     });
   }
 
