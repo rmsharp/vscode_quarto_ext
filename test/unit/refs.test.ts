@@ -1782,6 +1782,32 @@ describe("Session 301 — a cell's label is read with the CELL'S OWN comment cha
   const cell = (lang: string, ...body: string[]): string =>
     ["```{" + lang + "}", ...body, "```"].join("\n");
 
+  it("every cell is read, each with its own comment character, in document order", () => {
+    // The row that tells a scan of all cells from a scan of the first: a python cell, a mermaid cell and
+    // an ojs cell in one document, the last two carrying the labels (rendered: each is `Figure N`).
+    const text = [
+      "```{python}", // 0
+      "#| label: fig-one", // 1
+      "print(1)", // 2
+      "```", // 3
+      "", // 4
+      "```{mermaid}", // 5
+      "%%| label: fig-two", // 6
+      "graph TD", // 7
+      "```", // 8
+      "", // 9
+      "```{ojs}", // 10
+      "//| label: fig-three", // 11
+      "1+1", // 12
+      "```", // 13
+    ].join("\n");
+    expect(indexLabels(text)).toEqual([
+      { id: "fig-one", kind: "fig", line: 1, column: 10 },
+      { id: "fig-two", kind: "fig", line: 6, column: 11 },
+      { id: "fig-three", kind: "fig", line: 11, column: 11 },
+    ]);
+  });
+
   it("a `{mermaid}` cell's `#|` and `//|` labels are NOT labels (quarto: `?@fig-wrong`, `?@fig-slash`)", () => {
     // The phantom half of the same defect: the index offered a target quarto never defines.
     expect(ids(cell("mermaid", "#| label: fig-wrong", '#| fig-cap: "Wrong"', "graph TD"))).toEqual([]);
