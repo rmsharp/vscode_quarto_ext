@@ -200,9 +200,10 @@ describe("Quarto: YAML cell-option key completion", () => {
  * than its static literal, and the extra row is `mermaid: "%%"`). Until S300 this model had the
  * 46, so the default `#` applied: the line a mermaid author actually types was silent and the key
  * list was offered on `#|`. For `{mermaid}` (and `{dot}`) cell-option completion is the one live
- * consumer of the option-line enumerator (`cellLanguageId` is null for both, so the embedded
- * virtual documents never reach it), which makes this provider the only surface that can observe
- * the row. The unit pins (`yaml-context.test.ts`, `lang-comment-chars.test.ts`) cover the same
+ * consumer of the option-line enumerator that acts on a handler cell's lines
+ * (`cellLanguageId` is null for both, so the embedded virtual documents never use them, and the
+ * value diagnostics are silenced by the handler scope), which makes this provider the only
+ * surface that can observe the row. The unit pins (`yaml-context.test.ts`, `lang-comment-chars.test.ts`) cover the same
  * decision headlessly; this is the registered provider answering through the real editor.
  */
 describe("Quarto: YAML cell-option completion in a {mermaid} cell (S300)", () => {
@@ -237,8 +238,11 @@ describe("Quarto: YAML cell-option completion in a {mermaid} cell (S300)", () =>
   });
 
   it("offers NO cell-option keys on a `#|` line", async () => {
-    // Quarto reads no directive on `#|` in a mermaid cell, so the key list would advertise
-    // options on a line that is not an option line. This is also the control that makes the
+    // Quarto reads no directive on `#|` in a mermaid cell of a markdown-engine document (this
+    // document holds no other cell), so the key list would advertise options on a line that is
+    // not an option line. (A KNITR document rejects `#|` there structurally instead, with "The
+    // chunk options should start with '%%| ' instead of '#| '" — S162, `cellOptionScopeFor`.)
+    // This is also the control that makes the
     // positive test above discriminate: a provider that offered keys on EVERY line of a
     // `{mermaid}` cell would pass it alone.
     const doc = await openInMemory(mermaidDoc("#| ec"));
