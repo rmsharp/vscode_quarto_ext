@@ -7,14 +7,15 @@ import { findCellOptionLines } from "../../src/core/qmd/model";
  * Row-by-row pin of the cell-option comment-character table (`LANG_COMMENT_CHARS`,
  * `core/qmd/model.ts`), Session 299.
  *
- * Until now only about nine of its 46 rows were pinned, so a one-row typo (`lua: ["--"]` to
- * `["#"]`) passed every unit test while quarto renders `{lua}` + `#| echo: banana` exit 0 — the
- * typo lands as a false positive, the cardinal sin. Re-typing the table into a test would only
+ * Until now 12 of its 46 rows were pinned (measured: changing the opener of any of the other 34
+ * failed no unit test), so a one-row typo (`lua: ["--"]` to `["#"]`) passed every unit test while
+ * quarto renders `{lua}` + `#| echo: banana` exit 0 — the typo lands as a false positive, the
+ * cardinal sin. Re-typing the table into a test would only
  * copy the transcription error, so the expectation here is a MACHINE-EXTRACTED excerpt of
  * quarto's own resource (`test/fixtures/lang-comment-chars/quarto-1.7.33.json`, the key
  * `handlers/lang-comment-chars.yml` of the installed `yaml-intelligence-resources.json`), and
- * the oracle layer (`test/oracle/lang-comment-chars.oracle.test.ts`) diffs that fixture against
- * the live install, so the fixture cannot drift from quarto either.
+ * the oracle layer (`test/oracle/lang-comment-chars.oracle.test.ts`, opt-in, needs quarto) diffs
+ * that fixture against the live install, so a drift from quarto is caught whenever it runs.
  *
  * Every row is exercised through the public `findCellOptionLines`, the way the product reads a
  * cell: the table is private, and a test of behaviour survives a refactor of it.
@@ -60,6 +61,21 @@ function directive(open: string, close: string | null): string {
   return `${open}| echo: banana` + (close === null ? "" : ` ${close}`);
 }
 
+/** The one option line `directive(open, ...)` must yield in `{lang}`: its slots do not depend on the closer. */
+function expectedOptionLine(lang: string, open: string) {
+  const keyStart = open.length + 2; // the opener, the pipe, one space
+  const valueStart = keyStart + "echo: ".length;
+  return {
+    line: 1,
+    cellStartLine: 0,
+    cellLang: lang,
+    prefix: `${open}|`,
+    contentEndCol: valueStart + "banana".length,
+    keySlot: { startCol: keyStart, endCol: keyStart + "echo".length },
+    valueSlot: { startCol: valueStart, endCol: valueStart + "banana".length },
+  };
+}
+
 /** A one-cell document whose first body line is `line`. */
 function cell(lang: string, line: string): string {
   return ["```{" + lang + "}", line, "x", "```"].join("\n");
@@ -72,19 +88,7 @@ describe("LANG_COMMENT_CHARS — every row of quarto's own table (S299)", () => 
   });
 
   it.each(tuples(modelled))("{%s}: `%s|` opens a cell option", (lang, open, close) => {
-    const keyStart = open.length + 2; // the opener, the pipe, one space
-    const valueStart = keyStart + "echo: ".length;
-    expect(findCellOptionLines(cell(lang, directive(open, close)))).toEqual([
-      {
-        line: 1,
-        cellStartLine: 0,
-        cellLang: lang,
-        prefix: `${open}|`,
-        contentEndCol: valueStart + "banana".length,
-        keySlot: { startCol: keyStart, endCol: keyStart + "echo".length },
-        valueSlot: { startCol: valueStart, endCol: valueStart + "banana".length },
-      },
-    ]);
+    expect(findCellOptionLines(cell(lang, directive(open, close)))).toEqual([expectedOptionLine(lang, open)]);
   });
 
   it.each(tuples(modelled))("{%s}: another language's opener (not `%s|`) is no cell option", (lang, open, close) => {
@@ -98,6 +102,14 @@ describe("LANG_COMMENT_CHARS — every row of quarto's own table (S299)", () => 
     expect(findCellOptionLines(cell(lang, directive(open, null)))).toEqual([]);
   });
 
+  it.each(tuples(blockRows))("{%s}: a `%s|` line needs no space before its closer", (lang, open, close) => {
+    // Quarto tests `line.trimEnd().endsWith(closer)`, so `/*| echo: banana*/` is a directive. A row
+    // whose closer carried a leading space (` */`) passes the spaced spelling above and drops this one.
+    expect(findCellOptionLines(cell(lang, `${open}| echo: banana${close}`))).toEqual([
+      expectedOptionLine(lang, open),
+    ]);
+  });
+
   it.each(tuples(rows.filter((r) => !isCellToken(r.lang))))(
     "{%s}: a token holding a digit is no cell, so its `%s|` row is unreachable",
     (lang, open, close) => {
@@ -106,9 +118,12 @@ describe("LANG_COMMENT_CHARS — every row of quarto's own table (S299)", () => 
   );
 
   it.each(tuples(rows.filter((r) => NOT_MODELLED.has(r.lang))))(
-    "{%s}: deliberately not modelled, so quarto's own `%s|` is read as nothing",
+    "{%s}: deliberately not modelled: quarto's own `%s|` is read as nothing and the `#` default applies",
     (lang, open, close) => {
       expect(findCellOptionLines(cell(lang, directive(open, close)))).toEqual([]);
+      // No row of ANY kind exists: an unmapped language takes the `#` default, so `#|` is read. A row
+      // with another opener (`//`, `--`) would make this empty, and the row `["%%"]` the line above non-empty.
+      expect(findCellOptionLines(cell(lang, directive("#", null)))).toHaveLength(1);
     },
   );
 });
