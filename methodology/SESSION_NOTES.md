@@ -8,12 +8,17 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** NONE -- Session 302 closed out. `scratchpad/` is trimmed (31 heavy entries gone) and `git status` is clean, ready for the operator's layout migration (its own session).
-**Next:** (1) The migration: `bin/migrate-layout` is in `../methodology/bin/`; its dirt test (`git status --porcelain=v1 -z --untracked-files=all`) returns nothing now. (2) Then pick from `BACKLOG.md` "Up Next" (Active is empty).
-**⚠ Gotchas:** (1) never `git add -A`. (2) `.git/info/exclude` now holds `scratchpad/` (THIS clone only), so `?? scratchpad/` no longer shows: remove the line after the migration if the signal is wanted back (Session 174 decision).
-(3) `scratchpad/` now: 235 entries, 101,867 files, 1.93 GB. Kept: `s251` and `s265` whole, `s299`, `s301`, `s270`, `s273`, the `posit-observation.txt` of `s271`, `s272` and `s277`, and about 225 small entries.
-(4) Tracked docs and comments cite the 31 deleted folders (647 mentions, 71 in `BACKLOG.md`): re-measure a witness before trusting a cited path. (5) The dashboard now takes about 1:12 (was 4:45) and `npm run package` 1:04.5 (was 15-20 min).
-(6) `realdoc-score` now reads `agree 2423 of 2438 (99.38%)`; the 2419 in `CLAUDE.md` and `tools/realdoc-score/README.md` is a stale example (not fixed here).
+**Task:** **Session 303 (IN PROGRESS): the label index reads knitr HEADER labels (`{r fig-x}`, `{r, label="fig-x"}`), item (1) of the BACKLOG label-index item.**
+Operator chose it at Phase 0. Ground first: render the header spellings under knitr, then strict TDD (RED before GREEN). Scope is family (1) only; (2)-(8) stay filed.
+**⚠ Gotchas:** (1) never `git add -A`; stage by exact path. (2) The layout migration is DONE (S309 of the methodology repo): files live under `methodology/`; `?? scratchpad/` shows by design.
+(3) Quarto renders: cap total concurrent renders, caller renders at 3 wide behind a load gate; agents author documents only. (4) `test:integration` takes the screen: ask first.
+(5) `scratchpad/s301/` kept (hunt, probes, `score301.cjs`); cited folders of other sessions may be gone: re-measure before trusting a path. (6) The dashboard dirties `methodology/dashboard_history.jsonl`.
+
+### What Session 303 Did
+**Deliverable:** knitr header labels in the cross-reference label index (IN PROGRESS)
+**Started:** 2026-10-13
+**Status:** Session claimed. Work beginning. Phase 0 also backfilled a reconciled `HANDOFFS.md` receipt for the migration commits (`64af9364`).
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
 
 ## Session 301 Handoff Evaluation (by Session 302)
 

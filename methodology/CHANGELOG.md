@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-13 · [BL-What the cross-reference LABEL INDEX still gets wrong after Session 301 — 32 of 425 measured verdicts, every row rendered, one family with real corpus reach] Session 303 (in progress): claim -- the label index reads knitr HEADER labels
+
+Session claimed; the operator chose family (1) of that item at the Phase 0 picker (`{r fig-x}` and `{r, label="fig-x"}` define labels under knitr and the index never reads them; 54 cells in 8 of 3,382 corpus documents). Ground first, then strict TDD. Phase 3F records the outcome.
+
 ### 2026-10-13 · [ad hoc] Backfilled (reconcile-on-read): `HANDOFFS.md` receipt for `f89ac407`..`82e6049e` (the methodology repository's S309 layout migration)
 
 Session 303's Phase 0 found `HANDOFFS.md` still at Session 302's receipt (frontier `0c8d9669`) with four later commits and no receipt for them; `CHANGELOG.md` was already current (each commit has its own entry). On the operator's pick at the Phase 0 picker, a `status: reconciled` block (`session: methodology-S309`) now records the sync, the `CLAUDE.md` pointer fix, the `PROJECT_LEARNINGS.md` move and the `.git/info/exclude` removal, summarised from `git show --stat` and those entries and marked as a reconstruction, not the doing session's own receipt. No code, test or other methodology file changed.
