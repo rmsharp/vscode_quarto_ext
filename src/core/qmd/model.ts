@@ -10576,11 +10576,13 @@ export function findAllCells(text: string): Cell[] {
  * Before, changing the opener of 34 of the 46 rows failed no unit test (measured, Session 299:
  * 12 rows were pinned; 2 of the 34, `d3` and `fortran95`, are unreachable, see below).
  *
- * These are the 46 entries of quarto's STATIC literal. Its EFFECTIVE table has 47: at startup
- * quarto overlays the resource `handlers/lang-comment-chars.yml`
- * (`share/editor/tools/yaml/yaml-intelligence-resources.json`), whose only addition is
- * `mermaid: "%%"`. That row is still deliberately NOT copied here, but the REASON changed in
- * S162 and the blocker is gone. `mermaid` and `dot` are quarto's two cell-HANDLER languages
+ * These are the 47 rows of quarto's EFFECTIVE table: the 46 entries of its STATIC literal plus
+ * `mermaid: "%%"`, the one row it adds at startup by overlaying the resource
+ * `handlers/lang-comment-chars.yml` (`share/editor/tools/yaml/yaml-intelligence-resources.json`).
+ * The `mermaid` row joined this table in Session 300; until then this model had only the 46, so a
+ * `{mermaid}` cell took the `#` default (its `%%|` lines read as nothing, its `#|` lines read as
+ * options). It was held back for a REASON that changed in S162 and a blocker that is gone.
+ * `mermaid` and `dot` are quarto's two cell-HANDLER languages
  * (`handlers/languages.yml` is exactly `["mermaid","dot"]`), and quarto validates a handler
  * cell against `handlers/<lang>/schema.yml` instead of the cell-option schema — so no `cell-*`
  * field reaches either, and in a markdown- or jupyter-engine document every cell option we
@@ -10593,12 +10595,14 @@ export function findAllCells(text: string): Cell[] {
  * flagged on a document quarto accepts — and adding `mermaid` would have created a second one.
  * S162 fixed it at its real root: `cellOptionScopeFor` returns the `"none"` scope for a handler
  * language (`isCellHandlerLanguage`, `yaml-context.ts`), so nothing in either cell is validated
- * no matter which lines are emitted here. Adding the `mermaid` row is therefore now SAFE for
- * diagnostics; it is left out only because it changes what the enumerator EMITS. For these two
+ * no matter which lines are emitted here. So the `mermaid` row is safe for diagnostics, and ⚠
+ * THAT GUARD IS NOW LOAD-BEARING FOR `mermaid`: the row makes the enumerator emit `%%|` lines in
+ * a `{mermaid}` cell, so the handler scope is the only thing keeping `%%| echo: banana` silent
+ * (`yaml-value-flags.test.ts` pins it; the `#|` spelling of that control stopped discriminating
+ * the moment the row existed). What the row changes is what the enumerator EMITS. For these two
  * languages that means cell-option COMPLETION — the embedded virtual-doc builders bail on an
  * unmapped `cellLanguageId` before consulting option lines, and neither `core/refs.ts` nor
- * `core/cell-background.ts` calls this enumerator at all. A separate deliverable with its own
- * grounding, tracked in BACKLOG.
+ * `core/cell-background.ts` calls this enumerator at all.
  *
  * Lookup is CASE-SENSITIVE and unknown languages fall back to `#`, both grounded firsthand
  * vs 1.7.33: `{SQL}` + `--| echo: banana` renders exit 0 while `{SQL}` + `#| echo: banana`
@@ -10626,7 +10630,7 @@ const LANG_COMMENT_CHARS: Readonly<Record<string, readonly [string] | readonly [
   stata: ["*"], java: ["//"], groovy: ["//"], sed: ["#"], perl: ["#"], prql: ["#"], ruby: ["#"],
   tikz: ["%"], js: ["//"], d3: ["//"], node: ["//"], sass: ["//"], scss: ["//"], coffee: ["#"],
   go: ["//"], asy: ["//"], haskell: ["--"], dot: ["//"], ojs: ["//"], apl: ["⍝"],
-  ocaml: ["(*", "*)"], rust: ["//"],
+  ocaml: ["(*", "*)"], rust: ["//"], mermaid: ["%%"],
 };
 
 /** The comment delimiters quarto reads cell-option directives with, for one cell language. */

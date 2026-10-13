@@ -35,22 +35,12 @@ const rows = Object.entries(JSON.parse(readFileSync(FIXTURE, "utf8")) as Record<
 );
 
 /**
- * Quarto rows this model deliberately has no row for. `mermaid` is one of quarto's two cell
- * HANDLER languages and is the one row of its effective table missing from its static literal;
- * `cellOptionScopeFor` validates nothing in a handler cell, so the row is safe to add, but it
- * would change what the enumerator EMITS (cell-option completion), which is its own
- * deliverable (BACKLOG: the `LANG_COMMENT_CHARS` item). Pinned as ABSENT so that adding it is a
- * decision made here, not an accident.
- */
-const NOT_MODELLED = new Set(["mermaid"]);
-
-/**
  * Quarto's cell recognizer captures the language as `([=A-Za-z]+)`: a token holding a digit
  * (`d3`, `fortran95`) is never a cell, so those two rows can never be reached.
  */
 const isCellToken = (lang: string): boolean => /^[=A-Za-z]+$/.test(lang);
 
-const modelled = rows.filter((r) => isCellToken(r.lang) && !NOT_MODELLED.has(r.lang));
+const modelled = rows.filter((r) => isCellToken(r.lang));
 const blockRows = modelled.filter((r) => r.close !== null);
 
 /** `it.each` rows as tuples, so `%s` titles read `{lua}: `--|`` and not vitest's quoted form. */
@@ -117,13 +107,4 @@ describe("LANG_COMMENT_CHARS — every row of quarto's own table (S299)", () => 
     },
   );
 
-  it.each(tuples(rows.filter((r) => NOT_MODELLED.has(r.lang))))(
-    "{%s}: deliberately not modelled: quarto's own `%s|` is read as nothing and the `#` default applies",
-    (lang, open, close) => {
-      expect(findCellOptionLines(cell(lang, directive(open, close)))).toEqual([]);
-      // No row of ANY kind exists: an unmapped language takes the `#` default, so `#|` is read. A row
-      // with another opener (`//`, `--`) would make this empty, and the row `["%%"]` the line above non-empty.
-      expect(findCellOptionLines(cell(lang, directive("#", null)))).toHaveLength(1);
-    },
-  );
 });
