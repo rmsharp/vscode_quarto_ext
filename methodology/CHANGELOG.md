@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-13 · [ad hoc] Backfilled (reconcile-on-read): `HANDOFFS.md` receipt for `f89ac407`..`82e6049e` (the methodology repository's S309 layout migration)
+
+Session 303's Phase 0 found `HANDOFFS.md` still at Session 302's receipt (frontier `0c8d9669`) with four later commits and no receipt for them; `CHANGELOG.md` was already current (each commit has its own entry). On the operator's pick at the Phase 0 picker, a `status: reconciled` block (`session: methodology-S309`) now records the sync, the `CLAUDE.md` pointer fix, the `PROJECT_LEARNINGS.md` move and the `.git/info/exclude` removal, summarised from `git show --stat` and those entries and marked as a reconstruction, not the doing session's own receipt. No code, test or other methodology file changed.
+
 ### 2026-10-13 · [ad hoc] `scratchpad/` taken out of `.git/info/exclude` (this clone only): the layout migration is done, the `?? scratchpad/` signal is back
 
 A non-commit action, on the operator's go-ahead at the methodology repository's S309 close-out picker. The three lines Session 302 appended (two comments and `scratchpad/`) were removed from `.git/info/exclude`, as their own note asked once the layout migration was done (the companion top-up `2057838c`, which the same session pushed with `f89ac407` and `741f8aad` to `origin/master`, read back equal). `git status --porcelain` reads `?? scratchpad/` again, in 0.014 s; the rest of the file is as it was (a copy of the file before is kept outside the repository). The decision to leave `scratchpad/` unignored (Session 174) is unchanged.
