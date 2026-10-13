@@ -281,7 +281,7 @@ Run `/verify` (Claude Code built-in) for the smoke test, or `/run` to drive the 
 
 If you cannot runtime-verify (requires hardware, external service, CI), state this explicitly in session notes. Do not silently skip. A self-assessment that notes "no runtime verification" without treating it as a defect is failure mode #24 (build-passes-ship-it) in action.
 
-Where `.quality-gates.json` declares gates, `quality_ratchet.py --run` is this step's mechanical half; cite its summary line in the receipt.
+Where `.quality-gates.json` declares gates, `quality_ratchet.py --run` is this step's mechanical half; cite its summary line in the receipt. A run that reads unmeasured gates is not a clean one: repair the gate (its command, or `timeout_seconds` if it is only slow) and run again, or name each one in the receipt as `unmeasured: <gate>, … — by hand: <result>`.
 
 ### 3F: Commit
 

@@ -80,8 +80,8 @@ This is the `<project-name>` project. It does `<what>`. The primary deliverable 
 -->
 
 <!-- This table is loaded every session and grows with no cap. When CLAUDE.md nears its
-     size budget, extract these rows to a committed PROJECT_LEARNINGS.md at the project
-     root and replace them with a one-line pointer (read on demand). See BOOTSTRAP.md Step 5. -->
+     size budget, extract these rows to a committed PROJECT_LEARNINGS.md beside FRAMEWORK_LEARNINGS.md
+     (in methodology/ if your methodology files are there) and replace them with a one-line pointer (read on demand). See BOOTSTRAP.md Step 5. -->
 
 (none)
 
