@@ -8,9 +8,15 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** NONE -- Session 299 closed out. Every row of `LANG_COMMENT_CHARS` is pinned against quarto's own table (hermetic unit test, fixture, opt-in oracle).
-**Next:** pick from `BACKLOG.md` "Up Next" (Active is empty) via the ranked AskUserQuestion step; the new small item is the `mermaid` comment-char row.
+**Task:** **Session 300 (IN PROGRESS): the `mermaid: ["%%"]` row missing from `LANG_COMMENT_CHARS` -- add it, flip its pin, ground the one live consumer (cell-option completion in `{mermaid}`).**
+Operator picked it at Phase 0 (recommended candidate). Workstream: `DEVELOPMENT_WORKSTREAM.md`, strict TDD. `test:integration` takes the screen: ask before running it.
 **⚠ Gotchas:** (1) never `git add -A`. (2) `scratchpad/` is 70+ GB: dashboard ~4 min, `npm run package` ~15-20 min. (3) build mutation scratch trees from `git archive`.
+
+### What Session 300 Did
+**Deliverable:** add the `mermaid` row to `LANG_COMMENT_CHARS` so a `%%|` line in a `{mermaid}` cell is read as an option, as quarto reads it (IN PROGRESS)
+**Started:** 2026-10-12
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
 
 ## Session 298 Handoff Evaluation (by Session 299)
 
