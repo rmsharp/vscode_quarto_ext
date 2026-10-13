@@ -8,9 +8,15 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** NONE -- Session 300 closed out. The `mermaid` row is in `LANG_COMMENT_CHARS`: `%%|` is a cell option in `{mermaid}`, and the handler scope keeps it silent.
-**Next:** pick from `BACKLOG.md` "Up Next" (Active is empty) via the ranked AskUserQuestion step; the two new items at its top come from the S300 review.
-**⚠ Gotchas:** (1) never `git add -A`. (2) `scratchpad/` is 70+ GB: dashboard ~4 min, `npm run package` ~15-20 min. (3) mutation scratch trees come from `git archive`. (4) a row that makes a guard reachable empties its old controls (#684).
+**Task:** **Session 301 (IN PROGRESS): a mermaid cell's `%%| label:` is invisible to the cross-reference index (`core/refs.ts`), and a `#| label:` in the same cell is still indexed.**
+Operator picked it at Phase 0 (recommended candidate). Workstream: `DEVELOPMENT_WORKSTREAM.md`, strict TDD. Ground quarto's behaviour with one render first. `test:integration` takes the screen: ask before running it.
+**⚠ Gotchas:** (1) never `git add -A`. (2) `scratchpad/` is 70+ GB: dashboard ~5 min, `npm run package` ~15-20 min. (3) mutation scratch trees come from `git archive`. (4) a row that makes a guard reachable empties its old controls (#684). (5) the Phase 0 dashboard run left `methodology/dashboard_history.jsonl` modified: stage it by exact path at close-out.
+
+### What Session 301 Did
+**Deliverable:** make the cross-reference label index read a mermaid cell's `%%| label:` as quarto does (IN PROGRESS)
+**Started:** 2026-10-13
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
 
 ## Session 299 Handoff Evaluation (by Session 300)
 
