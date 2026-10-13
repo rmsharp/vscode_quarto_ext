@@ -10770,162 +10770,170 @@ const BLOCK_SCALAR_HEADER = /^[|>](?:[1-9][-+]?|[-+][1-9]?)?[ \t]*(?:#.*)?$/;
  * block-terminating `break` below).
  */
 export function findCellOptionLines(text: string): CellOptionLine[] {
+  return findAllCells(text).flatMap((cell) => cellOptionLinesOf(cell));
+}
+
+/**
+ * The cell-option lines of ONE cell — the per-cell body of {@link findCellOptionLines}, exposed so a
+ * caller that must read a cell as it would be written at column 0 can hand over a re-indented copy
+ * (`core/refs.ts` strips an indented fence's indent) instead of growing a second scanner (Learning #14).
+ * Every rule above applies unchanged; `cell.startLine` and `cell.lang` carry the identity.
+ */
+export function cellOptionLinesOf(cell: Cell): CellOptionLine[] {
   const result: CellOptionLine[] = [];
-  for (const cell of findAllCells(text)) {
-    const bodyLines = cell.code.length === 0 ? [] : cell.code.split("\n");
-    // Track an unclosed multi-line value across the cell's `#|` lines: quarto folds
-    // every `#|` line into ONE YAML block, so the continuation of a multi-line quoted
-    // scalar / flow collection is INSIDE the prior option's value, NOT a new option.
-    // Emitting it would let value-diagnostics flag e.g. `#| fig-height: wide"` inside a
-    // multi-line `#| fig-cap: "…"` — a cardinal-sin false positive on a doc quarto renders
-    // exit 0 (adversarial review, S130). A non-`#|` (code) line ends the option block.
-    let flowDepth = 0;
-    let openQuote: '"' | "'" | null = null;
-    // An open block scalar (`|`/`>`), tracked by the folded-indent of the KEY that opened it:
-    // quarto folds every MORE-indented `#|` line into the block's literal content, so a
-    // following mapping-looking line is that literal text, NOT a new option. Emitting it would
-    // let value-diagnostics flag e.g. `#| fig-cap: |` / `#|   echo: banana` — a cardinal-sin FP
-    // on a doc quarto renders exit 0 (adversarial review, S154/S155; fixed S158). Separate from
-    // the quote/flow state above: a value opens EITHER a quote/flow OR a block scalar (disjoint
-    // first chars `"'[{` vs `|>`), never both. Null when no block scalar is open.
-    let blockScalarIndent: number | null = null;
-    // The comment delimiters quarto reads THIS cell's directives with, resolved from its
-    // language (S161). Built once per cell rather than per line, and never cached across
-    // cells: the table is keyed by a fence token that is user input, so a process-lifetime
-    // cache would grow with the distinct tokens a document happens to contain.
-    const comment = commentCharsFor(cell.lang);
-    const prefixRe = cellOptionPrefixFor(comment);
-    const directiveRe = cellOptionDirectiveFor(comment);
-    for (let j = 0; j < bodyLines.length; j++) {
-      const lineText = bodyLines[j];
-      const m = prefixRe.exec(lineText);
-      // For a block-comment language the closing suffix is part of the directive: a line
-      // lacking it is not a directive at all, so `content` is `null` and the block ends here.
-      const content = m === null ? null : directiveContent(m[4], comment.close);
-      if (m === null || content === null) {
-        if (isCellOptionDirective(lineText, directiveRe, comment.close)) {
-          // A line quarto reads as a directive but that the strict prefix pattern cannot
-          // slice (an NBSP/vertical-tab gap, or a U+2028 in the content). It is part of
-          // quarto's YAML block, so it must NOT end the block — skip the LINE and keep
-          // scanning, the same one-line false negative the pre-S160 code had. Terminating
-          // here instead would discard every real option below it (§9 review, S160).
-          continue;
-        }
-        // END OF THE CELL'S OPTION BLOCK — not merely a reset of the continuation state.
-        // Quarto reads a cell's `#|` directives from the LEADING contiguous run of directive
-        // lines and stops at the first body line that is not one; everything below is ordinary
-        // code, so a `#|` there is just a comment. Emitting it let value-diagnostics squiggle
-        // a document quarto ACCEPTS — the cardinal sin. Grounded firsthand vs quarto 1.7.33
-        // (`--no-execute`, 35 documents, S160): `1+1` / `#| echo: banana` renders exit 0, as do
-        // the other three terminator shapes — a BLANK line, a whitespace-only line, and a plain
-        // `# comment` — each of which likewise renders exit 0 for a following invalid option, on
-        // both the `#` (python/r) and `//` (ojs) comment-char families. Testing the DIRECTIVE
-        // PATTERN rather than "is this code" is what makes the terminator set exactly quarto's:
-        // a bare `#|`, a `#| ` with empty content, a gapless `#|key:`, and a spaced `# | key:`
-        // all match, and all were grounded as NON-terminators (quarto still reports their block's
-        // value errors, exit 1). Continuation lines of an open quoted/flow/block-scalar value are
-        // `#|` lines too, so they never terminate — the guards below still own that folding.
-        break;
-      }
-      // The indentation quarto sees for this `#|` line's folded content: the post-pipe
-      // whitespace `m[3]` minus the ONE space quarto's `^#\s*\| ?` directive strips.
-      const foldedIndent = m[3].startsWith(" ") ? m[3].length - 1 : m[3].length;
-      if (blockScalarIndent !== null) {
-        // Inside an open block scalar: a blank `#|` line (always part of the block) and any line
-        // MORE indented than the opening key are the block's literal content — skip them. The
-        // first non-blank line at or BELOW the opener's indent ENDS the block and is a real
-        // option again (fall through). Strictly-greater is quarto-faithful for a RENDERABLE doc: a
-        // sibling at the SAME folded-indent renders exit 1, a real option (grounded firsthand,
-        // S158). The boundary is the KEY's indent, not YAML's auto-detected CONTENT indent, so a
-        // `#|` line mis-indented BETWEEN the key and the content (key < foldedIndent < content) is
-        // also skipped — but that band exists ONLY on a doc quarto already rejects with a
-        // structural `YAMLException: bad indentation` (exit 1, never a value error), so over-
-        // skipping there is the safe false-negative direction, not a lost value TP (§9 over-
-        // suppression lens, S158).
-        if (content.trim() === "" || foldedIndent > blockScalarIndent) {
-          continue;
-        }
-        blockScalarIndent = null;
-      }
-      if (flowDepth > 0 || openQuote !== null) {
-        // A continuation of a multi-line quoted/flow value on a prior `#|` line — skip it.
-        const s = scanFlow(content, flowDepth, openQuote);
-        flowDepth = Math.max(0, s.depth);
-        openQuote = s.quote;
+  const bodyLines = cell.code.length === 0 ? [] : cell.code.split("\n");
+  // Track an unclosed multi-line value across the cell's `#|` lines: quarto folds
+  // every `#|` line into ONE YAML block, so the continuation of a multi-line quoted
+  // scalar / flow collection is INSIDE the prior option's value, NOT a new option.
+  // Emitting it would let value-diagnostics flag e.g. `#| fig-height: wide"` inside a
+  // multi-line `#| fig-cap: "…"` — a cardinal-sin false positive on a doc quarto renders
+  // exit 0 (adversarial review, S130). A non-`#|` (code) line ends the option block.
+  let flowDepth = 0;
+  let openQuote: '"' | "'" | null = null;
+  // An open block scalar (`|`/`>`), tracked by the folded-indent of the KEY that opened it:
+  // quarto folds every MORE-indented `#|` line into the block's literal content, so a
+  // following mapping-looking line is that literal text, NOT a new option. Emitting it would
+  // let value-diagnostics flag e.g. `#| fig-cap: |` / `#|   echo: banana` — a cardinal-sin FP
+  // on a doc quarto renders exit 0 (adversarial review, S154/S155; fixed S158). Separate from
+  // the quote/flow state above: a value opens EITHER a quote/flow OR a block scalar (disjoint
+  // first chars `"'[{` vs `|>`), never both. Null when no block scalar is open.
+  let blockScalarIndent: number | null = null;
+  // The comment delimiters quarto reads THIS cell's directives with, resolved from its
+  // language (S161). Built once per cell rather than per line, and never cached across
+  // cells: the table is keyed by a fence token that is user input, so a process-lifetime
+  // cache would grow with the distinct tokens a document happens to contain.
+  const comment = commentCharsFor(cell.lang);
+  const prefixRe = cellOptionPrefixFor(comment);
+  const directiveRe = cellOptionDirectiveFor(comment);
+  for (let j = 0; j < bodyLines.length; j++) {
+    const lineText = bodyLines[j];
+    const m = prefixRe.exec(lineText);
+    // For a block-comment language the closing suffix is part of the directive: a line
+    // lacking it is not a directive at all, so `content` is `null` and the block ends here.
+    const content = m === null ? null : directiveContent(m[4], comment.close);
+    if (m === null || content === null) {
+      if (isCellOptionDirective(lineText, directiveRe, comment.close)) {
+        // A line quarto reads as a directive but that the strict prefix pattern cannot
+        // slice (an NBSP/vertical-tab gap, or a U+2028 in the content). It is part of
+        // quarto's YAML block, so it must NOT end the block — skip the LINE and keep
+        // scanning, the same one-line false negative the pre-S160 code had. Terminating
+        // here instead would discard every real option below it (§9 review, S160).
         continue;
       }
-      // keyStart = comment chars + inter-pipe ws + the `|` + the gap before the key.
-      const keyStart = m[1].length + m[2].length + 1 + m[3].length;
-      const { keySlot, valueSlot } = slotsOf(content, keyStart);
-      result.push({
-        line: cell.startLine + 1 + j,
-        cellStartLine: cell.startLine,
-        cellLang: cell.lang,
-        prefix: m[1] + "|",
-        contentEndCol: keyStart + content.length,
-        keySlot,
-        valueSlot,
-      });
-      // Arm the continuation-skip only if THIS option's VALUE actually OPENS an unclosed
-      // quoted scalar / flow collection (or a `|`/`>` block scalar — the `else if` below),
-      // decided by the value token's FIRST character past a
-      // stripped node property (`&anchor `/`!tag `) — mirroring the two `.qmd` front-matter
-      // value enumerators (`yaml-frontmatter-values.ts`/`-nested-values.ts`) and the
-      // `_quarto.yml` reference (`project-yaml.ts` findProjectConfigValueLines). Deliberately
-      // NOT a `scanFlow` over the whole `m[4]`: that scan treats an inner quote/bracket in a
-      // PLAIN value as an opener and arms a phantom quote — `#| fig-cap: Don't do this`
-      // (quarto exit 0) armed a `'` whose guard then swallowed a following `#| echo: banana`
-      // that quarto REJECTS (exit 1), silently dropping its validation (Defect A / the
-      // phantom-quote FALSE NEGATIVE, S154; PROJECT_LEARNINGS #166 — the third and last site
-      // of this defect class). A value that folds a following `#|` mapping line into itself
-      // MUST start with a quote or flow bracket (a plain scalar ends at its line; a
-      // continuation must be more-indented), so the first-char gate is COMPLETE and strictly
-      // more correct — an anchored/tagged opener `&a { … ` still arms because the node
-      // property is stripped BEFORE the first-char test (its brackets are then counted by the
-      // scan). `m[4]` is `key: value` (or a `- ` sequence item), so the value is the text
-      // after the first colon, else the line content past a leading `- `.
-      const armColon = content.indexOf(":");
-      const armToken =
-        armColon < 0
-          ? content.replace(/^-[ \t]*/, "").trimEnd()
-          : content.slice(armColon + 1).replace(/^[ \t]+/, "").trimEnd();
-      // Strip a leading node property before the first-char test. The name charset excludes
-      // ONLY the YAML c-flow-indicators `,[]{}` (the chars an anchor/tag NAME may not contain),
-      // so two things hold: (1) the strip stops at — and thus SEES — an opener that ABUTS the
-      // anchor/tag with no space (`&a[one,`/`&a{one:`, which js-yaml/quarto accept and fold:
-      // fig-cap takes a list, so `#| fig-cap: &a[one,` renders exit 0 — flagging its folded
-      // continuation would be a cardinal-sin FP the whole-token arm avoided; §9 branch-
-      // interaction lens, S154); and (2) a QUOTE, being a LEGAL anchor-name char, is KEPT in
-      // the name and NOT read as an opener — `#| myopt: &a'b` (a node named `a'b`, null value)
-      // quarto ACCEPTS (exit 0), so mis-reading `'b` as a quote opener would phantom-fold a
-      // following real option and drop its validation (`#| echo: banana` is then the SOLE
-      // error quarto reports, exit 1 — a lost TRUE POSITIVE). The earlier `[^\s[\]{}"']` form
-      // over-excluded quotes; corrected to the YAML-exact `[^\s,[\]{}]` to match the three
-      // front-matter/project VALUE enumerators (S155 §9 over-suppression correction,
-      // PROJECT_LEARNINGS #168). The trailing ws is optional so `&a [one,` and `&a[one,` both
-      // strip to `[one,`. This is the SINGLE-LINE arm decision. The SIBLING multi-line-
-      // continuation path (the `scanFlow(m[4], flowDepth, openQuote)` skip at the top of this
-      // loop) carried the SAME anchor-name-quote defect — `scanFlow` read a quote inside a node
-      // property NAME as a scalar opener, so `#| myopt: [` / `#| one, &a'b` / `#| ]` armed a
-      // phantom `'` that swallowed the following `#| echo: banana` (a lost TP: quarto folds the
-      // list, exit 0, and flags only echo, exit 1). That is now fixed AT THE ROOT — `scanFlow`
-      // skips node-property names (`&`/`*`/`!`, S157) — which also closes the mirror case where
-      // the anchor sits MID-flow on a single line (`#| myopt: [one, &a'b]`: the `]` no longer
-      // falls inside a phantom quote). So the first-char strip below and `scanFlow` are now BOTH
-      // node-property-aware for quotes, on every path (§9 missed-sites lens, S156; fixed S157).
-      const stripped = armToken.replace(/^(?:[&!][^\s,[\]{}]*[ \t]*)+/, "");
-      const opener = stripped[0];
-      if (opener === '"' || opener === "'" || opener === "[" || opener === "{") {
-        const s = scanFlow(armToken, 0, null);
-        flowDepth = s.depth > 0 ? s.depth : 0;
-        openQuote = s.quote;
-      } else if (BLOCK_SCALAR_HEADER.test(stripped)) {
-        // The value is a `|`/`>` block-scalar header, so its continuation is the block's
-        // more-indented literal content: arm the skip at THIS key's folded-indent (the block
-        // ends at the first non-blank `#|` line back at or below that indent). `stripped` has
-        // any leading node property removed (`&anchor |`), so an anchored block scalar arms too.
-        blockScalarIndent = foldedIndent;
+      // END OF THE CELL'S OPTION BLOCK — not merely a reset of the continuation state.
+      // Quarto reads a cell's `#|` directives from the LEADING contiguous run of directive
+      // lines and stops at the first body line that is not one; everything below is ordinary
+      // code, so a `#|` there is just a comment. Emitting it let value-diagnostics squiggle
+      // a document quarto ACCEPTS — the cardinal sin. Grounded firsthand vs quarto 1.7.33
+      // (`--no-execute`, 35 documents, S160): `1+1` / `#| echo: banana` renders exit 0, as do
+      // the other three terminator shapes — a BLANK line, a whitespace-only line, and a plain
+      // `# comment` — each of which likewise renders exit 0 for a following invalid option, on
+      // both the `#` (python/r) and `//` (ojs) comment-char families. Testing the DIRECTIVE
+      // PATTERN rather than "is this code" is what makes the terminator set exactly quarto's:
+      // a bare `#|`, a `#| ` with empty content, a gapless `#|key:`, and a spaced `# | key:`
+      // all match, and all were grounded as NON-terminators (quarto still reports their block's
+      // value errors, exit 1). Continuation lines of an open quoted/flow/block-scalar value are
+      // `#|` lines too, so they never terminate — the guards below still own that folding.
+      break;
+    }
+    // The indentation quarto sees for this `#|` line's folded content: the post-pipe
+    // whitespace `m[3]` minus the ONE space quarto's `^#\s*\| ?` directive strips.
+    const foldedIndent = m[3].startsWith(" ") ? m[3].length - 1 : m[3].length;
+    if (blockScalarIndent !== null) {
+      // Inside an open block scalar: a blank `#|` line (always part of the block) and any line
+      // MORE indented than the opening key are the block's literal content — skip them. The
+      // first non-blank line at or BELOW the opener's indent ENDS the block and is a real
+      // option again (fall through). Strictly-greater is quarto-faithful for a RENDERABLE doc: a
+      // sibling at the SAME folded-indent renders exit 1, a real option (grounded firsthand,
+      // S158). The boundary is the KEY's indent, not YAML's auto-detected CONTENT indent, so a
+      // `#|` line mis-indented BETWEEN the key and the content (key < foldedIndent < content) is
+      // also skipped — but that band exists ONLY on a doc quarto already rejects with a
+      // structural `YAMLException: bad indentation` (exit 1, never a value error), so over-
+      // skipping there is the safe false-negative direction, not a lost value TP (§9 over-
+      // suppression lens, S158).
+      if (content.trim() === "" || foldedIndent > blockScalarIndent) {
+        continue;
       }
+      blockScalarIndent = null;
+    }
+    if (flowDepth > 0 || openQuote !== null) {
+      // A continuation of a multi-line quoted/flow value on a prior `#|` line — skip it.
+      const s = scanFlow(content, flowDepth, openQuote);
+      flowDepth = Math.max(0, s.depth);
+      openQuote = s.quote;
+      continue;
+    }
+    // keyStart = comment chars + inter-pipe ws + the `|` + the gap before the key.
+    const keyStart = m[1].length + m[2].length + 1 + m[3].length;
+    const { keySlot, valueSlot } = slotsOf(content, keyStart);
+    result.push({
+      line: cell.startLine + 1 + j,
+      cellStartLine: cell.startLine,
+      cellLang: cell.lang,
+      prefix: m[1] + "|",
+      contentEndCol: keyStart + content.length,
+      keySlot,
+      valueSlot,
+    });
+    // Arm the continuation-skip only if THIS option's VALUE actually OPENS an unclosed
+    // quoted scalar / flow collection (or a `|`/`>` block scalar — the `else if` below),
+    // decided by the value token's FIRST character past a
+    // stripped node property (`&anchor `/`!tag `) — mirroring the two `.qmd` front-matter
+    // value enumerators (`yaml-frontmatter-values.ts`/`-nested-values.ts`) and the
+    // `_quarto.yml` reference (`project-yaml.ts` findProjectConfigValueLines). Deliberately
+    // NOT a `scanFlow` over the whole `m[4]`: that scan treats an inner quote/bracket in a
+    // PLAIN value as an opener and arms a phantom quote — `#| fig-cap: Don't do this`
+    // (quarto exit 0) armed a `'` whose guard then swallowed a following `#| echo: banana`
+    // that quarto REJECTS (exit 1), silently dropping its validation (Defect A / the
+    // phantom-quote FALSE NEGATIVE, S154; PROJECT_LEARNINGS #166 — the third and last site
+    // of this defect class). A value that folds a following `#|` mapping line into itself
+    // MUST start with a quote or flow bracket (a plain scalar ends at its line; a
+    // continuation must be more-indented), so the first-char gate is COMPLETE and strictly
+    // more correct — an anchored/tagged opener `&a { … ` still arms because the node
+    // property is stripped BEFORE the first-char test (its brackets are then counted by the
+    // scan). `m[4]` is `key: value` (or a `- ` sequence item), so the value is the text
+    // after the first colon, else the line content past a leading `- `.
+    const armColon = content.indexOf(":");
+    const armToken =
+      armColon < 0
+        ? content.replace(/^-[ \t]*/, "").trimEnd()
+        : content.slice(armColon + 1).replace(/^[ \t]+/, "").trimEnd();
+    // Strip a leading node property before the first-char test. The name charset excludes
+    // ONLY the YAML c-flow-indicators `,[]{}` (the chars an anchor/tag NAME may not contain),
+    // so two things hold: (1) the strip stops at — and thus SEES — an opener that ABUTS the
+    // anchor/tag with no space (`&a[one,`/`&a{one:`, which js-yaml/quarto accept and fold:
+    // fig-cap takes a list, so `#| fig-cap: &a[one,` renders exit 0 — flagging its folded
+    // continuation would be a cardinal-sin FP the whole-token arm avoided; §9 branch-
+    // interaction lens, S154); and (2) a QUOTE, being a LEGAL anchor-name char, is KEPT in
+    // the name and NOT read as an opener — `#| myopt: &a'b` (a node named `a'b`, null value)
+    // quarto ACCEPTS (exit 0), so mis-reading `'b` as a quote opener would phantom-fold a
+    // following real option and drop its validation (`#| echo: banana` is then the SOLE
+    // error quarto reports, exit 1 — a lost TRUE POSITIVE). The earlier `[^\s[\]{}"']` form
+    // over-excluded quotes; corrected to the YAML-exact `[^\s,[\]{}]` to match the three
+    // front-matter/project VALUE enumerators (S155 §9 over-suppression correction,
+    // PROJECT_LEARNINGS #168). The trailing ws is optional so `&a [one,` and `&a[one,` both
+    // strip to `[one,`. This is the SINGLE-LINE arm decision. The SIBLING multi-line-
+    // continuation path (the `scanFlow(m[4], flowDepth, openQuote)` skip at the top of this
+    // loop) carried the SAME anchor-name-quote defect — `scanFlow` read a quote inside a node
+    // property NAME as a scalar opener, so `#| myopt: [` / `#| one, &a'b` / `#| ]` armed a
+    // phantom `'` that swallowed the following `#| echo: banana` (a lost TP: quarto folds the
+    // list, exit 0, and flags only echo, exit 1). That is now fixed AT THE ROOT — `scanFlow`
+    // skips node-property names (`&`/`*`/`!`, S157) — which also closes the mirror case where
+    // the anchor sits MID-flow on a single line (`#| myopt: [one, &a'b]`: the `]` no longer
+    // falls inside a phantom quote). So the first-char strip below and `scanFlow` are now BOTH
+    // node-property-aware for quotes, on every path (§9 missed-sites lens, S156; fixed S157).
+    const stripped = armToken.replace(/^(?:[&!][^\s,[\]{}]*[ \t]*)+/, "");
+    const opener = stripped[0];
+    if (opener === '"' || opener === "'" || opener === "[" || opener === "{") {
+      const s = scanFlow(armToken, 0, null);
+      flowDepth = s.depth > 0 ? s.depth : 0;
+      openQuote = s.quote;
+    } else if (BLOCK_SCALAR_HEADER.test(stripped)) {
+      // The value is a `|`/`>` block-scalar header, so its continuation is the block's
+      // more-indented literal content: arm the skip at THIS key's folded-indent (the block
+      // ends at the first non-blank `#|` line back at or below that indent). `stripped` has
+      // any leading node property removed (`&anchor |`), so an anchored block scalar arms too.
+      blockScalarIndent = foldedIndent;
     }
   }
   return result;
