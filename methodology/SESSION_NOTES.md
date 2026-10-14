@@ -105,29 +105,3 @@ Real-document score unchanged (2,423 of 2,438), corpus reach 0 of 3,383, mutatio
 **Known residuals (filed):** the BACKLOG item with 3 families: a label that supplies no code, a default that hides it, and channels the rule never reads (the LOST direction).
 **TDD:** RED before GREEN for the first row (`g03`, `After` deleted); the other 35 rows passed on arrival (disclosed), each guard then shown against a mutant: dropping the alias turns 21 of the 36 RED, and the other 15 are controls or dotted residuals by design.
 **Host:** `test:integration` NOT run (needs the screen; core-only change, as Sessions 294 to 298). **Cost:** 6 agents, about 540 renders, one mutation pass, `npm run package` 1:19.
-
-## Session 304 Handoff Evaluation (by Session 305)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its harness names (`render304.sh`, `score304.cjs`, `build.sh`, `mkfixture304.cjs`, `corpusdiff304.cjs`, `mutate304.py`), gotchas 1 and 2 and the
-`cellTargetContext` pointer (`model.ts:7320`) all held at HEAD; Phase 0 found both ledger frontiers at HEAD and the ratchet citation matched the stored results.
-**Helped:** the harness, reused nearly unchanged (two sed-cloned scripts); `cellTargetContext`, which the final rule reuses whole; gotcha 6 (Jupyter `eval: false` alone keeps the label), which pointed at the per-engine facts; the BACKLOG item's
-"(7) `sec-`/`eq-`" row (k32, k33), which named the probes to start from.
-**Missing:** that Learning 703 (guard the channel, not the string) is the starting point for any removal rule: I designed a text-anchor exemption first and a white-box round proved it wrong; and that two of the item's own claims
-were over-general: "(7b) a `#| label: lst-x` on a cell is a phantom" is true under knitr only, and "the cheapest first is (7)'s `sec-`/`eq-` kinds (one guard)" took six commits and two workflows.
-**Wrong:** the `lst-` scope above, and `refs.ts` line numbers off by about 15 (`writtenElsewhere` at 382, not 367): small. **ROI: high.**
-
-## Session 305 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** I grounded before code: a 78-document grid (kind x cell language x engine) with predictions frozen first; two were wrong (`lst-` under Jupyter and markdown), which stopped a blanket "cells define figures and tables only" that a pinned
-mermaid test already contradicted. Two workflows (11 agents, about 1.6M subagent tokens, none rendered, transcripts audited clean for third-party source reads): 297 blind documents, then 150 white-box documents and three read-only reviewers; I
-rendered about 550 documents (3 wide) and re-checked every reviewer claim against the HTML. The white-box round found 34 documents where my first rule lost a label quarto defines; the final rule (Session 304's channel test over the whole
-document) is simpler, deletes the shared anchor reader, and scores 518 agreements against the parent's 329 on 686 rendered rows (phantoms 329 to 138, lost 28 to 30: two heading gaps the label used to hide). Corpus differential 0 of 3,382.
-Mutation: 58 mutants, 56 killed, the two survivors equivalent (caching only); the first run's three survivors led to four rendered documents that prove the two legs needed. Host RED (559 passing, 1 failing, the new row) then GREEN (560); unit 7,739;
-`npm run package` exit 0, 44 files, 1.85 MB. Learnings 710-713.
-**Went wrong.** (1) I did not grep the learnings before designing the exemption, so Learning 703 was rediscovered at the cost of a round and two commits (`def7cff3`, `d8cc5d15` carry the weaker rules and the shared reader, never released).
-(2) My first control rows pinned phantoms as defined (r and python under `engine: markdown`, a `lst-` row citing a Jupyter document for the markdown engine): a reviewer found them, not I. (3) A vacuous position row (passes whatever the guard does).
-(4) The first host RED attempt failed at the type-check (nothing ran, no screen takeover). (5) About five long waits drew "have not heard from you" nudges. (6) Two wrong numbers in a first draft of a learning and a comment, caught on re-read.
-**Known residuals (filed):** the kept phantoms where a channel exists, the heading gaps (li18, wl50), `lst-` under knitr, `engine: markdown` and Jupyter `echo: false`, a pre-existing `RangeError` in the anchor reader.
-**TDD:** RED before GREEN for the guard (`sec`, then `eq`), the channel rule and the no-channel rows; the two anchor-text commits were RED first too and later retired. Passed on arrival, disclosed: the 70-row language x engine grid, the control rows,
-the residual pins, the unseen-code rows (each guard then shown against a mutant) and the 367 fixture rows. **Cost:** 11 agents, about 550 renders by me, two mutation runs, two operator-approved host runs of about 2 minutes, `npm run package` 1:17.
