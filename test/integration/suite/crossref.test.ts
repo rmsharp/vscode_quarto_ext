@@ -305,6 +305,88 @@ describe("Quarto: Cross-reference completion + definition", () => {
     );
   });
 
+  it("a cell that makes no figure or table is neither offered after @ nor a definition target; its neighbours are (Session 304)", async () => {
+    // Quarto 1.7.33 prints `?@fig-off` for a knitr chunk with eval=FALSE (a figure needs a run) and for a Jupyter cell with
+    // include: false, and defines `@tbl-kept` from the same eval=FALSE because the table sits on the cell itself (`scratchpad/
+    // s304`, grid g001, g028, g243). The unit tests compose `resolveDocumentEngine` and `indexLabels` by hand; only the
+    // REGISTERED providers resolve the engine from `document.fileName` and the text, so this row fails if either call site stops
+    // handing it over, and it is the one place the completion list and go-to-definition are asserted together.
+    const open = async (content: string) => {
+      const doc = await vscode.workspace.openTextDocument({ language: "quarto", content });
+      await vscode.window.showTextDocument(doc);
+      return doc;
+    };
+    const labelsAfterAt = async (doc: vscode.TextDocument) => {
+      const line = doc.lineCount - 1;
+      const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+        "vscode.executeCompletionItemProvider",
+        doc.uri,
+        new vscode.Position(line, doc.lineAt(line).text.length),
+        "@",
+      );
+      return (list?.items ?? []).map(labelText);
+    };
+    const definitionAt = async (doc: vscode.TextDocument, line: number, column: number) =>
+      (await vscode.commands.executeCommand<vscode.Location[]>("vscode.executeDefinitionProvider", doc.uri, new vscode.Position(line, column))) ?? [];
+
+    const knitr = await open(
+      [
+        "```{r fig-off, eval=FALSE}", //                        0
+        '#| fig-cap: "Cap"', //                                  1
+        "plot(1)", //                                            2
+        "```", //                                                3
+        "",
+        "```{r fig-on}", //                                      5
+        '#| fig-cap: "Cap"',
+        "plot(1)",
+        "```",
+        "",
+        "```{r tbl-kept, eval=FALSE}", //                        10
+        '#| tbl-cap: "Cap"',
+        "knitr::kable(head(cars))",
+        "```",
+        "",
+        "See @fig-off and @fig-on and @", //                     15
+      ].join("\n"),
+    );
+    const knitrLabels = await labelsAfterAt(knitr);
+    assert.ok(knitrLabels.includes("@fig-on"), `a figure that is made is offered: ${JSON.stringify(knitrLabels)}`);
+    assert.ok(knitrLabels.includes("@tbl-kept"), `eval=FALSE does not stop a table: ${JSON.stringify(knitrLabels)}`);
+    assert.ok(!knitrLabels.includes("@fig-off"), `a figure label on a chunk that never runs is not offered: ${JSON.stringify(knitrLabels)}`);
+    // Line 15 "See @fig-off and @fig-on and @": col 8 is inside '@fig-off', col 22 inside '@fig-on'.
+    assert.strictEqual((await definitionAt(knitr, 15, 8)).length, 0, "no definition for a label quarto leaves unresolved");
+    const onLocations = await definitionAt(knitr, 15, 22);
+    assert.ok(onLocations.length > 0 && onLocations[0].range.start.line === 5, "the made figure still resolves, to its chunk header");
+
+    const jupyter = await open(
+      [
+        "---",
+        "jupyter: python3",
+        "---",
+        "",
+        "```{python}", //                                         4
+        "#| label: fig-drop",
+        "#| include: false",
+        '#| fig-cap: "Cap"',
+        "import matplotlib.pyplot as plt",
+        "plt.plot([1, 2])",
+        "```",
+        "",
+        "```{python}", //                                         12
+        "#| label: fig-show",
+        '#| fig-cap: "Cap"',
+        "import matplotlib.pyplot as plt",
+        "plt.plot([1, 2])",
+        "```",
+        "",
+        "See @",
+      ].join("\n"),
+    );
+    const jupyterLabels = await labelsAfterAt(jupyter);
+    assert.ok(jupyterLabels.includes("@fig-show"), `a Jupyter cell with something to show is offered: ${JSON.stringify(jupyterLabels)}`);
+    assert.ok(!jupyterLabels.includes("@fig-drop"), `a Jupyter cell with include: false is not: ${JSON.stringify(jupyterLabels)}`);
+  });
+
   it("a reader without `header_attributes` defines no sec- label (Session 216)", async () => {
     // ⚠ THIS IS THE CONSUMER SESSION 215's CHANGE COULD NOT REACH AND THIS ONE CAN.
     // `HEADING_ATTRIBUTE` is the ONLY source of `Heading.id`, which `src/core/refs.ts` turns

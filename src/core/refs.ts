@@ -355,6 +355,13 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
   // between is code. The scanner only ever sees column 0, so the stripped copy is what it is handed.
   const sourceLines = text.split(/\r?\n/);
   const targetContext = documentEngine === "knitr" || documentEngine === "jupyter" ? cellTargetContext(text) : null;
+  // ⚠ An id that the text spells as an ANCHOR somewhere else — `{#tbl-x}` in a `cat()` string, `#tbl-x` in an attribute list, a raw
+  // `id="tbl-x"` — is defined at run time from there even when the cell that carries the same label defines nothing (hunt2
+  // f20-f23, f43, rendered). A link TO an id (`(#tbl-x)`) or a reference (`@tbl-x`) is no anchor.
+  const writtenElsewhere = (id: string): boolean => {
+    const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`[{ \\t]#${escaped}(?![\\w.:-])|\\bid\\s*=\\s*["']${escaped}["']`).test(text);
+  };
   for (const cell of findAllCells(text)) {
     const indent = /^[ \t]*/.exec(sourceLines[cell.startLine])?.[0] ?? "";
     if (indent !== "" && COLUMN_ZERO_ONLY_LANGUAGES.has(cell.lang)) {
@@ -375,10 +382,11 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
     // struct-trap e01-e08, e43, rendered: defined). A cell is judged only when its closer is a bare fence at the
     // opener's indent (the scanner has already held its length to the opener's, and returns no unterminated cell).
     const closedAtOpener = new RegExp("^" + indent + "`{3,}[ \t]*$").test(sourceLines[cell.endLine] ?? "");
-    const makesNoTarget = (kind: RefKind): boolean =>
+    const makesNoTarget = (kind: RefKind, id: string): boolean =>
       targetContext !== null &&
       closedAtOpener &&
       (kind === "fig" || kind === "tbl") &&
+      !writtenElsewhere(id) &&
       (documentEngine === "knitr"
         ? knitrCellMakesNoTarget(sourceLines[cell.startLine], bodyLines, kind, targetContext)
         : cell.lang === "python" && jupyterCellMakesNoTarget(bodyLines, targetContext));
@@ -445,7 +453,7 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
       }
       const value = m[1];
       const kind = kindOf(value);
-      if (kind === null || makesNoTarget(kind)) {
+      if (kind === null || makesNoTarget(kind, value)) {
         continue;
       }
       labels.push({
@@ -464,7 +472,7 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
         ? knitrChunkHeaderLabel(sourceLines[cell.startLine], COLUMN_ZERO_ONLY_LANGUAGES)
         : null;
     const headerId = header === null ? null : HEADER_LABEL_ID.exec(header.value);
-    if (header !== null && headerId !== null && !makesNoTarget(headerId[1] as RefKind)) {
+    if (header !== null && headerId !== null && !makesNoTarget(headerId[1] as RefKind, header.value)) {
       labels.push({ id: header.value, kind: headerId[1] as RefKind, line: cell.startLine, column: header.column });
     }
   }

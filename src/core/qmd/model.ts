@@ -7258,24 +7258,22 @@ export type CellTargetKind = "fig" | "tbl";
 export interface CellTargetContext {
   /**
    * The document names a knitr function that fills a chunk with code written ELSEWHERE, by the chunk's label
-   * (`read_chunk`, `read_demo`, `read_rforge`, `knit_code`): then a chunk with no code on the page may still draw
+   * (`read_chunk`, `read_demo`, `read_rforge`, `knit_code`), or sets a default that does (`opts_chunk`, which can carry
+   * `ref.label`, `code`, `file` or `child` for every chunk: hunt2 a26, a27, b22): then a chunk with no code on the page may still draw
    * a figure (indirection x17, rendered). Read as a bare word anywhere in the text, prose included — a mention that is no call only
    * declines a removal, which is the safe side.
    */
   readonly codeFromElsewhere: boolean;
   /**
-   * The document assigns to a variable named `F` (`F <- TRUE`, `F = …`, `F <<- …`, `… -> F`, `assign("F", …)`), anywhere in
-   * its text. `F` is an ordinary R variable, not a reserved word like `FALSE`, so a header `eval=F` then means whatever the
-   * document made it mean (hunt a01-a05, a45, b14, b15, e11, e12, e31: all rendered, the label defined).
+   * The document names a chunk hook or template (`opts_hooks`, `opts_template`, `opts_knit`, `knit_hooks`, `opts.label`), or
+   * runs code this text does not show — `source()`, `sys.source`, a `knit_child`, the include shortcode — or reaches a package
+   * by a built name (`get(paste0(...))`, `asNamespace`, `pkg:::fun`, `eval(parse(...))`). An option the header or the pipe sets
+   * may then be set back before the chunk runs, or a variable rebound, or a chunk filled (hunt a06-a09, a11, a12-a25, b22, b23,
+   * c19-c21, e13, f11, f12, f17, f28, f29; hunt2 a12-a25, a19-a21, b23, f17, f28, f29: all rendered, the label DEFINED). Searched
+   * as bare words, prose included, so a mention that is no call only declines a removal. These are the words the hunters used,
+   * not a list of everything that can rewrite an option: an obfuscated call (a name built from pieces) is a disclosed residual.
    */
-  readonly rebindsF: boolean;
-  /**
-   * The document names a chunk hook or template (`opts_hooks`, `opts_template`, `opts.label`): an option the header or the
-   * pipe sets may be set back before the chunk runs (hunt a06-a09, a11, c19-c21, f11, f12, e13). Searched as bare words, prose
-   * included, so a mention that is no call only declines a removal. Measured only as the hunters' rendered documents: the
-   * words are what they used, not a list of everything that can rewrite an option.
-   */
-  readonly rewritesOptions: boolean;
+  readonly unseenCode: boolean;
   /**
    * The document names `keep-hidden`, an html option that keeps what `include`, `output` and `echo` hide, in a hidden element
    * that still carries the id: rendered, every removal built on those is wrong with it on and `eval: false` and an empty body
@@ -7284,29 +7282,135 @@ export interface CellTargetContext {
    */
   readonly keepsHidden: boolean;
   /**
-   * A front-matter key is spelled with a YAML escape (`"kni\\x74r":`, `"eng\\x69ne": knitr`), which the engine resolver reads as
-   * plain text and cannot decode: quarto runs knitr where the resolver answers Jupyter (hunt c47, c48, rendered: the label is
-   * defined). The engine this document runs under is then unknown, so no removal is made.
+   * The front matter is not built of plain `key: value` lines ({@link plainFrontMatter}). The engine resolver reads it as text, and
+   * round 1 and 2 of the hunt blinded it 60 ways — an escaped key or value (`"kni\\x74r":`, `engine: "jup\\x79ter"`; round 1
+   * c47, c48), a flow mapping, an anchor, a complex key, one space of indent, a quoted container key, a quote or an apostrophe in a
+   * flow list, `jupyter: ""`, a BOM, an unterminated block (hunt2 e01-e37, a28-a42, d01-d25, b14-b21, f08-f26): quarto runs one
+   * engine and the resolver answers the other, or `keep-hidden` is set out of its sight. Every document of those was rendered and
+   * the label is DEFINED. The engine is then unknown, so no removal is made.
    */
-  readonly undecodableKey: boolean;
+  readonly opaqueFrontMatter: boolean;
 }
 /** The document-level facts the cell readers need, read once per document. */
 export function cellTargetContext(text: string): CellTargetContext {
   return {
-    codeFromElsewhere: /read_chunk|read_demo|read_rforge|knit_code/.test(text),
-    rebindsF: /(?<![\w.$@])F\s*(?:<<?-|=(?!=))|->>?\s*F(?![\w.])|assign\(\s*["']F["']/.test(text),
-    rewritesOptions: /opts_hooks|opts_template|opts[._-]label/.test(text),
+    codeFromElsewhere: /read_chunk|read_demo|read_rforge|knit_code|opts_chunk/.test(text),
+    unseenCode:
+      /opts_hooks|opts_template|opts_knit|knit_hooks|opts[._-]label|knit_child|sys\.source|(?<![\w.])source\s*\(|\{\{<\s*include\b|asNamespace|getExportedValue|\w:::\w|get\s*\(\s*paste|eval\s*\(\s*parse/.test(
+        text,
+      ),
     keepsHidden: /keep-hidden/.test(text),
-    undecodableKey: /^[ \t]*(["'])[^"'\n]*\\[^"'\n]*\1[ \t]*:/m.test(text),
+    opaqueFrontMatter: !plainFrontMatter(text),
   };
+}
+const PLAIN_ENGINE_KEYS: ReadonlySet<string> = new Set(["jupyter", "knitr", "engine", "julia"]);
+/** One `key: value` line (the key bare, optionally behind a `- ` item marker), the indent and the value split out. */
+const PLAIN_KEY_LINE = /^( *)(- +)?([A-Za-z_][A-Za-z0-9_.-]*) *:(?: +(.*?))? *$/;
+/** One `- value` sequence item. */
+const PLAIN_ITEM_LINE = /^( *)- +(.+?) *$/;
+/**
+ * Whether the document's front matter is PLAIN (Session 304): absent, or the first thing in the file and made of nothing but
+ * lines YAML and the engine resolver can only read one way. This is a WHITELIST, because the resolver reads the block as text and
+ * round 2 of the hunt showed a blacklist of the spellings that blind it never ends (see `CellTargetContext.opaqueFrontMatter`).
+ *
+ * Plain means: no byte order mark; if the first non-blank line is `---`, it is the FIRST line and a `---` or `...` line closes
+ * it; every line is blank, a `#` comment, a `key: value` line or a `- item`, all indented by spaces and the first content line at
+ * column 0 with every column-0 line a key; a value is empty (a block follows), a block-scalar indicator (its indented block is
+ * skipped as text), a plain scalar with no quote, bracket, brace, backslash, `&`, `*`, `!`, `?`, `%` or `@` start and no `: ` or
+ * ` #` inside, a double-quoted string with no backslash or inner quote, a single-quoted string with no inner quote, or a one-line
+ * flow list of such words. The four engine keys (`jupyter`, `knitr`, `engine`, `julia`) may not be quoted, because
+ * `jupyter: ""` is false to quarto and truthy to the resolver (hunt2 e23, e24). Anything else — and a document whose first
+ * non-blank line is `---` but not the first line — is not plain.
+ *
+ * ⚠ This only decides whether the text can be trusted; it models none of YAML. An apostrophe in a title (`title: Bob's`) makes a
+ * front matter not plain and declines the rules for that document: a lost removal, the safe side.
+ */
+function plainFrontMatter(text: string): boolean {
+  if (text.charCodeAt(0) === 0xfeff) {
+    return false;
+  }
+  const lines = text.split(/\r?\n/);
+  let first = 0;
+  while (first < lines.length && lines[first].trim() === "") {
+    first++;
+  }
+  if (first >= lines.length || !/^---[ \t]*$/.test(lines[first])) {
+    return true; // nothing at the top that could hide a key
+  }
+  if (first !== 0) {
+    return false;
+  }
+  let end = -1;
+  for (let j = 1; j < lines.length && end < 0; j++) {
+    if (FRONTMATTER_CLOSE.test(lines[j])) {
+      end = j;
+    }
+  }
+  if (end < 0) {
+    return false;
+  }
+  const plainWord = /^[^\s"'[\]{}&*!|>%@`#,?:-][^"'[\]{}\\]*$/;
+  const flowItem = /^(?:"[^"\\]*"|'[^']*'|[\w.@/+ -]+)$/;
+  let sawContent = false;
+  let blockOver = -1; // lines indented deeper than this belong to a block scalar
+  for (let j = 1; j < end; j++) {
+    const line = lines[j];
+    if (line.trim() === "") {
+      continue;
+    }
+    const indent = /^ */.exec(line)?.[0].length ?? 0;
+    if (blockOver >= 0 && indent > blockOver) {
+      continue;
+    }
+    blockOver = -1;
+    if (/^ *#/.test(line)) {
+      continue;
+    }
+    if (line.startsWith("\t") || /^ *\t/.test(line) || (!sawContent && indent !== 0)) {
+      return false;
+    }
+    sawContent = true;
+    const key = PLAIN_KEY_LINE.exec(line);
+    if (key === null) {
+      const item = PLAIN_ITEM_LINE.exec(line);
+      if (item === null || indent === 0 || !(plainWord.test(item[2]) || /^"[^"\\]*"$|^'[^']*'$/.test(item[2]))) {
+        return false;
+      }
+      continue;
+    }
+    if (indent === 0 && key[2] !== undefined) {
+      return false;
+    }
+    const value = (key[4] ?? "").replace(/ +#.*$/, "");
+    if (value === "") {
+      continue;
+    }
+    const quoted = /^"[^"\\]*"$|^'[^']*'$/.test(value);
+    if (/^[|>][+-]?[0-9]?$/.test(value)) {
+      blockOver = indent;
+    } else if (quoted) {
+      if (PLAIN_ENGINE_KEYS.has(key[3])) {
+        return false;
+      }
+    } else if (value.startsWith("[")) {
+      const body = /^\[(.*)\]$/.exec(value)?.[1];
+      if (body === undefined || (body.trim() !== "" && !body.split(",").every((word) => flowItem.test(word.trim())))) {
+        return false;
+      }
+    } else if (!plainWord.test(value) || /:(?: |$)/.test(value)) {
+      return false;
+    }
+  }
+  return true;
 }
 /**
  * Whether a chunk option is POSITIVELY false (Session 304), narrower than {@link knitrOptionResolvesFalse}: a leading `#|` line
  * wins over the header, as for every option, and then only the spellings that cannot mean anything else are read. A pipe value is
  * `false`, `False`, `FALSE` or the literal `!expr FALSE` (quarto refuses `no`, `n`, `off` and a quoted `'false'` for these options
- * outright: grid g248-g250, pipe-yaml p04-p06, p15). A header value is the reserved word `FALSE`, or `F` while the document
- * never rebinds it.
- * ⚠ Every other R expression — `!TRUE`, `FALSE & TRUE`, `(FALSE)`, a variable, a call — is NOT read, though several evaluate as
+ * outright: grid g248-g250, pipe-yaml p04-p06, p15). A header value is the reserved word `FALSE` and nothing else: `F` is an
+ * ordinary variable that a document rebinds in more than twenty ways (hunt a01-a18, b01-b13, f11-f16), so `eval=F` is not read
+ * although `FALSE` and `F` measured alike on a document that leaves it alone (k10, knitr-header h19, grid2 g096).
+ * ⚠ Every other R expression — `F`, `!TRUE`, `FALSE & TRUE`, `(FALSE)`, a variable, a call — is NOT read, though several evaluate as
  * written (knitr-header h06, h07, h21): knitr evaluates them in the document's own session, where `(`, `&`, `||` and the rest
  * can be redefined (hunt b16-b19). A wrong "false" removes a label quarto defines; a wrong "not read" keeps a phantom.
  */
@@ -7314,14 +7418,13 @@ function cellOptionIsFalse(
   name: "eval" | "include" | "output",
   header: ReadonlyMap<string, string>,
   pipe: ReadonlyMap<string, string>,
-  context: CellTargetContext,
 ): boolean {
   const piped = pipe.get(name);
   if (piped !== undefined) {
     return KNITR_YAML_FALSE.test(piped) || piped === "!expr FALSE";
   }
   const value = header.get(name);
-  return value === "FALSE" || (value === "F" && !context.rebindsF);
+  return value === "FALSE";
 }
 /**
  * Whether a knitr chunk is POSITIVELY known to leave the cross-reference target its label names undefined
@@ -7371,20 +7474,20 @@ export function knitrCellMakesNoTarget(
     !/^(?:r|R|python)$/.test(engine[1]) ||
     header.has("engine") ||
     pipe.has("engine") ||
-    context.rewritesOptions ||
-    context.undecodableKey
+    context.unseenCode ||
+    context.opaqueFrontMatter
   ) {
     return false;
   }
-  if (!context.keepsHidden && cellOptionIsFalse("include", header, pipe, context)) {
+  if (!context.keepsHidden && cellOptionIsFalse("include", header, pipe)) {
     return true;
   }
   if (target !== "fig") {
     return false;
   }
   if (
-    cellOptionIsFalse("eval", header, pipe, context) ||
-    (!context.keepsHidden && cellOptionIsFalse("output", header, pipe, context))
+    cellOptionIsFalse("eval", header, pipe) ||
+    (!context.keepsHidden && cellOptionIsFalse("output", header, pipe))
   ) {
     return true;
   }
@@ -7430,7 +7533,7 @@ function codeLinesAfterPipe(body: readonly string[]): readonly string[] {
  */
 export function jupyterCellMakesNoTarget(body: readonly string[], context: CellTargetContext): boolean {
   const pipe = knitrPipeOptions(body);
-  if (pipe === null || context.undecodableKey) {
+  if (pipe === null || context.opaqueFrontMatter) {
     return false;
   }
   const isFalse = (name: string): boolean => {

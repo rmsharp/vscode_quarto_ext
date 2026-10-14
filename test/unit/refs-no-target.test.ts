@@ -69,35 +69,29 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
     it.each([
       ["eval=FALSE", "a literal"],
       ["eval = FALSE", "spaces around = (h01)"],
-      ["eval=F", "the short spelling (k10)"],
       ["eval=TRUE, eval=FALSE", "the last assignment wins (h27)"],
-      ["include=F", "include, short spelling (h19)"],
       ["echo=FALSE, eval=FALSE", "beside a harmless option (p35)"],
-    ])("a header value that is false stops the figure: %s — %s", (options) => {
+    ])("a header value that is FALSE stops the figure: %s — %s", (options) => {
       expect(ids(chunk(`{r fig-x, ${options}}`, '#| fig-cap: "Cap"', "plot(1)"))).toEqual([]);
     });
 
-    describe("a value R evaluates is read ONLY when it is the literal FALSE or an F the document never rebinds", () => {
+    describe("a value R evaluates is read ONLY when it is the literal FALSE", () => {
       // knitr evaluates a header value as R code in the document's own session, so anything but the reserved word FALSE can
-      // mean something else: `F` is an ordinary variable, and `(`, `||`, `&`, `|` and `!` can be redefined (hunt hdr-trap
-      // a01-a05, a45, pipe-trap b14-b19, struct-trap e11, e12, e31: all rendered, the label DEFINED). The logical
-      // expressions that DO evaluate as written (`!TRUE`, `FALSE & TRUE`: h06, h07, h21) are left as phantoms for the same reason.
+      // mean something else. `F` is an ordinary variable: the white-box hunters rebound it in more than twenty ways (`F <- TRUE`,
+      // a backtick or quoted name, `assign(x = "F", ...)`, a `for` variable, `delayedAssign`, `makeActiveBinding`, `list2env`,
+      // `attach`, `F[1] <-`, `.GlobalEnv$F`, a sourced file, a child document, reticulate's `r.F`, an `eval(parse(...))` string:
+      // hunt a01-a18, a40, b01-b13, f11-f16, all rendered, the label DEFINED), so a guard on the text can never be complete.
+      // `eval=F`, `include=F` and `output=F` are therefore left as phantoms (k10, h19 and grid2 g096 measured them undefined).
+      // The expressions that DO evaluate as written (`!TRUE`, `FALSE & TRUE`: h06, h07, h21) are left for the same reason.
       it.each([
-        ["F <- TRUE", "a01"],
-        ["F = TRUE", "an equals assignment"],
-        ["F <<- TRUE", "a global assignment"],
-        ["TRUE -> F", "a right assignment"],
-        ['assign("F", TRUE)', "assign()"],
-        ["x <- c(F <- TRUE)", "an assignment inside a call"],
-      ])("%s earlier in the document keeps a chunk with eval=F, include=F and output=F (%s)", (setup) => {
-        for (const option of ["eval=F", "include=F", "output=F"]) {
-          const text = [chunk("{r setup, include=FALSE}", setup), "", chunk(`{r fig-x, ${option}}`, '#| fig-cap: "Cap"', "plot(1)")].join("\n");
-          expect(ids(text)).toEqual(["fig-x"]);
-        }
-      });
-
-      it("…even when the rebinding sits in the header itself (a04) or in another chunk's python or comment text", () => {
-        expect(ids(chunk("{r fig-x, my.opt=(F <- TRUE), eval=F}", '#| fig-cap: "Cap"', "plot(1)"))).toEqual(["fig-x"]);
+        ["eval=F", "k10"],
+        ["include=F", "h19"],
+        ["output=F", "grid2 g096"],
+        ["eval = F", "spaced"],
+      ])("%s is not read, whatever the document does with F (%s)", (option) => {
+        expect(ids(chunk(`{r fig-x, ${option}}`, '#| fig-cap: "Cap"', "plot(1)"))).toEqual(["fig-x"]);
+        const rebound = [chunk("{r setup, include=FALSE}", "F <- TRUE"), "", chunk(`{r fig-x, ${option}}`, '#| fig-cap: "Cap"', "plot(1)")].join("\n");
+        expect(ids(rebound)).toEqual(["fig-x"]);
       });
 
       it("a literal FALSE cannot be rebound, so it still removes the label with F rebound (a01 control)", () => {
@@ -136,8 +130,7 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
     });
 
     it.each([
-      ["{r fig-x, output=FALSE}", "g095"],
-      ["{r fig-x, output=F}", "g096"],
+      ["{r fig-x, output=FALSE}", "grid2 g095"],
     ])("output=FALSE drops the figure from the output: %s (%s)", (header) => {
       expect(ids(chunk(header, '#| fig-cap: "Cap"', "plot(1)"))).toEqual([]);
     });
@@ -185,6 +178,36 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
       }
     });
 
+    it.each([
+      ['source("_common.R")', "hunt2 a12, a20, a24: a sourced file may rebind, hook or fill chunks"],
+      ['sys.source("_common.R", envir = globalenv())', "the same through sys.source"],
+      ["{{< include _setup.qmd >}}", "a09-style: an included file's chunks run first (a15, a19, a25)"],
+      ['knitr::knit_child("part.Rmd", quiet = TRUE)', "a child document (a14)"],
+      ["knitr::knit_hooks$set(plot = function(x, options) '![](x.png){#fig-x}')", "a knit hook writes markdown (f28, f29)"],
+      ['knitr::opts_knit$set(aliases = c(go = "eval"))', "an alias for eval (a22)"],
+      ['f <- get(paste0("opts_", "hooks"), envir = asNamespace("knitr"))', "an option hook fetched by a built name (a21, b23, f17)"],
+      ['knitr:::opts_hooks', "an internal reached with :::"],
+      ['eval(parse(text = paste("opts_", "hooks")))', "an eval(parse()) string"],
+    ])("%s keeps a chunk with eval=FALSE or include=FALSE (%s)", (setup) => {
+      for (const header of ["{r fig-x, eval=FALSE}", "{r fig-x, include=FALSE}"]) {
+        const text = [chunk("{r setup, include=FALSE}", setup), "", chunk(header, '#| fig-cap: "Cap"', "plot(1)")].join("\n");
+        expect(ids(text)).toEqual(["fig-x"]);
+      }
+    });
+
+    it("…and a pandoc div or a prose mention of `source` without a call is NOT such a thing (control)", () => {
+      const text = ["::: {.callout-note}", "The data source is documented below.", ":::", "", chunk("{r fig-x, eval=FALSE}", '#| fig-cap: "Cap"', "plot(1)")].join("\n");
+      expect(ids(text)).toEqual([]);
+    });
+
+    it.each([
+      ["knitr::opts_chunk$set(ref.label = 'src')", "a26: a default that gives an empty chunk its code"],
+      ["---\nknitr:\n  opts_chunk:\n    ref.label: src\n---", "a27: the same from the front matter"],
+    ])("an empty figure chunk is kept when the document names opts_chunk: %s (%s)", (where) => {
+      const text = where.startsWith("---") ? [where, "", chunk("{r fig-x}", '#| fig-cap: "Cap"')].join("\n") : [chunk("{r setup, include=FALSE}", where), "", chunk("{r fig-x}", '#| fig-cap: "Cap"')].join("\n");
+      expect(ids(text)).toEqual(["fig-x"]);
+    });
+
     it("a chunk that NAMES a template keeps its label, whatever else the document says (f11)", () => {
       expect(ids(chunk("{r fig-x, opts.label='on', eval=FALSE}", '#| fig-cap: "Cap"', "plot(1)"))).toEqual(["fig-x"]);
       expect(ids(chunk("{r}", "#| label: fig-x", "#| opts-label: on", "#| eval: false", '#| fig-cap: "Cap"', "plot(1)"))).toEqual(["fig-x"]);
@@ -224,6 +247,76 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
     });
   });
 
+  describe("only a PLAIN front matter lets a rule remove a label (the engine resolver reads it as text)", () => {
+    // Every rule here depends on which engine runs the document, and the engine resolver finds that by reading the front matter
+    // as plain text. Round 2 of the hunt (hunt2 engine-resolution e01-e37, guard-evasion a28-a42, jupyter-visibility d01-d25,
+    // option-spelling b14-b21, table-kind f08-f26; 121 rendered documents where the label is DEFINED) blinded it with front
+    // matter YAML reads but the resolver does not: a flow mapping, an anchor or complex key, an escaped key or value, one or two
+    // spaces of indent on every line, a quoted container key, an apostrophe or a quote inside a flow list, `jupyter: ""`, a BOM,
+    // a block that never ends. So a rule removes a label only from a document whose front matter is built of nothing else than
+    // plain `key: value` lines, nested by indent, with plain or simply quoted values: a whitelist, since a blacklist of the
+    // spellings that blind a text reader can never be complete. The same gate stands for `keep-hidden` spelled in any of those.
+    const body = chunk("{r fig-x, eval=FALSE}", '#| fig-cap: "Cap"', "plot(1)");
+    const withFront = (yaml: string): string => ["---", yaml, "---", "", body].join("\n");
+    const jbody = chunk("{python}", "#| label: tbl-x", "#| echo: false", "#| eval: false", '#| tbl-cap: "Cap"', "pass");
+    const jupyterWith = (yaml: string): string => ["---", yaml, "---", "", jbody].join("\n");
+    const jids = (text: string): string[] => indexLabels(text, "jupyter").map((l) => l.id);
+
+    it.each([
+      ['title: "A: B"\nauthor:\n  - Jane Doe\n  - John Roe\ndate: 2024-01-31', "quoted colon, list, date"],
+      ["title: Plain title\nformat:\n  html:\n    toc: true\n    code-fold: false", "nested blocks"],
+      ["title: t\nkeywords: [alpha, beta, gamma]\nbibliography: [a.bib, b.bib]", "plain flow lists"],
+      ['title: t\n# a comment: with a colon\nexecute:\n  echo: true', "comments and an execute block"],
+      ["title: t\nabstract: |\n  A block scalar may hold anything: even engine: knitr,\n  or eval: false.\nlang: en", "a block scalar"],
+      ["title: t\n\nformat:\n  pdf:\n    documentclass: article", "a blank line between keys"],
+    ])("a plain front matter still lets the rule fire: %s", (yaml) => {
+      expect(ids(withFront(yaml))).toEqual([]);
+    });
+
+    it.each([
+      ['{title: "t", engine: knitr}', "a flow mapping for the whole block (a33, e08)"],
+      [' title: t\n engine: knitr', "every line indented one space (a34, e06)"],
+      ['  title: t\n  jupyter: python3', "every line indented two (e05)"],
+      ["title: t\n&e engine: knitr", "an anchor on a key (a35, e11, d19)"],
+      ["title: t\n? engine\n: knitr", "a complex key (a38, e07, d11)"],
+      ['title: t\n? "eng\\x69ne"\n: knitr', "a complex key with an escape (b17)"],
+      ['title: t\nengine: "jup\\x79ter"', "an escaped engine value (e01, d13)"],
+      ['title: t\nformat: {html: {"keep\\x2dhidden": true}}', "keep-hidden behind an escape in a flow mapping (a28, d01)"],
+      ['title: t\n"execute":\n  engine: jupyter', "a quoted container key (e33, e34)"],
+      ["title: t\nkeywords: [it's, fine]\nengine: knitr", "an apostrophe inside a flow list (d06, d21)"],
+      ['title: t\nkeywords: [5" pipe, x]\nengine: knitr', "a double quote inside a flow list (d08)"],
+      ['title: t\njupyter: "" # none', "an empty quoted jupyter key (e23)"],
+      ["title: t\njupyter: ''", "a single-quoted empty jupyter key (e24)"],
+      ['title: t\nengine: "knitr"', "a quoted engine value"],
+      ["title: t\nnote: first line\n  continued here", "a multi-line plain scalar"],
+      ['title: "multi\nline"', "a multi-line quoted scalar (c01)"],
+      ["title: t\n\tengine: knitr", "a tab indent"],
+      ["title: t\nformat: &fmt\n  html: default", "an anchor on a value"],
+      ["title: t\nformat: *fmt", "an alias"],
+      ["title: t\nbase: !expr x", "a tag"],
+    ])("a front matter built of %s is not plain, so nothing is removed", (yaml, _why) => {
+      expect(ids(withFront(yaml))).toEqual(["fig-x"]);
+      expect(jids(jupyterWith(yaml))).toEqual(["tbl-x"]);
+    });
+
+    it("…a byte order mark before the first --- (e37)", () => {
+      expect(ids("\uFEFF---\ntitle: t\n---\n\n" + body)).toEqual(["fig-x"]);
+    });
+
+    it("…a --- block that follows a blank line and is never closed (hunt2 e20, e25, e26: quarto sees no front matter)", () => {
+      expect(ids(["", "---", "title: t", "", body].join("\n"))).toEqual(["fig-x"]);
+    });
+
+    it("an unclosed --- on the FIRST line swallows the document for the scanner, so no cell is found at all (as before this session)", () => {
+      expect(ids(["---", "title: t", "", body].join("\n"))).toEqual([]);
+    });
+
+    it("a document with no front matter at all, or a --- rule lower down, is plain (a thematic break is no metadata)", () => {
+      expect(ids(body)).toEqual([]);
+      expect(ids(["Intro.", "", "---", "", body].join("\n"))).toEqual([]);
+    });
+  });
+
   describe("a document whose engine this cannot decode, or whose code is called by a built name, is not read", () => {
     // The engine resolver reads the front matter as plain text, so a key spelled with a YAML escape (`"kni\\x74r":`, `"eng\\x69ne":`)
     // is a key it cannot see: quarto runs knitr and the resolver answers Jupyter (hunt front-trap c47, c48, rendered: the label
@@ -253,13 +346,47 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
       expect(jids(text)).toEqual([]);
     });
 
-    it("RESIDUAL — a read_chunk call whose name is BUILT from strings is invisible, and the empty chunk it fills loses its label (hunt a10)", () => {
+    it("a read_chunk call whose name is BUILT from strings is caught by the built-name guard (hunt a10, rendered: defined)", () => {
       const text = [
         chunk("{r a10setup, include=FALSE}", 'rc <- get(paste0("read_", "chunk"), envir = asNamespace("knitr"))', 'rc(lines = c("## ---- fig-x", "plot(1:10)"))'),
         "",
         chunk("{r fig-x}", '#| fig-cap: "Cap"'),
       ].join("\n");
+      expect(ids(text)).toEqual(["fig-x"]);
+    });
+  });
+
+  describe("an id the text writes another way is not removed (hunt2 f20-f23, f43)", () => {
+    // A hidden or never-run chunk can carry a label while ANOTHER place writes the same id at run time (a `cat()` of
+    // `{#tbl-x}`, a raw `<div id="tbl-x">`): quarto defines it from there, and the index would have answered "defined" only by
+    // luck of the hidden chunk. So a label whose id is spelled as an anchor anywhere else in the text is kept.
+    it.each([
+      ['cat("| a |\\n|---|\\n| 1 |\\n\\n: Cap {#tbl-x}\\n")', "f20: a table caption written by cat() in an asis chunk"],
+      ['cat("![Cap](data:image/gif;base64,R0lGODlh){#fig-x}\\n")', "f22: an image written by cat()"],
+      ["print('<div id=\"fig-x\"></div>')", "a raw html id written from code"],
+    ])("a hidden chunk's label survives when %s", (writer) => {
+      const kind = writer.includes("tbl-x") ? "tbl" : "fig";
+      const text = [
+        chunk(`{r ${kind}-x, include=FALSE}`, `#| ${kind}-cap: "Cap"`, "shown <- 1"),
+        "",
+        chunk("{r gen, results='asis', echo=FALSE}", writer),
+      ].join("\n");
+      expect(ids(text)).toEqual([`${kind}-x`]);
+    });
+
+    it("…and a raw html anchor in the prose does too (f43)", () => {
+      const text = ['<div id="tbl-x">', "", "| a | b |", "|---|---|", "| 1 | 2 |", "", "</div>", "", chunk("{r tbl-x, include=FALSE}", "shown <- 1")].join("\n");
+      expect(ids(text)).toEqual(["tbl-x"]);
+    });
+
+    it("a link TO the id, or a reference to it, is no anchor: the hidden chunk's label is still removed (control)", () => {
+      const text = ["See [the table](#tbl-x) and @tbl-x.", "", chunk("{r tbl-x, include=FALSE}", '#| tbl-cap: "Cap"', "knitr::kable(head(cars, 2))")].join("\n");
       expect(ids(text)).toEqual([]);
+    });
+
+    it("another id's anchor is no reason to keep this one (control)", () => {
+      const text = ['![Cap](a.png){#fig-other}', "", chunk("{r fig-x, eval=FALSE}", '#| fig-cap: "Cap"', "plot(1)")].join("\n");
+      expect(ids(text)).toEqual(["fig-other"]);
     });
   });
 
@@ -717,14 +844,15 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
   });
 
   describe("every shape rendered with quarto 1.7.33, document by document", () => {
-    // `[extension, engine, quartoDefined, indexDefined, document]`, 1,130 distinct documents from `scratchpad/s304`: the blind
-    // grids (`grid`..`grid5`), six blind lenses and six white-box hunters (`hunt/`). The suppressors in every spelling, the
-    // document defaults, the code contents, the indirection shapes, Jupyter, and every hazard the hunt found. `quartoDefined` is
-    // what the rendered HTML says; `indexDefined` is what this index answered when the fixture was written. A document that made
-    // quarto exit non-zero, or whose id the HTML cannot decide, is omitted. This is Learning #685's closed-world pin: every row is
-    // pinned at BOTH, so a rule that starts removing a label quarto defines, or stops removing one, fails here and the fixture
-    // must be regenerated on purpose. (The probes live in the untracked `scratchpad/`, as every earlier fixture's do.)
-    type Row = [string, string, boolean, boolean, string];
+    // `[extension, engine, quartoDefined, indexDefined, parentDefined, document]`, 1,400 distinct documents from `scratchpad/s304`:
+    // the blind grids (`grid`..`grid6`), six blind lenses, and twelve white-box hunters in two rounds (`hunt/`, `hunt2/`): the
+    // suppressors in every spelling, the document defaults, the code contents, the indirection shapes, Jupyter, and every hazard
+    // the hunts found. `quartoDefined` is what the rendered HTML says; `indexDefined` is what this index answered when the fixture
+    // was written; `parentDefined` is what it answered BEFORE Session 304. A document that made quarto exit non-zero, or whose
+    // id the HTML cannot decide, is omitted. This is Learning #685's closed-world pin: every row is pinned, so a rule that starts
+    // removing a label quarto defines, or stops removing one, fails here and the fixture must be regenerated on purpose.
+    // (The probes live in the untracked `scratchpad/`, as every earlier fixture's do.)
+    type Row = [string, string, boolean, boolean, boolean, string];
     const FIXTURE = path.join(__dirname, "../fixtures/no-target-shapes/quarto-1.7.33.json");
     const rows = (JSON.parse(readFileSync(FIXTURE, "utf8")) as { rows: Row[] }).rows;
     const shape = (text: string): string =>
@@ -735,36 +863,38 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
         .replace(/\n/g, " ⏎ ")
         .slice(0, 150);
     const found = (r: Row): boolean => {
-      const id = /See @((?:fig|tbl|lst|eq|sec)-x)\./.exec(r[4])?.[1] ?? "";
-      return indexLabels(r[4], resolveDocumentEngine("a" + r[0], r[4])).some((l) => l.id === id);
+      const id = /See @((?:fig|tbl|lst|eq|sec)-x)\./.exec(r[5])?.[1] ?? "";
+      return indexLabels(r[5], resolveDocumentEngine("a" + r[0], r[5])).some((l) => l.id === id);
     };
     const against = (r: Row): "agree" | "PHANTOM" | "LOST" => (found(r) === r[2] ? "agree" : found(r) ? "PHANTOM" : "LOST");
 
-    it("covers the whole fixture: 1,130 documents, 665 of which quarto defines the label for", () => {
-      expect(rows).toHaveLength(1130);
-      expect(rows.filter((r) => r[2])).toHaveLength(665);
+    it("covers the whole fixture: 1,400 documents, 836 of which quarto defines the label for", () => {
+      expect(rows).toHaveLength(1400);
+      expect(rows.filter((r) => r[2])).toHaveLength(836);
     });
 
-    it("the index, run now, agrees with quarto on 856 documents, keeps a phantom on 268 and misses a label on 6", () => {
+    it("the index, run now, agrees with quarto on 1,069 documents (the parent did on 820), keeps a phantom on 300 and misses a label on 31", () => {
       const counts = { agree: 0, PHANTOM: 0, LOST: 0 };
       for (const r of rows) {
         counts[against(r)]++;
       }
-      expect(counts).toEqual({ agree: 856, PHANTOM: 268, LOST: 6 });
+      expect(counts).toEqual({ agree: 1069, PHANTOM: 300, LOST: 31 });
+      expect(rows.filter((r) => r[3] === r[2])).toHaveLength(1069);
+      expect(rows.filter((r) => r[4] === r[2])).toHaveLength(820);
     });
 
-    it("…and every one of the six missed labels has a named cause, five of them older than this session", () => {
-      const causes: [RegExp, string][] = [
-        [/execute: \{eval: false\}/, "the engine resolver gives up on a flow `execute: {…}` (Session 164): 3 rows, in the parent too"],
-        [/label: fig-xx/, "a scanner shape, a cell closed or unclosed against another: 2 rows, in the parent too"],
-        [/paste0\("read_", "chunk"\)/, "RESIDUAL: a read_chunk call whose name is built from strings (hunt a10): 1 row, this session's"],
-      ];
-      for (const r of rows.filter((x) => against(x) === "LOST")) {
-        expect(causes.some(([pattern]) => pattern.test(r[4])), shape(r[4])).toBe(true);
-      }
+    it("NO label that quarto defines and the parent kept is removed now (the property this session exists to keep)", () => {
+      const worse = rows.filter((r) => r[2] && r[4] && !found(r));
+      expect(worse.map((r) => shape(r[5]))).toEqual([]);
     });
 
-    it.each(rows.map((r) => [shape(r[4]), r] as const))("%s", (_shape, r) => {
+    it("every one of the 31 missed labels was missed BEFORE this session too: the cell scanner or the engine resolver, not these rules", () => {
+      const missed = rows.filter((r) => against(r) === "LOST");
+      expect(missed).toHaveLength(31);
+      expect(missed.every((r) => !r[4])).toBe(true);
+    });
+
+    it.each(rows.map((r) => [shape(r[5]), r] as const))("%s", (_shape, r) => {
       expect(found(r)).toBe(r[3]);
     });
   });
