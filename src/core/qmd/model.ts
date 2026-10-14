@@ -6775,6 +6775,7 @@ const KNITR_CHUNK_END = /^([\t >]*)(`{3,})[ \t\r\f\v]*$/;
 function knitrSilentChunkClosers(lines: readonly string[]): KnitrChunkClosers {
   const silent = new Map<number, number>();
   const uncertain = new Map<number, number>();
+  const prints = new Map<number, number>();
   // What the lines ABOVE the chunk being judged can hand it as code (Session 307): see `KnitrCodeChannels`.
   const front = frontMatterOpenIndex(lines) === 0 ? frontMatterContent(lines) : null;
   const channels: KnitrCodeChannels = { opts: front !== null && knitrFrontMatterSuppliesCode(front), fill: false };
@@ -6820,6 +6821,8 @@ function knitrSilentChunkClosers(lines: readonly string[]): KnitrChunkClosers {
         silent.set(end, i);
       } else if (verdict === "uncertain") {
         uncertain.set(end, i);
+      } else if (verdict === "prints") {
+        prints.set(end, i);
       }
       // The chunk's own call changes the defaults for the chunks BELOW it, never its own.
       knitrApplyDefaultsUpdate(defaults, knitrChunkDefaultsUpdate(begin[3], body, frontNamesEval));
@@ -6831,10 +6834,12 @@ function knitrSilentChunkClosers(lines: readonly string[]): KnitrChunkClosers {
     channels.fill = channels.fill || body.some((line) => !/^[ \t]*#/.test(line) && KNITR_FILL_CALL.test(line));
     i = end;
   }
-  return { silent, uncertain };
+  return { silent, uncertain, prints };
 }
 /**
  * The closers `knitrSilentChunkClosers` finds. `silent` maps the closing line of each chunk positively known to emit NO fence to its opener.
+ * `prints` maps the closer of each chunk that certainly emits an OUTPUT block with its code not echoed (Session 309): two BARE fences, one where the opener stood and
+ * one at the closer, so its opener closes a region opened above and its closer opens the next (`computeRegions`).
  * `uncertain` maps the same for a chunk that WOULD be silent but for a channel the model cannot rule out (Session 307: code that may reach an empty
  * chunk, a writer in an `echo=FALSE` chunk): such a closer may END a swallow early, as a loud chunk's does, but it can never be the closer that
  * lets a stray fence OPEN one, because deleting a heading is the worse error (`knitrChunkIsSilent`; the opening test in `computeRegions`).
@@ -6842,8 +6847,9 @@ function knitrSilentChunkClosers(lines: readonly string[]): KnitrChunkClosers {
 interface KnitrChunkClosers {
   readonly silent: ReadonlyMap<number, number>;
   readonly uncertain: ReadonlyMap<number, number>;
+  readonly prints: ReadonlyMap<number, number>;
 }
-const NO_KNITR_CLOSERS: KnitrChunkClosers = { silent: new Map(), uncertain: new Map() };
+const NO_KNITR_CLOSERS: KnitrChunkClosers = { silent: new Map(), uncertain: new Map(), prints: new Map() };
 /**
  * Whether code can reach an EMPTY chunk from the lines above it (Session 307). Two channels, each read as the CHANNEL and not as the word:
  *  - `opts`: an `opts_chunk` call or key that sets an option which supplies code (`ref.label`, `code`, `file`, `child`), in a chunk above, in the
@@ -7496,7 +7502,7 @@ function knitrChunkIsSilent(
   body: readonly string[],
   defaults: KnitrDefaultKinds,
   channels: KnitrCodeChannels,
-): "silent" | "uncertain" | "loud" {
+): "silent" | "uncertain" | "loud" | "prints" {
   // ⚠ ONLY the engines measured silent (`KNITR_SILENT_ENGINES`). quarto re-emits a `dot`, `mermaid`
   // or `ojs` chunk as its own fenced block whatever `echo` says, and an `engine=` option moves an
   // `{r}` chunk onto such an engine — measured, each renders the heading below it that a "silent"
@@ -7537,6 +7543,9 @@ function knitrChunkIsSilent(
   }
   const echo = knitrDefaultVerdict("echo", options, pipe, documentEcho);
   if (echo === "silent") {
+    if ((engine[1] === "r" || engine[1] === "R") && knitrChunkPrints(body)) {
+      return "prints";
+    }
     return knitrCodeWritesFence(body, options, pipe) ? "uncertain" : "silent";
   }
   // A default that is silent only when the document EXECUTES (a setup chunk's call) decides nothing the other mode would not undo (Session 308, `KnitrDefaultKind`).
@@ -7544,6 +7553,14 @@ function knitrChunkIsSilent(
     return "uncertain";
   }
   return emptyBody ? "uncertain" : "loud";
+}
+/**
+ * Whether a chunk whose code is NOT echoed still emits an output block (Session 309): a top-level statement that certainly prints.
+ * Read for the EXECUTING mode, as every setup-call default is (Session 308).
+ */
+function knitrChunkPrints(body: readonly string[]): boolean {
+  const parsed = rTopLevelStatements(codeLinesAfterPipe(body).join("\n"));
+  return parsed !== null && parsed.statements.some((statement) => statement === 'print("")');
 }
 /** One option's verdict for a chunk (Session 308): the chunk's OWN `#|` or header value wins; otherwise the document default decides, `exec` being `uncertain`. */
 function knitrDefaultVerdict(
@@ -8640,17 +8657,25 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   const knitrClosers = engine === "knitr" ? knitrSilentChunkClosers(lines) : NO_KNITR_CLOSERS;
   const knitrSilent = knitrClosers.silent;
   const knitrSilentOpeners = new Set(knitrSilent.values());
+  // A chunk that PRINTS with its code not echoed (Session 309) hands pandoc two bare fences, one where its opener stood and one at its closer: opener line -> closer line.
+  const knitrPrintOpeners = new Map<number, number>();
+  for (const [closer, opener] of knitrClosers.prints) {
+    knitrPrintOpeners.set(opener, closer);
+  }
+  const printBare = new Set(knitrPrintOpeners.keys());
   const closerIndexPastKnitr =
-    knitrSilent.size > 0 ? buildCloserIndex(lines, knitrSilent) : closerIndex;
+    knitrSilent.size > 0 || printBare.size > 0 ? buildCloserIndex(lines, knitrSilent, printBare) : closerIndex;
   // ⚠ A PLAIN fence opens only if a closer lies below it, and an UNCERTAIN chunk's closer must not be that closer (Session 307; `KnitrChunkClosers`): it
   // may END a swallow early, as a loud chunk's closer does, but never START one. With it counted, a stray fence whose only closer below is a chunk that
   // may emit nothing swallowed every heading down to it, and quarto shows them all when that chunk is silent (shape P, rendered: 11 of 150 blind documents).
   const closerIndexPastUncertain =
     knitrClosers.uncertain.size > 0
-      ? buildCloserIndex(lines, new Map([...knitrSilent, ...knitrClosers.uncertain]))
+      ? buildCloserIndex(lines, new Map([...knitrSilent, ...knitrClosers.uncertain]), printBare)
       : closerIndexPastKnitr;
   // The openers that were allowed to run past a silent closer — only these skip one in-region.
   const knitrPastOpeners = new Set<number>();
+  // The lines below the opener of a printing chunk that closed a region, down to its closer: its output text, which is not code to this scan (Session 309).
+  let printSkipUntil = -1;
   const quoteEnds = blockQuoteEndIndex(lines);
   const quoteAlreadyOpen = blockQuoteAlreadyOpen(lines);
   const headings: Heading[] = [];
@@ -9556,6 +9581,10 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       continue;
     }
 
+    // The output text of a printing chunk whose opener closed the region above (Session 309): neither code nor prose to this scan, as a line inside a region is not.
+    if (i < printSkipUntil) {
+      continue;
+    }
     // The item a CommonMark fence sits in ends at the first non-blank line indented less than its content column, and takes the fence with it (Session 296):
     // the line is then an ordinary line, judged below as such.
     if (open !== null && open.boundColumn !== null && !BLANK_LINE.test(line) && indentColumn(line) < open.boundColumn) {
@@ -9568,6 +9597,16 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       // ⚠ A silent knitr chunk's closer closes only that chunk — pandoc never sees it, so a
       // region opened ABOVE the chunk runs on past it (Session 275; `knitrSilentChunkClosers`).
       const knitrConsumed = knitrSilent.has(i) && knitrPastOpeners.has(open.startLine);
+      // ⚠ The opener of a chunk that PRINTS with its code not echoed is a BARE ``` once knitr has run (Session 309), so it closes a plain fence opened above it; its own closer
+      // then opens the next one (the ordinary fence branch below), which is why every printing chunk moves the pairing of everything under it.
+      const printCloser = knitrPrintOpeners.get(i);
+      if (printCloser !== undefined && !open.isCell && open.char === "`" && open.len <= 3 && knitrPastOpeners.has(open.startLine)) {
+        boundaries.fenceCloses.add(i);
+        codeFenceOpeners.push({ line: open.startLine, text: lines[open.startLine], contentStart: open.contentStart });
+        open = null;
+        printSkipUntil = printCloser;
+        continue;
+      }
       if (!knitrConsumed && isCloser(line, open)) {
         boundaries.fenceCloses.add(i);
         if (open.isCell) {
@@ -13067,6 +13106,7 @@ function isCloser(line: string, open: OpenCellFence): boolean {
 function buildCloserIndex(
   lines: readonly string[],
   skip: ReadonlyMap<number, number> = new Map(),
+  bare: ReadonlySet<number> = new Set(),
 ): Map<string, number[]> {
   const index = new Map<string, number[]>();
   const push = (key: string, line: number) => {
@@ -13138,6 +13178,15 @@ function buildCloserIndex(
     for (let n = 3; n <= m[1].length; n++) {
       push(`q|${m[2]}|${n}|${col}`, i);
     }
+  }
+  // Lines that become a BARE ``` once knitr has run (the opener of a chunk that prints with its code not echoed, Session 309) close a plain fence opened above them, like any
+  // column-0 closer of three backticks, so they join that bucket in line order.
+  if (bare.size > 0) {
+    const key = "p|`|3|0";
+    const bucket = index.get(key) ?? [];
+    bucket.push(...bare);
+    bucket.sort((a, b) => a - b);
+    index.set(key, bucket);
   }
   return index;
 }

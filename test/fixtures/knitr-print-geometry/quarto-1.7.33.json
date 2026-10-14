@@ -1,0 +1,2244 @@
+{
+"quarto": "1.7.33",
+"note": "Session 309. 256 documents, every sequence of three chunk kinds over P (`{r, echo=FALSE}` + print: emits two bare fences), Q (`{r, echo=FALSE}` + an assignment: none), L (`{r}` + an assignment: echoed code fence + bare closer) and LP (echoed AND printing), with ONE stray bare fence placed before each of the four positions, a heading `# H<k>` after every chunk. Each row is [name, document, the headings quarto 1.7.33 RENDERED (knitr 1.51, real execution, exit 0)]. The rendered answers equal a fence-pairing simulator frozen BEFORE any render (256 of 256): pandoc pairs the bare fences strictly in order, and a printing chunk with its code not echoed emits TWO bare fences, so every heading from the stray fence down to the opener of the LAST printing chunk is swallowed. Regenerate: scratchpad/s309/gengeo309.py (untracked).",
+"rows": [
+[
+"g_l-l-l_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-l-l_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-l-l_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-l-l_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-l-lp_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-l-lp_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-l-lp_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-l-lp_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-l-p_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-l-p_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-l-p_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-l-p_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-l-q_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-l-q_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-l-q_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-l-q_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-lp-l_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-lp-l_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-lp-l_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-lp-l_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-lp-lp_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-lp-lp_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-lp-lp_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-lp-lp_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-lp-p_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-lp-p_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-lp-p_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-lp-p_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-lp-q_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-lp-q_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-lp-q_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-lp-q_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-p-l_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-p-l_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H2"
+]
+],
+[
+"g_l-p-l_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-p-l_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-p-lp_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-p-lp_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H2"
+]
+],
+[
+"g_l-p-lp_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-p-lp_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-p-p_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-p-p_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H2"
+]
+],
+[
+"g_l-p-p_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-p-p_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-p-q_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-p-q_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-p-q_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-p-q_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-q-l_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-q-l_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H2"
+]
+],
+[
+"g_l-q-l_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-q-l_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-q-lp_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-q-lp_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H2"
+]
+],
+[
+"g_l-q-lp_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-q-lp_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-q-p_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-q-p_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H2"
+]
+],
+[
+"g_l-q-p_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-q-p_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-q-q_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-q-q_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-q-q_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_l-q-q_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-l-l_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-l-l_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-l-l_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-l-l_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-l-lp_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-l-lp_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-l-lp_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-l-lp_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-l-p_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-l-p_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-l-p_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-l-p_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-l-q_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-l-q_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-l-q_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-l-q_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-lp-l_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-lp-l_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-lp-l_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-lp-l_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-lp-lp_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-lp-lp_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-lp-lp_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-lp-lp_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-lp-p_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-lp-p_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-lp-p_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-lp-p_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-lp-q_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-lp-q_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-lp-q_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-lp-q_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-p-l_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-p-l_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H2"
+]
+],
+[
+"g_lp-p-l_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-p-l_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-p-lp_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-p-lp_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H2"
+]
+],
+[
+"g_lp-p-lp_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-p-lp_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-p-p_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-p-p_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H2"
+]
+],
+[
+"g_lp-p-p_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-p-p_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-p-q_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-p-q_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-p-q_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-p-q_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-q-l_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-q-l_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H2"
+]
+],
+[
+"g_lp-q-l_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-q-l_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-q-lp_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-q-lp_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H2"
+]
+],
+[
+"g_lp-q-lp_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-q-lp_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-q-p_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-q-p_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H2"
+]
+],
+[
+"g_lp-q-p_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-q-p_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-q-q_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-q-q_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-q-q_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_lp-q-q_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r}\nprint(\"l0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-l-l_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H1",
+"H2"
+]
+],
+[
+"g_p-l-l_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-l-l_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-l-l_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-l-lp_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H1",
+"H2"
+]
+],
+[
+"g_p-l-lp_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-l-lp_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-l-lp_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-l-p_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H1",
+"H2"
+]
+],
+[
+"g_p-l-p_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-l-p_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-l-p_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-l-q_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H1",
+"H2"
+]
+],
+[
+"g_p-l-q_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-l-q_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-l-q_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-lp-l_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H1",
+"H2"
+]
+],
+[
+"g_p-lp-l_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-lp-l_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-lp-l_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-lp-lp_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H1",
+"H2"
+]
+],
+[
+"g_p-lp-lp_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-lp-lp_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-lp-lp_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-lp-p_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H1",
+"H2"
+]
+],
+[
+"g_p-lp-p_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-lp-p_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-lp-p_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-lp-q_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H1",
+"H2"
+]
+],
+[
+"g_p-lp-q_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-lp-q_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-lp-q_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-p-l_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H2"
+]
+],
+[
+"g_p-p-l_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H2"
+]
+],
+[
+"g_p-p-l_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-p-l_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-p-lp_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H2"
+]
+],
+[
+"g_p-p-lp_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H2"
+]
+],
+[
+"g_p-p-lp_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-p-lp_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-p-p_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H2"
+]
+],
+[
+"g_p-p-p_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H2"
+]
+],
+[
+"g_p-p-p_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-p-p_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-p-q_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H1",
+"H2"
+]
+],
+[
+"g_p-p-q_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-p-q_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-p-q_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-q-l_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H2"
+]
+],
+[
+"g_p-q-l_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H2"
+]
+],
+[
+"g_p-q-l_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-q-l_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-q-lp_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H2"
+]
+],
+[
+"g_p-q-lp_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H2"
+]
+],
+[
+"g_p-q-lp_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-q-lp_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-q-p_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H2"
+]
+],
+[
+"g_p-q-p_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H2"
+]
+],
+[
+"g_p-q-p_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-q-p_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-q-q_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-q-q_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-q-q_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_p-q-q_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nprint(\"p0\")\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-l-l_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H1",
+"H2"
+]
+],
+[
+"g_q-l-l_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-l-l_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-l-l_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-l-lp_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H1",
+"H2"
+]
+],
+[
+"g_q-l-lp_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-l-lp_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-l-lp_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-l-p_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H1",
+"H2"
+]
+],
+[
+"g_q-l-p_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-l-p_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-l-p_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-l-q_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H1",
+"H2"
+]
+],
+[
+"g_q-l-q_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-l-q_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-l-q_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-lp-l_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H1",
+"H2"
+]
+],
+[
+"g_q-lp-l_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-lp-l_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-lp-l_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-lp-lp_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H1",
+"H2"
+]
+],
+[
+"g_q-lp-lp_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-lp-lp_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-lp-lp_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-lp-p_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H1",
+"H2"
+]
+],
+[
+"g_q-lp-p_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-lp-p_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-lp-p_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-lp-q_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H1",
+"H2"
+]
+],
+[
+"g_q-lp-q_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-lp-q_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-lp-q_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r}\nprint(\"l1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-p-l_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H2"
+]
+],
+[
+"g_q-p-l_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H2"
+]
+],
+[
+"g_q-p-l_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-p-l_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-p-lp_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H2"
+]
+],
+[
+"g_q-p-lp_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H2"
+]
+],
+[
+"g_q-p-lp_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-p-lp_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-p-p_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H2"
+]
+],
+[
+"g_q-p-p_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H2"
+]
+],
+[
+"g_q-p-p_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-p-p_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-p-q_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H1",
+"H2"
+]
+],
+[
+"g_q-p-q_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-p-q_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-p-q_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nprint(\"p1\")\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-q-l_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H2"
+]
+],
+[
+"g_q-q-l_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H2"
+]
+],
+[
+"g_q-q-l_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-q-l_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-q-lp_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H2"
+]
+],
+[
+"g_q-q-lp_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H2"
+]
+],
+[
+"g_q-q-lp_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-q-lp_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r}\nprint(\"l2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-q-p_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H2"
+]
+],
+[
+"g_q-q-p_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H2"
+]
+],
+[
+"g_q-q-p_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-q-p_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nprint(\"p2\")\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-q-q_s0",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-q-q_s1",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-q-q_s2",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n",
+[
+"H0",
+"H1",
+"H2"
+]
+],
+[
+"g_q-q-q_s3",
+"---\ntitle: \"geo\"\n---\n\nIntro.\n\n```{r, echo=FALSE}\nx0 <- 0\n```\n\n# H0\n\n```{r, echo=FALSE}\nx1 <- 1\n```\n\n# H1\n\n```{r, echo=FALSE}\nx2 <- 2\n```\n\n# H2\n\n```\n",
+[
+"H0",
+"H1",
+"H2"
+]
+]
+]
+}
