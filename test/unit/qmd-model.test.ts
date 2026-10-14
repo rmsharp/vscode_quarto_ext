@@ -21018,8 +21018,14 @@ describe("Session 307 — an `echo=FALSE` chunk whose code can write a FENCE is 
   // PRE-EXISTING, wrong at HEAD and now, the PHANTOM direction (measured, shape P, q01, q03): `print()` and `message()` under `echo=FALSE` each write
   // an output block of TWO bare fence lines. In shape T they cancel by parity (so `Top, Last` is right, b01), but in shape P the first one closes the
   // stray fence and the second is left open: quarto `Top, After`. The model reads the chunk as silent: `Top, Between, After`.
+  // ⚠ OVERTURNED BY SESSION 309 for q01: `print(1)` under `echo=FALSE` is a certain print now (`knitrChunkPrints`), and the shape P answer is quarto's `Top, After` (the exact
+  // document rendered again, `scratchpad/s309/one/pin_q01`). `message()` (q03) still is not read: its answer stays pinned wrong.
+  it("FIXED by Session 309, shape P: `print(1)` under `echo=FALSE` (q01)", () => {
+    const target = ["```{r, echo=FALSE}", "print(1)", "```"];
+    expect(outline(target)).toEqual(SILENT);
+    expect(outline(target, undefined, false)).toEqual(["Top", "After"]);
+  });
   it.each([
-    ["`print(1)` under `echo=FALSE` (q01)", ["```{r, echo=FALSE}", "print(1)", "```"]],
     ["`message()` under `echo=FALSE` (q03)", ["```{r, echo=FALSE}", 'message("hi")', "```"]],
   ])("WRONG before and after, shape P: %s", (_n, target) => {
     expect(outline(target)).toEqual(SILENT);
@@ -21468,8 +21474,10 @@ describe("Session 308 — a document DEFAULT that silences the LATER chunk: `for
   // RESIDUAL, PHANTOM (g20 t06, both modes quarto `Top, Last`): a silenced chunk that PRINTS emits an output block, which is a fence, so the stray fence pairs with it. HEAD's
   // blanket "loud" was right for it by accident; a call default now makes it uncertain and nothing opens the fence, so the model shows Between and After. The cost of not
   // reading output (the S307 residual (6), `print()` under `echo=FALSE`, reaches defaults): every one of the 5 executing regressions of the 150-document lens round is such a chunk.
-  it("RESIDUAL, phantom: a chunk that PRINTS under a call default is still loud in quarto (g20 t06; w01, w03, w04, w07, w09, w10 alike)", () => {
-    expect(outline({ pre: setup(CALL), later: chunk("{r}", "print(1)") })).toEqual(ALL);
+  // ⚠ OVERTURNED BY SESSION 309 (this row pinned the phantom answer `ALL`; the exact document rendered again, `scratchpad/s309/one/pin_t06`: quarto `Top, Last`): a chunk that certainly
+  // PRINTS under a call default emits an output block, so its opener closes the stray fence and Between and After are swallowed (`knitrChunkPrints`, `knitr-prints.test.ts`).
+  it("FIXED by Session 309: a chunk that PRINTS under a call default emits an output block (g20 t06)", () => {
+    expect(outline({ pre: setup(CALL), later: chunk("{r}", "print(1)") })).toEqual(S);
   });
   // RESIDUAL, DELETING, PRE-EXISTING (rev-soundness_16, rendered executing: `Top, After, Last`): the S307 sandwich. Two bare fences around a chunk that is only uncertain: the
   // uncertain closer ends the first swallow early, so the second bare fence opens one and swallows After. HEAD gives the same answer (the chunk was loud there).
