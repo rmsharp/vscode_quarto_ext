@@ -16,7 +16,8 @@
  *      `#| label:` in `{python}`/`{r}`, `//|` in `{ojs}`/`{dot}`, `%%|` in `{mermaid}`. And, in a
  *      KNITR document only, the chunk HEADER (`{r fig-x}`, `{r, label="fig-x"}`) — see
  *      {@link indexLabels}'s `documentEngine`. A cell that makes no figure or table for its label
- *      defines none (Session 304; same place), and a cell never defines a `sec-` or `eq-` label
+ *      defines none (Session 304; same place), and a cell's label never defines a `sec-` or `eq-`
+ *      target unless the document has a channel for code to write markdown at run time
  *      ({@link CELL_NEVER_DEFINES}, Session 305).
  *   3. Inline `{#fig-…}`/`{#tbl-…}`/`{#eq-…}`/`{#lst-…}` attribute blocks on
  *      images, divs, and display equations in prose (model body lines).
@@ -159,20 +160,34 @@ const CELL_LABEL_VALUE = new RegExp(
  * HEADER were already refused by {@link HEADER_LABEL_ID}. The `#|` path read the kind off the prefix and accepted all five, so the
  * completion list and go-to-definition offered a target that does not exist.
  *
+ * ⚠ **EXCEPT IN A DOCUMENT THAT CAN WRITE THE TARGET AT RUN TIME.** A cell whose OUTPUT carries `## T {#sec-x}` or `$$ y = x $$ {#eq-x}` makes quarto
+ * define that id, whether or not the label equals it, and the id may be built (`sprintf`, an f-string, an escape), read from a file (`source`,
+ * `child`, `exec`, an include shortcode) or typed by an inline expression, so nothing in the text need spell it: 34 rendered documents of
+ * the hunt, the id DEFINED in each (output lo02-lo06, lo11, lo14, lo42, lo45, lo46, lo53; langs lg19-lg21, lg28; li12-li15; white-box wl09-wl43;
+ * grid2 h10, h11). The guard is therefore Session 304's channel test (`cellTargetContext`: an asis output, `Markdown()`, `display()`, an inline
+ * expression, a shortcode, a `child`, and code run by name), taken over the whole document and the labelled cell included, and with no
+ * channel it drops the label (an anchor printed without one is no output: h04-h07). A document WITH a channel keeps its `sec-`/`eq-` cell labels
+ * as before this session, which is the phantom for a different id (h01a-h03a), a raw `id=` (lo18, h12, h13), the wrong construct (a div lo13, a
+ * paragraph lo16, an eq- id on a heading lo17), dropped or unrun output (lo07, lo08, lo52, h08) and `Latex()` (lo44). A wrong removal costs a
+ * label quarto defines and a wrong keep only the phantom this index always had, so every doubt resolves to the keep. It also LOSES what the
+ * label used to hide: a heading whose text IS the id (li18) and a heading attribute block this model cannot read (wl50).
+ *
  * ⚠ **THIS IS A LIST OF TWO KINDS, NOT "A CELL DEFINES FIGURES AND TABLES ONLY", AND `lst-` IS KEPT ON PURPOSE.** `#| label: lst-x` with
- * `#| lst-cap` is undefined under knitr (g027, g028) but DEFINED for a python cell under Jupyter or the markdown engine (g032, g039)
- * and for a mermaid, dot or ojs cell under every engine (g029-g031, g033-g038): the answer is the engine's, and this index would have to
- * be sure of the engine before removing one. A wrong removal loses a label quarto defines, so the knitr half stays a phantom (filed).
+ * `#| lst-cap` is DEFINED for a python cell under Jupyter (g032, g039: also unexecuted) and for a mermaid, dot or ojs cell under every engine
+ * (g029-g031, g033-g038), and UNDEFINED under knitr (g027, g028), under `engine: markdown` (lg37) and for a Jupyter cell with `echo: false`
+ * (li57a): the answer depends on the engine and on the cell's options, which the kind does not carry. A wrong removal loses a label quarto
+ * defines, so those phantoms stay (filed).
  */
 const CELL_NEVER_DEFINES: ReadonlySet<RefKind> = new Set<RefKind>(["sec", "eq"]);
 /**
  * A knitr chunk-HEADER label that defines a cross-reference: `fig-` or `tbl-` and a name, and NOTHING else
  * in the slot (Session 303).
  *
- * ⚠ **A CELL DEFINES FIGURES AND TABLES ONLY.** `{r lst-x}`, `{r sec-x}` and `{r eq-x}` define nothing in
- * quarto 1.7.33 (`scratchpad/s303/hdr`, b02-b04, k05, k06; `hdr7`, v03). Nor does a `#| label: lst-x` define a
- * listing (`hdr2`, k03, k04): a listing cell names itself with `#| lst-label:` (`hdr7`, v02), which the older
- * `#|` path does not read and this pattern does not inherit.
+ * ⚠ **A KNITR CHUNK HEADER DEFINES FIGURES AND TABLES ONLY.** `{r lst-x}`, `{r sec-x}` and `{r eq-x}` define nothing in
+ * quarto 1.7.33 (`scratchpad/s303/hdr`, b02-b04, k05, k06; `hdr7`, v03). Nor does a `#| label: lst-x` on a KNITR chunk
+ * define a listing (`hdr2`, k03, k04): a knitr listing cell names itself with `#| lst-label:` (`hdr7`, v02), which the
+ * older `#|` path does not read and this pattern does not inherit. (Under Jupyter and in a handler cell `#| label: lst-x`
+ * does define one, Session 305: {@link CELL_NEVER_DEFINES}.)
  *
  * ⚠ **ANCHORED AT BOTH ENDS, UNLIKE {@link CELL_LABEL_VALUE}.** That pattern takes the longest id-shaped PREFIX
  * of a `#|` value, so `#| label: fig-a$x` is read as `fig-a` and defines a phantom. The header slot is read
@@ -326,29 +341,6 @@ function kindOf(id: string): RefKind | null {
 }
 
 /**
- * The identifiers `text` spells as an ANCHOR: `{#tbl-x}` and any `#id` inside a brace group, and a raw `id=tbl-x`, compared as the
- * identifier quarto ends up with (characters pandoc's id cannot hold are dropped: `{#tbl-e0$1}` renders `tbl-e01`). A link TO an id
- * (`(#tbl-x)`) or a reference (`@tbl-x`) is no anchor. Shared by the whole-document reading and the cell-code reading in {@link indexLabels};
- * the latter passes `rawHtmlIds = false`, because a raw `id=` defines a figure or table but never a section or an equation (Session 305).
- */
-function anchorIdsIn(text: string, rawHtmlIds = true): Set<string> {
-  const found = new Set<string>();
-  const keep = (raw: string): void => {
-    found.add(raw.replace(/[^\p{L}\p{N}_:.-]/gu, ""));
-  };
-  for (const group of text.matchAll(/\{[^{}]*\}/g)) {
-    for (const m of group[0].matchAll(/#([^\s}#]*)/g)) {
-      keep(m[1]);
-    }
-  }
-  for (const m of rawHtmlIds ? text.matchAll(/\bid\s*=\s*["']?([^\s"'>]+)/gi) : []) {
-    // a numeric character entity (`fig&#45;x`, `fig&#x2d;x`) is the character it names
-    keep(m[1].replace(/&#(\d+);|&#x([0-9a-f]+);/gi, (_all, dec?: string, hex?: string) => String.fromCodePoint(Number.parseInt(dec ?? (hex as string), dec === undefined ? 16 : 10))));
-  }
-  return found;
-}
-
-/**
  * Index every cross-reference label defined in `text`, in document order. Where
  * the same id is defined more than once, only the first definition is kept.
  *
@@ -368,6 +360,10 @@ function anchorIdsIn(text: string, rawHtmlIds = true): Set<string> {
  * `jupyterCellMakesNoTarget` in `core/qmd/model`): `eval: false`, `include: false`, `output: false` or an empty chunk for a
  * figure, `include: false` for a table, and for Jupyter any cell with nothing left to show. A wrong engine from the resolver
  * therefore removes a label quarto defines. Every other engine value leaves the old answer, a label on every cell.
+ *
+ * ⚠ **EVERY ENGINE VALUE ALIKE, SINCE SESSION 305, A CELL'S `sec-`/`eq-` LABEL IS NOT INDEXED** in a document with no channel for code to write
+ * markdown or to run code by name ({@link CELL_NEVER_DEFINES}); with one it is, as before. A heading whose text IS the id (an auto id this model
+ * never generates) and a heading attribute block this model cannot read are labels quarto defines that a cell label used to cover (li18, wl50).
  */
 export function indexLabels(text: string, documentEngine?: DocumentEngine | "ambiguous"): RefLabel[] {
   const labels: RefLabel[] = [];
@@ -404,17 +400,34 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
   // id cannot hold are dropped from it (`{#tbl-e0$1}` renders `tbl-e01`).
   let anchors: Set<string> | null = null;
   const writtenElsewhere = (id: string): boolean => {
-    anchors ??= anchorIdsIn(text);
+    if (anchors === null) {
+      anchors = new Set();
+      const keep = (raw: string): void => {
+        anchors?.add(raw.replace(/[^\p{L}\p{N}_:.-]/gu, ""));
+      };
+      for (const group of text.matchAll(/\{[^{}]*\}/g)) {
+        for (const m of group[0].matchAll(/#([^\s}#]*)/g)) {
+          keep(m[1]);
+        }
+      }
+      for (const m of text.matchAll(/\bid\s*=\s*["']?([^\s"'>]+)/gi)) {
+        // a numeric character entity (`fig&#45;x`, `fig&#x2d;x`) is the character it names
+        keep(m[1].replace(/&#(\d+);|&#x([0-9a-f]+);/gi, (_all, dec?: string, hex?: string) => String.fromCodePoint(Number.parseInt(dec ?? (hex as string), dec === undefined ? 16 : 10))));
+      }
+    }
     return anchors.has(id);
   };
-  const cells = findAllCells(text);
-  // The anchors that any cell's CODE spells, collected on first use (a `sec-`/`eq-` label is rare): see the guard below.
-  let cellAnchors: Set<string> | null = null;
-  const writtenByACell = (id: string): boolean => {
-    cellAnchors ??= new Set(cells.flatMap((c) => [...anchorIdsIn(c.code, false)]));
-    return cellAnchors.has(id);
+  // Whether the document has a channel for code to write markdown, or to run code this text does not show (Session 304's `cellTargetContext`): asis
+  // output, `Markdown()`, `display()`, an inline expression, a shortcode, a `child`, `source`, `get(`, `exec`. Collected on first use.
+  let runTimeChannel: boolean | null = null;
+  const canWriteAtRunTime = (): boolean => {
+    if (runTimeChannel === null) {
+      const context = targetContext ?? cellTargetContext(text);
+      runTimeChannel = context.codeFromElsewhere || context.unseenCode || context.markdownLines.length > 0;
+    }
+    return runTimeChannel;
   };
-  for (const cell of cells) {
+  for (const cell of findAllCells(text)) {
     const indent = /^[ \t]*/.exec(sourceLines[cell.startLine])?.[0] ?? "";
     if (indent !== "" && COLUMN_ZERO_ONLY_LANGUAGES.has(cell.lang)) {
       continue;
@@ -515,12 +528,10 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
       }
       const value = m[1];
       const kind = kindOf(value);
-      // ⚠ A `sec-`/`eq-` label is no definition, but a cell whose code spells the id as an anchor (`cat("## T {#sec-x}")`) writes the target
-      // itself when it runs, and quarto defines it from there (hunt output lo02-lo06, lo11, lo42-lo53; langs lg19-lg28; grid2 h10 for a
-      // SECOND cell doing the printing). The code of EVERY cell is read, because a wrong removal loses a label quarto defines and a wrong
-      // keep only leaves the phantom this index always had. An anchor in the prose is not read: it is already a definition (Source 1 and 3),
-      // at a better position than the cell's.
-      if (kind === null || (CELL_NEVER_DEFINES.has(kind) && !writtenByACell(value)) || makesNoTarget(kind, value)) {
+      // ⚠ A `sec-`/`eq-` label is no definition (quarto prints `?@sec-x`), unless the document can write the target at run time: see
+      // {@link CELL_NEVER_DEFINES}, which also lists the rows. A document with such a channel keeps the label, because a wrong removal loses
+      // a label quarto defines and a wrong keep only leaves the phantom this index always had.
+      if (kind === null || (CELL_NEVER_DEFINES.has(kind) && !canWriteAtRunTime()) || makesNoTarget(kind, value)) {
         continue;
       }
       labels.push({

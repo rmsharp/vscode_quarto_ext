@@ -26,7 +26,9 @@ describe("Session 305 — a code cell defines no `sec-` or `eq-` label", () => {
     ["dot", "//|"],
     ["ojs", "//|"],
   ];
-  const ENGINES: readonly Engine[] = [undefined, "knitr", "jupyter", "markdown"];
+  // Rendered: knitr, Jupyter and markdown (plus no engine at all). `julia` and `ambiguous` are the two other answers `resolveDocumentEngine` can give;
+  // they are not rendered, the guard does not read the engine, and a guard that skipped either would be a regression this list now catches.
+  const ENGINES: readonly Engine[] = [undefined, "knitr", "jupyter", "markdown", "julia", "ambiguous"];
   const cellOf = (lang: string, comment: string, id: string, caption: string | null, ...body: string[]): string =>
     ["```{" + lang + "}", `${comment} label: ${id}`, ...(caption === null ? [] : [`${comment} ${caption}`]), ...body, "```"].join("\n");
 
@@ -39,107 +41,126 @@ describe("Session 305 — a code cell defines no `sec-` or `eq-` label", () => {
     );
   });
 
-  describe("a cell whose OWN code writes the id as an anchor defines it at run time (hunt output, langs, interactions)", () => {
-    // Rendered: the label is no definition, the printed `{#sec-x}` / `{#eq-x}` is. The index cannot run the code, so it keeps the label when
-    // the cell's own text spells the id as an anchor (the same reading `writtenElsewhere` gives a figure or table label).
-    it("an R cell printing a heading with the same id (lo11, lo14, li12)", () => {
-      expect(ids(["```{r}", "#| label: sec-x", "#| output: asis", 'cat("## Title {#sec-x}\\n")', "```"].join("\n"))).toEqual(["sec-x"]);
-    });
-
-    it("…and so does ANOTHER cell's code: the label cell need not be the one that prints it (grid2 h10)", () => {
-      const text = ["```{r}", "#| label: eq-x", "x <- 1", "```", "", "```{r}", "#| output: asis", 'cat("$$ y = x $$ {#eq-x}\\n")', "```"].join("\n");
-      expect(ids(text)).toEqual(["eq-x"]);
-    });
-  });
-
-  describe("only a brace anchor is read, and only for what quarto defines from it", () => {
-    // Rendered, quarto 1.7.33: a raw HTML `id=` printed by the cell defines NOTHING for a section or an equation, on a heading or on a
-    // div (`<h2 id="sec-x">` lo18, h13; a plain `<div id>` lo13; `<div id="eq-x">` h12: four documents of four), where a brace anchor defines
-    // both. A raw `id=` still counts for a FIGURE or TABLE label (Session 304, hunt3 anchor-ids), so only this exemption ignores it.
+  describe("a document with a channel for run-time markdown, or for code this text does not show, keeps the label", () => {
+    // The rule is Session 304's channels (`cellTargetContext`: an asis output, `Markdown()`, `display()`, an inline expression, a shortcode, a `child`,
+    // `source`, `get(`, `exec` ...): a `sec-`/`eq-` target is written by a cell's OUTPUT, never by its label (hunt output, langs, interactions; white-box lost
+    // lens wl09-wl43; grid2 h10, h11: 34 documents rendered, the id DEFINED in each), and a template, an escape, a sibling file or another cell can mint the
+    // id with nothing in the text to read. A wrong removal loses a label quarto defines; a wrong keep leaves the phantom this index always had.
     it.each([
-      ["sec-x", '<h2 id="sec-x">T</h2>', "lo18, h13"],
-      ["eq-x", '<div id="eq-x">x</div>', "h12"],
-    ])("a cell printing a raw HTML id for %s keeps no label (%s)", (id, html) => {
-      expect(ids(["```{r}", `#| label: ${id}`, "#| output: asis", `cat('${html}\\n')`, "```"].join("\n"))).toEqual([]);
+      ["an R cat() with output: asis (lo11, lo14, li12)", "sec-x", ["```{r}", "#| label: sec-x", "#| output: asis", 'cat("## Title {#sec-x}\\n")', "```"]],
+      ["an R sprintf template (wl09)", "sec-x", ["```{r}", "#| label: sec-x", "#| output: asis", 'cat(sprintf("## T {#%s}\\n", "sec-x"))', "```"]],
+      ["a python f-string template (wl12)", "eq-x", ["```{python}", "#| label: eq-x", "#| output: asis", 'sid = "eq-x"', 'print(f"$$ y = x $$ {{#{sid}}}")', "```"]],
+      ["a python print with output: asis (lg19, lo45, li14)", "eq-x", ["```{python}", "#| label: eq-x", "#| output: asis", 'print("$$ y = x $$ {#eq-x}")', "```"]],
+      ["a python Markdown() as the last expression (lo42, lo46, lo53)", "eq-x", ["```{python}", "#| label: eq-x", "from IPython.display import Markdown", 'Markdown("$$ y = x $$ {#eq-x}")', "```"]],
+      ["a python display(Markdown()) (lg28, li15)", "eq-x", ["```{python}", "#| label: eq-x", "from IPython.display import display, Markdown", 'display(Markdown("$$ y = x $$ {#eq-x}"))', "```"]],
+      ["an {asis} cell whose content IS the heading (lg21)", "sec-x", ["```{asis}", "#| label: sec-x", "## Self defined heading {#sec-x}", "```"]],
+      ["a {bash} printf with output: asis (lg20)", "eq-x", ["```{bash}", "#| label: eq-x", "#| output: asis", "printf '$$ x = 1 $$ {#eq-x}\\n'", "```"]],
+      ["an id built from pieces (h11)", "eq-x", ["```{r}", "#| label: eq-x", "#| output: asis", 'cat("$$ y = x $$ {#eq-", "x}\\n", sep = "")', "```"]],
+      ["an include shortcode beside a plain cell (wl33)", "sec-x", ["{{< include _x.md >}}", "", "```{r}", "#| label: sec-x", "x <- 1", "```"]],
+      ["a cell with child: (wl36)", "sec-x", ["```{r}", "#| label: sec-x", "#| child: _x.qmd", "```"]],
+      ["a source() of a file (wl34)", "sec-x", ["```{r}", "#| label: sec-x", "#| output: asis", 'source("_x.R")', "```"]],
+      ["a python exec() of a file (wl37)", "sec-x", ["```{python}", "#| label: sec-x", "#| output: asis", 'exec(open("_x.py").read())', "```"]],
+      ["a cell that takes its code from a file (wl35)", "sec-x", ["```{r}", "#| label: sec-x", "#| file: _x.R", "#| output: asis", "```"]],
+      ["an inline R expression in prose (wl39)", "sec-x", ["## Inline `r \"{#sec-x}\"`", "", "```{r}", "#| label: sec-x", "x <- 1", "```"]],
+      [
+        "ANOTHER cell does the printing (h10)",
+        "eq-x",
+        ["```{r}", "#| label: eq-x", "x <- 1", "```", "", "```{r}", "#| output: asis", 'cat("$$ y = x $$ {#eq-x}\\n")', "```"],
+      ],
+    ])("%s keeps the label", (_name, id, lines) => {
+      expect(ids(lines.join("\n"))).toEqual([id]);
     });
   });
 
-  describe("what the exemption does and does not keep (hunt langs, output, interactions; grid2)", () => {
-    const sec = (label: string, ...code: string[]): string => ["```{python}", `#| label: ${label}`, "#| output: asis", ...code, "```"].join("\n");
+  describe("no channel, no definition: an anchor spelled in plain code is not output (h04-h07)", () => {
+    // Rendered: a `{#eq-x}` in a code comment (h04, h05), or printed WITHOUT an asis output (h06, h07: it lands in a code block), defines nothing.
+    it.each([
+      ["R cat() without asis (h06)", ["```{r}", "#| label: eq-x", 'cat("$$ y = x $$ {#eq-x}\\n")', "```"]],
+      ["python print() without asis (h07)", ["```{python}", "#| label: eq-x", 'print("$$ y = x $$ {#eq-x}")', "```"]],
+      ["an R comment (h04)", ["```{r}", "#| label: eq-x", "# {#eq-x} only a comment", "x <- 1", "```"]],
+      ["a python comment (h05)", ["```{python}", "#| label: sec-x", "# {#sec-x} only a comment", "x = 1", "```"]],
+    ])("%s", (_name, lines) => {
+      expect(ids(lines.join("\n"))).toEqual([]);
+    });
+
+    it("the definition is the prose equation, at ITS line, whether the cell comes before or after it (h14)", () => {
+      const first = ["```{r}", "#| label: eq-x", "x <- 1", "```", "", "$$ y = x $$ {#eq-x}"].join("\n");
+      expect(indexLabels(first)).toEqual([{ id: "eq-x", kind: "eq", line: 5, column: 14 }]);
+    });
+  });
+
+  describe("RESIDUALS: a label kept although quarto leaves it undefined, because a channel exists and the text cannot tell what it writes", () => {
+    // The same phantom the index had before this session, measured one by one (each rendered: `?@id`).
+    const asis = (label: string, ...code: string[]): string => ["```{r}", `#| label: ${label}`, "#| output: asis", ...code, "```"].join("\n");
+
+    it("a DIFFERENT id is printed (h01a, h02a, h03a): quarto defines only the printed one", () => {
+      expect(ids(asis("eq-a", 'cat("$$ y = x $$ {#eq-b}\\n")'))).toEqual(["eq-a"]);
+      expect(ids(asis("sec-a", 'cat("## T {#sec-b}\\n")'))).toEqual(["sec-a"]);
+    });
 
     it.each([
-      ['{python} print: heading', "sec-x", 'print("## Title {#sec-x}")', "lg19, li14"],
-      ['{python} print: equation', "eq-x", 'print("$$ y = x $$ {#eq-x}")', "lo45"],
-      ['{python} display(Markdown(...)): equation', "eq-x", 'display(Markdown("$$ y = x $$ {#eq-x}"))', "lg28, li15, lo42, lo53"],
-      ['{python} Markdown(...): heading', "sec-x", 'Markdown("## Title {#sec-x}")', "lo46"],
-    ])("a cell that writes its own id keeps the label: %s (%s)", (_name, id, code) => {
-      expect(ids(sec(id, code))).toEqual([id]);
+      ["a raw HTML id= on a heading (lo18, h13)", "sec-x", `cat('<h2 id="sec-x">T</h2>\\n')`],
+      ["a raw HTML id= on a div (h12)", "eq-x", `cat('<div id="eq-x">x</div>\\n')`],
+      ["a fenced div (lo13)", "sec-x", 'cat("::: {#sec-x}\\nSome text.\\n:::\\n")'],
+      ["a paragraph carrying the attribute (lo16)", "sec-x", 'cat("A plain paragraph. {#sec-x}\\n")'],
+      ["a heading carrying an eq- id (lo17)", "eq-x", 'cat("## Title {#eq-x}\\n")'],
+    ])("the printed construct is the wrong one: %s", (_name, id, code) => {
+      expect(ids(asis(id, code))).toEqual([id]);
     });
 
-    it("an {asis} cell whose content IS the heading keeps its label (lg21)", () => {
-      expect(ids(["```{asis}", "#| label: sec-x", "## Self defined heading {#sec-x}", "Text under the heading.", "```"].join("\n"))).toEqual(["sec-x"]);
+    it("the printing code never runs, or its output is dropped (lo07, lo08, lo52, h08)", () => {
+      expect(ids(asis("eq-x", "#| include: false", 'cat("$$ y = x $$ {#eq-x}\\n")'))).toEqual(["eq-x"]);
+      expect(ids(asis("eq-x", "#| output: false", 'cat("$$ y = x $$ {#eq-x}\\n")'))).toEqual(["eq-x"]);
+      expect(ids(asis("eq-x", "#| eval: false", 'cat("$$ y = x $$ {#eq-x}\\n")'))).toEqual(["eq-x"]);
     });
 
-    it("a {bash} cell printing the equation keeps its label (lg20)", () => {
-      expect(ids(["```{bash}", "#| label: eq-x", "#| output: asis", "printf '$$ x = 1 $$ {#eq-x}\\n'", "```"].join("\n"))).toEqual(["eq-x"]);
-    });
-
-    it("a DIFFERENT id written in the code does not keep the label (h01a, h02a, h03a: quarto prints ?@eq-a, defines only eq-b)", () => {
-      expect(ids(sec("eq-a", 'print("$$ y = x $$ {#eq-b}")'))).toEqual([]);
-      expect(ids(sec("sec-a", 'print("## T {#sec-b}")'))).toEqual([]);
-    });
-
-    it("an anchor in the PROSE is not read: the equation is the definition, at its own line (h14)", () => {
-      const text = ["$$ y = x $$ {#eq-x}", "", "```{r}", "#| label: eq-x", "x <- 1", "```"].join("\n");
-      expect(indexLabels(text)).toEqual([{ id: "eq-x", kind: "eq", line: 0, column: 14 }]);
-    });
-
-    it("…and the same holds when the cell comes FIRST: the label never moves the definition onto the cell", () => {
-      const text = ["```{r}", "#| label: eq-x", "x <- 1", "```", "", "$$ y = x $$ {#eq-x}"].join("\n");
-      expect(indexLabels(text)).toEqual([{ id: "eq-x", kind: "eq", line: 5, column: 14 }]);
-    });
-
-    describe("RESIDUALS, each measured: the exemption reads TEXT, and the text is not always what runs", () => {
-      it("an anchor only in a code COMMENT keeps a phantom label, as before (h04, h05: quarto prints ?@eq-x)", () => {
-        expect(ids(["```{r}", "#| label: eq-x", "# {#eq-x} only a comment", "x <- 1", "```"].join("\n"))).toEqual(["eq-x"]);
-      });
-
-      it("…and so does code that never runs or prints no markdown (h06-h09, h15)", () => {
-        expect(ids(["```{r}", "#| label: eq-x", "#| eval: false", "#| output: asis", 'cat("$$ y = x $$ {#eq-x}\\n")', "```"].join("\n"))).toEqual(["eq-x"]);
-        expect(ids(["```{r}", "#| label: eq-x", 'cat("$$ y = x $$ {#eq-x}\\n")', "```"].join("\n"))).toEqual(["eq-x"]);
-      });
-
-      it("LOST: an id the code builds from pieces is defined by quarto and has no anchor in the text (h11)", () => {
-        expect(ids(["```{r}", "#| label: eq-x", "#| output: asis", 'cat("$$ y = x $$ {#eq-", "x}\\n", sep = "")', "```"].join("\n"))).toEqual([]);
-      });
-
-      it("LOST: a heading whose TEXT is the id has the auto id quarto resolves, which this model never generates (li18; the label used to hide it)", () => {
-        expect(ids(["# sec-x", "", "```{r}", "#| label: sec-x", "x <- 1", "```"].join("\n"))).toEqual([]);
-      });
+    it("an IPython Latex() display (lo44) is no markdown", () => {
+      expect(ids(["```{python}", "#| label: eq-x", "from IPython.display import Latex", 'Latex(r"$$ y = x $$ {#eq-x}")', "```"].join("\n"))).toEqual(["eq-x"]);
     });
   });
 
-  describe("the kinds a cell DOES define stay defined (g001-g026, g029, g032, g033, g036, g039)", () => {
+  describe("RESIDUALS: a label quarto defines and this index does not report, because the definition was never the cell's (the label used to hide it)", () => {
+    it("a heading whose TEXT is the id has the auto id quarto resolves, which this model never generates (li18)", () => {
+      expect(ids(["# sec-x", "", "```{r}", "#| label: sec-x", "x <- 1", "```"].join("\n"))).toEqual([]);
+    });
+
+    it("a heading whose attribute block holds a quoted brace is not read as a heading id (wl50): a gap that predates the guard", () => {
+      expect(ids(['## Prose heading {data-x="}" #sec-x}', "", "```{r}", "#| label: sec-x", "x <- 1", "```"].join("\n"))).toEqual([]);
+    });
+  });
+
+  describe("the kinds a cell DOES define stay defined (g001-g026, g029-g038)", () => {
     // Controls for the guard: it is a list of two kinds, not a rule about cells. A figure and a table keep their label in every language and
-    // engine, and a listing keeps it where quarto defines it (a python cell under Jupyter or markdown, every handler cell).
-    it.each(LANGS.flatMap(([lang, comment]) => ENGINES.map((engine) => [lang, comment, engine] as const)))("fig-x and tbl-x on a {%s} cell (%s), engine %s", (lang, comment, engine) => {
+    // engine where quarto defines it: a handler cell (mermaid, dot, ojs) under every engine, an r or python cell under knitr and Jupyter.
+    const engineOf = (lang: string): readonly Engine[] => ENGINES.filter((engine) => !(["r", "python"].includes(lang) && engine === "markdown"));
+    it.each(LANGS.flatMap(([lang, comment]) => engineOf(lang).map((engine) => [lang, comment, engine] as const)))("fig-x and tbl-x on a {%s} cell (%s), engine %s", (lang, comment, engine) => {
       expect(indexLabels(cellOf(lang, comment, "fig-x", 'fig-cap: "C"', "plot(1)"), engine).map((l) => l.id)).toEqual(["fig-x"]);
       expect(indexLabels(cellOf(lang, comment, "tbl-x", 'tbl-cap: "C"', "plot(1)"), engine).map((l) => l.id)).toEqual(["tbl-x"]);
     });
 
     it.each([
-      ["python", "#|", "jupyter"],
-      ["python", "#|", "markdown"],
-      ["mermaid", "%%|", "knitr"],
-      ["mermaid", "%%|", "jupyter"],
-      ["dot", "//|", "knitr"],
-      ["ojs", "//|", "jupyter"],
-    ] as const)("lst-x on a {%s} cell is defined under %s (g032, g033, g030, g035)", (lang, comment, engine) => {
+      ["python", "#|", "jupyter", "g032"],
+      ["mermaid", "%%|", "knitr", "g029"],
+      ["mermaid", "%%|", "jupyter", "g033"],
+      ["mermaid", "%%|", "markdown", "g036"],
+      ["dot", "//|", "knitr", "g030"],
+      ["dot", "//|", "jupyter", "g034"],
+      ["ojs", "//|", "knitr", "g031"],
+      ["ojs", "//|", "jupyter", "g035"],
+    ] as const)("lst-x on a {%s} cell is defined under %s (%s)", (lang, comment, engine, _probe) => {
       expect(indexLabels(cellOf(lang, comment, "lst-x", 'lst-cap: "C"', "x = 1"), engine).map((l) => l.id)).toEqual(["lst-x"]);
     });
 
-    it("RESIDUAL: lst-x on a knitr cell is still indexed although quarto leaves it undefined there (g027, g028): the answer depends on the engine, so it is not removed here", () => {
-      expect(indexLabels(cellOf("r", "#|", "lst-x", 'lst-cap: "C"', "x <- 1"), "knitr").map((l) => l.id)).toEqual(["lst-x"]);
+    describe("RESIDUALS: a label the index keeps although quarto leaves it undefined, because the answer is not the kind's alone", () => {
+      it("lst-x on a knitr cell (g027, g028: r and python), on an `engine: markdown` python cell (lg37) and on a Jupyter cell whose code is hidden (li57a: echo: false)", () => {
+        expect(indexLabels(cellOf("r", "#|", "lst-x", 'lst-cap: "C"', "x <- 1"), "knitr").map((l) => l.id)).toEqual(["lst-x"]);
+        expect(indexLabels(cellOf("python", "#|", "lst-x", 'lst-cap: "C"', "x = 1"), "markdown").map((l) => l.id)).toEqual(["lst-x"]);
+        expect(indexLabels(cellOf("python", "#|", "lst-x", "echo: false", "x = 1"), "jupyter").map((l) => l.id)).toEqual(["lst-x"]);
+      });
+
+      it("fig-x on an r or python cell under `engine: markdown` (li55b: the cell is plain code there)", () => {
+        expect(indexLabels(cellOf("r", "#|", "fig-x", 'fig-cap: "C"', "plot(1)"), "markdown").map((l) => l.id)).toEqual(["fig-x"]);
+      });
     });
   });
 });

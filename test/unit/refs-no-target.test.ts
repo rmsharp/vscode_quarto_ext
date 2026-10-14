@@ -1086,7 +1086,7 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
       expect(ids(chunk("{r}", "#| label: lst-x", "#| include: false", "plot(1)"))).toEqual(["lst-x"]);
     });
 
-    it.each([["eq"], ["sec"]])("a %s- id on a cell is no definition at all (Session 305, `refs-cell-kinds.test.ts`), include: false or not", (kind) => {
+    it.each([["eq"], ["sec"]])("a %s- id on a cell is no definition at all, with include: false too (Session 305; the rest is in `refs-cell-kinds.test.ts`)", (kind) => {
       expect(ids(chunk("{r}", `#| label: ${kind}-x`, "#| include: false", "plot(1)"))).toEqual([]);
     });
 
@@ -1211,14 +1211,14 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
       expect(rows.filter((r) => r[2])).toHaveLength(949);
     });
 
-    it("the index, run now, agrees with quarto on 1,235 documents (the parent did on 934), keeps a phantom on 344 and misses a label on 32", () => {
-      // 1,233 and 346 until Session 305, which stopped a cell from defining `sec-x` and `eq-x`: the two rows of this fixture that carry them.
+    it("the index, run now, agrees with quarto on 1,234 documents (the parent did on 934), keeps a phantom on 345 and misses a label on 32", () => {
+      // 1,233 and 346 until Session 305, which stopped a cell from defining `sec-x` (one row of this fixture). Its other row, an `eq-x` beside `results: asis`, keeps the phantom: the document has a channel for run-time markdown.
       const counts = { agree: 0, PHANTOM: 0, LOST: 0 };
       for (const r of rows) {
         counts[against(r)]++;
       }
-      expect(counts).toEqual({ agree: 1235, PHANTOM: 344, LOST: 32 });
-      expect(rows.filter((r) => r[3] === r[2])).toHaveLength(1235);
+      expect(counts).toEqual({ agree: 1234, PHANTOM: 345, LOST: 32 });
+      expect(rows.filter((r) => r[3] === r[2])).toHaveLength(1234);
       expect(rows.filter((r) => r[4] === r[2])).toHaveLength(934);
     });
 
