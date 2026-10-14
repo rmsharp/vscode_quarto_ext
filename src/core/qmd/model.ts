@@ -7153,7 +7153,7 @@ interface KnitrDefaultKinds {
 /** What a chunk does to ONE default: set it silent, set it loud (`TRUE`), or something this does not read (`unknown`, a call it cannot evaluate). */
 type KnitrCallEffect = "none" | "silent" | "loud" | "unknown";
 /** What one chunk does to the defaults below it: `null` when it never mentions `opts_chunk`. */
-type KnitrDefaultsUpdate = null | "unknown" | { readonly echo?: "silent" | "loud"; readonly include?: "silent" | "loud" };
+type KnitrDefaultsUpdate = null | "unknown" | { readonly echo?: "silent" | "loud" | "unknown"; readonly include?: "silent" | "loud" | "unknown" };
 /** The defaults the front matter and the setup chunks ABOVE a chunk give it, in document order. */
 interface KnitrDefaultsState {
   frontEcho: boolean;
@@ -7225,7 +7225,7 @@ function knitrChunkDefaultsUpdate(header: string, body: readonly string[], front
   if (parsed === null || parsed.stringMention) {
     return "unknown";
   }
-  const update: { echo?: "silent" | "loud"; include?: "silent" | "loud" } = {};
+  const update: { echo?: "silent" | "loud" | "unknown"; include?: "silent" | "loud" | "unknown" } = {};
   for (const statement of parsed.statements) {
     if (!statement.includes(KNITR_OPTS_CHUNK)) {
       continue;
@@ -7243,11 +7243,9 @@ function knitrChunkDefaultsUpdate(header: string, body: readonly string[], front
         continue;
       }
       const value = named[2].trim();
-      if (!/^(?:FALSE|F|TRUE|T)$/.test(value)) {
-        return "unknown";
-      }
-      // An option named twice in one call takes the LATER value (rendered, m07 and p05).
-      update[named[1]] = value === "FALSE" || value === "F" ? "silent" : "loud";
+      // An option named twice in one call takes the LATER value (rendered, m07 and p05). A value this cannot read leaves ONLY that option unread: the call sets
+      // exactly the options it names (rendered, q03: `echo = show` leaves a front matter `include: false` in force).
+      update[named[1]] = !/^(?:FALSE|F|TRUE|T)$/.test(value) ? "unknown" : value === "FALSE" || value === "F" ? "silent" : "loud";
     }
   }
   return update;
