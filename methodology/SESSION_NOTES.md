@@ -8,11 +8,17 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** NONE -- Session 303 closed out. The label index reads a knitr chunk header's label (`{r fig-x}`, `{r, label="fig-x"}`): 54 corpus labels added in 8 documents, 245 rendered header shapes pinned.
-**Next:** Pick from `BACKLOG.md` "Up Next" (Active is empty). The biggest left in the label-index item: a figure label on a chunk that makes no figure is a phantom, header and `#|` alike (its family (1)(i)).
-**⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`. (2) `scratchpad/s303/`: 779 rendered probes, the `hunt/` documents, `gen*.py`, `mutate303.py`, `verdicts.cjs`.
-(3) `scratchpad/s301/render301.sh` renders a manifest directory 3 wide behind a load gate and takes `.Rmd`; `score301.cjs` reads only `.qmd` and `verdicts.cjs` (mine) reads both. (4) Agents read the installed knitr and xfun R source: say not to (Learning 700).
-(5) `test:integration` takes the screen: ask first (run twice this session, 557 passing + 1 failing, then 558). (6) `realdoc-score` is unchanged at 2423 of 2438; the 2419 in `CLAUDE.md` and the tool's README is still a stale example.
+**Task:** **Session 304 (IN PROGRESS): a figure label on a chunk that makes no figure is not defined by quarto; the label index reports it defined (family (1)(i) of the BACKLOG label-index item).**
+Operator chose it at Phase 0. Ground first (render under knitr), then strict TDD (RED before GREEN). Scope is that family only; the rest of the item stays filed.
+**⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`. (2) `scratchpad/s303/` holds the probes (`hdr*`, `hunt/`, `gen*.py`, `mutate303.py`, `verdicts.cjs`).
+(3) `scratchpad/s301/render301.sh` renders a manifest directory 3 wide behind a load gate; agents author documents only, the caller renders. (4) Agents read the installed knitr and xfun R source: say not to (Learning 700).
+(5) `test:integration` takes the screen: ask first. (6) Phase 0: `BACKLOG.md`, `HANDOFFS.md` and `CHANGELOG.md` are each past the 262,144 B read refusal; a default read returns nothing, so read them in slices.
+
+### What Session 304 Did
+**Deliverable:** figure labels on chunks that make no figure, in the cross-reference label index (IN PROGRESS)
+**Started:** 2026-10-13
+**Status:** Session claimed. Work beginning. Phase 0 found both ledger frontiers at HEAD (nothing to reconcile).
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
 
 ## Session 302 Handoff Evaluation (by Session 303)
 
