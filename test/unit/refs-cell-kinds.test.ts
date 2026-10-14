@@ -1,4 +1,7 @@
+import { readFileSync } from "node:fs";
+import * as path from "node:path";
 import { describe, expect, it } from "vitest";
+import { resolveDocumentEngine } from "../../src/core/document-engine-resolve";
 import { indexLabels } from "../../src/core/refs";
 
 describe("Session 305 — a code cell defines no `sec-` or `eq-` label", () => {
@@ -161,6 +164,63 @@ describe("Session 305 — a code cell defines no `sec-` or `eq-` label", () => {
       it("fig-x on an r or python cell under `engine: markdown` (li55b: the cell is plain code there)", () => {
         expect(indexLabels(cellOf("r", "#|", "fig-x", 'fig-cap: "C"', "plot(1)"), "markdown").map((l) => l.id)).toEqual(["fig-x"]);
       });
+    });
+  });
+
+  describe("every shape rendered with quarto 1.7.33, document by document", () => {
+    // `[extension, engine, quartoDefined, indexDefined, parentDefined, document]`, 361 distinct documents from `scratchpad/s305`: the 78-document grid, the
+    // 15-document narrow-exemption grid, five blind lenses (297 documents: languages, outputs, spellings, containers, interactions) and three white-box
+    // lenses (150 documents: the dangerous direction, the phantom direction, odd structure). `quartoDefined` is what the rendered HTML says; `indexDefined`
+    // is what this index answered when the fixture was written; `parentDefined` is what it answered BEFORE Session 305. A document that made quarto exit
+    // non-zero, or whose id the HTML cannot decide, or that normalising its label name cannot reproduce, is omitted. Learning #685's closed-world pin: every
+    // row is pinned, so a change that drops a label quarto defines, or stops dropping a phantom, fails here and the fixture must be regenerated on purpose.
+    // (The probes live in the untracked `scratchpad/`, as every earlier fixture's do.)
+    type Row = [string, string, boolean, boolean, boolean, string];
+    const FIXTURE = path.join(__dirname, "../fixtures/cell-label-kinds/quarto-1.7.33.json");
+    const rows = (JSON.parse(readFileSync(FIXTURE, "utf8")) as { rows: Row[] }).rows;
+    const shape = (text: string): string =>
+      text
+        .replace(/^---\ntitle: "t"\n/, "")
+        .replace(/\n---\n\nSee @\S+\.\n\n/, "\n")
+        .replace(/\n+$/, "")
+        .replace(/\n/g, " ⏎ ")
+        .slice(0, 150);
+    const found = (r: Row): boolean => {
+      const id = /See @([a-z]+-x)\./.exec(r[5])?.[1] ?? "";
+      return indexLabels(r[5], resolveDocumentEngine("a" + r[0], r[5])).some((l) => l.id === id);
+    };
+    const against = (r: Row): "agree" | "PHANTOM" | "LOST" => (found(r) === r[2] ? "agree" : found(r) ? "PHANTOM" : "LOST");
+
+    it("covers the whole fixture: 361 documents, 155 of which quarto defines the label for", () => {
+      expect(rows).toHaveLength(361);
+      expect(rows.filter((r) => r[2])).toHaveLength(155);
+    });
+
+    it("the index, run now, agrees with quarto on 264 documents (the parent did on 169), keeps a phantom on 89 and misses a label on 8", () => {
+      const counts = { agree: 0, PHANTOM: 0, LOST: 0 };
+      for (const r of rows) {
+        counts[against(r)]++;
+      }
+      expect(counts).toEqual({ agree: 264, PHANTOM: 89, LOST: 8 });
+      expect(rows.filter((r) => r[3] === r[2])).toHaveLength(264);
+      expect(rows.filter((r) => r[4] === r[2])).toHaveLength(169);
+    });
+
+    it("the ONLY labels quarto defines that the parent kept and this drops are the two heading gaps the label used to hide (li18, wl50)", () => {
+      const worse = rows.filter((r) => r[2] && r[4] && !found(r));
+      expect(worse.map((r) => shape(r[5]))).toEqual([
+        "number-sections: true ⏎ --- ⏎  ⏎ # sec-x ⏎  ⏎ See @sec-x. ⏎  ⏎ ```{r} ⏎ #| label: sec-x ⏎ x <- 1:3 ⏎ ```",
+        '--- ⏎  ⏎ See @sec-x. ⏎  ⏎ ## Prose heading {data-x="}" #sec-x} ⏎  ⏎ ```{r} ⏎ #| label: sec-x ⏎ x <- 1 ⏎ ```',
+      ]);
+    });
+
+    it("the six other missed labels were missed BEFORE this session too: the cell scanner, a YAML spelling or a kind this index does not know", () => {
+      const missed = rows.filter((r) => against(r) === "LOST" && !r[4]);
+      expect(missed).toHaveLength(6);
+    });
+
+    it.each(rows.map((r) => [shape(r[5]), r] as const))("%s", (_shape, r) => {
+      expect(found(r)).toBe(r[3]);
     });
   });
 });
