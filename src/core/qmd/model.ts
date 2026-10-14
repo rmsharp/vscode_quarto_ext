@@ -7216,8 +7216,10 @@ function knitrChunkDefaultsUpdate(header: string, body: readonly string[], front
   if (cellOptionIsFalse("eval", options, pipe)) {
     return null;
   }
-  const bends = ["engine", "child", "file", "code", "ref.label", "cache", "eval"];
-  if (frontNamesEval || bends.some((name) => options.has(name) || pipe.has(name) || pipe.has(name.replace(".", "-")))) {
+  const bends = ["engine", "child", "file", "code", "ref.label", "eval"];
+  // A cached chunk runs once and then not (rendered, m08: it sets the default the first time), so only a POSITIVE `cache = FALSE` is read (blind round, setup-variants_13).
+  const cached = (options.has("cache") || pipe.has("cache")) && !cellOptionIsFalse("cache", options, pipe);
+  if (frontNamesEval || cached || bends.some((name) => options.has(name) || pipe.has(name) || pipe.has(name.replace(".", "-")))) {
     return "unknown";
   }
   const parsed = rTopLevelStatements(codeLinesAfterPipe(body).join("\n"));
@@ -7984,7 +7986,7 @@ function metadataBlockBelow(lines: readonly string[], from: number): boolean {
  * can be redefined (hunt b16-b19). A wrong "false" removes a label quarto defines; a wrong "not read" keeps a phantom.
  */
 function cellOptionIsFalse(
-  name: "eval" | "include" | "output",
+  name: "eval" | "include" | "output" | "cache",
   header: ReadonlyMap<string, string>,
   pipe: ReadonlyMap<string, string>,
 ): boolean {
