@@ -326,6 +326,29 @@ function kindOf(id: string): RefKind | null {
 }
 
 /**
+ * The identifiers `text` spells as an ANCHOR: `{#tbl-x}` and any `#id` inside a brace group, and a raw `id=tbl-x`, compared as the
+ * identifier quarto ends up with (characters pandoc's id cannot hold are dropped: `{#tbl-e0$1}` renders `tbl-e01`). A link TO an id
+ * (`(#tbl-x)`) or a reference (`@tbl-x`) is no anchor. Shared by the whole-document reading and the cell-code reading in {@link indexLabels};
+ * the latter passes `rawHtmlIds = false`, because a raw `id=` defines a figure or table but never a section or an equation (Session 305).
+ */
+function anchorIdsIn(text: string, rawHtmlIds = true): Set<string> {
+  const found = new Set<string>();
+  const keep = (raw: string): void => {
+    found.add(raw.replace(/[^\p{L}\p{N}_:.-]/gu, ""));
+  };
+  for (const group of text.matchAll(/\{[^{}]*\}/g)) {
+    for (const m of group[0].matchAll(/#([^\s}#]*)/g)) {
+      keep(m[1]);
+    }
+  }
+  for (const m of rawHtmlIds ? text.matchAll(/\bid\s*=\s*["']?([^\s"'>]+)/gi) : []) {
+    // a numeric character entity (`fig&#45;x`, `fig&#x2d;x`) is the character it names
+    keep(m[1].replace(/&#(\d+);|&#x([0-9a-f]+);/gi, (_all, dec?: string, hex?: string) => String.fromCodePoint(Number.parseInt(dec ?? (hex as string), dec === undefined ? 16 : 10))));
+  }
+  return found;
+}
+
+/**
  * Index every cross-reference label defined in `text`, in document order. Where
  * the same id is defined more than once, only the first definition is kept.
  *
@@ -381,24 +404,17 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
   // id cannot hold are dropped from it (`{#tbl-e0$1}` renders `tbl-e01`).
   let anchors: Set<string> | null = null;
   const writtenElsewhere = (id: string): boolean => {
-    if (anchors === null) {
-      anchors = new Set();
-      const keep = (raw: string): void => {
-        anchors?.add(raw.replace(/[^\p{L}\p{N}_:.-]/gu, ""));
-      };
-      for (const group of text.matchAll(/\{[^{}]*\}/g)) {
-        for (const m of group[0].matchAll(/#([^\s}#]*)/g)) {
-          keep(m[1]);
-        }
-      }
-      for (const m of text.matchAll(/\bid\s*=\s*["']?([^\s"'>]+)/gi)) {
-        // a numeric character entity (`fig&#45;x`, `fig&#x2d;x`) is the character it names
-        keep(m[1].replace(/&#(\d+);|&#x([0-9a-f]+);/gi, (_all, dec?: string, hex?: string) => String.fromCodePoint(Number.parseInt(dec ?? (hex as string), dec === undefined ? 16 : 10))));
-      }
-    }
+    anchors ??= anchorIdsIn(text);
     return anchors.has(id);
   };
-  for (const cell of findAllCells(text)) {
+  const cells = findAllCells(text);
+  // The anchors that any cell's CODE spells, collected on first use (a `sec-`/`eq-` label is rare): see the guard below.
+  let cellAnchors: Set<string> | null = null;
+  const writtenByACell = (id: string): boolean => {
+    cellAnchors ??= new Set(cells.flatMap((c) => [...anchorIdsIn(c.code, false)]));
+    return cellAnchors.has(id);
+  };
+  for (const cell of cells) {
     const indent = /^[ \t]*/.exec(sourceLines[cell.startLine])?.[0] ?? "";
     if (indent !== "" && COLUMN_ZERO_ONLY_LANGUAGES.has(cell.lang)) {
       continue;
@@ -499,7 +515,12 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
       }
       const value = m[1];
       const kind = kindOf(value);
-      if (kind === null || CELL_NEVER_DEFINES.has(kind) || makesNoTarget(kind, value)) {
+      // ⚠ A `sec-`/`eq-` label is no definition, but a cell whose code spells the id as an anchor (`cat("## T {#sec-x}")`) writes the target
+      // itself when it runs, and quarto defines it from there (hunt output lo02-lo06, lo11, lo42-lo53; langs lg19-lg28; grid2 h10 for a
+      // SECOND cell doing the printing). The code of EVERY cell is read, because a wrong removal loses a label quarto defines and a wrong
+      // keep only leaves the phantom this index always had. An anchor in the prose is not read: it is already a definition (Source 1 and 3),
+      // at a better position than the cell's.
+      if (kind === null || (CELL_NEVER_DEFINES.has(kind) && !writtenByACell(value)) || makesNoTarget(kind, value)) {
         continue;
       }
       labels.push({
