@@ -21344,12 +21344,27 @@ describe("Session 308 — a document DEFAULT that silences the LATER chunk: `for
     expect(headings).toEqual(ALL);
   });
 
+  // THE STATE CARRIES ACROSS CHUNKS (g18), with a loud Y (`echo=TRUE`) where the answer must tell a skipped chunk from an ended swallow.
+  const YT = chunk("{r, echo=TRUE}", "y <- 2");
+  it.each<[string, Shape, string[], string[]?]>([
+    ["a call that sets only `message` after one that set `echo` leaves the echo default in force (p02)", { pre: [...setup(CALL), ...setupAs("{r setup2, include=FALSE}", "knitr::opts_chunk$set(message = FALSE)")] }, ["Top", "Between", "Mid", "After", "Last"]],
+    ["an `include = FALSE` default stays in force over a chunk with its own `echo=TRUE` (p03)", { pre: [...setup("knitr::opts_chunk$set(include = FALSE)"), ...setupAs("{r setup2, include=FALSE}", "knitr::opts_chunk$set(message = FALSE)")] }, ["Top", "Between", "Mid", "After", "Last"], YT],
+    ["a call the reader cannot read, then a call that silences: the front matter's silence is back, so X is SKIPPED (p01)", { front: FRONT_ECHO_FALSE, pre: [...setup("do.call(knitr::opts_chunk$set, list(echo = TRUE))"), ...setupAs("{r setup2, include=FALSE}", CALL)] }, ["Top", "After", "Last"], YT],
+    ["`echo = TRUE, echo = FALSE` in one call: the later argument wins (p05)", { pre: setup("knitr::opts_chunk$set(echo = TRUE, echo = FALSE)") }, ["Top", "Between", "Mid", "After", "Last"]],
+    ["`echo = FALSE, echo = TRUE` in one call: the later argument wins, so the chunk is loud (m07)", { pre: setup("knitr::opts_chunk$set(echo = FALSE, echo = TRUE)") }, ["Top", "Mid", "After", "Last"]],
+    ["a call that silences, then one that sets `include = TRUE`: the echo default only ENDS the swallow at X (p07; wrong while executing)", { pre: [...setup(CALL), ...setupAs("{r setup2, include=FALSE}", "knitr::opts_chunk$set(include = TRUE)")] }, ["Top", "Mid", "After", "Last"], YT],
+    ["an inline `` `r knitr::opts_chunk$set(echo = TRUE)` `` in the prose runs in BOTH modes (m04)", { front: FRONT_ECHO_FALSE, pre: ["`r knitr::opts_chunk$set(echo = TRUE)`", ""] }, ["Top", "Mid", "After", "Last"]],
+    ["the call in a chunk inside a LIST ITEM runs when executing (p04)", { front: FRONT_ECHO_FALSE, pre: ["- item", "", `  ${FENCE}{r}`, `  ${CALL_TRUE}`, `  ${FENCE}`, ""] }, ["Top", "Mid", "After", "Last"]],
+    ["the call in a chunk inside a BLOCK QUOTE runs when executing (p06)", { front: FRONT_ECHO_FALSE, pre: [`> ${FENCE}{r}`, `> ${CALL_TRUE}`, `> ${FENCE}`, ""] }, ["Top", "Mid", "After", "Last"]],
+  ])("%s", (_n, shape, expected, y) => {
+    expect(xy(shape, y)).toEqual(expected);
+  });
+
   // RESIDUALS rendered as two chunks (g16): each RUNS when quarto executes (ALL) or depends on a cache (m08), and the reader declines it, so the first chunk closes the fence.
   it.each<[string, Shape]>([
     ["the call assigned, `old <- knitr::opts_chunk$set(...)` (m09)", { pre: setup(`old <- ${CALL}`) }],
     ["a second mention of `opts_chunk` inside the arguments (m10)", { pre: setup('knitr::opts_chunk$set(echo = FALSE, fig.path = knitr::opts_chunk$get("fig.path"))') }],
     ["a setup chunk with `cache=TRUE`: it runs once, then the cache decides (m08)", { pre: setupAs("{r setup, include=FALSE, cache=TRUE}", CALL) }],
-    ["a call with `echo` named twice (m07; quarto: the later one, TRUE)", { pre: setup("knitr::opts_chunk$set(echo = FALSE, echo = TRUE)") }],
     ["a setup chunk with `ref.label`: its code is the other chunk's (m14)", { pre: [...chunk("{r src, include=FALSE}", "z <- 1"), "", ...setupAs("{r setup, include=FALSE, ref.label=\"src\"}", CALL)] }],
   ])("RESIDUAL, declined (the first chunk closes the fence): %s", (_n, shape) => {
     expect(xy(shape)).toEqual(["Top", "Mid", "After", "Last"]);

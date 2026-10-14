@@ -7176,9 +7176,8 @@ function knitrApplyDefaultsUpdate(state: KnitrDefaultsState, update: KnitrDefaul
     return;
   }
   if (update === "unknown") {
-    // A call this cannot read may set anything, so nothing the front matter or a call above said is trusted from here on (HEAD declined the whole document).
-    state.frontEcho = false;
-    state.frontInclude = false;
+    // A call this cannot read may set anything, so no call above it is trusted from here on: the chunks below it are loud again (HEAD declined the whole document). The front
+    // matter stays: it applies in both modes whatever a call does, so a LATER call that silences brings its silence back (rendered, p01).
     state.echo = "unknown";
     state.include = "unknown";
     return;
@@ -7235,7 +7234,6 @@ function knitrChunkDefaultsUpdate(header: string, body: readonly string[], front
     if (head === null || statement.split(KNITR_OPTS_CHUNK).length !== 2 || !rCallEndsAt(statement, head[0].length, statement.length - 1)) {
       return "unknown";
     }
-    const seen = new Set<string>();
     for (const argument of rSplitArguments(statement.slice(head[0].length, -1))) {
       const named = /^([A-Za-z.][A-Za-z0-9._]*)[ \t\r\n]*=(?!=)[ \t\r\n]*([\s\S]+)$/.exec(argument.trim());
       if (named === null) {
@@ -7245,10 +7243,10 @@ function knitrChunkDefaultsUpdate(header: string, body: readonly string[], front
         continue;
       }
       const value = named[2].trim();
-      if (seen.has(named[1]) || !/^(?:FALSE|F|TRUE|T)$/.test(value)) {
+      if (!/^(?:FALSE|F|TRUE|T)$/.test(value)) {
         return "unknown";
       }
-      seen.add(named[1]);
+      // An option named twice in one call takes the LATER value (rendered, m07 and p05).
       update[named[1]] = value === "FALSE" || value === "F" ? "silent" : "loud";
     }
   }
