@@ -8,17 +8,38 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 304 (IN PROGRESS): a figure label on a chunk that makes no figure is not defined by quarto; the label index reports it defined (family (1)(i) of the BACKLOG label-index item).**
-Operator chose it at Phase 0. Ground first (render under knitr), then strict TDD (RED before GREEN). Scope is that family only; the rest of the item stays filed.
-**⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`. (2) `scratchpad/s303/` holds the probes (`hdr*`, `hunt/`, `gen*.py`, `mutate303.py`, `verdicts.cjs`).
-(3) `scratchpad/s301/render301.sh` renders a manifest directory 3 wide behind a load gate; agents author documents only, the caller renders. (4) Agents read the installed knitr and xfun R source: say not to (Learning 700).
-(5) `test:integration` takes the screen: ask first. (6) Phase 0: `BACKLOG.md`, `HANDOFFS.md` and `CHANGELOG.md` are each past the 262,144 B read refusal; a default read returns nothing, so read them in slices.
+**Task:** **NONE -- Session 304 closed out.** A `fig-`/`tbl-` label on a code cell that quarto leaves undefined (`?@fig-x`) is no longer defined by the label index. `BACKLOG.md` "Active" is empty; present ranked candidates via AskUserQuestion at Phase 0.
+**⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl` and `context_budget.py` dirties `methodology/.context-budget-history.jsonl`.
+(2) `scratchpad/s304/` (untracked, 240 MB) holds the harness: `render304.sh` (3 wide, load gate), `score304.cjs`, `build.sh`, `mkfixture304.cjs`, `corpusdiff304.cjs`, `mutate304.py`, `BRIEF*.md`, and 1,611 rendered documents.
+(3) Put "do not read installed quarto, knitr, xfun, rmarkdown or pandoc source" in EVERY agent prompt, reviewers included (Learnings 700, 709). (4) A render can hang: two 3 MB and one 300 KB single-line documents held pandoc at 100% CPU for 50 minutes; kill by hand.
+(5) `test:integration` takes the screen: ask first. (6) `BACKLOG.md`, `HANDOFFS.md` and `CHANGELOG.md` are each past the 262,144 B read refusal: a default read returns nothing, so read them in slices.
+(7) The fixture `test/fixtures/no-target-shapes/quarto-1.7.33.json` is quarto 1.7.33; re-render it when quarto changes. The first ground of every rule here is a render, not Posit and not quarto's source.
 
-### What Session 304 Did
-**Deliverable:** figure labels on chunks that make no figure, in the cross-reference label index (IN PROGRESS)
-**Started:** 2026-10-13
-**Status:** Session claimed. Work beginning. Phase 0 found both ledger frontiers at HEAD (nothing to reconcile).
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+## Session 303 Handoff Evaluation (by Session 304)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its pointer to family (1)(i), its probe names (`scratchpad/s303/hdr*`, `hunt/`, `gen*.py`, `mutate303.py`) and gotchas 1, 3 and 6 all held
+at HEAD; Phase 0 found both ledger frontiers at HEAD and the ratchet citation matched the stored results.
+**Helped:** the item's reproduction (a15, k01 settled the claim in one render each); the grid and fixture design as the model for mine; gotcha 3 (agents read GPL source) and the mutation harness
+as the model for `mutate304.py`; the standing `realdoc-score` command (2423 of 2438, unchanged).
+**Missing:** that `BACKLOG.md`, `HANDOFFS.md` and `CHANGELOG.md` are each past the 262,144 B read refusal (Phase 0 read nothing until I sliced them); that "decidable with `knitrOptionResolvesFalse`" is unsafe in the
+removal direction (it accepts `F` and logical expressions; my first cut used it and a hunt found 55 regressions).
+**Wrong:** the estimate "one small slice through `knitrOptionResolvesFalse`": it took seven commits, 29 agents and four mutation runs, because the cost of a REMOVAL rule is its false positives, not its reader. **ROI: high.**
+
+## Session 304 Self-Assessment
+
+**Score: 8/10.**
+**Went right.** Ground first and attack white-box: about 2,100 documents rendered by me (3 wide) in a 359-document blind round, three white-box rounds (55, then 121, then 97 regressions found against successive
+revisions, each fixed or the rule dropped), and a closed-world fixture of 1,611 rendered documents (949 quarto-defined): the index agrees on 1,233 where the parent agreed on 934, 346 declined phantoms, 0 worse than the parent.
+Deleting rules paid more than adding them: `fig.show`/`fig.keep`, all document-level defaults, `F` and logical expressions are no longer read. Corpus differential over 3,382 authored documents: 0 differ, 1,368 labels before and after;
+`realdoc-score` unchanged (2423 of 2438). Mutation, 4 runs (52, 76, 138, 133 mutants): the last survivor was killed by one added row, so 133 of 133. Host: RED 558 passing + 1 failing (the new row, for the right reason), GREEN 559.
+Unit tests 5,572 to 7,608; `check-types`, `check-backlog`, `check-package` and `npm run package` (exit 0, 44 files, 1.85 MB) clean. Nine learnings (701-709) record what the rounds taught.
+**Went wrong.** (1) My first implementation read defaults, `F` and `fig.show` and had 55 regressions after the first checkpoint; it was never released, but the checkpoint commits carry it. (2) Round-1 reviewer prompts lacked the
+no-GPL-source rule and a reviewer read quarto's installed scripts (Learning 700 again; the claim was re-rendered by me, nothing from the source is tracked; memory and Learning 709 saved). (3) Three tests were vacuous (a Jupyter
+`eval: false`-only body, an out-of-scope `jbody`, `{#tbl-x$}` also indexed by Source 3), found by mutation, not by me. (4) One needless `git stash`/`pop`. (5) Three robustness documents hung pandoc for 50 minutes before I looked.
+(6) Reasoned, not measured: the Outline `ref-label` alias (filed as such). **Known residuals (filed):** project-level `keep-hidden`/engines, obfuscated option names, 346 declined phantoms, and three pre-existing slow inputs
+(resolver on 100k spaces 18.9 s; 300k backticks 52 s, 58 s here; a 5 MB backtick line overflows the stack).
+**TDD:** RED before GREEN for each behaviour. Groups that passed on arrival, disclosed: pipe forms, look-alike controls, one row per guard word, direct whitelist rows, and the closed-world rows after each rule (each guard was shown RED against a mutant).
+**Cost:** 29 agents (about 6.6M subagent tokens, none rendered), about 2,100 renders by me, 4 mutation runs, two host runs of about 2 minutes (operator-approved), `npm run package` at close-out.
 
 ## Session 302 Handoff Evaluation (by Session 303)
 
