@@ -21019,17 +21019,16 @@ describe("Session 307 — an `echo=FALSE` chunk whose code can write a FENCE is 
   // an output block of TWO bare fence lines. In shape T they cancel by parity (so `Top, Last` is right, b01), but in shape P the first one closes the
   // stray fence and the second is left open: quarto `Top, After`. The model reads the chunk as silent: `Top, Between, After`.
   // ⚠ OVERTURNED BY SESSION 309 for q01: `print(1)` under `echo=FALSE` is a certain print now (`knitrChunkPrints`), and the shape P answer is quarto's `Top, After` (the exact
-  // document rendered again, `scratchpad/s309/one/pin_q01`). `message()` (q03) still is not read: its answer stays pinned wrong.
+  // document rendered again, `scratchpad/s309/one/pin_q01`). `message()` (q03) is read by the same rule (a message writes a stderr block) and is overturned below.
   it("FIXED by Session 309, shape P: `print(1)` under `echo=FALSE` (q01)", () => {
     const target = ["```{r, echo=FALSE}", "print(1)", "```"];
     expect(outline(target)).toEqual(SILENT);
     expect(outline(target, undefined, false)).toEqual(["Top", "After"]);
   });
-  it.each([
-    ["`message()` under `echo=FALSE` (q03)", ["```{r, echo=FALSE}", 'message("hi")', "```"]],
-  ])("WRONG before and after, shape P: %s", (_n, target) => {
+  it("FIXED by Session 309, shape P: `message()` under `echo=FALSE` (q03; the exact document rendered again, `scratchpad/s309/one/pin_q03`: `Top, After`)", () => {
+    const target = ["```{r, echo=FALSE}", 'message("hi")', "```"];
     expect(outline(target)).toEqual(SILENT);
-    expect(outline(target, undefined, false)).toEqual(SILENT_P);
+    expect(outline(target, undefined, false)).toEqual(["Top", "After"]);
   });
 
   // RESIDUALS, NOT quarto truth: the guard reads WORDS on the code lines, so a writer that is named and never reaches the output keeps the chunk

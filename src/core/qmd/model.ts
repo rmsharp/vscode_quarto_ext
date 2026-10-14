@@ -6778,10 +6778,10 @@ function knitrSilentChunkClosers(lines: readonly string[]): KnitrChunkClosers {
   const prints = new Map<number, number>();
   // What the lines ABOVE the chunk being judged can hand it as code (Session 307): see `KnitrCodeChannels`.
   const front = frontMatterOpenIndex(lines) === 0 ? frontMatterContent(lines) : null;
-  const channels: KnitrCodeChannels = { opts: front !== null && knitrFrontMatterSuppliesCode(front), fill: false, masks: front !== null && front.some((line) => KNITR_FRONT_OUTPUT_KEY.test(line)) };
+  const channels: KnitrCodeChannels = { opts: front !== null && knitrFrontMatterSuppliesCode(front), fill: false, masks: front !== null && front.some((line) => KNITR_FRONT_OUTPUT_KEY.test(line)), stderrOff: front !== null && front.some((line) => KNITR_FRONT_STDERR_KEY.test(line)) };
   // The echo / include defaults, read in document order (Session 308): the front matter first, then each setup chunk's `opts_chunk$set()` for the chunks BELOW it.
   const frontDefaults = knitrDocumentDefaults(lines);
-  const defaults: KnitrDefaultsState = { frontEcho: frontDefaults.echo, frontInclude: frontDefaults.include, echo: "none", include: "none", callsOff: false, outputUnsafe: false };
+  const defaults: KnitrDefaultsState = { frontEcho: frontDefaults.echo, frontInclude: frontDefaults.include, echo: "none", include: "none", callsOff: false, outputUnsafe: false, stderrUnsafe: false };
   const frontNamesEval = front !== null && front.some((line) => KNITR_EVAL_KEY.test(line));
   const bodyStart = front === null ? 0 : front.length + 2;
   for (let i = 0; i < lines.length; i++) {
@@ -6879,6 +6879,8 @@ interface KnitrCodeChannels {
   fill: boolean;
   /** The front matter, or code above, can change what a printing call does, or hide or re-fence its output (Session 309, `KNITR_FRONT_OUTPUT_KEY`, `knitrCodeMasksPrinters`). */
   masks: boolean;
+  /** The front matter sets `message` or `warning` somewhere: a `message()` or `warning()` may be switched off (Session 309, `KNITR_FRONT_STDERR_KEY`). */
+  stderrOff: boolean;
 }
 /** A function that fills a chunk BY LABEL with code written elsewhere (`knit_code$get()` only reads one). `read_demo` and `read_rforge` are NOT rendered (they need a package demo / the network). */
 const KNITR_FILL_CALL = /read_chunk|read_demo|read_rforge|knit_code[ \t]*\$[ \t]*set/;
@@ -7213,6 +7215,8 @@ interface KnitrDefaultKinds {
   readonly include: KnitrDefaultKind;
   /** No setup call above set an option that could hide a printing chunk's output or re-fence it (Session 309, `knitrChunkDefaultsUpdate`). */
   readonly outputKept: boolean;
+  /** No setup call above set `message` or `warning`, so a `message()` or `warning()` still writes its block (Session 309). */
+  readonly stderrKept: boolean;
 }
 /** What a chunk does to ONE default: set it silent, set it loud (`TRUE`), or something this does not read (`unknown`, a call it cannot evaluate). */
 type KnitrCallEffect = "none" | "silent" | "silentF" | "loud" | "unknown";
@@ -7220,7 +7224,7 @@ type KnitrCallEffect = "none" | "silent" | "silentF" | "loud" | "unknown";
 type KnitrDefaultsUpdate =
   | null
   | "unknown"
-  | { readonly echo?: KnitrCallEffect; readonly include?: KnitrCallEffect; readonly disables?: true; readonly outputUnsafe?: true };
+  | { readonly echo?: KnitrCallEffect; readonly include?: KnitrCallEffect; readonly disables?: true; readonly outputUnsafe?: true; readonly stderrUnsafe?: true };
 /** The defaults the front matter and the setup chunks ABOVE a chunk give it, in document order. */
 interface KnitrDefaultsState {
   frontEcho: boolean;
@@ -7231,6 +7235,8 @@ interface KnitrDefaultsState {
   callsOff: boolean;
   /** An earlier call set an option that could hide a printing chunk's output, or one this does not read (Session 309). */
   outputUnsafe: boolean;
+  /** An earlier call set `message` or `warning` to anything (Session 309). */
+  stderrUnsafe: boolean;
 }
 function knitrDefaultKind(front: boolean, call: KnitrCallEffect): KnitrDefaultKind {
   if (call === "silent") {
@@ -7244,7 +7250,7 @@ function knitrDefaultKind(front: boolean, call: KnitrCallEffect): KnitrDefaultKi
   return call === "none" && front ? "both" : "no";
 }
 function knitrDefaultKinds(state: KnitrDefaultsState): KnitrDefaultKinds {
-  return { echo: knitrDefaultKind(state.frontEcho, state.echo), include: knitrDefaultKind(state.frontInclude, state.include), outputKept: !state.outputUnsafe };
+  return { echo: knitrDefaultKind(state.frontEcho, state.echo), include: knitrDefaultKind(state.frontInclude, state.include), outputKept: !state.outputUnsafe, stderrKept: !state.stderrUnsafe && !state.outputUnsafe };
 }
 function knitrApplyDefaultsUpdate(state: KnitrDefaultsState, update: KnitrDefaultsUpdate): void {
   if (update === null) {
@@ -7260,12 +7266,14 @@ function knitrApplyDefaultsUpdate(state: KnitrDefaultsState, update: KnitrDefaul
     state.echo = "unknown";
     state.include = "unknown";
     state.outputUnsafe = true;
+    state.stderrUnsafe = true;
     return;
   }
   state.echo = update.echo ?? state.echo;
   state.include = update.include ?? state.include;
   state.callsOff = state.callsOff || update.disables === true;
   state.outputUnsafe = state.outputUnsafe || update.outputUnsafe === true;
+  state.stderrUnsafe = state.stderrUnsafe || update.stderrUnsafe === true;
 }
 /** An `eval` key anywhere in the front matter: a setup chunk may then not run at all (rendered, d30), so no call is read. */
 const KNITR_EVAL_KEY = /(?:^|[\s{,])["']?eval["']?[ \t]*:/;
@@ -7315,7 +7323,7 @@ function knitrChunkDefaultsUpdate(header: string, body: readonly string[], front
   if (parsed === null || parsed.stringMention) {
     return "unknown";
   }
-  const update: { echo?: KnitrCallEffect; include?: KnitrCallEffect; disables?: true; outputUnsafe?: true } = {};
+  const update: { echo?: KnitrCallEffect; include?: KnitrCallEffect; disables?: true; outputUnsafe?: true; stderrUnsafe?: true } = {};
   for (const statement of parsed.statements) {
     if (!statement.includes(KNITR_OPTS_CHUNK)) {
       continue;
@@ -7338,6 +7346,10 @@ function knitrChunkDefaultsUpdate(header: string, body: readonly string[], front
         // Any other option could hide a printing chunk's output or re-fence it (`results = "hide"`, `class.output`, `eval`), unless it is one rendered to change nothing there (Session 309).
         if (!knitrOptionKeepsOutput(named[1], value)) {
           update.outputUnsafe = true;
+        }
+        // `message` and `warning` leave a printed text alone but switch a message or a warning off (and one hides the other, rendered m015), so they only decline those.
+        if (named[1] === "message" || named[1] === "warning") {
+          update.stderrUnsafe = true;
         }
         continue;
       }
@@ -7403,6 +7415,11 @@ function rEndsAtKeywordHeader(text: string): boolean {
   }
   return false;
 }
+/** Whether the text of an R string literal has a visible character (Session 309): `"\n"`, `" "` and `"\t\n"` do not, and a `\u` or `\x` escape is not trusted to be visible. */
+function rStringIsVisible(content: string): boolean {
+  const stripped = content.replace(/\\[ntr]/g, "");
+  return /[^\s\\]/.test(stripped) && !/\\[uUx]/.test(stripped);
+}
 /**
  * The top-level statements of an R chunk (Session 308), each with its strings replaced by `""` and its comments dropped, or `null` when the code is not shaped this
  * reads with certainty: a backtick name, a raw string (`r"(...)"`), an unterminated string or an unbalanced bracket. `stringMention` is true when `opts_chunk` sits
@@ -7446,8 +7463,9 @@ function rTopLevelStatements(code: string, keepContent = false): { statements: s
         return null;
       }
       stringMention = stringMention || code.slice(i + 1, end).includes(KNITR_OPTS_CHUNK);
-      // `keepContent` (Session 309) tells an empty string from a non-empty one, because `cat("")` prints nothing: `""` stays empty and any other string becomes `"s"`.
-      current += keepContent && end > i + 1 ? '"s"' : '""';
+      // `keepContent` (Session 309) tells a string that WRITES something from one that does not, because `cat("")` and `cat("\n")` print nothing (rendered, ws1 to ws5): a string with a
+      // visible character becomes `"s"`, anything else (empty, only whitespace or whitespace escapes, or a `\u` / `\x` escape that may be a blank) stays `""`.
+      current += keepContent && rStringIsVisible(code.slice(i + 1, end)) ? '"s"' : '""';
       i = end;
     } else if (ch === "`") {
       return null;
@@ -7558,7 +7576,7 @@ function knitrChunkIsSilent(
   }
   const echo = knitrDefaultVerdict("echo", options, pipe, documentEcho);
   if (echo === "silent") {
-    if ((engine[1] === "r" || engine[1] === "R") && !channels.masks && defaults.outputKept && knitrChunkPrints(body, options, pipe)) {
+    if ((engine[1] === "r" || engine[1] === "R") && !channels.masks && defaults.outputKept && knitrChunkPrints(body, options, pipe, defaults.stderrKept && !channels.stderrOff && knitrStderrKept(options, pipe))) {
       return "prints";
     }
     return knitrCodeWritesFence(body, options, pipe) ? "uncertain" : "silent";
@@ -7567,7 +7585,7 @@ function knitrChunkIsSilent(
   if (echo === "uncertain" || include === "uncertain") {
     // A setup call that silences the code when the document EXECUTES, above a chunk that certainly prints, leaves an output block (Session 309). Not when the call may also hide
     // the chunk (`include` uncertain).
-    if (echo === "uncertain" && include !== "uncertain" && (engine[1] === "r" || engine[1] === "R") && !channels.masks && defaults.outputKept && knitrChunkPrints(body, options, pipe)) {
+    if (echo === "uncertain" && include !== "uncertain" && (engine[1] === "r" || engine[1] === "R") && !channels.masks && defaults.outputKept && knitrChunkPrints(body, options, pipe, defaults.stderrKept && !channels.stderrOff && knitrStderrKept(options, pipe))) {
       return "prints";
     }
     return "uncertain";
@@ -7578,7 +7596,7 @@ function knitrChunkIsSilent(
  * Whether a chunk whose code is NOT echoed still emits an output block (Session 309): a top-level statement that certainly prints.
  * Read for the EXECUTING mode, as every setup-call default is (Session 308).
  */
-function knitrChunkPrints(body: readonly string[], options: ReadonlyMap<string, string>, pipe: ReadonlyMap<string, string>): boolean {
+function knitrChunkPrints(body: readonly string[], options: ReadonlyMap<string, string>, pipe: ReadonlyMap<string, string>, stderrOk: boolean): boolean {
   if (!knitrOptionsKeepOutput(options, pipe)) {
     return false;
   }
@@ -7593,7 +7611,7 @@ function knitrChunkPrints(body: readonly string[], options: ReadonlyMap<string, 
     return false;
   }
   const parsed = rTopLevelStatements(code.join("\n"), true);
-  return parsed !== null && parsed.statements.some(knitrStatementPrints);
+  return parsed !== null && parsed.statements.some((statement) => knitrStatementPrints(statement, stderrOk));
 }
 function knitrCodeMasksPrinters(code: readonly string[]): boolean {
   for (const line of code) {
@@ -7607,6 +7625,13 @@ function knitrCodeMasksPrinters(code: readonly string[]): boolean {
     }
   }
   return false;
+}
+/**
+ * Whether a `message()` or `warning()` of the chunk can still write a block (Session 309): the chunk sets neither option itself (rendered, `scratchpad/s309/msg` m002, m003, m007: a value
+ * of `FALSE` switches the block off, and any other value is not read).
+ */
+function knitrStderrKept(options: ReadonlyMap<string, string>, pipe: ReadonlyMap<string, string>): boolean {
+  return !options.has("message") && !pipe.has("message") && !options.has("warning") && !pipe.has("warning");
 }
 /**
  * Whether the chunk's OWN options leave its printed text in an output block (Session 309). Positive, like every reader here: an option that could hide the output, or move it
@@ -7636,7 +7661,13 @@ const R_PRINTABLE_LITERAL = /^(?:""|"s"|\d+(?:\.\d+)?|TRUE|FALSE)$/;
  * document can have changed what they do or hidden what they print.
  */
 const KNITR_TEXT_CALLS: ReadonlySet<string> = new Set([
-  "summary", "head", "tail", "str", "table", "quantile", "cor", "mean", "nrow", "names", "levels", "unique", "round", "coef", "anova", "t.test", "aggregate", "tapply",
+  "IQR", "Reduce", "TukeyHSD", "abs", "aggregate", "all.equal", "anova", "anyNA", "aov", "apply", "as.character", "as.integer", "as.numeric", "c", "ceiling",
+  "chisq.test", "choose", "class", "coef", "colMeans", "colnames", "confint", "cor", "cor.test", "cov", "crossprod", "cumsum", "cut", "data.frame", "density", "diff",
+  "dim", "duplicated", "ecdf", "exists", "exp", "factorial", "fivenum", "floor", "format", "ftable", "glm", "head", "identical", "is.na", "is.null", "is.numeric",
+  "lapply", "length", "levels", "list", "lm", "log", "matrix", "max", "mean", "median", "merge", "min", "mode", "names", "nchar", "ncol", "nlevels", "nrow", "order",
+  "outer", "pairwise.t.test", "paste", "predict", "prod", "prop.table", "quantile", "range", "rank", "rep", "rev", "round", "rowSums", "sapply", "sd", "seq", "seq_len",
+  "shapiro.test", "sort", "sprintf", "sqrt", "stack", "str", "subset", "substr", "sum", "summary", "t", "t.test", "table", "tabulate", "tail", "tapply", "toString",
+  "toupper", "trimws", "typeof", "unique", "unlist", "vapply", "var", "which", "wilcox.test", "xtabs",
 ]);
 /** The functions a certain print is read from, as names an assignment would replace. */
 const KNITR_PRINT_NAMES = ["print", "cat", ...KNITR_TEXT_CALLS].map((name) => name.replace(/\./g, "\\.")).join("|");
@@ -7670,12 +7701,14 @@ function knitrOptionKeepsOutput(name: string, value: string): boolean {
   }
   return /^(?:message|warning|error|collapse|comment|cache|tidy|prompt|dev|dpi|highlight|strip\.white|size|background|out\.width|out\.height|fig\.[A-Za-z.]+)$/.test(name);
 }
+/** A front-matter `message` or `warning` key anywhere: rendered, `execute: warning: false` hides a message as well, and `execute: message: false` hides nothing (`msg` m005, m015, m016), so any of them declines. */
+const KNITR_FRONT_STDERR_KEY = /(?:^|[\s{,])["']?(?:message|warning)["']?[ \t]*:/;
 const KNITR_MASK_WORD = /\b(?:assign|sink|knit_hooks|opts_hooks|source|sys\.source|eval|evalq|parse|registerS3method|setMethod|setGeneric|setClass|setRefClass|knit_exit)\b/;
 /**
  * Whether ONE top-level statement (strings masked, `rTopLevelStatements` with `keepContent`) certainly emits an output block, as a WHOLE call: a trailing `$x` or `+ 1` makes it
  * something else. `print()` of a literal, and `cat()` with a non-empty string literal among its unnamed arguments and no destination (`file=`, `fill=`): `cat("")` prints nothing.
  */
-function knitrStatementPrints(statement: string): boolean {
+function knitrStatementPrints(statement: string, stderrOk: boolean): boolean {
   const call = rWholeCall(statement);
   if (call === null) {
     return false;
@@ -7686,6 +7719,10 @@ function knitrStatementPrints(statement: string): boolean {
   if (call.name === "cat") {
     const named = call.args.filter((argument) => /^[A-Za-z.][A-Za-z0-9._]*[ \t]*=(?!=)/.test(argument));
     return named.every((argument) => /^sep[ \t]*=/.test(argument)) && call.args.some((argument) => argument === '"s"');
+  }
+  if (call.name === "message" || call.name === "warning") {
+    // A message or warning with a visible string among its unnamed arguments writes a stderr block (rendered, `scratchpad/s309/msg`); a named argument is not read.
+    return stderrOk && call.args.every((argument) => !/^[A-Za-z.][A-Za-z0-9._]*[ \t]*=(?!=)/.test(argument)) && call.args.some((argument) => argument === '"s"');
   }
   return KNITR_TEXT_CALLS.has(call.name);
 }

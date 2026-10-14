@@ -90,5 +90,42 @@ describe("Session 309 — WHICH silenced chunks print: a statement that certainl
   it("a setup call that ALSO sets `results = \"hide\"`: the default hides the printed text (c002)", () => {
     expect(stm(["print(summary(x))"], { header: "{r}", pre: [...SETUP('knitr::opts_chunk$set(echo = FALSE, results = "hide")'), ...PRE] })).toEqual(QUIET);
   });
+
+  // `cat()` of a string that is only whitespace or whitespace escapes writes a blank: knitr emits no output block (rendered, `scratchpad/s309/one/ws1`-`ws5`; found by the
+  // chunk-level join over the blind lenses: 2 of 220 chunks called certain prints were `cat("\\n")`). `cat("a\\n")` and `print(" ")` print (ws4, ws6).
+  it("`cat(\"\\n\")` writes only a newline, so the chunk is quiet (ws1)", () => {
+    expect(stm(['cat("\\n")'])).toEqual(QUIET);
+  });
+
+  // THE FUNCTION GRID (`scratchpad/s309/fn`): the same layout with a longer setup chunk (`g`, `tab`), ONE whole statement per document. 116 base-R calls printed and none was
+  // quiet (y001-y116); the 31 look-alikes that print nothing (`plot`, `hist`, `invisible`, `set.seed`, an assignment, ...) were never candidates (q001-q040).
+  const FN_PRE = [
+    "```{r setup0, include=FALSE}", "x <- c(3, 1, 2, 5, 4)", "g <- factor(c('a','b','a','b','a'))", "df <- cars", "fit <- lm(dist ~ speed, data = cars)",
+    "tab <- table(mtcars$cyl, mtcars$gear)", "```", "",
+  ];
+  it("`median(x)` as a whole statement prints (y001)", () => {
+    expect(stm(["median(x)"], { pre: FN_PRE })).toEqual(PRINTS);
+  });
+
+  // MESSAGES and WARNINGS (`scratchpad/s309/msg`, rendered): a `message()` or `warning()` writes a block of its own (stderr), which `message` and `warning` options switch off, and
+  // rendered: `execute: warning: false` ALSO hides a message while `execute: message: false` hides nothing, so any such option, anywhere, declines.
+  const MSG_PRE = ["```{r setup0, include=FALSE}", "x <- c(3, 1, 2, 5, 4)", "```", ""];
+  it("`message(\"hi\")` under `echo=FALSE` writes an output block (m001)", () => {
+    expect(stm(['message("hi")'], { pre: MSG_PRE })).toEqual(PRINTS);
+  });
+
+  it("`message=FALSE` on the chunk switches the message off (m002)", () => {
+    expect(stm(['message("hi")'], { pre: MSG_PRE, header: "{r, echo=FALSE, message=FALSE}" })).toEqual(QUIET);
+  });
+
+  it("a setup call that sets `message = FALSE` switches the message off (m004)", () => {
+    expect(stm(['message("hi")'], { header: "{r}", pre: [...SETUP("knitr::opts_chunk$set(echo = FALSE, message = FALSE)"), ...MSG_PRE] })).toEqual(QUIET);
+  });
+
+  it("`execute: warning: false` switches a warning off (m016) and, measured, a MESSAGE too (m015)", () => {
+    const front = ["execute:", "  echo: false", "  warning: false"];
+    expect(stm(['warning("hi")'], { header: "{r}", front, pre: MSG_PRE })).toEqual(QUIET);
+    expect(stm(['message("hi")'], { header: "{r}", front, pre: MSG_PRE })).toEqual(QUIET);
+  });
 });
 
