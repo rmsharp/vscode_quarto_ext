@@ -21317,8 +21317,11 @@ describe("Session 308 — a document DEFAULT that silences the LATER chunk: `for
   it("the front matter's `echo: false` SKIPS the chunk above a loud one, so the fence pairs with the loud one (m01)", () => {
     expect(xy({ front: FRONT_ECHO_FALSE }, chunk("{r, echo=TRUE}", "y <- 2"))).toEqual(["Top", "After", "Last"]);
   });
-  it("a setup call's default only ENDS the swallow at the silenced chunk: uncertain, not skipped (m15; HEAD's answer, wrong while executing)", () => {
-    expect(xy({ pre: setup(CALL) }, chunk("{r, echo=TRUE}", "y <- 2"))).toEqual(["Top", "Mid", "After", "Last"]);
+  // ⚠ OVERTURNED BY SESSION 309 (this row pinned "uncertain, not skipped", HEAD's answer, which Session 308 itself called wrong while executing; the exact document rendered again,
+  // `scratchpad/s309/one/pin_m15`: quarto `Top, After, Last`, and the operator confirmed at Session 309 that the Outline follows the EXECUTING mode): a chunk silenced only by a setup
+  // call is SKIPPED when the document executes, whether it prints (a balanced pair of fences, which cancels) or not, so the stray fence pairs with the loud chunk below.
+  it("a setup call's default SKIPS the silenced chunk when executing, as the front matter's does (m15)", () => {
+    expect(xy({ pre: setup(CALL) }, chunk("{r, echo=TRUE}", "y <- 2"))).toEqual(["Top", "After", "Last"]);
   });
   it("two silenced chunks and no loud one: nothing closes the fence, every heading shows (executing; m16 for include, g14 e05 for echo)", () => {
     expect(xy({ pre: setup(CALL) })).toEqual(["Top", "Between", "Mid", "After", "Last"]);
@@ -21376,7 +21379,7 @@ describe("Session 308 — a document DEFAULT that silences the LATER chunk: `for
     ["`include = FALSE`, then a call the reader cannot read that sets `include = TRUE`: loud again (q02)", { pre: [...setup("knitr::opts_chunk$set(include = FALSE)"), ...setupAs("{r setup2, include=FALSE}", "do.call(knitr::opts_chunk$set, list(include = TRUE))")] }, ["Top", "Mid", "After", "Last"]],
     ["`echo = TRUE, echo = FALSE` in one call: the later argument wins (p05) (executing)", { pre: setup("knitr::opts_chunk$set(echo = TRUE, echo = FALSE)") }, ["Top", "Between", "Mid", "After", "Last"]],
     ["`echo = FALSE, echo = TRUE` in one call: the later argument wins, so the chunk is loud (m07) (executing)", { pre: setup("knitr::opts_chunk$set(echo = FALSE, echo = TRUE)") }, ["Top", "Mid", "After", "Last"]],
-    ["a call that silences, then one that sets `include = TRUE`: the echo default only ENDS the swallow at X (p07; wrong while executing)", { pre: [...setup(CALL), ...setupAs("{r setup2, include=FALSE}", "knitr::opts_chunk$set(include = TRUE)")] }, ["Top", "Mid", "After", "Last"], YT],
+    ["a call that silences, then one that sets `include = TRUE`: the echo default SKIPS X when executing (p07; overturned by Session 309, rendered again: `Top, After, Last`)", { pre: [...setup(CALL), ...setupAs("{r setup2, include=FALSE}", "knitr::opts_chunk$set(include = TRUE)")] }, ["Top", "After", "Last"], YT],
     ["an inline `` `r knitr::opts_chunk$set(echo = TRUE)` `` in the prose runs in BOTH modes (m04)", { front: FRONT_ECHO_FALSE, pre: ["`r knitr::opts_chunk$set(echo = TRUE)`", ""] }, ["Top", "Mid", "After", "Last"]],
     ["the call in a chunk inside a LIST ITEM runs when executing (p04)", { front: FRONT_ECHO_FALSE, pre: ["- item", "", `  ${FENCE}{r}`, `  ${CALL_TRUE}`, `  ${FENCE}`, ""] }, ["Top", "Mid", "After", "Last"]],
     ["the call in a chunk inside a BLOCK QUOTE runs when executing (p06)", { front: FRONT_ECHO_FALSE, pre: [`> ${FENCE}{r}`, `> ${CALL_TRUE}`, `> ${FENCE}`, ""] }, ["Top", "Mid", "After", "Last"]],
@@ -21480,8 +21483,10 @@ describe("Session 308 — a document DEFAULT that silences the LATER chunk: `for
   });
   // RESIDUAL, DELETING, PRE-EXISTING (rev-soundness_16, rendered executing: `Top, After, Last`): the S307 sandwich. Two bare fences around a chunk that is only uncertain: the
   // uncertain closer ends the first swallow early, so the second bare fence opens one and swallows After. HEAD gives the same answer (the chunk was loud there).
-  it("RESIDUAL, deleting, pre-existing: two bare fences around a chunk silenced by a call (rev-soundness_16)", () => {
-    expect(outline({ pre: setup(CALL), target: chunk("{r}", "x <- 1"), mid: ["## Mid", "", FENCE, ""], later: chunk("{r, echo=TRUE}", "z <- 3") })).toEqual(["Top", "Mid", "Last"]);
+  // ⚠ FIXED BY SESSION 309: the chunk silenced by a call is SKIPPED when executing (a quiet or a printing one), so the two bare fences pair with each other and the echoed chunk's own
+  // fence stays out of it. The exact document rendered again, `scratchpad/s309/one/pin_s16`: `Top, After, Last`.
+  it("FIXED by Session 309: two bare fences around a chunk silenced by a call (rev-soundness_16)", () => {
+    expect(outline({ pre: setup(CALL), target: chunk("{r}", "x <- 1"), mid: ["## Mid", "", FENCE, ""], later: chunk("{r, echo=TRUE}", "z <- 3") })).toEqual(["Top", "After", "Last"]);
   });
 });
 

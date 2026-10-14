@@ -7200,16 +7200,17 @@ function knitrDocumentDefaults(lines: readonly string[]): KnitrDocDefaults {
   };
 }
 /**
- * How a document-level default decides a chunk that sets the option nowhere itself (Session 308).
+ * How a document-level default decides a chunk that sets the option nowhere itself (Session 308, `exec` revised by Session 309).
  *  - `both`: silent whether or not knitr executes, because the FRONT MATTER says so (`execute:`, `knitr: opts_chunk:`, a top-level key, `format: html:`);
- *  - `exec`: silent only when the document EXECUTES: a setup chunk's `opts_chunk$set(echo = FALSE)` never runs under `--no-execute`, so the two modes disagree
- *    (rendered, g13 d01-d36) and the chunk is `uncertain`, as for a code channel in Session 307: it may END a swallow early, as a loud chunk's closer does,
- *    but never OPENS one (Learning 716). That is exact when executing for a stray fence with no certain closer below it, UNLESS the silenced chunk prints, warns or messages
- *    (it then emits an output block, which is a fence: rendered, g14 w01-w10, g20 t06); it adds no deleting error of its own, but the S307 sandwich (two bare fences around
- *    such a chunk) stays a pinned DELETING residual;
+ *  - `exec`: silent when the document EXECUTES: a setup chunk's `opts_chunk$set(echo = FALSE)` never runs under `--no-execute`, so the two modes disagree (rendered, g13 d01-d36).
+ *    ⚠ **The Outline FOLLOWS THE EXECUTING MODE (the operator's decision, Session 308 and again Session 309)**, so a chunk silenced by a call is SKIPPED like one silenced by the front
+ *    matter: it emits nothing, or a balanced output pair that cancels, and the swallow runs through it (rendered, `scratchpad/s309/geo3`). Session 308 shipped it as `uncertain`
+ *    (the chunk ended a swallow early, as a loud chunk's closer does) and measured the cost of the other choice; Session 309 measured the executing mode at 93 right to 116 of 150
+ *    blind documents and `--no-execute` at 78 right to 64, with 7 to 21 of 100 documents hiding a heading quarto shows, and the operator chose the executing mode;
+ *  - `unsure`: a bare `F`, which a document can rebind to TRUE (soundness_02): the chunk is `uncertain`, so it may END a swallow early but never opens one (Learning 716);
  *  - `no`: not established silent (HEAD's answer: loud).
  */
-type KnitrDefaultKind = "no" | "both" | "exec";
+type KnitrDefaultKind = "no" | "both" | "exec" | "unsure";
 interface KnitrDefaultKinds {
   readonly echo: KnitrDefaultKind;
   readonly include: KnitrDefaultKind;
@@ -7242,9 +7243,10 @@ function knitrDefaultKind(front: boolean, call: KnitrCallEffect): KnitrDefaultKi
   if (call === "silent") {
     return front ? "both" : "exec";
   }
-  // `F` is an ordinary variable a document can rebind, so a bare `F` is never CERTAIN silence, even beside a silent front matter (reviewer, soundness_02).
+  // `F` is an ordinary variable a document can rebind, so a bare `F` is never CERTAIN silence, even beside a silent front matter (reviewer, soundness_02): `unsure`, which only ENDS a
+  // swallow as a loud chunk's closer does (Session 309: `exec` is now certain silence for the executing mode).
   if (call === "silentF") {
-    return "exec";
+    return "unsure";
   }
   // A call that sets the option LOUD is followed as the executing mode, as HEAD did (the front matter's silence is then not trusted); one this cannot read is no default.
   return call === "none" && front ? "both" : "no";
@@ -7581,13 +7583,8 @@ function knitrChunkIsSilent(
     }
     return knitrCodeWritesFence(body, options, pipe) ? "uncertain" : "silent";
   }
-  // A default that is silent only when the document EXECUTES (a setup chunk's call) decides nothing the other mode would not undo (Session 308, `KnitrDefaultKind`).
   if (echo === "uncertain" || include === "uncertain") {
-    // A setup call that silences the code when the document EXECUTES, above a chunk that certainly prints, leaves an output block (Session 309). Not when the call may also hide
-    // the chunk (`include` uncertain).
-    if (echo === "uncertain" && include !== "uncertain" && (engine[1] === "r" || engine[1] === "R") && !channels.masks && defaults.outputKept && knitrChunkPrints(body, options, pipe, defaults.stderrKept && !channels.stderrOff && knitrStderrKept(options, pipe))) {
-      return "prints";
-    }
+    // A bare `F` (or a value this cannot be sure of) may or may not silence the chunk: it ends a swallow early and never opens one (Learning 716).
     return "uncertain";
   }
   return emptyBody ? "uncertain" : "loud";
@@ -7749,7 +7746,7 @@ function knitrDefaultVerdict(
   if (pipe.has(name) || header.has(name)) {
     return knitrOptionResolvesFalse(name, header, pipe, false) ? "silent" : "loud";
   }
-  return kind === "both" ? "silent" : kind === "exec" ? "uncertain" : "loud";
+  return kind === "both" || kind === "exec" ? "silent" : kind === "unsure" ? "uncertain" : "loud";
 }
 /** A child document or a template: its output carries the child's own fences. */
 const KNITR_CHILD_WRITER = /knit_child|knit_expand/;
