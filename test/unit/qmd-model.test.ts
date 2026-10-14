@@ -21185,7 +21185,7 @@ describe("R6 residual (a) — a silenced chunk of a NON-R engine emits no fence 
 
 describe("Session 308 — a document DEFAULT that silences the LATER chunk: `format: html:` front matter and a setup chunk's `opts_chunk$set()`", () => {
   // MEASURED, quarto 1.7.33 with knitr 1.51, `.qmd`, exit 0, in BOTH modes (`scratchpad/s308/`, untracked). Seven grids with their predictions frozen before any render: g13 (ids
-  // d01-d36 and f01-f16), g14 (e, g_, h_, w), g15 (r), g16 (m), g17 (n), g18 (p), g19 (q), 179 documents, and every prediction that was made held; g20 (t) adds seven. The ids in the
+  // d01-d36 and f01-f16), g14 (e, g_, h_, w), g15 (r), g16 (m), g17 (n), g18 (p), g19 (q), 125 documents and 179 predictions, every one held; g20 (t) and g21 (u) add nine documents. The ids in the
   // row titles are theirs; `soundness_NN` and `frontmatter_NN` are the review round's counterexamples (`rev-soundness`, `rev-frontmatter`), blind rounds are `setup-variants_NN`.
   // The first rows use one shape: the headings Top, Between, After, Last, a stray bare fence under Top, an EMPTY `{r}` chunk under Between and a LATER chunk `y <- 1` under After.
   // When the default silences that later chunk nothing is emitted below the stray fence, so it has nothing to pair with and every heading shows (ALL); when the later chunk is loud
