@@ -164,3 +164,18 @@ describe("Session 309 — every statement shape rendered with quarto 1.7.33, doc
   });
 });
 
+describe("Session 309 — what the blind round B found", () => {
+  // Round B: 150 fresh blind documents (`scratchpad/s309/round-b`, untracked), each with one stray fence, rendered with quarto 1.7.33 in the executing mode (and `--no-execute`).
+  // The ids are theirs. Every row is the document as the author wrote it, and its answer is what quarto rendered.
+  const doc = (...lines: string[]): string[] => findHeadings(lines.join("\n"), "knitr").map((h) => h.text);
+
+  // A chunk with a `child=` option emits the CHILD DOCUMENT's own output, whose fences this scan cannot see (the child here prints, stays quiet, echoes). A call default makes the
+  // chunk silent in the executing mode, and silent chunks are skipped: the first cut of Session 309 deleted `Combined Totals` here (hostile_18; the front matter's default did the same
+  // before this session).
+  // The model cannot read the child files, so it answers the SAFE side: quarto swallows `Quiet Child` and `Echoed Child` (the child that prints and the child that echoes pair with the
+  // stray fence), and the model still lists them (a PHANTOM, pinned), but `Combined Totals`, which quarto shows, is never hidden.
+  it("a `child=` chunk is never assumed silent: `Combined Totals` is shown, `Quiet Child` and `Echoed Child` stay phantoms (hostile_18)", () => {
+    expect(doc(...["---", "title: \"Assembling a Report From Child Documents\"", "format: html", "---", "", "```{r setup, include=FALSE}", "knitr::opts_chunk$set(echo = FALSE, comment = NA)", "```", "", "# Child Documents", "", "A long report is easier to maintain when its parts live in separate files.", "", "## Why Split", "", "Each part can be edited and tested alone.", "", "## Printing Child", "", "The first child prints a summary of the `women` data.", "", "```", "", "```{r, child=\"_child_print.Rmd\"}", "```", "", "## Quiet Child", "", "```{r, child=\"_child_quiet.Rmd\"}", "```", "", "## Echoed Child", "", "```{r, child=\"_child_echo.Rmd\"}", "```", "", "## Combined Totals", "", "```{r}", "cat(\"Total height:\", child_total, \"\\n\")", "```", "", "## Closing", "", "The parts have been assembled.", ""])).toEqual(["Child Documents", "Why Split", "Printing Child", "Quiet Child", "Echoed Child", "Combined Totals", "Closing"]);
+  });
+});
+

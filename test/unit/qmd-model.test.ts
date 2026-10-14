@@ -20989,11 +20989,19 @@ describe("Session 307 — an `echo=FALSE` chunk whose code can write a FENCE is 
     ["`results=\"asis\"` and a plain `cat()` (b03)", ['```{r, echo=FALSE, results="asis"}', 'cat("hello")', "```"]],
     ["`results='asis'` and a plain `cat()`, the single-quoted twin of b03 (not rendered)", ["```{r, echo=FALSE, results='asis'}", 'cat("hello")', "```"]],
     ["a TILDE fence line, which cannot close a backtick fence (m06)", ['```{r, echo=FALSE, results="asis"}', 'cat("~~~\\n")', "```"]],
-    ["a `child=` option on the chunk (q04)", ['```{r, echo=FALSE, child="_loud.Rmd"}', "```"]],
-    ["a `#| child:` pipe (q05)", ["```{r}", "#| echo: false", "#| child: _loud.Rmd", "```"]],
     ["`include=FALSE` and a `child=` option (q06)", ['```{r, include=FALSE, child="_loud.Rmd"}', "```"]],
   ])("silent: %s", (_n, target) => {
     expect(outline(target)).toEqual(SILENT);
+  });
+
+  // ⚠ OVERTURNED BY SESSION 309, in the PHANTOM direction, on purpose (q04, q05): the child file of these rows holds ONE chunk, which inherits `echo=FALSE` and prints nothing, so
+  // quarto is `Top, Last`. A `child=` chunk whose code is not echoed emits whatever its child document holds, which the model cannot read: round B's `hostile_18` (a child that
+  // prints, one that echoes) was DELETED by the silent reading, so the chunk is `uncertain`, which ends the swallow early and shows `After`.
+  it.each([
+    ["a `child=` option on the chunk (q04)", ['```{r, echo=FALSE, child="_loud.Rmd"}', "```"]],
+    ["a `#| child:` pipe (q05)", ["```{r}", "#| echo: false", "#| child: _loud.Rmd", "```"]],
+  ])("RESIDUAL, phantom: a child document may hold fences, so the chunk is uncertain: %s", (_n, target) => {
+    expect(outline(target)).toEqual(["Top", "After", "Last"]);
   });
 
   // An option that brings a PRINTING chunk's code into an `echo=FALSE` chunk (q07, q08, q09; shape P: p07, p08, p09). The code prints, so the chunk writes an

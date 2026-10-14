@@ -7576,8 +7576,14 @@ function knitrChunkIsSilent(
   if (include === "silent") {
     return "silent";
   }
+
   const echo = knitrDefaultVerdict("echo", options, pipe, documentEcho);
   if (echo === "silent") {
+    // ⚠ A `child=` chunk whose code is not echoed emits the CHILD DOCUMENT's own output, and the fences of a child that prints, echoes or stays quiet are not visible here (rendered, blind
+    // round B hostile_18: the first cut of Session 309 deleted `Combined Totals`, and a front matter's `echo: false` did the same before it). `include=FALSE` still hides all of it.
+    if (options.has("child") || pipe.has("child")) {
+      return "uncertain";
+    }
     if ((engine[1] === "r" || engine[1] === "R") && !channels.masks && defaults.outputKept && knitrChunkPrints(body, options, pipe, defaults.stderrKept && !channels.stderrOff && knitrStderrKept(options, pipe))) {
       return "prints";
     }
