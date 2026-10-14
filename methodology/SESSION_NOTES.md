@@ -8,18 +8,35 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 303 (IN PROGRESS): the label index reads knitr HEADER labels (`{r fig-x}`, `{r, label="fig-x"}`), item (1) of the BACKLOG label-index item.**
-Operator chose it at Phase 0. Ground first: render the header spellings under knitr, then strict TDD (RED before GREEN). Scope is family (1) only; (2)-(8) stay filed.
-**⚠ Gotchas:** (1) never `git add -A`; stage by exact path. (2) The layout migration is DONE (S309 of the methodology repo): files live under `methodology/`; `?? scratchpad/` shows by design.
-(3) Quarto renders: cap total concurrent renders, caller renders at 3 wide behind a load gate; agents author documents only. (4) `test:integration` takes the screen: ask first.
-(5) `scratchpad/s301/` kept (hunt, probes, `score301.cjs`); cited folders of other sessions may be gone: re-measure before trusting a path. (6) The dashboard dirties `methodology/dashboard_history.jsonl`.
+**Task:** NONE -- Session 303 closed out. The label index reads a knitr chunk header's label (`{r fig-x}`, `{r, label="fig-x"}`): 54 corpus labels added in 8 documents, 245 rendered header shapes pinned.
+**Next:** Pick from `BACKLOG.md` "Up Next" (Active is empty). The biggest left in the label-index item: a figure label on a chunk that makes no figure is a phantom, header and `#|` alike (its family (1)(i)).
+**⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`. (2) `scratchpad/s303/`: 779 rendered probes, the `hunt/` documents, `gen*.py`, `mutate303.py`, `verdicts.cjs`.
+(3) `scratchpad/s301/render301.sh` renders a manifest directory 3 wide behind a load gate and takes `.Rmd`; `score301.cjs` reads only `.qmd` and `verdicts.cjs` (mine) reads both. (4) Agents read the installed knitr and xfun R source: say not to (Learning 700).
+(5) `test:integration` takes the screen: ask first (run twice this session, 557 passing + 1 failing, then 558). (6) `realdoc-score` is unchanged at 2423 of 2438; the 2419 in `CLAUDE.md` and the tool's README is still a stale example.
 
-### What Session 303 Did
-**Deliverable:** knitr header labels in the cross-reference label index (IN PROGRESS)
-**Started:** 2026-10-13
-**Status:** Session claimed. Work beginning. Phase 0 also backfilled a reconciled `HANDOFFS.md` receipt for the migration commits (`64af9364`).
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+## Session 302 Handoff Evaluation (by Session 303)
 
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, keep list and costs held: `scratchpad/s301/` (hunt, probes, `score301.cjs`, `corpusdiff.cjs`, `render301.sh`) was intact and
+I reused every tool in it; the dashboard took about a minute and `npm run package` 1:07; my Phase 0 found `CHANGELOG.md` current and `HANDOFFS.md` four commits behind (below).
+**Helped:** gotcha 1 (never `git add -A`) and the stage-history-files-by-exact-path habit; the corpus-reach number for the item I took (54 cells in 8 documents, reproduced exactly by `reach.cjs` and by the differential);
+the standing `realdoc-score` command (unchanged, 2423 of 2438).
+**Missing:** that the layout migration would land four commits (sync, the `CLAUDE.md` pointer, the `PROJECT_LEARNINGS.md` move, the exclude-line removal) from the methodology repository's session with no receipt here, so my
+Phase 0 reconciled one (`64af9364`); and that the item's evidence for the header spellings (`langs/r05`) is not under `scratchpad/s301/probes` (there is no `langs/`), so I rendered from nothing.
+**Wrong:** nothing material; "remove the exclude line after the migration" was already done by then (stale, harmless). **ROI: high.**
+
+## Session 303 Self-Assessment
+
+**Score: 8/10.**
+**Went right.** I grounded first and kept grounding: 779 documents rendered by me (3 wide, behind the load gate) in 7 rounds plus a 200-document hunt, so each rule has a probe behind it. A 352-document slot grid found the real
+empty-slot rule; a 245-row fixture pins the reader to quarto's own verdicts (no phantom, no loss except 4 declined rows). RED was shown before GREEN for each behaviour; the host row was RED (557 passing, 1 failing) then
+GREEN (558). Corpus differential: 54 labels added in exactly the 8 documents, 0 removed; `realdoc-score` unchanged. Mutation on the committed code: 60 of 61 killed, the survivor equivalent. 7 read-only agents (4 authors, 3 reviewers,
+about 1.40M subagent tokens, none rendered); every finding was re-measured by me before a rule changed. Unit tests 5,155 to 5,572; `compile`, `check-types`, `check-backlog`, `check-package` and `npm run package` (exit 0, 1:07, 44 files) clean.
+**Went wrong.** (1) My first commit (`36198c76`) shipped a reader whose empty-slot, `label`-prefix and bare-token rules the grid and the hunt then showed wrong, two of them phantoms; fixed in `367f0e8c` the same session, never released.
+(2) I did not model "the chunk makes no figure": 26 rows of the final score are new phantoms of that family and the container family; filed with probe names, none in the 54 corpus cells. (3) Two bugs in my own tests (a default argument
+swallowed `undefined`; the RED run with a mutated provider failed my own type-check first). (4) I ran `sed -i.bak` on Session 301's shared render script by mistake and restored it from the backup at once. (5) About ten long stretches
+with no status line drew harness nudges, the lesson Session 302 recorded. (6) The hunters read the installed knitr and xfun (GPL) source to explain what they authored; nothing from it is in a tracked file (Learning 700).
+**TDD:** RED before GREEN for every behaviour. Rows that passed on arrival (first-slot shapes the first cut already handled, pins, controls, fixture rows after each rule) were noted as they ran but not counted, so there
+is no number here; each guard was shown RED against a mutant. **Cost:** 7 agents, about 780 renders by me (the 1-minute load reached 98 once, system processes dominate it), two host runs of about 2 minutes each (the operator allowed them).
 ## Session 301 Handoff Evaluation (by Session 302)
 
 **Score: 8/10.** Self-check by the same model family, not an independent score. Its receipt named the directive, the keep list and the costs, and they held: `tools/realdoc-score/run.sh` scored 2423 of 2438
