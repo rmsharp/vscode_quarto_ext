@@ -20654,19 +20654,21 @@ describe("Session 306 — a `#| ref-label:` pipe line is the `ref.label` option:
 });
 
 describe("Session 307 — code that reaches an EMPTY chunk through a knitr channel the chunk does not show", () => {
-  // MEASURED, quarto 1.7.33 with knitr 1.51, `.qmd` (`scratchpad/s307/`: grids g3, g5; the ids below are theirs). Same shapes as the
-  // Session 306 block: a silent source chunk and a setup chunk ABOVE a stray bare fence, the target chunk below it, shape T has a
-  // later echoing chunk. When code reaches the empty target the target echoes, the stray fence pairs with ITS closer and only
-  // `Between` is swallowed (T: Top, After, Last); when none does the target is silent (T: Top, Last).
+  // MEASURED, quarto 1.7.33 with knitr 1.51, `.qmd`, exit 0 with real execution (`scratchpad/s307/`: grids g3, g5, g7 and the `lens-fill` /
+  // `lens-normal` rounds; the ids below are theirs). Same shapes as the Session 306 block: a silent source chunk and a setup chunk ABOVE a
+  // stray bare fence, the target chunk below it. Shape T has a later echoing chunk and shape P has none. When code reaches the empty target it
+  // echoes, the stray fence pairs with ITS closer and only `Between` is swallowed (T: Top, After, Last; P: Top, After); when none does the
+  // target is silent (T: Top, Last; P: Top, Between, After, the stray fence stays prose).
   const SRC = ["```{r src, include=FALSE}", "z <- 3", "```"];
   const setup = (...code: string[]): string[] => [...SRC, "", "```{r setup, include=FALSE}", ...code, "```"];
-  interface Shape { source?: string[]; below?: string[]; front?: string[]; above?: string[] }
+  interface Shape { source?: string[]; below?: string[]; front?: string[]; above?: string[]; later?: boolean }
   const grid = (target: string[], shape: Shape = {}): string =>
     ["---", "title: t", ...(shape.front ?? []), "---", "", ...(shape.source ?? SRC), "", ...(shape.above ?? []), "# Top", "", "```", "", "## Between", "", ...target,
-      "", "## After", ...(shape.below ?? []), "", "```{r}", "y <- 1", "```", "", "## Last", ""].join("\n");
+      "", "## After", ...(shape.below ?? []), ...(shape.later === false ? [] : ["", "```{r}", "y <- 1", "```", "", "## Last"]), ""].join("\n");
   const outline = (target: string[], shape?: Shape): string[] => findHeadings(grid(target, shape), "knitr").map((h) => h.text);
   const ECHOES = ["Top", "After", "Last"];
   const SILENT = ["Top", "Last"];
+  const SILENT_P = ["Top", "Between", "After"];
   const EMPTY = ["```{r}", "```"];
   const LBL = ["```{r lbl}", "```"];
 
@@ -20678,8 +20680,7 @@ describe("Session 307 — code that reaches an EMPTY chunk through a knitr chann
     expect(outline(LBL, { source: setup('knitr::read_chunk("_lbl.R")') })).toEqual(ECHOES);
   });
 
-  // Rows of the same behaviour (they went green with the two rows above, disclosed; each channel word is in the guard, and dropping
-  // it turns its row RED, verified by a mutant). Rendered with real execution, exit 0.
+  // Rows of the same behaviour (they went green with the rows above or with the narrowing below, disclosed). Rendered, real execution, exit 0.
   it.each<[string, string[], Shape]>([
     ["`knit_code$set(lbl = ...)` (a10)", LBL, { source: setup('knitr::knit_code$set(lbl = "w <- 9")') }],
     ["`read_chunk(lines = ...)` (a11)", LBL, { source: setup('knitr::read_chunk(lines = c("## ---- lbl", "w <- 9"))') }],
@@ -20687,54 +20688,123 @@ describe("Session 307 — code that reaches an EMPTY chunk through a knitr chann
     ["a label given by a `#| label:` line (k07)", ["```{r}", "#| label: lbl", "```"], { source: setup('knitr::read_chunk("_lbl.R")') }],
     ["`opts_chunk$set(code = ...)` (k08)", EMPTY, { source: setup('knitr::opts_chunk$set(code = "w <- 9")') }],
     ["`opts_chunk$set(file = ...)` (k09)", EMPTY, { source: setup('knitr::opts_chunk$set(file = "_lbl.R")') }],
+    ["the option on the NEXT line of the call (q20)", EMPTY, { source: setup("knitr::opts_chunk$set(", '  ref.label = "src"', ")") }],
+    ["a bare `opts_chunk$set()` after `library(knitr)` (fill_08)", EMPTY, { source: setup("library(knitr)", 'opts_chunk$set(ref.label = "src")') }],
+    ["the options in a list handed to `do.call()` (fill_04)", EMPTY, { source: setup('opts <- list(ref.label = "src")', "do.call(knitr::opts_chunk$set, opts)") }],
+    ["the function stored in a variable (fill_06)", EMPTY, { source: setup("setopt <- knitr::opts_chunk$set", 'setopt(ref.label = "src")') }],
+    ["the call inside a function that is then called (fill_09)", EMPTY,
+      { source: setup("prepare <- function(lab) {", "  knitr::opts_chunk$set(ref.label = lab)", "  invisible(lab)", "}", 'prepare("src")') }],
     ["an inline `r` expression in the prose (k11, BOTH modes)", EMPTY, { above: ['`r knitr::opts_chunk$set(ref.label = "src")`', ""] }],
     ["the front matter's `knitr: opts_chunk:` (k12, BOTH modes)", EMPTY, { front: ["knitr:", "  opts_chunk:", "    ref.label: src"] }],
+    ["the front matter in FLOW style (fill_30)", EMPTY, { front: ['knitr: { opts_chunk: { code: "z <- 3" } }'] }],
   ])("not silent: %s", (_n, target, shape) => {
     expect(outline(target, shape)).toEqual(ECHOES);
   });
 
-  // POSITION: a call BELOW the chunk cannot fill it (a03, a09, rendered: silent), so only the lines ABOVE count.
+  // SHAPE P, the stray fence has NO closer below but this chunk's: an UNCERTAIN chunk may END a swallow early (shape T above) but never OPENS one. Quarto
+  // echoes a LIVE channel and swallows `Between` there (`Top, After`), and is silent for a channel that never runs (`Top, Between, After`, every heading
+  // shows); the model cannot tell which, and deleting `Between` is the worse error, so it shows it in both. The first cut closed the fence at the chunk and
+  // DELETED `Between` for every dead channel (round 1, `lens-defaults`, `lens-fill`: 11 documents).
+  it.each<[string, string[], Shape]>([
+    ["a LIVE channel: the phantom side, pinned (a01)", EMPTY, { source: setup('knitr::opts_chunk$set(ref.label = "src")') }],
+    ["the setup chunk is `eval=FALSE` and never runs (a02, fill_23)", EMPTY, { source: [...SRC, "", "```{r setup, include=FALSE, eval=FALSE}", 'knitr::opts_chunk$set(ref.label = "src")', "```"] }],
+    ["`read_chunk` reads a file that holds ANOTHER label (a07, fill_16)", LBL, { source: setup('knitr::read_chunk("_other.R")') }],
+    ["the function that holds the call is never called (fill_10)", EMPTY, { source: setup("prepare <- function(lab) {", "  knitr::opts_chunk$set(ref.label = lab)", "}") }],
+  ])("shape P, no closer below but this chunk's: every heading shows: %s", (_n, target, shape) => {
+    expect(outline(target, { ...shape, later: false })).toEqual(SILENT_P);
+  });
+
+  // POSITION: a call BELOW the chunk cannot fill it (a03, a09, rendered: silent), and a call below does not hide the one above.
   it.each<[string, string[], string[]]>([
     ["`opts_chunk$set(ref.label = ...)` (a03)", EMPTY, ["", "```{r later, include=FALSE}", 'knitr::opts_chunk$set(ref.label = "src")', "```"]],
     ["`read_chunk(...)` (a09)", LBL, ["", "```{r later, include=FALSE}", 'knitr::read_chunk("_lbl.R")', "```"]],
   ])("silent: the call sits BELOW the chunk: %s", (_n, target, below) => {
     expect(outline(target, { below })).toEqual(SILENT);
   });
+  it("a call BELOW the chunk does not hide the call ABOVE it", () => {
+    const below = ["", "```{r later, include=FALSE}", 'knitr::opts_chunk$set(ref.label = "src")', "```"];
+    expect(outline(EMPTY, { source: setup('knitr::opts_chunk$set(ref.label = "src")'), below })).toEqual(ECHOES);
+  });
 
-  // NOT GUARDED, on purpose: each was rendered and quarto stays SILENT, so a guard on the word would only add a phantom (grid g5).
+  // THE NORMAL CASE, rendered: a setup chunk that names the functions without supplying code leaves an empty chunk silent. The first cut of this
+  // rule read the BARE WORD and turned all of these wrong (round 1 of the blind lenses: `lens-normal`; grid g7): the sandwich and shape P DELETED a
+  // heading quarto renders. Right at HEAD, and they must stay so.
+  const HARMLESS = 'knitr::opts_chunk$set(collapse = TRUE, comment = "#>")';
+  it.each<[string, string[], Shape]>([
+    ["`opts_chunk$set(collapse = ...)`, shape T (q17)", EMPTY, { source: setup(HARMLESS) }],
+    ["`opts_chunk$set(collapse = ...)`, shape P (q18)", EMPTY, { source: setup(HARMLESS), later: false }],
+    ["`opts_chunk$set(fig.path = ...)` beside a `file =` argument of ANOTHER call (q21)", EMPTY,
+      { source: setup('knitr::opts_chunk$set(fig.path = "figs/", dev = "png")', "write.csv(head(cars), file = tempfile())") }],
+    ["a `read_chunk` call and an UNLABELLED empty chunk (q23)", EMPTY, { source: setup('knitr::read_chunk("_lbl.R")') }],
+    ["a `read_chunk` call that sits in a COMMENT (q24)", LBL, { source: setup('# knitr::read_chunk("_lbl.R") is not called', "x <- 1") }],
+    ["`opts_chunk` named in PROSE only (a04)", EMPTY, { above: ["The word `opts_chunk` appears only in this sentence.", ""] }],
+    ["`read_chunk` named in PROSE only (a13)", LBL, { above: ["We never call `read_chunk` here.", ""] }],
+    ["the front matter's `knitr: opts_chunk:` with no code option", EMPTY, { front: ["knitr:", "  opts_chunk:", "    collapse: true"] }],
+  ])("silent: %s", (_n, target, shape) => {
+    expect(outline(target, shape)).toEqual(shape.later === false ? SILENT_P : SILENT);
+  });
+  it("silent: the sandwich, an empty chunk between two bare fences that pair with each other, under a harmless `opts_chunk$set` (q19)", () => {
+    // Two bare fences with an empty chunk between them: knitr drops the chunk, pandoc pairs the two fences, and `After` shows. A chunk read as
+    // LOUD would close the first fence at the chunk's own closer and turn the second into an opener that swallows `After` (the deleting parity flip).
+    const lines = ["---", "title: t", "---", "", ...setup('knitr::opts_chunk$set(echo = TRUE)'), "", "# Top", "", "Insert an empty chunk like this:", "", "```",
+      "```{r}", "```", "```", "", "## After", "", "```{r}", "y <- 1", "```", "", "## Last", ""];
+    expect(findHeadings(lines.join("\n"), "knitr").map((h) => h.text)).toEqual(["Top", "After", "Last"]);
+  });
+
+  // NOT A CHANNEL, rendered: each leaves the empty chunk SILENT in quarto (grid g5), so a guard on the word would only add a phantom.
   it.each<[string, string[], string[]]>([
-    ["`opts_template$set(t = list(ref.label = ...))` with `opts.label` on the chunk (k01)", ["```{r, opts.label='t'}", "```"], setup('knitr::opts_template$set(t = list(ref.label = "src"))')],
+    ["`opts_template$set(...)` with `opts.label` on the chunk (k01)", ["```{r, opts.label='t'}", "```"], setup('knitr::opts_template$set(t = list(ref.label = "src"))')],
     ["`set_alias(r = \"ref.label\")` with `r=` on the chunk (k03)", ["```{r, r='src'}", "```"], setup('knitr::set_alias(r = "ref.label")')],
     ["`opts_hooks$set(...)` (k04)", ["```{r, fig.width=1}", "```"], setup('knitr::opts_hooks$set(fig.width = function(options) { options$ref.label <- "src"; options })')],
-    ["`source(\"_setup.R\")` (k05)", EMPTY, setup('source("_setup.R")')],
+    ["`source(\"_setup.R\")` of a file that holds no channel (k05)", EMPTY, setup('source("_setup.R")')],
     ["a setup chunk with no channel at all", EMPTY, setup("x <- 1")],
   ])("silent, not guarded: %s", (_n, target, source) => {
     expect(outline(target, { source })).toEqual(SILENT);
   });
 
-  // RESIDUALS, NOT quarto truth: a word that names no channel in effect still declines the silence, because the guard reads a bare
-  // word on the lines above (as the label index's `codeFromElsewhere` does), and the model cannot tell. Each was RIGHT before
-  // Session 307 and is wrong now, in the phantom direction (`After` shown, quarto swallows it): the cost of the guard, priced by grid g3.
+  // SCOPE: the guard is for the EMPTY-chunk route only. A chunk silenced by an option stays silent whatever sits above it (rendered, r01-r03: an
+  // empty `echo=FALSE` chunk is silent under a LIVE channel, by header, by pipe and for a labelled chunk under `read_chunk`).
+  it.each<[string, string[], string[]]>([
+    ["`include=FALSE` on the empty chunk", ["```{r, include=FALSE}", "```"], setup('knitr::opts_chunk$set(ref.label = "src")')],
+    ["`echo=FALSE` on the empty chunk (r01)", ["```{r, echo=FALSE}", "```"], setup('knitr::opts_chunk$set(ref.label = "src")')],
+    ["a `#| echo: false` pipe on the empty chunk (r02)", ["```{r}", "#| echo: false", "```"], setup('knitr::opts_chunk$set(ref.label = "src")')],
+    ["`echo=FALSE` on a labelled empty chunk under `read_chunk` (r03)", ["```{r lbl, echo=FALSE}", "```"], setup('knitr::read_chunk("_lbl.R")')],
+  ])("silent under a real channel, the option wins: %s", (_n, target, source) => {
+    expect(outline(target, { source })).toEqual(SILENT);
+  });
+
+  // RESIDUALS, NOT quarto truth, RIGHT before Session 307 and wrong now (the phantom direction in shape T: `After` shown, quarto swallows it).
+  // The guard reads the CALL, not whether it RUNS or whether the label it names exists.
   it.each<[string, string[], Shape]>([
-    ["the setup chunk is `eval=FALSE` and never runs (a02)", EMPTY, { source: [...SRC, "", "```{r setup, include=FALSE, eval=FALSE}", 'knitr::opts_chunk$set(ref.label = "src")', "```"] }],
-    ["the word appears in prose only (a04, a13)", LBL, { above: ["We never call `read_chunk` here, and `opts_chunk` is only a word.", ""] }],
-    ["`read_chunk` reads a file that holds ANOTHER label (a07)", LBL, { source: setup('knitr::read_chunk("_other.R")') }],
-    ["an UNLABELLED empty chunk under a `read_chunk` call (a08)", EMPTY, { source: setup('knitr::read_chunk("_lbl.R")') }],
+    ["the setup chunk is `eval=FALSE` and never runs (a02, fill_23)", EMPTY, { source: [...SRC, "", "```{r setup, include=FALSE, eval=FALSE}", 'knitr::opts_chunk$set(ref.label = "src")', "```"] }],
+    ["`read_chunk` reads a file that holds ANOTHER label (a07, fill_16)", LBL, { source: setup('knitr::read_chunk("_other.R")') }],
+    ["the function that holds the call is never called (fill_10)", EMPTY,
+      { source: setup("prepare <- function(lab) {", "  knitr::opts_chunk$set(ref.label = lab)", "}") }],
   ])("RESIDUAL, right before Session 307: %s", (_n, target, shape) => {
     expect(outline(target, shape)).toEqual(ECHOES);
+  });
+  // WRONG BEFORE AND AFTER, the DELETING direction, pinned at the model's answer. A document default (or a label that names no chunk) leaves
+  // quarto with NO closer at all below the stray fence, so every heading shows; the model still sees one. Family (2) of the BACKLOG item.
+  it.each<[string, string[], Shape, string[]]>([
+    ["`opts_chunk$set(echo = FALSE)` silences the LATER chunk too, so nothing closes the fence (a05)", EMPTY, { source: setup("knitr::opts_chunk$set(echo = FALSE)") }, SILENT],
+    ["`ref.label` names no chunk, so the empty chunk is silent in quarto (a12)", EMPTY, { source: setup('knitr::opts_chunk$set(ref.label = "nosuch")') }, ECHOES],
+  ])("WRONG before and after (quarto shows every heading): %s", (_n, target, shape, answer) => {
+    expect(outline(target, shape)).toEqual(answer);
   });
 });
 
 describe("Session 307 — an `echo=FALSE` chunk whose code can write a FENCE is not silent", () => {
-  // MEASURED, quarto 1.7.33 with knitr 1.51, `.qmd`, exit 0 with real execution (`scratchpad/s307/` grids g3, g5; the ids are theirs). A
-  // chunk silenced by `echo=FALSE` emits no fence of its own, but what its code writes can: the stray bare fence above it then pairs with
-  // THAT fence and only `Between` is swallowed (T: Top, After, Last). Without such output the chunk is silent (T: Top, Last).
-  const grid = (target: string[], front: string[] = []): string =>
-    ["---", "title: t", ...front, "---", "", "# Top", "", "```", "", "## Between", "", ...target, "", "## After", "", "```{r}", "y <- 1", "```", "", "## Last", ""]
+  // MEASURED, quarto 1.7.33 with knitr 1.51, `.qmd`, exit 0 with real execution (`scratchpad/s307/` grids g3, g5, g6, g7 and the blind lenses; the ids
+  // are theirs). A chunk silenced by `echo=FALSE` emits no fence of its own, but what its code writes can: the stray bare fence above it then pairs
+  // with THAT fence and only `Between` is swallowed (T: Top, After, Last; P: Top, After). Without such output the chunk is silent (T: Top, Last;
+  // P: Top, Between, After, the stray fence stays prose).
+  const grid = (target: string[], front: string[] = [], later = true): string =>
+    ["---", "title: t", ...front, "---", "", "# Top", "", "```", "", "## Between", "", ...target, "", "## After", ...(later ? ["", "```{r}", "y <- 1", "```", "", "## Last"] : []), ""]
       .join("\n");
-  const outline = (target: string[], front?: string[]): string[] => findHeadings(grid(target, front), "knitr").map((h) => h.text);
+  const outline = (target: string[], front?: string[], later?: boolean): string[] => findHeadings(grid(target, front, later), "knitr").map((h) => h.text);
   const ECHOES = ["Top", "After", "Last"];
   const SILENT = ["Top", "Last"];
+  const SILENT_P = ["Top", "Between", "After"];
   const CHILD = 'cat(knitr::knit_child("_loud.Rmd", quiet = TRUE))';
 
   it("`echo=FALSE` and a `knit_child()` of a document that holds a chunk: the child's fence is written, so it is not silent (m01)", () => {
@@ -20753,8 +20823,7 @@ describe("Session 307 — an `echo=FALSE` chunk whose code can write a FENCE is 
     expect(outline(['```{r, echo=FALSE, results="asis"}', 'cat(readLines("_fence.md"), sep = "\\n")', "```"])).toEqual(ECHOES);
   });
 
-  // Rows of the same behaviour (they went green with the rows above, disclosed; dropping a word from the guard turns its rows RED,
-  // verified by a mutant). Every one was rendered with real execution, exit 0, and is loud.
+  // Rows of the same behaviour (they went green with the rows above, disclosed). Every one was rendered with real execution, exit 0, and is loud.
   it.each<[string, string[], string[]?]>([
     ["the header's `results=\"asis\"` with a child (b05)", ['```{r, echo=FALSE, results="asis"}', CHILD, "```"]],
     ["a `#| echo: false` and `#| results: asis` pipe (m04)", ["```{r}", "#| echo: false", "#| results: asis", CHILD, "```"]],
@@ -20764,36 +20833,85 @@ describe("Session 307 — an `echo=FALSE` chunk whose code can write a FENCE is 
     ["a FOUR-backtick fence line, which closes a three-backtick one (n10)", ['```{r, echo=FALSE, results="asis"}', 'cat("````\\n")', "```"]],
     ["a fence line written WITHOUT `asis` (n14)", ["```{r, echo=FALSE}", 'cat("```\\n")', "```"]],
     ["`knitr::asis_output()` of a fence line (n11)", ["```{r, echo=FALSE}", 'knitr::asis_output("```\\n")', "```"]],
+    ["a fence line with an info string (normal_22)", ["```{r, echo=FALSE}", 'cat("```r\\nx <- 1\\n")', "```"]],
     ["a `{python}` chunk printing a fence line (n06)", ['```{python, echo=FALSE, results="asis"}', 'print("```")', "```"]],
-    ["the DOCUMENT's `execute: echo: false`, no option on the chunk (n03)", ["```{r}", CHILD, "```"], ["execute:", "  echo: false"]],
+    ["the fence held in a variable and printed on another line", ["```{r, echo=FALSE}", 'fence <- "```"', "cat(fence, sep = \"\\n\")", "```"]],
   ])("not silent: %s", (_n, target, front) => {
     expect(outline(target, front)).toEqual(ECHOES);
   });
+  // The DOCUMENT's `execute: echo: false` silences the LATER chunk too, so no certain closer is left below the stray fence and the uncertain chunk cannot
+  // open the swallow: every heading shows. Quarto closes the fence at the child's fence (`Top, After, Last`, n03): the phantom side, pinned.
+  it("the DOCUMENT's `execute: echo: false` leaves no certain closer below: every heading shows, the phantom side (n03)", () => {
+    expect(outline(["```{r}", CHILD, "```"], ["execute:", "  echo: false"])).toEqual(["Top", "Between", "After", "Last"]);
+  });
+  // SHAPE P, no closer below but this chunk's: an UNCERTAIN chunk ends a swallow early (shape T) but never OPENS one, so every heading shows. Quarto
+  // swallows `Between` for a LIVE writer (`Top, After`: the phantom side, pinned) and shows every heading for one that never runs or never prints.
+  it.each<[string, string[], string[]?]>([
+    ["a LIVE child writer: the phantom side, pinned (m01)", ["```{r, echo=FALSE}", CHILD, "```"]],
+    ["inside `if (FALSE) { ... }` (n05)", ["```{r, echo=FALSE}", "if (FALSE) {", "  " + CHILD, "}", "```"]],
+    ["the document's `execute: eval: false` (defaults_07)", ["```{r, echo=FALSE}", CHILD, "```"], ["execute:", "  eval: false"]],
+    ["the document's `execute: output: false` (defaults_09)", ["```{r, echo=FALSE}", CHILD, "```"], ["execute:", "  output: false"]],
+    ["`results=\"hide\"` on the chunk (n08)", ['```{r, echo=FALSE, results="hide"}', CHILD, "```"]],
+    ["a child that holds no chunk (n15)", ['```{r, echo=FALSE, results="asis"}', 'cat(knitr::knit_child(text = "plain", quiet = TRUE))', "```"]],
+  ])("shape P, no closer below but this chunk's: every heading shows: %s", (_n, target, front) => {
+    expect(outline(target, front, false)).toEqual(SILENT_P);
+  });
 
-  // CONTROLS, rendered, silent in quarto and in this model: `include=FALSE` hides everything the chunk writes, a chunk that never
-  // runs writes nothing, and a comment is no code.
+  // THE NORMAL CASE, rendered: a chunk that READS a file, strips fences from text or prints a sentence that mentions backticks writes no fence line.
+  // The first cut of this rule read the BARE WORDS `readLines` and three backticks, and turned each of these wrong (blind round 1, `lens-normal`;
+  // grid g7): in shape P it DELETED `Between`. Right at HEAD, and they must stay so.
+  it.each<[string, string[]]>([
+    ["an assignment and nothing printed, the plain control (q02)", ["```{r, echo=FALSE}", "x <- 1", "```"]],
+    ["`readLines()` into a variable, nothing printed (q13)", ["```{r, echo=FALSE}", 'notes <- readLines("_fence.md")', "n <- length(notes)", "```"]],
+    ["three backticks MID-LINE in a printed sentence (q15)", ['```{r, echo=FALSE, results="asis"}', 'cat("a literal ```" , "inside a sentence\\n")', "```"]],
+    ["`gsub()` on a fence run, nothing printed (q16)", ["```{r, echo=FALSE}", 'txt <- gsub("```", "", "a ``` b")', "```"]],
+  ])("silent: %s", (_n, target) => {
+    expect(outline(target)).toEqual(SILENT);
+    expect(outline(target, undefined, false)).toEqual(SILENT_P);
+  });
+
+  // CONTROLS, rendered, silent in quarto and in this model: `include=FALSE` hides everything the chunk writes, a chunk that never runs writes
+  // nothing, a comment is no code, a TILDE fence line cannot close a backtick fence (m06), and an option that brings a document in is not a call.
   it.each([
     ["`include=FALSE` beside `asis` and a child (m02)", ['```{r, include=FALSE, results="asis"}', CHILD, "```"]],
     ["`include=FALSE` and `echo=FALSE` (n07)", ["```{r, include=FALSE, echo=FALSE}", CHILD, "```"]],
     ["`eval=FALSE`, so the chunk never runs (n01)", ["```{r, echo=FALSE, eval=FALSE}", CHILD, "```"]],
     ["a `#| eval: false` pipe (n02)", ["```{r}", "#| echo: false", "#| eval: false", CHILD, "```"]],
     ["the word only in a comment line (m08)", ['```{r, echo=FALSE, results="asis"}', "# knit_child is not called here", 'cat("hello")', "```"]],
+    ["the word only in an INDENTED comment line", ['```{r, echo=FALSE, results="asis"}', "f <- function() {", "  # knit_child is not called here", "}", 'cat("hello")', "```"]],
     ["a fence only in a comment line (n13)", ['```{r, echo=FALSE, results="asis"}', '# cat("```")', 'cat("hi")', "```"]],
     ["`results=\"asis\"` and a plain `cat()` (b03)", ['```{r, echo=FALSE, results="asis"}', 'cat("hello")', "```"]],
-    ["a plain `print()` (b01)", ["```{r, echo=FALSE}", "print(1)", "```"]],
+    ["`results='asis'` and a plain `cat()`, the single-quoted twin (m07)", ["```{r, echo=FALSE, results='asis'}", 'cat("hello")', "```"]],
+    ["a TILDE fence line, which cannot close a backtick fence (m06)", ['```{r, echo=FALSE, results="asis"}', 'cat("~~~\\n")', "```"]],
+    ["a `child=` option on the chunk (q04)", ['```{r, echo=FALSE, child="_loud.Rmd"}', "```"]],
+    ["a `#| child:` pipe (q05)", ["```{r}", "#| echo: false", "#| child: _loud.Rmd", "```"]],
+    ["`include=FALSE` and a `child=` option (q06)", ['```{r, include=FALSE, child="_loud.Rmd"}', "```"]],
+    ["a `ref.label=` option naming a chunk that prints (q07)", ['```{r, echo=FALSE, ref.label="srcp"}', "```"]],
+    ["a `file=` option (q08)", ['```{r, echo=FALSE, file="_code.R"}', "```"]],
+    ["a `code=` option (q09)", ['```{r, echo=FALSE, code="print(1)"}', "```"]],
   ])("silent: %s", (_n, target) => {
     expect(outline(target)).toEqual(SILENT);
   });
 
-  // RESIDUALS, NOT quarto truth: the guard reads WORDS on the code lines, so a writer that is named and never reaches the output keeps
-  // the chunk loud. Each was RIGHT before Session 307 and is wrong now, in the phantom direction (`After` shown, quarto swallows it).
+  // PRE-EXISTING, wrong at HEAD and now, the PHANTOM direction (measured, shape P, q01, q03): `print()` and `message()` under `echo=FALSE` each write
+  // an output block of TWO bare fence lines. In shape T they cancel by parity (so `Top, Last` is right, b01), but in shape P the first one closes the
+  // stray fence and the second is left open: quarto `Top, After`. The model reads the chunk as silent: `Top, Between, After`.
+  it.each([
+    ["`print(1)` under `echo=FALSE` (q01)", ["```{r, echo=FALSE}", "print(1)", "```"]],
+    ["`message()` under `echo=FALSE` (q03)", ["```{r, echo=FALSE}", 'message("hi")', "```"]],
+  ])("WRONG before and after, shape P: %s", (_n, target) => {
+    expect(outline(target)).toEqual(SILENT);
+    expect(outline(target, undefined, false)).toEqual(SILENT_P);
+  });
+
+  // RESIDUALS, NOT quarto truth: the guard reads WORDS on the code lines, so a writer that is named and never reaches the output keeps the chunk
+  // loud. Each was RIGHT before Session 307 and is wrong now, in the phantom direction in shape T (`After` shown, quarto swallows it).
   it.each([
     ["inside `if (FALSE) { ... }` (n05)", ["```{r, echo=FALSE}", "if (FALSE) {", "  " + CHILD, "}", "```"]],
     ["`results=\"hide\"` drops the output (n08)", ['```{r, echo=FALSE, results="hide"}', CHILD, "```"]],
     ["the word after code on one line, `x <- 1 # knit_child later` (n09)", ["```{r, echo=FALSE}", "x <- 1 # knit_child later", "```"]],
     ["a child that holds no chunk, `knit_child(text = ...)` (n15)", ['```{r, echo=FALSE, results="asis"}', 'cat(knitr::knit_child(text = "plain", quiet = TRUE))', "```"]],
     ["a child whose chunk is itself silent (m09)", ['```{r, echo=FALSE, results="asis"}', 'cat(knitr::knit_child("_silent.Rmd", quiet = TRUE))', "```"]],
-    ["a TILDE fence line, which cannot close a backtick fence (m06)", ['```{r, echo=FALSE, results="asis"}', 'cat("~~~\\n")', "```"]],
     ["TWO fence lines in one `cat()`, which cancel by parity (b04)", ['```{r, echo=FALSE, results="asis"}', 'cat("```\\nx\\n```\\n")', "```"]],
     ["the child result is assigned and never printed (b14)", ['```{r, echo=FALSE, results="asis"}', 'res <- knitr::knit_child("_loud.Rmd", quiet = TRUE)', "```"]],
   ])("RESIDUAL, right before Session 307: %s", (_n, target) => {
@@ -20806,14 +20924,16 @@ describe("Session 307 — an `{{< include >}}` is NOT read as a fence closer, an
   // Quarto expands an include shortcode TEXTUALLY, before knitr and pandoc, and the expansion can carry a fence line: an included chunk
   // or a bare fence closes the stray bare fence above it (c01, c03, c09: only `Between` is swallowed), and one inside a CLOSED backtick
   // fence turns that fence's own closer into an opener (i01, i04). This model never opens the file, so it cannot know what an include
-  // holds, and it answers as if the include were plain text: wrong, in the DELETING direction, for the shapes pinned as RESIDUAL below.
+  // holds, and it answers as if the include were plain text. That is wrong in the DELETING direction for c01, c03 and c09 (`After` is lost)
+  // and in the PHANTOM direction for c07 and the closed-fence shape (`After` or `Between` shown): the RESIDUAL rows below.
   // ⚠ It is NOT fixed by presuming an include closes a fence, because the commonest use of an include beside a fence is a code SAMPLE from
   // a file: a fence, `{{< include sample.py >}}`, a fence (j01-j04, rendered, every heading shows). An include-closes rule would turn that
   // closing fence into an opener and swallow every heading below it, so those four rows must stay right whatever a later session does.
+  // ⚠ The include is plain text to this model, so the rows that AGREE with quarto (c02, c04, i08) agree because the included file holds no fence
+  // line, not because the model understands an include: the same text with a chunk in the file is c01.
   const grid = (target: string[], tail = true): string =>
     ["---", "title: t", "---", "", "# Top", "", ...target, "", "## After", ...(tail ? ["", "```{r}", "y <- 1", "```", "", "## Last"] : []), ""].join("\n");
   const outline = (target: string[], tail?: boolean): string[] => findHeadings(grid(target, tail), "knitr").map((h) => h.text);
-  const INCLUDE = "{{< include _inc.md >}}";
 
   // THE IDIOM, rendered: a fence holding an include of a plain file leaves every heading below it. Right at HEAD, and it must stay so.
   it.each([
@@ -20826,26 +20946,34 @@ describe("Session 307 — an `{{< include >}}` is NOT read as a fence closer, an
   });
 
   const STRAY = (between: string[]): string[] => ["```", "", "## Between", "", ...between];
-  // RESIDUAL, NOT quarto truth: the included file holds a chunk or a bare fence, so quarto closes the stray fence at the include
+  // RESIDUAL, NOT quarto truth, DELETING: the included file holds a chunk or a bare fence, so quarto closes the stray fence at the include
   // and shows `After`; this model reads the include as text and the stray fence pairs with the later chunk's closer. T: Top, After, Last.
   it.each([
-    ["an include of a file that holds a chunk (c01)", STRAY([INCLUDE])],
-    ["an include of a file that holds a bare fence line (c03)", STRAY([INCLUDE])],
-    ["an empty chunk, then an include of a chunk (c09)", STRAY(["```{r}", "```", "", INCLUDE])],
-  ])("RESIDUAL, the model's answer is not quarto's: %s", (_n, target) => {
+    ["an include of a file that holds a chunk (c01, `_inc_chunk.md`)", STRAY(["{{< include _inc_chunk.md >}}"])],
+    ["an include of a file that holds a bare fence line (c03, `_inc_closer.md`)", STRAY(["{{< include _inc_closer.md >}}"])],
+    ["an empty chunk, then an include of a chunk (c09, `_inc_chunk.md`)", STRAY(["```{r}", "```", "", "{{< include _inc_chunk.md >}}"])],
+  ])("RESIDUAL, DELETING, the model's answer is not quarto's: %s", (_n, target) => {
     expect(outline(target)).toEqual(["Top", "Last"]);
   });
-  // The same shape with NO later chunk (shape P): quarto closes at the include and shows `Top, After`; this model finds no closer below
-  // the stray fence at all, so the fence stays prose and nothing is swallowed: `Top, Between, After` (a phantom `Between`, the safe side).
-  it("RESIDUAL, shape P: an include that holds a chunk, and no later chunk (c07)", () => {
-    expect(outline(STRAY([INCLUDE]), false)).toEqual(["Top", "Between", "After"]);
+  // RESIDUAL, PHANTOM: the same shape with NO later chunk (shape P): quarto closes at the include and shows `Top, After`; this model finds no closer
+  // below the stray fence at all, so the fence stays prose and nothing is swallowed: `Top, Between, After` (a phantom `Between`, the safe side).
+  it("RESIDUAL, PHANTOM, shape P: an include that holds a chunk, and no later chunk (c07)", () => {
+    expect(outline(STRAY(["{{< include _inc_chunk.md >}}"]), false)).toEqual(["Top", "Between", "After"]);
   });
-  // What the include does NOT do, rendered (c02, c04, c05, c06, i08): plain text and a silent chunk leave the stray fence unclosed, an
-  // include written after the heading it would hide changes nothing, and an escaped shortcode is not an include. All agree with quarto.
+  // RESIDUAL, PHANTOM: an include of a chunk INSIDE a closed backtick fence turns that fence's closer into an opener that swallows `After`: quarto
+  // `Top, Last` (i01, i04); this model reads the same text as the idiom above, `Top, After, Last`. The two are byte-identical but for the file name.
   it.each([
-    ["an include of plain text (c02)", STRAY(["{{< include _inc_text.md >}}"])],
-    ["an include of a silent chunk (c04)", STRAY(["{{< include _inc_silent.md >}}"])],
-    ["an ESCAPED shortcode (i08)", STRAY(["{{{< include _inc.md >}}}"])],
+    ["a bare fence (i01, `_inc_chunk.md`)", ["```", "{{< include _inc_chunk.md >}}", "```"]],
+    ["a fence with an info string (i04, `_inc_chunk.md`)", ["```markdown", "{{< include _inc_chunk.md >}}", "```"]],
+  ])("RESIDUAL, PHANTOM: an include that holds a chunk inside a closed fence: %s", (_n, target) => {
+    expect(outline(target)).toEqual(["Top", "After", "Last"]);
+  });
+  // What the include does NOT do, rendered (c02, c04, i08): plain text and a silent chunk leave the stray fence unclosed, and an escaped shortcode
+  // is not an include. They agree with quarto (see the caveat above).
+  it.each([
+    ["an include of plain text (c02, `_inc_text.md`)", STRAY(["{{< include _inc_text.md >}}"])],
+    ["an include of a silent chunk (c04, `_inc_silent.md`)", STRAY(["{{< include _inc_silent.md >}}"])],
+    ["an ESCAPED shortcode (i08)", STRAY(["{{{< include _inc_chunk.md >}}}"])],
   ])("silent, as in quarto: %s", (_n, target) => {
     expect(outline(target)).toEqual(["Top", "Last"]);
   });
