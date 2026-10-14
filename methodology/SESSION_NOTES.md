@@ -8,13 +8,20 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 306 closed out.** The Outline's knitr silence rule now reads a dashed `#| ref-label:` pipe as `ref.label`. `BACKLOG.md` "Active" is empty; present ranked candidates via AskUserQuestion at Phase 0.
+**Task:** **Session 307 (IN PROGRESS): family (3) of the Outline silence-rule item -- code that arrives by a channel `knitrChunkIsSilent` never reads (`opts_chunk$set(ref.label=)`, `read_chunk()`, `knit_child()`, an `{{< include >}}` standing where a chunk is), the only family that DELETES headings.**
+Operator picked the whole item at Phase 0 (the recommended one); this session takes its first family by the item's own ranking (deletion first, "one `codeFromElsewhere` conjunct"). Families (1) and (2) stay filed. Measure by render first; strict TDD.
 **⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in the close-out commit).
 (2) `scratchpad/s306/` (untracked) holds this session's harness: `gen306.py`, `gen306b.py` (grids), `BRIEF306.md`, `diff306.py <head.cjs> <fix.cjs> <dirs>` (quarto vs two builds), `twinall306.py prep|check`, `mutate306.py`, `build.sh <label>`, lens dirs with renders.
 (3) `scratchpad/s304/render304.sh <ABSOLUTE lensdir> [width]` renders 3 wide behind a load gate from a `manifest.json` (engine `r` executes, anything else is `--no-execute`). A relative path failed here after a `cd`. In zsh pass dir lists as an ARRAY.
 (4) Put "do not read installed quarto, knitr, xfun, rmarkdown or pandoc source" in EVERY agent prompt (Learnings 700, 709). Audit transcripts by parsing `tool_use` inputs: a grep over the whole file also matches the prompt prose.
 (5) `test:integration` takes the screen: ask first. `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` are past the 262,144 B read refusal: read them in slices.
 (6) Baseline `npm test` at HEAD is 8,151 passing in 72 files. Next candidates: the new BACKLOG Outline item (its family (3) deletes headings and is about one `codeFromElsewhere` conjunct) or label-index families (2) to (10).
+
+### What Session 307 Did
+**Deliverable:** family (3) of the Outline silence-rule item, code arriving by a channel the rule never reads (IN PROGRESS)
+**Started:** 2026-10-14
+**Status:** Session claimed. Work beginning. Phase 0 found both ledger frontiers at HEAD (nothing to reconcile); the ratchet citation matched `.quality-gates-results.json`; `npm test` 8,151 passing in 72 files at HEAD.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
 
 ## Session 305 Handoff Evaluation (by Session 306)
 
