@@ -91,27 +91,3 @@ no-GPL-source rule and a reviewer read quarto's installed scripts (Learning 700 
 (resolver on 100k spaces 18.9 s; 300k backticks 52 s, 58 s here; a 5 MB backtick line overflows the stack).
 **TDD:** RED before GREEN for each behaviour. Groups that passed on arrival, disclosed: pipe forms, look-alike controls, one row per guard word, direct whitelist rows, and the closed-world rows after each rule (each guard was shown RED against a mutant).
 **Cost:** 29 agents (about 6.6M subagent tokens, none rendered), about 2,100 renders by me, 4 mutation runs, two host runs of about 2 minutes (operator-approved), `npm run package` at close-out.
-
-## Session 302 Handoff Evaluation (by Session 303)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, keep list and costs held: `scratchpad/s301/` (hunt, probes, `score301.cjs`, `corpusdiff.cjs`, `render301.sh`) was intact and
-I reused every tool in it; the dashboard took about a minute and `npm run package` 1:07; my Phase 0 found `CHANGELOG.md` current and `HANDOFFS.md` four commits behind (below).
-**Helped:** gotcha 1 (never `git add -A`) and the stage-history-files-by-exact-path habit; the corpus-reach number for the item I took (54 cells in 8 documents, reproduced exactly by `reach.cjs` and by the differential);
-the standing `realdoc-score` command (unchanged, 2423 of 2438).
-**Missing:** that the layout migration would land four commits (sync, the `CLAUDE.md` pointer, the `PROJECT_LEARNINGS.md` move, the exclude-line removal) from the methodology repository's session with no receipt here, so my
-Phase 0 reconciled one (`64af9364`); and that the item's evidence for the header spellings (`langs/r05`) is not under `scratchpad/s301/probes` (there is no `langs/`), so I rendered from nothing.
-**Wrong:** nothing material; "remove the exclude line after the migration" was already done by then (stale, harmless). **ROI: high.**
-
-## Session 303 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** I grounded first and kept grounding: 779 documents rendered by me (3 wide, behind the load gate) in 7 rounds plus a 200-document hunt, so each rule has a probe behind it. A 352-document slot grid found the real
-empty-slot rule; a 245-row fixture pins the reader to quarto's own verdicts (no phantom, no loss except 4 declined rows). RED was shown before GREEN for each behaviour; the host row was RED (557 passing, 1 failing) then
-GREEN (558). Corpus differential: 54 labels added in exactly the 8 documents, 0 removed; `realdoc-score` unchanged. Mutation on the committed code: 60 of 61 killed, the survivor equivalent. 7 read-only agents (4 authors, 3 reviewers,
-about 1.40M subagent tokens, none rendered); every finding was re-measured by me before a rule changed. Unit tests 5,155 to 5,572; `compile`, `check-types`, `check-backlog`, `check-package` and `npm run package` (exit 0, 1:07, 44 files) clean.
-**Went wrong.** (1) My first commit (`36198c76`) shipped a reader whose empty-slot, `label`-prefix and bare-token rules the grid and the hunt then showed wrong, two of them phantoms; fixed in `367f0e8c` the same session, never released.
-(2) I did not model "the chunk makes no figure": 26 rows of the final score are new phantoms of that family and the container family; filed with probe names, none in the 54 corpus cells. (3) Two bugs in my own tests (a default argument
-swallowed `undefined`; the RED run with a mutated provider failed my own type-check first). (4) I ran `sed -i.bak` on Session 301's shared render script by mistake and restored it from the backup at once. (5) About ten long stretches
-with no status line drew harness nudges, the lesson Session 302 recorded. (6) The hunters read the installed knitr and xfun (GPL) source to explain what they authored; nothing from it is in a tracked file (Learning 700).
-**TDD:** RED before GREEN for every behaviour. Rows that passed on arrival (first-slot shapes the first cut already handled, pins, controls, fixture rows after each rule) were noted as they ran but not counted, so there
-is no number here; each guard was shown RED against a mutant. **Cost:** 7 agents, about 780 renders by me (the 1-minute load reached 98 once, system processes dominate it), two host runs of about 2 minutes each (the operator allowed them).
