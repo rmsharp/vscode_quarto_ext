@@ -65,6 +65,14 @@ describe("Session 305 — a code cell defines no `sec-` or `eq-` label", () => {
       ["a python exec() of a file (wl37)", "sec-x", ["```{python}", "#| label: sec-x", "#| output: asis", 'exec(open("_x.py").read())', "```"]],
       ["a cell that takes its code from a file (wl35)", "sec-x", ["```{r}", "#| label: sec-x", "#| file: _x.R", "#| output: asis", "```"]],
       ["an inline R expression in prose (wl39)", "sec-x", ["## Inline `r \"{#sec-x}\"`", "", "```{r}", "#| label: sec-x", "x <- 1", "```"]],
+      ["an R source()$value of a file that returns asis_output, with no asis in this text (u01)", "sec-x", ["```{r}", "#| label: sec-x", 'source("_x.R")$value', "```"]],
+      ["a python exec() of a file that displays Markdown, with no Markdown in this text (u02)", "eq-x", ["```{python}", "#| label: eq-x", 'exec(open("_x.py").read())', "```"]],
+      [
+        "a knitr chunk hook that writes the heading (u03)",
+        "sec-x",
+        ["```{r}", "#| include: false", 'knitr::knit_hooks$set(u = function(before, options) { if (!before) "## T {#sec-x}" })', "```", "", "```{r}", "#| label: sec-x", "#| u: true", "x <- 1", "```"],
+      ],
+      ["read_chunk supplies the labelled chunk's code from a file (u04)", "sec-x", ["```{r}", "#| include: false", 'knitr::read_chunk("_x.R")', "```", "", "```{r}", "#| label: sec-x", "```"]],
       [
         "ANOTHER cell does the printing (h10)",
         "eq-x",
@@ -115,6 +123,11 @@ describe("Session 305 — a code cell defines no `sec-` or `eq-` label", () => {
       expect(ids(asis("eq-x", "#| include: false", 'cat("$$ y = x $$ {#eq-x}\\n")'))).toEqual(["eq-x"]);
       expect(ids(asis("eq-x", "#| output: false", 'cat("$$ y = x $$ {#eq-x}\\n")'))).toEqual(["eq-x"]);
       expect(ids(asis("eq-x", "#| eval: false", 'cat("$$ y = x $$ {#eq-x}\\n")'))).toEqual(["eq-x"]);
+    });
+
+    it("code run by name that writes nothing is the price of the unseen-code test (u05 source, u06 exec)", () => {
+      expect(ids(["```{r}", "#| label: sec-x", 'source("_x.R")', "```"].join("\n"))).toEqual(["sec-x"]);
+      expect(ids(["```{python}", "#| label: sec-x", 'exec("x = 1")', "```"].join("\n"))).toEqual(["sec-x"]);
     });
 
     it("an IPython Latex() display (lo44) is no markdown", () => {
@@ -168,8 +181,8 @@ describe("Session 305 — a code cell defines no `sec-` or `eq-` label", () => {
   });
 
   describe("every shape rendered with quarto 1.7.33, document by document", () => {
-    // `[extension, engine, quartoDefined, indexDefined, parentDefined, document]`, 361 distinct documents from `scratchpad/s305`: the 78-document grid, the
-    // 15-document narrow-exemption grid, five blind lenses (297 documents: languages, outputs, spellings, containers, interactions) and three white-box
+    // `[extension, engine, quartoDefined, indexDefined, parentDefined, document]`, 367 distinct documents from `scratchpad/s305`: the 78-document grid, the
+    // 15-document narrow-exemption grid, the 6-document unseen-code grid, five blind lenses (297 documents: languages, outputs, spellings, containers, interactions) and three white-box
     // lenses (150 documents: the dangerous direction, the phantom direction, odd structure). `quartoDefined` is what the rendered HTML says; `indexDefined`
     // is what this index answered when the fixture was written; `parentDefined` is what it answered BEFORE Session 305. A document that made quarto exit
     // non-zero, or whose id the HTML cannot decide, or that normalising its label name cannot reproduce, is omitted. Learning #685's closed-world pin: every
@@ -191,19 +204,19 @@ describe("Session 305 — a code cell defines no `sec-` or `eq-` label", () => {
     };
     const against = (r: Row): "agree" | "PHANTOM" | "LOST" => (found(r) === r[2] ? "agree" : found(r) ? "PHANTOM" : "LOST");
 
-    it("covers the whole fixture: 361 documents, 155 of which quarto defines the label for", () => {
-      expect(rows).toHaveLength(361);
-      expect(rows.filter((r) => r[2])).toHaveLength(155);
+    it("covers the whole fixture: 367 documents, 159 of which quarto defines the label for", () => {
+      expect(rows).toHaveLength(367);
+      expect(rows.filter((r) => r[2])).toHaveLength(159);
     });
 
-    it("the index, run now, agrees with quarto on 264 documents (the parent did on 169), keeps a phantom on 89 and misses a label on 8", () => {
+    it("the index, run now, agrees with quarto on 268 documents (the parent did on 173), keeps a phantom on 91 and misses a label on 8", () => {
       const counts = { agree: 0, PHANTOM: 0, LOST: 0 };
       for (const r of rows) {
         counts[against(r)]++;
       }
-      expect(counts).toEqual({ agree: 264, PHANTOM: 89, LOST: 8 });
-      expect(rows.filter((r) => r[3] === r[2])).toHaveLength(264);
-      expect(rows.filter((r) => r[4] === r[2])).toHaveLength(169);
+      expect(counts).toEqual({ agree: 268, PHANTOM: 91, LOST: 8 });
+      expect(rows.filter((r) => r[3] === r[2])).toHaveLength(268);
+      expect(rows.filter((r) => r[4] === r[2])).toHaveLength(173);
     });
 
     it("the ONLY labels quarto defines that the parent kept and this drops are the two heading gaps the label used to hide (li18, wl50)", () => {
