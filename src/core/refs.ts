@@ -25,13 +25,14 @@
  */
 
 import type { DocumentEngine } from "./document-engine";
-import type { AttributeBlockReader, BraceGroup } from "./qmd/model";
+import type { AttributeBlockReader, BraceGroup, CellTargetContext } from "./qmd/model";
 import {
   attributeBlockId,
   braceGroups,
   attributeBlockReader,
   cellOptionLinesOf,
   cellTargetContext,
+  cellTargetContextFor,
   findAllCells,
   findBodyLines,
   findCodeFenceOpeners,
@@ -178,6 +179,8 @@ const HEADER_LABEL_ID = new RegExp(String.raw`^(fig|tbl)-` + DEFINED_ID_CHAR_CLA
  * handler would mint a phantom label for a shape quarto renders as unresolved.
  */
 const COLUMN_ZERO_ONLY_LANGUAGES: ReadonlySet<string> = new Set(["mermaid", "dot", "ojs"]);
+/** A closing fence once its indent is taken off: backticks and nothing else but trailing blanks. */
+const BARE_FENCE = /^`{3,}[ \t]*$/;
 /**
  * A cross-ref id at the very start of a brace group's content — `{#fig-plot …}`. Group 1 is
  * the id; its column is the group's `start + 2` (past the `{#`). `sec-` is excluded on
@@ -355,12 +358,29 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
   // between is code. The scanner only ever sees column 0, so the stripped copy is what it is handed.
   const sourceLines = text.split(/\r?\n/);
   const targetContext = documentEngine === "knitr" || documentEngine === "jupyter" ? cellTargetContext(text) : null;
-  // ⚠ An id that the text spells as an ANCHOR somewhere else — `{#tbl-x}` in a `cat()` string, `#tbl-x` in an attribute list, a raw
-  // `id="tbl-x"` — is defined at run time from there even when the cell that carries the same label defines nothing (hunt2
-  // f20-f23, f43, rendered). A link TO an id (`(#tbl-x)`) or a reference (`@tbl-x`) is no anchor.
+  // ⚠ An id that the text spells as an ANCHOR somewhere else — `{#tbl-x}` in a `cat()` string, `#tbl-x` in an attribute list that may be
+  // split over lines, a raw `id=tbl-x` — is defined at run time from there even when the cell that carries the same label defines
+  // nothing (hunt2 f20-f23, f43; hunt3 anchor-ids e10-e19, rendered). A link TO an id (`(#tbl-x)`) or a reference (`@tbl-x`) is no
+  // anchor. The anchors are collected ONCE per document, and compared as the identifier quarto ends up with: characters pandoc's
+  // id cannot hold are dropped from it (`{#tbl-e0$1}` renders `tbl-e01`).
+  let anchors: Set<string> | null = null;
   const writtenElsewhere = (id: string): boolean => {
-    const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    return new RegExp(`[{ \\t]#${escaped}(?![\\w.:-])|\\bid\\s*=\\s*["']${escaped}["']`).test(text);
+    if (anchors === null) {
+      anchors = new Set();
+      const keep = (raw: string): void => {
+        anchors?.add(raw.replace(/[^\p{L}\p{N}_:.-]/gu, ""));
+      };
+      for (const group of text.matchAll(/\{[^{}]*\}/g)) {
+        for (const m of group[0].matchAll(/#([^\s}#]*)/g)) {
+          keep(m[1]);
+        }
+      }
+      for (const m of text.matchAll(/\bid\s*=\s*["']?([^\s"'>]+)/gi)) {
+        // a numeric character entity (`fig&#45;x`, `fig&#x2d;x`) is the character it names
+        keep(m[1].replace(/&#(\d+);|&#x([0-9a-f]+);/gi, (_all, dec?: string, hex?: string) => String.fromCodePoint(Number.parseInt(dec ?? (hex as string), dec === undefined ? 16 : 10))));
+      }
+    }
+    return anchors.has(id);
   };
   for (const cell of findAllCells(text)) {
     const indent = /^[ \t]*/.exec(sourceLines[cell.startLine])?.[0] ?? "";
@@ -381,15 +401,25 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
     // fence inside a cell hands the rules a body that stops early: it looks empty and its label is removed (hunt
     // struct-trap e01-e08, e43, rendered: defined). A cell is judged only when its closer is a bare fence at the
     // opener's indent (the scanner has already held its length to the opener's, and returns no unterminated cell).
-    const closedAtOpener = new RegExp("^" + indent + "`{3,}[ \t]*$").test(sourceLines[cell.endLine] ?? "");
+    const closer = sourceLines[cell.endLine] ?? "";
+    const closedAtOpener = closer.startsWith(indent) && BARE_FENCE.test(closer.slice(indent.length));
+    // ⚠ A removal must never break the index: a header string of several megabytes overflows the stack of the option reader's
+    // regular expression (hunt3 robust-perf f26), and a reader that cannot finish has read nothing, so nothing is removed.
+    const readsNoTarget = (kind: "fig" | "tbl"): boolean => {
+      try {
+        const context = cellTargetContextFor(targetContext as CellTargetContext, cell.startLine, cell.endLine);
+        return documentEngine === "knitr"
+          ? knitrCellMakesNoTarget(sourceLines[cell.startLine], bodyLines, kind, context)
+          : cell.lang === "python" && jupyterCellMakesNoTarget(bodyLines, context);
+      } catch (error) {
+        if (error instanceof RangeError) {
+          return false;
+        }
+        throw error;
+      }
+    };
     const makesNoTarget = (kind: RefKind, id: string): boolean =>
-      targetContext !== null &&
-      closedAtOpener &&
-      (kind === "fig" || kind === "tbl") &&
-      !writtenElsewhere(id) &&
-      (documentEngine === "knitr"
-        ? knitrCellMakesNoTarget(sourceLines[cell.startLine], bodyLines, kind, targetContext)
-        : cell.lang === "python" && jupyterCellMakesNoTarget(bodyLines, targetContext));
+      targetContext !== null && closedAtOpener && (kind === "fig" || kind === "tbl") && readsNoTarget(kind) && !writtenElsewhere(id);
     // The folded indent of the block's first real key: YAML's top level. A `label` nested deeper
     // under another option is that option's own data, not the cell's label.
     let baseIndent: number | null = null;

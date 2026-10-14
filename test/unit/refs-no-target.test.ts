@@ -195,9 +195,14 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
       }
     });
 
-    it("…and a pandoc div or a prose mention of `source` without a call is NOT such a thing (control)", () => {
-      const text = ["::: {.callout-note}", "The data source is documented below.", ":::", "", chunk("{r fig-x, eval=FALSE}", '#| fig-cap: "Cap"', "plot(1)")].join("\n");
+    it("a pandoc div and prose that mentions none of the words is no such thing (control)", () => {
+      const text = ["::: {.callout-note}", "The data is documented below.", ":::", "", chunk("{r fig-x, eval=FALSE}", '#| fig-cap: "Cap"', "plot(1)")].join("\n");
       expect(ids(text)).toEqual([]);
+    });
+
+    it("…while the bare word `source` in PROSE declines too, deliberately: no scan can tell it from a call handed on as a name", () => {
+      const text = ["The data source is documented below.", "", chunk("{r fig-x, eval=FALSE}", '#| fig-cap: "Cap"', "plot(1)")].join("\n");
+      expect(ids(text)).toEqual(["fig-x"]);
     });
 
     it.each([
@@ -356,6 +361,205 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
     });
   });
 
+  describe("front matter the resolver trims and YAML does not, and shapes that could stall or throw (hunt3 plain-gate, robust-perf)", () => {
+    // `empty` is a cell the Jupyter rule REMOVES when the front matter is plain (an empty source is dropped), so a test that expects
+    // it KEPT shows the gate at work: with `eval: false` alone the label would be kept whatever the gate says.
+    const empty = chunk("{python}", "#| label: fig-x", '#| fig-cap: "Cap"');
+    const body = empty;
+    const jids = (text: string): string[] => indexLabels(text, "jupyter").map((l) => l.id);
+
+    it("control: an empty Jupyter cell under a plain front matter IS removed", () => {
+      expect(jids(["---", "title: t", "---", "", empty].join("\n"))).toEqual([]);
+    });
+
+    it.each([
+      ["\u00a0", "a no-break space"],
+      ["\u2003", "an em space"],
+      ["\u3000", "an ideographic space"],
+      ["\u202f", "a narrow no-break space"],
+      ["\u2028", "a line separator"],
+      ["\u0085", "a next-line control"],
+    ])("%s (%s) at the end of an engine value keeps the label: the resolver trims it and YAML does not", (space) => {
+      const text = ["---", `engine: knitr${space}`, "---", "", empty].join("\n");
+      expect(jids(text)).toEqual(["fig-x"]);
+      const comment = ["---", `engine: knitr${space}# c`, "---", "", empty].join("\n");
+      expect(jids(comment)).toEqual(["fig-x"]);
+    });
+
+    it("…and a non-ASCII space anywhere else in the front matter is refused too, while an accented letter is not", () => {
+      const nbsp = ["---", "title: a\u00a0b", "---", "", chunk("{r fig-x, eval=FALSE}", '#| fig-cap: "Cap"', "plot(1)")].join("\n");
+      expect(indexLabels(nbsp, "knitr").map((l) => l.id)).toEqual(["fig-x"]);
+      const accent = ["---", "title: Café, naïve — 日本語", "---", "", chunk("{r fig-x, eval=FALSE}", '#| fig-cap: "Cap"', "plot(1)")].join("\n");
+      expect(indexLabels(accent, "knitr").map((l) => l.id)).toEqual([]);
+    });
+
+    it.each([
+      ["engine: knitr\n  - x", "a19: YAML reads the value as the one string `knitr - x`"],
+      ["execute:\n  engine: knitr\n    - x", "a21: the same one level down"],
+      ["engine: knitr\n\n  - x", "a22: the continuation sits across a blank line"],
+      ["engine: knitr\n  more words", "a continuation line that is no item"],
+    ])("a value continued on the next line (%s) is not plain (%s)", (yaml) => {
+      const text = ["---", "title: t", yaml, "---", "", body].join("\n");
+      expect(jids(text)).toEqual(["fig-x"]);
+    });
+
+    it("…while a key with an EMPTY value followed by an indented list is the ordinary nested shape (control)", () => {
+      const ok = ["---", "title: t", "author:", "  - Jane Doe", "  - John Roe", "---", "", chunk("{r fig-x, eval=FALSE}", '#| fig-cap: "Cap"', "plot(1)")].join("\n");
+      expect(indexLabels(ok, "knitr").map((l) => l.id)).toEqual([]);
+    });
+
+    it.each([
+      ['"keep-hidd\\x65n": true', "a32, a33: an escaped keep-hidden key"],
+      ['format:\n  html:\n    "keep-hidd\\x65n": true', "a34: nested, escaped"],
+      ["engine: jupyter", "a later block that says engine"],
+    ])("a metadata block lower in the document makes the whole document opaque: %s (%s)", (yaml) => {
+      const below = [chunk("{r fig-x, eval=FALSE}", '#| fig-cap: "Cap"', "plot(1)"), "", "---", yaml, "---"].join("\n");
+      expect(indexLabels(["---", "title: t", "---", "", below].join("\n"), "knitr").map((l) => l.id)).toEqual(["fig-x"]);
+      expect(indexLabels(below, "knitr").map((l) => l.id)).toEqual(["fig-x"]);
+    });
+
+    it("…but a thematic break followed by a blank line is no metadata block (control)", () => {
+      const text = ["---", "title: t", "---", "", "Intro.", "", "---", "", chunk("{r fig-x, eval=FALSE}", '#| fig-cap: "Cap"', "plot(1)")].join("\n");
+      expect(indexLabels(text, "knitr").map((l) => l.id)).toEqual([]);
+    });
+
+    it("an opener that the resolver trims into a front matter (a leading space, a no-break space) is not plain (hunt3 reviewer)", () => {
+      for (const lead of [" ", "\u00a0", "  "]) {
+        const text = [`${lead}---`, 'engine: "kni\\x74r"', "---", "", chunk("{python}", "#| label: tbl-x", '#| tbl-cap: "Cap"')].join("\n");
+        expect(jids(text)).toEqual(["tbl-x"]);
+      }
+    });
+
+    it("a long run of spaces inside a value costs linear time, not quadratic (a 40,000-space run took 5 s)", () => {
+      const run = " ".repeat(40000);
+      for (const front of [`subtitle: a${run}b`, `keywords:\n  - a${run}b`, `subtitle: a${run}`]) {
+        const text = ["---", "title: t", front, "---", "", chunk("{r fig-x, eval=FALSE}", '#| fig-cap: "Cap"', "plot(1)")].join("\n");
+        const started = Date.now();
+        indexLabels(text, "knitr");
+        expect(Date.now() - started).toBeLessThan(1000);
+      }
+    });
+
+    it("an enormous indent neither throws nor stalls (a 200,000-space indent made the closer test throw)", () => {
+      const pad = " ".repeat(200000);
+      const text = ["- item", "", `${pad}\`\`\`{r fig-x, eval=FALSE}`, `${pad}#| fig-cap: "Cap"`, `${pad}plot(1)`, `${pad}\`\`\``].join("\n");
+      const started = Date.now();
+      expect(() => indexLabels(text, "knitr")).not.toThrow();
+      expect(Date.now() - started).toBeLessThan(1000);
+    });
+
+    it("a header holding a 12 MB string makes the option reader overflow its stack: the index must not throw, and keeps the label (hunt3 robust-perf f26)", () => {
+      const text = ["```{r label=\"fig-x\", \"" + "A".repeat(12_000_000) + "\", eval=FALSE}", '#| fig-cap: "Cap"', "plot(1)", "```"].join("\n");
+      let found: string[] = [];
+      expect(() => {
+        found = indexLabels(text, "knitr").map((l) => l.id);
+      }).not.toThrow();
+      expect(found).toEqual(["fig-x"]);
+    });
+
+    it("thousands of hidden labelled cells cost one pass over the document, not one per cell", () => {
+      const cell = (n: number): string => chunk(`{r fig-c${n}, eval=FALSE}`, '#| fig-cap: "Cap"', "plot(1)");
+      const text = Array.from({ length: 3000 }, (_, n) => cell(n)).join("\n\n");
+      const started = Date.now();
+      expect(indexLabels(text, "knitr")).toEqual([]);
+      expect(Date.now() - started).toBeLessThan(1500);
+    });
+
+    it.each([
+      ["knitr::knit_engines$set(python = function(options) knitr::engine_output(options, options$code, 'x'))", "an engine re-registered (hunt3 python-knitr)"],
+      ['knitr::set_alias(go = "eval")', "an option alias (set_alias)"],
+      ["knit_engines$set(r = function(options) NULL)", "the bare registry"],
+    ])("%s keeps a chunk with eval=FALSE (%s)", (setup) => {
+      const text = [chunk("{r setup, include=FALSE}", setup), "", chunk("{r fig-x, eval=FALSE}", '#| fig-cap: "Cap"', "plot(1)")].join("\n");
+      expect(indexLabels(text, "knitr").map((l) => l.id)).toEqual(["fig-x"]);
+    });
+  });
+
+  describe("a document that can write markdown at run time, or load code by an indirect name, is not read (hunt3)", () => {
+    // An id can be minted at run time by anything that emits MARKDOWN (an asis chunk, `Markdown()`, `display()`, an inline R
+    // expression, a shortcode, a child document), built from pieces no text scan can join (hunt3 guard-regex b01-b12, b26-b40,
+    // anchor-ids e23-e33, python-knitr d08-d13, d42, option-forms c37-c41), and options can be set from another file loaded by a
+    // name that is not a `source(` call (b13-b19: `lapply(f, source)`, a backticked `source`, `do.call("source", ...)`,
+    // `get("source")`). The sibling file or the string is the part that cannot be seen; the CHANNEL — the word that makes markdown or
+    // code possible at all — can. All rendered, the label DEFINED. A mention in prose only declines a removal, the safe side.
+    const kept = (text: string): void => {
+      expect(ids(text)).toEqual(["fig-x"]);
+    };
+    const hidden = chunk("{r fig-x, eval=FALSE}", '#| fig-cap: "Cap"', "plot(1)");
+
+    it.each([
+      ["{r gen, results='asis', echo=FALSE}", 'cat("::: {#", "fig-x", "}\\n")', "an asis header with a split anchor (b01, b09, e24)"],
+      ["{r gen, results='asis'}", 'cat(sprintf("![Cap](a.png){#%s}\\n", "fig-x"))', "sprintf with the id as an argument (b07, b10, d10, e23)"],
+      ["{r gen, results=\"asis\"}", 'cat(paste0("{#", "fig", "-x}"))', "paste0 pieces (b11, c37)"],
+      ["{r gen}", "#| results: asis", "a pipe results: asis"],
+      ["{r gen}", "#| output: asis", "a pipe output: asis"],
+      ["{r gen}", "knitr::asis_output('x')", "asis_output()"],
+    ])("an asis channel — %s — keeps a hidden chunk's label (%s)", (header, code) => {
+      const gen = header === "{r gen}" && code.startsWith("#|") ? chunk(header, code, "cat('x')") : chunk(header, code);
+      kept([hidden, "", gen].join("\n"));
+    });
+
+    it.each([
+      ['Markdown(f"::: {{#{id}}}")', "an f-string Markdown object (b34, d08)"],
+      ["display(Markdown(parts))", "display of markdown (b35)"],
+      ['HTML("<div id=\'x\'></div>")', "an HTML object"],
+      ["from IPython.display import Markdown", "the markdown display module"],
+    ])("a Jupyter markdown object — %s — keeps a hidden cell's label (%s)", (code) => {
+      const text = ["---", "jupyter: python3", "---", "", chunk("{python}", "#| label: fig-x", "#| include: false", '#| fig-cap: "Cap"', "plt.plot([1])"), "", chunk("{python}", "#| label: gen", code)].join("\n");
+      expect(indexLabels(text, "jupyter").map((l) => l.id)).toEqual(["fig-x"]);
+    });
+
+    it.each([
+      ["The value is `r 1 + 1` and `r fig_id`.", "inline R (c38, d42)"],
+      ["The value is `{python} x`.", "an inline python expression"],
+      ["{{< embed _nb.ipynb#fig-x >}}", "an embed shortcode (e33)"],
+      ["{{< meta title >}}", "any shortcode"],
+    ])("%s keeps a hidden chunk's label (%s)", (line) => {
+      kept([line, "", hidden].join("\n"));
+    });
+
+    it.each([
+      ["{r gen, child='part.qmd'}", "a child chunk (d13, e31)"],
+      ["{r gen}\n#| child: part.qmd", "a pipe child"],
+    ])("a chunk that names a child document, %s, keeps a hidden chunk's label", (headline) => {
+      const [header, ...rest] = headline.split("\n");
+      kept([hidden, "", chunk(header, ...rest)].join("\n"));
+    });
+
+    it.each([
+      ["lapply(c('a.R', 'b.R'), source)", "a bare `source` handed on (b13)"],
+      ["`source`('hooks.R')", "a backticked source (b14)"],
+      ['do.call("source", list("hooks.R"))', "do.call (b15)"],
+      ['get("source")("hooks.R")', "get() (b16)"],
+      ["base::eval(base::parse(file = 'hooks.R'))", "base::eval(base::parse()) (b17)"],
+      ['getNamespace("knitr")[[paste0("opts_", "hooks")]]', "getNamespace (b18)"],
+      ['utils::getFromNamespace("opts_hooks", "knitr")', "getFromNamespace (b19)"],
+      ["knitr::knit_expand('tpl.Rmd')", "knit_expand (b06, b33)"],
+      ["x <- readLines('frag.md')", "readLines (b27, e30)"],
+      ["reticulate::py_run_file('x.py')", "py_run_file (b28)"],
+      ["reticulate::source_python('x.py')", "source_python (b29)"],
+      ["system2('Rscript', 'x.R')", "system2 (b32)"],
+      ["exec(open('x.py').read())", "exec(open().read()) (b40)"],
+      ["importlib.import_module('x')", "importlib (b30, b39)"],
+    ])("%s keeps a hidden chunk's label (%s)", (setup) => {
+      kept([chunk("{r setup, include=FALSE}", setup), "", hidden].join("\n"));
+    });
+
+    it("the front matter's `metadata-files` pulls in options this text does not show (b41, b42, d37)", () => {
+      kept(["---", "title: t", "metadata-files:", "  - _meta.yml", "---", "", hidden].join("\n"));
+    });
+
+    it("…and a document with none of these words still has its removal (control)", () => {
+      const text = ["The figure is hidden.", "", chunk("{r setup, include=FALSE}", "library(knitr)", "x <- 1"), "", hidden].join("\n");
+      expect(ids(text)).toEqual([]);
+    });
+
+    it("python's dict.get( and an R `get` as a plain word are no loader (control)", () => {
+      const text = ["---", "jupyter: python3", "---", "", chunk("{python}", "#| label: fig-x", "#| include: false", '#| fig-cap: "Cap"', "d = {}", "d.get('k')")].join("\n");
+      expect(indexLabels(text, "jupyter").map((l) => l.id)).toEqual([]);
+    });
+  });
+
   describe("an id the text writes another way is not removed (hunt2 f20-f23, f43)", () => {
     // A hidden or never-run chunk can carry a label while ANOTHER place writes the same id at run time (a `cat()` of
     // `{#tbl-x}`, a raw `<div id="tbl-x">`): quarto defines it from there, and the index would have answered "defined" only by
@@ -376,6 +580,27 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
 
     it("…and a raw html anchor in the prose does too (f43)", () => {
       const text = ['<div id="tbl-x">', "", "| a | b |", "|---|---|", "| 1 | 2 |", "", "</div>", "", chunk("{r tbl-x, include=FALSE}", "shown <- 1")].join("\n");
+      expect(ids(text)).toEqual(["tbl-x"]);
+    });
+
+    it.each([
+      ['<div id=tbl-x>', "an UNQUOTED id (d11, e17, b05, c40)"],
+      ['<DIV ID="tbl-x">', "upper case"],
+      ["![Cap](a.png){\n#tbl-x}", "an attribute block split by a newline (e10, c41, e15)"],
+      ["![Cap](a.png){.shot #tbl-x}", "a class before the id"],
+      ["![Cap](a.png){width=50%#tbl-x}", "a value glued to the id (e13)"],
+      ["Caption text {#tbl-x$}", "a character pandoc strips from the id (hunt3 e: `{#tbl-e0$1}` is `tbl-e01`)"],
+    ])("an id spelled as %s elsewhere keeps the hidden chunk's label (%s)", (anchor) => {
+      const kind = "tbl";
+      const text = [anchor.replace(/tbl-x\$?/, anchor.includes("$") ? "tbl-x$" : "tbl-x"), "", chunk(`{r ${kind}-x, include=FALSE}`, `#| ${kind}-cap: "Cap"`, "knitr::kable(head(cars))")].join("\n");
+      expect(ids(text)).toEqual(["tbl-x"]);
+    });
+
+    it.each([
+      ['<div id="tbl&#45;x">', "a decimal character entity (hunt3 e19)"],
+      ['<div id="tbl&#x2d;x">', "a hexadecimal entity"],
+    ])("an id spelled with %s still counts as written there", (anchor) => {
+      const text = [anchor, "", chunk("{r tbl-x, include=FALSE}", '#| tbl-cap: "Cap"', "knitr::kable(head(cars))")].join("\n");
       expect(ids(text)).toEqual(["tbl-x"]);
     });
 
@@ -451,6 +676,20 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
     it("…and the guard reads the whole document, prose included: a mention anywhere declines (the safe side)", () => {
       const text = ["Read about `read_chunk` here.", "", chunk("{r fig-x}", '#| fig-cap: "Cap"')].join("\n");
       expect(ids(text)).toEqual(["fig-x"]);
+    });
+
+    it("the Jupyter rules honour the same guard: `metadata-files` can set keep-hidden from a sibling (hunt3 b42)", () => {
+      const text = ["---", "jupyter: python3", "metadata-files:", "  - keep.yml", "---", "", chunk("{python}", "#| label: tbl-x", "#| include: false", '#| tbl-cap: "Cap"', "pd.DataFrame({'a': [1]})")].join("\n");
+      expect(indexLabels(text, "jupyter").map((l) => l.id)).toEqual(["tbl-x"]);
+      const plain = ["---", "jupyter: python3", "---", "", chunk("{python}", "#| label: tbl-x", "#| include: false", '#| tbl-cap: "Cap"', "pd.DataFrame({'a': [1]})")].join("\n");
+      expect(indexLabels(plain, "jupyter").map((l) => l.id)).toEqual([]);
+    });
+
+    it.each([
+      ["{r, child='part.md', include=FALSE}", ["#| label: tbl-x"], "a child= in the header (hunt3 d13)"],
+      ["{r, include=FALSE}", ["#| label: tbl-x", "#| child: part.md"], "a child: in the pipe"],
+    ])("a cell that carries its OWN child document keeps its label even when it is hidden: %s (%s)", (header, pipe) => {
+      expect(ids(chunk(header, ...pipe, '#| tbl-cap: "Cap"'))).toEqual(["tbl-x"]);
     });
 
     it("a document that does not mention them is not guarded", () => {
@@ -844,12 +1083,13 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
   });
 
   describe("every shape rendered with quarto 1.7.33, document by document", () => {
-    // `[extension, engine, quartoDefined, indexDefined, parentDefined, document]`, 1,400 distinct documents from `scratchpad/s304`:
-    // the blind grids (`grid`..`grid6`), six blind lenses, and twelve white-box hunters in two rounds (`hunt/`, `hunt2/`): the
+    // `[extension, engine, quartoDefined, indexDefined, parentDefined, document]`, 1,611 distinct documents from `scratchpad/s304`:
+    // the blind grids (`grid`..`grid6`), six blind lenses, and eighteen white-box hunters in three rounds (`hunt/`, `hunt2/`, `hunt3/`): the
     // suppressors in every spelling, the document defaults, the code contents, the indirection shapes, Jupyter, and every hazard
     // the hunts found. `quartoDefined` is what the rendered HTML says; `indexDefined` is what this index answered when the fixture
     // was written; `parentDefined` is what it answered BEFORE Session 304. A document that made quarto exit non-zero, or whose
-    // id the HTML cannot decide, is omitted. This is Learning #685's closed-world pin: every row is pinned, so a rule that starts
+    // id the HTML cannot decide, or that normalising its label name cannot reproduce (an id spelled in pieces or as an entity, a
+    // sibling file), or that runs past 20 KB (a robustness probe, timed elsewhere), is omitted. This is Learning #685's closed-world pin: every row is pinned, so a rule that starts
     // removing a label quarto defines, or stops removing one, fails here and the fixture must be regenerated on purpose.
     // (The probes live in the untracked `scratchpad/`, as every earlier fixture's do.)
     type Row = [string, string, boolean, boolean, boolean, string];
@@ -868,19 +1108,19 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
     };
     const against = (r: Row): "agree" | "PHANTOM" | "LOST" => (found(r) === r[2] ? "agree" : found(r) ? "PHANTOM" : "LOST");
 
-    it("covers the whole fixture: 1,400 documents, 836 of which quarto defines the label for", () => {
-      expect(rows).toHaveLength(1400);
-      expect(rows.filter((r) => r[2])).toHaveLength(836);
+    it("covers the whole fixture: 1,611 documents, 949 of which quarto defines the label for", () => {
+      expect(rows).toHaveLength(1611);
+      expect(rows.filter((r) => r[2])).toHaveLength(949);
     });
 
-    it("the index, run now, agrees with quarto on 1,069 documents (the parent did on 820), keeps a phantom on 300 and misses a label on 31", () => {
+    it("the index, run now, agrees with quarto on 1,233 documents (the parent did on 934), keeps a phantom on 346 and misses a label on 32", () => {
       const counts = { agree: 0, PHANTOM: 0, LOST: 0 };
       for (const r of rows) {
         counts[against(r)]++;
       }
-      expect(counts).toEqual({ agree: 1069, PHANTOM: 300, LOST: 31 });
-      expect(rows.filter((r) => r[3] === r[2])).toHaveLength(1069);
-      expect(rows.filter((r) => r[4] === r[2])).toHaveLength(820);
+      expect(counts).toEqual({ agree: 1233, PHANTOM: 346, LOST: 32 });
+      expect(rows.filter((r) => r[3] === r[2])).toHaveLength(1233);
+      expect(rows.filter((r) => r[4] === r[2])).toHaveLength(934);
     });
 
     it("NO label that quarto defines and the parent kept is removed now (the property this session exists to keep)", () => {
@@ -888,9 +1128,9 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
       expect(worse.map((r) => shape(r[5]))).toEqual([]);
     });
 
-    it("every one of the 31 missed labels was missed BEFORE this session too: the cell scanner or the engine resolver, not these rules", () => {
+    it("every one of the 32 missed labels was missed BEFORE this session too: the cell scanner or the engine resolver, not these rules", () => {
       const missed = rows.filter((r) => against(r) === "LOST");
-      expect(missed).toHaveLength(31);
+      expect(missed).toHaveLength(32);
       expect(missed.every((r) => !r[4])).toBe(true);
     });
 

@@ -7265,15 +7265,30 @@ export interface CellTargetContext {
    */
   readonly codeFromElsewhere: boolean;
   /**
-   * The document names a chunk hook or template (`opts_hooks`, `opts_template`, `opts_knit`, `knit_hooks`, `opts.label`), or
-   * runs code this text does not show — `source()`, `sys.source`, a `knit_child`, the include shortcode — or reaches a package
-   * by a built name (`get(paste0(...))`, `asNamespace`, `pkg:::fun`, `eval(parse(...))`). An option the header or the pipe sets
+   * The document names a chunk hook or template (`opts_hooks`, `opts_template`, `opts_knit`, `knit_hooks`, `knit_engines`, `set_alias`, `opts.label`), or
+   * runs code this text does not show — `source`, `sys.source`, a `knit_child`, `knit_expand`, `readLines`, `metadata-files` — or
+   * reaches code by an indirect name (`get(...)`, `do.call`, `match.fun`, `asNamespace`, `getFromNamespace`, `pkg:::fun`,
+   * `eval(parse(...))`, `exec`, `importlib`, `py_run_file`, `source_python`, `system2`). An option the header or the pipe sets
    * may then be set back before the chunk runs, or a variable rebound, or a chunk filled (hunt a06-a09, a11, a12-a25, b22, b23,
    * c19-c21, e13, f11, f12, f17, f28, f29; hunt2 a12-a25, a19-a21, b23, f17, f28, f29: all rendered, the label DEFINED). Searched
    * as bare words, prose included, so a mention that is no call only declines a removal. These are the words the hunters used,
    * not a list of everything that can rewrite an option: an obfuscated call (a name built from pieces) is a disclosed residual.
    */
   readonly unseenCode: boolean;
+  /**
+   * The document has a CHANNEL through which code can write markdown at run time — an `asis` output (`results='asis'`,
+   * `output: asis`, `asis_output`), a Jupyter `Markdown()`, `display()` or `HTML()`, an inline `` `r …` `` or `` `{python} …` ``
+   * expression, a shortcode (`{{<`), a `child` document: any of them can mint the very id a hidden cell carries, from pieces or from a
+   * sibling file that no scan of this text can join or open (hunt3 guard-regex b01-b12, b26-b40, anchor-ids e23-e33, python-knitr
+   * d08-d13, d42, option-forms c37-c41: all rendered, the label DEFINED). The channel is what is looked for, since the string is
+   * what cannot be seen; a mention in prose only declines a removal. ⚠ Only a channel OUTSIDE the cell being judged counts: a
+   * cell that is hidden, never run, or has its output dropped cannot emit its own markdown, and a Jupyter table is conventionally
+   * built with `Markdown(...)` in the very cell the rule judges. `markdownLines` holds every line that has a channel, and
+   * `writesMarkdown` is the answer for one cell once its own lines are taken out ({@link cellTargetContextFor}).
+   */
+  readonly writesMarkdown: boolean;
+  /** The 0-based lines that name a markdown-writing channel (sorted), computed once for the whole document. */
+  readonly markdownLines: readonly number[];
   /**
    * The document names `keep-hidden`, an html option that keeps what `include`, `output` and `echo` hide, in a hidden element
    * that still carries the id: rendered, every removal built on those is wrong with it on and `eval: false` and an empty body
@@ -7291,23 +7306,51 @@ export interface CellTargetContext {
    */
   readonly opaqueFrontMatter: boolean;
 }
+/** A line that names a way for code to write MARKDOWN at run time ({@link CellTargetContext.writesMarkdown}). */
+const MARKDOWN_CHANNEL =
+  /asis|\bMarkdown\s*\(|\bdisplay\s*\(|\bHTML\s*\(|IPython\.display|%%(?:markdown|html|latex)|(?<!`)`r\s+[^`]|(?<!`)`\{(?:r|python|julia)\}\s+[^`]|\{\{<|\bchild\s*[=:]/;
+/**
+ * The context for ONE cell: `writesMarkdown` is true only when a markdown-writing channel sits on a line OUTSIDE `[startLine,
+ * endLine]`. Everything else is the document's.
+ */
+export function cellTargetContextFor(context: CellTargetContext, startLine: number, endLine: number): CellTargetContext {
+  return { ...context, writesMarkdown: context.markdownLines.some((line) => line < startLine || line > endLine) };
+}
 /** The document-level facts the cell readers need, read once per document. */
 export function cellTargetContext(text: string): CellTargetContext {
   return {
     codeFromElsewhere: /read_chunk|read_demo|read_rforge|knit_code|opts_chunk/.test(text),
     unseenCode:
-      /opts_hooks|opts_template|opts_knit|knit_hooks|opts[._-]label|knit_child|sys\.source|(?<![\w.])source\s*\(|\{\{<\s*include\b|asNamespace|getExportedValue|\w:::\w|get\s*\(\s*paste|eval\s*\(\s*parse/.test(
+      /opts_hooks|opts_template|opts_knit|knit_hooks|knit_engines|set_alias|opts[._-]label|knit_child|knit_expand|metadata-files|sys\.source|\bsource\b|(?<![\w.$@])(?:eval|evalq|parse|do\.call|match\.fun|get0?|mget|exec|execfile|system2?)\s*\(|getNamespace|getFromNamespace|getExportedValue|asNamespace|loadNamespace|__import__|import_module|importlib|runpy|py_run_|source_python|import_from_path|readLines|\w:::\w/.test(
         text,
       ),
+    writesMarkdown: false,
+    markdownLines: text
+      .split(/\r?\n/)
+      .flatMap((line, n) => (MARKDOWN_CHANNEL.test(line) ? [n] : [])),
     keepsHidden: /keep-hidden/.test(text),
     opaqueFrontMatter: !plainFrontMatter(text),
   };
 }
 const PLAIN_ENGINE_KEYS: ReadonlySet<string> = new Set(["jupyter", "knitr", "engine", "julia"]);
 /** One `key: value` line (the key bare, optionally behind a `- ` item marker), the indent and the value split out. */
-const PLAIN_KEY_LINE = /^( *)(- +)?([A-Za-z_][A-Za-z0-9_.-]*) *:(?: +(.*?))? *$/;
+const PLAIN_KEY_LINE = /^( *)(- +)?([A-Za-z_][A-Za-z0-9_.-]*) *:(?: +(.*))?$/;
 /** One `- value` sequence item. */
-const PLAIN_ITEM_LINE = /^( *)- +(.+?) *$/;
+const PLAIN_ITEM_LINE = /^( *)- +(.*)$/;
+/**
+ * A space-like character other than an ASCII space or tab: the engine resolver trims with JavaScript's `\s`, which takes these, and
+ * YAML does not, so `engine: knitr` followed by one reads as knitr to the resolver and as the string `knitr<nbsp>` to quarto
+ * (hunt3 plain-gate a01-a18; the reviewer's trace). The front matter may hold none.
+ */
+const PLAIN_ODD_SPACE = /[\u0085\u00a0\u1680\u2000-\u200b\u2028\u2029\u202f\u205f\u3000\ufeff]/;
+/** `value` without its trailing ASCII spaces, in one pass (a lazy regex over a long space run is quadratic). */
+function trimEndSpaces(value: string): string {
+  let end = value.length;
+  while (end > 0 && value[end - 1] === " ") {
+    end--;
+  }
+  return value.slice(0, end);
+}
 /**
  * Whether the document's front matter is PLAIN (Session 304): absent, or the first thing in the file and made of nothing but
  * lines YAML and the engine resolver can only read one way. This is a WHITELIST, because the resolver reads the block as text and
@@ -7334,8 +7377,12 @@ function plainFrontMatter(text: string): boolean {
   while (first < lines.length && lines[first].trim() === "") {
     first++;
   }
-  if (first >= lines.length || !/^---[ \t]*$/.test(lines[first])) {
-    return true; // nothing at the top that could hide a key
+  if (first >= lines.length) {
+    return true;
+  }
+  if (!/^---[ \t]*$/.test(lines[first])) {
+    // The resolver trims the text before it looks for the opener, so ` ---` or `<nbsp>---` opens a block it reads here.
+    return lines[first].trim() !== "---" && !metadataBlockBelow(lines, 0);
   }
   if (first !== 0) {
     return false;
@@ -7350,11 +7397,15 @@ function plainFrontMatter(text: string): boolean {
     return false;
   }
   const plainWord = /^[^\s"'[\]{}&*!|>%@`#,?:-][^"'[\]{}\\]*$/;
+  let openValue = -1; // the column of the last key whose value sits on its own line: a deeper line would CONTINUE that scalar
   const flowItem = /^(?:"[^"\\]*"|'[^']*'|[\w.@/+ -]+)$/;
   let sawContent = false;
   let blockOver = -1; // lines indented deeper than this belong to a block scalar
   for (let j = 1; j < end; j++) {
     const line = lines[j];
+    if (PLAIN_ODD_SPACE.test(line)) {
+      return false;
+    }
     if (line.trim() === "") {
       continue;
     }
@@ -7366,28 +7417,35 @@ function plainFrontMatter(text: string): boolean {
     if (/^ *#/.test(line)) {
       continue;
     }
-    if (line.startsWith("\t") || /^ *\t/.test(line) || (!sawContent && indent !== 0)) {
+    if (line.startsWith("\t") || /^ *\t/.test(line) || (!sawContent && indent !== 0) || indent > openValue && openValue >= 0) {
       return false;
     }
+    openValue = -1;
     sawContent = true;
     const key = PLAIN_KEY_LINE.exec(line);
     if (key === null) {
       const item = PLAIN_ITEM_LINE.exec(line);
-      if (item === null || indent === 0 || !(plainWord.test(item[2]) || /^"[^"\\]*"$|^'[^']*'$/.test(item[2]))) {
+      const itemValue = item === null ? "" : trimEndSpaces(item[2]);
+      if (item === null || indent === 0 || !(plainWord.test(itemValue) || /^"[^"\\]*"$|^'[^']*'$/.test(itemValue))) {
         return false;
       }
+      openValue = indent;
       continue;
     }
     if (indent === 0 && key[2] !== undefined) {
       return false;
     }
-    const value = (key[4] ?? "").replace(/ +#.*$/, "");
+    const raw = key[4] ?? "";
+    const hash = raw.indexOf(" #");
+    const value = trimEndSpaces(hash < 0 ? raw : raw.slice(0, hash));
     if (value === "") {
       continue;
     }
+    openValue = indent + (key[2]?.length ?? 0);
     const quoted = /^"[^"\\]*"$|^'[^']*'$/.test(value);
     if (/^[|>][+-]?[0-9]?$/.test(value)) {
       blockOver = indent;
+      openValue = -1;
     } else if (quoted) {
       if (PLAIN_ENGINE_KEYS.has(key[3])) {
         return false;
@@ -7401,7 +7459,21 @@ function plainFrontMatter(text: string): boolean {
       return false;
     }
   }
-  return true;
+  return !metadataBlockBelow(lines, end + 1);
+}
+/**
+ * Whether a `---` line at or after `from` opens what pandoc reads as a METADATA BLOCK: preceded by a blank line (or the start of
+ * the text) and followed at once by a line of text. Quarto merges such a block into the document's metadata wherever it sits
+ * (hunt3 plain-gate a32-a36, rendered), so one written with an escape can set `keep-hidden` or an engine out of sight. A thematic
+ * break (blank line after it) and a setext underline (text line before it) are not blocks.
+ */
+function metadataBlockBelow(lines: readonly string[], from: number): boolean {
+  for (let j = from; j + 1 < lines.length; j++) {
+    if (/^---[ \t]*$/.test(lines[j]) && lines[j + 1].trim() !== "" && (j === 0 || lines[j - 1].trim() === "")) {
+      return true;
+    }
+  }
+  return false;
 }
 /**
  * Whether a chunk option is POSITIVELY false (Session 304), narrower than {@link knitrOptionResolvesFalse}: a leading `#|` line
@@ -7474,7 +7546,11 @@ export function knitrCellMakesNoTarget(
     !/^(?:r|R|python)$/.test(engine[1]) ||
     header.has("engine") ||
     pipe.has("engine") ||
+    // a `child` document the cell itself includes can write the id even when the cell is hidden (hunt3 d13, rendered)
+    header.has("child") ||
+    pipe.has("child") ||
     context.unseenCode ||
+    context.writesMarkdown ||
     context.opaqueFrontMatter
   ) {
     return false;
@@ -7533,7 +7609,7 @@ function codeLinesAfterPipe(body: readonly string[]): readonly string[] {
  */
 export function jupyterCellMakesNoTarget(body: readonly string[], context: CellTargetContext): boolean {
   const pipe = knitrPipeOptions(body);
-  if (pipe === null || context.opaqueFrontMatter) {
+  if (pipe === null || context.opaqueFrontMatter || context.writesMarkdown || context.unseenCode) {
     return false;
   }
   const isFalse = (name: string): boolean => {
