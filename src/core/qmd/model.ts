@@ -6878,18 +6878,26 @@ function knitrOptsChunkSuppliesCode(text: string): boolean {
   }
   let mentions = 0;
   let calls = 0;
-  for (let at = text.indexOf(KNITR_OPTS_CHUNK); at >= 0; at = text.indexOf(KNITR_OPTS_CHUNK, at + KNITR_OPTS_CHUNK.length)) {
+  let next = text.indexOf(KNITR_OPTS_CHUNK);
+  while (next >= 0) {
     mentions++;
-    const start = at + KNITR_OPTS_CHUNK.length;
+    const start = next + KNITR_OPTS_CHUNK.length;
+    next = start;
     const call = /^[ \t]*\$[ \t]*(\w+)[ \t]*\(/.exec(text.slice(start, start + 40));
-    if (call === null) {
-      continue;
+    if (call !== null) {
+      calls++;
+      // Only `$set(` changes a default: `$merge()` returns the merged list, `$get()` reads one (s07, rendered silent).
+      if (call[1] === "set") {
+        const args = knitrCallArguments(text, start + call[0].length);
+        if (KNITR_OPTS_CODE_OPTION.test(args)) {
+          return true;
+        }
+        // The search resumes AFTER the arguments just read: a mention inside them is covered by that read, and re-reading them for each one is quadratic
+        // (a 10 MB line of `opts_chunk$set(` repeats took 9.5 s).
+        next = start + call[0].length + args.length;
+      }
     }
-    calls++;
-    // Only `$set(` changes a default: `$merge()` returns the merged list, `$get()` reads one (s07, rendered silent).
-    if (call[1] === "set" && KNITR_OPTS_CODE_OPTION.test(knitrCallArguments(text, start + call[0].length))) {
-      return true;
-    }
+    next = text.indexOf(KNITR_OPTS_CHUNK, next);
   }
   return mentions > calls && KNITR_OPTS_CODE_OPTION.test(text);
 }

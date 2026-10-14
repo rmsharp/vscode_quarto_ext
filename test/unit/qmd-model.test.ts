@@ -20733,6 +20733,21 @@ describe("Session 307 — code that reaches an EMPTY chunk through a knitr chann
     expect(outline(EMPTY, { source: setup('knitr::opts_chunk$set(ref.label = "src")'), below })).toEqual(ECHOES);
   });
 
+  it("spaces around `$` and `(` make the same call (u01, rendered loud)", () => {
+    expect(outline(EMPTY, { source: setup('knitr::opts_chunk $ set (ref.label = "src")') })).toEqual(ECHOES);
+  });
+
+  // PERFORMANCE (measured, Session 307): every `opts_chunk$set(` is followed to its closing paren, up to a cap, so a line of 600,000 of them cost one
+  // 4,000-character scan EACH (16 s for 10 MB) until the search resumed AFTER the arguments it had read. The same document must stay linear.
+  it("a 10 MB line of `opts_chunk$set(` repeats is read in linear time", () => {
+    const text = ["---", "title: t", "---", "", "```{r setup}", "opts_chunk$set(".repeat(600000), "```", "", "# Top", "", "```", "", "## Between", "", "```{r}", "```", "",
+      "## After", "", "```{r}", "y <- 1", "```", "", "## Last", ""].join("\n");
+    const before = performance.now();
+    const names = findHeadings(text, "knitr").map((h) => h.text);
+    expect(performance.now() - before).toBeLessThan(1500);
+    expect(names).toEqual(["Top", "Last"]);
+  });
+
   // THE NORMAL CASE, rendered: a setup chunk that names the functions without supplying code leaves an empty chunk silent. The first cut of this
   // rule read the BARE WORD and turned all of these wrong (round 1 of the blind lenses: `lens-normal`; grid g7): the sandwich and shape P DELETED a
   // heading quarto renders. Right at HEAD, and they must stay so.
