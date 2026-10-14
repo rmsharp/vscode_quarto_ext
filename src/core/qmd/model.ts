@@ -6775,16 +6775,24 @@ const KNITR_CHUNK_END = /^([\t >]*)(`{3,})[ \t\r\f\v]*$/;
 function knitrSilentChunkClosers(lines: readonly string[]): KnitrChunkClosers {
   const silent = new Map<number, number>();
   const uncertain = new Map<number, number>();
-  const defaults = knitrDocumentDefaults(lines);
   // What the lines ABOVE the chunk being judged can hand it as code (Session 307): see `KnitrCodeChannels`.
   const front = frontMatterOpenIndex(lines) === 0 ? frontMatterContent(lines) : null;
   const channels: KnitrCodeChannels = { opts: front !== null && knitrFrontMatterSuppliesCode(front), fill: false };
+  // The echo / include defaults, read in document order (Session 308): the front matter first, then each setup chunk's `opts_chunk$set()` for the chunks BELOW it.
+  const frontDefaults = knitrDocumentDefaults(lines);
+  const defaults: KnitrDefaultsState = { frontEcho: frontDefaults.echo, frontInclude: frontDefaults.include, echo: "none", include: "none" };
+  const frontNamesEval = front !== null && front.some((line) => KNITR_EVAL_KEY.test(line));
+  const bodyStart = front === null ? 0 : front.length + 2;
   for (let i = 0; i < lines.length; i++) {
     const begin = KNITR_CHUNK_BEGIN.exec(lines[i]);
     if (begin === null) {
       // Prose: only an inline `r` call runs (in both modes); a code span, a comment or a sentence that names the call does not.
       channels.opts = channels.opts || (lines[i].includes("`r ") && knitrOptsChunkSuppliesCode(lines[i]));
       channels.fill = channels.fill || KNITR_FILL_INLINE.test(lines[i]);
+      // A mention of `opts_chunk` outside a chunk, below the front matter, may be an inline call: no default is trusted past it (HEAD declined the whole document).
+      if (i >= bodyStart && lines[i].includes(KNITR_OPTS_CHUNK)) {
+        knitrApplyDefaultsUpdate(defaults, "unknown");
+      }
       continue;
     }
     let end = -1;
@@ -6807,12 +6815,16 @@ function knitrSilentChunkClosers(lines: readonly string[]): KnitrChunkClosers {
     }
     const body = lines.slice(i + 1, end);
     if (begin[1] === "" && KNITR_CHUNK_INFO.test(begin[3])) {
-      const verdict = knitrChunkIsSilent(begin[3], body, defaults, channels);
+      const verdict = knitrChunkIsSilent(begin[3], body, knitrDefaultKinds(defaults), channels);
       if (verdict === "silent") {
         silent.set(end, i);
       } else if (verdict === "uncertain") {
         uncertain.set(end, i);
       }
+      // The chunk's own call changes the defaults for the chunks BELOW it, never its own.
+      knitrApplyDefaultsUpdate(defaults, knitrChunkDefaultsUpdate(begin[3], body, frontNamesEval));
+    } else if (body.some((line) => line.includes(KNITR_OPTS_CHUNK))) {
+      knitrApplyDefaultsUpdate(defaults, "unknown");
     }
     // The chunk's own body counts only for the chunks BELOW it.
     channels.opts = channels.opts || knitrOptsChunkSuppliesCode(body.filter((line) => !/^[ \t]*#/.test(line)).join("\n"));
@@ -7006,11 +7018,8 @@ function knitrDocumentDefaults(lines: readonly string[]): KnitrDocDefaults {
   if (content === null || top === null) {
     return NO_KNITR_DOC_DEFAULTS;
   }
-  // ⚠ A setup chunk's `knitr::opts_chunk$set(...)` resets the default when the chunk RUNS and not under
-  // `--no-execute`, so the two modes disagree (measured, adversarial pass): no default is trusted.
-  if (lines.slice(content.length + 2).some((line) => line.includes("opts_chunk"))) {
-    return NO_KNITR_DOC_DEFAULTS;
-  }
+  // A setup chunk's `knitr::opts_chunk$set(...)` changes the default for the chunks BELOW it when it RUNS, and not under `--no-execute`. Until Session 308 any mention
+  // of `opts_chunk` below the front matter declined the whole document; the chunks are now read in document order (`knitrDefaultsState`, `knitrChunkDefaultsUpdate`).
   const counted = { echo: 0, include: 0 };
   const read = { echo: 0, include: 0 };
   for (const line of content) {
@@ -7080,6 +7089,30 @@ function knitrDocumentDefaults(lines: readonly string[]): KnitrDocDefaults {
         readMapping(inner.sub, inner.indent);
       }
     }
+    // `format: html:` (Session 308): the FIRST format listed is the one `quarto render` renders, so only its mapping is the document's default. A format further
+    // down, or `html` second, stays an unread key and declines the option (measured: `pdf` alone does not apply to an html render, f08).
+    const format = mappingAt(content, i, top, "format");
+    if (format === "flow") {
+      const region = flowRegion(content, i, top + "format:".length);
+      const first = region === null ? undefined : flowEntries(region)?.[0];
+      for (const entry of first?.key === "html" ? (flowEntries(first.value) ?? []) : []) {
+        if ((entry.key === "echo" || entry.key === "include") && KNITR_YAML_FALSE.test(entry.value)) {
+          read[entry.key]++;
+        }
+      }
+    } else if (format === "block") {
+      const formats = subMapping(content, i, top);
+      const firstKey = formats === null ? -1 : formats.sub.findIndex((l) => leadingWhitespace(l) === formats.indent && !FRONTMATTER_NOT_CONTENT.test(l));
+      const html = formats === null || firstKey < 0 ? null : mappingAt(formats.sub, firstKey, formats.indent, "html");
+      if (formats !== null && html === "flow") {
+        readFlow(formats.sub, firstKey, formats.indent + "html:".length);
+      } else if (formats !== null && html === "block") {
+        const inner = subMapping(formats.sub, firstKey, formats.indent);
+        if (inner !== null) {
+          readMapping(inner.sub, inner.indent);
+        }
+      }
+    }
     if (mappingAt(content, i, top, "knitr") !== "block") {
       continue;
     }
@@ -7103,6 +7136,234 @@ function knitrDocumentDefaults(lines: readonly string[]): KnitrDocDefaults {
     echo: read.echo > 0 && read.echo === counted.echo,
     include: read.include > 0 && read.include === counted.include,
   };
+}
+/**
+ * How a document-level default decides a chunk that sets the option nowhere itself (Session 308).
+ *  - `both`: silent whether or not knitr executes, because the FRONT MATTER says so (`execute:`, `knitr: opts_chunk:`, a top-level key, `format: html:`);
+ *  - `exec`: silent only when the document EXECUTES: a setup chunk's `opts_chunk$set(echo = FALSE)` never runs under `--no-execute`, so the two modes disagree
+ *    (rendered, g13 d01-d36) and the chunk is `uncertain`, as for a code channel in Session 307: it may END a swallow early, as a loud chunk's closer does,
+ *    but never OPENS one (Learning 716). That is exact when executing for a stray fence with no certain closer below it, and it cannot delete a heading;
+ *  - `no`: not established silent (HEAD's answer: loud).
+ */
+type KnitrDefaultKind = "no" | "both" | "exec";
+interface KnitrDefaultKinds {
+  readonly echo: KnitrDefaultKind;
+  readonly include: KnitrDefaultKind;
+}
+/** What a chunk does to ONE default: set it silent, set it loud (`TRUE`), or something this does not read (`unknown`, a call it cannot evaluate). */
+type KnitrCallEffect = "none" | "silent" | "loud" | "unknown";
+/** What one chunk does to the defaults below it: `null` when it never mentions `opts_chunk`. */
+type KnitrDefaultsUpdate = null | "unknown" | { readonly echo?: "silent" | "loud"; readonly include?: "silent" | "loud" };
+/** The defaults the front matter and the setup chunks ABOVE a chunk give it, in document order. */
+interface KnitrDefaultsState {
+  frontEcho: boolean;
+  frontInclude: boolean;
+  echo: KnitrCallEffect;
+  include: KnitrCallEffect;
+}
+function knitrDefaultKind(front: boolean, call: KnitrCallEffect): KnitrDefaultKind {
+  if (call === "silent") {
+    return front ? "both" : "exec";
+  }
+  // A call that sets the option LOUD is followed as the executing mode, as HEAD did (the front matter's silence is then not trusted); one this cannot read is no default.
+  return call === "none" && front ? "both" : "no";
+}
+function knitrDefaultKinds(state: KnitrDefaultsState): KnitrDefaultKinds {
+  return { echo: knitrDefaultKind(state.frontEcho, state.echo), include: knitrDefaultKind(state.frontInclude, state.include) };
+}
+function knitrApplyDefaultsUpdate(state: KnitrDefaultsState, update: KnitrDefaultsUpdate): void {
+  if (update === null) {
+    return;
+  }
+  if (update === "unknown") {
+    // A call this cannot read may set anything, so nothing the front matter or a call above said is trusted from here on (HEAD declined the whole document).
+    state.frontEcho = false;
+    state.frontInclude = false;
+    state.echo = "unknown";
+    state.include = "unknown";
+    return;
+  }
+  state.echo = update.echo ?? state.echo;
+  state.include = update.include ?? state.include;
+}
+/** An `eval` key anywhere in the front matter: a setup chunk may then not run at all (rendered, d30), so no call is read. */
+const KNITR_EVAL_KEY = /(?:^|[\s{,])["']?eval["']?[ \t]*:/;
+/** The head of the one call that sets a default: `knitr::opts_chunk$set(` (or `opts_chunk$set(` after `library(knitr)`). */
+const KNITR_OPTS_CHUNK_SET = /^(?:knitr[ \t]*::[ \t]*)?opts_chunk[ \t]*\$[ \t]*set[ \t]*\(/;
+/**
+ * What a chunk's code does to the document defaults (Session 308): `null` when it never mentions `opts_chunk`, `unknown` when it mentions it in a shape this does
+ * not read, and otherwise the options it sets to a literal `FALSE` / `F` (silent) or `TRUE` / `T` (loud).
+ *
+ * ⚠ **EXACT STATEMENTS ONLY.** A call counts only as a whole top-level statement, `knitr::opts_chunk$set(<named arguments>)` (`rTopLevelStatements`): inside braces, after an
+ * `if (...)` or a `function(...)` header, in a comment, in a string, through `do.call`, a stored function or `invisible(...)` it is `unknown`, and `unknown` keeps HEAD's
+ * answer. Rendered, each of those either runs (d16, d29: not read, a residual) or does not (d14, d15, d17, d18: right at HEAD), and no word list tells them apart.
+ * The chunk must also be one that RUNS: a plain `{r}` chunk, with no `engine`, `child`, `file`, `code`, `ref.label` or `cache` option, and `eval=FALSE` there means it
+ * never runs (d12, d13: no effect). A document whose front matter names `eval` anywhere is not read at all (d30).
+ */
+function knitrChunkDefaultsUpdate(header: string, body: readonly string[], frontNamesEval: boolean): KnitrDefaultsUpdate {
+  if (!body.some((line) => line.includes(KNITR_OPTS_CHUNK))) {
+    return null;
+  }
+  const engine = /^\{([a-zA-Z0-9_]+)/.exec(header);
+  if (engine === null || (engine[1] !== "r" && engine[1] !== "R")) {
+    return "unknown";
+  }
+  const options = knitrHeaderOptions(header.slice(engine[0].length, -1));
+  const pipe = knitrPipeOptions(body);
+  if (options === null || pipe === null) {
+    return "unknown";
+  }
+  if (cellOptionIsFalse("eval", options, pipe)) {
+    return null;
+  }
+  const bends = ["engine", "child", "file", "code", "ref.label", "cache", "eval"];
+  if (frontNamesEval || bends.some((name) => options.has(name) || pipe.has(name) || pipe.has(name.replace(".", "-")))) {
+    return "unknown";
+  }
+  const parsed = rTopLevelStatements(codeLinesAfterPipe(body).join("\n"));
+  if (parsed === null || parsed.stringMention) {
+    return "unknown";
+  }
+  const update: { echo?: "silent" | "loud"; include?: "silent" | "loud" } = {};
+  for (const statement of parsed.statements) {
+    if (!statement.includes(KNITR_OPTS_CHUNK)) {
+      continue;
+    }
+    const head = KNITR_OPTS_CHUNK_SET.exec(statement);
+    if (head === null || statement.split(KNITR_OPTS_CHUNK).length !== 2 || !rCallEndsAt(statement, head[0].length, statement.length - 1)) {
+      return "unknown";
+    }
+    const seen = new Set<string>();
+    for (const argument of rSplitArguments(statement.slice(head[0].length, -1))) {
+      const named = /^([A-Za-z.][A-Za-z0-9._]*)[ \t\r\n]*=(?!=)[ \t\r\n]*([\s\S]+)$/.exec(argument.trim());
+      if (named === null) {
+        return "unknown";
+      }
+      if (named[1] !== "echo" && named[1] !== "include") {
+        continue;
+      }
+      const value = named[2].trim();
+      if (seen.has(named[1]) || !/^(?:FALSE|F|TRUE|T)$/.test(value)) {
+        return "unknown";
+      }
+      seen.add(named[1]);
+      update[named[1]] = value === "FALSE" || value === "F" ? "silent" : "loud";
+    }
+  }
+  return update;
+}
+/** Whether the call opened at `start - 1` (just after its `(`) closes exactly at `last`: a trailing `$x` or `+ 1` makes the statement something else. Strings are already masked. */
+function rCallEndsAt(text: string, start: number, last: number): boolean {
+  let depth = 1;
+  for (let k = start; k < text.length; k++) {
+    const ch = text[k];
+    if (ch === "(" || ch === "[" || ch === "{") {
+      depth++;
+    } else if (ch === ")" || ch === "]" || ch === "}") {
+      if (--depth === 0) {
+        return k === last;
+      }
+    }
+  }
+  return false;
+}
+/** The arguments of a masked call, split at the commas outside every bracket; an empty slot is kept so the caller can refuse it. */
+function rSplitArguments(args: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let from = 0;
+  for (let k = 0; k < args.length; k++) {
+    const ch = args[k];
+    if (ch === "(" || ch === "[" || ch === "{") {
+      depth++;
+    } else if (ch === ")" || ch === "]" || ch === "}") {
+      depth--;
+    } else if (ch === "," && depth === 0) {
+      parts.push(args.slice(from, k));
+      from = k + 1;
+    }
+  }
+  parts.push(args.slice(from));
+  return parts;
+}
+/**
+ * The top-level statements of an R chunk (Session 308), each with its strings replaced by `""` and its comments dropped, or `null` when the code is not shaped this
+ * reads with certainty: a backtick name, a raw string (`r"(...)"`), an unterminated string or an unbalanced bracket. `stringMention` is true when `opts_chunk` sits
+ * inside a string: R can evaluate one (`eval(parse(text = ...))`), so it is not a mention this can discard.
+ *
+ * A statement ends at a newline or `;` outside every bracket, and is glued to the NEXT one while it cannot be complete: it ends in an operator or a comma, or it starts
+ * with `if`, `for`, `while`, `repeat`, `function` or `else` and ends at a header (`if (x)` then a line break, then the body). Gluing too much is the safe side, because
+ * a glued statement is no longer an exact call. Linear in the code.
+ */
+function rTopLevelStatements(code: string): { statements: string[]; stringMention: boolean } | null {
+  const statements: string[] = [];
+  let current = "";
+  let pending = "";
+  let pendingKeyword = false;
+  let depth = 0;
+  let stringMention = false;
+  const endStatement = (): void => {
+    const text = current.trim();
+    current = "";
+    if (text === "") {
+      return;
+    }
+    if (pending === "") {
+      pending = text;
+      pendingKeyword = /^(?:if|for|while|repeat|function|else)\b/.test(text);
+    } else {
+      pending += ` ${text}`;
+    }
+    const incomplete = /[-+*/^<>=!&|~,$@:%]$/.test(text) || (pendingKeyword && (text.endsWith(")") || /\b(?:else|repeat)$/.test(text)));
+    if (!incomplete) {
+      statements.push(pending);
+      pending = "";
+    }
+  };
+  for (let i = 0; i < code.length; i++) {
+    const ch = code[i];
+    if (ch === '"' || ch === "'") {
+      if (i > 0 && (code[i - 1] === "r" || code[i - 1] === "R") && (i < 2 || !/[\w.]/.test(code[i - 2]))) {
+        return null;
+      }
+      let end = i + 1;
+      while (end < code.length && code[end] !== ch) {
+        end += code[end] === "\\" ? 2 : 1;
+      }
+      if (end >= code.length) {
+        return null;
+      }
+      stringMention = stringMention || code.slice(i + 1, end).includes(KNITR_OPTS_CHUNK);
+      current += '""';
+      i = end;
+    } else if (ch === "`") {
+      return null;
+    } else if (ch === "#") {
+      while (i + 1 < code.length && code[i + 1] !== "\n") {
+        i++;
+      }
+    } else if (ch === "(" || ch === "[" || ch === "{") {
+      depth++;
+      current += ch;
+    } else if (ch === ")" || ch === "]" || ch === "}") {
+      if (--depth < 0) {
+        return null;
+      }
+      current += ch;
+    } else if ((ch === "\n" || ch === ";") && depth === 0) {
+      endStatement();
+    } else {
+      current += ch;
+    }
+  }
+  if (depth !== 0) {
+    return null;
+  }
+  endStatement();
+  if (pending !== "") {
+    statements.push(pending);
+  }
+  return { statements, stringMention };
 }
 /**
  * The chunk engines whose `echo=FALSE` / `include=FALSE` chunk is MEASURED to emit no fence (R6
@@ -7133,7 +7394,7 @@ const KNITR_DOC_ECHO_ENGINES: ReadonlySet<string> = new Set([
 function knitrChunkIsSilent(
   header: string,
   body: readonly string[],
-  defaults: KnitrDocDefaults,
+  defaults: KnitrDefaultKinds,
   channels: KnitrCodeChannels,
 ): "silent" | "uncertain" | "loud" {
   // ⚠ ONLY the engines measured silent (`KNITR_SILENT_ENGINES`). quarto re-emits a `dot`, `mermaid`
@@ -7169,14 +7430,32 @@ function knitrChunkIsSilent(
   // ⚠ A DOCUMENT-level `echo: false` is silent in BOTH modes for `KNITR_DOC_ECHO_ENGINES` only; for the
   // shell-like engines it is silent under `--no-execute` and loud when the chunk runs (Session 287). A
   // document-level `include: false` has no such split, so it covers every engine this rule trusts.
-  const documentEcho = defaults.echo && KNITR_DOC_ECHO_ENGINES.has(engine[1]);
-  if (knitrOptionResolvesFalse("include", options, pipe, defaults.include)) {
+  const documentEcho: KnitrDefaultKind = KNITR_DOC_ECHO_ENGINES.has(engine[1]) ? defaults.echo : "no";
+  const include = knitrDefaultVerdict("include", options, pipe, defaults.include);
+  if (include === "silent") {
     return "silent";
   }
-  if (knitrOptionResolvesFalse("echo", options, pipe, documentEcho)) {
+  const echo = knitrDefaultVerdict("echo", options, pipe, documentEcho);
+  if (echo === "silent") {
     return knitrCodeWritesFence(body, options, pipe) ? "uncertain" : "silent";
   }
+  // A default that is silent only when the document EXECUTES (a setup chunk's call) decides nothing the other mode would not undo (Session 308, `KnitrDefaultKind`).
+  if (echo === "uncertain" || include === "uncertain") {
+    return "uncertain";
+  }
   return emptyBody ? "uncertain" : "loud";
+}
+/** One option's verdict for a chunk (Session 308): the chunk's OWN `#|` or header value wins; otherwise the document default decides, `exec` being `uncertain`. */
+function knitrDefaultVerdict(
+  name: "echo" | "include",
+  header: ReadonlyMap<string, string>,
+  pipe: ReadonlyMap<string, string>,
+  kind: KnitrDefaultKind,
+): "silent" | "uncertain" | "loud" {
+  if (pipe.has(name) || header.has(name)) {
+    return knitrOptionResolvesFalse(name, header, pipe, false) ? "silent" : "loud";
+  }
+  return kind === "both" ? "silent" : kind === "exec" ? "uncertain" : "loud";
 }
 /** A child document or a template: its output carries the child's own fences. */
 const KNITR_CHILD_WRITER = /knit_child|knit_expand/;
