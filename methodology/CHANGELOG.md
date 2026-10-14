@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-14 · [BL-The Outline's silence rule may read an empty chunk that takes its code through the DASHED pipe alias (`#| ref-label: src`) as silent — REASONED, NOT MEASURED] Session 306 (in progress): claim -- measure the dashed `ref-label` alias against the Outline's silence rule
+
+Session claimed; the operator chose this item at the Phase 0 picker (the recommended one). It is filed as REASONED, NOT MEASURED, so the first step is a render: a stray bare fence above an empty `{r}` chunk carrying `#| ref-label: src`, read through quarto 1.7.33 and the Outline. Only a measured loss changes `knitrChunkIsSilent`; a measured non-loss closes the item with a pin. Strict TDD, one alias, nothing else. Phase 3F records the outcome.
+
 ### 2026-10-14 · [ad hoc] Session 305 close-out: handoff evaluation, self-assessment, receipt, trim, quality ratchet
 
 `methodology/SESSION_NOTES.md` (ACTIVE TASK rewritten to NONE, the Session 304 evaluation and Session 305 self-assessment written, 8/10 and 8/10), `methodology/HANDOFFS.md` (the `S305` receipt, `status: complete`), the two history files, commit `746e04d1`; the trim of `SESSION_NOTES.md` to three close-out pairs (the Session 301 evaluation and Session 302 self-assessment dropped, one command away: `git show 746e04d1:methodology/SESSION_NOTES.md`), commit `d8c97aa6`; and this ledger commit. Quality ratchet at head `779f5544`: 2/2 pass, results `bba236856bad`, manifest `334939914945` (ledger-lag 0 after the ledger commit), cited in the receipt by the commit after this one (Learning 683). Dashboard 76/100, unchanged; `context_budget.py` still red on the three pre-existing over-limit records.

@@ -8,7 +8,8 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 305 closed out.** A cell's `sec-`/`eq-` label no longer defines a target, except in a document that can write one at run time. `BACKLOG.md` "Active" is empty; present ranked candidates via AskUserQuestion at Phase 0.
+**Task:** **Session 306 (IN PROGRESS): does the Outline's silence rule (`knitrChunkIsSilent`, `src/core/qmd/model.ts`) read an empty chunk that takes its code through the DASHED pipe alias `#| ref-label: src` as silent?** BACKLOG says REASONED, NOT MEASURED.
+Operator picked it at Phase 0. Measure by render first (a stray bare fence above an empty `{r}` chunk with that pipe); change the list only if the render shows headings lost; strict TDD; scope is that one alias.
 **⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl`.
 (2) `scratchpad/s305/` (untracked) holds this session's harness: `gen305*.py`, `mkfixture305.cjs`, `mutate305.py`, `mutants305.json`, `BRIEF305*.md`, grid1-3, `hunt/` and `white/` lens dirs with renders.
 (3) `scratchpad/s304/` holds the shared tools: `render304.sh` (3 wide, load gate), `score304.cjs <parent> <new> <dirs>`, `build.sh <label>`, `corpusdiff304.cjs`. In zsh pass dir lists as an ARRAY, not one string.
@@ -16,6 +17,12 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 (5) BEFORE designing an exemption to a removal rule, `grep -n channel methodology/PROJECT_LEARNINGS.md` (Learnings 703, 711): guard the channel, not the string.
 (6) `test:integration` takes the screen: ask first. (7) `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` are past the 262,144 B read refusal: read them in slices.
 (8) Fixtures are quarto 1.7.33: `test/fixtures/{no-target-shapes,cell-label-kinds}/`; re-render when quarto moves. `lst-` is engine-dependent (BACKLOG (7b)): never remove it as a kind.
+
+### What Session 306 Did
+**Deliverable:** the dashed `ref-label` pipe alias against the Outline's silence rule (IN PROGRESS)
+**Started:** 2026-10-14
+**Status:** Session claimed. Work beginning. Phase 0 found both ledger frontiers at HEAD (nothing to reconcile); the ratchet citation matched `.quality-gates-results.json`.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
 
 ## Session 304 Handoff Evaluation (by Session 305)
 
