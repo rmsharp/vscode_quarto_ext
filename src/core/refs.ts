@@ -15,7 +15,8 @@
  *      scanner (`cellOptionLinesOf`) with the cell language's own comment character —
  *      `#| label:` in `{python}`/`{r}`, `//|` in `{ojs}`/`{dot}`, `%%|` in `{mermaid}`. And, in a
  *      KNITR document only, the chunk HEADER (`{r fig-x}`, `{r, label="fig-x"}`) — see
- *      {@link indexLabels}'s `documentEngine`.
+ *      {@link indexLabels}'s `documentEngine`. A cell that makes no figure or table for its label
+ *      defines none (Session 304; same place).
  *   3. Inline `{#fig-…}`/`{#tbl-…}`/`{#eq-…}`/`{#lst-…}` attribute blocks on
  *      images, divs, and display equations in prose (model body lines).
  *   4. Attribute blocks on PLAIN fenced code block openers — ```` ```{#lst-x .python} ````
@@ -319,6 +320,12 @@ function kindOf(id: string): RefKind | null {
  * python-then-R document under jupyter while the resolver answers knitr (`document-engine.ts` records it as
  * genuinely invisible there). The header label is then a label quarto does not define. An `.Rmd` file is knitr
  * by its extension alone, measured with `jupyter:` and `engine: markdown` in its front matter (`hdr7`, w01-w06).
+ *
+ * ⚠ **AND IT COSTS LABELS SINCE SESSION 304, NOT ONLY PHANTOMS.** In a `"knitr"` or a `"jupyter"` document a figure or table label
+ * on a cell that is positively known to make no such target is NOT indexed (`knitrCellMakesNoTarget`,
+ * `jupyterCellMakesNoTarget` in `core/qmd/model`): `eval: false`, `include: false`, `output: false` or an empty chunk for a
+ * figure, `include: false` for a table, and for Jupyter any cell with nothing left to show. A wrong engine from the resolver
+ * therefore removes a label quarto defines. Every other engine value leaves the old answer, a label on every cell.
  */
 export function indexLabels(text: string, documentEngine?: DocumentEngine | "ambiguous"): RefLabel[] {
   const labels: RefLabel[] = [];
@@ -366,11 +373,8 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
     // ⚠ The scanner closes a cell at a ``` of any indent, and quarto only at one at the OPENER'S OWN indent, so a stray
     // fence inside a cell hands the rules a body that stops early: it looks empty and its label is removed (hunt
     // struct-trap e01-e08, e43, rendered: defined). A cell is judged only when its closer is a bare fence at the
-    // opener's indent and at least as long as the opener's; an unterminated cell has no closer at all.
-    const openerRun = /^[ \t]*(`{3,})/.exec(sourceLines[cell.startLine])?.[1].length ?? Infinity;
-    const closer = cell.endLine > cell.startLine ? (sourceLines[cell.endLine] ?? "") : "";
-    const closedAtOpener =
-      closer.startsWith(indent) && new RegExp("^`{" + openerRun + ",}[ \t]*$").test(closer.slice(indent.length));
+    // opener's indent (the scanner has already held its length to the opener's, and returns no unterminated cell).
+    const closedAtOpener = new RegExp("^" + indent + "`{3,}[ \t]*$").test(sourceLines[cell.endLine] ?? "");
     const makesNoTarget = (kind: RefKind): boolean =>
       targetContext !== null &&
       closedAtOpener &&

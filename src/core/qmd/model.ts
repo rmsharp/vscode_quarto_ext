@@ -7246,12 +7246,20 @@ export type CellTargetKind = "fig" | "tbl";
 /**
  * What the DOCUMENT, as opposed to the cell, contributes to {@link knitrCellMakesNoTarget} and
  * {@link jupyterCellMakesNoTarget} (Session 304).
+ *
+ * ⚠ **PROBE IDS** in these comments name rendered documents in the untracked `scratchpad/s304/` (every earlier session's
+ * probes lived in its own scratchpad folder too). Bare `a15`, `a16`, `k07`, `k08`, `k10`, `k12`, `k14`, `e64` are Session
+ * 303's (`scratchpad/s303/hdr*`); the rest are written with their folder where an id would collide: `grid gNNN` and
+ * `grid2 gNNN` (two folders hold `g059`..`g176`), `grid2 kNNN`, `grid3 mNNN`, `grid4 nNNN`, `grid5 gNNN`, `knitr-header hNN`,
+ * `pipe-yaml pNN`, `doc-defaults dNN`, `jupyter-py jNN`, `code-content cNN`, `indirection xNN`, and the white-box hunt's
+ * `hunt aNN` (hdr-trap), `hunt bNN` (pipe-trap), `hunt cNN` (front-trap), `hunt dNN` (jup-trap), `hunt eNN` (struct-trap),
+ * `hunt fNN` (kind-trap). `test/fixtures/no-target-shapes/` holds 1,130 of those documents with quarto's verdict.
  */
 export interface CellTargetContext {
   /**
    * The document names a knitr function that fills a chunk with code written ELSEWHERE, by the chunk's label
    * (`read_chunk`, `read_demo`, `read_rforge`, `knit_code`): then a chunk with no code on the page may still draw
-   * a figure (x17, rendered). Read as a bare word anywhere in the text, prose included — a mention that is no call only
+   * a figure (indirection x17, rendered). Read as a bare word anywhere in the text, prose included — a mention that is no call only
    * declines a removal, which is the safe side.
    */
   readonly codeFromElsewhere: boolean;
@@ -7264,7 +7272,8 @@ export interface CellTargetContext {
   /**
    * The document names a chunk hook or template (`opts_hooks`, `opts_template`, `opts.label`): an option the header or the
    * pipe sets may be set back before the chunk runs (hunt a06-a09, a11, c19-c21, f11, f12, e13). Searched as bare words, prose
-   * included, so a mention that is no call only declines a removal.
+   * included, so a mention that is no call only declines a removal. Measured only as the hunters' rendered documents: the
+   * words are what they used, not a list of everything that can rewrite an option.
    */
   readonly rewritesOptions: boolean;
   /**
@@ -7295,10 +7304,11 @@ export function cellTargetContext(text: string): CellTargetContext {
  * Whether a chunk option is POSITIVELY false (Session 304), narrower than {@link knitrOptionResolvesFalse}: a leading `#|` line
  * wins over the header, as for every option, and then only the spellings that cannot mean anything else are read. A pipe value is
  * `false`, `False`, `FALSE` or the literal `!expr FALSE` (quarto refuses `no`, `n`, `off` and a quoted `'false'` for these options
- * outright: g248-g250, p04-p06, p15). A header value is the reserved word `FALSE`, or `F` while the document never rebinds it.
+ * outright: grid g248-g250, pipe-yaml p04-p06, p15). A header value is the reserved word `FALSE`, or `F` while the document
+ * never rebinds it.
  * ⚠ Every other R expression — `!TRUE`, `FALSE & TRUE`, `(FALSE)`, a variable, a call — is NOT read, though several evaluate as
- * written (h06, h07, h21): knitr evaluates them in the document's own session, where `(`, `&`, `||` and the rest can be redefined
- * (b16-b19). A wrong "false" removes a label quarto defines; a wrong "not read" keeps a phantom.
+ * written (knitr-header h06, h07, h21): knitr evaluates them in the document's own session, where `(`, `&`, `||` and the rest
+ * can be redefined (hunt b16-b19). A wrong "false" removes a label quarto defines; a wrong "not read" keeps a phantom.
  */
 function cellOptionIsFalse(
   name: "eval" | "include" | "output",
@@ -7323,16 +7333,22 @@ function cellOptionIsFalse(
  * read with certainty (a header the argument splitter declines, a `#|` block that is not the plain shape, an
  * `engine=` or an external code source) answers `false`.
  *
- * The rule, per target (`scratchpad/s304/`; the ids name the probe):
- *  - `include` resolved false hides everything the cell emits: no figure (a16) and no table (g030, e64);
- *  - a FIGURE label also needs a figure: `eval` false (a15, k10) and `output` false (g061, g095) leave none, whatever
- *    the code makes (f19, f22, f23), and so does a chunk with NO code — no line, only blank lines or only comments
- *    (k14, g153-g162) — which is measured for r and python only. A TABLE is the cell itself, so `eval`, `output` and
- *    an empty body leave it defined (k07, g111, g165).
+ * The rule, per target (probe ids: see {@link CellTargetContext}):
+ *  - `include` resolved false hides everything the cell emits: no figure (a16) and no table (grid g030, e64);
+ *  - a FIGURE label also needs a figure: `eval` false (a15, k10) and `output` false (grid g061, grid2 g095) leave none,
+ *    whatever the code makes (hunt f19, f22, f23), and so does a chunk with NO code — no line, only blank lines or only
+ *    comments (k14, grid2 g153-g162) — which is measured for r and python only. A TABLE is the cell itself, so `eval`,
+ *    `output` and an empty body leave it defined (k07, grid2 g111, g165).
  *  - `fig.show='hide'` and `fig.keep='none'` are NOT read: they hide PLOTS, and a figure label on a chunk that makes a
- *    table (f20, f21) or a python plot (f07, f10) is still defined, which only the chunk's code can tell.
+ *    table (hunt f20, f21) or a python plot (hunt f07, f10) is still defined, which only the chunk's code can tell.
  *  - what the code DOES is undecidable here: an assignment, a `print` or an `if (FALSE)` plot make no figure
- *    either (c04, c07, c20) and are left defined, the safe side.
+ *    either (code-content c04, c07, c20) and are left defined, the safe side.
+ *  - the document's own defaults are NOT read (see {@link CellTargetContext}'s guards and `refs-no-target.test.ts`).
+ *
+ * ⚠ **RESIDUALS, all disclosed in `BACKLOG.md`:** the chunk's code decides what it makes, so every phantom that depends
+ * on it stays (about 100 of the rendered rows); a project `_quarto.yml`, a profile or a manuscript project can change what a
+ * document means from outside its text; a `read_chunk` call whose name is built from strings, and the shapes the engine
+ * resolver already gets wrong (a project `engines:` list, a flow `execute: {…}`), reach this as well.
  */
 export function knitrCellMakesNoTarget(
   openerLine: string,
@@ -7398,15 +7414,19 @@ function codeLinesAfterPipe(body: readonly string[]): readonly string[] {
 /**
  * Whether a Jupyter `{python}` cell is POSITIVELY known to leave the cross-reference target its label names undefined
  * (Session 304). Jupyter puts the id on the CELL's own div, so — unlike knitr — a cell survives `eval: false` and
- * `output: false` (g242, g244) and a plot that is never made (j15): what drops it is having NOTHING to show.
- * Rendered with Jupyter executing (`scratchpad/s304/grid`, `grid2`, `grid3`), both targets alike:
- *  - `include` false in the CELL (g243, k007, k008); a document-level `include: false` is not read (g287, k053: see
- *    `CellTargetContext`), and neither is anything else the front matter says;
- *  - no source line at all, or only blank ones (k025-k030) — a comment or a `pass` is source and is shown (k031, k033);
- *  - `echo: false` with nothing to output: `eval: false` or `output: false` beside it (k002, k003, k005, m006, m008, m009),
- *    or a body of comments only (k034, m011). What the code of an `echo: false` cell prints is undecidable (`pass`, k032).
+ * `output: false` (grid g242, g244) and a plot that is never made (jupyter-py j15): what drops it is having NOTHING to show.
+ * Rendered with Jupyter executing (probe ids: see {@link CellTargetContext}), both targets alike:
+ *  - `include` false in the CELL (grid g243, grid2 k007, k008); a document-level `include: false` is not read (grid g287,
+ *    grid2 k053), and neither is anything else the front matter says;
+ *  - no source line at all, or only blank ones (grid2 k025-k030) — a comment or a `pass` is source and is shown
+ *    (grid2 k031, k033);
+ *  - `echo: false` with nothing to output: `eval: false` or `output: false` beside it (grid2 k002, k003, k005; grid3 m006,
+ *    m008, m009), or a body of comments only (grid2 k034, grid3 m011). What the code of an `echo: false` cell prints is
+ *    undecidable (`pass`, grid2 k032).
  * The YAML is Quarto's own, so only `false`, `False` and `FALSE` are read; `no`, `off` and a quoted `'false'` make quarto
- * refuse the document (g248-g250, p06).
+ * refuse the document (grid g248-g250, pipe-yaml p06). Only a document that stands for `keep-hidden` or an undecodable key
+ * is judged differently (`CellTargetContext`), and only a cell whose closer is at the opener's indent is judged at all
+ * (`indexLabels`, Source 2).
  */
 export function jupyterCellMakesNoTarget(body: readonly string[], context: CellTargetContext): boolean {
   const pipe = knitrPipeOptions(body);

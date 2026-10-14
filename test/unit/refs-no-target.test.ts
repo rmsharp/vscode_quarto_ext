@@ -241,6 +241,13 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
       expect(jids(echo)).toEqual(["tbl-x"]);
     });
 
+    it("…in a knitr document too: an escape-spelled engine key means this cannot say which engine runs (c47, c48's other half)", () => {
+      const text = ["---", '"eng\\x69ne": jupyter', "---", "", chunk("{r fig-x, eval=FALSE}", '#| fig-cap: "Cap"', "plot(1)")].join("\n");
+      expect(ids(text)).toEqual(["fig-x"]);
+      const plain = ["---", "title: t", "---", "", chunk("{r fig-x, eval=FALSE}", '#| fig-cap: "Cap"', "plot(1)")].join("\n");
+      expect(ids(plain)).toEqual([]);
+    });
+
     it("a plain key is no such thing (control)", () => {
       const text = ["---", "jupyter: python3", "---", "", chunk("{python}", "#| label: tbl-x", '#| tbl-cap: "Cap"')].join("\n");
       expect(jids(text)).toEqual([]);
@@ -264,7 +271,11 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
       ["a comment", ["# nothing to draw"]],
       ["comments and a blank line", ["# a", "", "# b"]],
       ["an indented comment", ["  # indented"]],
-    ])("an R chunk holding %s defines no figure label (k14, c02, c03, g157-g161)", (_what, code) => {
+      ["a tab-only line", ["\t"]],
+      ["a space then a tab", [" \t"]],
+      ["a tab and a comment", ["\t# nothing"]],
+      ["blank, tab, blank", ["", "\t", ""]],
+    ])("an R chunk holding %s defines no figure label (k14, c02, c03, grid2 g157-g161, grid6 g001-g017)", (_what, code) => {
       expect(ids(chunk("{r fig-x}", '#| fig-cap: "Cap"', ...code))).toEqual([]);
       expect(ids(chunk("{r}", "#| label: fig-x", '#| fig-cap: "Cap"', ...code))).toEqual([]);
     });
@@ -469,7 +480,10 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
       ["one blank line", [""]],
       ["a whitespace-only line", ["   "]],
       ["blank lines", ["", ""]],
-    ])("a cell with %s has no source and is dropped (k025-k030, k037-k042)", (_what, code) => {
+      ["a tab-only line", ["\t"]],
+      ["a space then a tab", [" \t"]],
+      ["blank, tab, blank", ["", "\t", ""]],
+    ])("a cell with %s has no source and is dropped (grid2 k025-k030, k037-k042; grid6 g003-g020)", (_what, code) => {
       expect(jids(cell("fig", [], ...code))).toEqual([]);
       expect(jids(cell("tbl", [], ...code))).toEqual([]);
       expect(jids(cell("fig", ["echo: false"], ...code))).toEqual([]);
@@ -480,6 +494,17 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
       expect(jids(cell("tbl", [], "pass"))).toEqual(["tbl-x"]);
       expect(jids(cell("fig", ["echo: true"], "# nothing"))).toEqual(["fig-x"]);
       expect(jids(cell("fig", [], "", "", "pass"))).toEqual(["fig-x"]);
+    });
+
+    it("a tab before a comment is still a comment: shown without echo: false (grid6 g013, g015), nothing with it (g014)", () => {
+      expect(jids(cell("fig", [], "\t# nothing"))).toEqual(["fig-x"]);
+      expect(jids(cell("tbl", [], "\t# nothing"))).toEqual(["tbl-x"]);
+      expect(jids(cell("fig", ["echo: false"], "\t# nothing"))).toEqual([]);
+    });
+
+    it.each([["no"], ["off"], ["n"], ["'false'"]])("echo/include: %s is not read: quarto refuses the document, so nothing is removed (grid g248-g252)", (v) => {
+      expect(jids(cell("fig", [`include: ${v}`], ...FIG))).toEqual(["fig-x"]);
+      expect(jids(cell("fig", [`echo: ${v}`, "eval: false"], ...FIG))).toEqual(["fig-x"]);
     });
 
     it("a comment-only cell with echo: false shows nothing (k034, k046, m011, m029); `pass` with echo: false is undecidable and kept (k032)", () => {
