@@ -387,6 +387,85 @@ describe("Quarto: Cross-reference completion + definition", () => {
     assert.ok(!jupyterLabels.includes("@fig-drop"), `a Jupyter cell with include: false is not: ${JSON.stringify(jupyterLabels)}`);
   });
 
+  it("a code cell's sec- and eq- label is neither offered after @ nor a definition target, unless the document can write it at run time (Session 305)", async () => {
+    // Quarto 1.7.33 prints `?@sec-off` / `?@eq-off` for a cell labelled that way in every cell language and engine, and defines the target
+    // when the cell's OUTPUT writes it (an asis output, `Markdown()`, a template, a child: `scratchpad/s305`, g040-g065, lo11, wl09). The unit
+    // tests compose `resolveDocumentEngine` and `indexLabels` by hand; only the REGISTERED providers hand them the document, so this row is
+    // the one place the completion list and go-to-definition are asserted together for the new guard.
+    const open = async (content: string) => {
+      const doc = await vscode.workspace.openTextDocument({ language: "quarto", content });
+      await vscode.window.showTextDocument(doc);
+      return doc;
+    };
+    const labelsAfterAt = async (doc: vscode.TextDocument) => {
+      const line = doc.lineCount - 1;
+      const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+        "vscode.executeCompletionItemProvider",
+        doc.uri,
+        new vscode.Position(line, doc.lineAt(line).text.length),
+        "@",
+      );
+      return (list?.items ?? []).map(labelText);
+    };
+    const definitionAt = async (doc: vscode.TextDocument, line: number, column: number) =>
+      (await vscode.commands.executeCommand<vscode.Location[]>("vscode.executeDefinitionProvider", doc.uri, new vscode.Position(line, column))) ?? [];
+
+    const plain = await open(
+      [
+        "---",
+        "jupyter: python3",
+        "---",
+        "",
+        "## Real {#sec-real}", //                                 4
+        "",
+        "See @sec-off and @eq-off and @fig-on.", //               6
+        "",
+        "```{python}", //                                         8
+        "#| label: sec-off",
+        "x = 1",
+        "```",
+        "",
+        "```{python}", //                                         13
+        "#| label: eq-off",
+        "y = 2",
+        "```",
+        "",
+        "```{python}", //                                         18
+        "#| label: fig-on",
+        '#| fig-cap: "Cap"',
+        "import matplotlib.pyplot as plt",
+        "plt.plot([1, 2])",
+        "```",
+        "",
+        "See @",
+      ].join("\n"),
+    );
+    const plainLabels = await labelsAfterAt(plain);
+    assert.ok(plainLabels.includes("@sec-real"), `a heading's sec- id is offered: ${JSON.stringify(plainLabels)}`);
+    assert.ok(plainLabels.includes("@fig-on"), `a figure is offered: ${JSON.stringify(plainLabels)}`);
+    assert.ok(!plainLabels.includes("@sec-off"), `a cell's sec- label is not: ${JSON.stringify(plainLabels)}`);
+    assert.ok(!plainLabels.includes("@eq-off"), `a cell's eq- label is not: ${JSON.stringify(plainLabels)}`);
+    // Line 6 "See @sec-off and @eq-off and @fig-on.": col 8 is inside '@sec-off', col 22 inside '@eq-off', col 35 inside '@fig-on'.
+    assert.strictEqual((await definitionAt(plain, 6, 8)).length, 0, "no definition for a sec- label quarto leaves unresolved");
+    assert.strictEqual((await definitionAt(plain, 6, 22)).length, 0, "no definition for an eq- label quarto leaves unresolved");
+    const figLocations = await definitionAt(plain, 6, 35);
+    assert.ok(figLocations.length > 0 && figLocations[0].range.start.line === 19, "the figure still resolves, to its label line");
+
+    const writes = await open(
+      [
+        "```{r}",
+        "#| label: sec-built",
+        "#| output: asis",
+        'cat(sprintf("## T {#%s}\\n", "sec-built"))',
+        "```",
+        "",
+        "See @",
+      ].join("\n"),
+    );
+    const writesLabels = await labelsAfterAt(writes);
+    assert.ok(writesLabels.includes("@sec-built"), `a document that can write the target at run time keeps its label: ${JSON.stringify(writesLabels)}`);
+  });
+
   it("a reader without `header_attributes` defines no sec- label (Session 216)", async () => {
     // ⚠ THIS IS THE CONSUMER SESSION 215's CHANGE COULD NOT REACH AND THIS ONE CAN.
     // `HEADING_ATTRIBUTE` is the ONLY source of `Heading.id`, which `src/core/refs.ts` turns
