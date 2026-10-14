@@ -89,33 +89,3 @@ reached 114 while the workflow ran. (10) The corpus score was not re-run (no `fi
 **TDD:** RED shown before GREEN for every behaviour; 34 of the first 107 rows and most of the later guard rows passed on arrival (controls, shapes the parent got right by accident, closed-world table
 rows for `#` and `//` languages), disclosed; each guard was shown RED against a mutant.
 **Cost:** 6 agents (about 1.07M subagent tokens, none rendered), about 330 renders by me at 3 wide behind the load gate, 28 mutant runs, one host run of about 2 minutes, `npm run package` at close-out.
-
-## Session 299 Handoff Evaluation (by Session 300)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its receipt said `BACKLOG.md` "Active" was empty and listed the open items; the `key_files` line numbers I
-checked were exact at the commit it closed on (`LANG_COMMENT_CHARS` 10621, `commentCharsFor` 10650, `findCellOptionLines` 10766, `NOT_MODELLED` 45, `expectedOptionLine` 65); the ratchet
-citation (2/2, `bba236856bad`, manifest `334939914945`) matched the stored results, and my Phase 0 found no ledger or receipt gap (both frontiers at HEAD).
-**Helped:** the item's recipe (add the row, drop `mermaid` from `NOT_MODELLED`, run the oracle, ground completion in the host first), the 47-row fixture and the oracle file (the run was
-instant, and its `{mermaid}` row became a live guard), `mutate299.py` as the model for my harness, and gotchas 3 (count a kill only on "Tests N failed"), 4 (commit order), 6 (the pin goes
-red until the row is added: it did, for the right reason) and 7 (stage the history files by exact path).
-**Missing:** that adding the row empties every control written with `#|` (the largest cost of this session); that a row-by-row pin proves presence and not the closed world (an extra row
-survived it); and that its virtual-doc claim ("bail BEFORE it consults the option lines", inherited from S162) holds for one path in four.
-**Wrong:** "a one-word edit of NOT_MODELLED" understated the change (the set, its pin and a per-row test went); nothing else I could find. **ROI: high.**
-
-## Session 300 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** I mapped every consumer before coding (one caller of `commentCharsFor`, three modules reading `findCellOptionLines`) and showed RED before GREEN for the row (with the absence pin
-flipped, exactly the two `mermaid` rows failed). By grep, before any review, I found that three controls would go vacuous, and measured it: with the row present and the guard removed, the old
-`yaml-value-flags.test.ts` passed 75 of 75, and the oracle gave 4 cardinal false positives (3 without the row). 13 mutants killed; one host run, 556 passing; the bundle is byte-identical across
-the review fixes; the oracle tally matches the pre-session build. The adversarial review (4 lenses, 20 agents) found no production defect but 6 weak-test reports and 5 stale-prose findings; I
-fixed them, and the 7 replayed mutants that survived the first cut are killed now. Tests 4,982 to 5,023; type checks, `check-backlog` and the oracle clean.
-**Went wrong.** (1) Three gaps in my own new tests, found by the review and not by me: the mermaid emission test had nothing after its comment line, so it could not show the block ends; the
-duplicate flags controls asserted no precondition; `%` versus `%%` was unpinned. (2) I copied S162's "bail before consulting" mechanism into three new comments without reading `virtual-doc.ts`,
-and left a present-tense "has no `mermaid` row" sentence in `yaml-context.ts`. (3) A first draft of a pin asserted two options I had not measured (`eval`, `fig-align`) and a fixture line that
-could not discriminate; both were removed before commit. (4) The review ran 20 agents against a 10-agent guideline, and two skeptics shared a scratch directory name (no harm; Learning #687).
-(5) `test:integration` ran once, on the finished code, so the host tests have no host RED (the operator's choice; the unit RED and the mutants stand in). (6) The corpus score was not re-run
-(no `findHeadings` change). (7) Several long runs went by without a status line and drew nudges. (8) A zsh glob (`--include=*.ts`) aborted my first grep.
-**TDD:** RED shown before GREEN for the row. The consumer pins (emission, completion, the flags precondition) passed on arrival, disclosed; each was shown RED on a seeded fault (row deleted: 6
-failing; guard removed: 4). The review-fix tests were written after each reviewer mutant was reproduced and fail on it.
-**Cost:** 20 review agents (about 2.0M subagent tokens), no quarto render at all (the oracle cache was warm), one host run of about 2 minutes, no screen-taking run beyond it.
