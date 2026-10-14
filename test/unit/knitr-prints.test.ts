@@ -129,3 +129,38 @@ describe("Session 309 — WHICH silenced chunks print: a statement that certainl
   });
 });
 
+describe("Session 309 — every statement shape rendered with quarto 1.7.33, document by document", () => {
+  // `[grid/name, document, quarto's headings, this model's headings when the fixture was written, HEAD's (Session 308)]`, 342 documents from three grids (`scratchpad/s309/stm`,
+  // `fn`, `msg`, untracked): see the fixture's own `note`. PASSING ON ARRIVAL, disclosed: written after the rules above, and pinned CLOSED-WORLD (Learning 685), so a rule that starts
+  // or stops hiding a heading on any row fails here until the fixture is regenerated on purpose.
+  type StatementRow = [string, string, string[], string[], string[]];
+  const FIXTURE = path.join(__dirname, "../fixtures/knitr-print-statements/quarto-1.7.33.json");
+  const statementRows = (JSON.parse(readFileSync(FIXTURE, "utf8")) as { rows: StatementRow[] }).rows;
+  const model = (r: StatementRow): string[] => findHeadings(r[1], "knitr").map((h) => h.text);
+
+  it("covers the whole fixture: 342 documents", () => {
+    expect(statementRows).toHaveLength(342);
+  });
+
+  it("agrees with quarto on 281 of them (HEAD, Session 308, agreed on 89)", () => {
+    expect(statementRows.filter((r) => model(r).join("|") === r[2].join("|"))).toHaveLength(281);
+    expect(statementRows.filter((r) => r[4].join("|") === r[2].join("|"))).toHaveLength(89);
+  });
+
+  // THE PROPERTY THIS SESSION EXISTS TO KEEP: a wrong "prints" hides a heading quarto renders. Three documents do, and HEAD hides the same three: with `collapse` the printed lines
+  // (`## [1] 3`) are written OUTSIDE any fence, and a line that begins `## ` is a HEADING that quarto lists (s_c005 `comment = NA` is the same, o012, p012). The model cannot know them.
+  it("never hides a heading quarto renders, except the three `collapse` documents that HEAD hides too", () => {
+    const hiding = statementRows.filter((r) => r[2].some((t) => !model(r).includes(t))).map((r) => r[0]);
+    expect(hiding).toEqual(["stm/s_c005", "stm/s_o012", "stm/s_p012"]);
+    expect(statementRows.filter((r) => r[2].some((t) => !r[4].includes(t))).map((r) => r[0])).toEqual(hiding);
+  });
+
+  it("is right on every document HEAD was right on", () => {
+    expect(statementRows.filter((r) => r[4].join("|") === r[2].join("|") && model(r).join("|") !== r[2].join("|")).map((r) => r[0])).toEqual([]);
+  });
+
+  it.each(statementRows.map((r) => [r[0], r] as const))("pinned: %s", (_name, r) => {
+    expect(model(r)).toEqual(r[3]);
+  });
+});
+
