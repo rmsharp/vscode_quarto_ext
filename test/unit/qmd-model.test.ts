@@ -20492,6 +20492,9 @@ describe("R6 residual (c) — a knitr chunk with NO CODE emits no fence, echoed 
   // s285/` e2-e4: `file=`, `code=` and `ref.label=` render ONLY "Heading After Chunk". ⚠ `child=` of
   // a plain document is SILENT in quarto (e1, e5: both render) but a child may hold fences, so it
   // keeps HEAD's answer: a DISCLOSED residual, pinned, not a match with quarto.
+  // ⚠ (Session 306) The `ref.label` row below names a chunk this document does not hold. Rendered, quarto is SILENT for a label
+  // that names no chunk (`scratchpad/s306` h01), so that row pins HEAD's loud answer and is NOT quarto's; with the labelled
+  // chunk present ABOVE the stray fence quarto does echo (g01). See the Session 306 block below for both.
   it.each([
     ["child", '```{r, child="other.Rmd"}'],
     ["file", '```{r, file="other.R"}'],
@@ -20529,6 +20532,124 @@ describe("R6 residual (c) — a knitr chunk with NO CODE emits no fence, echoed 
   it("a stray fence skips an empty chunk's closer and pairs with a later echoed chunk's", () => {
     const text = stray(["```{r}", "```", "", "## Heading Mid", "", "```{r}", "y <- 2", "```"]);
     expect(findHeadings(text, "knitr").map((h) => h.text)).toEqual(["Heading After Chunk"]);
+  });
+});
+
+describe("Session 306 — a `#| ref-label:` pipe line is the `ref.label` option: it supplies an empty chunk's code", () => {
+  // MEASURED, quarto 1.7.33 with knitr 1.51, `.qmd`, exit 0 with real execution AND `--no-execute`, the two agreeing
+  // (`scratchpad/s306/`: grids g1*/g2* and four blind lenses; the ids below are theirs). A silent source chunk sits ABOVE a stray
+  // bare fence and the target chunk below it. Shape T has a later echoing chunk and shape P has none. The stray fence pairs
+  // with the first closer knitr emits: the TARGET's when the target echoes the source's code (Between is swallowed), the
+  // LATER chunk's when the target is silent (T: Top, Last) or no closer at all (P: the fence stays prose, nothing is swallowed).
+  const SRC = ["```{r src, include=FALSE}", "z <- 3", "```"];
+  interface Extra { source?: string[]; front?: string[] }
+  const grid = (target: string[], extra: Extra = {}, later = true): string =>
+    ["---", "title: t", ...(extra.front ?? []), "---", "", ...(extra.source ?? SRC), "", "# Top", "", "```", "", "## Between", "",
+      ...target, "", "## After", ...(later ? ["", "```{r}", "y <- 1", "```", "", "## Last"] : []), ""].join("\n");
+  const outline = (target: string[], extra?: Extra, later?: boolean): string[] =>
+    findHeadings(grid(target, extra, later), "knitr").map((h) => h.text);
+  const ECHOES = ["Top", "After", "Last"]; // shape T, the target emits a fence
+  const SILENT = ["Top", "Last"]; // shape T, the target emits none
+  const ECHOES_P = ["Top", "After"]; // shape P, the target emits a fence
+  const SILENT_P = ["Top", "Between", "After"]; // shape P, the target emits none
+  const PIPE = ["```{r}", "#| ref-label: src", "```"];
+
+  it("an empty chunk whose pipe spells `ref-label: src` echoes the source, so it is not silent (g03)", () => {
+    expect(outline(PIPE)).toEqual(ECHOES);
+  });
+
+  // Rows of the same behaviour (they went green with the first row, disclosed). Each needs the dashed spelling: dropping it
+  // from the guard turns every one RED (verified by a mutant, and by the reviewer's nine).
+  it.each<[string, string[], Extra?]>([
+    ["a quoted value (g07)", ["```{r}", '#| ref-label: "src"', "```"]],
+    ["a trailing YAML comment (g10)", ["```{r}", "#| ref-label: src # note", "```"]],
+    ["a `#| label:` line before it (g12)", ["```{r}", "#| label: foo", "#| ref-label: src", "```"]],
+    ["a labelled header (g13)", ["```{r foo}", "#| ref-label: src", "```"]],
+    ["`{R}` under `engine: knitr` (chunkcontext 12)", ["```{R}", "#| ref-label: src", "```"], { front: ["engine: knitr"] }],
+    ["`eval: false` beside it (silenceinterplay 16)", ["```{r}", "#| ref-label: src", "#| eval: false", "```"]],
+    ["`output: false` beside it (silenceinterplay 17)", ["```{r}", "#| ref-label: src", "#| output: false", "```"]],
+    ["a source holding only a comment, which is code to knitr (h07)", PIPE, { source: ["```{r src, include=FALSE}", "# only a comment", "```"] }],
+    ["a source defined BELOW the target (v31)", ["```{r}", "#| ref-label: later", "```", "", "```{r later, include=FALSE}", "w <- 1", "```"]],
+  ])("not silent: %s", (_n, target, extra) => {
+    expect(outline(target, extra)).toEqual(ECHOES);
+  });
+
+  it("a python chunk beside a python source, under `engine: knitr`, is not silent either (g08)", () => {
+    // The front matter makes the RENDERED document a knitr one; this model is handed the engine as an argument.
+    expect(outline(["```{python}", "#| ref-label: src", "```"], { source: ["```{python src, include=FALSE}", "z = 3", "```"], front: ["engine: knitr"] }))
+      .toEqual(ECHOES);
+  });
+
+  it.each<[string, string[], Extra?]>([
+    ["the plain shape (g15)", PIPE],
+    ["a comment-only source (h07)", PIPE, { source: ["```{r src, include=FALSE}", "# only a comment", "```"] }],
+    ["a source defined below the target (v31)", ["```{r}", "#| ref-label: later", "```", "", "```{r later, include=FALSE}", "w <- 1", "```"]],
+  ])("shape P, not silent: %s: Between is swallowed, not a phantom", (_n, target, extra) => {
+    expect(outline(target, extra, false)).toEqual(ECHOES_P);
+  });
+
+  // CONTROLS that do NOT depend on the dashed spelling (green before and after; the dotted ones pin the sibling the alias copies).
+  it.each([
+    ["the dotted pipe (g02)", ["```{r}", "#| ref.label: src", "```"]],
+    ["the dotted header (g01)", ['```{r, ref.label="src"}', "```"]],
+    ["one code line beside the dashed pipe: loud anyway (g11)", ["```{r}", "#| ref-label: src", "y <- 2", "```"]],
+  ])("not silent, control: %s", (_n, target) => {
+    expect(outline(target)).toEqual(ECHOES);
+  });
+
+  // SILENT, rendered: a silenced chunk stays silent whatever spelling supplies it code, and a name that is no option at all
+  // (`ref_label`, `Ref-Label`) supplies nothing.
+  it.each([
+    ["`echo: false` (g04)", ["```{r}", "#| ref-label: src", "#| echo: false", "```"]],
+    ["`include: false` (g05)", ["```{r}", "#| ref-label: src", "#| include: false", "```"]],
+    ["dotted with `echo: false` (g14)", ["```{r}", "#| ref.label: src", "#| echo: false", "```"]],
+    ["an underscore `ref_label` is no option (h08)", ["```{r}", "#| ref_label: src", "```"]],
+    ["an upper-case `Ref-Label` is no option (h09)", ["```{r}", "#| Ref-Label: src", "```"]],
+    ["an empty chunk (g00)", ["```{r}", "```"]],
+  ])("silent: %s", (_n, target) => {
+    expect(outline(target)).toEqual(SILENT);
+  });
+
+  it.each([
+    ["an empty chunk (g16)", ["```{r}", "```"]],
+    ["an underscore `ref_label` (h08)", ["```{r}", "#| ref_label: src", "```"]],
+    ["an upper-case `Ref-Label` (h09)", ["```{r}", "#| Ref-Label: src", "```"]],
+  ])("shape P, silent: %s: the stray fence stays prose", (_n, target) => {
+    expect(outline(target, undefined, false)).toEqual(SILENT_P);
+  });
+
+  // RESIDUALS, NOT quarto truth. This model reads `ref.label` / `ref-label` as "the chunk has code" without looking the label up,
+  // so wherever the label supplies NO code the model stays loud and quarto is silent (rendered, both modes). Quarto: T = Top, Last;
+  // P = Top, Between, After. Pinned at this model's answer so that a rule which does look the label up shows as a change.
+  // (1) The DOTTED spelling was wrong this way before Session 306: a label naming no chunk (h01, h02), a chunk with no code (h04).
+  it.each([
+    ["dotted header, no such chunk (h01)", ['```{r, ref.label="nosuch"}', "```"], SRC],
+    ["dotted pipe, no such chunk (h02)", ["```{r}", "#| ref.label: nosuch", "```"], SRC],
+    ["dotted pipe, the source has no code (h04)", ["```{r}", "#| ref.label: src", "```"], ["```{r src, include=FALSE}", "```"]],
+  ])("RESIDUAL, already so for the dotted spelling: %s", (_n, target, source) => {
+    expect(outline(target, { source })).toEqual(ECHOES);
+    expect(outline(target, { source }, false)).toEqual(ECHOES_P);
+  });
+  // (2) The DASHED spelling was RIGHT here before Session 306 (its pipe was never read) and is wrong now, exactly as the dotted
+  // twin is (a dotted twin of each, rendered, gives the same model answer). A cost of reading the alias, accepted: a label that
+  // points at a chunk with code is the normal use, and the corpus holds no dashed pipe at all.
+  it.each<[string, string[], boolean?]>([
+    ["no such chunk (h03)", ["```{r}", "#| ref-label: nosuch", "```"], true],
+    ["a case mismatch, `SRC` for `src` (labeltarget 23; shape T only)", ["```{r}", "#| ref-label: SRC", "```"]],
+    ["a null label (v01)", ["```{r}", "#| ref-label: null", "```"], true],
+    ["an empty quoted label (v03)", ["```{r}", '#| ref-label: ""', "```"], true],
+    ["a label holding a space, `src two` (v16)", ["```{r}", "#| ref-label: src two", "```"], true],
+    ["a chunk naming itself (v13)", ["```{r me}", "#| ref-label: me", "```"], true],
+  ])("RESIDUAL, right before Session 306: %s", (_n, target, shapeP) => {
+    expect(outline(target)).toEqual(ECHOES);
+    if (shapeP === true) {
+      expect(outline(target, undefined, false)).toEqual(ECHOES_P);
+    }
+  });
+  it("RESIDUAL, right before Session 306: a source with no code (h05), in both shapes", () => {
+    const source = ["```{r src, include=FALSE}", "```"];
+    expect(outline(PIPE, { source })).toEqual(ECHOES);
+    expect(outline(PIPE, { source }, false)).toEqual(ECHOES_P);
   });
 });
 

@@ -6990,8 +6990,12 @@ function knitrChunkIsSilent(header: string, body: readonly string[], defaults: K
   }
   // ⚠ An empty body is silent only when no option brings code in from OUTSIDE it: `file=`, `code=`
   // and `ref.label=` make the chunk echo that code (measured, the heading below is swallowed), and
-  // `child=` inserts a document whose own fences are unknowable here.
-  const external = ["child", "file", "code", "ref.label"].some((name) => options.has(name) || pipe.has(name));
+  // `child=` inserts a document whose own fences are unknowable here. The pipe spells a dotted option name with a dash
+  // too, and `#| ref-label: src` supplies the code exactly as `ref.label` does (Session 306, g03; `ref_label` and
+  // `Ref-Label` are no option and stay silent, h08, h09), as in `knitrCellMakesNoTarget`. The header has no such alias.
+  const external = ["child", "file", "code", "ref.label"].some(
+    (name) => options.has(name) || pipe.has(name) || pipe.has(name.replace(".", "-")),
+  );
   // ⚠ "No code, so nothing to echo" is measured only for `r` and `python`: an empty `{bash}` (and sh,
   // zsh, perl, ruby, awk, rcpp, css, js, node) chunk still emits a fence in both modes (Session 286).
   const emptyIsSilent = engine[1] === "r" || engine[1] === "R" || engine[1] === "python";
