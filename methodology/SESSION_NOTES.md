@@ -8,12 +8,20 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 304 closed out.** A `fig-`/`tbl-` label on a code cell that quarto leaves undefined (`?@fig-x`) is no longer defined by the label index. `BACKLOG.md` "Active" is empty; present ranked candidates via AskUserQuestion at Phase 0.
-**⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl` and `context_budget.py` dirties `methodology/.context-budget-history.jsonl`.
-(2) `scratchpad/s304/` (untracked, 240 MB) holds the harness: `render304.sh` (3 wide, load gate), `score304.cjs`, `build.sh`, `mkfixture304.cjs`, `corpusdiff304.cjs`, `mutate304.py`, `BRIEF*.md`, and 1,611 rendered documents.
-(3) Put "do not read installed quarto, knitr, xfun, rmarkdown or pandoc source" in EVERY agent prompt, reviewers included (Learnings 700, 709). (4) A render can hang: two 3 MB and one 300 KB single-line documents held pandoc at 100% CPU for 50 minutes; kill by hand.
-(5) `test:integration` takes the screen: ask first. (6) `BACKLOG.md`, `HANDOFFS.md` and `CHANGELOG.md` are each past the 262,144 B read refusal: a default read returns nothing, so read them in slices.
-(7) The fixture `test/fixtures/no-target-shapes/quarto-1.7.33.json` is quarto 1.7.33; re-render it when quarto changes. The first ground of every rule here is a render, not Posit and not quarto's source.
+**Task:** **Session 305 (IN PROGRESS): a `sec-`/`eq-` (and `lst-`) label on a code cell is defined by the label index; quarto defines none of them from a kernel cell (BACKLOG label-index item, family (7)).**
+Operator chose it at Phase 0. Ground first, per language and engine (handler cells differ), then strict TDD. Scope is that guard; the rest of the item stays filed.
+**⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl`.
+(2) `scratchpad/s304/` (untracked) holds the harness: `render304.sh` (3 wide, load gate), `score304.cjs`, `build.sh`, `mkfixture304.cjs`, `corpusdiff304.cjs`, `mutate304.py`.
+(3) Put "do not read installed quarto, knitr, xfun, rmarkdown or pandoc source" in EVERY agent prompt (Learnings 700, 709); agents author documents only, the caller renders.
+(4) A render can hang (pandoc at 100% CPU on a 300 KB single line): kill by hand. (5) `test:integration` takes the screen: ask first.
+(6) `BACKLOG.md`, `HANDOFFS.md` and `CHANGELOG.md` are past the 262,144 B read refusal: read in slices.
+(7) `refs.test.ts` 1818 pins mermaid cells as defining `lst-` and `tbl-` (rendered): the rule is per language, not a blanket. Fixtures are quarto 1.7.33.
+
+### What Session 305 Did
+**Deliverable:** `sec-`/`eq-`/`lst-` labels on code cells, in the cross-reference label index (IN PROGRESS)
+**Started:** 2026-10-14
+**Status:** Session claimed. Work beginning. Phase 0 found both ledger frontiers at HEAD (nothing to reconcile).
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
 
 ## Session 303 Handoff Evaluation (by Session 304)
 

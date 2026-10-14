@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-14 · [BL-What the cross-reference LABEL INDEX still gets wrong after Session 304 — families (2) to (10), every row rendered; family (1), the knitr header labels, is closed] Session 305 (in progress): claim -- a `sec-`/`eq-` label on a code cell
+
+Session claimed; the operator chose family (7)'s `sec-`/`eq-` guard of that item at the Phase 0 picker (quarto defines neither from a code cell; the index's `#|` path accepts every kind). Ground first, per language and engine (the mermaid, dot and ojs handler cells are pinned as defining `lst-` and `tbl-`, so this is not a blanket rule), then strict TDD. Phase 3F records the outcome.
+
 ### 2026-10-13 · [ad hoc] Session 304 close-out: handoff evaluation, self-assessment, receipt, trim, quality ratchet
 
 `methodology/SESSION_NOTES.md` (ACTIVE TASK rewritten to NONE, the Session 303 evaluation and Session 304 self-assessment written, 8/10 and 8/10), `methodology/HANDOFFS.md` (the `S304` receipt, `status: complete`), `methodology/PROJECT_LEARNINGS.md` (Learning 706 given its final mutation numbers), commit `3574b5cd`; the trim of `SESSION_NOTES.md` to three close-out pairs (the Session 300 evaluation and Session 301 self-assessment dropped, one command away: `git show 3574b5cd:methodology/SESSION_NOTES.md`), commit `7ed2e126`; and this ledger commit. Quality ratchet at head `395ae54c`: 2/2 pass, results `bba236856bad`, manifest `334939914945` (ledger-lag 0 only after the ledger commit; the run before it read 7), cited in the receipt by this commit (Learning 683). `realdoc-score` re-run at close-out: 2423 of 2438 (99.38%), unchanged; dashboard 76/100.
