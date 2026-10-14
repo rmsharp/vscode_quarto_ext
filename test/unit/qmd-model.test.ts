@@ -20743,6 +20743,7 @@ describe("Session 307 — code that reaches an EMPTY chunk through a knitr chann
     ["`opts_chunk$set(fig.path = ...)` beside a `file =` argument of ANOTHER call (q21)", EMPTY,
       { source: setup('knitr::opts_chunk$set(fig.path = "figs/", dev = "png")', "write.csv(head(cars), file = tempfile())") }],
     ["a `read_chunk` call and an UNLABELLED empty chunk (q23)", EMPTY, { source: setup('knitr::read_chunk("_lbl.R")') }],
+    ["`{r echo=TRUE}` is an option, not a label, so the chunk is unlabelled (t01)", ["```{r echo=TRUE}", "```"], { source: setup('knitr::read_chunk("_lbl.R")') }],
     ["a `read_chunk` call that sits in a COMMENT (q24)", LBL, { source: setup('# knitr::read_chunk("_lbl.R") is not called', "x <- 1") }],
     ["`opts_chunk` named in PROSE only (a04)", EMPTY, { above: ["The word `opts_chunk` appears only in this sentence.", ""] }],
     ["`read_chunk` named in PROSE only (a13)", LBL, { above: ["We never call `read_chunk` here.", ""] }],
