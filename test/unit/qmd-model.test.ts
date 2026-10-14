@@ -21361,6 +21361,8 @@ describe("Session 308 — a document DEFAULT that silences the LATER chunk: `for
   // THE STATE CARRIES ACROSS CHUNKS (g16, g18, g19), with a loud Y (`echo=TRUE`) where the answer must tell a skipped chunk from an ended swallow.
   const YT = chunk("{r, echo=TRUE}", "y <- 2");
   it.each<[string, Shape, string[], string[]?]>([
+    ["an apostrophe in a PLAIN title (`subtitle: Don't panic`) opens no quote, so the front matter is still read (g21 u01)", { front: ["subtitle: Don't panic", "format:", "  html:", "    echo: false"] }, ["Top", "After", "Last"], YT],
+    ["a `#` inside a plain key (`{a#: 1}`) is no comment, so its closing brace is counted (g21 u02)", { front: ["meta: {a#: 1}", "format:", "  html:", "    echo: false"] }, ["Top", "After", "Last"], YT],
     ["a call that sets only `message` after one that set `echo` leaves the echo default in force (p02) (executing)", { pre: [...setup(CALL), ...setupAs("{r setup2, include=FALSE}", "knitr::opts_chunk$set(message = FALSE)")] }, ["Top", "Between", "Mid", "After", "Last"]],
     ["an `include = FALSE` default stays in force over a chunk with its own `echo=TRUE` (p03) (executing)", { pre: [...setup("knitr::opts_chunk$set(include = FALSE)"), ...setupAs("{r setup2, include=FALSE}", "knitr::opts_chunk$set(message = FALSE)")] }, ["Top", "Between", "Mid", "After", "Last"], YT],
     ["a call the reader cannot read, then a call that silences: the front matter's silence is back, so X is SKIPPED (p01)", { front: FRONT_ECHO_FALSE, pre: [...setup("do.call(knitr::opts_chunk$set, list(echo = TRUE))"), ...setupAs("{r setup2, include=FALSE}", CALL)] }, ["Top", "After", "Last"], YT],
