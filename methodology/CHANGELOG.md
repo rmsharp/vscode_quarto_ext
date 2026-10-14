@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 307: a label that supplies no code, a document default that hides it, the LATER chunk's loudness, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 308 (in progress): claim -- family (2), the later-chunk shape
+
+Session claimed; the operator chose family (2)'s later-chunk shape at the Phase 0 picker (the recommended option, ranked first by the item's own rule: deletion direction, cheapest measured witness `a05`, `a14`). A document default (`echo: false`, `opts_chunk$set(echo = FALSE)`) that silences the LATER chunk leaves quarto with no closer at all, so every heading shows, while the model still sees the later chunk's closer and deletes. Baseline `npm test` 8,304 passing in 72 files at HEAD. Phase 3F records the outcome.
+
 ### 2026-10-14 · [ad hoc] Session 307 close-out: handoff evaluation, self-assessment, receipt, trim, quality ratchet
 
 `methodology/SESSION_NOTES.md` (ACTIVE TASK rewritten to NONE, the Session 306 evaluation and Session 307 self-assessment written, 7/10 and 7/10; hard-wrapped under the 280 B line ceiling), `methodology/HANDOFFS.md` (the `S307` receipt, `status: complete`), the two history files, commit `e064d32c`; the trim of `SESSION_NOTES.md` to three close-out pairs (the Session 303 evaluation and Session 304 self-assessment dropped, one command away: `git show e064d32c:methodology/SESSION_NOTES.md`), commit `c3c612a2`. Quality gates: 2 of 2 pass at `a69948a0` (ledger-lag 0, release-gate 0; results `bba236856bad`), and `npm run package` DONE (44 files, 1.86 MB, 1:19). Three counts in this session's commit messages were wrong when first written: 28 rows for 30 and 8,282 tests for 8,279 (both amended before the next commit, so `7da223d4` and `495199c0` read correctly), and `c3697b92` says 255 documents where the count is 253 (the 150 blind documents plus the 103 grid documents then rendered); that one was NOT amended.

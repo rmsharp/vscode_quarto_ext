@@ -8,7 +8,8 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 307 closed out.** The Outline's knitr silence rule reads code arriving by a channel (family (3)), for the EXECUTING mode, with a three-valued verdict. `BACKLOG.md` "Active" is empty; present ranked candidates via AskUserQuestion at Phase 0.
+**Task:** **Session 308 (IN PROGRESS): family (2) of the Outline silence-rule item, the LATER-chunk shape -- a document default (`echo: false`, `opts_chunk$set(echo=FALSE)`) that silences a later chunk DELETES headings.**
+Operator picked it at Phase 0 (the recommended one). Measure by render first; price any guard by a REALISTIC-document lens before an adversarial grid (Learning 715); strict TDD.
 **⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in the close-out commit).
 (2) `scratchpad/s307/` (untracked): `gen307*.py` grids g3-g12 with frozen `PREDICTIONS307*.json`, `score307.py <build.cjs> <preds> <dir:mode>`, `mutate307.py <sha> <mutants.json>` (a `git archive` scratch tree), `perf307.cjs`, `audit307.py`, `BRIEF307R2.md`.
 (3) `scratchpad/s304/render304.sh <ABSOLUTE dir> [width]`; `scratchpad/s306/{build.sh,diff306.py}`. The Bash tool KEEPS a `cd`: use absolute paths. In zsh pass dir lists as an ARRAY, and `set -- $x` does not split.
@@ -16,6 +17,12 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 (5) `test:integration` takes the screen: ask first. `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` are past the 262,144 B read refusal: read them in slices.
 (6) Baseline `npm test` at HEAD is 8,304 passing in 72 files. ⚠ Two decisions for the operator are in the BACKLOG item: the rule follows the EXECUTING mode, and an `{{< include >}}` is not read as a closer.
 (7) Price any guard by a REALISTIC-document lens before an adversarial grid (Learning 715); time pathological input yourself (717). Next candidates: the BACKLOG silence item's family (2) later-chunk shape (`a05`), or the label-index families (2) to (10).
+
+### What Session 308 Did
+**Deliverable:** family (2) of the Outline silence-rule item, the later-chunk shape (IN PROGRESS)
+**Started:** 2026-10-14
+**Status:** Session claimed. Work beginning. Phase 0 found both ledger frontiers at HEAD (nothing to reconcile); the ratchet citation matched `.quality-gates-results.json` (2/2 at `a69948a0`); `npm test` 8,304 passing in 72 files at HEAD.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
 
 ## Session 306 Handoff Evaluation (by Session 307)
 
