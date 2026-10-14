@@ -19,7 +19,7 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ### 2026-10-14 · [ad hoc] Session 305 close-out: handoff evaluation, self-assessment, receipt, trim, quality ratchet
 
-`methodology/SESSION_NOTES.md` (ACTIVE TASK rewritten to NONE, the Session 304 evaluation and Session 305 self-assessment written, 8/10 and 8/10), `methodology/HANDOFFS.md` (the `S305` receipt, `status: complete`), the two history files, commit `746e04d1`; the trim of `SESSION_NOTES.md` to three close-out pairs (the Session 301 evaluation and Session 302 self-assessment dropped, one command away: `git show 746e04d1:methodology/SESSION_NOTES.md`), commit `d8c97aa6`; and this ledger commit. Quality ratchet: cited in the receipt by the commit after this one (Learning 683). Dashboard 76/100, unchanged; `context_budget.py` still red on the three pre-existing over-limit records.
+`methodology/SESSION_NOTES.md` (ACTIVE TASK rewritten to NONE, the Session 304 evaluation and Session 305 self-assessment written, 8/10 and 8/10), `methodology/HANDOFFS.md` (the `S305` receipt, `status: complete`), the two history files, commit `746e04d1`; the trim of `SESSION_NOTES.md` to three close-out pairs (the Session 301 evaluation and Session 302 self-assessment dropped, one command away: `git show 746e04d1:methodology/SESSION_NOTES.md`), commit `d8c97aa6`; and this ledger commit. Quality ratchet at head `779f5544`: 2/2 pass, results `bba236856bad`, manifest `334939914945` (ledger-lag 0 after the ledger commit), cited in the receipt by the commit after this one (Learning 683). Dashboard 76/100, unchanged; `context_budget.py` still red on the three pre-existing over-limit records.
 
 ### 2026-10-14 · [ad hoc] Session 305: two host runs, the release gate, the unit suite
 
