@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 308: the chunk that PRINTS under a default, the shapes the readers decline, a front matter that code overrides, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 309 (in progress): claim -- residual (A), the chunk that PRINTS under a default
+
+Session claimed; the operator chose residual (A) at the Phase 0 picker (the recommended option: the largest measured error left, 50 of 150 executing lens rows phantom-only, 119 headings) and CONFIRMED the Session 308 decision that a setup-call default follows the EXECUTING mode (`--no-execute` costs: 95 to 73 of 100 right). A chunk that prints (`print()`, `summary()`, a bare name, `head()`, `cat()`, `message()`, `warning()`) emits an output code block, which is a fence, so quarto is loud where the model reads the chunk as silent or uncertain. Baseline `npm test` 8,426 passing in 72 files at HEAD. Phase 3F records the outcome.
+
 ### 2026-10-14 · [ad hoc] Session 308: trim SESSION_NOTES to three close-out pairs (`6fa4c08d`)
 
 `methodology/SESSION_NOTES.md` dropped the Session 304 evaluation and the Session 305 self-assessment (25 lines; 15,634 B and 108 lines left, against the 120,000 B and 400-line ceilings), in a commit that holds no other edit to that file. The dropped pair is `git show a583ba19:methodology/SESSION_NOTES.md` away.

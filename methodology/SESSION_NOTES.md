@@ -8,8 +8,8 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 308 closed out.** The Outline reads a document DEFAULT that silences a later chunk: `format: html:` front matter (both modes) and a setup chunk's exact `opts_chunk$set()` call (executing mode, `uncertain`). `BACKLOG.md` "Active" is
-empty; present ranked candidates via AskUserQuestion at Phase 0.
+**Task:** **Session 309 (IN PROGRESS): residual (A) of the Outline silence-rule item -- a chunk that PRINTS under a default `echo`/`include: false` is loud in quarto and the model cannot see it.**
+Operator picked it at Phase 0 (recommended) and CONFIRMED: a setup-call default follows the EXECUTING mode. Measure by render first, price by a REALISTIC lens, score by DIRECTION (Learnings 715, 720); strict TDD.
 **⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in the close-out commit).
 (2) `scratchpad/s308/` (untracked): `gen308*.py` grids g13-g21 with frozen `PREDICTIONS308*.frozen.json`; `score308.py <b1.cjs,b2.cjs> <dir:mode>... [--rows f]` scores by DIRECTION (deleting against phantom); `cmp308.py`, `perf308.cjs`, `mutate308.py <sha>
 <mutants.json>`, `BRIEF308.md`, and `lens-*`, `rev-*` with renders in `out/`.
@@ -20,6 +20,12 @@ empty; present ranked candidates via AskUserQuestion at Phase 0.
 against 4).
 (7) Next candidates: the BACKLOG silence item's (A), the chunk that PRINTS under a default (50 of 150 executing rows are phantom-only), or (D), reading every format's mapping; or the label-index families (2) to (10). Price by a realistic lens first and score by
 direction (Learnings 715, 720).
+
+### What Session 309 Did
+**Deliverable:** residual (A) of the Outline silence-rule item, the chunk that PRINTS under a default (IN PROGRESS)
+**Started:** 2026-10-14
+**Status:** Session claimed. Work beginning. Phase 0 found both ledger frontiers at HEAD (nothing to reconcile); the ratchet citation matched `.quality-gates-results.json` (2/2 at `66b54172`); `npm test` 8,426 passing in 72 files at HEAD.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
 
 ## Session 307 Handoff Evaluation (by Session 308)
 
