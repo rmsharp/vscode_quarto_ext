@@ -20699,9 +20699,9 @@ describe("Session 307 — code that reaches an EMPTY chunk through a knitr chann
     ["a label given by a `label=` option in the header (s11)", ['```{r, label="lbl"}', "```"], { source: setup('knitr::read_chunk("_lbl.R")') }],
     ["a label that follows a COMMA, `{r, lbl}` (round 2, review)", ["```{r, lbl}", "```"], { source: setup('knitr::read_chunk("_lbl.R")') }],
     ["the options passed to `opts_chunk$set()` as ONE list defined in the same chunk (fill2_01)", EMPTY, { source: setup('opts <- list(ref.label = "src")', "knitr::opts_chunk$set(opts)") }],
-    // (Until Session 308 this row said `echo = FALSE,` and was never rendered as written: with `echo = FALSE` in the SAME call quarto is silent and shows every heading
-    // (g15 r03), which is a Session 308 row below. It now says `collapse = TRUE,`, the document that was rendered.)
-    ["a `)` inside a COMMENT in the argument list before the option (fill2_07)", EMPTY, { source: setup("knitr::opts_chunk$set(", "  collapse = TRUE,  # keep it quiet :)", '  ref.label = "src"', ")") }],
+    // (Until Session 308 this row said `echo = FALSE,` with another comment and was never rendered as written: with `echo = FALSE` in the SAME call quarto is silent and shows
+    // every heading (g15 r03), which is a Session 308 row. It now holds the lines of the document that was rendered, `scratchpad/s307/lens2-fill2/fill2_07`.)
+    ["a `)` inside a COMMENT in the argument list before the option (fill2_07)", EMPTY, { source: setup("knitr::opts_chunk$set(collapse = TRUE, # a stray ) in this comment", '                      ref.label = "src")') }],
     ["a call inside the argument list BEFORE the option (s08)", EMPTY, { source: setup('knitr::opts_chunk$set(fig.path = file.path("a", "b"), ref.label = "src")') }],
     ["a `)` inside a string before the option (s09)", EMPTY, { source: setup('knitr::opts_chunk$set(comment = "(a) )", ref.label = "src")') }],
     ["an escaped quote inside a string before the option (s10)", EMPTY, { source: setup('knitr::opts_chunk$set(comment = "q\\")", ref.label = "src")') }],
@@ -21184,10 +21184,12 @@ describe("R6 residual (a) — a silenced chunk of a NON-R engine emits no fence 
 });
 
 describe("Session 308 — a document DEFAULT that silences the LATER chunk: `format: html:` front matter and a setup chunk's `opts_chunk$set()`", () => {
-  // MEASURED, quarto 1.7.33 with knitr 1.51, `.qmd`, exit 0 (`scratchpad/s308/`, untracked: grids g13 (d01-d36, f01-f16) and g14 (e01-e05, g_*, h_*, w01-w12), predictions
-  // frozen before any render: 95 of 95 held; the ids below are theirs). Every document has the headings Top, Between, After, Last, a stray bare fence under Top, an EMPTY
-  // `{r}` chunk under Between and a LATER chunk `y <- 1` under After. When the default silences that later chunk nothing is emitted below the stray fence, so it has
-  // nothing to pair with and every heading shows (ALL); when the later chunk is loud its closer pairs with the stray fence and swallows Between and After (S).
+  // MEASURED, quarto 1.7.33 with knitr 1.51, `.qmd`, exit 0, in BOTH modes (`scratchpad/s308/`, untracked). Seven grids with their predictions frozen before any render: g13 (ids
+  // d01-d36 and f01-f16), g14 (e, g_, h_, w), g15 (r), g16 (m), g17 (n), g18 (p), g19 (q), 179 documents, and every prediction that was made held; g20 (t) adds seven. The ids in the
+  // row titles are theirs; `soundness_NN` and `frontmatter_NN` are the review round's counterexamples (`rev-soundness`, `rev-frontmatter`), blind rounds are `setup-variants_NN`.
+  // The first rows use one shape: the headings Top, Between, After, Last, a stray bare fence under Top, an EMPTY `{r}` chunk under Between and a LATER chunk `y <- 1` under After.
+  // When the default silences that later chunk nothing is emitted below the stray fence, so it has nothing to pair with and every heading shows (ALL); when the later chunk is loud
+  // its closer pairs with the stray fence and swallows Between and After (S). Rows built by `xy` use TWO chunks, X under Between and Y under Mid, and say which.
   const FENCE = "```";
   const chunk = (header: string, ...code: string[]): string[] => [`${FENCE}${header}`, ...code, FENCE];
   interface Shape { front?: string[]; pre?: string[]; afterStray?: string[]; target?: string[]; mid?: string[]; later?: string[] }
@@ -21210,7 +21212,7 @@ describe("Session 308 — a document DEFAULT that silences the LATER chunk: `for
     ["a sibling key beside it (`toc`, f06)", ["format:", "  html:", "    toc: true", "    echo: false"]],
     ["a sibling key before it (`code-fold`, f13)", ["format:", "  html:", "    code-fold: true", "    echo: false"]],
     ["`include: false` (f09)", ["format:", "  html:", "    include: false"]],
-    ["the first format with a SECOND format that sets no echo", ["format:", "  html:", "    echo: false", "  pdf:", "    toc: true"]],
+    ["the first format with a SECOND format that sets no echo (g20 t02, two chunks)", ["format:", "  html:", "    echo: false", "  pdf:", "    toc: true"]],
   ])("silent: %s", (_n, front) => {
     expect(outline({ front })).toEqual(ALL);
   });
@@ -21220,7 +21222,6 @@ describe("Session 308 — a document DEFAULT that silences the LATER chunk: `for
     ["`echo: true` under html, `echo: false` under pdf (f05)", ["format:", "  html:", "    echo: true", "  pdf:", "    echo: false"]],
     ["`format: html: echo: true` against `execute: echo: false` (f07: the format wins)", ["execute:", "  echo: false", "format:", "  html:", "    echo: true"]],
     ["`pdf` as the only format (f08: it does not apply to an html render)", ["format:", "  pdf:", "    echo: false"]],
-    ["`html` as the SECOND format", ["format:", "  pdf:", "    toc: true", "  html:", "    echo: false"]],
     ["`echo: fenced` (f12)", ["format:", "  html:", "    echo: fenced"]],
   ])("not silent: %s", (_n, front) => {
     expect(outline({ front })).toEqual(S);
@@ -21232,7 +21233,9 @@ describe("Session 308 — a document DEFAULT that silences the LATER chunk: `for
 
   // A SETUP CHUNK's call (Session 308). It runs only when the document EXECUTES, so the two modes disagree: executing, the later chunk is silent (ALL, d01); under
   // `--no-execute` the setup chunk never runs and the later chunk is loud (S). The verdict is therefore `uncertain` (an uncertain chunk's closer may end a swallow early,
-  // as a loud chunk's does, but never opens one), exactly as for a code channel in Session 307: it is exact when executing for shape P, and it cannot delete a heading.
+  // as a loud chunk's does, but never opens one), exactly as for a code channel in Session 307. That is exact when executing for a stray fence with no certain closer below it,
+  // UNLESS the silenced chunk prints, warns or messages (it then emits an output block: the RESIDUAL row at the end of this block, g20 t06); it adds no deleting error of its own
+  // (the S307 sandwich, two bare fences around such a chunk, is a pinned DELETING residual: rev-soundness_16, below).
   const setupAs = (header: string, ...code: string[]): string[] => [...chunk(header, ...code), ""];
   const setup = (...code: string[]): string[] => setupAs("{r setup, include=FALSE}", ...code);
   const CALL = "knitr::opts_chunk$set(echo = FALSE)";
@@ -21255,6 +21258,10 @@ describe("Session 308 — a document DEFAULT that silences the LATER chunk: `for
     ["a `{python}` chunk below the call (d22)", { pre: setup(CALL), later: chunk("{python}", "y = 1") }],
     ["`execute: echo: true` in the front matter, the call setting it false (d27)", { front: ["execute:", "  echo: true"], pre: setup(CALL) }],
     ["the front matter's `format: html: echo: false` AND the call (f16)", { front: ["format:", "  html:", "    echo: false"], pre: setup(CALL) }],
+    // The three S307-shaped documents of g15 (a `ref.label` default beside `echo = FALSE`): the empty chunk echoes the source only when echo is on, and it is silent here.
+    ["`echo = FALSE` AND `ref.label` in one call, with a comment in the argument list (g15 r03)", { pre: [...chunk("{r src, include=FALSE}", "z <- 2"), "", ...setup("knitr::opts_chunk$set(", "  echo = FALSE,  # keep it quiet :)", '  ref.label = "src"', ")")] }],
+    ["`echo = FALSE, ref.label = \"src\"` in one call (g15 r05)", { pre: [...chunk("{r src, include=FALSE}", "z <- 2"), "", ...setup('knitr::opts_chunk$set(echo = FALSE, ref.label = "src")')] }],
+    ["`ref.label` in one call and `echo = FALSE` in the next (g15 r06)", { pre: [...chunk("{r src, include=FALSE}", "z <- 2"), "", ...setup('knitr::opts_chunk$set(ref.label = "src")', CALL)] }],
   ])("not loud when executing: %s", (_n, shape) => {
     expect(outline(shape)).toEqual(ALL);
   });
@@ -21269,7 +21276,7 @@ describe("Session 308 — a document DEFAULT that silences the LATER chunk: `for
     ["a call that sets an option other than echo and include (d31)", { pre: setup("knitr::opts_chunk$set(message = FALSE)") }],
     ["a call that sets `collapse` and `comment` (d33)", { pre: setup("knitr::opts_chunk$set(collapse = TRUE, comment = '#>')") }],
     ["a `{bash}` chunk below the call: a shell prints output, so it is loud (d21)", { pre: setup(CALL), later: chunk("{bash}", "echo hi") }],
-    ["the front matter says `echo: false` and the call sets it TRUE (d26)", { front: ["execute:", "  echo: false"], pre: setup(CALL_TRUE) }],
+    ["the front matter says `echo: false` and the call sets it TRUE (d26) (executing)", { front: ["execute:", "  echo: false"], pre: setup(CALL_TRUE) }],
   ])("loud: %s", (_n, shape) => {
     expect(outline(shape)).toEqual(S);
   });
@@ -21288,16 +21295,17 @@ describe("Session 308 — a document DEFAULT that silences the LATER chunk: `for
     expect(outline(shape)).toEqual(S);
   });
 
-  // CONTROLS, rendered (`Top, After, Last`): an EARLIER chunk is loud, so its closer pairs with the stray fence whatever the call does below it (d20, d25).
+  // CONTROLS, rendered (`Top, After, Last`): a chunk that ECHOES closes the stray fence, and a call never reaches the chunks above it or its own chunk (d20, d25).
   it.each<[string, Shape]>([
-    ["the call sits BELOW a loud chunk, so the call silences only what comes after (d20)", { target: chunk("{r}", "a <- 1"), mid: setup(CALL) }],
-    ["the call sits in a chunk that echoes itself, BELOW the stray fence (d25)", { mid: [...chunk("{r setup}", CALL), ""] }],
-  ])("the chunk above the call closes the fence: %s", (_n, shape) => {
+    ["the call sits BELOW a loud chunk `a <- 1`, so the call silences only what comes after it (d20)", { target: chunk("{r}", "a <- 1"), mid: setup(CALL) }],
+    ["the call sits in a chunk that echoes ITSELF below the stray fence: its own fence closes it, and the call does not reach its own chunk (d25)", { mid: [...chunk("{r setup}", CALL), ""] }],
+  ])("an echoing chunk closes the fence: %s", (_n, shape) => {
     expect(outline(shape)).toEqual(["Top", "After", "Last"]);
   });
 
-  // THE FRONT MATTER SILENCES IN BOTH MODES, so it SKIPS a chunk (silent) where a setup chunk's call only makes it uncertain (g16 m01, m15). Three chunks below the stray fence:
-  // X, then Y. Headings Top, Between, Mid, After, Last; `Top, After, Last` is quarto's answer when Y is loud and X is skipped.
+  // THE FRONT MATTER SILENCES IN BOTH MODES, so it SKIPS a chunk (silent) where a setup chunk's call only makes it uncertain (g16 m01, m15). Two chunks below the stray fence:
+  // X under Between, then Y under Mid. Headings Top, Between, Mid, After, Last; `Top, After, Last` is quarto's answer when Y is loud and X is skipped. The truths in the titles
+  // below that depend on a setup call hold WHEN EXECUTING (marked "(executing)"); under `--no-execute` the setup chunk never runs.
   const FRONT_ECHO_FALSE = ["execute:", "  echo: false"];
   const xy = (shape: Shape, y: string[] = chunk("{r}", "y <- 2")): string[] =>
     findHeadings(grid({ ...shape, target: chunk("{r}", "x <- 1"), mid: ["## Mid", "", ...y, ""], later: [] }), "knitr").map((h) => h.text);
@@ -21307,31 +21315,37 @@ describe("Session 308 — a document DEFAULT that silences the LATER chunk: `for
   it("a setup call's default only ENDS the swallow at the silenced chunk: uncertain, not skipped (m15; HEAD's answer, wrong while executing)", () => {
     expect(xy({ pre: setup(CALL) }, chunk("{r, echo=TRUE}", "y <- 2"))).toEqual(["Top", "Mid", "After", "Last"]);
   });
-  it("two silenced chunks and no loud one: nothing closes the fence, every heading shows (m16 for include, g14 e05 for echo)", () => {
+  it("two silenced chunks and no loud one: nothing closes the fence, every heading shows (executing; m16 for include, g14 e05 for echo)", () => {
     expect(xy({ pre: setup(CALL) })).toEqual(["Top", "Between", "Mid", "After", "Last"]);
     expect(xy({ pre: setup("knitr::opts_chunk$set(include = F)") })).toEqual(["Top", "Between", "Mid", "After", "Last"]);
   });
   it.each<[string, Shape, string[]]>([
-    ["a second call that sets only `include` leaves the `echo` default as it was (m13)", { pre: setup(CALL, "knitr::opts_chunk$set(include = TRUE)") }, ["Top", "Between", "Mid", "After", "Last"]],
-    ["a statement before the call on the same line, `x <- 1; call` (m06)", { pre: setup(`x <- 1; ${CALL}`) }, ["Top", "Between", "Mid", "After", "Last"]],
+    ["a second call that sets only `include` leaves the `echo` default as it was (m13) (executing)", { pre: setup(CALL, "knitr::opts_chunk$set(include = TRUE)") }, ["Top", "Between", "Mid", "After", "Last"]],
+    ["a statement before the call on the same line, `x <- 1; call` (m06) (executing)", { pre: setup(`x <- 1; ${CALL}`) }, ["Top", "Between", "Mid", "After", "Last"]],
     ["a setup chunk with `eval=FALSE` never runs, so the front matter's silence stands (m03)", { front: FRONT_ECHO_FALSE, pre: setupAs("{r setup, include=FALSE, eval=FALSE}", CALL_TRUE) }, ["Top", "Between", "Mid", "After", "Last"]],
     ["`echo = T` is TRUE (m12)", { pre: setup("knitr::opts_chunk$set(echo = T)") }, ["Top", "Mid", "After", "Last"]],
     ["`if (FALSE)` with its body on the NEXT line, no braces (m05)", { pre: setup("if (FALSE)", `  ${CALL}`) }, ["Top", "Mid", "After", "Last"]],
-    ["a call the reader cannot read DROPS the front matter's silence: the chunk is loud again (m02)", { front: FRONT_ECHO_FALSE, pre: setup(`do.call(knitr::opts_chunk$set, list(echo = TRUE))`) }, ["Top", "Mid", "After", "Last"]],
+    ["a call the reader cannot read DROPS the front matter's silence: the chunk is loud again (m02) (executing)", { front: FRONT_ECHO_FALSE, pre: setup(`do.call(knitr::opts_chunk$set, list(echo = TRUE))`) }, ["Top", "Mid", "After", "Last"]],
     ["`format: {pdf: {echo: false}}` in flow style: the first format is not html (m11)", { front: ["format: {pdf: {echo: false}}"] }, ["Top", "Mid", "After", "Last"]],
     ["the call in a COMMENT does not run, so the front matter's silence stands (n01)", { front: FRONT_ECHO_FALSE, pre: setup(`# ${CALL_TRUE}`) }, ["Top", "Between", "Mid", "After", "Last"]],
-    ["a call handed to `eval(parse(text = ...))` may run: the front matter's silence is dropped (n02)", { front: FRONT_ECHO_FALSE, pre: setup(`eval(parse(text = "${CALL_TRUE}"))`) }, ["Top", "Mid", "After", "Last"]],
-    ["`library(knitr)` and then the call without `knitr::` (n03)", { pre: setup("library(knitr)", "opts_chunk$set(echo = FALSE)") }, ["Top", "Between", "Mid", "After", "Last"]],
-    ["an argument with a comma of its own before `echo`, `fig.dim = c(7, 5)` (n04)", { pre: setup("knitr::opts_chunk$set(fig.dim = c(7, 5), echo = FALSE)") }, ["Top", "Between", "Mid", "After", "Last"]],
+    ["a call handed to `eval(parse(text = ...))` may run: the front matter's silence is dropped (n02) (executing)", { front: FRONT_ECHO_FALSE, pre: setup(`eval(parse(text = "${CALL_TRUE}"))`) }, ["Top", "Mid", "After", "Last"]],
+    ["`library(knitr)` and then the call without `knitr::` (n03) (executing)", { pre: setup("library(knitr)", "opts_chunk$set(echo = FALSE)") }, ["Top", "Between", "Mid", "After", "Last"]],
+    ["an argument with a comma of its own before `echo`, `fig.dim = c(7, 5)` (n04) (executing)", { pre: setup("knitr::opts_chunk$set(fig.dim = c(7, 5), echo = FALSE)") }, ["Top", "Between", "Mid", "After", "Last"]],
     ["the call after a `FALSE &&` that never lets it run, on the next line (n05)", { pre: setup("FALSE &&", `  ${CALL}`) }, ["Top", "Mid", "After", "Last"]],
-    ["the engine spelled `{R setup}` (n10)", { pre: setupAs("{R setup, include=FALSE}", CALL) }, ["Top", "Between", "Mid", "After", "Last"]],
+    ["the engine spelled `{R setup}` (n10) (executing)", { pre: setupAs("{R setup, include=FALSE}", CALL) }, ["Top", "Between", "Mid", "After", "Last"]],
     ["the call piped on, `call |> invisible()`: runs, but is not an exact statement (n06; wrong before and after)", { pre: setup(`${CALL} |> invisible()`) }, ["Top", "Mid", "After", "Last"]],
     ["`html` as the SECOND format in flow style (n07; wrong before and after: quarto's html render is silent)", { front: ["format: {pdf: {toc: true}, html: {echo: false}}"] }, ["Top", "Mid", "After", "Last"]],
+    ["`html` as the SECOND format in block style (g20 t01; wrong before and after: quarto's html render is silent)", { front: ["format:", "  pdf:", "    toc: true", "  html:", "    echo: false"] }, ["Top", "Mid", "After", "Last"]],
+    ["a string with a `#` beside `echo = FALSE`, `comment = \"#>\"` (g20 t03a, executing)", { pre: setup('knitr::opts_chunk$set(echo = FALSE, comment = "#>")') }, ["Top", "Between", "Mid", "After", "Last"]],
+    ["a string with a comma and a paren beside `echo = FALSE`, `fig.cap = \"a, b)\"` (g20 t03b, executing)", { pre: setup('knitr::opts_chunk$set(echo = FALSE, fig.cap = "a, b)")') }, ["Top", "Between", "Mid", "After", "Last"]],
+    ["the front matter silences and the call's `echo` is a variable that is TRUE: loud (g20 t04, executing)", { front: FRONT_ECHO_FALSE, pre: setup("show <- TRUE", "knitr::opts_chunk$set(echo = show)") }, ["Top", "Mid", "After", "Last"]],
+    ["the front matter silences and the call hands `list(echo = TRUE)`: loud (g20 t05, executing)", { front: FRONT_ECHO_FALSE, pre: setup("knitr::opts_chunk$set(list(echo = TRUE))") }, ["Top", "Mid", "After", "Last"]],
   ])("%s", (_n, shape, expected) => {
     expect(xy(shape)).toEqual(expected);
   });
-  // PERFORMANCE (timed firsthand, Session 308, Learning 717): the reader is one pass over each chunk that names `opts_chunk`. 200,000 call lines took 445 ms and 100,000 glued
-  // continuation lines 174 ms; the bound is generous (2 s) and exists to catch a quadratic rewrite, not to measure.
+  // PERFORMANCE (timed firsthand, Session 308, Learning 717; `scratchpad/s308/perf308-s5.txt`): the reader is one pass over each chunk that names `opts_chunk`. 200,000 call lines
+  // took 503 ms, 100,000 glued continuation lines 133 ms and one line of 300,000 `;`-separated calls 433 ms. The 2 s bound is wall-clock, so a heavily loaded runner could flake it;
+  // it exists to catch a quadratic rewrite (which would take minutes), not to measure.
   it.each<[string, string]>([
     ["200,000 lines, each a call", `${CALL}\n`.repeat(200000)],
     ["100,000 continuation lines (`x <- 1 +`), then the call", `${"x <- 1 +\n".repeat(100000)}1\n${CALL}\n`],
@@ -21344,17 +21358,17 @@ describe("Session 308 — a document DEFAULT that silences the LATER chunk: `for
     expect(headings).toEqual(ALL);
   });
 
-  // THE STATE CARRIES ACROSS CHUNKS (g18), with a loud Y (`echo=TRUE`) where the answer must tell a skipped chunk from an ended swallow.
+  // THE STATE CARRIES ACROSS CHUNKS (g16, g18, g19), with a loud Y (`echo=TRUE`) where the answer must tell a skipped chunk from an ended swallow.
   const YT = chunk("{r, echo=TRUE}", "y <- 2");
   it.each<[string, Shape, string[], string[]?]>([
-    ["a call that sets only `message` after one that set `echo` leaves the echo default in force (p02)", { pre: [...setup(CALL), ...setupAs("{r setup2, include=FALSE}", "knitr::opts_chunk$set(message = FALSE)")] }, ["Top", "Between", "Mid", "After", "Last"]],
-    ["an `include = FALSE` default stays in force over a chunk with its own `echo=TRUE` (p03)", { pre: [...setup("knitr::opts_chunk$set(include = FALSE)"), ...setupAs("{r setup2, include=FALSE}", "knitr::opts_chunk$set(message = FALSE)")] }, ["Top", "Between", "Mid", "After", "Last"], YT],
+    ["a call that sets only `message` after one that set `echo` leaves the echo default in force (p02) (executing)", { pre: [...setup(CALL), ...setupAs("{r setup2, include=FALSE}", "knitr::opts_chunk$set(message = FALSE)")] }, ["Top", "Between", "Mid", "After", "Last"]],
+    ["an `include = FALSE` default stays in force over a chunk with its own `echo=TRUE` (p03) (executing)", { pre: [...setup("knitr::opts_chunk$set(include = FALSE)"), ...setupAs("{r setup2, include=FALSE}", "knitr::opts_chunk$set(message = FALSE)")] }, ["Top", "Between", "Mid", "After", "Last"], YT],
     ["a call the reader cannot read, then a call that silences: the front matter's silence is back, so X is SKIPPED (p01)", { front: FRONT_ECHO_FALSE, pre: [...setup("do.call(knitr::opts_chunk$set, list(echo = TRUE))"), ...setupAs("{r setup2, include=FALSE}", CALL)] }, ["Top", "After", "Last"], YT],
     ["a front matter `include: false` is not touched by a call that sets `echo = T` (q01)", { front: ["execute:", "  include: false"], pre: setup("knitr::opts_chunk$set(echo = T)") }, ["Top", "Between", "Mid", "After", "Last"]],
     ["a front matter `include: false` is not touched by a call whose `echo` is a variable: only `echo` is unread (q03)", { front: ["execute:", "  include: false"], pre: setup("show <- FALSE", "knitr::opts_chunk$set(echo = show)") }, ["Top", "Between", "Mid", "After", "Last"]],
     ["`include = FALSE`, then a call the reader cannot read that sets `include = TRUE`: loud again (q02)", { pre: [...setup("knitr::opts_chunk$set(include = FALSE)"), ...setupAs("{r setup2, include=FALSE}", "do.call(knitr::opts_chunk$set, list(include = TRUE))")] }, ["Top", "Mid", "After", "Last"]],
-    ["`echo = TRUE, echo = FALSE` in one call: the later argument wins (p05)", { pre: setup("knitr::opts_chunk$set(echo = TRUE, echo = FALSE)") }, ["Top", "Between", "Mid", "After", "Last"]],
-    ["`echo = FALSE, echo = TRUE` in one call: the later argument wins, so the chunk is loud (m07)", { pre: setup("knitr::opts_chunk$set(echo = FALSE, echo = TRUE)") }, ["Top", "Mid", "After", "Last"]],
+    ["`echo = TRUE, echo = FALSE` in one call: the later argument wins (p05) (executing)", { pre: setup("knitr::opts_chunk$set(echo = TRUE, echo = FALSE)") }, ["Top", "Between", "Mid", "After", "Last"]],
+    ["`echo = FALSE, echo = TRUE` in one call: the later argument wins, so the chunk is loud (m07) (executing)", { pre: setup("knitr::opts_chunk$set(echo = FALSE, echo = TRUE)") }, ["Top", "Mid", "After", "Last"]],
     ["a call that silences, then one that sets `include = TRUE`: the echo default only ENDS the swallow at X (p07; wrong while executing)", { pre: [...setup(CALL), ...setupAs("{r setup2, include=FALSE}", "knitr::opts_chunk$set(include = TRUE)")] }, ["Top", "Mid", "After", "Last"], YT],
     ["an inline `` `r knitr::opts_chunk$set(echo = TRUE)` `` in the prose runs in BOTH modes (m04)", { front: FRONT_ECHO_FALSE, pre: ["`r knitr::opts_chunk$set(echo = TRUE)`", ""] }, ["Top", "Mid", "After", "Last"]],
     ["the call in a chunk inside a LIST ITEM runs when executing (p04)", { front: FRONT_ECHO_FALSE, pre: ["- item", "", `  ${FENCE}{r}`, `  ${CALL_TRUE}`, `  ${FENCE}`, ""] }, ["Top", "Mid", "After", "Last"]],
@@ -21363,12 +21377,29 @@ describe("Session 308 — a document DEFAULT that silences the LATER chunk: `for
     expect(xy(shape, y)).toEqual(expected);
   });
 
+  // CONTROL, rendered (g16 m14, both modes): a setup chunk with `ref.label` runs the OTHER chunk's code, so the call in its body never runs and X is loud: declining is right.
+  it("a setup chunk with `ref.label` runs the other chunk's code, so its call never runs (m14)", () => {
+    expect(xy({ pre: [...chunk("{r src, include=FALSE}", "z <- 1"), "", ...setupAs('{r setup, include=FALSE, ref.label="src"}', CALL)] })).toEqual(["Top", "Mid", "After", "Last"]);
+  });
+  // DECLINED, NOT rendered as written (each answer is the safe one and the shape is unmeasured): a setup chunk that changes what runs. Each kills the mutant that stops declining it.
+  it.each<[string, string]>([
+    ["`engine=\"python\"`", '{r setup, include=FALSE, engine="python"}'],
+    ["`child=`", '{r setup, include=FALSE, child="setup.Rmd"}'],
+    ["`file=`", '{r setup, include=FALSE, file="setup.R"}'],
+    ["`code=`", '{r setup, include=FALSE, code="x <- 1"}'],
+    ["a non-R engine that merely contains the text", "{bash setup}"],
+  ])("declined, not rendered as written: a setup chunk with %s", (_n, header) => {
+    expect(xy({ pre: setupAs(header, CALL) })).toEqual(["Top", "Mid", "After", "Last"]);
+  });
+  it("declined, not rendered as written: the dashed `#| ref-label:` spelling on the setup chunk", () => {
+    expect(xy({ pre: setup("#| ref-label: src", CALL) })).toEqual(["Top", "Mid", "After", "Last"]);
+  });
+
   // RESIDUALS rendered as two chunks (g16): each RUNS when quarto executes (ALL) or depends on a cache (m08), and the reader declines it, so the first chunk closes the fence.
   it.each<[string, Shape]>([
     ["the call assigned, `old <- knitr::opts_chunk$set(...)` (m09)", { pre: setup(`old <- ${CALL}`) }],
     ["a second mention of `opts_chunk` inside the arguments (m10)", { pre: setup('knitr::opts_chunk$set(echo = FALSE, fig.path = knitr::opts_chunk$get("fig.path"))') }],
     ["a setup chunk with `cache=TRUE`: it runs once, then the cache decides (m08)", { pre: setupAs("{r setup, include=FALSE, cache=TRUE}", CALL) }],
-    ["a setup chunk with `ref.label`: its code is the other chunk's (m14)", { pre: [...chunk("{r src, include=FALSE}", "z <- 1"), "", ...setupAs("{r setup, include=FALSE, ref.label=\"src\"}", CALL)] }],
   ])("RESIDUAL, declined (the first chunk closes the fence): %s", (_n, shape) => {
     expect(xy(shape)).toEqual(["Top", "Mid", "After", "Last"]);
   });
@@ -21425,10 +21456,23 @@ describe("Session 308 — a document DEFAULT that silences the LATER chunk: `for
   });
 
   // RESIDUAL, NOT quarto truth: with `html` first and `pdf` setting the option the other way quarto renders html with `echo: false` (ALL, f04), but the reader counts two
-  // `echo` keys and reads one, so it declines and keeps HEAD's answer (S). Declining is the side that cannot delete a heading the render shows... here it does, and it is
-  // the S287 accounting rule (an unread key declines the option) at work: pinned at the model's answer.
+  // `echo` keys and reads one, so it declines and keeps HEAD's answer (S). That is the S287 accounting rule (an unread key declines the option) at work: wrong before and after
+  // (it deletes Between and After here), pinned at the model's answer. The same document with `pdf: echo: false` (the realistic both-formats-false report, rev-frontmatter_24 and
+  // _25, rendered) takes the same path.
   it("RESIDUAL, wrong both before and after: `html: echo: false` with `pdf: echo: true` is declined (f04)", () => {
     expect(outline({ front: ["format:", "  html:", "    echo: false", "  pdf:", "    echo: true"] })).toEqual(S);
+  });
+
+  // RESIDUAL, PHANTOM (g20 t06, both modes quarto `Top, Last`): a silenced chunk that PRINTS emits an output block, which is a fence, so the stray fence pairs with it. HEAD's
+  // blanket "loud" was right for it by accident; a call default now makes it uncertain and nothing opens the fence, so the model shows Between and After. The cost of not
+  // reading output (the S307 residual (6), `print()` under `echo=FALSE`, reaches defaults): every one of the 5 executing regressions of the 150-document lens round is such a chunk.
+  it("RESIDUAL, phantom: a chunk that PRINTS under a call default is still loud in quarto (g20 t06; w01, w03, w04, w07, w09, w10 alike)", () => {
+    expect(outline({ pre: setup(CALL), later: chunk("{r}", "print(1)") })).toEqual(ALL);
+  });
+  // RESIDUAL, DELETING, PRE-EXISTING (rev-soundness_16, rendered executing: `Top, After, Last`): the S307 sandwich. Two bare fences around a chunk that is only uncertain: the
+  // uncertain closer ends the first swallow early, so the second bare fence opens one and swallows After. HEAD gives the same answer (the chunk was loud there).
+  it("RESIDUAL, deleting, pre-existing: two bare fences around a chunk silenced by a call (rev-soundness_16)", () => {
+    expect(outline({ pre: setup(CALL), target: chunk("{r}", "x <- 1"), mid: ["## Mid", "", FENCE, ""], later: chunk("{r, echo=TRUE}", "z <- 3") })).toEqual(["Top", "Mid", "Last"]);
   });
 });
 

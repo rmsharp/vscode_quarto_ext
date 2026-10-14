@@ -7037,9 +7037,14 @@ const FLOW_KEY_NO_SPACE = /(?:echo|include)["']?:(?![ \t])/;
  * moves the stray fence's closer DOWN and swallows every heading in between, so this does not walk
  * a YAML tree it cannot fully read. It COUNTS every `echo:` / `include:` key anywhere in the front
  * matter, READS only the ones at the three measured paths with a plain false, and trusts an option
- * only when every key it counted was read. A `format:`-nested key (measured loud when it says
- * `true`), a `params:` key, a key inside a block scalar, an alias, a quoted key, a duplicate with
- * another value — each is an unread key, so the option declines and HEAD's pairing stays.
+ * only when every key it counted was read. A `params:` key, a key inside a block scalar, an
+ * alias, a quoted key, a duplicate with another value, an `echo` under `format: html: execute:` or
+ * under any format but the first `html` — each is an unread key, so the option declines and
+ * HEAD's pairing stays. Session 308 reads a fourth path, the FIRST format when it is `html`
+ * (`format: html: echo: false`, block or flow), and hardens the guards: a bracket count that
+ * leaves quotes and comments out, a quoted scalar that wraps, `{echo:false}` without a space,
+ * a second `format:` block in the body, an alias used as a key and `metadata-files:` all
+ * decline the whole reader.
  *
  * ⚠ Only the LEADING block counts (a `---` block mid-document is measured inert), and the model
  * sees only this document. A project `_quarto.yml` / `_metadata.yml` is invisible: measured, it
@@ -7057,7 +7062,7 @@ function knitrDocumentDefaults(lines: readonly string[]): KnitrDocDefaults {
     return NO_KNITR_DOC_DEFAULTS;
   }
   // A setup chunk's `knitr::opts_chunk$set(...)` changes the default for the chunks BELOW it when it RUNS, and not under `--no-execute`. Until Session 308 any mention
-  // of `opts_chunk` below the front matter declined the whole document; the chunks are now read in document order (`knitrDefaultsState`, `knitrChunkDefaultsUpdate`).
+  // of `opts_chunk` below the front matter declined the whole document; the chunks are now read in document order (`KnitrDefaultsState`, `knitrChunkDefaultsUpdate`).
   const bodyFormat = lines.slice(content.length + 2).some((line) => /^format[ \t]*:/.test(line));
   const counted = { echo: 0, include: 0 };
   const read = { echo: 0, include: 0 };
@@ -7132,8 +7137,9 @@ function knitrDocumentDefaults(lines: readonly string[]): KnitrDocDefaults {
         readMapping(inner.sub, inner.indent);
       }
     }
-    // `format: html:` (Session 308): the FIRST format listed is the one `quarto render` renders, so only its mapping is the document's default. A format further
-    // down, or `html` second, stays an unread key and declines the option (measured: `pdf` alone does not apply to an html render, f08).
+    // `format: html:` (Session 308): only the FIRST format listed, and only when it is `html`, is read. That is a DECISION and not a measurement: every render here was `--to html`,
+    // and quarto's html render applies the html mapping wherever it sits (n07, g20 t01, rev-frontmatter_22 to _25 all silent), but the default render is the first format, so a
+    // second `html` or a second format that sets `echo` is declined (the residual rows). A `pdf`-only `format:` does not apply to an html render (f08).
     // A second `format:` key in the BODY (a `---` metadata block below the first) is merged by quarto, and its `echo` can beat the leading block's (rendered, rev-frontmatter_14).
     const format = bodyFormat ? null : mappingAt(content, i, top, "format");
     if (format === "flow") {
@@ -7186,7 +7192,9 @@ function knitrDocumentDefaults(lines: readonly string[]): KnitrDocDefaults {
  *  - `both`: silent whether or not knitr executes, because the FRONT MATTER says so (`execute:`, `knitr: opts_chunk:`, a top-level key, `format: html:`);
  *  - `exec`: silent only when the document EXECUTES: a setup chunk's `opts_chunk$set(echo = FALSE)` never runs under `--no-execute`, so the two modes disagree
  *    (rendered, g13 d01-d36) and the chunk is `uncertain`, as for a code channel in Session 307: it may END a swallow early, as a loud chunk's closer does,
- *    but never OPENS one (Learning 716). That is exact when executing for a stray fence with no certain closer below it, and it cannot delete a heading;
+ *    but never OPENS one (Learning 716). That is exact when executing for a stray fence with no certain closer below it, UNLESS the silenced chunk prints, warns or messages
+ *    (it then emits an output block, which is a fence: rendered, g14 w01-w10, g20 t06); it adds no deleting error of its own, but the S307 sandwich (two bare fences around
+ *    such a chunk) stays a pinned DELETING residual;
  *  - `no`: not established silent (HEAD's answer: loud).
  */
 type KnitrDefaultKind = "no" | "both" | "exec";
@@ -7233,7 +7241,8 @@ function knitrApplyDefaultsUpdate(state: KnitrDefaultsState, update: KnitrDefaul
   }
   if (update === "unknown") {
     // A call this cannot read may set anything, so no call above it is trusted from here on: the chunks below it are loud again (HEAD declined the whole document). The front
-    // matter stays: it applies in both modes whatever a call does, so a LATER call that silences brings its silence back (rendered, p01).
+    // matter stays, and a LATER call that silences brings its silence back (rendered, p01): a silent call is silent in both modes once the front matter is, because the front matter
+    // applies whether or not the call runs. (A call that sets the option TRUE is followed as the executing mode, as HEAD did: `knitrDefaultKind`.)
     state.echo = "unknown";
     state.include = "unknown";
     return;
@@ -7251,10 +7260,14 @@ const KNITR_OPTS_CHUNK_SET = /^(?:knitr[ \t]*::[ \t]*)?opts_chunk[ \t]*\$[ \t]*s
  * not read, and otherwise the options it sets to a literal `FALSE` / `F` (silent) or `TRUE` / `T` (loud).
  *
  * ⚠ **EXACT STATEMENTS ONLY.** A call counts only as a whole top-level statement, `knitr::opts_chunk$set(<named arguments>)` (`rTopLevelStatements`): inside braces, after an
- * `if (...)` or a `function(...)` header, in a comment, in a string, through `do.call`, a stored function or `invisible(...)` it is `unknown`, and `unknown` keeps HEAD's
- * answer. Rendered, each of those either runs (d16, d29: not read, a residual) or does not (d14, d15, d17, d18: right at HEAD), and no word list tells them apart.
- * The chunk must also be one that RUNS: a plain `{r}` chunk, with no `engine`, `child`, `file`, `code`, `ref.label` or `cache` option, and `eval=FALSE` there means it
- * never runs (d12, d13: no effect). A document whose front matter names `eval` anywhere is not read at all (d30).
+ * `if (...)` or a `function(...)` header (also an assigned one, whose body is on the next line), in a string, through `do.call`, a stored function or `invisible(...)` it is
+ * `unknown`, and `unknown` keeps HEAD's answer. A call in a COMMENT is no mention at all (n01: no effect). Rendered, each of those either runs (d16, d29: not read, a residual)
+ * or does not (d14, d15, d18: right at HEAD), and no word list tells them apart. A mention in the chunk HEADER or a `#|` line runs R whatever the code is: `unknown`.
+ * The chunk must also be one that RUNS: a plain `{r}` chunk, with no `engine`, `child`, `file`, `code`, `ref.label` or `eval` option (rendered: `ref.label`, `eval`; the others
+ * are declines whose shape was not rendered) and no `cache` other than a positive `cache = FALSE` (m08). `eval=FALSE` there means it never runs (d12, d13: no effect), and
+ * a call that sets `eval` to anything but TRUE stops every later call being read (soundness_12). A document whose front matter names `eval` is not read at all (d30).
+ * An option named twice in one call takes the later value (m07, p05); a value this cannot read leaves only that option unread (q03); a bare `F` is `silentF`, never certain
+ * silence beside a silent front matter, because a document can rebind `F` (soundness_02).
  */
 function knitrChunkDefaultsUpdate(header: string, body: readonly string[], frontNamesEval: boolean): KnitrDefaultsUpdate {
   if (!header.includes(KNITR_OPTS_CHUNK) && !body.some((line) => line.includes(KNITR_OPTS_CHUNK))) {
