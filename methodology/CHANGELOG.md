@@ -17,9 +17,49 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
-### 2026-10-14 · [BL-What the cross-reference LABEL INDEX still gets wrong after Session 304 — families (2) to (10), every row rendered; family (1), the knitr header labels, is closed] Session 305 (in progress): claim -- a `sec-`/`eq-` label on a code cell
+### 2026-10-14 · [ad hoc] Session 305 close-out: handoff evaluation, self-assessment, receipt, trim, quality ratchet
 
-Session claimed; the operator chose family (7)'s `sec-`/`eq-` guard of that item at the Phase 0 picker (quarto defines neither from a code cell; the index's `#|` path accepts every kind). Ground first, per language and engine (the mermaid, dot and ojs handler cells are pinned as defining `lst-` and `tbl-`, so this is not a blanket rule), then strict TDD. Phase 3F records the outcome.
+`methodology/SESSION_NOTES.md` (ACTIVE TASK rewritten to NONE, the Session 304 evaluation and Session 305 self-assessment written, 8/10 and 8/10), `methodology/HANDOFFS.md` (the `S305` receipt, `status: complete`), the two history files, commit `746e04d1`; the trim of `SESSION_NOTES.md` to three close-out pairs (the Session 301 evaluation and Session 302 self-assessment dropped, one command away: `git show 746e04d1:methodology/SESSION_NOTES.md`), commit `d8c97aa6`; and this ledger commit. Quality ratchet: cited in the receipt by the commit after this one (Learning 683). Dashboard 76/100, unchanged; `context_budget.py` still red on the three pre-existing over-limit records.
+
+### 2026-10-14 · [ad hoc] Session 305: two host runs, the release gate, the unit suite
+
+Operator-approved before it took the screen. `npm run test:integration` twice: with the guard in `src/core/refs.ts` disabled by a dead conjunct (a first attempt, `false && ...`, failed the type-check and launched nothing), 559 passing and 1 failing, the new row, because `@sec-off` and `@eq-off` were offered; restored from HEAD (`git diff --quiet` first), 560 passing, exit 0. `npm test` 7,739 passing in 72 files; `npm run package` exit 0 (44 files, 1.85 MB, 1:17); `check-backlog` OK, 220 open items.
+
+### 2026-10-14 · [ad hoc] Session 305: two mutation runs (58 mutants each)
+
+On fresh `git archive` copies of the commits, each unmutated tree run first. Run 1 (`e8dea68c`): 53 of 58 killed; the survivors were the caching pair (equivalent) and `codeFromElsewhere`, `unseenCode` dropped from the guard. Four rendered documents (`source()$value`, an `exec` that displays Markdown, a chunk hook, `read_chunk`) proved those two legs needed and became rows. Run 2 (`59e9a508`): 56 of 58 killed; the two survivors change only caching (`runTimeChannel` and `targetContext ??`).
+
+### 2026-10-14 · [ad hoc] Session 305: two workflows (11 agents), about 550 renders
+
+A blind authoring round (5 lenses, 297 documents) and a white-box round (3 attackers, 150 documents, and 3 read-only reviewers on `51010e6e..HEAD`), about 1.6M subagent tokens, none allowed to render or edit; the no-third-party-source rule was in every prompt and the transcripts were audited clean. I rendered about 550 documents (3 wide, behind the load gate) and re-checked every reviewer claim against the HTML: the medium finding (a `lst-` control row cited for the wrong engine), the vacuous position row, `ENGINES` missing `julia` and `ambiguous`, and the over-claimed comments were each confirmed and fixed; the pre-existing `RangeError` was filed. The white-box round found 36 documents the committed rule (`d8cc5d15`) lost and the final rule recovers 34 of them, which changed the rule.
+
+### 2026-10-14 · [BL-What the cross-reference LABEL INDEX still gets wrong after Session 305 — families (2) to (10), every row rendered; family (1), the knitr header labels, is closed, and so is (7)'s `sec-`/`eq-` half] Session 305 `da46f0f3`: close the `sec-`/`eq-` half of the label-index family, correct `lst-`, file the `RangeError`
+
+`BACKLOG.md` (the item's title, (7) and (7b) rewritten to the open remainder, the closing sentence, and item (4) of the slow-inputs item), `methodology/PROJECT_LEARNINGS.md` (710-713). `lst-` is engine-dependent, not a blanket phantom.
+
+### 2026-10-14 · [BL-What the cross-reference LABEL INDEX still gets wrong after Session 305 — families (2) to (10), every row rendered; family (1), the knitr header labels, is closed, and so is (7)'s `sec-`/`eq-` half] Session 305 `c55b96bf`: the host row
+
+`test/integration/suite/crossref.test.ts` (+79): a Jupyter document with no run-time channel offers `@sec-real` and `@fig-on` but not `@sec-off` or `@eq-off`, and go-to-definition resolves only the figure; a knitr document that builds the id with `sprintf` keeps `@sec-built`. RED then GREEN in the host runs above.
+
+### 2026-10-14 · [BL-What the cross-reference LABEL INDEX still gets wrong after Session 305 — families (2) to (10), every row rendered; family (1), the knitr header labels, is closed, and so is (7)'s `sec-`/`eq-` half] Session 305 `59e9a508`: pin the unseen-code and code-from-elsewhere legs
+
+`test/unit/refs-cell-kinds.test.ts`, `test/fixtures/cell-label-kinds/quarto-1.7.33.json` (367 documents now). Four rendered documents define the target with no `asis` word in the text and only the two legs see them; two controls pin the price.
+
+### 2026-10-14 · [BL-What the cross-reference LABEL INDEX still gets wrong after Session 305 — families (2) to (10), every row rendered; family (1), the knitr header labels, is closed, and so is (7)'s `sec-`/`eq-` half] Session 305 `e9885724`: pin 361 rendered documents (closed world)
+
+`test/unit/refs-cell-kinds.test.ts`, `test/fixtures/cell-label-kinds/quarto-1.7.33.json`: `[extension, engine, quarto defined it, index answers, parent answered, document]`, built by `scratchpad/s305/mkfixture305.cjs` from grid1, grid2 and eight lens directories. The index agrees on 264 where the parent agreed on 169, and the only labels it newly drops are the two heading gaps (li18, wl50).
+
+### 2026-10-14 · [BL-What the cross-reference LABEL INDEX still gets wrong after Session 305 — families (2) to (10), every row rendered; family (1), the knitr header labels, is closed, and so is (7)'s `sec-`/`eq-` half] Session 305 `e8dea68c`: a `sec-`/`eq-` cell label is kept only where the document can write it at run time
+
+`src/core/refs.ts` (the guard now asks Session 304's `cellTargetContext` for a channel over the whole document, labelled cell included; the shared anchor reader of `d8cc5d15` is deleted and the original `writtenElsewhere` closure restored), `test/unit/refs-cell-kinds.test.ts`, `test/unit/refs-no-target.test.ts`, the Session 304 fixture (one row back to kept). Over 686 rendered rows: agree 329 to 518, phantoms 329 to 138, lost 28 to 30; 2 regressions, both heading gaps. Corpus differential 0 of 3,382.
+
+### 2026-10-14 · [BL-What the cross-reference LABEL INDEX still gets wrong after Session 305 — families (2) to (10), every row rendered; family (1), the knitr header labels, is closed, and so is (7)'s `sec-`/`eq-` half] Session 305 `d8cc5d15`: a `sec-`/`eq-` label stays when a cell's code writes the id itself (superseded by `e8dea68c`)
+
+`src/core/refs.ts` (`anchorIdsIn` extracted, read for brace anchors in every cell's code; a raw `id=` does not count), `test/unit/refs-cell-kinds.test.ts`. The blind hunt's 18 regressions fixed; the white-box round then found 34 documents it still lost. Never released.
+
+### 2026-10-14 · [BL-What the cross-reference LABEL INDEX still gets wrong after Session 305 — families (2) to (10), every row rendered; family (1), the knitr header labels, is closed, and so is (7)'s `sec-`/`eq-` half] Session 305 `def7cff3`: a code cell's label never defines a `sec-` or `eq-` target
+
+`src/core/refs.ts` (`CELL_NEVER_DEFINES`), `test/unit/refs-cell-kinds.test.ts` (new, 69 rows: 5 cell languages x 6 engines x 2 kinds, the fig/tbl/lst controls), `test/unit/refs-no-target.test.ts` (two rows that pinned the old phantom), `test/fixtures/no-target-shapes/quarto-1.7.33.json` (two flags). Quarto prints `?@sec-x` and `?@eq-x` in 26 of 26 rendered cell language and engine combinations (`scratchpad/s305/grid1`); `lst-` is kept, being undefined under knitr only.
 
 ### 2026-10-13 · [ad hoc] Session 304 close-out: handoff evaluation, self-assessment, receipt, trim, quality ratchet
 
