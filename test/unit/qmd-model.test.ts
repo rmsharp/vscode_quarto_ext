@@ -20801,6 +20801,56 @@ describe("Session 307 — an `echo=FALSE` chunk whose code can write a FENCE is 
   });
 });
 
+describe("Session 307 — an `{{< include >}}` is NOT read as a fence closer, and that is a decision", () => {
+  // MEASURED, quarto 1.7.33, `.qmd`, exit 0, BOTH modes agreeing (`scratchpad/s307/` g3 c01-c09, g4 i01-i16, g5 j01-j04; the ids are theirs).
+  // Quarto expands an include shortcode TEXTUALLY, before knitr and pandoc, and the expansion can carry a fence line: an included chunk
+  // or a bare fence closes the stray bare fence above it (c01, c03, c09: only `Between` is swallowed), and one inside a CLOSED backtick
+  // fence turns that fence's own closer into an opener (i01, i04). This model never opens the file, so it cannot know what an include
+  // holds, and it answers as if the include were plain text: wrong, in the DELETING direction, for the shapes pinned as RESIDUAL below.
+  // ⚠ It is NOT fixed by presuming an include closes a fence, because the commonest use of an include beside a fence is a code SAMPLE from
+  // a file: a fence, `{{< include sample.py >}}`, a fence (j01-j04, rendered, every heading shows). An include-closes rule would turn that
+  // closing fence into an opener and swallow every heading below it, so those four rows must stay right whatever a later session does.
+  const grid = (target: string[], tail = true): string =>
+    ["---", "title: t", "---", "", "# Top", "", ...target, "", "## After", ...(tail ? ["", "```{r}", "y <- 1", "```", "", "## Last"] : []), ""].join("\n");
+  const outline = (target: string[], tail?: boolean): string[] => findHeadings(grid(target, tail), "knitr").map((h) => h.text);
+  const INCLUDE = "{{< include _inc.md >}}";
+
+  // THE IDIOM, rendered: a fence holding an include of a plain file leaves every heading below it. Right at HEAD, and it must stay so.
+  it.each([
+    ["a code sample from a file, with an info string (j01)", ["```python", "{{< include _inc_code.py >}}", "```"]],
+    ["a bare fence around an include of a source file (j02)", ["```", "{{< include _inc_code.py >}}", "```"]],
+    ["the include followed by more code lines (j03)", ["```python", "{{< include _inc_code.py >}}", "print('more')", "```"]],
+    ["an include of plain text inside a bare fence (j04)", ["```", "{{< include _inc_text.md >}}", "```"]],
+  ])("the include IDIOM keeps every heading below it: %s", (_n, target) => {
+    expect(outline(target)).toEqual(["Top", "After", "Last"]);
+  });
+
+  const STRAY = (between: string[]): string[] => ["```", "", "## Between", "", ...between];
+  // RESIDUAL, NOT quarto truth: the included file holds a chunk or a bare fence, so quarto closes the stray fence at the include
+  // and shows `After`; this model reads the include as text and the stray fence pairs with the later chunk's closer. T: Top, After, Last.
+  it.each([
+    ["an include of a file that holds a chunk (c01)", STRAY([INCLUDE])],
+    ["an include of a file that holds a bare fence line (c03)", STRAY([INCLUDE])],
+    ["an empty chunk, then an include of a chunk (c09)", STRAY(["```{r}", "```", "", INCLUDE])],
+  ])("RESIDUAL, the model's answer is not quarto's: %s", (_n, target) => {
+    expect(outline(target)).toEqual(["Top", "Last"]);
+  });
+  // The same shape with NO later chunk (shape P): quarto closes at the include and shows `Top, After`; this model finds no closer below
+  // the stray fence at all, so the fence stays prose and nothing is swallowed: `Top, Between, After` (a phantom `Between`, the safe side).
+  it("RESIDUAL, shape P: an include that holds a chunk, and no later chunk (c07)", () => {
+    expect(outline(STRAY([INCLUDE]), false)).toEqual(["Top", "Between", "After"]);
+  });
+  // What the include does NOT do, rendered (c02, c04, c05, c06, i08): plain text and a silent chunk leave the stray fence unclosed, an
+  // include written after the heading it would hide changes nothing, and an escaped shortcode is not an include. All agree with quarto.
+  it.each([
+    ["an include of plain text (c02)", STRAY(["{{< include _inc_text.md >}}"])],
+    ["an include of a silent chunk (c04)", STRAY(["{{< include _inc_silent.md >}}"])],
+    ["an ESCAPED shortcode (i08)", STRAY(["{{{< include _inc.md >}}}"])],
+  ])("silent, as in quarto: %s", (_n, target) => {
+    expect(outline(target)).toEqual(["Top", "Last"]);
+  });
+});
+
 describe("R6 residual (a) — a silenced chunk of a NON-R engine emits no fence either (Session 286)", () => {
   // MEASURED, `.qmd` with `engine: knitr` (quarto 1.7.33), `scratchpad/s286/` (88 probes) and `r2/` (42):
   // with a stray bare ``` above, a `{python, echo=FALSE}` chunk leaves "Heading Under Test" rendered,

@@ -6764,6 +6764,11 @@ const KNITR_CHUNK_END = /^([\t >]*)(`{3,})[ \t\r\f\v]*$/;
  * switch that repair off (measured both ways). (A wrong-length line inside a chunk can also abort a real render — that is R
  * failing to parse the line as code, not knitr's pairing.)
  *
+ * ⚠ **An `{{< include >}}` IS NOT READ AS A CLOSER, ON PURPOSE (Session 307).** Quarto expands it textually, so an included chunk or
+ * bare fence closes a stray fence above it and the model, which cannot open the file, deletes the heading below. Presuming a closer would
+ * break the commonest include of all, a fence around a code sample from a file: that closing fence would become an opener. Measured
+ * and pinned as the "Session 307 — an `{{< include >}}` is NOT read as a fence closer" rows of `qmd-model.test.ts`.
+ *
  * ⚠ **Performance:** the closer search jumps to each chunk's end and every early exit returns, so
  * the pass is linear in the document.
  */
