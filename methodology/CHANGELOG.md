@@ -17,9 +17,45 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
-### 2026-10-13 · [BL-What the cross-reference LABEL INDEX still gets wrong after Session 303 — families (2) to (10), every row rendered; family (1), the knitr header labels, is closed] Session 304 (in progress): claim -- a figure label on a chunk that makes no figure
+### 2026-10-13 · [ad hoc] Session 304 close-out: handoff evaluation, self-assessment, receipt, trim, quality ratchet
 
-Session claimed; the operator chose family (1)(i) of that item at the Phase 0 picker (a figure label on a chunk that produces no figure, for example `eval=FALSE`, `include=FALSE` or `fig.show='hide'`, is defined by the index and by nothing in quarto). Ground first, then strict TDD. Phase 3F records the outcome.
+`methodology/SESSION_NOTES.md` (ACTIVE TASK rewritten to NONE, the Session 303 evaluation and Session 304 self-assessment written, 8/10 and 8/10), `methodology/HANDOFFS.md` (the `S304` receipt, `status: complete`), `methodology/PROJECT_LEARNINGS.md` (Learning 706 given its final mutation numbers), commit `3574b5cd`; the trim of `SESSION_NOTES.md` to three close-out pairs (the Session 300 evaluation and Session 301 self-assessment dropped, one command away: `git show 3574b5cd:methodology/SESSION_NOTES.md`), commit `7ed2e126`; and this ledger commit. The quality ratchet is cited by the commit that follows (Learning 683). `realdoc-score` re-run at close-out: 2423 of 2438 (99.38%), unchanged; dashboard 76/100.
+
+### 2026-10-13 · [ad hoc] Session 304: two host runs, the release gate, the unit suite, one memory note, three hung renders stopped
+
+Operator-approved before it took the screen. `npm run test:integration` run twice: with the old `src/core/refs.ts` and `src/core/qmd/model.ts` restored from `2bbe8cec` and the bundle and tests compiled directly (`compile` type-checks the new unit tests against the old code, so the stock chain fails earlier), 558 passing and 1 failing, the new row, because `@fig-off` was offered; restored from HEAD, the stock chain 559 passing, exit 0. `npm test` 7,608 passing in 71 files; `npm run package` exit 0 (44 files, 1.85 MB); `check-backlog` OK, 220 open items. A memory note `feedback_no_gpl_source_in_every_agent_prompt.md` saved (the no-GPL-source rule goes in EVERY agent prompt). Three round-3 robustness documents (`hunt3/robust-perf` f29 and f30 with 3 MB lines, f32 with a 300 KB backtick run) held pandoc at 100% CPU for 50 minutes and were stopped by hand; they have no verdict. Timed afterwards, the index answers f29 in 43 ms, f30 in 182 ms and f32 in 58 s (the PRE-EXISTING scanner cost the BACKLOG item already files).
+
+### 2026-10-13 · [ad hoc] Session 304: four workflows (29 agents), about 2,100 renders, four mutation runs
+
+Four workflows, 29 agents, about 6.6M subagent tokens, none of them allowed to run `quarto` or the repository: a blind authoring round (6 lenses, 359 documents; 1 regression in 866 verdicts) and three white-box attack rounds with read-only reviewers (found 55, then 121, then 97 regressions against successive revisions; every finding was re-measured by me before a rule changed). Round 1's reviewer prompts lacked the no-GPL-source rule and one reviewer read quarto's installed scripts: nothing from them is in a tracked file, the claim it made (keep-hidden) was re-rendered by me, and the rule is now repeated in every prompt (Learnings 700, 709). I rendered about 2,100 documents with quarto 1.7.33, 3 wide behind the load gate, under untracked `scratchpad/s304/` (240 MB). Mutation, four runs of 52, 76, 138 and 133 mutants on fresh `git archive` trees; the last survivor was killed by `5113783e`, so 133 of 133. Corpus differential over 3,382 authored documents: 0 documents differ, 1,368 labels before and after.
+
+### 2026-10-13 · [BL-What the cross-reference LABEL INDEX still gets wrong after Session 304 — families (2) to (10), every row rendered; family (1), the knitr header labels, is closed] Session 304 `5113783e`: pin the item-continuation clause of `plainFrontMatter`
+
+`test/unit/refs-no-target.test.ts`: one whitelist row (an author item continued by a deeper item line) so the last mutation survivor, the `openValue = indent; continue;` in the item branch, is killed (1 of 1 on a fresh archive of the commit). No code change. Unit tests 7,608.
+
+### 2026-10-13 · [BL-What the cross-reference LABEL INDEX still gets wrong after Session 304 — families (2) to (10), every row rendered; family (1), the knitr header labels, is closed] Session 304 `2c17de91`: kill the third mutation run's survivors, delete the clauses it proved redundant
+
+`src/core/qmd/model.ts` (28 lines: clauses of the front-matter whitelist and the guards that no test could tell from their absence deleted), `test/unit/refs-no-target.test.ts` (+97: one test per guard word, the whitelist tested as a pure function, a sanitised-anchor test that is not vacuous), `BACKLOG.md` (the item rewritten with the final numbers, the declined-by-design list and the PRE-EXISTING slow and crashing inputs), `methodology/PROJECT_LEARNINGS.md` (701-709). Mutation run 4: 132 of 133 killed.
+
+### 2026-10-13 · [BL-What the cross-reference LABEL INDEX still gets wrong after Session 304 — families (2) to (10), every row rendered; family (1), the knitr header labels, is closed] Session 304 `68068583`: round 3 of the white-box hunt
+
+`src/core/qmd/model.ts` (+102), `src/core/refs.ts` (+58), `test/fixtures/no-target-shapes/quarto-1.7.33.json`, `test/unit/refs-no-target.test.ts` (+268), `BACKLOG.md`. Round 3 (6 lenses, about 260 documents rendered by me) found 97 regressions in the fresh set; three fixes after the structural guards: YAML continuation lines and later metadata blocks refuse the plain front matter, markdown-channel and indirect-loader guards on the cell, anchors written elsewhere (`id=`, entity-decoded, sanitised) keep the label, and the cell reader catches a `RangeError` and removes nothing.
+
+### 2026-10-13 · [BL-What the cross-reference LABEL INDEX still gets wrong after Session 304 — families (2) to (10), every row rendered; family (1), the knitr header labels, is closed] Session 304 `c3bf4630`: round 2 of the white-box hunt (121 regressions found, 0 left)
+
+`src/core/qmd/model.ts` (+165), `src/core/refs.ts`, the fixture, `test/unit/refs-no-target.test.ts`, and `test/integration/suite/crossref.test.ts` (the host row, +82, RED then GREEN in the close-out runs). `F` is no longer read as FALSE, only plain front matter (a linear whitelist grammar) is trusted, unseen code and an id written elsewhere in the document decline the removal, and the host row is added.
+
+### 2026-10-13 · [BL-What the cross-reference LABEL INDEX still gets wrong after Session 304 — families (2) to (10), every row rendered; family (1), the knitr header labels, is closed] Session 304 `908d4b94`: kill the mutation survivors, one anchored closer check
+
+`src/core/qmd/model.ts` (62 lines), `src/core/refs.ts` (`closedAtOpener`: the closer must be a bare fence at the opener's indent, one regex in place of three clauses the scanner already guaranteed), `test/unit/refs-no-target.test.ts` (tab bodies, the no-spellings, escaped keys in knitr; unambiguous probe ids).
+
+### 2026-10-13 · [BL-What the cross-reference LABEL INDEX still gets wrong after Session 304 — families (2) to (10), every row rendered; family (1), the knitr header labels, is closed] Session 304 `eea09762`: narrow the no-target rules after the first white-box hunt
+
+`src/core/qmd/model.ts` (147 lines), `src/core/refs.ts`, the fixture, `test/unit/refs-no-target.test.ts` (472 lines). The first hunt found 55 regressions (a label removed where quarto defines it) against `4cbd4af1`; the rules narrowed to what each probe shows: `fig.show`/`fig.keep` and every document-level default are no longer read, `keep-hidden`, a dashed `ref-label`, `opts_hooks` and an `F` rebinding (the last guard removed again in `c3bf4630`, which stops reading `F` at all) decline, one residual disclosed.
+
+### 2026-10-13 · [BL-What the cross-reference LABEL INDEX still gets wrong after Session 304 — families (2) to (10), every row rendered; family (1), the knitr header labels, is closed] Session 304 `4cbd4af1`, claim `2bbe8cec`: a cell that makes no figure or table defines no label
+
+Claim: the operator chose family (1)(i) at the Phase 0 picker; both ledger frontiers were at HEAD. First implementation: `src/core/qmd/model.ts` (+185: `cellTargetContext`, `cellOptionIsFalse`, `knitrCellMakesNoTarget`, `jupyterCellMakesNoTarget`, `knitrChunkHasNoCodeLines`), `src/core/refs.ts` (Source 2 removes the label when the cell is positively known to make no target), `test/fixtures/no-target-shapes/quarto-1.7.33.json` (rendered verdicts), `test/unit/refs-no-target.test.ts` (new, 506 lines), `test/unit/refs.test.ts` (three residual rows flipped away). Ground: knitr (R, python) removes a FIGURE label when `eval` or `output` is false or there is no code, and a figure or table label when `include` is false; Jupyter (python) removes either when `include: false`, the source is empty, or `echo: false` goes with `eval: false`, `output: false` or a comment-only body. The first cut read defaults, `F` and `fig.show`; the hunts that followed narrowed it (not released).
 
 ### 2026-10-13 · [BL-What the cross-reference LABEL INDEX still gets wrong after Session 303 — families (2) to (10), every row rendered; family (1), the knitr header labels, is closed] Session 303: the label index reads a knitr chunk header's label
 
