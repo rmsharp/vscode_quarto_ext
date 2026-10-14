@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
 import { resolveDocumentEngine } from "../../src/core/document-engine-resolve";
+import { plainFrontMatter } from "../../src/core/qmd/model";
 import { indexLabels } from "../../src/core/refs";
 
 describe("Session 304 — a chunk that makes no figure defines no figure label", () => {
@@ -322,6 +323,56 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
     });
   });
 
+  describe("plainFrontMatter, the whitelist itself (a pure function: every clause pinned one row at a time)", () => {
+    const doc = (...front: string[]): string => ["---", ...front, "---", "", "Body."].join("\n");
+
+    it.each([
+      ["", "an empty text"],
+      ["Just prose.", "no front matter at all"],
+      [doc("title: t"), "a single key"],
+      [doc("title: 'It is'"), "a single-quoted value"],
+      [doc('title: "A: B"'), "a double-quoted value with a colon"],
+      [doc("format:", "  html:", "    toc: true"), "nested mappings"],
+      [doc("author:", "  - Jane Doe", "  - John Roe"), "a list under a key with an empty value"],
+      [doc("author:", "  - name: Jane", "    email: jane@x.org", "  - name: John", "    email: john@x.org"), "a list of mappings: sibling keys sit deeper than the dash (item-key column)"],
+      [doc("abstract: |", "  free text: even a colon", "  - and a dash", "lang: en"), "a block scalar, then a key after it"],
+      [doc("abstract: >-", "  folded text", "title: t"), "a folded scalar with a chomp indicator"],
+      [doc("# a comment: with a colon", "", "title: t   # trailing comment"), "comments and blank lines"],
+      [doc("keywords: [alpha, beta]", "bibliography: [a.bib]"), "plain flow lists"],
+      [doc("date: 2024-01-31", "url: https://x.org/a?b=1"), "values holding colons that are not separators"],
+      [doc("julia: python3"), "a plain julia key"],
+      ["Intro.\n\n---\n\nA thematic break and a table.\n\n| a |\n|---|\n| 1 |", "a thematic break followed by a blank line, and a table rule"],
+      ["Title\n---\nA setext heading followed at once by text.", "a setext underline directly under a text line"],
+    ])("plain: %s", (text) => {
+      expect(plainFrontMatter(text)).toBe(true);
+    });
+
+    it.each([
+      ["---\ntitle: t\n\nBody.", "an opener that is never closed (P05)"],
+      ["\uFEFF---\ntitle: t\n---\n", "a byte order mark"],
+      [doc("- name: x"), "a mapping item at the top level (P09)"],
+      [doc("- x"), "a plain item at the top level (P14)"],
+      [doc("title: a: b"), "a colon followed by a space inside a plain value (P12)"],
+      [doc("title:", "\tkey: v"), "a tab indent"],
+      [doc("julia: \"\""), "a quoted julia key: false to quarto, truthy to the resolver (P20)"],
+      [doc("knitr: ''"), "a single-quoted knitr key"],
+      [doc('engine: "knitr"'), "a quoted engine value"],
+      [doc("author:", "  - Jane", "      more words"), "an item continued on the next line (P22)"],
+      [doc("engine: knitr", "  - x"), "a value continued by a deeper line"],
+      [doc("keywords: [a, b", "  c]"), "a flow list that wraps"],
+      [doc("abstract: |", "  text", "  more", "  - x", "title"), "a bare word that is no key after a block scalar"],
+      [doc("a: b", " c: d"), "a key indented under a plain value"],
+      [doc("  title: t"), "every line indented"],
+      ["\n---\ntitle: t\n---\n", "a blank line before the opener"],
+      [" ---\ntitle: t\n---\n", "an indented opener"],
+      [doc("title: a\u00a0b"), "a no-break space"],
+      ["Intro.\n\n---\nengine: knitr\n---\n", "a metadata block lower down (P15)"],
+      [doc("title: t") + "\n\n---\nengine: knitr\n---\n", "a metadata block below the front matter"],
+    ])("not plain: %s", (text) => {
+      expect(plainFrontMatter(text)).toBe(false);
+    });
+  });
+
   describe("a document whose engine this cannot decode, or whose code is called by a built name, is not read", () => {
     // The engine resolver reads the front matter as plain text, so a key spelled with a YAML escape (`"kni\\x74r":`, `"eng\\x69ne":`)
     // is a key it cannot see: quarto runs knitr and the resolver answers Jupyter (hunt front-trap c47, c48, rendered: the label
@@ -545,6 +596,37 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
       kept([chunk("{r setup, include=FALSE}", setup), "", hidden].join("\n"));
     });
 
+    // One word at a time: each alternative of the guard expressions must decline ALONE, or a mutant that drops it survives behind
+    // the other words a richer test document happens to contain (mutation run 3 found twelve such words).
+    const setupWord = (snippet: string): string => [chunk("{r setup, include=FALSE}", snippet), "", hidden].join("\n");
+    it.each([
+      "x <- opts_hooks", "x <- opts_template", "x <- opts_knit", "x <- knit_hooks", "x <- knit_engines", "x <- set_alias",
+      'x <- "opts.label"', 'x <- "opts-label"', "x <- knit_child", "x <- knit_expand", "x <- metadata-files", "x <- source",
+      "eval(x)", "evalq(x)", "parse(x)", "do.call(f)", "match.fun(f)", "get(x)", "get0(x)", "mget(x)", "exec(x)", "execfile(x)",
+      "system(x)", "system2(x)", "getNamespace(x)", "getFromNamespace(x)", "getExportedValue(x)", "asNamespace(x)",
+      "loadNamespace(x)", "__import__(x)", "import_module(x)", "importlib", "runpy", "py_run_file(x)", "py_run_string(x)",
+      "source_python(x)", "import_from_path(x)", "readLines(x)", "utils:::fun",
+    ])("the word in `%s` ALONE keeps a hidden chunk's label", (snippet) => {
+      kept(setupWord(snippet));
+    });
+
+    it.each([
+      'x <- "asis"', "Markdown(x)", "display(x)", "HTML(x)", "from IPython.display import x", "%%markdown", "%%html", "%%latex",
+    ])("the markdown channel in `%s` ALONE keeps a hidden chunk's label", (snippet) => {
+      kept(setupWord(snippet));
+    });
+
+    it("a `.get(` or `dict.get(` method call is no loader, and `display` without a call is none either (controls)", () => {
+      expect(ids(setupWord("d.get(1)\nx <- 'display'"))).toEqual([]);
+    });
+
+    it.each([["read_chunk"], ["read_demo"], ["read_rforge"], ["knit_code"], ["opts_chunk"]])("`%s` ALONE keeps an EMPTY figure chunk, and only that rule", (word) => {
+      const text = [chunk("{r setup, include=FALSE}", `x <- ${word}`), "", chunk("{r fig-x}", '#| fig-cap: "Cap"')].join("\n");
+      expect(ids(text)).toEqual(["fig-x"]);
+      const withEval = [chunk("{r setup, include=FALSE}", `x <- ${word}`), "", hidden].join("\n");
+      expect(ids(withEval)).toEqual([]); // eval=FALSE is no empty-body rule: these words do not touch it
+    });
+
     it("the front matter's `metadata-files` pulls in options this text does not show (b41, b42, d37)", () => {
       kept(["---", "title: t", "metadata-files:", "  - _meta.yml", "---", "", hidden].join("\n"));
     });
@@ -589,11 +671,15 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
       ["![Cap](a.png){\n#tbl-x}", "an attribute block split by a newline (e10, c41, e15)"],
       ["![Cap](a.png){.shot #tbl-x}", "a class before the id"],
       ["![Cap](a.png){width=50%#tbl-x}", "a value glued to the id (e13)"],
-      ["Caption text {#tbl-x$}", "a character pandoc strips from the id (hunt3 e: `{#tbl-e0$1}` is `tbl-e01`)"],
     ])("an id spelled as %s elsewhere keeps the hidden chunk's label (%s)", (anchor) => {
       const kind = "tbl";
-      const text = [anchor.replace(/tbl-x\$?/, anchor.includes("$") ? "tbl-x$" : "tbl-x"), "", chunk(`{r ${kind}-x, include=FALSE}`, `#| ${kind}-cap: "Cap"`, "knitr::kable(head(cars))")].join("\n");
+      const text = [anchor, "", chunk(`{r ${kind}-x, include=FALSE}`, `#| ${kind}-cap: "Cap"`, "knitr::kable(head(cars))")].join("\n");
       expect(ids(text)).toEqual(["tbl-x"]);
+    });
+
+    it("an anchor pandoc sanitises counts as the id it becomes: `{#tbl-x$y}` is `tbl-xy` (hunt3 anchor-ids; the prose scan alone reads `tbl-x`)", () => {
+      const text = ["| a |", "|---|", "| 1 |", "", ": Cap {#tbl-x$y}", "", chunk("{r tbl-xy, include=FALSE}", '#| tbl-cap: "Cap"', "knitr::kable(head(cars))")].join("\n");
+      expect(ids(text)).toContain("tbl-xy");
     });
 
     it.each([
@@ -958,6 +1044,13 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
     it("a properly closed cell is judged as before, indented or not (control)", () => {
       expect(jids(jupyterDoc("```{python}", "#| label: fig-x", "#| include: false", "```"))).toEqual([]);
       expect(jids(jupyterDoc("- item", "", "  ```{python}", "  #| label: fig-x", "  #| include: false", "  ```"))).toEqual([]);
+    });
+
+    it("a closer indented with NO-BREAK spaces is a closer to the scanner and no closer at the opener's indent: nothing is removed", () => {
+      const text = ["- item", "", "  ```{r fig-x, eval=FALSE}", '  #| fig-cap: "Cap"', "  plot(1)", "\u00a0\u00a0```"].join("\n");
+      expect(ids(text)).toEqual(["fig-x"]);
+      const ascii = ["- item", "", "  ```{r fig-x, eval=FALSE}", '  #| fig-cap: "Cap"', "  plot(1)", "  ```"].join("\n");
+      expect(ids(ascii)).toEqual([]);
     });
 
     it("a longer opener needs a closer as long (a four-backtick cell is not closed by three)", () => {

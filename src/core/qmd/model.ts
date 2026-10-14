@@ -7266,7 +7266,7 @@ export interface CellTargetContext {
   readonly codeFromElsewhere: boolean;
   /**
    * The document names a chunk hook or template (`opts_hooks`, `opts_template`, `opts_knit`, `knit_hooks`, `knit_engines`, `set_alias`, `opts.label`), or
-   * runs code this text does not show — `source`, `sys.source`, a `knit_child`, `knit_expand`, `readLines`, `metadata-files` — or
+   * runs code this text does not show — `source` (so `sys.source` too), a `knit_child`, `knit_expand`, `readLines`, `metadata-files` — or
    * reaches code by an indirect name (`get(...)`, `do.call`, `match.fun`, `asNamespace`, `getFromNamespace`, `pkg:::fun`,
    * `eval(parse(...))`, `exec`, `importlib`, `py_run_file`, `source_python`, `system2`). An option the header or the pipe sets
    * may then be set back before the chunk runs, or a variable rebound, or a chunk filled (hunt a06-a09, a11, a12-a25, b22, b23,
@@ -7321,7 +7321,7 @@ export function cellTargetContext(text: string): CellTargetContext {
   return {
     codeFromElsewhere: /read_chunk|read_demo|read_rforge|knit_code|opts_chunk/.test(text),
     unseenCode:
-      /opts_hooks|opts_template|opts_knit|knit_hooks|knit_engines|set_alias|opts[._-]label|knit_child|knit_expand|metadata-files|sys\.source|\bsource\b|(?<![\w.$@])(?:eval|evalq|parse|do\.call|match\.fun|get0?|mget|exec|execfile|system2?)\s*\(|getNamespace|getFromNamespace|getExportedValue|asNamespace|loadNamespace|__import__|import_module|importlib|runpy|py_run_|source_python|import_from_path|readLines|\w:::\w/.test(
+      /opts_hooks|opts_template|opts_knit|knit_hooks|knit_engines|set_alias|opts[._-]label|knit_child|knit_expand|metadata-files|\bsource\b|(?<![\w.$@])(?:eval|evalq|parse|do\.call|match\.fun|get0?|mget|exec|execfile|system2?)\s*\(|getNamespace|getFromNamespace|getExportedValue|asNamespace|loadNamespace|__import__|import_module|importlib|runpy|py_run_|source_python|import_from_path|readLines|\w:::\w/.test(
         text,
       ),
     writesMarkdown: false,
@@ -7356,8 +7356,8 @@ function trimEndSpaces(value: string): string {
  * lines YAML and the engine resolver can only read one way. This is a WHITELIST, because the resolver reads the block as text and
  * round 2 of the hunt showed a blacklist of the spellings that blind it never ends (see `CellTargetContext.opaqueFrontMatter`).
  *
- * Plain means: no byte order mark; if the first non-blank line is `---`, it is the FIRST line and a `---` or `...` line closes
- * it; every line is blank, a `#` comment, a `key: value` line or a `- item`, all indented by spaces and the first content line at
+ * Plain means: if the first non-blank line is `---`, it is the FIRST line (a byte order mark, a leading space or a blank line before
+ * it fails this, because the resolver trims) and a `---` or `...` line closes it; every line is blank, a `#` comment, a `key: value` line or a `- item`, all indented by spaces and the first content line at
  * column 0 with every column-0 line a key; a value is empty (a block follows), a block-scalar indicator (its indented block is
  * skipped as text), a plain scalar with no quote, bracket, brace, backslash, `&`, `*`, `!`, `?`, `%` or `@` start and no `: ` or
  * ` #` inside, a double-quoted string with no backslash or inner quote, a single-quoted string with no inner quote, or a one-line
@@ -7368,10 +7368,7 @@ function trimEndSpaces(value: string): string {
  * ⚠ This only decides whether the text can be trusted; it models none of YAML. An apostrophe in a title (`title: Bob's`) makes a
  * front matter not plain and declines the rules for that document: a lost removal, the safe side.
  */
-function plainFrontMatter(text: string): boolean {
-  if (text.charCodeAt(0) === 0xfeff) {
-    return false;
-  }
+export function plainFrontMatter(text: string): boolean {
   const lines = text.split(/\r?\n/);
   let first = 0;
   while (first < lines.length && lines[first].trim() === "") {
@@ -7417,8 +7414,8 @@ function plainFrontMatter(text: string): boolean {
     if (/^ *#/.test(line)) {
       continue;
     }
-    if (line.startsWith("\t") || /^ *\t/.test(line) || (!sawContent && indent !== 0) || indent > openValue && openValue >= 0) {
-      return false;
+    if ((!sawContent && indent !== 0) || (openValue >= 0 && indent > openValue)) {
+      return false; // the first content line is at column 0, and a deeper line would continue the value above it
     }
     openValue = -1;
     sawContent = true;
@@ -7441,12 +7438,13 @@ function plainFrontMatter(text: string): boolean {
     if (value === "") {
       continue;
     }
-    openValue = indent + (key[2]?.length ?? 0);
     const quoted = /^"[^"\\]*"$|^'[^']*'$/.test(value);
     if (/^[|>][+-]?[0-9]?$/.test(value)) {
       blockOver = indent;
-      openValue = -1;
-    } else if (quoted) {
+      continue;
+    }
+    openValue = indent + (key[2]?.length ?? 0);
+    if (quoted) {
       if (PLAIN_ENGINE_KEYS.has(key[3])) {
         return false;
       }
@@ -7568,9 +7566,9 @@ export function knitrCellMakesNoTarget(
     return true;
   }
   // ⚠ An empty body brings no code only when no option brings it in from OUTSIDE (`ref.label=`, `code=` and `file=`
-  // run another chunk's or file's code; `child=` inserts a document), as in `knitrChunkIsSilent`.
+  // run another chunk's or file's code; `child=` was declined above), as in `knitrChunkIsSilent`.
   // The pipe spells a dotted option name with a dash too (`ref-label`, b10, f13), as it does `fig-show` for `fig.show`.
-  const external = ["child", "file", "code", "ref.label"].some(
+  const external = ["file", "code", "ref.label"].some(
     (name) => header.has(name) || pipe.has(name) || pipe.has(name.replace(".", "-")),
   );
   return !external && !context.codeFromElsewhere && knitrChunkHasNoCodeLines(body);
