@@ -20695,6 +20695,13 @@ describe("Session 307 — code that reaches an EMPTY chunk through a knitr chann
     ["the call inside a function that is then called (fill_09)", EMPTY,
       { source: setup("prepare <- function(lab) {", "  knitr::opts_chunk$set(ref.label = lab)", "  invisible(lab)", "}", 'prepare("src")') }],
     ["an inline `r` expression in the prose (k11, BOTH modes)", EMPTY, { above: ['`r knitr::opts_chunk$set(ref.label = "src")`', ""] }],
+    ["an inline `r` expression that calls `read_chunk` for a labelled chunk (s01)", LBL, { above: ['`r knitr::read_chunk("_lbl.R")`', ""] }],
+    ["a label given by a `label=` option in the header (s11)", ['```{r, label="lbl"}', "```"], { source: setup('knitr::read_chunk("_lbl.R")') }],
+    ["a call inside the argument list BEFORE the option (s08)", EMPTY, { source: setup('knitr::opts_chunk$set(fig.path = file.path("a", "b"), ref.label = "src")') }],
+    ["a `)` inside a string before the option (s09)", EMPTY, { source: setup('knitr::opts_chunk$set(comment = "(a) )", ref.label = "src")') }],
+    ["an escaped quote inside a string before the option (s10)", EMPTY, { source: setup('knitr::opts_chunk$set(comment = "q\\")", ref.label = "src")') }],
+    ["the DASHED spelling `ref-label` as a front-matter key (s04)", EMPTY, { front: ["knitr:", "  opts_chunk:", "    ref-label: src"] }],
+    ["the dashed spelling as a quoted name in the call (s06)", EMPTY, { source: setup('knitr::opts_chunk$set("ref-label" = "src")') }],
     ["the front matter's `knitr: opts_chunk:` (k12, BOTH modes)", EMPTY, { front: ["knitr:", "  opts_chunk:", "    ref.label: src"] }],
     ["the front matter in FLOW style (fill_30)", EMPTY, { front: ['knitr: { opts_chunk: { code: "z <- 3" } }'] }],
   ])("not silent: %s", (_n, target, shape) => {
@@ -20740,6 +20747,9 @@ describe("Session 307 — code that reaches an EMPTY chunk through a knitr chann
     ["`opts_chunk` named in PROSE only (a04)", EMPTY, { above: ["The word `opts_chunk` appears only in this sentence.", ""] }],
     ["`read_chunk` named in PROSE only (a13)", LBL, { above: ["We never call `read_chunk` here.", ""] }],
     ["the front matter's `knitr: opts_chunk:` with no code option", EMPTY, { front: ["knitr:", "  opts_chunk:", "    collapse: true"] }],
+    ["option names that merely END in `code` or `file` (s03)", EMPTY, { source: setup('knitr::opts_chunk$set(zipcode = 1, my.file = "y")') }],
+    ["`ref_label` with an UNDERSCORE is no option (s05)", EMPTY, { front: ["knitr:", "  opts_chunk:", "    ref_label: src"] }],
+    ["`opts_chunk$merge()` returns the merged list and sets nothing (s07)", EMPTY, { source: setup('knitr::opts_chunk$merge(list(ref.label = "src"))') }],
   ])("silent: %s", (_n, target, shape) => {
     expect(outline(target, shape)).toEqual(shape.later === false ? SILENT_P : SILENT);
   });
@@ -20749,6 +20759,14 @@ describe("Session 307 — code that reaches an EMPTY chunk through a knitr chann
     const lines = ["---", "title: t", "---", "", ...setup('knitr::opts_chunk$set(echo = TRUE)'), "", "# Top", "", "Insert an empty chunk like this:", "", "```",
       "```{r}", "```", "```", "", "## After", "", "```{r}", "y <- 1", "```", "", "## Last", ""];
     expect(findHeadings(lines.join("\n"), "knitr").map((h) => h.text)).toEqual(["Top", "After", "Last"]);
+  });
+
+  // An UNCERTAIN chunk is still a CELL: its own opener finds its own closer, though that closer may not OPEN a swallow for a stray fence above.
+  it("a labelled empty chunk below `read_chunk` is still listed as a cell, even as the LAST closer in the document", () => {
+    const text = ["---", "title: t", "---", "", ...setup('knitr::read_chunk("_lbl.R")'), "", "# Top", "", "```{r lbl}", "```", ""].join("\n");
+    const roots = buildOutline(text, "knitr");
+    expect(roots.map((r) => `${r.kind}:${r.name}`)).toEqual(["cell:```{r}", "cell:```{r}", "heading:Top"]);
+    expect(roots[2].children.map((c) => c.name)).toEqual(["```{r}"]);
   });
 
   // NOT A CHANNEL, rendered: each leaves the empty chunk SILENT in quarto (grid g5), so a guard on the word would only add a phantom.
@@ -20835,6 +20853,11 @@ describe("Session 307 — an `echo=FALSE` chunk whose code can write a FENCE is 
     ["`knitr::asis_output()` of a fence line (n11)", ["```{r, echo=FALSE}", 'knitr::asis_output("```\\n")', "```"]],
     ["a fence line with an info string (normal_22)", ["```{r, echo=FALSE}", 'cat("```r\\nx <- 1\\n")', "```"]],
     ["a `{python}` chunk printing a fence line (n06)", ['```{python, echo=FALSE, results="asis"}', 'print("```")', "```"]],
+    ["`writeLines()` of a fence line (s12)", ["```{r, echo=FALSE}", 'writeLines("```")', "```"]],
+    ["`writeLines()` of a vector that holds a fence line (s15)", ["```{r, echo=FALSE}", 'writeLines(c("a", "```"))', "```"]],
+    ["`message()` of a fence line (s13)", ["```{r, echo=FALSE}", 'message("```")', "```"]],
+    ["a fence line that follows an escaped newline inside the string (s14)", ["```{r, echo=FALSE}", 'cat("Intro\\n```\\n")', "```"]],
+    ["a fence line with an info string built by `sprintf()` and printed by `cat()` (s16)", ["```{r, echo=FALSE}", 'cat(sprintf("```%s\\n", "r"))', "```"]],
     ["the fence held in a variable and printed on another line", ["```{r, echo=FALSE}", 'fence <- "```"', "cat(fence, sep = \"\\n\")", "```"]],
   ])("not silent: %s", (_n, target, front) => {
     expect(outline(target, front)).toEqual(ECHOES);
@@ -20865,6 +20888,7 @@ describe("Session 307 — an `echo=FALSE` chunk whose code can write a FENCE is 
     ["`readLines()` into a variable, nothing printed (q13)", ["```{r, echo=FALSE}", 'notes <- readLines("_fence.md")', "n <- length(notes)", "```"]],
     ["three backticks MID-LINE in a printed sentence (q15)", ['```{r, echo=FALSE, results="asis"}', 'cat("a literal ```" , "inside a sentence\\n")', "```"]],
     ["`gsub()` on a fence run, nothing printed (q16)", ["```{r, echo=FALSE}", 'txt <- gsub("```", "", "a ``` b")', "```"]],
+    ["`sprintf()` and `paste0()` build a fence string and nothing prints it (s17)", ["```{r, echo=FALSE}", 'x <- sprintf("```")', 'y <- paste0(x, "r")', "```"]],
   ])("silent: %s", (_n, target) => {
     expect(outline(target)).toEqual(SILENT);
     expect(outline(target, undefined, false)).toEqual(SILENT_P);
@@ -20891,6 +20915,12 @@ describe("Session 307 — an `echo=FALSE` chunk whose code can write a FENCE is 
     ["a `code=` option (q09)", ['```{r, echo=FALSE, code="print(1)"}', "```"]],
   ])("silent: %s", (_n, target) => {
     expect(outline(target)).toEqual(SILENT);
+  });
+
+  // WRONG BEFORE AND AFTER, DELETING (s18, rendered: quarto `Top, After, Last`): a fence line built from pieces and printed is loud, and no word list
+  // sees it (`lens-writer` found 20 such documents, `strrep`, `intToUtf8`, a `sprintf` vector, a stored variable). Pinned at the model's answer.
+  it("WRONG before and after, DELETING: a fence built from pieces and printed, `print(paste0(\"``\", \"`\"))` (s18)", () => {
+    expect(outline(["```{r, echo=FALSE}", 'print(paste0("``", "`"))', "```"])).toEqual(SILENT);
   });
 
   // PRE-EXISTING, wrong at HEAD and now, the PHANTOM direction (measured, shape P, q01, q03): `print()` and `message()` under `echo=FALSE` each write

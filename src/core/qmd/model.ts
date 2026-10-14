@@ -6864,7 +6864,7 @@ const KNITR_FILL_INLINE = /`r [^`]*(?:read_chunk|read_demo|read_rforge|knit_code
 /** `opts_chunk`, the knitr object that holds chunk defaults. */
 const KNITR_OPTS_CHUNK = "opts_chunk";
 /** An option that makes a chunk echo code written elsewhere, as a named argument (`ref.label = `), a YAML key (`ref.label: `) or a quoted name. */
-const KNITR_OPTS_CODE_OPTION = /(?<![\w.])(?:ref[._-]label|code|file|child)["']?[ \t]*[=:]/;
+const KNITR_OPTS_CODE_OPTION = /(?<![\w.])(?:ref[.-]label|code|file|child)["']?[ \t]*[=:]/;
 /** The longest argument list of one `opts_chunk$set(...)` call this reads; a longer one is read up to here. */
 const KNITR_CALL_ARGUMENTS_MAX = 4000;
 /**
@@ -6881,12 +6881,13 @@ function knitrOptsChunkSuppliesCode(text: string): boolean {
   for (let at = text.indexOf(KNITR_OPTS_CHUNK); at >= 0; at = text.indexOf(KNITR_OPTS_CHUNK, at + KNITR_OPTS_CHUNK.length)) {
     mentions++;
     const start = at + KNITR_OPTS_CHUNK.length;
-    const call = /^[ \t]*\$[ \t]*(?:set|merge)[ \t]*\(/.exec(text.slice(start, start + 40));
+    const call = /^[ \t]*\$[ \t]*(\w+)[ \t]*\(/.exec(text.slice(start, start + 40));
     if (call === null) {
       continue;
     }
     calls++;
-    if (KNITR_OPTS_CODE_OPTION.test(knitrCallArguments(text, start + call[0].length))) {
+    // Only `$set(` changes a default: `$merge()` returns the merged list, `$get()` reads one (s07, rendered silent).
+    if (call[1] === "set" && KNITR_OPTS_CODE_OPTION.test(knitrCallArguments(text, start + call[0].length))) {
       return true;
     }
   }
@@ -7139,8 +7140,8 @@ function knitrChunkIsSilent(
 }
 /** A child document or a template: its output carries the child's own fences. */
 const KNITR_CHILD_WRITER = /knit_child|knit_expand/;
-/** A call that PUTS text into the chunk's output. */
-const KNITR_OUTPUT_CALL = /\b(?:cat|print|writeLines|message|asis_output|knit_print|sprintf|paste0?|write)\s*\(/;
+/** A call measured to PUT text into the chunk's output (`sprintf` and `paste0` only BUILD a string, s17). */
+const KNITR_OUTPUT_CALL = /\b(?:cat|print|writeLines|message|asis_output)\s*\(/;
 /** A string that BEGINS with a fence run, directly after its quote or an escaped newline: a fence LINE, where `"a ``` b"` is mid-line prose. */
 const KNITR_FENCE_LITERAL = /(?:["']|\\n)`{3,}/;
 /** A file read back into R. */
