@@ -6778,12 +6778,12 @@ function knitrSilentChunkClosers(lines: readonly string[]): KnitrChunkClosers {
   const defaults = knitrDocumentDefaults(lines);
   // What the lines ABOVE the chunk being judged can hand it as code (Session 307): see `KnitrCodeChannels`.
   const front = frontMatterOpenIndex(lines) === 0 ? frontMatterContent(lines) : null;
-  const channels: KnitrCodeChannels = { opts: front !== null && knitrOptsChunkSuppliesCode(front.join("\n")), fill: false };
+  const channels: KnitrCodeChannels = { opts: front !== null && knitrFrontMatterSuppliesCode(front), fill: false };
   for (let i = 0; i < lines.length; i++) {
     const begin = KNITR_CHUNK_BEGIN.exec(lines[i]);
     if (begin === null) {
-      // Prose, or the front matter line by line (a flow mapping on one line): an inline `r` call runs in both modes.
-      channels.opts = channels.opts || knitrOptsChunkSuppliesCode(lines[i]);
+      // Prose: only an inline `r` call runs (in both modes); a code span, a comment or a sentence that names the call does not.
+      channels.opts = channels.opts || (lines[i].includes("`r ") && knitrOptsChunkSuppliesCode(lines[i]));
       channels.fill = channels.fill || KNITR_FILL_INLINE.test(lines[i]);
       continue;
     }
@@ -6815,7 +6815,7 @@ function knitrSilentChunkClosers(lines: readonly string[]): KnitrChunkClosers {
       }
     }
     // The chunk's own body counts only for the chunks BELOW it.
-    channels.opts = channels.opts || knitrOptsChunkSuppliesCode(body.join("\n"));
+    channels.opts = channels.opts || knitrOptsChunkSuppliesCode(body.filter((line) => !/^[ \t]*#/.test(line)).join("\n"));
     channels.fill = channels.fill || body.some((line) => !/^[ \t]*#/.test(line) && KNITR_FILL_CALL.test(line));
     i = end;
   }
@@ -6846,7 +6846,8 @@ const NO_KNITR_CLOSERS: KnitrChunkClosers = { silent: new Map(), uncertain: new 
  * that sits in prose, a comment or beside an unlabelled chunk (q23, q24, a04, a13).
  * ⚠ **THE FIRST CUT READ THE BARE WORD AND WAS WRONG IN THE NORMAL CASE.** Blind round 1 (`lens-normal`, 30 realistic documents) scored 12 regressions
  * against 1 fix, and a reviewer's sandwich (an empty chunk between two bare fences that pair with each other) lost `After`: declining a silence is
- * safe ONLY while a later closer exists, and it flips fence parity otherwise. The rows are the "THE NORMAL CASE" block of `qmd-model.test.ts`.
+ * safe only while a later closer exists AND no orphan fence follows it (the sandwich's second fence, once the first closes early, opens a swallow of its own). The
+ * rows are the "THE NORMAL CASE" block of `qmd-model.test.ts`; the sandwich with an uncertain middle is a pinned DELETING residual.
  * ⚠ What it still cannot see is a call that never runs (`eval=FALSE` on the setup chunk, a function never called) and a label that names nothing
  * (a07, fill_10, a02: RESIDUAL rows), and a code option set by a `source()`d file, a child, or a name built from pieces (a disclosed residual).
  * ⚠ Under `--no-execute` the setup chunk never runs, so quarto stays silent for every CODE channel (the inline call and the front matter
@@ -6857,10 +6858,10 @@ interface KnitrCodeChannels {
   opts: boolean;
   fill: boolean;
 }
-/** A function that fills a chunk BY LABEL with code written elsewhere. `read_demo` and `read_rforge` are NOT rendered (they need a package demo / the network). */
-const KNITR_FILL_CALL = /read_chunk|read_demo|read_rforge|knit_code/;
+/** A function that fills a chunk BY LABEL with code written elsewhere (`knit_code$get()` only reads one). `read_demo` and `read_rforge` are NOT rendered (they need a package demo / the network). */
+const KNITR_FILL_CALL = /read_chunk|read_demo|read_rforge|knit_code[ \t]*\$[ \t]*set/;
 /** The same, inside an inline `` `r …` `` call. */
-const KNITR_FILL_INLINE = /`r [^`]*(?:read_chunk|read_demo|read_rforge|knit_code)/;
+const KNITR_FILL_INLINE = /`r [^`]*(?:read_chunk|read_demo|read_rforge|knit_code[ \t]*\$[ \t]*set)/;
 /** `opts_chunk`, the knitr object that holds chunk defaults. */
 const KNITR_OPTS_CHUNK = "opts_chunk";
 /** An option that makes a chunk echo code written elsewhere, as a named argument (`ref.label = `), a YAML key (`ref.label: `) or a quoted name. */
@@ -6885,21 +6886,46 @@ function knitrOptsChunkSuppliesCode(text: string): boolean {
     next = start;
     const call = /^[ \t]*\$[ \t]*(\w+)[ \t]*\(/.exec(text.slice(start, start + 40));
     if (call !== null) {
-      calls++;
-      // Only `$set(` changes a default: `$merge()` returns the merged list, `$get()` reads one (s07, rendered silent).
-      if (call[1] === "set") {
+      if (call[1] !== "set") {
+        // `$merge()` returns the merged list, `$get()` reads one: neither sets a default (s07, rendered silent).
+        calls++;
+      } else {
         const args = knitrCallArguments(text, start + call[0].length);
-        if (KNITR_OPTS_CODE_OPTION.test(args)) {
-          return true;
-        }
         // The search resumes AFTER the arguments just read: a mention inside them is covered by that read, and re-reading them for each one is quadratic
         // (a 10 MB line of `opts_chunk$set(` repeats took 9.5 s).
         next = start + call[0].length + args.length;
+        // A call with NAMED arguments is read through them. `opts_chunk$set(opts)` hands its options in a variable or a list (fill2_01): an indirect use.
+        if (/[^=!<>]=(?!=)/.test(args)) {
+          calls++;
+          if (KNITR_OPTS_CODE_OPTION.test(args)) {
+            return true;
+          }
+        }
       }
     }
     next = text.indexOf(KNITR_OPTS_CHUNK, next);
   }
   return mentions > calls && KNITR_OPTS_CODE_OPTION.test(text);
+}
+/**
+ * Whether the front matter's own `opts_chunk` key sets an option that supplies code (Session 307, review): the option is read only inside the BLOCK the key
+ * opens (the lines indented deeper than it, or the key's own line in flow style), so a `file:` key elsewhere (`include-in-header: - file: header.html`) is not read.
+ */
+function knitrFrontMatterSuppliesCode(front: readonly string[]): boolean {
+  for (let i = 0; i < front.length; i++) {
+    if (!front[i].includes(KNITR_OPTS_CHUNK) || /^[ \t]*#/.test(front[i])) {
+      continue;
+    }
+    const indent = front[i].length - front[i].trimStart().length;
+    let end = i + 1;
+    while (end < front.length && (front[end].trim() === "" || front[end].length - front[end].trimStart().length > indent)) {
+      end++;
+    }
+    if (knitrOptsChunkSuppliesCode(front.slice(i, end).join("\n"))) {
+      return true;
+    }
+  }
+  return false;
 }
 /** The text from `start` (just after a call's `(`) to its matching `)`, skipping quoted strings; up to `KNITR_CALL_ARGUMENTS_MAX` characters. */
 function knitrCallArguments(text: string, start: number): string {
@@ -6916,6 +6942,11 @@ function knitrCallArguments(text: string, start: number): string {
       }
     } else if (ch === '"' || ch === "'") {
       quote = ch;
+    } else if (ch === "#") {
+      // An R comment runs to the end of the line: a `)` or an apostrophe in it is no paren and opens no string (fill2_07, fill2_08).
+      while (k < stop && text[k] !== "\n") {
+        k++;
+      }
     } else if (ch === "(") {
       depth++;
     } else if (ch === ")" && --depth === 0) {
@@ -6926,7 +6957,8 @@ function knitrCallArguments(text: string, start: number): string {
 }
 /** Whether a chunk carries a LABEL: `{r lbl}`, `{r lbl, ...}`, `label=` in the header or a `#| label:` line. */
 function knitrChunkHasLabel(header: string, options: ReadonlyMap<string, string>, pipe: ReadonlyMap<string, string>): boolean {
-  return options.has("label") || pipe.has("label") || /^\{[A-Za-z0-9_]+[ \t]+[^\s,=}]+(?=[\s,}])/.test(header);
+  // The same reader as the label index (Session 303, rendered): a label may follow the engine, a comma or an option (`{r, lbl}`, `{r echo=FALSE, lbl}`).
+  return options.has("label") || pipe.has("label") || knitrChunkHeaderLabel("```" + header) !== null;
 }
 /** Which chunk options the DOCUMENT positively sets to false, for a chunk that sets neither itself. */
 interface KnitrDocDefaults {
@@ -7173,9 +7205,10 @@ const KNITR_FILE_READER = /\breadLines\s*\(/;
  * disclosed residual (round 1, `lens-writer`: 20 of 30 documents, wrong at HEAD as well), since no word list can see what arbitrary running code
  * prints. A word that is named and never reaches the output (`if (FALSE)`, `results="hide"`, a trailing comment, a child with no chunk)
  * declines the silence too.
- * ⚠ Declining a silence is the SAFE side only while a later closer exists: with none, the stray fence has nothing to pair with in quarto and every
- * heading shows, and a declined silence closes it early and DELETES `Between` (the Session 306 shape P; pinned). Under `--no-execute` nothing
- * runs, so quarto stays silent here and the two modes disagree: the model follows the executing one, as `KnitrCodeChannels` does.
+ * ⚠ Declining a silence is the SAFE side only while a later closer exists and no orphan fence follows it. With no later closer the stray fence has
+ * nothing to pair with in quarto and every heading shows, so an UNCERTAIN chunk (`KnitrChunkClosers`) may end a swallow early but never opens one (shape P,
+ * rendered p01-p10). With a second bare fence below (the sandwich) the early close turns that fence into an opener: a pinned DELETING residual.
+ * Under `--no-execute` nothing runs, so quarto stays silent here and the two modes disagree: the model follows the executing one, as `KnitrCodeChannels` does.
  */
 function knitrCodeWritesFence(
   body: readonly string[],
