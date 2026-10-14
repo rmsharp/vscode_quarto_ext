@@ -7031,9 +7031,39 @@ function knitrChunkIsSilent(
   // document-level `include: false` has no such split, so it covers every engine this rule trusts.
   const documentEcho = defaults.echo && KNITR_DOC_ECHO_ENGINES.has(engine[1]);
   return (
-    knitrOptionResolvesFalse("echo", options, pipe, documentEcho) ||
+    (knitrOptionResolvesFalse("echo", options, pipe, documentEcho) && !knitrCodeWritesFence(body, options, pipe)) ||
     knitrOptionResolvesFalse("include", options, pipe, defaults.include)
   );
+}
+/**
+ * What a chunk's code can write that carries a fence line (Session 307): a child document (`knit_child`, `knit_expand`), a file read back
+ * (`readLines`) and a literal fence run of three or more backticks or tildes. See `knitrCodeWritesFence`.
+ */
+const KNITR_FENCE_WRITER = /knit_child|knit_expand|readLines|`{3}|~{3}/;
+/**
+ * Whether the code of a chunk silenced only by `echo` can write a FENCE LINE into its output (Session 307). `echo=FALSE` drops the
+ * chunk's own fence, not what its code writes: rendered (quarto 1.7.33, real execution, `scratchpad/s307/` g3, g5, g6), `cat()` of
+ * `knitr::knit_child()` output hands pandoc the child's fence, a literal fence line in the output does too (three or more backticks, with
+ * `results="asis"` or without it, `asis_output()` included), and so does a file read back that holds one (`readLines`), and the stray
+ * bare fence above pairs with it, so only `Between` is swallowed. `include=FALSE` hides all of it (m02), and a chunk that never runs writes
+ * nothing (`eval` positively false, n01, n02). The document's own `execute: echo: false` is read through the same function (n03).
+ * ⚠ A line that is only a comment is not code (m08). An obfuscated writer (a fence built from pieces, a file read back by another
+ * function) is a disclosed residual: this reads the channel words the hunters used, as `cellTargetContext` does. A word that is named
+ * and never reaches the output (`if (FALSE)`, `results="hide"`, a trailing comment, a child with no chunk) declines the silence too.
+ * ⚠ A wrong "silent" deletes the heading below, so declining is the SAFE side, but only while a later closer exists: with none, the
+ * stray fence has nothing to pair with in quarto and every heading shows, and a declined silence closes it early (the Session 306 shape P).
+ * Under `--no-execute` nothing runs, so quarto stays silent here and the two modes disagree: the model follows the executing one, as
+ * `KNITR_CODE_CHANNEL` does.
+ */
+function knitrCodeWritesFence(
+  body: readonly string[],
+  options: ReadonlyMap<string, string>,
+  pipe: ReadonlyMap<string, string>,
+): boolean {
+  if (cellOptionIsFalse("eval", options, pipe)) {
+    return false;
+  }
+  return codeLinesAfterPipe(body).some((line) => !/^[ \t]*#/.test(line) && KNITR_FENCE_WRITER.test(line));
 }
 /** Whether a chunk's body holds nothing past its leading `#|` option lines but blank lines. */
 function knitrChunkHasNoCode(body: readonly string[]): boolean {

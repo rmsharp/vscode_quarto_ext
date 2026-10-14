@@ -20725,6 +20725,82 @@ describe("Session 307 — code that reaches an EMPTY chunk through a knitr chann
   });
 });
 
+describe("Session 307 — an `echo=FALSE` chunk whose code can write a FENCE is not silent", () => {
+  // MEASURED, quarto 1.7.33 with knitr 1.51, `.qmd`, exit 0 with real execution (`scratchpad/s307/` grids g3, g5; the ids are theirs). A
+  // chunk silenced by `echo=FALSE` emits no fence of its own, but what its code writes can: the stray bare fence above it then pairs with
+  // THAT fence and only `Between` is swallowed (T: Top, After, Last). Without such output the chunk is silent (T: Top, Last).
+  const grid = (target: string[], front: string[] = []): string =>
+    ["---", "title: t", ...front, "---", "", "# Top", "", "```", "", "## Between", "", ...target, "", "## After", "", "```{r}", "y <- 1", "```", "", "## Last", ""]
+      .join("\n");
+  const outline = (target: string[], front?: string[]): string[] => findHeadings(grid(target, front), "knitr").map((h) => h.text);
+  const ECHOES = ["Top", "After", "Last"];
+  const SILENT = ["Top", "Last"];
+  const CHILD = 'cat(knitr::knit_child("_loud.Rmd", quiet = TRUE))';
+
+  it("`echo=FALSE` and a `knit_child()` of a document that holds a chunk: the child's fence is written, so it is not silent (m01)", () => {
+    expect(outline(["```{r, echo=FALSE}", CHILD, "```"])).toEqual(ECHOES);
+  });
+
+  it("`echo=FALSE`, `results=\"asis\"` and a `cat()` that writes ONE bare fence line: that line closes the stray fence (m05)", () => {
+    expect(outline(['```{r, echo=FALSE, results="asis"}', 'cat("```\\n")', "```"])).toEqual(ECHOES);
+  });
+
+  it("`echo=FALSE`, `results=\"asis\"` and `knit_expand()` of a template that holds a chunk (m03)", () => {
+    expect(outline(['```{r, echo=FALSE, results="asis"}', 'cat(knitr::knit_expand("_tpl.Rmd"))', "```"])).toEqual(ECHOES);
+  });
+
+  it("`echo=FALSE`, `results=\"asis\"` and `cat(readLines(file))` of a file that holds a bare fence line (n12)", () => {
+    expect(outline(['```{r, echo=FALSE, results="asis"}', 'cat(readLines("_fence.md"), sep = "\\n")', "```"])).toEqual(ECHOES);
+  });
+
+  // Rows of the same behaviour (they went green with the rows above, disclosed; dropping a word from the guard turns its rows RED,
+  // verified by a mutant). Every one was rendered with real execution, exit 0, and is loud.
+  it.each<[string, string[], string[]?]>([
+    ["the header's `results=\"asis\"` with a child (b05)", ['```{r, echo=FALSE, results="asis"}', CHILD, "```"]],
+    ["a `#| echo: false` and `#| results: asis` pipe (m04)", ["```{r}", "#| echo: false", "#| results: asis", CHILD, "```"]],
+    ["a single-quoted `results='asis'` (m07)", ["```{r, echo=FALSE, results='asis'}", CHILD, "```"]],
+    ["the child call after other code (n04)", ["```{r, echo=FALSE}", "a <- 1", "b <- a + 1", CHILD, "```"]],
+    ["a `knit_child()` inside `lapply()` (n17)", ["```{r, echo=FALSE}", 'res <- lapply(1:2, function(i) knitr::knit_child("_loud.Rmd", quiet = TRUE))', 'cat(unlist(res), sep = "\\n")', "```"]],
+    ["a FOUR-backtick fence line, which closes a three-backtick one (n10)", ['```{r, echo=FALSE, results="asis"}', 'cat("````\\n")', "```"]],
+    ["a fence line written WITHOUT `asis` (n14)", ["```{r, echo=FALSE}", 'cat("```\\n")', "```"]],
+    ["`knitr::asis_output()` of a fence line (n11)", ["```{r, echo=FALSE}", 'knitr::asis_output("```\\n")', "```"]],
+    ["a `{python}` chunk printing a fence line (n06)", ['```{python, echo=FALSE, results="asis"}', 'print("```")', "```"]],
+    ["the DOCUMENT's `execute: echo: false`, no option on the chunk (n03)", ["```{r}", CHILD, "```"], ["execute:", "  echo: false"]],
+  ])("not silent: %s", (_n, target, front) => {
+    expect(outline(target, front)).toEqual(ECHOES);
+  });
+
+  // CONTROLS, rendered, silent in quarto and in this model: `include=FALSE` hides everything the chunk writes, a chunk that never
+  // runs writes nothing, and a comment is no code.
+  it.each([
+    ["`include=FALSE` beside `asis` and a child (m02)", ['```{r, include=FALSE, results="asis"}', CHILD, "```"]],
+    ["`include=FALSE` and `echo=FALSE` (n07)", ["```{r, include=FALSE, echo=FALSE}", CHILD, "```"]],
+    ["`eval=FALSE`, so the chunk never runs (n01)", ["```{r, echo=FALSE, eval=FALSE}", CHILD, "```"]],
+    ["a `#| eval: false` pipe (n02)", ["```{r}", "#| echo: false", "#| eval: false", CHILD, "```"]],
+    ["the word only in a comment line (m08)", ['```{r, echo=FALSE, results="asis"}', "# knit_child is not called here", 'cat("hello")', "```"]],
+    ["a fence only in a comment line (n13)", ['```{r, echo=FALSE, results="asis"}', '# cat("```")', 'cat("hi")', "```"]],
+    ["`results=\"asis\"` and a plain `cat()` (b03)", ['```{r, echo=FALSE, results="asis"}', 'cat("hello")', "```"]],
+    ["a plain `print()` (b01)", ["```{r, echo=FALSE}", "print(1)", "```"]],
+  ])("silent: %s", (_n, target) => {
+    expect(outline(target)).toEqual(SILENT);
+  });
+
+  // RESIDUALS, NOT quarto truth: the guard reads WORDS on the code lines, so a writer that is named and never reaches the output keeps
+  // the chunk loud. Each was RIGHT before Session 307 and is wrong now, in the phantom direction (`After` shown, quarto swallows it).
+  it.each([
+    ["inside `if (FALSE) { ... }` (n05)", ["```{r, echo=FALSE}", "if (FALSE) {", "  " + CHILD, "}", "```"]],
+    ["`results=\"hide\"` drops the output (n08)", ['```{r, echo=FALSE, results="hide"}', CHILD, "```"]],
+    ["the word after code on one line, `x <- 1 # knit_child later` (n09)", ["```{r, echo=FALSE}", "x <- 1 # knit_child later", "```"]],
+    ["a child that holds no chunk, `knit_child(text = ...)` (n15)", ['```{r, echo=FALSE, results="asis"}', 'cat(knitr::knit_child(text = "plain", quiet = TRUE))', "```"]],
+    ["a child whose chunk is itself silent (m09)", ['```{r, echo=FALSE, results="asis"}', 'cat(knitr::knit_child("_silent.Rmd", quiet = TRUE))', "```"]],
+    ["a TILDE fence line, which cannot close a backtick fence (m06)", ['```{r, echo=FALSE, results="asis"}', 'cat("~~~\\n")', "```"]],
+    ["TWO fence lines in one `cat()`, which cancel by parity (b04)", ['```{r, echo=FALSE, results="asis"}', 'cat("```\\nx\\n```\\n")', "```"]],
+    ["the child result is assigned and never printed (b14)", ['```{r, echo=FALSE, results="asis"}', 'res <- knitr::knit_child("_loud.Rmd", quiet = TRUE)', "```"]],
+  ])("RESIDUAL, right before Session 307: %s", (_n, target) => {
+    expect(outline(target)).toEqual(ECHOES);
+  });
+});
+
 describe("R6 residual (a) — a silenced chunk of a NON-R engine emits no fence either (Session 286)", () => {
   // MEASURED, `.qmd` with `engine: knitr` (quarto 1.7.33), `scratchpad/s286/` (88 probes) and `r2/` (42):
   // with a stray bare ``` above, a `{python, echo=FALSE}` chunk leaves "Heading Under Test" rendered,
