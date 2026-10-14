@@ -1082,8 +1082,12 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
   });
 
   describe("other label kinds and indented cells", () => {
-    it.each([["lst"], ["eq"], ["sec"]])("a %s- id on a cell is not judged by these rules (they measure figures and tables only)", (kind) => {
-      expect(ids(chunk("{r}", `#| label: ${kind}-x`, "#| include: false", "plot(1)"))).toEqual([`${kind}-x`]);
+    it("a lst- id on a cell is not judged by these rules (they measure figures and tables only)", () => {
+      expect(ids(chunk("{r}", "#| label: lst-x", "#| include: false", "plot(1)"))).toEqual(["lst-x"]);
+    });
+
+    it.each([["eq"], ["sec"]])("a %s- id on a cell is no definition at all (Session 305, `refs-cell-kinds.test.ts`), include: false or not", (kind) => {
+      expect(ids(chunk("{r}", `#| label: ${kind}-x`, "#| include: false", "plot(1)"))).toEqual([]);
     });
 
     it.each([
@@ -1207,13 +1211,14 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
       expect(rows.filter((r) => r[2])).toHaveLength(949);
     });
 
-    it("the index, run now, agrees with quarto on 1,233 documents (the parent did on 934), keeps a phantom on 346 and misses a label on 32", () => {
+    it("the index, run now, agrees with quarto on 1,235 documents (the parent did on 934), keeps a phantom on 344 and misses a label on 32", () => {
+      // 1,233 and 346 until Session 305, which stopped a cell from defining `sec-x` and `eq-x`: the two rows of this fixture that carry them.
       const counts = { agree: 0, PHANTOM: 0, LOST: 0 };
       for (const r of rows) {
         counts[against(r)]++;
       }
-      expect(counts).toEqual({ agree: 1233, PHANTOM: 346, LOST: 32 });
-      expect(rows.filter((r) => r[3] === r[2])).toHaveLength(1233);
+      expect(counts).toEqual({ agree: 1235, PHANTOM: 344, LOST: 32 });
+      expect(rows.filter((r) => r[3] === r[2])).toHaveLength(1235);
       expect(rows.filter((r) => r[4] === r[2])).toHaveLength(934);
     });
 

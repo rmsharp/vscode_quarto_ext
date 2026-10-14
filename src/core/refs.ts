@@ -16,7 +16,8 @@
  *      `#| label:` in `{python}`/`{r}`, `//|` in `{ojs}`/`{dot}`, `%%|` in `{mermaid}`. And, in a
  *      KNITR document only, the chunk HEADER (`{r fig-x}`, `{r, label="fig-x"}`) — see
  *      {@link indexLabels}'s `documentEngine`. A cell that makes no figure or table for its label
- *      defines none (Session 304; same place).
+ *      defines none (Session 304; same place), and a cell never defines a `sec-` or `eq-` label
+ *      ({@link CELL_NEVER_DEFINES}, Session 305).
  *   3. Inline `{#fig-…}`/`{#tbl-…}`/`{#eq-…}`/`{#lst-…}` attribute blocks on
  *      images, divs, and display equations in prose (model body lines).
  *   4. Attribute blocks on PLAIN fenced code block openers — ```` ```{#lst-x .python} ````
@@ -149,6 +150,21 @@ const CELL_LABEL_VALUE = new RegExp(
     String.raw`*)`,
   "u",
 );
+/**
+ * The cross-reference kinds a code cell's `label:` never defines (Session 305).
+ *
+ * ⚠ **A SECTION IS A HEADING'S AND AN EQUATION IS DISPLAY MATH'S, NEVER A CELL'S.** `#| label: sec-x` and `#| label: eq-x` print
+ * `?@sec-x` / `?@eq-x` in quarto 1.7.33 in every cell language (r, python, mermaid, dot, ojs) under every document engine (knitr,
+ * Jupyter, markdown): 26 rendered documents of 26 (`scratchpad/s305/grid1`, g040-g065), and the same two kinds in the knitr chunk
+ * HEADER were already refused by {@link HEADER_LABEL_ID}. The `#|` path read the kind off the prefix and accepted all five, so the
+ * completion list and go-to-definition offered a target that does not exist.
+ *
+ * ⚠ **THIS IS A LIST OF TWO KINDS, NOT "A CELL DEFINES FIGURES AND TABLES ONLY", AND `lst-` IS KEPT ON PURPOSE.** `#| label: lst-x` with
+ * `#| lst-cap` is undefined under knitr (g027, g028) but DEFINED for a python cell under Jupyter or the markdown engine (g032, g039)
+ * and for a mermaid, dot or ojs cell under every engine (g029-g031, g033-g038): the answer is the engine's, and this index would have to
+ * be sure of the engine before removing one. A wrong removal loses a label quarto defines, so the knitr half stays a phantom (filed).
+ */
+const CELL_NEVER_DEFINES: ReadonlySet<RefKind> = new Set<RefKind>(["sec", "eq"]);
 /**
  * A knitr chunk-HEADER label that defines a cross-reference: `fig-` or `tbl-` and a name, and NOTHING else
  * in the slot (Session 303).
@@ -483,7 +499,7 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
       }
       const value = m[1];
       const kind = kindOf(value);
-      if (kind === null || makesNoTarget(kind, value)) {
+      if (kind === null || CELL_NEVER_DEFINES.has(kind) || makesNoTarget(kind, value)) {
         continue;
       }
       labels.push({
