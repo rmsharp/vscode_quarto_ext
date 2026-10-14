@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
 import { resolveDocumentEngine } from "../../src/core/document-engine-resolve";
+import { knitrChunkHeaderLabel } from "../../src/core/qmd/model";
 import {
   crossrefCompletionContext,
   findLabel,
@@ -2181,8 +2182,8 @@ describe("Session 303 — a knitr chunk HEADER carries the cell's label", () => 
     ]);
   });
 
-  it.each([["jupyter"], ["markdown"], ["julia"], ["ambiguous"], [undefined]] as const)(
-    "a document whose engine resolves to %s ignores a header label (y03, y04, y09, y10)",
+  it.each([["jupyter"], ["markdown"], ["julia"], ["ambiguous"]] as const)(
+    "a document whose engine resolves to %s ignores a header label (executed: y03, y04, y09, y10)",
     (engine) => {
       // Only knitr reads the header. Jupyter treats `{python tbl-y03}` as a bare cell, markdown runs nothing,
       // and an engine nobody could resolve (undefined) or two at once (ambiguous) is never claimed knitr: a
@@ -2408,18 +2409,18 @@ describe("Session 303 — a knitr chunk HEADER carries the cell's label", () => 
 
     it.each([
       ["a document of R cells only (a01)", "a.qmd", rChunk],
-      ["an R-Markdown file name, whatever its front matter says", "a.Rmd", "---\nengine: jupyter\n---\n" + rChunk],
+      ["an R-Markdown file name, whatever its front matter says (w01, w04, w05, w06: `.Rmd` rendered)", "a.Rmd", "---\nengine: jupyter\n---\n" + rChunk],
       ["`engine: knitr` (y06)", "a.qmd", "---\nengine: knitr\n---\n```{bash tbl-x}\necho hi\n```\n"],
       ["a python header label beside an R chunk (y01)", "a.qmd", "```{python tbl-x}\nprint(1)\n```\n\n```{r}\n1\n```\n"],
     ])("a knitr document reads the header label: %s", (_what, fileName, text) => {
-      expect(viaResolver(fileName, text)).toHaveLength(1);
+      expect(viaResolver(fileName, text)).toEqual([/fig-x|tbl-x/.exec(text)?.[0]]);
     });
 
     it.each([
       ["a python-only document (y04)", "a.qmd", "```{python tbl-x}\nprint(1)\n```\n"],
       ["`jupyter: python3` beside an R chunk (y03, y09)", "a.qmd", "---\njupyter: python3\n---\n" + rChunk],
-      ["`engine: jupyter` (e06)", "a.qmd", "---\nengine: jupyter\n---\n" + rChunk],
-      ["`engine: markdown` (y10, e01)", "a.qmd", "---\nengine: markdown\n---\n" + rChunk],
+      ["`engine: jupyter`", "a.qmd", "---\nengine: jupyter\n---\n" + rChunk],
+      ["`engine: markdown` (y10)", "a.qmd", "---\nengine: markdown\n---\n" + rChunk],
       ["a shell-only document with no engine key (y07)", "a.qmd", "```{bash tbl-x}\necho hi\n```\n"],
     ])("a document that is not knitr ignores the header label: %s", (_what, fileName, text) => {
       expect(viaResolver(fileName, text)).toEqual([]);
@@ -2455,6 +2456,204 @@ describe("Session 303 — a knitr chunk HEADER carries the cell's label", () => 
 
     it("a cell inside a format-hidden div is deleted for the other format (f05) and is read here", () => {
       expect(ids('::: {.content-hidden when-format="html"}\n```{r fig-x}\nplot(1)\n```\n:::')).toEqual(["fig-x"]);
+    });
+  });
+
+  it.each([
+    ["{r setup}", "an ordinary chunk label"],
+    ["{r figx}", "fig without the hyphen"],
+    ["{r fig_x}", "fig then an underscore"],
+    ["{r fig.x}", "fig then a dot"],
+    ["{r tbl_setup}", "tbl then an underscore"],
+    ["{r a-fig-x}", "fig- inside a longer label"],
+    ["{r xfig-x}", "fig- glued to a prefix"],
+    ["{r label=mytbl-x}", "tbl- glued to a prefix, through label="],
+    ['{r label="afig-x"}', "fig- glued to a prefix, quoted"],
+  ])("only a label that STARTS with fig- or tbl- defines: %s — %s", (header) => {
+    expect(ids(chunk(header, "plot(1)"))).toEqual([]);
+  });
+
+  it("the column of a label= that is not the first argument is the value's (v09)", () => {
+    //                    0         1         2
+    //                    0123456789012345678901234567
+    //                    ```{r echo=FALSE, label="fig-x"}
+    expect(indexLabels(chunk('{r echo=FALSE, label="fig-x"}', "plot(1)"), "knitr")).toEqual([
+      { id: "fig-x", kind: "fig", line: 0, column: 25 },
+    ]);
+    expect(indexLabels(chunk('{r echo=FALSE , label="fig-x" }', "plot(1)"), "knitr")).toEqual([
+      { id: "fig-x", kind: "fig", line: 0, column: 26 },
+    ]);
+    expect(indexLabels(chunk("{r echo=FALSE, label=fig-x}", "plot(1)"), "knitr")).toEqual([
+      { id: "fig-x", kind: "fig", line: 0, column: 24 },
+    ]);
+  });
+
+  it.each([
+    ['{r label="fig-x" }', "a space after the value (u10)"],
+    ['{r label="fig-x" , echo=FALSE}', "a space before the comma (v10)"],
+    ["{r fig-x  }", "extra spaces after the unnamed slot (a10, u15)"],
+  ])("whitespace around the label slot is ignored: %s — %s", (header) => {
+    expect(ids(chunk(header, "plot(1)"))).toEqual(["fig-x"]);
+  });
+
+  it.each([
+    ["{r fig-x, a==b}", "a comparison is a second UNNAMED slot (q01 errors in knitr; declined)"],
+    ["{r label==fig-x}", "label==x is a comparison, not label="],
+    ["{r fig-x, a=1; b=2}", "a semicolon cannot sit inside an argument list"],
+    ["{r label=fig-x, label=}", "label= twice, the second empty (v06 errors in knitr; declined)"],
+    ["{r fig-x, label=}", "an empty label= beside an unnamed slot (v07)"],
+    ["{r label=, fig-x}", "an empty label= before an unnamed slot (v08)"],
+    ["{r fig-x\u00a0}", "a no-break space is part of the label in R, not trimmed: no valid id (g49)"],
+    ["{r\u00a0fig-x}", "a no-break space is no separator"],
+    ["{r fig-x, \u00a0}", "a slot holding only a no-break space is not empty: a second unnamed slot"],
+    ['{r label="fig-x" y}', "text after a quoted label= (invalid R, declined)"],
+    ['{r "fig-x" y}', "text after a quoted first slot"],
+    ["{r label=fig-x-100000}", "R prints 100000 as 1e+05, so the id written is not the one defined"],
+    ["{r echo=FALSE, fig-x-12345}", "a number of five digits is not read (R's printing is not modelled past four)"],
+    ["{r label=fig-x-1e3}", "an exponent"],
+    ["{r label=fig-x-.5}", "a leading-dot number"],
+    ["{r label=fig-x-1.50}", "a trailing-zero decimal"],
+  ])("conservative declines: %s — %s", (header) => {
+    expect(ids(chunk(header, "plot(1)"))).toEqual([]);
+  });
+
+  it.each([
+    ["{r fig-x, \u00e9=1}", "a Unicode option name is a NAMED argument (v12)"],
+    ['{r "echo"=FALSE, fig-x}', "a string-literal option name is a NAMED argument (v13)"],
+    ['{r "label"="fig-x"}', "a string-literal `label` is label= (g40)"],
+  ])("R names its arguments with Unicode identifiers and with strings: %s — %s", (header) => {
+    expect(ids(chunk(header, "plot(1)"))).toEqual(["fig-x"]);
+  });
+
+  it.each([
+    ["  ```{r fig-x}\n  plot(1)\n  ```", "indented 2 (c39)"],
+    ["   ```{r fig-x}\n   plot(1)\n   ```", "indented 3 (c40)"],
+    ["    ```{r fig-x}\n    plot(1)\n    ```", "indented 4, which pandoc reads as an indented code block (c41)"],
+    ["\t```{r fig-x}\n\tplot(1)\n\t```", "indented by a tab (c42)"],
+  ])("RESIDUAL — a top-level fence %s is read here and is no cell for quarto", (text) => {
+    expect(ids(text)).toEqual(["fig-x"]);
+  });
+
+  describe("what makes a chunk header carry no label although it names one", () => {
+    it("child= inserts a document, so the chunk carries no label (e60)", () => {
+      expect(ids(chunk('{r tbl-x, child="part.qmd"}', '#| tbl-cap: "Cap"'))).toEqual([]);
+    });
+
+    it.each([["ojs"], ["mermaid"], ["dot"], ["OJS"]])("engine=%s hands the chunk to a quarto handler (e57)", (engine) => {
+      expect(ids(chunk(`{r tbl-x, engine='${engine}'}`, '#| tbl-cap: "Cap"', "1"))).toEqual([]);
+    });
+
+    it("engine='python' moves the chunk to another KNITR engine, which still reads the header (y02)", () => {
+      expect(ids(chunk("{r tbl-x, engine='python'}", '#| tbl-cap: "Cap"', "print(1)"))).toEqual(["tbl-x"]);
+    });
+
+    it("an engine= this cannot read is not guessed at", () => {
+      expect(ids(chunk("{r tbl-x, engine=paste0('o', 'js')}", '#| tbl-cap: "Cap"', "1"))).toEqual([]);
+    });
+
+    it.each([["OJS"], ["Mermaid"], ["Dot"]])("a capitalised handler token {%s} defines nothing either (v04, v05)", (lang) => {
+      expect(ids(chunk(`{${lang} fig-x}`, "1"))).toEqual([]);
+    });
+  });
+
+  describe("which `#|` block overrides a header label", () => {
+    const withPipe = (...pipe: string[]): string => chunk("{r fig-x}", ...pipe, "plot(1)");
+
+    it("a QUOTED `label` key overrides it too (p01)", () => {
+      expect(ids(withPipe('#| "label": fig-y', '#| fig-cap: "Cap"'))).toEqual(["fig-y"]);
+    });
+
+    it("a NESTED label under another option does not (v01)", () => {
+      expect(ids(withPipe("#| foo:", "#|   label: fig-y", '#| fig-cap: "Cap"'))).toEqual(["fig-x"]);
+    });
+
+    it.each([
+      [["#| # a note", '#| fig-cap: "Cap"'], "a block whose FIRST line is a YAML comment kills the header label (p03, p04, i18)"],
+      [['#| ? label', '#| : fig-y', '#| fig-cap: "Cap"'], "a YAML complex key (p06, i31)"],
+      [['#| "l\\x61bel": fig-y', '#| fig-cap: "Cap"'], "a key spelled with a YAML escape that reads `label` (i30)"],
+      [["#| {label: fig-y}"], "a flow mapping that names the label (p02)"],
+      [["#| {fig-cap: Cap,", "#|  label: fig-y}"], "a flow mapping that names it on a later line"],
+    ])("it is NOT defined beside: %j — %s", (pipe) => {
+      expect(ids(withPipe(...pipe))).not.toContain("fig-x");
+    });
+
+    it.each([
+      [["#| {fig-cap: Cap}"], "a flow mapping without the label (p08)"],
+      [['#| fig-cap: "the label"'], "the word label inside a caption (p05)"],
+      [['#| fig-cap: "Cap" # label: x'], "a trailing comment mentioning label: (p07)"],
+      [['#| fig-cap: Cap', '#| # label: fig-y'], "a comment line AFTER another option (p10)"],
+      [['#| labels: fig-y', '#| fig-cap: "Cap"'], "a key that only starts with label (p11)"],
+      [['#| label-x: fig-y', '#| fig-cap: "Cap"'], "a key label-x (p12)"],
+    ])("the header label STANDS beside: %j — %s", (pipe) => {
+      expect(ids(withPipe(...pipe))).toEqual(["fig-x"]);
+    });
+  });
+
+  describe("knitrChunkHeaderLabel — the model's own contract, which `indexLabels` filters further", () => {
+    // The caller keeps only a whole valid fig-/tbl- id, so these cannot be seen through `indexLabels`.
+    const label = (header: string, handlers?: ReadonlySet<string>) =>
+      knitrChunkHeaderLabel("```" + header, handlers);
+
+    it("returns the text and its column", () => {
+      expect(label("{r fig-x}")).toEqual({ value: "fig-x", column: 6 });
+      expect(label('{r label="fig-x"}')).toEqual({ value: "fig-x", column: 13 });
+      expect(label("{r echo=FALSE, \"fig-x\"}")).toEqual({ value: "fig-x", column: 19 });
+    });
+
+    it("an empty label= is a label= with no text, so nothing is returned (v07, v08)", () => {
+      expect(label("{r label=}")).toBeNull();
+      expect(label("{r fig-x, label=}")).toBeNull();
+    });
+
+    it("a quoted label is the text written between its quotes, and never a string with an escape or a quote in it", () => {
+      expect(label('{r label="fig-\\x41"}')).toBeNull();
+      expect(label('{r label="fig-x\'y"}')).toBeNull();
+      expect(label('{r label="fig-x" y}')).toBeNull();
+    });
+
+    it("a bare token is read as written in the first slot, and only as R would write it back anywhere else", () => {
+      expect(label("{r fig-x-007}")).toEqual({ value: "fig-x-007", column: 6 });
+      expect(label("{r label=fig-x-007}")).toBeNull();
+      expect(label("{r echo=FALSE, fig-x-007}")).toBeNull();
+      expect(label("{r label=fig-x-7}")?.value).toBe("fig-x-7");
+      expect(label("{r label=1fig-x}")).toBeNull(); // R would not even parse it
+    });
+
+    it("handler engines come from the caller: engine= naming one carries no label", () => {
+      expect(label("{r fig-x, engine='ojs'}", new Set(["ojs"]))).toBeNull();
+      expect(label("{r fig-x, engine='ojs'}")).toEqual({ value: "fig-x", column: 6 });
+    });
+  });
+
+  describe("every header shape rendered with knitr executing, row by row (quarto 1.7.33)", () => {
+    // `[header, the ids quarto DEFINED among those the document referenced]`, 245 rows from `scratchpad/s303/hdr4`,
+    // `hdr5` and `hdr6`: an exhaustive grid over the slots L (the unnamed label), B (`label="…"`), E (an empty slot),
+    // N (a named option) and U (another unnamed slot), up to four long, with and without a trailing comma, plus the
+    // near-miss option names (`labelx=`, `LABEL=`, `lab=` …), the leading-comma runs, and numeric components of a label in
+    // each slot position. A row that made quarto exit non-zero is omitted: nothing to compare with. This is Learning
+    // #685's closed-world pin applied to the header grammar: no phantom may appear, and no label may go missing
+    // except the rows named in DECLINED, each with the reason this index answers nothing.
+    const FIXTURE = path.join(__dirname, "../fixtures/knitr-header-shapes/quarto-1.7.33.json");
+    const rows = (JSON.parse(readFileSync(FIXTURE, "utf8")) as { rows: [string, string[]][] }).rows;
+    // Declined BY DESIGN: a bare token in an R-parsed position is normalised by R before knitr uses it (`007` becomes
+    // `7`, `01` becomes `1`), so the id quarto defines is not the one written. Reading it as written would be a phantom;
+    // this index does not model R's number printing, so it answers nothing: a lost completion, never a phantom.
+    const R_NORMALISED = "R reads the bare token as code and writes the numbers back normalised";
+    const DECLINED = new Map<string, string>([
+      ["{r echo=FALSE, fig-n08-007}", R_NORMALISED],
+      ["{r label=fig-n14:007}", R_NORMALISED],
+      ["{r echo=FALSE, fig-n16:007}", R_NORMALISED],
+      ["{r label=fig-n18-01}", R_NORMALISED],
+    ]);
+
+    it("covers the whole fixture (245 rendered rows, 172 of them define an id)", () => {
+      expect(rows).toHaveLength(245);
+      expect(rows.filter(([, defined]) => defined.length > 0)).toHaveLength(172);
+    });
+
+    it.each(rows)("%s — quarto defined %j", (header, defined) => {
+      const found = ids(chunk(header, "plot(1)"));
+      expect(found).toEqual(DECLINED.has(header) ? [] : defined);
     });
   });
 });

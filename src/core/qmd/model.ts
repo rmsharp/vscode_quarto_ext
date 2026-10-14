@@ -7108,38 +7108,67 @@ function splitRHeaderArguments(tail: string): string[] | null {
   return segments;
 }
 /**
- * A chunk-header label VALUE read as plain text: a quoted string with no escape in it, or a bare run of the
- * characters a cross-reference id may hold (`label=fig-x.b` — knitr takes the bare spelling as the text it
- * is written in, measured). `offset` is where the id starts inside `text`. Anything else (a call, an
- * expression, a string with a backslash) is `null`: it is not text this can read with certainty.
+ * A chunk-header label VALUE read as plain text, or `null` when it is not text this can read with certainty
+ * (a call, an expression, a string with an escape). `offset` is where the id starts inside `text`.
+ *
+ * Three spellings, and WHERE the label sits decides the second one (measured, quarto 1.7.33, knitr executing,
+ * `scratchpad/s303/hdr6` n01-n20):
+ *  - a quoted string is the text written, in any position (`label="fig-x-007"`, `"fig-x-007"`);
+ *  - a BARE token in the FIRST slot is the text written too, because knitr quotes that slot itself
+ *    (`{r fig-x-007}` defines `fig-x-007`);
+ *  - a bare token anywhere ELSE is R CODE, parsed and written back: `label=fig-x-007` and
+ *    `{r echo=FALSE, fig-x-007}` define `fig-x-7` (`fig - x - 007` deparses with the number normalised, `1.50` to
+ *    `1.5`, `1e3` to `1000`, `100000` to `1e+05`). So there only a token whose every part after the first is a
+ *    symbol or a canonical integer is read; anything else is declined, because its normalised id is not
+ *    the one written (a phantom) and this does not model R's number printing.
  */
-function readChunkLabelToken(text: string): { value: string; offset: number } | null {
+function readChunkLabelToken(text: string, firstSlot: boolean): { value: string; offset: number } | null {
   const quoted = /^(["'])([^"'\\]*)\1$/.exec(text);
   if (quoted !== null) {
     return { value: quoted[2], offset: 1 };
   }
-  return /^[\p{L}\p{N}_:.-]+$/u.test(text) ? { value: text, offset: 0 } : null;
+  const written = firstSlot ? /^[\p{L}\p{N}_:.-]+$/u : R_SYMBOL_CHAIN;
+  return written.test(text) ? { value: text, offset: 0 } : null;
+}
+/** A bare token R reads back as the text written: symbols and canonical integers joined by `-` or `:`. */
+const R_SYMBOL_CHAIN = /^\p{L}[\p{L}\p{N}_.]*(?:[-:](?:\p{L}[\p{L}\p{N}_.]*|(?:0|[1-9][0-9]{0,3})))*$/u;
+/**
+ * How knitr cleans the front of a chunk header before it reads the arguments: the first run of commas goes, then at
+ * most ONE more comma, and a comma still standing in front of the first argument is an empty slot that wrecks the
+ * label (measured, `scratchpad/s303/hdr6` m01-m05, hdr2 u04, u05, u17: `{r , , fig-x}`, `{r,, , fig-x}` and
+ * `{r ,fig-x}` define; `{r, ,, fig-x}` does not).
+ */
+const KNITR_HEADER_LEAD = /^[ \t]*,*(?:[ \t]*,)?[ \t]*/;
+/** Blank means ASCII blank: a no-break space is part of the label in R, where JS `trim()` would drop it (g49). */
+function isBlankSlot(text: string): boolean {
+  return /^[ \t]*$/.test(text);
 }
 /**
  * The label a knitr chunk HEADER carries — `{r fig-x}` or `{r, label="fig-x"}` — and the column its text
  * starts at in `openerLine`, or `null` when the header holds none (Session 303).
  *
- * The rule, every clause rendered through quarto 1.7.33 with knitr executing (`scratchpad/s303/hdr`,
- * `hdr2`, `hdr3`; the ids in the comments below name the probe):
+ * The rule, every clause rendered through quarto 1.7.33 with knitr executing (`scratchpad/s303/hdr`..`hdr7`;
+ * the ids in the comments below name the probe, and `test/fixtures/knitr-header-shapes/` holds 245 of them):
  *  - the header is read as R arguments (`splitRHeaderArguments`, Session 288), so anything that splitter
  *    declines (a comment, a backtick name, an unbalanced bracket, a raw string) yields NO label — a lost
  *    completion, never an invented one;
- *  - a `label=` argument names the label, quoted or bare, and WINS over any unnamed slot; two of them, an
- *    empty one, or one that is a call or an expression, define nothing;
+ *  - a `label=` argument names the label and WINS over every other slot, unnamed or empty; two of them, an empty
+ *    one, or one that is a call or an expression, define nothing; so does any other name that STARTS with
+ *    `label` (`labelx=`, `label.x=`: R matches it to `label`), while `LABEL=`, `Label=`, `lab=` and `my.label=`
+ *    are ordinary options;
  *  - otherwise exactly ONE unnamed slot is the label, wherever it sits among the named options; two unnamed
- *    slots define nothing;
- *  - separators BEFORE the first argument are skipped (`{r , fig-x}`, `{r, , fig-x}`: u04, u05, u17) and
- *    ONE trailing comma is knitr's own trim (`{r fig-x,}`: a11), but any other empty slot is an unnamed
- *    argument (`{r fig-x, , echo=FALSE}`: a24, u06).
+ *    slots define nothing; an empty slot is harmless except directly after a label that sits FIRST;
+ *  - the leading separators are cleaned as knitr cleans them ({@link KNITR_HEADER_LEAD}) and ONE trailing comma
+ *    is trimmed (`{r fig-x,}`: a11);
+ *  - `child=` inserts a document and `engine='ojs'` hands the chunk to a quarto handler, so neither carries the
+ *    label (e57, e60); a name may be a Unicode identifier or a string, as in R (v12, v13).
  * What the returned text MAY be — a figure or table id, a whole valid id — is the caller's decision, as is
- * whether the document is knitr at all.
+ * whether the document is knitr at all. `handlerEngines` names the engines quarto runs itself.
  */
-export function knitrChunkHeaderLabel(openerLine: string): { value: string; column: number } | null {
+export function knitrChunkHeaderLabel(
+  openerLine: string,
+  handlerEngines: ReadonlySet<string> = new Set(),
+): { value: string; column: number } | null {
   const begin = KNITR_CHUNK_BEGIN.exec(openerLine);
   if (begin === null) {
     return null;
@@ -7150,42 +7179,65 @@ export function knitrChunkHeaderLabel(openerLine: string): { value: string; colu
     return null;
   }
   const tail = info.slice(engine[0].length, -1);
-  const lead = /^[\s,]*/.exec(tail)?.[0].length ?? 0;
+  const lead = KNITR_HEADER_LEAD.exec(tail)?.[0].length ?? 0;
+  if (tail[lead] === ",") {
+    return null;
+  }
   const segments = splitRHeaderArguments(tail.slice(lead));
   if (segments === null) {
     return null;
   }
-  // ONE trailing comma is knitr's own trim (`{r fig-x,}` defines); any other empty slot is an unnamed
-  // argument and leaves the label undefined (measured, a24, u06).
-  if (segments.length > 1 && segments[segments.length - 1].trim() === "") {
+  // ONE trailing comma is knitr's own trim (`{r fig-x,}` defines); a slot left empty after that is read below.
+  if (isBlankSlot(segments[segments.length - 1])) {
     segments.pop();
   }
   const infoStart = openerLine.indexOf(info, begin[1].length + begin[2].length);
   let segmentStart = infoStart + engine[0].length + lead;
-  const unnamed: { text: string; start: number }[] = [];
+  const unnamed: { text: string; start: number; index: number }[] = [];
   const named: { value: string; start: number }[] = [];
-  for (const segment of segments) {
-    if (segment.trim() === "") {
-      return null;
-    }
-    const assignment = /^(\s*([A-Za-z.][A-Za-z0-9._]*)\s*=(?!=)\s*)(\S(?:[\s\S]*\S)?)\s*$/.exec(segment);
-    if (assignment === null) {
-      unnamed.push({ text: segment, start: segmentStart });
-    } else if (assignment[2] === "label") {
-      named.push({ value: assignment[3], start: segmentStart + assignment[1].length });
-    }
+  for (let index = 0; index < segments.length; index++) {
+    const segment = segments[index];
+    const start = segmentStart;
     segmentStart += segment.length + 1;
+    if (isBlankSlot(segment)) {
+      continue; // an empty slot is read once the label slot is known (below)
+    }
+    const assignment =
+      /^([ \t]*(?:([\p{L}.][\p{L}\p{N}._]*)|(["'])([^"'\\]*)\3)[ \t]*=(?!=)[ \t]*)([^ \t](?:[\s\S]*[^ \t])?)?[ \t]*$/u.exec(segment);
+    if (assignment === null) {
+      unnamed.push({ text: segment, start, index });
+      continue;
+    }
+    const name = assignment[2] ?? assignment[4];
+    const value = assignment[5] ?? "";
+    if (name === "label") {
+      named.push({ value, start: start + assignment[1].length });
+    } else if (name.startsWith("label") || name === "child") {
+      return null; // R matches `labelx=` to `label`, and `child=` inserts a document (measured, q07, q11, e60)
+    } else if (name === "engine") {
+      const read = readChunkLabelToken(value, true);
+      if (read === null || handlerEngines.has(read.value.toLowerCase())) {
+        return null; // the chunk may run in a quarto handler (e57); an engine this cannot read is not guessed at
+      }
+    }
   }
-  // A `label=` WINS over any unnamed slot, and two of them define nothing (measured, c02, c03, u07, u12).
+  // A `label=` WINS over any unnamed or empty slot, and two of them define nothing (measured, c02, c03, u07,
+  // u12, v07, v08; every B row of the grid). `LABEL=`, `Label=`, `lab=` and `my.label=` are ordinary options
+  // (q08-q10, q12); only a name that STARTS with `label` is refused, above.
   if (named.length > 0) {
-    const read = named.length === 1 ? readChunkLabelToken(named[0].value) : null;
+    const read = named.length === 1 ? readChunkLabelToken(named[0].value, false) : null;
     return read === null ? null : { value: read.value, column: named[0].start + read.offset };
   }
   if (unnamed.length !== 1) {
     return null;
   }
-  const text = unnamed[0].text.trim();
-  const read = readChunkLabelToken(text);
+  // ⚠ An empty slot kills a label that sits FIRST (`{r fig-x, , echo=FALSE}`, `{r fig-x, ,}`: a24, u06, every
+  // `LE…` row of the grid) and is harmless anywhere else (`{r echo=FALSE, , fig-x}`, `{r fig-x, echo=FALSE, ,}`: q16).
+  if (unnamed[0].index === 0 && segments.length > 1 && isBlankSlot(segments[1])) {
+    return null;
+  }
+  const text = unnamed[0].text.replace(/^[ \t]+|[ \t]+$/g, "");
+  const read = readChunkLabelToken(text, unnamed[0].index === 0);
   const column = unnamed[0].start + unnamed[0].text.indexOf(text) + (read?.offset ?? 0);
   return read === null ? null : { value: read.value, column };
 }

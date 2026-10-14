@@ -1,0 +1,1330 @@
+{
+"quarto": "1.7.33",
+"note": "knitr chunk-header shapes rendered with knitr executing (Session 303: scratchpad/s303/hdr4, hdr5, hdr6). Each row is [header, the cross-reference ids quarto DEFINED among those the document referenced]. Rows that made quarto exit non-zero or whose id the HTML cannot decide are omitted.",
+"rows": [
+[
+"{r fig-q02, a<-1}",
+[]
+],
+[
+"{r fig-q03, -1}",
+[]
+],
+[
+"{r fig-q04, TRUE}",
+[]
+],
+[
+"{r fig-q05, \"s\"}",
+[]
+],
+[
+"{r fig-q06, fig.cap}",
+[]
+],
+[
+"{r fig-q07, labelx=\"fig-q07b\"}",
+[]
+],
+[
+"{r fig-q08, LABEL=\"fig-q08b\"}",
+[
+"fig-q08"
+]
+],
+[
+"{r fig-q09, Label=\"fig-q09b\"}",
+[
+"fig-q09"
+]
+],
+[
+"{r fig-q10, lab=\"fig-q10b\"}",
+[
+"fig-q10"
+]
+],
+[
+"{r fig-q11, label.x=\"fig-q11b\"}",
+[]
+],
+[
+"{r fig-q12, my.label=\"fig-q12b\"}",
+[
+"fig-q12"
+]
+],
+[
+"{r label=\"fig-q13\", , echo=FALSE}",
+[
+"fig-q13"
+]
+],
+[
+"{r label=\"fig-q14\",}",
+[
+"fig-q14"
+]
+],
+[
+"{r label=\"fig-q15\", ,}",
+[
+"fig-q15"
+]
+],
+[
+"{r fig-q16, echo=FALSE, ,}",
+[
+"fig-q16"
+]
+],
+[
+"{r echo=FALSE, fig-q17,}",
+[
+"fig-q17"
+]
+],
+[
+"{r fig-gl000}",
+[
+"fig-gl000"
+]
+],
+[
+"{r fig-gl001,}",
+[
+"fig-gl001"
+]
+],
+[
+"{r fig-gl002, }",
+[
+"fig-gl002"
+]
+],
+[
+"{r fig-gl003, ,}",
+[]
+],
+[
+"{r fig-gl004, warning=FALSE}",
+[
+"fig-gl004"
+]
+],
+[
+"{r fig-gl005, warning=FALSE,}",
+[
+"fig-gl005"
+]
+],
+[
+"{r fig-gl006, 2}",
+[]
+],
+[
+"{r fig-gl007, 2,}",
+[]
+],
+[
+"{r , fig-gl008}",
+[
+"fig-gl008"
+]
+],
+[
+"{r , fig-gl009,}",
+[
+"fig-gl009"
+]
+],
+[
+"{r echo=FALSE, fig-gl010}",
+[
+"fig-gl010"
+]
+],
+[
+"{r echo=FALSE, fig-gl011,}",
+[
+"fig-gl011"
+]
+],
+[
+"{r fig-gl014, , }",
+[]
+],
+[
+"{r fig-gl015, , ,}",
+[]
+],
+[
+"{r fig-gl016, , message=FALSE}",
+[]
+],
+[
+"{r fig-gl017, , message=FALSE,}",
+[]
+],
+[
+"{r fig-gl018, , 3}",
+[]
+],
+[
+"{r fig-gl019, , 3,}",
+[]
+],
+[
+"{r fig-gl020, warning=FALSE, }",
+[
+"fig-gl020"
+]
+],
+[
+"{r fig-gl021, warning=FALSE, ,}",
+[
+"fig-gl021"
+]
+],
+[
+"{r fig-gl022, warning=FALSE, message=FALSE}",
+[
+"fig-gl022"
+]
+],
+[
+"{r fig-gl023, warning=FALSE, message=FALSE,}",
+[
+"fig-gl023"
+]
+],
+[
+"{r fig-gl026, 2, }",
+[]
+],
+[
+"{r fig-gl027, 2, ,}",
+[]
+],
+[
+"{r fig-gl028, 2, message=FALSE}",
+[]
+],
+[
+"{r fig-gl029, 2, message=FALSE,}",
+[]
+],
+[
+"{r fig-gl030, 2, 3}",
+[]
+],
+[
+"{r fig-gl031, 2, 3,}",
+[]
+],
+[
+"{r , fig-gl032, }",
+[
+"fig-gl032"
+]
+],
+[
+"{r , fig-gl033, ,}",
+[]
+],
+[
+"{r , fig-gl034, message=FALSE}",
+[
+"fig-gl034"
+]
+],
+[
+"{r , fig-gl035, message=FALSE,}",
+[
+"fig-gl035"
+]
+],
+[
+"{r , fig-gl036, 3}",
+[]
+],
+[
+"{r , fig-gl037, 3,}",
+[]
+],
+[
+"{r echo=FALSE, fig-gl038, }",
+[
+"fig-gl038"
+]
+],
+[
+"{r echo=FALSE, fig-gl039, ,}",
+[
+"fig-gl039"
+]
+],
+[
+"{r echo=FALSE, fig-gl040, message=FALSE}",
+[
+"fig-gl040"
+]
+],
+[
+"{r echo=FALSE, fig-gl041, message=FALSE,}",
+[
+"fig-gl041"
+]
+],
+[
+"{r , , fig-gl050}",
+[
+"fig-gl050"
+]
+],
+[
+"{r , , fig-gl051,}",
+[
+"fig-gl051"
+]
+],
+[
+"{r , warning=FALSE, fig-gl052}",
+[
+"fig-gl052"
+]
+],
+[
+"{r , warning=FALSE, fig-gl053,}",
+[
+"fig-gl053"
+]
+],
+[
+"{r echo=FALSE, , fig-gl056}",
+[
+"fig-gl056"
+]
+],
+[
+"{r echo=FALSE, , fig-gl057,}",
+[
+"fig-gl057"
+]
+],
+[
+"{r echo=FALSE, warning=FALSE, fig-gl058}",
+[
+"fig-gl058"
+]
+],
+[
+"{r echo=FALSE, warning=FALSE, fig-gl059,}",
+[
+"fig-gl059"
+]
+],
+[
+"{r fig-gl068, , , }",
+[]
+],
+[
+"{r fig-gl069, , , ,}",
+[]
+],
+[
+"{r fig-gl070, , , fig.width=5}",
+[]
+],
+[
+"{r fig-gl071, , , fig.width=5,}",
+[]
+],
+[
+"{r fig-gl072, , , 4}",
+[]
+],
+[
+"{r fig-gl073, , , 4,}",
+[]
+],
+[
+"{r fig-gl074, , message=FALSE, }",
+[]
+],
+[
+"{r fig-gl075, , message=FALSE, ,}",
+[]
+],
+[
+"{r fig-gl076, , message=FALSE, fig.width=5}",
+[]
+],
+[
+"{r fig-gl077, , message=FALSE, fig.width=5,}",
+[]
+],
+[
+"{r fig-gl080, , 3, }",
+[]
+],
+[
+"{r fig-gl081, , 3, ,}",
+[]
+],
+[
+"{r fig-gl082, , 3, fig.width=5}",
+[]
+],
+[
+"{r fig-gl083, , 3, fig.width=5,}",
+[]
+],
+[
+"{r fig-gl084, , 3, 4}",
+[]
+],
+[
+"{r fig-gl085, , 3, 4,}",
+[]
+],
+[
+"{r fig-gl086, warning=FALSE, , }",
+[
+"fig-gl086"
+]
+],
+[
+"{r fig-gl087, warning=FALSE, , ,}",
+[
+"fig-gl087"
+]
+],
+[
+"{r fig-gl088, warning=FALSE, , fig.width=5}",
+[
+"fig-gl088"
+]
+],
+[
+"{r fig-gl089, warning=FALSE, , fig.width=5,}",
+[
+"fig-gl089"
+]
+],
+[
+"{r fig-gl092, warning=FALSE, message=FALSE, }",
+[
+"fig-gl092"
+]
+],
+[
+"{r fig-gl093, warning=FALSE, message=FALSE, ,}",
+[
+"fig-gl093"
+]
+],
+[
+"{r fig-gl094, warning=FALSE, message=FALSE, fig.width=5}",
+[
+"fig-gl094"
+]
+],
+[
+"{r fig-gl095, warning=FALSE, message=FALSE, fig.width=5,}",
+[
+"fig-gl095"
+]
+],
+[
+"{r fig-gl104, 2, , }",
+[]
+],
+[
+"{r fig-gl105, 2, , ,}",
+[]
+],
+[
+"{r fig-gl106, 2, , fig.width=5}",
+[]
+],
+[
+"{r fig-gl107, 2, , fig.width=5,}",
+[]
+],
+[
+"{r fig-gl108, 2, , 4}",
+[]
+],
+[
+"{r fig-gl109, 2, , 4,}",
+[]
+],
+[
+"{r fig-gl110, 2, message=FALSE, }",
+[]
+],
+[
+"{r fig-gl111, 2, message=FALSE, ,}",
+[]
+],
+[
+"{r fig-gl112, 2, message=FALSE, fig.width=5}",
+[]
+],
+[
+"{r fig-gl113, 2, message=FALSE, fig.width=5,}",
+[]
+],
+[
+"{r fig-gl116, 2, 3, }",
+[]
+],
+[
+"{r fig-gl117, 2, 3, ,}",
+[]
+],
+[
+"{r fig-gl118, 2, 3, fig.width=5}",
+[]
+],
+[
+"{r fig-gl119, 2, 3, fig.width=5,}",
+[]
+],
+[
+"{r fig-gl120, 2, 3, 4}",
+[]
+],
+[
+"{r fig-gl121, 2, 3, 4,}",
+[]
+],
+[
+"{r , fig-gl122, , }",
+[]
+],
+[
+"{r , fig-gl123, , ,}",
+[]
+],
+[
+"{r , fig-gl124, , fig.width=5}",
+[]
+],
+[
+"{r , fig-gl125, , fig.width=5,}",
+[]
+],
+[
+"{r , fig-gl126, , 4}",
+[]
+],
+[
+"{r , fig-gl127, , 4,}",
+[]
+],
+[
+"{r , fig-gl128, message=FALSE, }",
+[
+"fig-gl128"
+]
+],
+[
+"{r , fig-gl129, message=FALSE, ,}",
+[
+"fig-gl129"
+]
+],
+[
+"{r , fig-gl130, message=FALSE, fig.width=5}",
+[
+"fig-gl130"
+]
+],
+[
+"{r , fig-gl131, message=FALSE, fig.width=5,}",
+[
+"fig-gl131"
+]
+],
+[
+"{r , fig-gl134, 3, }",
+[]
+],
+[
+"{r , fig-gl135, 3, ,}",
+[]
+],
+[
+"{r , fig-gl136, 3, fig.width=5}",
+[]
+],
+[
+"{r , fig-gl137, 3, fig.width=5,}",
+[]
+],
+[
+"{r , fig-gl138, 3, 4}",
+[]
+],
+[
+"{r , fig-gl139, 3, 4,}",
+[]
+],
+[
+"{r echo=FALSE, fig-gl140, , }",
+[
+"fig-gl140"
+]
+],
+[
+"{r echo=FALSE, fig-gl141, , ,}",
+[
+"fig-gl141"
+]
+],
+[
+"{r echo=FALSE, fig-gl142, , fig.width=5}",
+[
+"fig-gl142"
+]
+],
+[
+"{r echo=FALSE, fig-gl143, , fig.width=5,}",
+[
+"fig-gl143"
+]
+],
+[
+"{r echo=FALSE, fig-gl146, message=FALSE, }",
+[
+"fig-gl146"
+]
+],
+[
+"{r echo=FALSE, fig-gl147, message=FALSE, ,}",
+[
+"fig-gl147"
+]
+],
+[
+"{r echo=FALSE, fig-gl148, message=FALSE, fig.width=5}",
+[
+"fig-gl148"
+]
+],
+[
+"{r echo=FALSE, fig-gl149, message=FALSE, fig.width=5,}",
+[
+"fig-gl149"
+]
+],
+[
+"{r , , fig-gl176, }",
+[
+"fig-gl176"
+]
+],
+[
+"{r , , fig-gl177, ,}",
+[]
+],
+[
+"{r , , fig-gl178, fig.width=5}",
+[
+"fig-gl178"
+]
+],
+[
+"{r , , fig-gl179, fig.width=5,}",
+[
+"fig-gl179"
+]
+],
+[
+"{r , , fig-gl180, 4}",
+[]
+],
+[
+"{r , , fig-gl181, 4,}",
+[]
+],
+[
+"{r , warning=FALSE, fig-gl182, }",
+[
+"fig-gl182"
+]
+],
+[
+"{r , warning=FALSE, fig-gl183, ,}",
+[
+"fig-gl183"
+]
+],
+[
+"{r , warning=FALSE, fig-gl184, fig.width=5}",
+[
+"fig-gl184"
+]
+],
+[
+"{r , warning=FALSE, fig-gl185, fig.width=5,}",
+[
+"fig-gl185"
+]
+],
+[
+"{r echo=FALSE, , fig-gl194, }",
+[
+"fig-gl194"
+]
+],
+[
+"{r echo=FALSE, , fig-gl195, ,}",
+[
+"fig-gl195"
+]
+],
+[
+"{r echo=FALSE, , fig-gl196, fig.width=5}",
+[
+"fig-gl196"
+]
+],
+[
+"{r echo=FALSE, , fig-gl197, fig.width=5,}",
+[
+"fig-gl197"
+]
+],
+[
+"{r echo=FALSE, warning=FALSE, fig-gl200, }",
+[
+"fig-gl200"
+]
+],
+[
+"{r echo=FALSE, warning=FALSE, fig-gl201, ,}",
+[
+"fig-gl201"
+]
+],
+[
+"{r echo=FALSE, warning=FALSE, fig-gl202, fig.width=5}",
+[
+"fig-gl202"
+]
+],
+[
+"{r echo=FALSE, warning=FALSE, fig-gl203, fig.width=5,}",
+[
+"fig-gl203"
+]
+],
+[
+"{r , , message=FALSE, fig-gl232}",
+[
+"fig-gl232"
+]
+],
+[
+"{r , , message=FALSE, fig-gl233,}",
+[
+"fig-gl233"
+]
+],
+[
+"{r , warning=FALSE, , fig-gl236}",
+[
+"fig-gl236"
+]
+],
+[
+"{r , warning=FALSE, , fig-gl237,}",
+[
+"fig-gl237"
+]
+],
+[
+"{r , warning=FALSE, message=FALSE, fig-gl238}",
+[
+"fig-gl238"
+]
+],
+[
+"{r , warning=FALSE, message=FALSE, fig-gl239,}",
+[
+"fig-gl239"
+]
+],
+[
+"{r echo=FALSE, , , fig-gl248}",
+[
+"fig-gl248"
+]
+],
+[
+"{r echo=FALSE, , , fig-gl249,}",
+[
+"fig-gl249"
+]
+],
+[
+"{r echo=FALSE, , message=FALSE, fig-gl250}",
+[
+"fig-gl250"
+]
+],
+[
+"{r echo=FALSE, , message=FALSE, fig-gl251,}",
+[
+"fig-gl251"
+]
+],
+[
+"{r echo=FALSE, warning=FALSE, , fig-gl254}",
+[
+"fig-gl254"
+]
+],
+[
+"{r echo=FALSE, warning=FALSE, , fig-gl255,}",
+[
+"fig-gl255"
+]
+],
+[
+"{r echo=FALSE, warning=FALSE, message=FALSE, fig-gl256}",
+[
+"fig-gl256"
+]
+],
+[
+"{r echo=FALSE, warning=FALSE, message=FALSE, fig-gl257,}",
+[
+"fig-gl257"
+]
+],
+[
+"{r label=\"fig-gb284\"}",
+[
+"fig-gb284"
+]
+],
+[
+"{r label=\"fig-gb285\",}",
+[
+"fig-gb285"
+]
+],
+[
+"{r label=\"fig-gb286\", }",
+[
+"fig-gb286"
+]
+],
+[
+"{r label=\"fig-gb287\", ,}",
+[
+"fig-gb287"
+]
+],
+[
+"{r label=\"fig-gb288\", warning=FALSE}",
+[
+"fig-gb288"
+]
+],
+[
+"{r label=\"fig-gb289\", warning=FALSE,}",
+[
+"fig-gb289"
+]
+],
+[
+"{r label=\"fig-gb290\", 2}",
+[
+"fig-gb290"
+]
+],
+[
+"{r label=\"fig-gb291\", 2,}",
+[
+"fig-gb291"
+]
+],
+[
+"{r , label=\"fig-gb292\"}",
+[
+"fig-gb292"
+]
+],
+[
+"{r , label=\"fig-gb293\",}",
+[
+"fig-gb293"
+]
+],
+[
+"{r echo=FALSE, label=\"fig-gb294\"}",
+[
+"fig-gb294"
+]
+],
+[
+"{r echo=FALSE, label=\"fig-gb295\",}",
+[
+"fig-gb295"
+]
+],
+[
+"{r 1, label=\"fig-gb296\"}",
+[
+"fig-gb296"
+]
+],
+[
+"{r 1, label=\"fig-gb297\",}",
+[
+"fig-gb297"
+]
+],
+[
+"{r label=\"fig-gb298\", , }",
+[
+"fig-gb298"
+]
+],
+[
+"{r label=\"fig-gb299\", , ,}",
+[
+"fig-gb299"
+]
+],
+[
+"{r label=\"fig-gb300\", , message=FALSE}",
+[
+"fig-gb300"
+]
+],
+[
+"{r label=\"fig-gb301\", , message=FALSE,}",
+[
+"fig-gb301"
+]
+],
+[
+"{r label=\"fig-gb302\", , 3}",
+[
+"fig-gb302"
+]
+],
+[
+"{r label=\"fig-gb303\", , 3,}",
+[
+"fig-gb303"
+]
+],
+[
+"{r label=\"fig-gb304\", warning=FALSE, }",
+[
+"fig-gb304"
+]
+],
+[
+"{r label=\"fig-gb305\", warning=FALSE, ,}",
+[
+"fig-gb305"
+]
+],
+[
+"{r label=\"fig-gb306\", warning=FALSE, message=FALSE}",
+[
+"fig-gb306"
+]
+],
+[
+"{r label=\"fig-gb307\", warning=FALSE, message=FALSE,}",
+[
+"fig-gb307"
+]
+],
+[
+"{r label=\"fig-gb308\", warning=FALSE, 3}",
+[
+"fig-gb308"
+]
+],
+[
+"{r label=\"fig-gb309\", warning=FALSE, 3,}",
+[
+"fig-gb309"
+]
+],
+[
+"{r label=\"fig-gb310\", 2, }",
+[
+"fig-gb310"
+]
+],
+[
+"{r label=\"fig-gb311\", 2, ,}",
+[
+"fig-gb311"
+]
+],
+[
+"{r label=\"fig-gb312\", 2, message=FALSE}",
+[
+"fig-gb312"
+]
+],
+[
+"{r label=\"fig-gb313\", 2, message=FALSE,}",
+[
+"fig-gb313"
+]
+],
+[
+"{r , label=\"fig-gb316\", }",
+[
+"fig-gb316"
+]
+],
+[
+"{r , label=\"fig-gb317\", ,}",
+[
+"fig-gb317"
+]
+],
+[
+"{r , label=\"fig-gb318\", message=FALSE}",
+[
+"fig-gb318"
+]
+],
+[
+"{r , label=\"fig-gb319\", message=FALSE,}",
+[
+"fig-gb319"
+]
+],
+[
+"{r , label=\"fig-gb320\", 3}",
+[
+"fig-gb320"
+]
+],
+[
+"{r , label=\"fig-gb321\", 3,}",
+[
+"fig-gb321"
+]
+],
+[
+"{r echo=FALSE, label=\"fig-gb322\", }",
+[
+"fig-gb322"
+]
+],
+[
+"{r echo=FALSE, label=\"fig-gb323\", ,}",
+[
+"fig-gb323"
+]
+],
+[
+"{r echo=FALSE, label=\"fig-gb324\", message=FALSE}",
+[
+"fig-gb324"
+]
+],
+[
+"{r echo=FALSE, label=\"fig-gb325\", message=FALSE,}",
+[
+"fig-gb325"
+]
+],
+[
+"{r echo=FALSE, label=\"fig-gb326\", 3}",
+[
+"fig-gb326"
+]
+],
+[
+"{r echo=FALSE, label=\"fig-gb327\", 3,}",
+[
+"fig-gb327"
+]
+],
+[
+"{r 1, label=\"fig-gb328\", }",
+[
+"fig-gb328"
+]
+],
+[
+"{r 1, label=\"fig-gb329\", ,}",
+[
+"fig-gb329"
+]
+],
+[
+"{r 1, label=\"fig-gb330\", message=FALSE}",
+[
+"fig-gb330"
+]
+],
+[
+"{r 1, label=\"fig-gb331\", message=FALSE,}",
+[
+"fig-gb331"
+]
+],
+[
+"{r , , label=\"fig-gb334\"}",
+[
+"fig-gb334"
+]
+],
+[
+"{r , , label=\"fig-gb335\",}",
+[
+"fig-gb335"
+]
+],
+[
+"{r , warning=FALSE, label=\"fig-gb336\"}",
+[
+"fig-gb336"
+]
+],
+[
+"{r , warning=FALSE, label=\"fig-gb337\",}",
+[
+"fig-gb337"
+]
+],
+[
+"{r , 2, label=\"fig-gb338\"}",
+[
+"fig-gb338"
+]
+],
+[
+"{r , 2, label=\"fig-gb339\",}",
+[
+"fig-gb339"
+]
+],
+[
+"{r echo=FALSE, , label=\"fig-gb340\"}",
+[
+"fig-gb340"
+]
+],
+[
+"{r echo=FALSE, , label=\"fig-gb341\",}",
+[
+"fig-gb341"
+]
+],
+[
+"{r echo=FALSE, warning=FALSE, label=\"fig-gb342\"}",
+[
+"fig-gb342"
+]
+],
+[
+"{r echo=FALSE, warning=FALSE, label=\"fig-gb343\",}",
+[
+"fig-gb343"
+]
+],
+[
+"{r echo=FALSE, 2, label=\"fig-gb344\"}",
+[
+"fig-gb344"
+]
+],
+[
+"{r echo=FALSE, 2, label=\"fig-gb345\",}",
+[
+"fig-gb345"
+]
+],
+[
+"{r 1, , label=\"fig-gb346\"}",
+[
+"fig-gb346"
+]
+],
+[
+"{r 1, , label=\"fig-gb347\",}",
+[
+"fig-gb347"
+]
+],
+[
+"{r 1, warning=FALSE, label=\"fig-gb348\"}",
+[
+"fig-gb348"
+]
+],
+[
+"{r 1, warning=FALSE, label=\"fig-gb349\",}",
+[
+"fig-gb349"
+]
+],
+[
+"{r fig-n01-007}",
+[
+"fig-n01-007"
+]
+],
+[
+"{r fig-n02-1.50}",
+[
+"fig-n02-1.50"
+]
+],
+[
+"{r fig-n03-1e3}",
+[
+"fig-n03-1e3"
+]
+],
+[
+"{r fig-n04-100000}",
+[
+"fig-n04-100000"
+]
+],
+[
+"{r fig-n05-1}",
+[
+"fig-n05-1"
+]
+],
+[
+"{r fig-n06, label=\"fig-n06b-007\"}",
+[
+"fig-n06b-007"
+]
+],
+[
+"{r echo=FALSE, \"fig-n07-007\"}",
+[
+"fig-n07-007"
+]
+],
+[
+"{r echo=FALSE, fig-n08-007}",
+[
+"fig-n08-7"
+]
+],
+[
+"{r label=fig-n09-x007}",
+[
+"fig-n09-x007"
+]
+],
+[
+"{r label=fig-n10_007}",
+[
+"fig-n10_007"
+]
+],
+[
+"{r label=fig-n11-a.007}",
+[
+"fig-n11-a.007"
+]
+],
+[
+"{r , fig-n12-007}",
+[
+"fig-n12-007"
+]
+],
+[
+"{r, fig-n13-007}",
+[
+"fig-n13-007"
+]
+],
+[
+"{r label=fig-n14:007}",
+[
+"fig-n14:7"
+]
+],
+[
+"{r label=fig-n15-a:b}",
+[
+"fig-n15-a:b"
+]
+],
+[
+"{r echo=FALSE, fig-n16:007}",
+[
+"fig-n16:7"
+]
+],
+[
+"{r fig-n17-007, echo=FALSE}",
+[
+"fig-n17-007"
+]
+],
+[
+"{r label=fig-n18-01}",
+[
+"fig-n18-1"
+]
+],
+[
+"{r label=fig-n19-1}",
+[
+"fig-n19-1"
+]
+],
+[
+"{r echo=FALSE, fig-n20-1}",
+[
+"fig-n20-1"
+]
+],
+[
+"{r,, fig-m01}",
+[
+"fig-m01"
+]
+],
+[
+"{r , ,fig-m02}",
+[
+"fig-m02"
+]
+],
+[
+"{r,, , fig-m03}",
+[
+"fig-m03"
+]
+],
+[
+"{r, ,, fig-m04}",
+[]
+],
+[
+"{r ,fig-m05}",
+[
+"fig-m05"
+]
+]
+]
+}

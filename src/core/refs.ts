@@ -149,13 +149,17 @@ const CELL_LABEL_VALUE = new RegExp(
  * in the slot (Session 303).
  *
  * ⚠ **A CELL DEFINES FIGURES AND TABLES ONLY.** `{r lst-x}`, `{r sec-x}` and `{r eq-x}` define nothing in
- * quarto 1.7.33 (`scratchpad/s303/hdr`, b02-b04, k05, k06); a `#| label: lst-x` defines no listing either
- * (k03, k04: a listing cell names itself with `lst-label`), which this pattern does not inherit.
+ * quarto 1.7.33 (`scratchpad/s303/hdr`, b02-b04, k05, k06; `hdr7`, v03). Nor does a `#| label: lst-x` define a
+ * listing (`hdr2`, k03, k04): a listing cell names itself with `#| lst-label:` (`hdr7`, v02), which the older
+ * `#|` path does not read and this pattern does not inherit.
  *
  * ⚠ **ANCHORED AT BOTH ENDS, UNLIKE {@link CELL_LABEL_VALUE}.** That pattern takes the longest id-shaped PREFIX
  * of a `#|` value, so `#| label: fig-a$x` is read as `fig-a` and defines a phantom. The header slot is read
- * whole: `{r "fig-a$x"}`, `{r 'fig-a b'}` and `{r fig-}` all define nothing (a20, a23, u25), and quoting is
- * no licence to widen the class (the same measurement {@link CELL_LABEL_VALUE} records for the pipe path).
+ * whole: `{r fig-a$x}` and `{r fig-a b}` define nothing (a20, a23 — the first slot is quoted verbatim by knitr, so
+ * these spell the same text as `{r "fig-a$x"}` and `{r 'fig-a b'}`), and quoting is no licence to widen the class
+ * (the same measurement {@link CELL_LABEL_VALUE} records for the pipe path). A bare `{r fig-}` was not rendered
+ * (the reference `@fig-` cannot be written as a probe): it is declined as a name-less id. The label must also
+ * START with the kind, so an ordinary chunk label that merely contains one (`{r a-fig-x}`) defines nothing.
  */
 const HEADER_LABEL_ID = new RegExp(String.raw`^(fig|tbl)-` + DEFINED_ID_CHAR_CLASS + String.raw`+$`, "u");
 /**
@@ -306,6 +310,12 @@ function kindOf(id: string): RefKind | null {
  * on the chunk-HEADER label (`{r fig-x}`), which jupyter and markdown documents ignore (Session 303); every
  * other value, `"ambiguous"` and an omitted argument included, leaves it off, because a wrong claim of knitr
  * mints a label quarto does not define while a wrong refusal only loses a completion.
+ *
+ * ⚠ **THE RESOLVER IS NOT INFALLIBLE IN THE DANGEROUS DIRECTION, AND THIS INHERITS IT.** `resolveDocumentEngine`
+ * never reads a project's `_quarto.yml`, so a project that reorders `engines:` can make quarto run a
+ * python-then-R document under jupyter while the resolver answers knitr (`document-engine.ts` records it as
+ * genuinely invisible there). The header label is then a label quarto does not define. An `.Rmd` file is knitr
+ * by its extension alone, measured with `jupyter:` and `engine: markdown` in its front matter (`hdr7`, w01-w06).
  */
 export function indexLabels(text: string, documentEngine?: DocumentEngine | "ambiguous"): RefLabel[] {
   const labels: RefLabel[] = [];
@@ -349,6 +359,7 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
     let baseIndent: number | null = null;
     // Whether the option block names the cell's label ITSELF, or may (see the header read below).
     let pipeNamesLabel = false;
+    let firstOptionLine = true;
     for (const option of cellOptionLinesOf(readable)) {
       const { keySlot, valueSlot } = option;
       if (keySlot === null) {
@@ -358,7 +369,14 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
       const lineText = stripLine(rawLine);
       const removed = rawLine.length - lineText.length;
       const keyToken = lineText.slice(keySlot.startCol, keySlot.endCol);
+      const isFirstOptionLine = firstOptionLine;
+      firstOptionLine = false;
       if (keyToken === "" || keyToken.startsWith("#")) {
+        // ⚠ A block whose FIRST line is a YAML comment (or empty) leaves a header label undefined too, whatever else
+        // it holds (`scratchpad/s303/hdr6` p03, p04, hdr i18); the same comment AFTER another option does not (p10).
+        if (isFirstOptionLine) {
+          pipeNamesLabel = true;
+        }
         continue; // a bare `#|` line or a YAML comment fixes no indent
       }
       // The whitespace between the pipe and the key, less the ONE space quarto's `| ?` consumes.
@@ -375,10 +393,19 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
       // completion, never a phantom.
       const key = /^(["'])(.*)\1$/.exec(keyToken)?.[2] ?? keyToken;
       // ⚠ A `label` KEY in the option block overrides a header label whatever its VALUE is — valid, rejected or
-      // no cross-reference kind at all (`scratchpad/s303/hdr3` r17, r18) — and so does a whole-block flow
-      // mapping `#| {label: …}`, whose key this index cannot read (r22). Either way the header's label is NOT
-      // defined, so a block that might carry one must not be answered from the header.
-      if (key === "label" || keyToken.startsWith("{")) {
+      // no cross-reference kind at all (`scratchpad/s303/hdr3` r17, r18; a quoted key, hdr6 p01). So do the spellings of
+      // that key this index cannot read: a YAML complex key `? label` (p06, i31), a key written with an escape
+      // (`"l\x61bel"`, i30), and a flow mapping that names it or runs on to a later line (`#| {label: …}`, r22, p02).
+      // A flow mapping that closes on its own line without the word stands aside (`#| {fig-cap: Cap}`, p08), and so do
+      // the near misses `labels:`, `label-x:` and a nested `label` (p11, p12, v01). Whenever one of them is present the
+      // header's label is NOT defined, so a block that might carry one is never answered from the header.
+      const flowRest = keyToken.startsWith("{") ? lineText.slice(keySlot.startCol) : "";
+      if (
+        key === "label" ||
+        /^\?(?:[ \t]|$)/.test(keyToken) ||
+        /^["'].*\\/.test(keyToken) ||
+        (flowRest !== "" && (/label/.test(flowRest) || !flowRest.trimEnd().endsWith("}")))
+      ) {
         pipeNamesLabel = true;
       }
       if (key !== "label" || valueSlot === null) {
@@ -401,11 +428,12 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
       });
     }
     // ⚠ A HANDLER cell (`ojs`, `mermaid`, `dot`) is run by quarto's own handler and never reaches knitr, so its
-    // header is no chunk header (`scratchpad/s303/hdr`, d03, d04; `hdr2`, y11, y12). Every language knitr DOES run
+    // header is no chunk header (`scratchpad/s303/hdr`, d03, d04; `hdr2`, y11, y12), in any capitalisation (`hdr7`
+    // v04, v05) and when an `engine=` option hands an R chunk to one (e57). Every language knitr DOES run
     // reads it, python through reticulate and bash included (y01, d02, y06).
     const header =
-      documentEngine === "knitr" && !pipeNamesLabel && !COLUMN_ZERO_ONLY_LANGUAGES.has(cell.lang)
-        ? knitrChunkHeaderLabel(sourceLines[cell.startLine])
+      documentEngine === "knitr" && !pipeNamesLabel && !COLUMN_ZERO_ONLY_LANGUAGES.has(cell.lang.toLowerCase())
+        ? knitrChunkHeaderLabel(sourceLines[cell.startLine], COLUMN_ZERO_ONLY_LANGUAGES)
         : null;
     const headerId = header === null ? null : HEADER_LABEL_ID.exec(header.value);
     if (header !== null && headerId !== null) {

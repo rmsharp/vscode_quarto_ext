@@ -35,6 +35,12 @@
  * Sessions 166-168 spent three sessions eliminating (`test/oracle/flags.ts` had already
  * drifted undetected once). One implementation, two callers.
  *
+ * **Callers since this was written** (Session 303 counted them): `providers/outline.ts` and
+ * `providers/workspace-symbols.ts` resolve the engine too, and so does `providers/crossref.ts`, once per
+ * completion and once per go-to-definition request — NOT lazily, and not debounced, because a knitr
+ * document also defines cross-reference labels from its chunk headers (`{r fig-x}`, `core/refs.ts`). At the ~0.14 ms
+ * measured below that is cheap enough not to gate on the cursor.
+ *
  * **Everything derives from the ONE `text` argument on purpose.** Accepting a pre-derived
  * array alongside the text would let a caller pair arrays from one snapshot with text from
  * another — the S124 desync `ValueSources` exists to make unrepresentable.
