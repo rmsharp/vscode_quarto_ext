@@ -21319,6 +21319,14 @@ describe("Session 308 — a document DEFAULT that silences the LATER chunk: `for
     ["`if (FALSE)` with its body on the NEXT line, no braces (m05)", { pre: setup("if (FALSE)", `  ${CALL}`) }, ["Top", "Mid", "After", "Last"]],
     ["a call the reader cannot read DROPS the front matter's silence: the chunk is loud again (m02)", { front: FRONT_ECHO_FALSE, pre: setup(`do.call(knitr::opts_chunk$set, list(echo = TRUE))`) }, ["Top", "Mid", "After", "Last"]],
     ["`format: {pdf: {echo: false}}` in flow style: the first format is not html (m11)", { front: ["format: {pdf: {echo: false}}"] }, ["Top", "Mid", "After", "Last"]],
+    ["the call in a COMMENT does not run, so the front matter's silence stands (n01)", { front: FRONT_ECHO_FALSE, pre: setup(`# ${CALL_TRUE}`) }, ["Top", "Between", "Mid", "After", "Last"]],
+    ["a call handed to `eval(parse(text = ...))` may run: the front matter's silence is dropped (n02)", { front: FRONT_ECHO_FALSE, pre: setup(`eval(parse(text = "${CALL_TRUE}"))`) }, ["Top", "Mid", "After", "Last"]],
+    ["`library(knitr)` and then the call without `knitr::` (n03)", { pre: setup("library(knitr)", "opts_chunk$set(echo = FALSE)") }, ["Top", "Between", "Mid", "After", "Last"]],
+    ["an argument with a comma of its own before `echo`, `fig.dim = c(7, 5)` (n04)", { pre: setup("knitr::opts_chunk$set(fig.dim = c(7, 5), echo = FALSE)") }, ["Top", "Between", "Mid", "After", "Last"]],
+    ["the call after a `FALSE &&` that never lets it run, on the next line (n05)", { pre: setup("FALSE &&", `  ${CALL}`) }, ["Top", "Mid", "After", "Last"]],
+    ["the engine spelled `{R setup}` (n10)", { pre: setupAs("{R setup, include=FALSE}", CALL) }, ["Top", "Between", "Mid", "After", "Last"]],
+    ["the call piped on, `call |> invisible()`: runs, but is not an exact statement (n06; wrong before and after)", { pre: setup(`${CALL} |> invisible()`) }, ["Top", "Mid", "After", "Last"]],
+    ["`html` as the SECOND format in flow style (n07; wrong before and after: quarto's html render is silent)", { front: ["format: {pdf: {toc: true}, html: {echo: false}}"] }, ["Top", "Mid", "After", "Last"]],
   ])("%s", (_n, shape, expected) => {
     expect(xy(shape)).toEqual(expected);
   });
