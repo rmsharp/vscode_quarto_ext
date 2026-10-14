@@ -6780,7 +6780,7 @@ function knitrSilentChunkClosers(lines: readonly string[]): KnitrChunkClosers {
   const channels: KnitrCodeChannels = { opts: front !== null && knitrFrontMatterSuppliesCode(front), fill: false };
   // The echo / include defaults, read in document order (Session 308): the front matter first, then each setup chunk's `opts_chunk$set()` for the chunks BELOW it.
   const frontDefaults = knitrDocumentDefaults(lines);
-  const defaults: KnitrDefaultsState = { frontEcho: frontDefaults.echo, frontInclude: frontDefaults.include, echo: "none", include: "none" };
+  const defaults: KnitrDefaultsState = { frontEcho: frontDefaults.echo, frontInclude: frontDefaults.include, echo: "none", include: "none", callsOff: false };
   const frontNamesEval = front !== null && front.some((line) => KNITR_EVAL_KEY.test(line));
   const bodyStart = front === null ? 0 : front.length + 2;
   for (let i = 0; i < lines.length; i++) {
@@ -6823,7 +6823,7 @@ function knitrSilentChunkClosers(lines: readonly string[]): KnitrChunkClosers {
       }
       // The chunk's own call changes the defaults for the chunks BELOW it, never its own.
       knitrApplyDefaultsUpdate(defaults, knitrChunkDefaultsUpdate(begin[3], body, frontNamesEval));
-    } else if (body.some((line) => line.includes(KNITR_OPTS_CHUNK))) {
+    } else if (begin[3].includes(KNITR_OPTS_CHUNK) || body.some((line) => line.includes(KNITR_OPTS_CHUNK))) {
       knitrApplyDefaultsUpdate(defaults, "unknown");
     }
     // The chunk's own body counts only for the chunks BELOW it.
@@ -6987,6 +6987,44 @@ const KNITR_OPTION_KEY = /(?:^|[\s{,])["']?(echo|include)["']?[ \t]*:/g;
 /** The YAML false spellings measured to silence a chunk (`FALSE`/`False`/`false`); `F`, `no`, `"false"` are not. */
 const KNITR_YAML_FALSE = /^(?:false|FALSE|False)$/;
 /**
+ * The net depth of the `[` / `{` on a front-matter line, with quoted scalars and comments left out, or `null` when a quoted scalar is still open at the end of the line (a
+ * scalar that wraps onto the next line). A quote opens a scalar only where a value starts (line start, or after `:`, `[`, `{`, `,`, `-` or `?`), so an apostrophe inside a
+ * plain scalar (`title: Don't panic`) opens nothing; a `#` starts a comment only after whitespace. Linear (Session 308).
+ */
+function yamlLineFlowDepth(line: string): number | null {
+  let depth = 0;
+  let previous = "";
+  for (let k = 0; k < line.length; k++) {
+    const ch = line[k];
+    if ((ch === '"' || ch === "'") && (previous === "" || ":[{,-?".includes(previous))) {
+      let end = k + 1;
+      while (end < line.length && line[end] !== ch) {
+        end += ch === '"' && line[end] === "\\" ? 2 : ch === "'" && line[end] === "'" && line[end + 1] === "'" ? 2 : 1;
+      }
+      if (end >= line.length) {
+        return null;
+      }
+      k = end;
+      previous = ch;
+      continue;
+    }
+    if (ch === "#" && (k === 0 || line[k - 1] === " " || line[k - 1] === "\t")) {
+      break;
+    }
+    if (ch === "{" || ch === "[") {
+      depth++;
+    } else if (ch === "}" || ch === "]") {
+      depth--;
+    }
+    if (ch !== " " && ch !== "\t") {
+      previous = ch;
+    }
+  }
+  return depth;
+}
+/** `echo:false` with no space after the colon: in a YAML flow mapping that is a key named `echo:false`, not the option (rendered, rev-frontmatter_06). */
+const FLOW_KEY_NO_SPACE = /(?:echo|include)["']?:(?![ \t])/;
+/**
  * The `echo` / `include` defaults the leading front matter sets to false (R6 residual (b),
  * Session 287) — each `true` only when the option is POSITIVELY established false.
  *
@@ -7020,6 +7058,7 @@ function knitrDocumentDefaults(lines: readonly string[]): KnitrDocDefaults {
   }
   // A setup chunk's `knitr::opts_chunk$set(...)` changes the default for the chunks BELOW it when it RUNS, and not under `--no-execute`. Until Session 308 any mention
   // of `opts_chunk` below the front matter declined the whole document; the chunks are now read in document order (`knitrDefaultsState`, `knitrChunkDefaultsUpdate`).
+  const bodyFormat = lines.slice(content.length + 2).some((line) => /^format[ \t]*:/.test(line));
   const counted = { echo: 0, include: 0 };
   const read = { echo: 0, include: 0 };
   for (const line of content) {
@@ -7032,8 +7071,12 @@ function knitrDocumentDefaults(lines: readonly string[]): KnitrDocDefaults {
     // ⚠ Shapes this cannot read at all decline the WHOLE reader: a YAML explicit key (`? echo` then
     // `: true`, where key and colon sit on different lines) and a flow collection that spans lines (its
     // continuation can sit at the top indent and pass for a top-level key).
-    const depth = (line.match(/[{[]/g)?.length ?? 0) - (line.match(/[}\]]/g)?.length ?? 0);
-    if (/^[ \t]*\?(?:[ \t]|$)/.test(line) || depth !== 0) {
+    // The bracket count leaves quoted scalars and comments out (`yamlLineFlowDepth`): a brace hidden in a quote or a comment kept a flow collection open while every line
+    // counted zero, so a `format:` line INSIDE it passed for a top-level key (reviewer, rev-frontmatter_01 to _03). A quoted scalar that wraps onto the next line declines too (_04, _05).
+    const depth = yamlLineFlowDepth(line);
+    // An alias used as a KEY (`*k : true`) can spell `echo` where the counter cannot see it (rev-frontmatter_10), and `metadata-files:` names files that can set it from outside
+    // the document (_11): either declines the whole reader.
+    if (/^[ \t]*\?(?:[ \t]|$)/.test(line) || depth !== 0 || /^[ \t]*(?:\*[\w-]+[ \t]*:|metadata-files?[ \t]*:)/.test(line)) {
       return NO_KNITR_DOC_DEFAULTS;
     }
     for (const m of line.matchAll(KNITR_OPTION_KEY)) {
@@ -7054,7 +7097,7 @@ function knitrDocumentDefaults(lines: readonly string[]): KnitrDocDefaults {
   };
   const readFlow = (block: readonly string[], i: number, offset: number): void => {
     const region = flowRegion(block, i, offset);
-    for (const entry of region === null ? [] : (flowEntries(region) ?? [])) {
+    for (const entry of region === null || FLOW_KEY_NO_SPACE.test(region) ? [] : (flowEntries(region) ?? [])) {
       if ((entry.key === "echo" || entry.key === "include") && KNITR_YAML_FALSE.test(entry.value)) {
         read[entry.key]++;
       }
@@ -7091,10 +7134,11 @@ function knitrDocumentDefaults(lines: readonly string[]): KnitrDocDefaults {
     }
     // `format: html:` (Session 308): the FIRST format listed is the one `quarto render` renders, so only its mapping is the document's default. A format further
     // down, or `html` second, stays an unread key and declines the option (measured: `pdf` alone does not apply to an html render, f08).
-    const format = mappingAt(content, i, top, "format");
+    // A second `format:` key in the BODY (a `---` metadata block below the first) is merged by quarto, and its `echo` can beat the leading block's (rendered, rev-frontmatter_14).
+    const format = bodyFormat ? null : mappingAt(content, i, top, "format");
     if (format === "flow") {
       const region = flowRegion(content, i, top + "format:".length);
-      const first = region === null ? undefined : flowEntries(region)?.[0];
+      const first = region === null || FLOW_KEY_NO_SPACE.test(region) ? undefined : flowEntries(region)?.[0];
       for (const entry of first?.key === "html" ? (flowEntries(first.value) ?? []) : []) {
         if ((entry.key === "echo" || entry.key === "include") && KNITR_YAML_FALSE.test(entry.value)) {
           read[entry.key]++;
@@ -7151,19 +7195,28 @@ interface KnitrDefaultKinds {
   readonly include: KnitrDefaultKind;
 }
 /** What a chunk does to ONE default: set it silent, set it loud (`TRUE`), or something this does not read (`unknown`, a call it cannot evaluate). */
-type KnitrCallEffect = "none" | "silent" | "loud" | "unknown";
+type KnitrCallEffect = "none" | "silent" | "silentF" | "loud" | "unknown";
 /** What one chunk does to the defaults below it: `null` when it never mentions `opts_chunk`. */
-type KnitrDefaultsUpdate = null | "unknown" | { readonly echo?: "silent" | "loud" | "unknown"; readonly include?: "silent" | "loud" | "unknown" };
+type KnitrDefaultsUpdate =
+  | null
+  | "unknown"
+  | { readonly echo?: KnitrCallEffect; readonly include?: KnitrCallEffect; readonly disables?: true };
 /** The defaults the front matter and the setup chunks ABOVE a chunk give it, in document order. */
 interface KnitrDefaultsState {
   frontEcho: boolean;
   frontInclude: boolean;
   echo: KnitrCallEffect;
   include: KnitrCallEffect;
+  /** An earlier call set `eval` to something but TRUE: a later setup chunk may not run at all (reviewer, soundness_12). */
+  callsOff: boolean;
 }
 function knitrDefaultKind(front: boolean, call: KnitrCallEffect): KnitrDefaultKind {
   if (call === "silent") {
     return front ? "both" : "exec";
+  }
+  // `F` is an ordinary variable a document can rebind, so a bare `F` is never CERTAIN silence, even beside a silent front matter (reviewer, soundness_02).
+  if (call === "silentF") {
+    return "exec";
   }
   // A call that sets the option LOUD is followed as the executing mode, as HEAD did (the front matter's silence is then not trusted); one this cannot read is no default.
   return call === "none" && front ? "both" : "no";
@@ -7175,6 +7228,9 @@ function knitrApplyDefaultsUpdate(state: KnitrDefaultsState, update: KnitrDefaul
   if (update === null) {
     return;
   }
+  if (state.callsOff && update !== "unknown") {
+    update = "unknown";
+  }
   if (update === "unknown") {
     // A call this cannot read may set anything, so no call above it is trusted from here on: the chunks below it are loud again (HEAD declined the whole document). The front
     // matter stays: it applies in both modes whatever a call does, so a LATER call that silences brings its silence back (rendered, p01).
@@ -7184,6 +7240,7 @@ function knitrApplyDefaultsUpdate(state: KnitrDefaultsState, update: KnitrDefaul
   }
   state.echo = update.echo ?? state.echo;
   state.include = update.include ?? state.include;
+  state.callsOff = state.callsOff || update.disables === true;
 }
 /** An `eval` key anywhere in the front matter: a setup chunk may then not run at all (rendered, d30), so no call is read. */
 const KNITR_EVAL_KEY = /(?:^|[\s{,])["']?eval["']?[ \t]*:/;
@@ -7200,8 +7257,12 @@ const KNITR_OPTS_CHUNK_SET = /^(?:knitr[ \t]*::[ \t]*)?opts_chunk[ \t]*\$[ \t]*s
  * never runs (d12, d13: no effect). A document whose front matter names `eval` anywhere is not read at all (d30).
  */
 function knitrChunkDefaultsUpdate(header: string, body: readonly string[], frontNamesEval: boolean): KnitrDefaultsUpdate {
-  if (!body.some((line) => line.includes(KNITR_OPTS_CHUNK))) {
+  if (!header.includes(KNITR_OPTS_CHUNK) && !body.some((line) => line.includes(KNITR_OPTS_CHUNK))) {
     return null;
+  }
+  // A mention in the chunk HEADER (an option given as an R expression) or in a `#|` line (`!expr`) runs R whatever the chunk's code is (reviewer, soundness_14): not read.
+  if (header.includes(KNITR_OPTS_CHUNK) || body.some((line) => line.startsWith("#|") && line.includes(KNITR_OPTS_CHUNK))) {
+    return "unknown";
   }
   const engine = /^\{([a-zA-Z0-9_]+)/.exec(header);
   if (engine === null || (engine[1] !== "r" && engine[1] !== "R")) {
@@ -7225,7 +7286,7 @@ function knitrChunkDefaultsUpdate(header: string, body: readonly string[], front
   if (parsed === null || parsed.stringMention) {
     return "unknown";
   }
-  const update: { echo?: "silent" | "loud" | "unknown"; include?: "silent" | "loud" | "unknown" } = {};
+  const update: { echo?: KnitrCallEffect; include?: KnitrCallEffect; disables?: true } = {};
   for (const statement of parsed.statements) {
     if (!statement.includes(KNITR_OPTS_CHUNK)) {
       continue;
@@ -7239,13 +7300,17 @@ function knitrChunkDefaultsUpdate(header: string, body: readonly string[], front
       if (named === null) {
         return "unknown";
       }
+      const value = named[2].trim();
+      // `eval` set to anything but TRUE: a chunk below may not run, so its call is not read (soundness_12).
+      if (named[1] === "eval" && !/^(?:TRUE|T)$/.test(value)) {
+        update.disables = true;
+      }
       if (named[1] !== "echo" && named[1] !== "include") {
         continue;
       }
-      const value = named[2].trim();
       // An option named twice in one call takes the LATER value (rendered, m07 and p05). A value this cannot read leaves ONLY that option unread: the call sets
       // exactly the options it names (rendered, q03: `echo = show` leaves a front matter `include: false` in force).
-      update[named[1]] = !/^(?:FALSE|F|TRUE|T)$/.test(value) ? "unknown" : value === "FALSE" || value === "F" ? "silent" : "loud";
+      update[named[1]] = !/^(?:FALSE|F|TRUE|T)$/.test(value) ? "unknown" : value === "FALSE" ? "silent" : value === "F" ? "silentF" : "loud";
     }
   }
   return update;
@@ -7285,6 +7350,27 @@ function rSplitArguments(args: string): string[] {
   return parts;
 }
 /**
+ * Whether `text` (masked) ends exactly at the closing paren of an `if (`, `for (`, `while (`, `function(` or `\(` header: R then reads the NEXT line as its body, so a call there is the
+ * body of a function that may never run, or of a branch that may never be taken (reviewer, soundness_03 to _05). Linear: one pass with a stack.
+ */
+function rEndsAtKeywordHeader(text: string): boolean {
+  if (!text.endsWith(")")) {
+    return false;
+  }
+  const keyword: boolean[] = [];
+  for (let k = 0; k < text.length; k++) {
+    const ch = text[k];
+    if (ch === "(" || ch === "[" || ch === "{") {
+      keyword.push(ch === "(" && /(?:^|[^\w.])(?:function|if|for|while)\s*$|\\\s*$/.test(text.slice(Math.max(0, k - 12), k)));
+    } else if (ch === ")" || ch === "]" || ch === "}") {
+      if (keyword.pop() === true && k === text.length - 1) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+/**
  * The top-level statements of an R chunk (Session 308), each with its strings replaced by `""` and its comments dropped, or `null` when the code is not shaped this
  * reads with certainty: a backtick name, a raw string (`r"(...)"`), an unterminated string or an unbalanced bracket. `stringMention` is true when `opts_chunk` sits
  * inside a string: R can evaluate one (`eval(parse(text = ...))`), so it is not a mention this can discard.
@@ -7297,7 +7383,6 @@ function rTopLevelStatements(code: string): { statements: string[]; stringMentio
   const statements: string[] = [];
   let current = "";
   let pending = "";
-  let pendingKeyword = false;
   let depth = 0;
   let stringMention = false;
   const endStatement = (): void => {
@@ -7306,13 +7391,9 @@ function rTopLevelStatements(code: string): { statements: string[]; stringMentio
     if (text === "") {
       return;
     }
-    if (pending === "") {
-      pending = text;
-      pendingKeyword = /^(?:if|for|while|repeat|function|else)\b/.test(text);
-    } else {
-      pending += ` ${text}`;
-    }
-    const incomplete = /[-+*/^<>=!&|~,$@:%]$/.test(text) || (pendingKeyword && (text.endsWith(")") || /\b(?:else|repeat)$/.test(text)));
+    pending = pending === "" ? text : `${pending} ${text}`;
+    // R continues onto the next line while the statement ends in an operator, or at the header of an `if`, `for`, `while`, `function` or `\(x)` (its body follows), or at `else` / `repeat`.
+    const incomplete = /[-+*/^<>=!&|~,$@:%]$/.test(text) || rEndsAtKeywordHeader(text) || /(?:^|[^\w.])(?:else|repeat)$/.test(text);
     if (!incomplete) {
       statements.push(pending);
       pending = "";
@@ -7336,6 +7417,14 @@ function rTopLevelStatements(code: string): { statements: string[]; stringMentio
       i = end;
     } else if (ch === "`") {
       return null;
+    } else if (ch === "%") {
+      // A `%op%` operator is one token, so a `#` or a quote inside it opens no comment or string (reviewer, soundness_01); it ends on its line or the code is declined.
+      const end = code.indexOf("%", i + 1);
+      if (end < 0 || code.slice(i + 1, end).includes("\n")) {
+        return null;
+      }
+      current += "%o%";
+      i = end;
     } else if (ch === "#") {
       while (i + 1 < code.length && code[i + 1] !== "\n") {
         i++;

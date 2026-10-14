@@ -21373,6 +21373,44 @@ describe("Session 308 — a document DEFAULT that silences the LATER chunk: `for
     expect(xy(shape)).toEqual(["Top", "Mid", "After", "Last"]);
   });
 
+  // FOUND BY THE REVIEWERS (Session 308, three read-only lenses) and RE-RENDERED by the caller: each document below is LOUD at X in quarto (`Top, Mid, After, Last` here), and the
+  // first cut of the reader judged X silent, so the stray fence paired with the loud Y and swallowed Mid (DELETING), or judged a call that never runs as running (PHANTOM).
+  // `scratchpad/s308/rev-soundness` and `rev-frontmatter`; the ids are theirs. Y is `{r, echo=TRUE}` where the answer must tell a skipped X from an ended swallow.
+  it.each<[string, Shape, string[]?]>([
+    ["a `%#%` operator hides the loud call after it from a lexer that reads `#` as a comment (soundness_01)", { front: FRONT_ECHO_FALSE, pre: setup('"%#%" <- function(a, b) a', `1 %#% 2; ${CALL_TRUE}`) }, YT],
+    ["`echo = F` with `F` rebound to TRUE is loud; a bare `F` is no certain silence (soundness_02)", { front: FRONT_ECHO_FALSE, pre: setup("F <- TRUE", "knitr::opts_chunk$set(echo = F)") }, YT],
+    ["a call that is the BODY of an assigned function, on the next line, never runs (soundness_03)", { pre: setup("quiet <- function()", `  ${CALL}`) }],
+    ["a call that is the body of an assigned lambda, on the next line (soundness_04)", { pre: setup("quiet <- \\()", `  ${CALL}`) }],
+    ["a call that is the body of an assigned `if (FALSE)`, on the next line (soundness_05)", { pre: setup("quiet <- if (FALSE)", `  ${CALL}`) }],
+    ["a call in a chunk that follows `opts_chunk$set(eval = FALSE)` never runs (soundness_12)", { pre: [...setup("knitr::opts_chunk$set(eval = FALSE)"), ...setupAs("{r setup2, include=FALSE}", CALL)] }],
+    ["an `opts_chunk` call in a chunk HEADER expression runs, so the front matter's silence is dropped (soundness_14)", { front: FRONT_ECHO_FALSE, pre: [...chunk("{r setup, include = is.null(knitr::opts_chunk$set(echo = TRUE))}", "invisible(NULL)"), ""] }, YT],
+  ])("%s", (_n, shape, y) => {
+    expect(xy(shape, y)).toEqual(["Top", "Mid", "After", "Last"]);
+  });
+  it("an `opts_chunk` call in a `#|` line (`!expr`) runs too, so the front matter's silence is dropped (not rendered as written: the header form, soundness_14, is)", () => {
+    expect(xy({ front: FRONT_ECHO_FALSE, pre: setup(`#| echo: !expr ${CALL_TRUE}`, "invisible(NULL)") }, YT)).toEqual(["Top", "Mid", "After", "Last"]);
+  });
+  // THE FRONT MATTER READER (rev-frontmatter): each of these is a `format:` line that is NOT a top-level key in YAML (it sits inside a flow collection that a quote or a comment
+  // hides from a per-line bracket count, inside a quoted scalar that wraps, or it spells `{echo:false}` with no space, which YAML reads as a key named `echo:false`), or a
+  // second `format:` block in the body that quarto merges. The reader trusted all of them as the document's default. The same bypasses reach the `execute:`, `knitr:` and
+  // top-level arms; the placements here use `format:` because that is the new arm.
+  it.each<[string, string[]]>([
+    ["a flow mapping whose closing brace hides in a quoted string (frontmatter_01)", ['meta: {a: "}",', "format: {html: {echo: false}},", 'b: "{"}']],
+    ["a flow mapping whose closing brace hides in a comment (frontmatter_02)", ["meta: {a: 1, # }", "format: {html: {echo: false}}} # {"]],
+    ["a flow sequence whose bracket hides in a quoted string (frontmatter_03)", ['meta: ["]",', "format: {html: {echo: false}},", '"["]']],
+    ["a double-quoted title that wraps over the lines of a `format:` block (frontmatter_04)", ['title: "Report', "format:", "  html:", "    echo: false", '"']],
+    ["a single-quoted description that wraps over the lines of a `format:` block (frontmatter_05)", ["description: 'Notes", "format:", "  html:", "    echo: false", "'"]],
+    ["`{echo:false}` in flow style is a key named `echo:false`, not an option (frontmatter_06)", ["format: {html: {echo:false}}"]],
+    ["an alias used as a KEY, `*k : true` with `&k echo` defined above, is the `echo` key YAML reads (frontmatter_10)", ["alias-key: &k echo", "format:", "  html:", "    echo: false", "knitr:", "  opts_chunk:", "    *k : true"]],
+    ["`metadata-files:` names a file that can set `echo` from outside the document (frontmatter_11)", ["metadata-files:", "  - _loud.yml", "format:", "  html:", "    echo: false"]],
+    ["the same flow spelling under `execute:` (not rendered as written: the `format:` form, frontmatter_06, is)", ["execute: {echo:false}"]],
+  ])("not a default: %s", (_n, front) => {
+    expect(xy({ front }, YT)).toEqual(["Top", "Mid", "After", "Last"]);
+  });
+  it("a second `format:` block in the body (a `---` metadata block below the first) is merged by quarto, so the first block's default is not trusted (frontmatter_14)", () => {
+    expect(xy({ front: ["format:", "  html:", "    echo: false"], pre: ["Intro paragraph.", "", "---", "format:", "  html:", "    echo: true", "---", ""] }, YT)).toEqual(["Top", "Mid", "After", "Last"]);
+  });
+
   // RESIDUALS, NOT quarto truth: each of these runs when quarto executes and silences the later chunk (every heading shows, ALL), but the reader does not read the shape, so it
   // keeps HEAD's answer (S). Wrong before and after; the cost of reading only an exact top-level statement. Pinned at the model's answer.
   it.each<[string, Shape]>([
