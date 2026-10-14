@@ -85,34 +85,3 @@ the three kept files' sha256), and only then removed (159 s). `migrate-layout`'s
 (4) My first before/after comparison (`sed 1,0d`) reported a difference that was my own bug. (5) The first dashboard run overran a tool call and drew a "have not heard from you" nudge. (6) The CLAUDE.md stale example (2419) is noted, not fixed.
 **TDD:** not applicable (no logic changed; the gate exempts it). Verification was the byte-identical standing measure above, not a unit test. No `src/`, `test/` or `package.json` file changed, so no host run.
 **Cost:** 0 agents. Ultracode defaults to a workflow, but this was one writer doing a destructive, mechanical step and every read was a command I could run myself; the price is no independent reviewer of the delete list.
-
-## Session 300 Handoff Evaluation (by Session 301)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its receipt said `BACKLOG.md` "Active" was empty and listed the open items; the `key_files` line numbers I
-checked were exact at HEAD (`LANG_COMMENT_CHARS` 10627, the row 10635, `commentCharsFor` 10656, `cellOptionDirectiveFor` 10710, `findCellOptionLines` 10772, `CELL_HANDLER_LANGUAGES` 1012;
-`refs.ts:130` was 129); the ratchet citation (2/2, `bba236856bad`, manifest `334939914945`) matched the stored results, and my Phase 0 found no ledger or receipt gap (both frontiers at HEAD).
-**Helped:** the item's reproduction and its "ground first" instruction (one render settled the claim before any code), the fixture and the closed-world pins as the model for mine, `mutate300.py`
-as the model for my harness, and gotchas 3 (count a kill only on "Tests N failed"), 4 (the commit order that keeps `ledger-lag` at 0), 6 (the host run takes the screen: ask) and 9 (stage history files by exact path).
-**Missing:** that the item overlaps two older ones (the S160 second-scanner item and the prefix-consolidation item) and that the root fix is a cross-module change needing the operator's approval (it
-cost the first hour); and that the old scan's `^\s*` was load-bearing: the consolidation item called indented options "non-idiomatic", and a real corpus document (ordinal 1887) has three labels in
-an indented list-item cell. **Wrong:** nothing I could find (the item's "either" understated the choice). **ROI: high.**
-
-## Session 301 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** I grounded first: quarto 1.7.33 rendered about 110 probe documents (mermaid, dot, ojs, python under jupyter, R under knitr with execution) before a line of code moved, and the operator
-approved the cross-module scope on those measurements (use the shared option scanner; it closes this item and two older ones). RED was shown before GREEN for each behaviour (the witness, the quoted
-key, the indented cell, the nested key, the handler fence); the refactor (`cellOptionLinesOf`) is its own commit (`git diff -w`: 12 lines); 73 of the first 107 rows fail against the parent build. A
-differential of the old and new builds over the 3,382 authored documents found what the unit suite could not: three labels of a list-item cell removed (ordinal 1887); after the fix, 0 removed and 46
-added (all `{mermaid}` `%%|`). A 174-document hunt (4 authoring agents, 2 read-only reviewers, rendered by me 3 wide) scored against quarto and the parent: agreement 242 to 335 of 425; it found two
-regressions the change itself introduced for mermaid (a handler fence indented at all, a nested `label`), both fixed with a RED row. The reviewers' findings are closed (the all-or-nothing-strip mutant,
-tabs, CRLF, case and quote keys, two false comments, a mislabelled row). 27 mutants: 24 killed, 3 equivalent. Host run: 557 passing. Tests 5,023 to 5,155; type checks, `check-backlog`, the oracle clean.
-**Went wrong.** (1) My first GREEN dropped real labels: I had read "indented options are non-idiomatic" and still routed through the column-0 scanner; only my own corpus differential caught it. (2) I
-named a corpus document (R4DS) in two tracked files and in a commit message (`ea01ed5d`), against Learning #548; the test critic found it, the files are fixed, the message stays. (3) A row titled
-"RESIDUAL (pre-existing)" pinned a phantom my change introduced (found by review; the handler rule fixed it). (4) An `echo: false` control under `--no-execute` nearly recorded a false rule. (5) Two
-comments lost a `\u0065` escape on save (Learning #692). (6) The engine-dependent residuals (python blank-first lost, knitr spacing phantom, format-conditional divs) are filed, not fixed; one is a
-regression against the parent, with corpus reach 0. (7) Three backlog items in one session (operator-approved). (8) No host RED. (9) The dashboard took 4:45 and drew a complaint; the 15-minute load
-reached 114 while the workflow ran. (10) The corpus score was not re-run (no `findHeadings` change).
-**TDD:** RED shown before GREEN for every behaviour; 34 of the first 107 rows and most of the later guard rows passed on arrival (controls, shapes the parent got right by accident, closed-world table
-rows for `#` and `//` languages), disclosed; each guard was shown RED against a mutant.
-**Cost:** 6 agents (about 1.07M subagent tokens, none rendered), about 330 renders by me at 3 wide behind the load gate, 28 mutant runs, one host run of about 2 minutes, `npm run package` at close-out.
