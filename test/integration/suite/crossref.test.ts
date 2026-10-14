@@ -241,6 +241,70 @@ describe("Quarto: Cross-reference completion + definition", () => {
     );
   });
 
+  it("a knitr chunk header's label is offered after @ and is a definition target; a jupyter document ignores it (Session 303)", async () => {
+    // Quarto 1.7.33 with knitr executing defines `@fig-hdr` from `{r fig-hdr}` exactly as from `#| label:`
+    // (`scratchpad/s303/hdr`, a01), and defines nothing from the same header in a jupyter document (y03, y09). The
+    // unit tests compose `resolveDocumentEngine` and `indexLabels` by hand; only the REGISTERED providers resolve
+    // the engine from `document.fileName` and the text, so this is the row that fails if either call site loses it.
+    const open = async (content: string) => {
+      const doc = await vscode.workspace.openTextDocument({ language: "quarto", content });
+      await vscode.window.showTextDocument(doc);
+      return doc;
+    };
+    const labelsAfterAt = async (doc: vscode.TextDocument) => {
+      const line = doc.lineCount - 1;
+      const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+        "vscode.executeCompletionItemProvider",
+        doc.uri,
+        new vscode.Position(line, doc.lineAt(line).text.length),
+        "@",
+      );
+      return (list?.items ?? []).map(labelText);
+    };
+
+    const knitr = await open(
+      ["```{r fig-hdr}", '#| fig-cap: "Cap"', "plot(1)", "```", "", "See @fig-hdr and @"].join("\n"),
+    );
+    const knitrLabels = await labelsAfterAt(knitr);
+    assert.ok(knitrLabels.includes("@fig-hdr"), `the header label is offered: ${JSON.stringify(knitrLabels)}`);
+    // Line 5 "See @fig-hdr and @": col 8 is inside '@fig-hdr'. The definition is the id in the header, col 6.
+    const locs = await vscode.commands.executeCommand<vscode.Location[]>(
+      "vscode.executeDefinitionProvider",
+      knitr.uri,
+      new vscode.Position(5, 8),
+    );
+    assert.ok(locs && locs.length > 0, "a definition should be returned");
+    assert.strictEqual(locs[0].range.start.line, 0, "jumps to the chunk header");
+    assert.strictEqual(locs[0].range.start.character, 6, "lands on the label in the header");
+
+    // The control that makes it mean something: the same chunk in a jupyter document defines nothing.
+    const jupyter = await open(
+      [
+        "---",
+        "jupyter: python3",
+        "---",
+        "",
+        "# Ctl {#sec-ctl}",
+        "",
+        "```{r fig-hdr}",
+        '#| fig-cap: "Cap"',
+        "plot(1)",
+        "```",
+        "",
+        "See @",
+      ].join("\n"),
+    );
+    const jupyterLabels = await labelsAfterAt(jupyter);
+    assert.ok(
+      jupyterLabels.includes("@sec-ctl"),
+      `the control: completion works in this document: ${JSON.stringify(jupyterLabels)}`,
+    );
+    assert.ok(
+      !jupyterLabels.includes("@fig-hdr"),
+      `a jupyter document does not read a chunk header's label: ${JSON.stringify(jupyterLabels)}`,
+    );
+  });
+
   it("a reader without `header_attributes` defines no sec- label (Session 216)", async () => {
     // ⚠ THIS IS THE CONSUMER SESSION 215's CHANGE COULD NOT REACH AND THIS ONE CAN.
     // `HEADING_ATTRIBUTE` is the ONLY source of `Heading.id`, which `src/core/refs.ts` turns
