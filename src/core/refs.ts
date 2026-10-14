@@ -30,10 +30,13 @@ import {
   braceGroups,
   attributeBlockReader,
   cellOptionLinesOf,
+  cellTargetContext,
   findAllCells,
   findBodyLines,
   findCodeFenceOpeners,
   findHeadings,
+  jupyterCellMakesNoTarget,
+  knitrCellMakesNoTarget,
   knitrChunkHeaderLabel,
   maskInlineCode,
   quartoFenceTagRewrite,
@@ -344,6 +347,7 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
   // witness): an option at the fence's indent or at column 0 is an option, one deeper or in
   // between is code. The scanner only ever sees column 0, so the stripped copy is what it is handed.
   const sourceLines = text.split(/\r?\n/);
+  const targetContext = documentEngine === "knitr" || documentEngine === "jupyter" ? cellTargetContext(text) : null;
   for (const cell of findAllCells(text)) {
     const indent = /^[ \t]*/.exec(sourceLines[cell.startLine])?.[0] ?? "";
     if (indent !== "" && COLUMN_ZERO_ONLY_LANGUAGES.has(cell.lang)) {
@@ -354,6 +358,18 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
       indent === "" || cell.code.length === 0
         ? cell
         : { ...cell, code: cell.code.split("\n").map(stripLine).join("\n") };
+    // ⚠ A LABEL ON A CELL THAT MAKES NO TARGET IS NOT A DEFINITION (Session 304): quarto prints `?@fig-x`. Only a knitr
+    // or a Jupyter document is read here, each by its own reader, and a wrong "makes none" loses a real label, so both
+    // answer true only for what was rendered.
+    const bodyLines = readable.code.length === 0 ? [] : readable.code.split("\n");
+    const lang = cell.lang.toLowerCase();
+    const makesNoTarget = (kind: RefKind): boolean =>
+      targetContext !== null &&
+      (kind === "fig" || kind === "tbl") &&
+      !COLUMN_ZERO_ONLY_LANGUAGES.has(lang) &&
+      (documentEngine === "knitr"
+        ? knitrCellMakesNoTarget(sourceLines[cell.startLine], bodyLines, kind, targetContext)
+        : lang === "python" && jupyterCellMakesNoTarget(bodyLines, targetContext));
     // The folded indent of the block's first real key: YAML's top level. A `label` nested deeper
     // under another option is that option's own data, not the cell's label.
     let baseIndent: number | null = null;
@@ -417,7 +433,7 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
       }
       const value = m[1];
       const kind = kindOf(value);
-      if (kind === null) {
+      if (kind === null || makesNoTarget(kind)) {
         continue;
       }
       labels.push({
@@ -436,7 +452,7 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
         ? knitrChunkHeaderLabel(sourceLines[cell.startLine], COLUMN_ZERO_ONLY_LANGUAGES)
         : null;
     const headerId = header === null ? null : HEADER_LABEL_ID.exec(header.value);
-    if (header !== null && headerId !== null) {
+    if (header !== null && headerId !== null && !makesNoTarget(headerId[1] as RefKind)) {
       labels.push({ id: header.value, kind: headerId[1] as RefKind, line: cell.startLine, column: header.column });
     }
   }

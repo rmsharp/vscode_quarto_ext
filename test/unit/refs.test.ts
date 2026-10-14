@@ -2438,14 +2438,8 @@ describe("Session 303 — a knitr chunk HEADER carries the cell's label", () => 
     // Every row is PRE-EXISTING in kind: a `#| label: fig-x` on the same cell is the same phantom today (hdr2 k01, k02
     // PIPE rows, and the container rows of the label-index item's family (6)). They are pinned at what this
     // index answers so the fix flips them on purpose. Corpus reach: none of the 54 header-label cells sets one of these.
-    it.each([
-      ["{r fig-x, eval=FALSE}", "eval=FALSE: no code runs, so no figure exists (a15, k10 for eval=F)"],
-      ["{r fig-x, include=FALSE}", "include=FALSE (a16)"],
-      ["{r fig-x, fig.show='hide'}", "fig.show hide (k12)"],
-    ])("a figure label on a chunk that produces no figure is still defined here: %s — %s", (header) => {
-      expect(ids(chunk(header, '#| fig-cap: "Cap"', "plot(1)"))).toEqual(["fig-x"]);
-    });
-
+    // (The three no-figure rows that sat here — eval=FALSE, include=FALSE, fig.show='hide' — flipped in Session 304:
+    // see `refs-no-target.test.ts`.)
     it("…but eval=FALSE does NOT stop a TABLE label: quarto still defines it (k07, k08), so the table row is a plain true positive", () => {
       expect(ids(chunk("{r tbl-x, eval=FALSE}", '#| tbl-cap: "Cap"', "knitr::kable(head(cars))"))).toEqual(["tbl-x"]);
     });

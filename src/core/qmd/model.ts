@@ -6804,18 +6804,22 @@ function knitrSilentChunkClosers(lines: readonly string[]): Map<number, number> 
   }
   return silent;
 }
-/** Which chunk options the DOCUMENT positively sets to false, for a chunk that sets neither itself. */
+/**
+ * Which chunk options the DOCUMENT positively sets to false, for a chunk that sets neither itself. `eval` is
+ * Session 304's, read by the cross-reference index and never by the Outline's silence rule.
+ */
 interface KnitrDocDefaults {
   readonly echo: boolean;
   readonly include: boolean;
+  readonly eval: boolean;
 }
-const NO_KNITR_DOC_DEFAULTS: KnitrDocDefaults = { echo: false, include: false };
+const NO_KNITR_DOC_DEFAULTS: KnitrDocDefaults = { echo: false, include: false, eval: false };
 /**
- * An `echo` / `include` KEY wherever one sits on a front-matter line — at the start, or after
+ * An `echo` / `include` / `eval` KEY wherever one sits on a front-matter line — at the start, or after
  * whitespace, a `{` or a `,` — quoted or not. It is a COUNT of everything that could set the option,
  * not a reading of it: see `knitrDocumentDefaults`.
  */
-const KNITR_OPTION_KEY = /(?:^|[\s{,])["']?(echo|include)["']?[ \t]*:/g;
+const KNITR_OPTION_KEY = /(?:^|[\s{,])["']?(echo|include|eval)["']?[ \t]*:/g;
 /** The YAML false spellings measured to silence a chunk (`FALSE`/`False`/`false`); `F`, `no`, `"false"` are not. */
 const KNITR_YAML_FALSE = /^(?:false|FALSE|False)$/;
 /**
@@ -6855,8 +6859,8 @@ function knitrDocumentDefaults(lines: readonly string[]): KnitrDocDefaults {
   if (lines.slice(content.length + 2).some((line) => line.includes("opts_chunk"))) {
     return NO_KNITR_DOC_DEFAULTS;
   }
-  const counted = { echo: 0, include: 0 };
-  const read = { echo: 0, include: 0 };
+  const counted = { echo: 0, include: 0, eval: 0 };
+  const read = { echo: 0, include: 0, eval: 0 };
   for (const line of content) {
     if (FRONTMATTER_NOT_CONTENT.test(line)) {
       continue;
@@ -6872,25 +6876,25 @@ function knitrDocumentDefaults(lines: readonly string[]): KnitrDocDefaults {
       return NO_KNITR_DOC_DEFAULTS;
     }
     for (const m of line.matchAll(KNITR_OPTION_KEY)) {
-      counted[m[1] as "echo" | "include"]++;
+      counted[m[1] as "echo" | "include" | "eval"]++;
     }
   }
-  // One mapping's OWN `echo` / `include` entries — block lines at `indent`, or the entries of a flow mapping.
+  // One mapping's OWN `echo` / `include` / `eval` entries — block lines at `indent`, or the entries of a flow mapping.
   const readMapping = (block: readonly string[], indent: number): void => {
     for (let i = 0; i < block.length; i++) {
       if (leadingWhitespace(block[i]) !== indent || FRONTMATTER_NOT_CONTENT.test(block[i])) {
         continue;
       }
-      const m = /^(echo|include):[ \t]*(.*)$/.exec(block[i].slice(indent));
+      const m = /^(echo|include|eval):[ \t]*(.*)$/.exec(block[i].slice(indent));
       if (m !== null && KNITR_YAML_FALSE.test(m[2].replace(/[ \t]+#.*$/, "").trim())) {
-        read[m[1] as "echo" | "include"]++;
+        read[m[1] as "echo" | "include" | "eval"]++;
       }
     }
   };
   const readFlow = (block: readonly string[], i: number, offset: number): void => {
     const region = flowRegion(block, i, offset);
     for (const entry of region === null ? [] : (flowEntries(region) ?? [])) {
-      if ((entry.key === "echo" || entry.key === "include") && KNITR_YAML_FALSE.test(entry.value)) {
+      if ((entry.key === "echo" || entry.key === "include" || entry.key === "eval") && KNITR_YAML_FALSE.test(entry.value)) {
         read[entry.key]++;
       }
     }
@@ -6946,6 +6950,7 @@ function knitrDocumentDefaults(lines: readonly string[]): KnitrDocDefaults {
   return {
     echo: read.echo > 0 && read.echo === counted.echo,
     include: read.include > 0 && read.include === counted.include,
+    eval: read.eval > 0 && read.eval === counted.eval,
   };
 }
 /**
@@ -7241,6 +7246,162 @@ export function knitrChunkHeaderLabel(
   const column = unnamed[0].start + unnamed[0].text.indexOf(text) + (read?.offset ?? 0);
   return read === null ? null : { value: read.value, column };
 }
+/** The cross-reference target a labelled cell would define: a figure or a table. */
+export type CellTargetKind = "fig" | "tbl";
+/**
+ * What the DOCUMENT, as opposed to the cell, contributes to {@link knitrCellMakesNoTarget} and
+ * {@link jupyterCellMakesNoTarget} (Session 304).
+ */
+export interface CellTargetContext {
+  /**
+   * The document names a knitr function that fills a chunk with code written ELSEWHERE, by the chunk's label
+   * (`read_chunk`, `read_demo`, `read_rforge`, `knit_code`): then a chunk with no code on the page may still draw
+   * a figure (x17, rendered). Read as a bare word anywhere in the text, prose included — a mention that is no call only
+   * declines a removal, which is the safe side.
+   */
+  readonly codeFromElsewhere: boolean;
+  /** The defaults the leading front matter positively sets to false for a chunk that sets neither itself. */
+  readonly defaults: Pick<KnitrDocDefaults, "include" | "eval">;
+}
+/** The document-level facts the cell readers need, read once per document. */
+export function cellTargetContext(text: string): CellTargetContext {
+  const { include, eval: evaluate } = knitrDocumentDefaults(text.split(/\r?\n/));
+  return { codeFromElsewhere: /read_chunk|read_demo|read_rforge|knit_code/.test(text), defaults: { include, eval: evaluate } };
+}
+/**
+ * Whether a knitr chunk is POSITIVELY known to leave the cross-reference target its label names undefined
+ * (Session 304) — the cell is there, the label is on it, and quarto still prints `?@fig-x`.
+ *
+ * ⚠ **THE DIRECTION OF A WRONG ANSWER IS THE REVERSE OF THE HEADER LABEL'S.** A wrong `true` removes a label
+ * quarto does define, which is a lost completion and a lost go-to-definition; a wrong `false` keeps a phantom,
+ * which is what every cell had before. So this answers `true` only for what was rendered, and anything it cannot
+ * read with certainty (a header the argument splitter declines, a `#|` block that is not the plain shape, an
+ * `engine=` or an external code source) answers `false`.
+ *
+ * The rule, per target (`scratchpad/s304/`; the ids name the probe):
+ *  - `include` resolved false hides everything the cell emits: no figure (a16) and no table (g030, e64);
+ *  - a FIGURE label also needs a figure: `eval` false (a15, k10), `output` false (g061, g095), `fig.show` `hide`
+ *    (k12) and `fig.keep` `none` (g006) leave none, and so does a chunk with NO code — no line, only blank lines or
+ *    only comments (k14, g153-g162) — which is measured for r and python only. A TABLE is the cell itself, so
+ *    `eval`, `output`, `fig.show`, `fig.keep` and an empty body leave it defined (k07, g111, g032, g033, g165).
+ *  - what the code DOES is undecidable here: an assignment, a `print` or an `if (FALSE)` plot make no figure
+ *    either (c04, c07, c20) and are left defined, the safe side.
+ */
+export function knitrCellMakesNoTarget(
+  openerLine: string,
+  body: readonly string[],
+  target: CellTargetKind,
+  context: CellTargetContext,
+): boolean {
+  const begin = KNITR_CHUNK_BEGIN.exec(openerLine);
+  const engine = begin === null ? null : /^\{([a-zA-Z0-9_]+)/.exec(begin[3]);
+  if (begin === null || engine === null) {
+    return false;
+  }
+  const header = knitrHeaderOptions(begin[3].slice(engine[0].length, -1));
+  const pipe = knitrPipeOptions(body);
+  // ⚠ Rendered for r and python only (`bash`, `sh`, `rcpp` … are not measured), and an `engine=` hands the chunk to
+  // another engine: both keep the label.
+  if (
+    header === null ||
+    pipe === null ||
+    !/^(?:r|R|python)$/.test(engine[1]) ||
+    header.has("engine") ||
+    pipe.has("engine")
+  ) {
+    return false;
+  }
+  if (knitrOptionResolvesFalse("include", header, pipe, context.defaults.include)) {
+    return true;
+  }
+  if (target !== "fig") {
+    return false;
+  }
+  if (
+    knitrOptionResolvesFalse("eval", header, pipe, context.defaults.eval) ||
+    knitrOptionResolvesFalse("output", header, pipe, false) ||
+    knitrStringOptionIs("fig.show", "hide", header, pipe) ||
+    knitrStringOptionIs("fig.keep", "none", header, pipe)
+  ) {
+    return true;
+  }
+  // ⚠ An empty body brings no code only when no option brings it in from OUTSIDE (`ref.label=`, `code=` and `file=`
+  // run another chunk's or file's code; `child=` inserts a document), as in `knitrChunkIsSilent`.
+  const external = ["child", "file", "code", "ref.label"].some((name) => header.has(name) || pipe.has(name));
+  return !external && !context.codeFromElsewhere && knitrChunkHasNoCodeLines(body);
+}
+/**
+ * Whether a chunk's body holds nothing past its leading `#|` option lines but blank lines and comments. A line that
+ * starts with `#` is a comment to its end, so no string can be open when every line is blank or one (Session 304).
+ */
+function knitrChunkHasNoCodeLines(body: readonly string[]): boolean {
+  return codeLinesAfterPipe(body).every((line) => /^[ \t]*(?:#.*)?$/.test(line));
+}
+/** A cell body without its leading `#|` option lines. */
+function codeLinesAfterPipe(body: readonly string[]): readonly string[] {
+  let k = 0;
+  while (k < body.length && body[k].startsWith("#|")) {
+    k++;
+  }
+  return body.slice(k);
+}
+/**
+ * Whether a Jupyter `{python}` cell is POSITIVELY known to leave the cross-reference target its label names undefined
+ * (Session 304). Jupyter puts the id on the CELL's own div, so — unlike knitr — a cell survives `eval: false` and
+ * `output: false` (g242, g244) and a plot that is never made (j15): what drops it is having NOTHING to show.
+ * Rendered with Jupyter executing (`scratchpad/s304/grid`, `grid2`, `grid3`), both targets alike:
+ *  - `include` false, in the cell or in the document (g243, g287, k053), the cell's own value winning (m004, m005);
+ *  - no source line at all, or only blank ones (k025-k030) — a comment or a `pass` is source and is shown (k031, k033);
+ *  - `echo: false` with nothing to output: `eval: false` or `output: false` beside it (k002, k003, k005, m006, m008, m009),
+ *    or a body of comments only (k034, m011). What the code of an `echo: false` cell prints is undecidable (`pass`, k032).
+ * The YAML is Quarto's own, so only `false`, `False` and `FALSE` are read; `no`, `off` and a quoted `'false'` make quarto
+ * refuse the document (g248-g250, p06).
+ */
+export function jupyterCellMakesNoTarget(body: readonly string[], context: CellTargetContext): boolean {
+  const pipe = knitrPipeOptions(body);
+  if (pipe === null) {
+    return false;
+  }
+  const isFalse = (name: string): boolean => {
+    const value = pipe.get(name);
+    return value !== undefined && KNITR_YAML_FALSE.test(value);
+  };
+  if (pipe.has("include") ? isFalse("include") : context.defaults.include) {
+    return true;
+  }
+  const code = codeLinesAfterPipe(body);
+  if (code.every((line) => /^[ \t]*$/.test(line))) {
+    return true;
+  }
+  if (!isFalse("echo")) {
+    return false;
+  }
+  return code.every((line) => /^[ \t]*(?:#.*)?$/.test(line)) || isFalse("eval") || isFalse("output");
+}
+/**
+ * Whether a STRING option — `fig.show`, `fig.keep` — is positively `wanted` (Session 304). A leading `#|` line wins over
+ * the header, as for every option (`knitrOptionResolvesFalse`), and the pipe spells the name with a dash or a dot
+ * (`fig-show`, `fig.show`: p19, p20); both at once is unread. A pipe value is a plain YAML word or one quoted without
+ * an escape (`hide`, `'hide'`, `"hide"`: p19, g131, g132). A header value is an R string literal with no escape
+ * (`'hide'`, `"hide"`: k12, h28); a bare word is R code (a symbol) and is never read, nor is a call (`c('hide')`).
+ */
+function knitrStringOptionIs(
+  name: "fig.show" | "fig.keep",
+  wanted: string,
+  header: ReadonlyMap<string, string>,
+  pipe: ReadonlyMap<string, string>,
+): boolean {
+  const literal = (value: string): string | undefined => /^(["'])([^"'\\]*)\1$/.exec(value)?.[2];
+  const piped = [pipe.get(name), pipe.get(name.replace(".", "-"))].filter((v): v is string => v !== undefined);
+  if (piped.length > 1) {
+    return false;
+  }
+  if (piped.length === 1) {
+    return piped[0] === wanted || literal(piped[0]) === wanted;
+  }
+  const value = header.get(name);
+  return value !== undefined && literal(value) === wanted;
+}
 /**
  * The chunk's LEADING `#|` options, or `null` when any line of that run is not in the plain
  * `#| key: value` shape. knitr reads a `#|` block as YAML only in that shape and as something
@@ -7296,7 +7457,7 @@ const KNITR_PIPE_FALSE: ReadonlySet<string> = new Set([
  * value outside those — `NA`, a call, a comparison — is unread, so the chunk counts as echoing.
  */
 function knitrOptionResolvesFalse(
-  name: "echo" | "include",
+  name: "echo" | "include" | "eval" | "output",
   header: ReadonlyMap<string, string>,
   pipe: ReadonlyMap<string, string>,
   documentDefault: boolean,
