@@ -360,16 +360,24 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
         : { ...cell, code: cell.code.split("\n").map(stripLine).join("\n") };
     // ⚠ A LABEL ON A CELL THAT MAKES NO TARGET IS NOT A DEFINITION (Session 304): quarto prints `?@fig-x`. Only a knitr
     // or a Jupyter document is read here, each by its own reader, and a wrong "makes none" loses a real label, so both
-    // answer true only for what was rendered.
+    // answer true only for what was rendered. The two readers decline every cell language but their own measured ones
+    // (r, R and python for knitr; `python`, spelled so, for Jupyter), which leaves the handler cells alone.
     const bodyLines = readable.code.length === 0 ? [] : readable.code.split("\n");
-    const lang = cell.lang.toLowerCase();
+    // ⚠ The scanner closes a cell at a ``` of any indent, and quarto only at one at the OPENER'S OWN indent, so a stray
+    // fence inside a cell hands the rules a body that stops early: it looks empty and its label is removed (hunt
+    // struct-trap e01-e08, e43, rendered: defined). A cell is judged only when its closer is a bare fence at the
+    // opener's indent and at least as long as the opener's; an unterminated cell has no closer at all.
+    const openerRun = /^[ \t]*(`{3,})/.exec(sourceLines[cell.startLine])?.[1].length ?? Infinity;
+    const closer = cell.endLine > cell.startLine ? (sourceLines[cell.endLine] ?? "") : "";
+    const closedAtOpener =
+      closer.startsWith(indent) && new RegExp("^`{" + openerRun + ",}[ \t]*$").test(closer.slice(indent.length));
     const makesNoTarget = (kind: RefKind): boolean =>
       targetContext !== null &&
+      closedAtOpener &&
       (kind === "fig" || kind === "tbl") &&
-      !COLUMN_ZERO_ONLY_LANGUAGES.has(lang) &&
       (documentEngine === "knitr"
         ? knitrCellMakesNoTarget(sourceLines[cell.startLine], bodyLines, kind, targetContext)
-        : lang === "python" && jupyterCellMakesNoTarget(bodyLines, targetContext));
+        : cell.lang === "python" && jupyterCellMakesNoTarget(bodyLines, targetContext));
     // The folded indent of the block's first real key: YAML's top level. A `label` nested deeper
     // under another option is that option's own data, not the cell's label.
     let baseIndent: number | null = null;
