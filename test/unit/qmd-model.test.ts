@@ -20653,6 +20653,78 @@ describe("Session 306 — a `#| ref-label:` pipe line is the `ref.label` option:
   });
 });
 
+describe("Session 307 — code that reaches an EMPTY chunk through a knitr channel the chunk does not show", () => {
+  // MEASURED, quarto 1.7.33 with knitr 1.51, `.qmd` (`scratchpad/s307/`: grids g3, g5; the ids below are theirs). Same shapes as the
+  // Session 306 block: a silent source chunk and a setup chunk ABOVE a stray bare fence, the target chunk below it, shape T has a
+  // later echoing chunk. When code reaches the empty target the target echoes, the stray fence pairs with ITS closer and only
+  // `Between` is swallowed (T: Top, After, Last); when none does the target is silent (T: Top, Last).
+  const SRC = ["```{r src, include=FALSE}", "z <- 3", "```"];
+  const setup = (...code: string[]): string[] => [...SRC, "", "```{r setup, include=FALSE}", ...code, "```"];
+  interface Shape { source?: string[]; below?: string[]; front?: string[]; above?: string[] }
+  const grid = (target: string[], shape: Shape = {}): string =>
+    ["---", "title: t", ...(shape.front ?? []), "---", "", ...(shape.source ?? SRC), "", ...(shape.above ?? []), "# Top", "", "```", "", "## Between", "", ...target,
+      "", "## After", ...(shape.below ?? []), "", "```{r}", "y <- 1", "```", "", "## Last", ""].join("\n");
+  const outline = (target: string[], shape?: Shape): string[] => findHeadings(grid(target, shape), "knitr").map((h) => h.text);
+  const ECHOES = ["Top", "After", "Last"];
+  const SILENT = ["Top", "Last"];
+  const EMPTY = ["```{r}", "```"];
+  const LBL = ["```{r lbl}", "```"];
+
+  it("an empty chunk below `knitr::opts_chunk$set(ref.label = \"src\")` echoes the source, so it is not silent (a01)", () => {
+    expect(outline(EMPTY, { source: setup('knitr::opts_chunk$set(ref.label = "src")') })).toEqual(ECHOES);
+  });
+
+  it("an empty LABELLED chunk below `knitr::read_chunk(file)` is filled with that file's chunk, so it is not silent (a06)", () => {
+    expect(outline(LBL, { source: setup('knitr::read_chunk("_lbl.R")') })).toEqual(ECHOES);
+  });
+
+  // Rows of the same behaviour (they went green with the two rows above, disclosed; each channel word is in the guard, and dropping
+  // it turns its row RED, verified by a mutant). Rendered with real execution, exit 0.
+  it.each<[string, string[], Shape]>([
+    ["`knit_code$set(lbl = ...)` (a10)", LBL, { source: setup('knitr::knit_code$set(lbl = "w <- 9")') }],
+    ["`read_chunk(lines = ...)` (a11)", LBL, { source: setup('knitr::read_chunk(lines = c("## ---- lbl", "w <- 9"))') }],
+    ["two `read_chunk` calls, the second one holds the label (k06)", LBL, { source: setup('knitr::read_chunk("_other.R")', 'knitr::read_chunk("_lbl.R")') }],
+    ["a label given by a `#| label:` line (k07)", ["```{r}", "#| label: lbl", "```"], { source: setup('knitr::read_chunk("_lbl.R")') }],
+    ["`opts_chunk$set(code = ...)` (k08)", EMPTY, { source: setup('knitr::opts_chunk$set(code = "w <- 9")') }],
+    ["`opts_chunk$set(file = ...)` (k09)", EMPTY, { source: setup('knitr::opts_chunk$set(file = "_lbl.R")') }],
+    ["an inline `r` expression in the prose (k11, BOTH modes)", EMPTY, { above: ['`r knitr::opts_chunk$set(ref.label = "src")`', ""] }],
+    ["the front matter's `knitr: opts_chunk:` (k12, BOTH modes)", EMPTY, { front: ["knitr:", "  opts_chunk:", "    ref.label: src"] }],
+  ])("not silent: %s", (_n, target, shape) => {
+    expect(outline(target, shape)).toEqual(ECHOES);
+  });
+
+  // POSITION: a call BELOW the chunk cannot fill it (a03, a09, rendered: silent), so only the lines ABOVE count.
+  it.each<[string, string[], string[]]>([
+    ["`opts_chunk$set(ref.label = ...)` (a03)", EMPTY, ["", "```{r later, include=FALSE}", 'knitr::opts_chunk$set(ref.label = "src")', "```"]],
+    ["`read_chunk(...)` (a09)", LBL, ["", "```{r later, include=FALSE}", 'knitr::read_chunk("_lbl.R")', "```"]],
+  ])("silent: the call sits BELOW the chunk: %s", (_n, target, below) => {
+    expect(outline(target, { below })).toEqual(SILENT);
+  });
+
+  // NOT GUARDED, on purpose: each was rendered and quarto stays SILENT, so a guard on the word would only add a phantom (grid g5).
+  it.each<[string, string[], string[]]>([
+    ["`opts_template$set(t = list(ref.label = ...))` with `opts.label` on the chunk (k01)", ["```{r, opts.label='t'}", "```"], setup('knitr::opts_template$set(t = list(ref.label = "src"))')],
+    ["`set_alias(r = \"ref.label\")` with `r=` on the chunk (k03)", ["```{r, r='src'}", "```"], setup('knitr::set_alias(r = "ref.label")')],
+    ["`opts_hooks$set(...)` (k04)", ["```{r, fig.width=1}", "```"], setup('knitr::opts_hooks$set(fig.width = function(options) { options$ref.label <- "src"; options })')],
+    ["`source(\"_setup.R\")` (k05)", EMPTY, setup('source("_setup.R")')],
+    ["a setup chunk with no channel at all", EMPTY, setup("x <- 1")],
+  ])("silent, not guarded: %s", (_n, target, source) => {
+    expect(outline(target, { source })).toEqual(SILENT);
+  });
+
+  // RESIDUALS, NOT quarto truth: a word that names no channel in effect still declines the silence, because the guard reads a bare
+  // word on the lines above (as the label index's `codeFromElsewhere` does), and the model cannot tell. Each was RIGHT before
+  // Session 307 and is wrong now, in the phantom direction (`After` shown, quarto swallows it): the cost of the guard, priced by grid g3.
+  it.each<[string, string[], Shape]>([
+    ["the setup chunk is `eval=FALSE` and never runs (a02)", EMPTY, { source: [...SRC, "", "```{r setup, include=FALSE, eval=FALSE}", 'knitr::opts_chunk$set(ref.label = "src")', "```"] }],
+    ["the word appears in prose only (a04, a13)", LBL, { above: ["We never call `read_chunk` here, and `opts_chunk` is only a word.", ""] }],
+    ["`read_chunk` reads a file that holds ANOTHER label (a07)", LBL, { source: setup('knitr::read_chunk("_other.R")') }],
+    ["an UNLABELLED empty chunk under a `read_chunk` call (a08)", EMPTY, { source: setup('knitr::read_chunk("_lbl.R")') }],
+  ])("RESIDUAL, right before Session 307: %s", (_n, target, shape) => {
+    expect(outline(target, shape)).toEqual(ECHOES);
+  });
+});
+
 describe("R6 residual (a) — a silenced chunk of a NON-R engine emits no fence either (Session 286)", () => {
   // MEASURED, `.qmd` with `engine: knitr` (quarto 1.7.33), `scratchpad/s286/` (88 probes) and `r2/` (42):
   // with a stray bare ``` above, a `{python, echo=FALSE}` chunk leaves "Heading Under Test" rendered,

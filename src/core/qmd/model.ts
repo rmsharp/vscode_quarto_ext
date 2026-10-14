@@ -6770,6 +6770,7 @@ const KNITR_CHUNK_END = /^([\t >]*)(`{3,})[ \t\r\f\v]*$/;
 function knitrSilentChunkClosers(lines: readonly string[]): Map<number, number> {
   const silent = new Map<number, number>();
   const defaults = knitrDocumentDefaults(lines);
+  const channelLine = lines.findIndex((line) => KNITR_CODE_CHANNEL.test(line));
   for (let i = 0; i < lines.length; i++) {
     const begin = KNITR_CHUNK_BEGIN.exec(lines[i]);
     if (begin === null) {
@@ -6796,7 +6797,7 @@ function knitrSilentChunkClosers(lines: readonly string[]): Map<number, number> 
     if (
       begin[1] === "" &&
       KNITR_CHUNK_INFO.test(begin[3]) &&
-      knitrChunkIsSilent(begin[3], lines.slice(i + 1, end), defaults)
+      knitrChunkIsSilent(begin[3], lines.slice(i + 1, end), defaults, channelLine >= 0 && channelLine < i)
     ) {
       silent.set(end, i);
     }
@@ -6804,6 +6805,23 @@ function knitrSilentChunkClosers(lines: readonly string[]): Map<number, number> 
   }
   return silent;
 }
+/**
+ * A knitr function that fills a chunk with code written ELSEWHERE, or sets a default that does (Session 307): the words
+ * `cellTargetContext` calls `codeFromElsewhere`, searched on a LINE and not over the whole text, because only a call ABOVE a chunk can
+ * fill it (`knitrSilentChunkClosers` passes each chunk the answer for the lines before its opener). Rendered, quarto 1.7.33, a
+ * stray bare fence above an EMPTY `{r}` chunk, `scratchpad/s307/` g3, g5:
+ *  - ECHOES (the empty chunk emits a fence, the stray one pairs with it and `After` shows): `opts_chunk$set(ref.label=, code=, file=)`,
+ *    `read_chunk(file)` and `read_chunk(lines=)` for a LABELLED chunk (the label read from the header or a `#| label:`), `knit_code$set`,
+ *    an inline `` `r …` `` call, and the front matter's `knitr: opts_chunk:`;
+ *  - SILENT, so NOT guarded: `opts_template` + `opts.label`, `set_alias`, `opts_hooks`, `source()` (k01, k03-k05).
+ * ⚠ Read as a BARE WORD on any line above, prose, a comment and an `eval=FALSE` setup chunk included, exactly as the label index does, so a
+ * mention that names no channel in effect also declines the silence (pinned as RESIDUAL rows, right before Session 307). A wrong
+ * "silent" deletes the heading below and a wrong "loud" only adds one.
+ * ⚠ Under `--no-execute` the setup chunk never runs, so quarto stays silent for every CODE channel (the inline call and the front matter
+ * run in both modes): the two modes disagree and the Outline cannot be right in both. It follows the EXECUTING mode, as `KNITR_DOC_ECHO_ENGINES`
+ * does for the shell engines (Session 287).
+ */
+const KNITR_CODE_CHANNEL = /read_chunk|read_demo|read_rforge|knit_code|opts_chunk/;
 /** Which chunk options the DOCUMENT positively sets to false, for a chunk that sets neither itself. */
 interface KnitrDocDefaults {
   readonly echo: boolean;
@@ -6974,7 +6992,12 @@ const KNITR_DOC_ECHO_ENGINES: ReadonlySet<string> = new Set([
  * `include` resolved to false. Each option resolves ONCE, and a LEADING `#| ` option line
  * overrides the chunk header (measured: header `echo=FALSE` + `#| echo: true` echoes).
  */
-function knitrChunkIsSilent(header: string, body: readonly string[], defaults: KnitrDocDefaults): boolean {
+function knitrChunkIsSilent(
+  header: string,
+  body: readonly string[],
+  defaults: KnitrDocDefaults,
+  codeMayArrive: boolean,
+): boolean {
   // ⚠ ONLY the engines measured silent (`KNITR_SILENT_ENGINES`). quarto re-emits a `dot`, `mermaid`
   // or `ojs` chunk as its own fenced block whatever `echo` says, and an `engine=` option moves an
   // `{r}` chunk onto such an engine — measured, each renders the heading below it that a "silent"
@@ -6997,9 +7020,10 @@ function knitrChunkIsSilent(header: string, body: readonly string[], defaults: K
     (name) => options.has(name) || pipe.has(name) || pipe.has(name.replace(".", "-")),
   );
   // ⚠ "No code, so nothing to echo" is measured only for `r` and `python`: an empty `{bash}` (and sh,
-  // zsh, perl, ruby, awk, rcpp, css, js, node) chunk still emits a fence in both modes (Session 286).
+  // zsh, perl, ruby, awk, rcpp, css, js, node) chunk still emits a fence in both modes (Session 286). Nor is it silent when
+  // code may reach the chunk from a call ABOVE it (`codeMayArrive`, Session 307; see `KNITR_CODE_CHANNEL`).
   const emptyIsSilent = engine[1] === "r" || engine[1] === "R" || engine[1] === "python";
-  if (emptyIsSilent && !external && knitrChunkHasNoCode(body)) {
+  if (emptyIsSilent && !external && !codeMayArrive && knitrChunkHasNoCode(body)) {
     return true;
   }
   // ⚠ A DOCUMENT-level `echo: false` is silent in BOTH modes for `KNITR_DOC_ECHO_ENGINES` only; for the
