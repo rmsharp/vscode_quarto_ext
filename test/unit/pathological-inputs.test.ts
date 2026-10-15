@@ -74,6 +74,15 @@ describe("Session 311 — a numeric character reference in an id that names no c
     }).not.toThrow();
     expect(found).toEqual([]);
   });
+
+  it.each([
+    ["a decimal reference of 11 digits", "&#99999999999;"],
+    ["a hexadecimal reference one past the last code point", "&#x110000;"],
+  ])("%s decodes to a character the id filter drops, so an anchor that spells the label with it still names the label", (_what, reference) => {
+    // `id="fig-x<reference>"` is `fig-x` plus U+FFFD, which the identifier filter removes: the cell's label is written elsewhere and stays.
+    // Not merely 'does not throw': a decode that discarded the whole anchor would also pass the rows above.
+    expect(ids(`<span id="fig-x${reference}"></span>\n\n${cell}\n`)).toEqual(["fig-x"]);
+  });
 });
 
 describe("Session 311 — a front matter whose flow mapping never closes", () => {
@@ -81,27 +90,34 @@ describe("Session 311 — a front matter whose flow mapping never closes", () =>
   // text after each one: 20,000 ordinary lines below an opener that never closes cost 26 s, in every reader of the front matter.
   const unclosed = (opener: string, lines: number): string => ["---", opener, ...Array.from({ length: lines }, () => "x: 1"), "---", "", "# Heading", ""].join("\n");
 
+  // Each reader gets a text of its own (one line longer): `scanRegions` caches by text, so a second call on the same text would be served
+  // from the first call's scan and would time nothing. At the parent a cold resolver takes as long as the Outline, 5.5 s at 12,000 lines.
   it.each([
     ["an unclosed mapping", "format: {html: {echo: false}"],
     ["an unclosed mapping that holds a quoted brace", 'format: {html: {echo: "}"}'],
-  ])("%s below 12,000 ordinary lines is read in linear time by the Outline and by the engine resolver", (_what, opener) => {
-    const text = unclosed(opener, 12000);
-    const headings = timed(() => findHeadings(text));
-    expect(headings.result.map((h) => h.text)).toEqual(["Heading"]);
-    expect(headings.ms).toBeLessThan(1000);
-    const engine = timed(() => resolveDocumentEngine("a.qmd", text));
-    expect(engine.result).toBe("markdown");
-    expect(engine.ms).toBeLessThan(1000);
+  ])("%s below 12,000 ordinary lines is read in linear time by the Outline", (_what, opener) => {
+    const { result, ms } = timed(() => findHeadings(unclosed(opener, 12000)));
+    expect(result.map((h) => h.text)).toEqual(["Heading"]);
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it.each([
+    ["an unclosed mapping", "format: {html: {echo: false}"],
+    ["an unclosed mapping that holds a quoted brace", 'format: {html: {echo: "}"}'],
+  ])("%s below 12,001 ordinary lines is read in linear time by the engine resolver", (_what, opener) => {
+    const { result, ms } = timed(() => resolveDocumentEngine("a.qmd", unclosed(opener, 12001)));
+    expect(result).toBe("markdown");
+    expect(ms).toBeLessThan(1000);
   });
 
   it("…while thousands of mappings that each close on their own line and decide nothing stay linear (the reason `flowRegion` reads windows, not the whole rest of the block)", () => {
     // A reader stops at the first mapping that resolves a `from:`, so only mappings that do NOT make it call `flowRegion` again for every line:
     // joining the whole rest of the block on each call costs 10 s at 20,000 lines and 40 s at 40,000.
-    const text = ["---", ...Array.from({ length: 40000 }, () => "format: {html: {echo: false}}"), "---", "", "Text.", "# Tight", ""].join("\n");
-    const headings = timed(() => findHeadings(text));
+    const mappings = (n: number): string => ["---", ...Array.from({ length: n }, () => "format: {html: {echo: false}}"), "---", "", "Text.", "# Tight", ""].join("\n");
+    const headings = timed(() => findHeadings(mappings(40000)));
     expect(headings.result.map((h) => h.text)).toEqual([]); // the markdown reader: a heading directly under a paragraph line is no heading
     expect(headings.ms).toBeLessThan(1000);
-    const engine = timed(() => resolveDocumentEngine("a.qmd", text));
+    const engine = timed(() => resolveDocumentEngine("a.qmd", mappings(40001))); // another text: the first call's scan is cached by text
     expect(engine.result).toBe("markdown");
     expect(engine.ms).toBeLessThan(1000);
   });
@@ -125,7 +141,7 @@ describe("Session 311 — a single line of five million backticks", () => {
     expect(found).toEqual(shorter);
     // `buildCloserIndex` used to file a closer line under one bucket per run length (3 up to the run's own length): 5 million
     // entries here, about 3 s and a heap that a line ten times longer would exhaust, where the regex used to throw first.
-    expect(ms).toBeLessThan(1500);
+    expect(ms).toBeLessThan(2500); // idle 0.3 s; the per-length buckets took 3.6 s. Loose enough for a loaded machine, tight enough to catch them.
   });
 });
 
@@ -169,6 +185,65 @@ describe("Session 311 — a fence whose run is longer than the closers `buildClo
   ])("a fence needs a run of three: %s", (_what, lines) => {
     // The four fence patterns read the run as `(?:`{3,}|~{3,})`; a pair that a mutant reads as an opener is closed by the triple below.
     expect(headings(lines)).toEqual(["Inside", "After"]);
+  });
+
+  it("many unclosed long openers above many shorter long closers cost time proportional to the document (the side list is not scanned per opener)", () => {
+    // A 100-run opener is closed by nothing below it (every closer-shaped line is a 70-run), so each of the n/2 openers asks the side list
+    // whether a run of 100 exists below it. Scanning the list per opener is quadratic: 100,000 lines took 2.9 s against the parent's 0.7 s,
+    // and 200,000 took 10 s against 1.4 s. A doubling test, in one process, so a loaded machine moves both sides of the ratio.
+    const adversarial = (n: number): string =>
+      [...Array.from({ length: n / 2 }, () => `${run(100)} text`), ...Array.from({ length: n / 2 }, () => run(70)), "", "# H", ""].join("\n");
+    findHeadings(adversarial(2000)); // warm the code before anything is timed
+    const small = timed(() => findHeadings(adversarial(6250)));
+    const large = timed(() => findHeadings(adversarial(100000)));
+    expect(small.result.map((h) => h.text)).toEqual(["H"]);
+    expect(large.result.map((h) => h.text)).toEqual(["H"]);
+    // sixteen times the lines: the parent's bucketed lookup measured 11x, the side list scanned per opener 39x (and growing with n)
+    expect(large.ms).toBeLessThan(24 * small.ms + 100);
+  });
+
+  it.each([
+    ["the lookup passes a too-short long closer to reach a long enough one below it", ["Intro.", "", run(70), "", "# Inside", "", run(69), "", run(70), "", "# After"], ["After"]],
+    ["the opener's own line is not a closer for itself, but the line right below it is", ["Intro.", "", run(70), run(70), "# After"], ["After"]],
+    ["a closer at code depth (column 4) closes nothing", ["Intro.", "", run(70), "", "# Inside", "", `    ${run(70)}`, "", "# After"], ["Inside", "After"]],
+    ["a tilde run does not close a backtick opener", ["Intro.", "", run(70), "", "# Inside", "", "~".repeat(70), "", "# After"], ["Inside", "After"]],
+    ["a tilde run of 70 closes a tilde run of 70", ["Intro.", "", "~".repeat(70), "", "# Inside", "", "~".repeat(70), "", "# After"], ["After"]],
+    ["a marked closer closes nothing for an opener that is not in a quote", ["Intro.", "", run(70), "", "# Inside", "", `> ${run(70)}`, "", "# After"], ["Inside", "After"]],
+    ["a quoted tilde run does not close a quoted backtick opener", ["Intro.", "", `> ${run(70)}`, ">", "> # In1", ">", `> ${"~".repeat(70)}`, "", "# After"], ["In1", "After"]],
+    ["a marked closer after the quote has ended closes nothing", ["Intro.", "", `> ${run(70)}`, ">", "> # In1", "", `> ${run(70)}`, "", "# After"], ["In1", "After"]],
+  ])("the side list keeps its key: %s", (_what, lines, expected) => {
+    // Every expected value is what the parent tree answered. Each row kills a mutant of the side list that the first rows left alive
+    // (the review round's C, D, F, E2 to E4, H and J): scanning past a short entry, an inclusive `from`, the column, the fence character in
+    // the plain and the quoted key, a tilde run over 64, the quoted namespace, and the `until` bound on the quoted call.
+    expect(headings(lines)).toEqual(expected);
+  });
+
+  it.each([
+    ["nearest of three", [70, 69, 69], true],
+    ["farthest of three", [69, 69, 70], true],
+    ["middle of three", [69, 70, 69], true],
+    ["last of four", [69, 69, 69, 70], true],
+    ["first of four", [70, 69, 69, 69], true],
+    ["last of five", [69, 69, 69, 69, 70], true],
+    ["middle of five", [69, 69, 70, 69, 69], true],
+    ["only one of one", [70], true],
+    ["second of two", [69, 70], true],
+    ["none of two", [69, 69], false],
+    ["none of three", [69, 69, 69], false],
+    ["none of four", [69, 69, 69, 69], false],
+  ])("a 70-run opener with %s of the runs below it long enough to close it", (_what, below, closes) => {
+    // The side list answers 'is any run at least 70 among these entries?' with two overlapping blocks of a sparse table, so the rows put
+    // the one run that qualifies at every position of lists of 1 to 5 entries: a lookup that read one block, a block of the wrong size,
+    // or a table without its top level (a list of exactly 2 or 4) misses one of them. The opener carries text, so it is no closer itself.
+    const lines = ["Intro.", "", `${run(70)} text`, "", "# Inside", "", ...below.flatMap((n) => [run(n), ""]), "# After"];
+    expect(headings(lines)).toEqual(closes ? ["After"] : ["Inside", "After"]);
+  });
+
+  it("a long run inside a knitr-silenced chunk is not a closer (the `skip` map filters the side list too)", () => {
+    // With the knitr engine the chunk below is silenced and its lines are left out of the closer index (`buildCloserIndex`'s `skip`): the
+    // 65-run that closes it must not be filed, or the `skip.has` guard in `pushLongRun` is load-bearing and nothing would notice.
+    const lines = ["prose", "", run(70), "", "## Under", "", `${run(65)}{r demo, echo=FALSE}`, "plot(pressure)", run(65), "", "## Mid", "", run(80), "", "## After", "tail", ""];
+    expect(findHeadings(lines.join("\n") + "\n", "knitr").map((h) => h.text)).toEqual(["After"]);
   });
 
   it("a long closer past the block quote's end closes nothing inside it", () => {

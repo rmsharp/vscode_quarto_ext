@@ -3911,8 +3911,9 @@ function flowValue(text: string, key: string): string | null {
  * direction. Lines are joined with a space, which YAML flow context treats as the line break
  * it replaces.
  *
- * ⚠ **THE COST IS PROPORTIONAL TO THE REGION, AND THAT IS WHAT THE WINDOWS ARE FOR (Session 311).**
- * The first version joined one line at a time and re-read the whole joined text after each one:
+ * ⚠ **ONE CALL COSTS TIME PROPORTIONAL TO THE REGION IT READS, AND THAT IS WHAT THE WINDOWS ARE FOR (Session 311) — BUT THE READERS CALL
+ * IT ONCE PER LINE THAT MAY OPEN A MAPPING, SO A BLOCK OF MANY UNCLOSED OPENERS IS STILL QUADRATIC** (5,000 lines of `format: {` take
+ * 5 s; an invalid front matter, filed in BACKLOG.md). The first version joined one line at a time and re-read the whole joined text after each one:
  * 20,000 ordinary lines below a `format: {` that never closes cost 26 s, in every reader of the
  * front matter. Reading the whole rest of the block once would be linear for that document and
  * quadratic for the common one (a front matter of N lines that each close their own mapping,
@@ -8846,8 +8847,8 @@ function evaluateRLogical(source: string): boolean | null {
   return broken || at !== items.length ? null : value;
 }
 /**
- * An inline code span — a run of N backticks closed by the next run of exactly
- * N (CommonMark §6.3). Its content is rendered literally, so any markup shown
+ * The inline code spans of a line, as this model reads them: a run of N backticks closed by the first N in a row after it (CommonMark
+ * §6.3 says the next run of EXACTLY N; this is not that, see below). Its content is rendered literally, so any markup shown
  * inside it (a `{#fig-…}` label, a `$x$` math delimiter) is documentation, not a
  * live construct. Consumers mask it out before scanning a body line.
  *
@@ -13634,10 +13635,10 @@ function isCloser(line: string, open: OpenCellFence): boolean {
 
 /**
  * The longest run of a plain closer that `buildCloserIndex` files under one bucket per length (Session 311). A longer run is
- * filed once, on a side list of `[line, run length]` that `hasCloserBelow` reads for an opener longer than this — see
- * {@link longRunReaches}. Real fences are 3 to a handful of characters, so the side list is empty in practice; the bound is
- * what keeps a single line of millions of backticks from filing millions of one-line buckets (3 s and a heap a line ten times
- * longer would exhaust).
+ * filed once, on a side list of `[line, run length]` (with a sparse table of maxima over the run lengths) that `hasCloserBelow` reads
+ * for an opener longer than this — see {@link longRunReaches}, which answers it as fast as a bucket does. Real fences are 3 to a
+ * handful of characters, so the side list is empty in practice; the bound is what keeps a single line of millions of backticks from
+ * filing millions of one-line buckets (3 s and a heap a line ten times longer would exhaust).
  */
 const MAX_BUCKETED_FENCE_RUN = 64;
 
@@ -13648,6 +13649,8 @@ const MAX_BUCKETED_FENCE_RUN = 64;
  * a cell accepts unbounded indentation where a plain fence caps it at 3, and a cell needs
  * an exact run length where a plain fence takes any run at least as long. Each bucket is
  * built in ascending line order, so "is there one at or below `from`?" is a binary search.
+ * (A plain closer run longer than `MAX_BUCKETED_FENCE_RUN` is filed on a side list instead,
+ * and the same question is two binary searches and a range-maximum read: `longRunReaches`.)
  *
  * ⚠ THIS EXISTS FOR A MEASURED REASON, NOT AS TIDINESS. Since Session 179 EVERY fence needs
  * the lookahead, not just the rare indented cell Session 178 added it for. Scanning the
@@ -13701,7 +13704,8 @@ function buildCloserIndex(
     push(`ci|${char}|${len}|${indentRun(lines[i])}`, i);
     // A plain fence closes on any run at least as long, so this line is a candidate closer
     // for every shorter opener too. Fence runs are ≥3 and openers longer than this line's
-    // run can never be closed by it, so the loop is bounded by the run's own length.
+    // run can never be closed by it, so the loop is bounded by the run's own length, or by
+    // `MAX_BUCKETED_FENCE_RUN` for a longer one (those are filed on a side list below).
     //
     // ⚠ THE PLAIN KEY CARRIES THE CLOSER'S COLUMN (Session 200), because whether a run at
     // that column really closes anything depends on the CONTAINER STACK — state this pre-pass
@@ -13747,6 +13751,26 @@ function buildCloserIndex(
     }
     if (m[1].length > MAX_BUCKETED_FENCE_RUN) {
       pushLongRun(`ql|${m[2]}|${col}`, i, m[1].length);
+    }
+  }
+  // Each side list gets a sparse table of run-length maxima (Session 311): `<list>|max<j>[i]` is the longest run among the `2 ** j`
+  // entries from `i` (level 0 is the `|len` list itself), so "is there a run of at least `n` among entries `lo` to `hi`?" is two reads.
+  // Scanning the list per opener made a document of many long openers over many shorter long closers quadratic (`longRunReaches`).
+  for (const key of [...index.keys()]) {
+    if (!key.endsWith("|len")) {
+      continue;
+    }
+    const stem = key.slice(0, -"|len".length);
+    const runs = index.get(key) as number[];
+    let previous = runs;
+    for (let j = 1; 1 << j <= runs.length; j++) {
+      const half = 1 << (j - 1);
+      const level = new Array<number>(runs.length - (1 << j) + 1);
+      for (let i = 0; i < level.length; i++) {
+        level[i] = Math.max(previous[i], previous[i + half]);
+      }
+      index.set(`${stem}|max${j}`, level);
+      previous = level;
     }
   }
   return index;
@@ -13875,7 +13899,9 @@ function consumedCloserLine(
  * encode the same rule twice and can drift (Learning #14). What holds them together is the
  * table in `test/unit/qmd-model.test.ts` — "a fence that is never CLOSED is not a code
  * block at all (Session 179)", whose rows walk all three axes of the key (char, length,
- * indent) with every row measured against `quarto pandoc -f markdown`.
+ * indent) with every row measured against `quarto pandoc -f markdown`. The side list for
+ * runs over `MAX_BUCKETED_FENCE_RUN` is walked along its own axes (char, column, quoted or
+ * not, the `until` bound, the knitr `skip` map) by `test/unit/pathological-inputs.test.ts`.
  */
 function hasCloserBelow(
   index: Map<string, number[]>,
@@ -13950,42 +13976,54 @@ function plainCloserReaches(
   if (open.len <= MAX_BUCKETED_FENCE_RUN) {
     return bucketReaches(index.get(`${namespace}|${open.char}|${open.len}|${col}`), from, until);
   }
-  const key = `${namespace}l|${open.char}|${col}`;
-  return longRunReaches(index.get(`${key}|line`), index.get(`${key}|len`), open.len, from, until);
+  return longRunReaches(index, `${namespace}l|${open.char}|${col}`, open.len, from, until);
 }
 
-/**
- * Whether the side list of long closer runs holds a line at or below `from` and BELOW `until` whose run is at least `len` — the
- * question `bucketReaches` answers for the lengths that have a bucket of their own. `lines` is ascending (the order it is built in)
- * and `runs[k]` is the run length of `lines[k]`; the search is binary to `from` and linear after it, which is bounded by the long
- * runs a document has and which no real document has more than a few of.
- */
-function longRunReaches(
-  lines: number[] | undefined,
-  runs: number[] | undefined,
-  len: number,
-  from: number,
-  until: number,
-): boolean {
-  if (lines === undefined || runs === undefined) {
-    return false;
-  }
+/** The index of the first entry of the ascending `sorted` that is at least `value` (`sorted.length` when none is). */
+function lowerBound(sorted: readonly number[], value: number): number {
   let lo = 0;
-  let hi = lines.length;
+  let hi = sorted.length;
   while (lo < hi) {
     const mid = (lo + hi) >> 1;
-    if (lines[mid] < from) {
+    if (sorted[mid] < value) {
       lo = mid + 1;
     } else {
       hi = mid;
     }
   }
-  for (let k = lo; k < lines.length && lines[k] < until; k++) {
-    if (runs[k] >= len) {
-      return true;
-    }
+  return lo;
+}
+
+/**
+ * Whether the side list `key` of long closer runs holds a line at or below `from` and BELOW `until` whose run is at least `len` — the
+ * question `bucketReaches` answers for the lengths that have a bucket of their own, and at the same cost: two binary searches for the
+ * lines in range (`<key>|line` is ascending, the order it is built in) and two reads of the sparse table `buildCloserIndex` builds over
+ * the run lengths (`<key>|len` is level 0, `<key>|max<j>` level `j`), which together span the whole range, overlapping.
+ *
+ * ⚠ **IT IS NOT A SCAN OF THE LIST, AND IT MUST NOT BECOME ONE.** The first version scanned the entries from `from` until it found a
+ * long enough run, which is cheap when the first one qualifies and linear when none does — every unclosed opener of more than 64
+ * above every closer-shaped run shorter than it — so a document of n/2 such openers and n/2 such closers cost n²: 100,000 lines took
+ * 2.9 s against the parent's 0.7 s, 200,000 took 10 s against 1.4 s (the review round's R1, reproduced).
+ */
+function longRunReaches(
+  index: ReadonlyMap<string, number[]>,
+  key: string,
+  len: number,
+  from: number,
+  until: number,
+): boolean {
+  const lines = index.get(`${key}|line`);
+  if (lines === undefined) {
+    return false;
   }
-  return false;
+  const lo = lowerBound(lines, from);
+  const hi = lowerBound(lines, until);
+  if (lo >= hi) {
+    return false;
+  }
+  const j = 31 - Math.clz32(hi - lo); // the largest j with 2 ** j <= hi - lo
+  const level = index.get(j === 0 ? `${key}|len` : `${key}|max${j}`) as number[];
+  return Math.max(level[lo], level[hi - (1 << j)]) >= len;
 }
 
 /**

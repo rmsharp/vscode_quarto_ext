@@ -51,7 +51,7 @@ describe("maskInlineCode answers what the regex it replaced answered (Session 31
     expect(checked).toBe((4 ** 10 - 1) / 3);
   });
 
-  it("on 30,000 random lines of up to 80 characters whose backticks come in runs of 1 to 9 (a deterministic generator)", () => {
+  it("on 30,000 random lines of 1 to 14 pieces, each a run of 1 to 9 backticks or 1 to 3 repeats of the word text (a deterministic generator)", () => {
     let seed = 20261015;
     const next = (n: number): number => {
       // mulberry32: well spread in its low bits, which a plain LCG is not
