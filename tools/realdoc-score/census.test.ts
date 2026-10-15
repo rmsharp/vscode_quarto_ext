@@ -29,6 +29,9 @@ describe("realdoc-score census", () => {
     // resolves the engine from the document and passes it, so a census that did not would score
     // a code path the user never reaches. Resolved from the SAME build as the model under test.
     const eng = await import(resolve(src, "src/core/document-engine-resolve.ts"));
+    // The render the Outline predicts (Session 310). Left unset it is the executing reading the product defaults to, which is what every earlier measure scored. The corpus truth was rendered
+    // with `--no-execute`, so `REALDOC_MODE=no-execute` is the like-for-like reading; a build from before the mode existed ignores the extra argument.
+    const mode = process.env.REALDOC_MODE === "no-execute" ? "no-execute" : undefined;
     const docs: [string, string][] = JSON.parse(readFileSync(need("REALDOC_CORPUS"), "utf8"));
     const rows: string[] = [];
     let threw = 0;
@@ -36,7 +39,7 @@ describe("realdoc-score census", () => {
     for (const [p, text] of docs) {
       let hs: { level: number; text: string }[];
       try {
-        hs = mod.findHeadings(text, eng.resolveDocumentEngine(p, text));
+        hs = mod.findHeadings(text, eng.resolveDocumentEngine(p, text), mode);
       } catch (e) {
         threw++;
         rows.push([p, "THREW", String(e).slice(0, 120)].join("\t"));

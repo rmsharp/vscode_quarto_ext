@@ -172,3 +172,46 @@ describe("Session 310 — a child= chunk emits nothing under --no-execute", () =
     expect(headings(childDocument(CHUNKS["default options"]))).toEqual(["Top", "After", "Last"]);
   });
 });
+
+describe("Session 310 — only a knitr document reads the mode", () => {
+  // `knitrSilentChunkClosers` is reached for `engine === "knitr"` alone, so every other answer (`undefined`, `ambiguous`, a Jupyter, Julia or markdown document) is the pre-Session-273
+  // Outline whatever the mode says, and shares ONE cache entry per text: `scanRegions` normalises the mode before it looks the entry up. The document is the tracked `ne_front_default` cost row,
+  // where the two modes differ for a knitr document (`H2` against `H0`, `H1`, `H2`). Passed on arrival (the normalisation was written with the cache), pinned by a mutant.
+  const DOCUMENT = [
+    "---", 'title: "ne"', "execute:", "  echo: false", "---", "", "Intro.", "", "```", "", "```{r}", 'print("p0")', "```", "", "# H0", "", "```{r}", 'print("p1")', "```", "", "# H1", "",
+    "```{r}", 'print("p2")', "```", "", "# H2", "",
+  ].join("\n");
+  it("knitr: the two modes differ (the premise of the rows below)", () => {
+    expect(findHeadings(DOCUMENT, "knitr", "execute").map((h) => h.text)).toEqual(["H2"]);
+    expect(findHeadings(DOCUMENT, "knitr", "no-execute").map((h) => h.text)).toEqual(["H0", "H1", "H2"]);
+  });
+  it.each([undefined, "ambiguous", "jupyter", "julia", "markdown"] as const)("engine %s: both modes give the same headings from ONE cache entry", (engine) => {
+    const executing = findHeadings(DOCUMENT, engine, "execute");
+    const noExecute = findHeadings(DOCUMENT, engine, "no-execute");
+    expect(noExecute.map((h) => h.text)).toEqual(executing.map((h) => h.text));
+    expect(noExecute.map((h) => h.text)).toEqual(findHeadings(DOCUMENT, engine).map((h) => h.text));
+    // The heading objects are the memoized scan's own: the same objects, so the second mode did not scan again.
+    expect(noExecute[0]).toBe(executing[0]);
+  });
+});
+
+describe("Session 310 — an option given as a `#|` expression still runs under --no-execute", () => {
+  // Rendered with quarto 1.7.33 (knitr 1.51), exit 0, both ways with the SAME answer (`scratchpad/s310/ga-ex` and `ga-ne`, `e01_pipe_expr_include`, `e02_pipe_expr_echo_later_chunk`; the
+  // header spelling is `e03` and the Session 308 `rev-soundness_14`): an option written as `!expr` is evaluated before knitr decides whether to run the chunk, so a call inside it sets
+  // the default for the chunks below even when nothing executes, and the front matter's silence is NOT trusted below it. Passed on arrival (the `#|` clause shares the header's helper).
+  // The layout of the rendered grid: the chunk under test sits BELOW the stray fence, and the `{r}` chunk after `After` is echoed only if the expression turned the default back on.
+  const pipeDocument = (option: string): string =>
+    ["---", "title: t", "execute:", "  echo: false", "---", "", "# Top", "", "```", "", "## Between", "", "```{r}", option, "invisible(NULL)", "```", "", "## After", "", "```{r}", "y <- 1", "```", "", "## Last", ""].join("\n");
+  const headings = (document: string, mode?: "execute" | "no-execute"): string[] => findHeadings(document, "knitr", mode).map((h) => h.text);
+
+  it("`#| include: !expr` that calls opts_chunk$set: the same answer in both modes", () => {
+    const document = pipeDocument("#| include: !expr is.null(knitr::opts_chunk$set(echo = TRUE))");
+    expect(headings(document, "no-execute")).toEqual(["Top", "Last"]);
+    expect(headings(document, "execute")).toEqual(["Top", "Last"]);
+  });
+  it("`#| echo: !expr` that calls opts_chunk$set: the same answer in both modes", () => {
+    const document = pipeDocument("#| echo: !expr knitr::opts_chunk$set(echo = TRUE)");
+    expect(headings(document, "no-execute")).toEqual(["Top", "After", "Last"]);
+    expect(headings(document, "execute")).toEqual(["Top", "After", "Last"]);
+  });
+});
