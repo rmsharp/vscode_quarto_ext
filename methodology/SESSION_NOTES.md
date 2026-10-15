@@ -8,8 +8,8 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 309 closed out.** The Outline reads which silenced knitr chunks PRINT (an output block = two bare fences) and moves the stray-fence pairing with them, for the EXECUTING mode. `BACKLOG.md` "Active" is empty;
-present ranked candidates via AskUserQuestion at Phase 0.
+**Task:** **Session 310 (IN PROGRESS): a render-MODE argument for the Outline's knitr silence rule** (item (A) of the BACKLOG silence item: the executing-mode decision).
+Operator picked it at Phase 0 (the recommended option). S309's premise (the host knows `--no-execute`) is UNVERIFIED: no spawn in `src/` passes it. Settle the signal's source first; strict TDD.
 **⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in the close-out commit).
 (2) `scratchpad/s309/` (untracked) holds the harness; its tracked twin is `tools/knitr-print-grids/` (generators, `regen.py` re-renders every document the fixtures store). `score308.py <b1.cjs,b2.cjs> <dir:mode>...` (in `s308`) scores by DIRECTION; `mutate309.py
 <sha> <mutants.json>`.
@@ -18,6 +18,12 @@ present ranked candidates via AskUserQuestion at Phase 0.
 (5) Put "do not read installed quarto, knitr, xfun, rmarkdown or pandoc source" in EVERY agent prompt (Learnings 700, 709) and audit by parsing `tool_use` inputs (`scratchpad/s309/audit309.py` flags REPO reads too: right for blind authors, wrong for reviewers).
 (6) ⚠ OPEN DECISION FOR THE OPERATOR (BACKLOG item): the Outline follows the EXECUTING mode, and under `--no-execute` documents hide a heading quarto shows: 7 to 21 of 100 (S308's set) and 1 to 77 of 144 (round B). A mode argument from the host would end it.
 (7) `test:integration` takes the screen: ask first. `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` are past the 262,144 B read refusal: read them in slices. Baseline `npm test` at HEAD is 9,278 passing in 74 files.
+
+### What Session 310 Did
+**Deliverable:** a render-mode argument for the Outline's knitr silence rule, so the Outline follows the mode a render actually runs in (IN PROGRESS)
+**Started:** 2026-10-14
+**Status:** Session claimed. Work beginning. Phase 0 found both ledger frontiers at HEAD and the ratchet citation matching (2/2 at `35f188dc`). Baseline `npm test`: 9,277 passing plus ONE timing flake (the S307 9 MB `opts_chunk$set(` row, 1.55 to 1.88 s against its 1.5 s limit, load average 30 from unrelated processes), not a defect; the limit is not loosened.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
 
 ## Session 308 Handoff Evaluation (by Session 309)
 

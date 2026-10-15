@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 309: the `--no-execute` decision, the printers it cannot prove, printed text that is itself markdown, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 310 (in progress): claim -- a render-mode argument for the silence rule
+
+Session claimed; the operator chose item (A), the executing-mode decision, at the Phase 0 picker (the recommended option: the only deleting-direction item, 1 to 77 of 144 round-B documents hide a heading quarto shows under `--no-execute`). The S309 handoff said the extension knows the mode; a grep at claim time found no spawn in `src/` that passes `--no-execute`, so where the host gets the mode is the first thing to settle. Baseline `npm test`: 9,277 passing plus one timing flake (the S307 9 MB `opts_chunk$set(` row, 1.55 to 1.88 s against 1.5 s, load average 30 from unrelated processes); the limit is not loosened. Phase 3F records the outcome.
+
 ### 2026-10-14 · [ad hoc] Session 309: trim SESSION_NOTES to three close-out pairs (`bfec67f6`)
 
 `methodology/SESSION_NOTES.md` dropped the Session 305 evaluation and the Session 306 self-assessment (24 lines; 16,398 B and 114 lines left, against the 120,000 B and 400-line ceilings), in a commit that holds no other edit to that file. The dropped pair is `git show 3545efa0:methodology/SESSION_NOTES.md` away.
