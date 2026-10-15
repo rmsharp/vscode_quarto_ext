@@ -8,8 +8,8 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 314 closed out.** Items (2) and (6) of the Session 312 sweep item are fixed: the `[ \t]+$` value trims (100,000 spaces 18.5 s to 8 ms) and the nested-key quadratic (8,000 keys 1,523 ms to 55 ms;
-512,000 keys 1.7 s). `BACKLOG.md` "Active" is empty; present ranked candidates via AskUserQuestion at Phase 0.
+**Task:** **Session 315 (IN PROGRESS): a PLANNING session** (operator: "do both"). Deliverable: `docs/planning/2026-10-15-backlog-ordering-plan.md`, the open BACKLOG items grouped by feature
+and ordered by dependency (test pins first), a done criterion per group; PLUS the standing ordering rule in `CLAUDE.md`. No source code; implementation is separate sessions.
 **What the BACKLOG now holds:** the sweep item's (3) to (5) and (7), the new (8) and (9), and (6a) nesting depth (close to cubic: 1.2 s at depth 1,600), (6b) a no-break-space comment hides a key (lost diagnostic), (6c) the clock
 rows' reach; the Session 311 item's (3) to (9); the non-tail pin item; the earlier Up Next items are untouched.
 **⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in a close-out commit).
@@ -38,6 +38,12 @@ render` on 2,423 of 2,438 documents; `test:integration` has not run for four ses
 "fn")` DOES intercept an importing module's call in vitest: the laziness rows use it with a control row.
 (13) An R job and a VM held the load at 8 to 22 for hours: full runs fail Session 308's 200,000-line row (and once Session 307's 9 MB row) at 2.3 to 2.5 s; each passes alone at 0.71 to 0.75 s. A whole-suite mutation pass counts
 them as kills: re-run survivors against the new test files alone. `git worktree list` also shows a foreign worktree under `.claude/worktrees/`: not mine, leave it.
+
+### What Session 315 Did
+**Deliverable:** the backlog ordering plan (`docs/planning/2026-10-15-backlog-ordering-plan.md`) and the ordering rule in `CLAUDE.md` (IN PROGRESS)
+**Started:** 2026-10-15
+**Status:** Session claimed. Work beginning. Phase 0 found both ledger frontiers at HEAD (`3a440054`, gap 0), no `pending` receipt, the ratchet citation matching (2/2, results `bba236856bad`).
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
 
 ## Session 313 Handoff Evaluation (by Session 314)
 

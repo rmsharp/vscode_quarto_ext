@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-15 · [ad hoc] Session 315 (in progress): claim -- a planning session to order the open backlog by feature and dependency, and to record the ordering rule in CLAUDE.md
+
+Session claimed. At the Phase 0 picker the operator stated a standing rule (order backlog work so the code ends up robust, which is sometimes implementation- and test-sensitive; finish one feature before moving to another) and said "do both": record the rule in `CLAUDE.md` and make this session's deliverable the ordering plan. Deliverable: `docs/planning/2026-10-15-backlog-ordering-plan.md` plus the `CLAUDE.md` rule; no source code. Phase 0 found both ledger frontiers at HEAD (`3a440054`, gap 0) and the ratchet citation matching (2/2, results `bba236856bad`).
+
 ### 2026-10-15 · [ad hoc] Session 314: cite the quality-gate run in the receipt and the ledger (2/2 pass at d2b9bf36)
 
 `quality_ratchet.py --run` after the ledger commit `d2b9bf36`: 2/2 pass, 0 fail, 0 unmeasured, results bba236856bad, manifest 334939914945, head d2b9bf36 (ledger-lag 0; release-gate is `npm run check-package`, 0). The `HANDOFFS.md` receipt's `quality_ratchet` line now carries the citation (`methodology/.quality-gates-results.json` is not tracked: the run is read from the file on disk).
