@@ -7579,6 +7579,11 @@ function knitrChunkIsSilent(
   if (options === null || pipe === null || options.has("engine") || pipe.has("engine")) {
     return "loud";
   }
+  // Under `--no-execute` the child document is NOT knit, so a `child=` chunk emits no fence at all, whatever its options say and whatever the child holds (rendered, 12 documents,
+  // `scratchpad/s310/gb-ne`). Read for the R engines only, the ones rendered.
+  if (!executes && (engine[1] === "r" || engine[1] === "R") && (options.has("child") || pipe.has("child"))) {
+    return "silent";
+  }
   // ⚠ An empty body is silent only when no option brings code in from OUTSIDE it: `file=`, `code=`
   // and `ref.label=` make the chunk echo that code (measured, the heading below is swallowed), and
   // `child=` inserts a document whose own fences are unknowable here. The pipe spells a dotted option name with a dash
@@ -7599,7 +7604,8 @@ function knitrChunkIsSilent(
   // ⚠ A DOCUMENT-level `echo: false` is silent in BOTH modes for `KNITR_DOC_ECHO_ENGINES` only; for the
   // shell-like engines it is silent under `--no-execute` and loud when the chunk runs (Session 287). A
   // document-level `include: false` has no such split, so it covers every engine this rule trusts.
-  const documentEcho: KnitrDefaultKind = KNITR_DOC_ECHO_ENGINES.has(engine[1]) ? defaults.echo : "no";
+  // Under `--no-execute` nothing runs and so nothing prints: every engine this rule trusts is silent (rendered, `scratchpad/s310/ga-ne` s12_*_front_echoF).
+  const documentEcho: KnitrDefaultKind = !executes || KNITR_DOC_ECHO_ENGINES.has(engine[1]) ? defaults.echo : "no";
   const include = knitrDefaultVerdict("include", options, pipe, defaults.include);
   if (include === "silent") {
     return "silent";

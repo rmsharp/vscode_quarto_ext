@@ -130,3 +130,45 @@ describe("Session 310 — code a setup chunk runs does not reach a chunk under -
     expect(headings(READ_CHUNK_CALL, "execute")).toEqual(["Top", "After", "Last"]);
   });
 });
+
+describe("Session 310 — a document-level `echo: false` silences the shell-like engines under --no-execute", () => {
+  // Rendered with quarto 1.7.33 (knitr 1.51), exit 0, both ways (`scratchpad/s310/ga-ex` and `ga-ne`, `s12_<engine>_front_echoF`; Session 287's comment recorded the split, the renders were
+  // not on disk). The front matter's `echo: false` hides every chunk's code, and with nothing running nothing prints either: the chunk is silent, and so is the `{r}` chunk below it, so
+  // the stray fence pairs with nothing and quarto lists all four headings. When the chunk RUNS, `bash`, `sh`, `zsh`, `perl` and `ruby` still print their output as a block (two bare
+  // fences), which closes the stray fence at its first one, so `Between` is swallowed: the executing reading is unchanged (`KNITR_DOC_ECHO_ENGINES`).
+  const SHELL_CODE: Record<string, string> = { bash: "echo hi", sh: "echo hi", zsh: "echo hi", perl: 'print "hi\\n";', ruby: 'puts "hi"' };
+  const shellDocument = (engine: string): string =>
+    ["---", "title: t", "execute:", "  echo: false", "---", "", "# Top", "", "```", "", "## Between", "", "```{" + engine + "}", SHELL_CODE[engine], "```", "", "## After", "", "```{r}", "y <- 1", "```", "", "## Last", ""].join("\n");
+  const headings = (document: string, mode?: "execute" | "no-execute"): string[] => findHeadings(document, "knitr", mode).map((h) => h.text);
+
+  it.each(Object.keys(SHELL_CODE))("a {%s} chunk is silent: all four headings", (engine) => {
+    expect(headings(shellDocument(engine), "no-execute")).toEqual(["Top", "Between", "After", "Last"]);
+  });
+  it.each(Object.keys(SHELL_CODE))("executing, a {%s} chunk still ends the swallow: unchanged", (engine) => {
+    expect(headings(shellDocument(engine), "execute")).toEqual(["Top", "After", "Last"]);
+    expect(headings(shellDocument(engine))).toEqual(["Top", "After", "Last"]);
+  });
+});
+
+describe("Session 310 — a child= chunk emits nothing under --no-execute", () => {
+  // Rendered with quarto 1.7.33 (knitr 1.51), exit 0, both ways (`scratchpad/s310/gb-ex` and `gb-ne`, 12 documents: a child that echoes a chunk, prints, holds a plain fence, is quiet or is
+  // plain text, each with the default options, `echo=FALSE`, `include=FALSE` or the `#| child:` spelling). The child document is NOT knit when nothing executes, so the chunk emits no
+  // fence at all, whatever its options say and whatever the child holds: quarto lists `Top` and `Last` in all 12 (the stray fence pairs with the loud chunk below). Executing, the
+  // child's own chunks are knit, so the model cannot tell (`uncertain`, as it has always said); it answers `Top`, `After`, `Last` for the default options, as it did before this session.
+  const childDocument = (chunk: string): string =>
+    ["---", "title: t", "---", "", "# Top", "", "```", "", "## Between", "", chunk, "", "## After", "", "```{r}", "y <- 1", "```", "", "## Last", ""].join("\n");
+  const headings = (document: string, mode?: "execute" | "no-execute"): string[] => findHeadings(document, "knitr", mode).map((h) => h.text);
+  const CHUNKS: Record<string, string> = {
+    "default options": '```{r, child="_child_echo.Rmd"}\n```',
+    "echo=FALSE": '```{r, child="_child_echo.Rmd", echo=FALSE}\n```',
+    "the #| child: spelling": "```{r}\n#| child: _child_echo.Rmd\n```",
+    "include=FALSE": '```{r, child="_child_echo.Rmd", include=FALSE}\n```',
+  };
+  it.each(Object.keys(CHUNKS))("%s: silent, so the stray fence pairs with the loud chunk below", (name) => {
+    expect(headings(childDocument(CHUNKS[name]), "no-execute")).toEqual(["Top", "Last"]);
+  });
+  it("executing, a child chunk is still `uncertain` and ends the swallow: unchanged", () => {
+    expect(headings(childDocument(CHUNKS["default options"]), "execute")).toEqual(["Top", "After", "Last"]);
+    expect(headings(childDocument(CHUNKS["default options"]))).toEqual(["Top", "After", "Last"]);
+  });
+});
