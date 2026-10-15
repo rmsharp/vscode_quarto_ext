@@ -17,6 +17,14 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-15 · [ad hoc] Session 314: dashboard and context-budget history refresh
+
+`methodology/dashboard_history.jsonl` (+1 line) and `methodology/.context-budget-history.jsonl` (+1 line), the two tracked history files the dashboard and `context_budget.py` append to on every run. The dashboard reads health 76/100, one high-or-above risk flag and 21 advisories (all in dev dependencies; `package.json` has no `dependencies` key), unchanged from Session 313, 1,964 commits; `context_budget.py` exits 2 for the same three files as since Session 264 (`BACKLOG.md` 417,039 B, `HANDOFFS.md` 401,379 B, `PROJECT_LEARNINGS.md` 1,211,021 B, against 65,536 B), and `SESSION_NOTES.md` is 22,495 B of its 120,000 B ceiling.
+
+### 2026-10-15 · [ad hoc] Session 314: trim SESSION_NOTES to three close-out pairs (`37fc5e07`)
+
+`methodology/SESSION_NOTES.md` dropped the Session 310 evaluation and the Session 311 self-assessment (33 deleted lines; 22,495 B and 144 lines left, against the 120,000 B and 400-line ceilings), in a commit that holds no other edit to that file (0 additions, 33 deletions). The dropped pair is one command away: `git show d84ea0c2:methodology/SESSION_NOTES.md`.
+
 ### 2026-10-15 · [ad hoc] Session 314: gates on the final tree (`8058d1c1` plus the close-out)
 
 `npm test` 11,220 passing of 11,221 in 83 files (11,176 + 45 new rows: 18 `ascii-trim`, 10 in `pathological-inputs`, 17 in `line-indent-index`); in four full runs at the tip the only failures were Session 308's 200,000-line timing row (2,273 and 2,455 ms where recorded) and, once, Session 307's 9 MB row (1,672 ms), with an R job and a VM holding the load at 8 to 16 that are not this repo's; both pass alone (712 to 746 ms, the same as the Session 313 baseline), and an earlier full run at `778ea19e` was clean (11,210 of 11,210). `npm run check-types` clean; `npm run test:oracle` exit 0 (2 of 2, cached); `npm run package` exit 0, DONE, 44 files, 1.86 MB, `check-package` OK (42 files); `node check-backlog.js` OK (221 open items); `tools/realdoc-score/run.sh`: scored 2,438, agree 2,423 (99.38%), divergent 15 (phantom 2, lost 6, level 7), `model.tsv` byte-identical to the parent's (`parent314`); the packaged `dist/extension.js` holds `indexLineIndents` and no `^[ \t]+|[ \t]+$`. Corpus differential, parent against the final tip: 3,382 documents, 50,730 comparisons, 0 differences. `test:integration` NOT run (core-only change in `src/core`; it takes the screen and nobody was asked).
