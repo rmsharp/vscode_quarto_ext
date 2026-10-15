@@ -7724,6 +7724,7 @@ function knitrUpdateTexts(texts: Map<string, boolean>, header: string, body: rea
     }
   }
 }
+/** Whether any of these CODE lines (comments already dropped) can change what a printing call does or where its output goes: `KNITR_MASK_ASSIGN`, `KNITR_MASK_WORD`, an `options()` that sets more than a number format. */
 function knitrCodeMasksPrinters(code: readonly string[]): boolean {
   for (const line of code) {
     if (KNITR_MASK_ASSIGN.test(line) || KNITR_MASK_WORD.test(line)) {
@@ -7829,8 +7830,9 @@ function knitrOptionKeepsOutput(name: string, value: string): boolean {
 const KNITR_FRONT_STDERR_KEY = /(?:^|[\s{,])["']?(?:message|warning)["']?[ \t]*:/;
 const KNITR_MASK_WORD = /\b(?:assign|sink|knit_hooks|opts_hooks|source|sys\.source|eval|evalq|parse|registerS3method|setMethod|setGeneric|setClass|setRefClass|knit_exit|knit_print|knit_asis|asis_output)\b/;
 /**
- * Whether ONE top-level statement (strings masked, `rTopLevelStatements` with `keepContent`) certainly emits an output block, as a WHOLE call: a trailing `$x` or `+ 1` makes it
- * something else. `print()` of a literal, and `cat()` with a non-empty string literal among its unnamed arguments and no destination (`file=`, `fill=`): `cat("")` prints nothing.
+ * Whether ONE top-level statement (`rTopLevelStatements`: strings masked, a string with a visible character as `"s"`) certainly emits an output block, as a WHOLE call: a trailing `$x`
+ * or `+ 1` makes it something else. A bare name or `print(name)` of a name that holds text (`texts`), `print()` of a literal or of a text call, `cat()` with a visible string among its
+ * unnamed arguments and no destination (`file=`, `fill=`: `cat("")` prints nothing), `message()` and `warning()` while `stderrOk`, and a whole call of `KNITR_TEXT_CALLS`.
  */
 function knitrStatementPrints(statement: string, stderrOk: boolean, texts: ReadonlyMap<string, boolean>): boolean {
   // A bare name always evaluates visibly: it prints text when the name holds a value that does (`knitrUpdateTexts`).
