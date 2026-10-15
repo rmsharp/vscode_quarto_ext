@@ -21017,10 +21017,11 @@ describe("Session 307 — an `echo=FALSE` chunk whose code can write a FENCE is 
     expect(outline(target, undefined, false, source)).toEqual(SILENT_P);
   });
 
-  // WRONG BEFORE AND AFTER, DELETING (s18, rendered: quarto `Top, After, Last`): a fence line built from pieces and printed is loud, and no word list
-  // sees it (`lens-writer` found 20 such documents, `strrep`, `intToUtf8`, a `sprintf` vector, a stored variable). Pinned at the model's answer.
-  it("WRONG before and after, DELETING: a fence built from pieces and printed, `print(paste0(\"``\", \"`\"))` (s18)", () => {
-    expect(outline(["```{r, echo=FALSE}", 'print(paste0("``", "`"))', "```"])).toEqual(SILENT);
+  // ⚠ OVERTURNED BY SESSION 309 (s18, the exact document rendered again, `scratchpad/s309/one/pin_s18`: quarto `Top, After, Last`): this row pinned a DELETING answer. A string that BEGINS with a
+  // backtick (`"``"`, the first piece of a fence) now makes an output call uncertain, so the pieces `print(paste0("``", "`"))` no longer read as silent. A fence built by `strrep`,
+  // `intToUtf8` or a vector (`lens-writer`: 20 documents) has no such literal and is still not read.
+  it("FIXED by Session 309: a fence built from pieces and printed, `print(paste0(\"``\", \"`\"))` (s18)", () => {
+    expect(outline(["```{r, echo=FALSE}", 'print(paste0("``", "`"))', "```"])).toEqual(ECHOES);
   });
 
   // PRE-EXISTING, wrong at HEAD and now, the PHANTOM direction (measured, shape P, q01, q03): `print()` and `message()` under `echo=FALSE` each write

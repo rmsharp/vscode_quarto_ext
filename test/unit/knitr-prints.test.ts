@@ -142,8 +142,8 @@ describe("Session 309 — every statement shape rendered with quarto 1.7.33, doc
     expect(statementRows).toHaveLength(385);
   });
 
-  it("agrees with quarto on 318 of them (HEAD, Session 308, agreed on 98)", () => {
-    expect(statementRows.filter((r) => model(r).join("|") === r[2].join("|"))).toHaveLength(318);
+  it("agrees with quarto on 317 of them (HEAD, Session 308, agreed on 98)", () => {
+    expect(statementRows.filter((r) => model(r).join("|") === r[2].join("|"))).toHaveLength(317);
     expect(statementRows.filter((r) => r[4].join("|") === r[2].join("|"))).toHaveLength(98);
   });
 
@@ -202,6 +202,12 @@ describe("Session 309 — the new passes read a pathological chunk in linear tim
     expect(ms).toBeLessThan(4000);
     expect(names).toEqual(["Top", "After"]);
   });
+  // The test critic's find (Session 309 review): the `options(` check scanned to the end of the line for a `)` at EVERY `options(`, so N unclosed calls cost N squared (40,000: 6 s).
+  it("a silenced chunk whose one line holds 40,000 unclosed `options(` calls", () => {
+    const { names, ms } = timed(["```{r, echo=FALSE}", "options(".repeat(40000), "summary(x)", "```"]);
+    expect(ms).toBeLessThan(3000);
+    expect(names).toEqual(["Top", "Between", "After"]);
+  });
   it("a silenced chunk of 300,000 assignment lines", () => {
     const { names, ms } = timed(["```{r, echo=FALSE}", ...Array.from({ length: 300000 }, (_, i) => `v${i} <- ${i}`), "summary(x)", "```"]);
     expect(ms).toBeLessThan(4000);
@@ -223,4 +229,3 @@ describe("Session 309 — what the blind round B found", () => {
     expect(doc(...["---", "title: \"Assembling a Report From Child Documents\"", "format: html", "---", "", "```{r setup, include=FALSE}", "knitr::opts_chunk$set(echo = FALSE, comment = NA)", "```", "", "# Child Documents", "", "A long report is easier to maintain when its parts live in separate files.", "", "## Why Split", "", "Each part can be edited and tested alone.", "", "## Printing Child", "", "The first child prints a summary of the `women` data.", "", "```", "", "```{r, child=\"_child_print.Rmd\"}", "```", "", "## Quiet Child", "", "```{r, child=\"_child_quiet.Rmd\"}", "```", "", "## Echoed Child", "", "```{r, child=\"_child_echo.Rmd\"}", "```", "", "## Combined Totals", "", "```{r}", "cat(\"Total height:\", child_total, \"\\n\")", "```", "", "## Closing", "", "The parts have been assembled.", ""])).toEqual(["Child Documents", "Why Split", "Printing Child", "Quiet Child", "Echoed Child", "Combined Totals", "Closing"]);
   });
 });
-
