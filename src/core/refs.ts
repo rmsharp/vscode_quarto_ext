@@ -411,8 +411,14 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
         }
       }
       for (const m of text.matchAll(/\bid\s*=\s*["']?([^\s"'>]+)/gi)) {
-        // a numeric character entity (`fig&#45;x`, `fig&#x2d;x`) is the character it names
-        keep(m[1].replace(/&#(\d+);|&#x([0-9a-f]+);/gi, (_all, dec?: string, hex?: string) => String.fromCodePoint(Number.parseInt(dec ?? (hex as string), dec === undefined ? 16 : 10))));
+        // a numeric character entity (`fig&#45;x`, `fig&#x2d;x`) is the character it names; one past U+10FFFF (or too long to be a
+        // finite number: `parseInt` answers Infinity) names none, which HTML reads as U+FFFD, and `fromCodePoint` would throw on it
+        keep(
+          m[1].replace(/&#(\d+);|&#x([0-9a-f]+);/gi, (_all, dec?: string, hex?: string) => {
+            const code = Number.parseInt(dec ?? (hex as string), dec === undefined ? 16 : 10);
+            return code > 0x10ffff ? "�" : String.fromCodePoint(code);
+          }),
+        );
       }
     }
     return anchors.has(id);

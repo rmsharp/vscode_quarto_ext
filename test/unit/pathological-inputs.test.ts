@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { resolveDocumentEngine } from "../../src/core/document-engine-resolve";
 import { findCellOptionLines } from "../../src/core/qmd/model";
+import { indexLabels } from "../../src/core/refs";
 import { valueSlotAfterColon } from "../../src/core/yaml-context";
 
 // Session 311 — the BACKLOG item "Three PRE-EXISTING slow or crashing inputs" (found by Session 304's robustness
@@ -50,5 +51,27 @@ describe("Session 311 — a long run of spaces inside a YAML value", () => {
     expect(result).toHaveLength(1);
     expect(result[0].keySlot).toEqual({ startCol: option.indexOf("fig-cap"), endCol: option.indexOf(":") });
     expect(ms).toBeLessThan(1000);
+  });
+});
+
+describe("Session 311 — a numeric character reference in an id that names no character", () => {
+  // `writtenElsewhere` (the label index's check for an anchor a document writes by hand) decodes `&#N;` and `&#xH;` in an `id`.
+  // A reference past U+10FFFF names no character: HTML reads it as U+FFFD, and `String.fromCodePoint` throws instead, taking the
+  // WHOLE index down with it (a completion and a definition request answer nothing). It is reached only for a labelled cell
+  // that the no-target rules would remove, so the cell below is `eval=FALSE`.
+  const cell = ["```{r fig-x, eval=FALSE}", '#| fig-cap: "Cap"', "plot(1)", "```"].join("\n");
+  const ids = (text: string): string[] => indexLabels(text, "knitr").map((l) => l.id);
+
+  it.each([
+    ["a decimal reference of 11 digits", "&#99999999999;"],
+    ["a hexadecimal reference one past the last code point", "&#x110000;"],
+    ["a decimal reference too long to be a finite number", `&#${"9".repeat(400)};`],
+  ])("%s does not throw, and the cell that makes no figure stays out of the index", (_what, reference) => {
+    const text = `# T\n\n<span id="a${reference}"></span>\n\n${cell}\n`;
+    let found: string[] = [];
+    expect(() => {
+      found = ids(text);
+    }).not.toThrow();
+    expect(found).toEqual([]);
   });
 });
