@@ -125,36 +125,3 @@ the label index is executing-only, (6) the front matter reader's declines, (7) e
 the list pipe), the 22 engines, an unknown mode (7 rows), the prefixed `#|` (2 rows), `resolveRenderMode`, the manifest pin, the setting-key constant and the fixture (ENOENT). Passed on arrival, disclosed: every executing control, the buildOutline,
 engine-blind, front-matter and inline pins, `#|` e01 and e02, the five conservative child edges, the two provider integration tests, and the 1,418 fixture rows (written after the code, every document rendered).
 **Host:** `test:integration` run ONCE with the operator's go-ahead: 562 passing. **Cost:** 11 agents (3 workflows, about 2.4M subagent tokens), about 460 renders by me, 48 mutants, one `npm run package` (1:22).
-
-## Session 308 Handoff Evaluation (by Session 309)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, gotchas 1 to 6, harness paths (`score308.py`, `render304.sh`, `mutate308.py`, `corpusheads308.cjs`), the baseline (8,426 passing, 72 files), both ledger frontiers at HEAD and the
-ratchet citation all held at Phase 0, and its item (A) reproduced EXACTLY at HEAD (right 83 of 150, 50 phantom-only rows, 119 phantom headings).
-**Helped:** the 150 rendered lens documents and `score308.py` (scoring by direction), which became my regression set; the operator decision flagged in gotcha 6, which I could put to the operator at Phase 0 and again with numbers; `rev-*` for how a review round goes.
-**Missing:** that a printing chunk is NOT a loud chunk: it emits two bare fences, so every one below a stray fence moves the pairing, and the item's "give it a CERTAIN loud verdict" would have been wrong (a 256-document grid showed it); and that the dominant remaining error was
-not printer recall but the quiet `uncertain` chunks BETWEEN printing ones (26 of the 40 phantom documents had no unrecognized printer).
-**Wrong:** "HEAD's blanket 'loud' was right for them by accident": right for the first printing chunk only. **ROI: high.**
-
-## Session 309 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** I settled the geometry before code: a fence-pairing simulator frozen before any render matched quarto on 256 of 256 documents (HEAD 242), and chunk-level truth came from `keep-md` (a chunk emitted a bare fence or not) over about 3,000 chunks.
-Every family was RED first
-(cat, text calls, print of a call, masking, `results`, front matter, a setup call, `message`, a name, a child). Two blind rounds (9 authors, about 1.4M subagent tokens, 0 of 308 tool calls flagged) and three read-only reviewers in worktrees (precision 48 documents, geometry 50,
-test critic) found what my grids could not. Executing: S308's 150 documents right 83 to 117, phantom headings 119 to 34; 150 fresh round-B documents 52 to 130 right, phantom headings 295 to 59; deleting rows 17 to 17 (the same pre-existing 17) and 0 to 0. Chunk-level
-precision 192 of 192 on round B. `realdoc-score` unchanged (2,423 of 2,438), all 3,382 corpus outputs identical, `npm run test:oracle` 2 of 2, `npm run package` DONE (44 files, 1.86 MB). Mutation: 108 of 139 killed, 8 deleted as redundant code, 23 accounted for.
-Learnings 724 to 731.
-**Went wrong.** (1) My guards began as a blacklist of words; the precision reviewer deleted a heading in 40 of 48 documents of its first round and I only ran a white-box attacker AFTER the blind rounds. (2) I asked the operator about the executing mode quoting
-the S308 sample (7 to 21 of 100)
-and the blind round later measured 1 to 77 of 144: the decision stands, the number I quoted was the kind one. (3) I wrote a quadratic regex (`options(`: 40,000 unclosed calls, 12 s) that the test critic found, not my timing. (4) Comments and counts overstated in
-places (the critic's C1 to C9),
-and 8 hand-written rows were not rendered as written until the critic named it. (5) Rendering my own 12 MB performance documents hung the render until I killed it. (6) A mutation pass counts a timing flake as a kill, so it ran alone. (7) About ten "have not
-heard from you" nudges.
-**Known residuals (filed):** the BACKLOG item by letter: (A) the `--no-execute` decision, (B) recall (a bare name from an unlisted constructor, `print(x, digits = 3)`, `(x <- ...)`, loops and `if`, a function call, `{python}`), (C) printed text that is itself
-markdown or a heading,
-(D) a stray fence inside a list item, footnote or tabset (pre-existing), (E) the unreadable setup call that keeps HEAD's loud answer (pre-existing, deleting), and S308's (B), (C), (D), (E).
-**TDD:** RED before GREEN for the geometry (`g_p-p-p_s0`), each predictor family, each guard, the 40 precision rows, the 6 geometry rows, the `child=` row and the performance rows. Passed on arrival, disclosed: the other 255 geometry rows, the fixture-driven
-rows of every grid, the rows of the
-same behaviour after each first row, the critic's and the mutation rows (written after the code, every document rendered).
-**Host:** `test:integration` NOT run (needs the screen; core-only change, as Sessions 294 to 298). Headless instead: the oracle, the corpus identity and 9,278 unit tests. **Cost:** 12 agents (3 workflows, about 2.5M subagent tokens), about 1,450 renders by me,
-three mutation runs (179 mutant runs).
