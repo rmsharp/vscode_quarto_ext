@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-15 · [ad hoc] Session 312: dashboard and context-budget history refresh (`23f09e39`)
+
+`methodology/dashboard_history.jsonl` (+1 line) and `methodology/.context-budget-history.jsonl` (+1 line), the two tracked history files the dashboard and `context_budget.py` append to on every run. The dashboard reads health 76/100, one high-or-above risk flag and 21 advisories (all in dev dependencies: `vitest`, `tinypool`, `@vscode/vsce` and their transitive packages; `package.json` has no `dependencies` key), unchanged from Session 311; the oversized `BACKLOG.md`, `PROJECT_LEARNINGS.md` and `HANDOFFS.md` still exceed their read budgets (`context_budget.py` exits 2), as recorded since Session 264.
+
 ### 2026-10-15 · [ad hoc] Session 312: trim SESSION_NOTES to three close-out pairs (`0a914aee`)
 
 `methodology/SESSION_NOTES.md` dropped the Session 308 evaluation and the Session 309 self-assessment (32 lines; 20,097 B and 127 lines left, against the 120,000 B and 400-line ceilings), in a commit that holds no other edit to that file (0 additions, 33 deletions with the separator). The dropped pair is `git show 2bc380ae:methodology/SESSION_NOTES.md` away.
