@@ -128,36 +128,3 @@ the doubling row (2.9 s against 1.5 s). Passed on arrival, disclosed: the two or
 (each verified against the PARENT tree's answers first), and the 2 entity pin rows (they throw at the parent; written after the code).
 **Host:** `test:integration` NOT run (core-only change: `src/core`; it takes the screen and nobody was asked). Headless instead: unit suite, oracle, corpus identity, `npm run package`. **Cost:** 3 agents (1 workflow, 279 tool calls), 68 mutant runs,
 about 700,000 lines of generated differential input, one `npm run package`, 0 quarto renders beyond the cached oracle.
-
-## Session 309 Handoff Evaluation (by Session 310)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, gotchas 1 to 7, both ledger frontiers, the ratchet citation (2/2 at `35f188dc`), the test baseline (9,278 passing, 74 files; one timing row flaked under
-load) and the function pointers all held at Phase 0, and its derived claim that `src` had no `--no-execute` setting and that two call sites reach `buildOutline` held.
-**Helped:** item (A) with its three cost documents, which I put to the operator with numbers (they picked it); `scratchpad/s308` and `s309` had kept BOTH renders of about 500 documents, and `score308.py` was the template of the scorer I built; the
-audit script; the method paragraph (render first, score by direction, attacker before the blind round).
-**Missing:** that the cure needs a NEW SETTING (a manifest entry with a scope decision, README text, two provider integration tests), not only a core argument; that the paired renders made the whole core change scoreable for free (a reader inventory
-found them); and that the no-execute reading is nine guards, three of which no stored render exercised.
-**Wrong:** "the extension knows whether a render uses `--no-execute`" (`whats_next`; no spawn in `src/` passes the flag, and the BACKLOG text beside it said so correctly), and "estimate: one slice plus the host wiring": twelve work commits, three
-workflows, four render grids and a review round. **ROI: high.**
-
-## Session 310 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** I read the data before designing: a reader inventoried about 500 paired renders already on disk, and a scorer built from them (by direction, per reading) priced every guard before it was written. Each guard came from a row that went
-red (the first on the tracked `ne_front_default` cost row), and the three guards the stored data did not exercise (shell engines, `child=`, unlisted engines) got a render grid each (27, 12 and 38 documents) before any code. Over 707 paired real
-renders the no-execute reading is right on 668 against 376, 27 rows hide a heading against 178, no row is worse than the executing reading, and the default is byte-identical to Session 309's on all 707 and on all 3,383 corpus documents (both modes
-agree on the corpus: 2,423 of 2,438). A blind round (5 lenses, 125 documents, 0 of 165 tool calls flagged) gave the honest number before any fix: 121 right of 125 against 78. A read-only attacker, test critic and host reviewer (3 agents, 228 tool
-calls) found one real regression (a `#|` expression inside a listed or quoted chunk: 3 documents, one root cause), an over-conservative guess of mine (R-only child), and 12 test gaps; every claim was checked by rendering their documents or reading
-the code. Mutation 48 of 48 killed (43, then the 5 child-rule survivors pinned). Integration (with your go-ahead) 562 passing including both provider tests. `npm run test:oracle` 2 of 2; `npm run package` DONE, 44 files, 1.86 MB. Learnings 732 to
-737.
-**Went wrong.** (1) My own prompt told the readers a wrong premise (an inline `r` call does nothing under `--no-execute`); one agent contradicted it from the repository and was right. (2) The first cut's `#|` test was column-zero and the child guard
-R-only because I generalised from what I had rendered: the first cost a regression the review found, the second a refuted guess a grid fixed. (3) I laid a test document out differently from the rendered grid it cited, and 8 of the critic's 12 comment
-findings were true (wrong pairing prose, a control named for something it does not test, a detached doc comment). (4) RED was NOT shown for the two provider integration tests: written first, first run after the adapters, one screen takeover with your
-go-ahead (a RED run would have cost a second). (5) About ten "have not heard from you" nudges, the lesson Sessions 302 and 306 to 309 recorded; long waits could have carried a one-line status. (6) I saved the review JSON in the session scratchpad and
-looked for it in the repository's (Learning 736).
-**Known residuals (filed):** the BACKLOG item by number: (1) header-borne channels (DELETING, both modes), (2) prefixed chunks (3 documents), (3) the document selecting the mode (`execute: enabled: false`, measured), (4) engines `go` and `stan`, (5)
-the label index is executing-only, (6) the front matter reader's declines, (7) executing-reading defects the review found, (8) host: resource scope unpinned, no RED for the provider tests, (9) S309's carried (B) to (F).
-**TDD:** RED before GREEN for the mode argument and its first guard, the cache flip, the setup call, the header call, the fence writer, the opts channel, `read_chunk`, the listed chunk's call, the shell engines (5 rows), the child rule (11 engines,
-the list pipe), the 22 engines, an unknown mode (7 rows), the prefixed `#|` (2 rows), `resolveRenderMode`, the manifest pin, the setting-key constant and the fixture (ENOENT). Passed on arrival, disclosed: every executing control, the buildOutline,
-engine-blind, front-matter and inline pins, `#|` e01 and e02, the five conservative child edges, the two provider integration tests, and the 1,418 fixture rows (written after the code, every document rendered).
-**Host:** `test:integration` run ONCE with the operator's go-ahead: 562 passing. **Cost:** 11 agents (3 workflows, about 2.4M subagent tokens), about 460 renders by me, 48 mutants, one `npm run package` (1:22).
