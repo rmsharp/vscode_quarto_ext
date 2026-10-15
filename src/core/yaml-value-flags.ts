@@ -29,7 +29,7 @@
  * (`SchemaField.valuesClosed`) — the pure `isWrongValue` matcher never flags an open set
  * (plan §0/§7.1).
  */
-import { findCellOptionLines, type CellOptionLine } from "./qmd/model";
+import { findCellOptionLines, trimEndBlanks, type CellOptionLine } from "./qmd/model";
 import { inQuartoYamlRegion, quartoYamlRegions } from "./qmd/quarto-yaml-regions";
 import { findFrontMatterValueLines, type FrontMatterValueLine } from "./yaml-frontmatter-values";
 import {
@@ -225,7 +225,7 @@ export function valueFlags(
     // surfaces had the sibling defect in the SHARED `mappingColonAt`, fixed in S159; `model.ts` is
     // deliberately import-free (`yaml-context.ts` imports IT), so the same fix cannot be shared
     // here without the cross-module grammar consolidation BACKLOG already tracks.
-    const optionKey = lineText.slice(c.keySlot.startCol, sep).replace(/[ \t]+$/, "");
+    const optionKey = trimEndBlanks(lineText.slice(c.keySlot.startCol, sep));
     // Clamp to where the directive's YAML CONTENT ends. Re-deriving from the raw line text
     // (which the separator rule above requires) cannot see a BLOCK-comment language's
     // closing delimiter, so in a `{c}` cell `/*| echo: false */` would slice `false */` as

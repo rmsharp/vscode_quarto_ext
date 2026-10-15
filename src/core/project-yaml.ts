@@ -11,7 +11,7 @@
  */
 
 import * as path from "node:path";
-import { scanFlow } from "./qmd/model";
+import { scanFlow, trimEndBlanks } from "./qmd/model";
 import {
   mappingColonAt,
   leadingWsLen,
@@ -404,7 +404,7 @@ export function findProjectConfigValueLines(text: string): ProjectConfigValueLin
       // no value that could open a multi-line scalar.
       continue;
     }
-    const rawKey = lineText.slice(indent, colon).replace(/[ \t]+$/, "");
+    const rawKey = trimEndBlanks(lineText.slice(indent, colon));
     if (rawKey.length === 0) {
       continue; // `: value` with no key — malformed
     }
@@ -479,7 +479,7 @@ function keySpanAt(
   if (colon < 0) {
     return null;
   }
-  const raw = rest.slice(0, colon).replace(/[ \t]+$/, "");
+  const raw = trimEndBlanks(rest.slice(0, colon));
   if (raw.length === 0) {
     return null;
   }

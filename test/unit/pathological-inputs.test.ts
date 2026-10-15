@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { resolveDocumentEngine } from "../../src/core/document-engine-resolve";
 import { findCellOptionLines, findHeadings, maskInlineCode } from "../../src/core/qmd/model";
 import { findLabel, indexLabels } from "../../src/core/refs";
+import { findProjectConfigKeyLines, findProjectConfigValueLines } from "../../src/core/project-yaml";
 import { valueSlotAfterColon } from "../../src/core/yaml-context";
+import { CURATED_SCHEMA_INDEX } from "../../src/core/yaml-schema";
+import { collectValueSources, valueFlags } from "../../src/core/yaml-value-flags";
 
 // Session 311 — the BACKLOG item "Three PRE-EXISTING slow or crashing inputs" (found by Session 304's robustness
 // hunter, timed firsthand, identical in the parent build). Every row here is a document nobody writes by hand and
@@ -314,5 +317,45 @@ describe("Session 312 — a long run of spaces inside a YAML KEY", () => {
     const { result, ms } = timed(() => resolveDocumentEngine("a.qmd", text));
     expect(result).toBe("knitr");
     expect(ms).toBeLessThan(1000);
+  });
+
+  it("findProjectConfigKeyLines reads a `_quarto.yml` child key holding a 100,000-space run in linear time and keeps the key and its range exact", () => {
+    const { result, ms } = timed(() => findProjectConfigKeyLines(`project:\n  a${run}b: v\n`));
+    expect(result).toEqual([{ line: 1, container: "project", key: `a${run}b`, keyRange: { startCol: 2, endCol: 2 + 1 + 100000 + 1 } }]);
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it("findProjectConfigKeyLines still trims the blanks BEFORE the colon off a `_quarto.yml` child key", () => {
+    expect(findProjectConfigKeyLines("project:\n  a \t : v\n")).toEqual([{ line: 1, container: "project", key: "a", keyRange: { startCol: 2, endCol: 3 } }]);
+  });
+
+  it("findProjectConfigValueLines reads a `_quarto.yml` key holding a 100,000-space run in linear time and keeps the key and the value range exact", () => {
+    const { result, ms } = timed(() => findProjectConfigValueLines(`a${run}b: v\n`));
+    expect(result).toEqual([
+      { line: 0, container: "document", path: [], key: `a${run}b`, valueRange: { startCol: 100000 + 4, endCol: 100000 + 5 }, rawToken: "v" },
+    ]);
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it("findProjectConfigValueLines still trims the blanks BEFORE the colon off a `_quarto.yml` key", () => {
+    expect(findProjectConfigValueLines("a \t : v\n")).toEqual([
+      { line: 0, container: "document", path: [], key: "a", valueRange: { startCol: 6, endCol: 7 }, rawToken: "v" },
+    ]);
+  });
+
+  // A python cell whose single `#|` option line is `option`; `valueFlags` is what the value diagnostics run on every open document.
+  const flagsFor = (option: string): ReturnType<typeof valueFlags> =>
+    valueFlags(collectValueSources(["```{python}", option, "x = 1", "```", ""].join("\n")), "a.qmd", CURATED_SCHEMA_INDEX);
+
+  it("valueFlags reads a cell option key holding a 100,000-space run in linear time (the key is no known option, so nothing is flagged)", () => {
+    const { result, ms } = timed(() => flagsFor(`#| echo${run}x: banana`));
+    expect(result).toEqual({ cell: [], frontMatter: [], nested: [] });
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it("valueFlags still trims the blanks BEFORE the colon off a cell option key, so `echo \t : banana` is flagged as `echo`", () => {
+    const { cell } = flagsFor("#| echo \t : banana");
+    expect(cell).toHaveLength(1);
+    expect(cell[0]).toMatchObject({ key: "echo", rawToken: "banana", line: 1, startCol: 12, endCol: 18 });
   });
 });
