@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-14 · [ad hoc] Session 310: trim SESSION_NOTES to three close-out pairs (`fb06a8ce`)
+
+`methodology/SESSION_NOTES.md` dropped the Session 306 evaluation and the Session 307 self-assessment (30 lines; 17,591 B and 123 lines left, against the 120,000 B and 400-line ceilings), in a commit that holds no other edit to that file. The dropped pair is `git show b5caf20c:methodology/SESSION_NOTES.md` away.
+
 ### 2026-10-14 · [ad hoc] Session 310 close-out: handoff evaluation, self-assessment, receipt, ledger, BACKLOG item, Learnings 732 to 737
 
 `methodology/SESSION_NOTES.md` (the evaluation of Session 309's handoff, 8/10, and this session's self-assessment, 8/10), the `HANDOFFS.md` receipt (`status: complete`), this ledger, the `BACKLOG.md` silence item replaced by its residuals (item (A), the render-mode argument, is delivered and removed), `PROJECT_LEARNINGS.md` rows 732 to 737, the dashboard and context-budget history. The quality-gate citation is added in the next commit, after this ledger commit (Learning 683).
