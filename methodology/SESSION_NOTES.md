@@ -8,28 +8,51 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 311 (IN PROGRESS): the five measured robustness defects of the BACKLOG item "Three PRE-EXISTING slow or crashing inputs"** (operator picked it at Phase 0, the recommended option).
-Linear scans and guards only, no behaviour change on well-formed input; strict TDD, a timing row per defect. The gotchas below are Session 310's and still hold.
-**⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in the close-out
-commit).
-(2) TWO different scratchpads: the repo's untracked `scratchpad/` (`s310/` holds the harness, grids, 125 held-out documents, the reviewers' documents) and the session one under `/private/tmp/...` (the three review JSONs).
-Tracked twins: `tools/knitr-print-grids/score_modes.py`, `build_bundle.sh`.
-(3) `score_modes.py <build.cjs[,build.cjs@no-execute]> <exdir>~<nedir>...` scores a build against paired renders by DIRECTION (`--fixture` writes `test/fixtures/knitr-print-noexec/`, 707 rows, closed-world);
-`REALDOC_MODE=no-execute tools/realdoc-score/run.sh <label>`; `mutate310.py <sha> <mutants.json>` (in `s310`).
-(4) zsh: an unquoted `$VAR` does NOT split (use `${=VAR}`); quote `grep --include='*.ts'`; `echo =====` is a command; the Bash tool KEEPS a `cd`: use absolute paths.
-(5) Put "do not read installed quarto, knitr, xfun, rmarkdown or pandoc source" in EVERY agent prompt and audit `tool_use` inputs (`scratchpad/s309/audit309.py`: it flags REPO reads too, right for blind authors, noise for
-reviewers).
-(6) The row `Session 307 ... a 9 MB line of opts_chunk$set( repeats is read in linear time` (1.5 s bound) flakes when the machine is loaded (1.55 to 1.88 s at load average 30; about 650 ms alone). Do not loosen it; time it
-alone.
-(7) `test:integration` takes the screen: ask first (run once this session, 562 passing). `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md`, `PROJECT_LEARNINGS.md` are past the 262,144 B read refusal: read them in slices. Baseline
-`npm test` at HEAD is 10,815 passing in 77 files.
-(8) The default reading is byte-identical to Session 309's (707 paired documents and all 3,383 corpus outputs), pinned by `knitr-no-execute-fixture.test.ts`; a change to it fails there first.
+**Task:** **NONE -- Session 311 closed out.** The five measured defects of the "slow or crashing inputs" item are fixed: a quadratic value trim, a quadratic code-span regex, a 5 MB fence line that threw `scanRegions`,
+an entity throw, a quadratic unclosed flow mapping; a review round found and fixed one regression of its own. `BACKLOG.md` "Active" is empty; present ranked candidates via AskUserQuestion at Phase 0.
+**What the BACKLOG now holds:** one item replaces the finished one, listing nine measured residuals; the likeliest to be met is `indexLabels` quadratic in `{#sec-...}` headings (8,000 headings 5.6 s), then seven key-side trims.
+**⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in the
+close-out commit).
+(2) TWO scratchpads: the repo's untracked `scratchpad/` (`s311/` holds the harness scripts and a README; `s265/runs/s311-*` the corpus runs) and the session one under `/private/tmp/...` (frozen trees, reviewers' output; not durable).
+(3) The Edit tool EXPANDS an escape such as `\uFFFD` into the glyph: write it from Python with a doubled backslash and check `grep -c $'\xef\xbf\xbd'` on every file you touched (it bit `refs.ts`).
+(4) `cmd | grep ... && git commit` tests the grep: redirect a gate to a file, `set -o pipefail`, print `$?`. After a scripted edit to a test file COUNT the rows (a bad splice duplicated half of one).
+(5) `mutate311.py` prints NOTHING for a mutant whose pattern does not match: count result lines against mutants. Mutate in a throwaway `git worktree` with `node_modules` symlinked, never in the tree a reviewer reads.
+(6) Before believing a differential harness's zero, mutate the code and see it report (Learning 740); `scanRegions` caches by text, so time a second reader on a different text.
+(7) The row `Session 307 ... a 9 MB line of opts_chunk$set( repeats` (1.5 s) flakes under load (1.63 s at load 43; 55 to 72 ms alone three times). Do not loosen it. zsh: `${=VAR}` to split; the Bash tool keeps a `cd`.
+(8) `test:integration` NOT run (core-only, takes the screen: ask). `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md`, `PROJECT_LEARNINGS.md` are past the 262,144 B read refusal: read in slices. Baseline `npm test` at HEAD: 10,876 passing in 79 files.
 
-### What Session 311 Did
-**Deliverable:** fix the five measured robustness defects of the BACKLOG item "Three PRE-EXISTING slow or crashing inputs" (IN PROGRESS)
-**Started:** 2026-10-15
-**Status:** Session claimed. Work beginning. Phase 0 found both ledger frontiers at HEAD (`677fae9a`, gap 0), the ratchet citation matching (2/2, results `bba236856bad`) and `npm test` green at 10,815 in 77 files (5.6 s, no timing flake).
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+## Session 310 Handoff Evaluation (by Session 311)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, gotchas 1 to 8, both ledger frontiers at HEAD (`677fae9a`, gap 0), the ratchet citation (2/2, results `bba236856bad`), the test baseline
+(10,815 passing in 77 files, exact) and the "Active empty, present candidates" instruction all held at Phase 0, and every number in the BACKLOG item I took reproduced: the 1.96 s resolver cost (1.86 s here), 52 s for the code-span line
+(51.5 s), 26 s for the unclosed flow mapping (26 s), the throw on `&#99999999999;`, and the 5 MB overflow.
+**Helped:** the item's measured numbers and its repro recipes (a timing pattern at `refs-no-target.test.ts:485`, `trimEndSpaces` as the model for a linear trim); gotcha 6, the 9 MB timing row, which flaked exactly as written (1.63 s at load
+43, 55 to 72 ms alone); gotcha 4 (zsh `${=VAR}`), which I hit the same minute; the Phase 0 picker rule.
+**Missing:** the CAUSES, which one profile each supplied: (3) is not in `indexLabels` but in `scanRegions`'s fence regexes, so EVERY reader answered nothing; (2) is one regex in `maskInlineCode`; (5) is `flowRegion`; that a first fix of (3)
+moves the failure to an index with one bucket per run length; and that the sibling KEY trims are `[ \t]+$`, so `trimEnd()` is wrong for them.
+**Wrong:** (1) named the `\s#` trims (the cost was `/\s+$/`), (3) named `indexLabels`, "the `execute: {` route declines early" was irrelevant, and "estimate: negligible reach" for the entity throw understates a whole-index failure. **ROI: high.**
+
+## Session 311 Self-Assessment
+
+**Score: 8/10.**
+**Went right.** I reproduced all five defects firsthand, profiled each (`node --cpu-prof`, self time by function) and found causes the item had missed or misnamed: the `/\s+$/` trim, one code-span regex, `flowRegion`, four fence regexes in
+`scanRegions`. Each fix has the cheapest exactness proof I could find: `trimEnd` against `\s` on all 1,114,112 code points; the fence regexes against the old ones on 3,843,200 comparisons; the code-span scan against the old regex as an oracle on
+873,812 enumerated lines (9 of 9 mutants killed); `flowRegion` and the closer index against the parent on 140,000 + 120,000 front matters and 200,000 + 160,000 fence documents. After the first GREEN of (3) I profiled again and found 86%
+of the time in a per-length bucket loop that would have turned a `RangeError` into a heap exhaustion; a range-maximum side list replaced it. Over all 3,383 corpus documents the parent's and final headings are BYTE-IDENTICAL; the real-document
+score is unchanged (2,423 of 2,438); `npm test` 10,876 in 79 files, oracle 2 of 2, `npm run package` DONE (44 files, 1.86 MB). An independent review (3 read-only agents, about 0.9M subagent tokens, none read third-party source) found no
+output difference, ONE REGRESSION of mine (the side list scanned per opener: 100,000 lines 2.9 s against 0.68 s, reproduced and fixed), eight pre-existing pathologies (re-measured, filed) and 13 defects of my record. Mutation passes (68 mutant
+runs) found three real gaps in the first rows and five in the sparse-table rows; all closed or equivalent. Learnings 738 to 745.
+**Went wrong.** (1) My side list shipped a regression behind a docstring that said "no real document has more than a few"; the hunter found it, not my own adversarial pass. (2) Four numbers in commit messages were wrong or underived
+(`Eleven pin rows` were ten; `about 6 s each` hid an 18 s row; a guard row guarded nothing; `about 9 million` was never summed): corrected in the ledger and in the tip commit before anything sat on it. (3) My differential harness printed a clean
+zero while exercising nothing, three times (a correlated LCG, no blank lines, headings that never varied). (4) The first guard row passed the mutant it was written for. (5) A Python splice with the wrong anchor duplicated half a test file
+(the row count caught it); `cmd | grep && git commit` committed through a flake; the Edit tool wrote a literal U+FFFD glyph into `refs.ts`, which also made one mutant silently skip (found by counting 26 lines against 27 mutants). (6) About
+six "have not heard from you" nudges during long waits. (7) I widened (1) to the sibling `slotsOf` trims and the cell-option KEY (disclosed), but filed the seven key trims of another class instead of fixing them.
+**Known residuals (filed):** the BACKLOG item by title ("What is still quadratic or deep enough to overflow after Session 311"), items (1) to (9); the earlier Up Next items are untouched.
+**TDD:** RED before GREEN for the four value-trim rows (5.9 s each at the parent), the three entity rows (`RangeError`), the two flow rows (5.4 and 5.6 s), the 5 MB row (`RangeError`, then 3.6 s against 1.5 s), the three mask rows (5.7 s),
+the doubling row (2.9 s against 1.5 s). Passed on arrival, disclosed: the two oracle files (written after the scan; mutation-checked), the ten long-run pin rows, the guard row, the 7 rows of `c1b30f70`, the 9 + 12 + 6 rows of the review round
+(each verified against the PARENT tree's answers first), and the 2 entity pin rows (they throw at the parent; written after the code).
+**Host:** `test:integration` NOT run (core-only change: `src/core`; it takes the screen and nobody was asked). Headless instead: unit suite, oracle, corpus identity, `npm run package`. **Cost:** 3 agents (1 workflow, 279 tool calls), 68 mutant runs,
+about 700,000 lines of generated differential input, one `npm run package`, 0 quarto renders beyond the cached oracle.
 
 ## Session 309 Handoff Evaluation (by Session 310)
 
