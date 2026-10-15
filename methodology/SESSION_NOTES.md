@@ -8,8 +8,9 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 313 closed out.** Item (1) of the Session 312 sweep item is fixed: the leading ` *` of the code-cell header option tail is gone in four regexes (7 to 9.5 s at 32,000 spaces to under 15 ms;
-1,000,000 spaces 19 to 93 ms). `BACKLOG.md` "Active" is empty; present ranked candidates via AskUserQuestion at Phase 0.
+**Task:** **Session 314 (IN PROGRESS): items (2) and (6) of the BACKLOG item "Other regexes still quadratic on a long run of blanks, CR or U+2028 after Session 312"** (operator pick at Phase 0, the recommended option).
+(2) the two `[ \t]+$` value trims (`knitrChunkHeaderLabel`, `asciiTrim`); (6) `resolveDocumentEngine` and the front matter readers are quadratic in the NUMBER of nested keys. Strict TDD.
+**State:** claimed; Phase 0 found both ledger frontiers at HEAD, no `pending` receipt, the ratchet citation matching (2/2, results `bba236856bad`). Baseline `npm test` per Session 313's receipt (11,176 in 81 files); re-measured below once run.
 **What the BACKLOG now holds:** the sweep item's (2) to (7) (two value trims, the `#|` gap, closing-run and rule-row patterns, the CR / U+2028 family, nested front matter keys); the Session 311 item's (3) to (9), with (3) corrected
 (IDENTICAL unclosed fence lines are quadratic too: 3.9 s at 16,000 lines); and a NEW item (the non-tail parts of the four literals are pinned by no test). The Session 165 item for `languagesInMarkdown` is deleted (fixed).
 **⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in a close-out commit).
@@ -29,6 +30,12 @@ BLOCKED by the safety check: use literal paths, and `git worktree remove --force
 The operator's own `devtools::check` on another R package took the load to 22 here: look at `ps` before blaming a change, run the suite alone, never loosen.
 (10) Session 313's harness is `scratchpad/s313/` (README): `oracle-table.ts` + `gen-pin-test.py` (the pin rows from the PARENT's answers), `regex-equiv.js <depth> narrow|wide` + `regex-equiv-mutcheck.py`, `mutate313.py <worktree> <json> <test files>`
 and `mutate313-slow.py`, `corpusdiff313.cjs`, `hdr2.ts`. A clock row needs its OWN text (the engine-blind region cache holds two entries) and a mutant that is still quadratic but cheaper.
+
+### What Session 314 Did
+**Deliverable:** items (2) and (6) of the BACKLOG item "Other regexes still quadratic on a long run of blanks, CR or U+2028 after Session 312": the front matter value trims and the nested-key quadratic (IN PROGRESS)
+**Started:** 2026-10-15
+**Status:** Session claimed. Work beginning. Phase 0 found both ledger frontiers at HEAD (`55390b90`, gap 0), no `pending` receipt, the ratchet citation matching (2/2, results `bba236856bad`).
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
 
 ## Session 312 Handoff Evaluation (by Session 313)
 

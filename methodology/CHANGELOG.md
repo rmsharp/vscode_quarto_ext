@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-15 · [BL-Other regexes still quadratic on a long run of blanks, CR or U+2028 after Session 312: a sweep's list, the code-cell header tail first] Session 314 (in progress): claim -- items (2) and (6)
+
+Session claimed; the operator chose this item at the Phase 0 picker (the recommended option, "Front matter regexes"). Deliverable: items (2) and (6) of the item's seven groups, the two `[ \t]+$` value trims (`knitrChunkHeaderLabel`, `asciiTrim`) and the quadratic in the number of nested front matter keys (`resolveDocumentEngine` and the front matter readers), strict TDD.
+
 ### 2026-10-15 · [ad hoc] Session 313: cite the quality-gate run in the receipt and the ledger (2/2 pass at 5118ce8f)
 
 `quality_ratchet.py --run` after the ledger commit `5118ce8f`: 2/2 pass, 0 fail, 0 unmeasured, results bba236856bad, manifest 334939914945, head 5118ce8f (ledger-lag 0; release-gate is `npm run check-package`, 0). The `HANDOFFS.md` receipt's `quality_ratchet` line now carries the citation (`methodology/.quality-gates-results.json` is not tracked: the run is read from the file on disk).
