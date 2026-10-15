@@ -285,6 +285,20 @@ describe("Session 310 — what the review found unpinned", () => {
     expect(headings(childDocument('```{r, child="_child_text.Rmd", eval=TRUE}\n```'), "no-execute")).toEqual(["Top", "Last"]);
     expect(headings(childDocument("```{r}\n#| child: [_child_text.Rmd, _child_text2.Rmd]\n```"), "execute")).toEqual(["Top", "After", "Last"]);
   });
+  // THE EDGES OF THE CHILD RULE, none rendered (no document settles them), so each pins the CONSERVATIVE answer the model gave before this session (`loud`, or `uncertain` when the code is hidden:
+  // the chunk ends a swallow, and a wrong "silent" would delete a heading): a child chunk of an engine only the no-execute list trusts; an `engine` option or `#| engine:` beside `child`, in
+  // the header or the pipe, which moves the chunk onto an engine this does not know; and a `#| child:` line that is not in the LEADING pipe block, which is a comment to knitr. Found by
+  // the mutation pass: each of these five survivors changed no test.
+  it.each([
+    ["an engine the no-execute list adds", '```{c, child="_c.Rmd", echo=FALSE}\n```'],
+    ["an engine option in the header", '```{r, child="_c.Rmd", engine="python"}\n```'],
+    ["an engine option in the pipe", "```{r}\n#| engine: python\n#| child: _c.Rmd\n```"],
+    ["an engine option beside a child list", "```{r}\n#| engine: python\n#| child: [_a.Rmd, _b.Rmd]\n```"],
+    ["a child line below code, past an unreadable leading pipe", "```{r}\n#| fig-cap: [a, b]\nx <- 1\n#| child: _c.Rmd\n```"],
+  ])("not silenced, as before: %s", (_name, chunk) => {
+    expect(headings(childDocument(chunk), "no-execute")).toEqual(["Top", "After", "Last"]);
+    expect(headings(childDocument(chunk), "execute")).toEqual(["Top", "After", "Last"]);
+  });
   // The engines this rule does not trust when executing are silent under `--no-execute` (nothing is compiled or run, so nothing is written): `scratchpad/s310/gc-ne` `s14_*_echoF`, 22
   // engines rendered with `echo=FALSE`, every one listing `Top` and `Last`. `go` and `stan` did not render and are NOT here; `mermaid`, `dot` and `ojs` are quarto's own and re-emit their fence.
   const UNLISTED = [
