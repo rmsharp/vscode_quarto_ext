@@ -104,3 +104,61 @@ describe("Session 311 — a front matter whose flow mapping never closes", () =>
     expect(engine.ms).toBeLessThan(1000);
   });
 });
+
+describe("Session 311 — a single line of five million backticks", () => {
+  // The four fence patterns (`FENCE_OPEN`, `FENCE_CLOSE`, `CELL_FENCE_CLOSE`, `INDENTED_CELL_FENCE_OPEN`) used to read the run with a
+  // quantified back-reference, `([`~])\2{2,}`, which V8 keeps one backtrack entry per repetition for: past a few million the regex
+  // stack overflows and `exec` throws RangeError. It is thrown from `scanRegions`, so EVERY reader (the Outline, the front matter, the
+  // engine resolver, the label index) answered nothing for such a document, not only the one the item named.
+  const document = (run: number): string => `Intro.\n\n${"`".repeat(run)}\n\n# H\n`;
+
+  it("is read by the Outline without throwing, and like a shorter run of the same shape", () => {
+    const shorter = findHeadings(document(2000)).map((h) => h.text);
+    let found: string[] = [];
+    const { ms } = timed(() => {
+      expect(() => {
+        found = findHeadings(document(5_000_000)).map((h) => h.text);
+      }).not.toThrow();
+    });
+    expect(found).toEqual(shorter);
+    // `buildCloserIndex` used to file a closer line under one bucket per run length (3 up to the run's own length): 5 million
+    // entries here, about 3 s and a heap that a line ten times longer would exhaust, where the regex used to throw first.
+    expect(ms).toBeLessThan(1500);
+  });
+});
+
+describe("Session 311 — a fence whose run is longer than the closers `buildCloserIndex` files one bucket per length", () => {
+  // The closer index files a plain closer under one bucket for each run length up to `MAX_BUCKETED_FENCE_RUN` (64) and keeps a longer
+  // run on a side list. The expected headings below are what the tree BEFORE that change answered for every row (the rows passed on
+  // arrival; the differential over 200,000 generated documents and the mutants of the side list are what they stand for): a fence
+  // is a code block only when something closes it, and a closer must be at least as long as its opener. `# Inside` is visible when
+  // the fence is never closed, hidden when it is.
+  const run = (n: number): string => "`".repeat(n);
+  const headings = (lines: string[]): string[] => findHeadings(lines.join("\n") + "\n").map((h) => h.text);
+  const fence = (open: string, close: string): string[] => ["Intro.", "", open, "", "# Inside", "", close, "", "# After"];
+
+  it.each([
+    ["a 70-run closed by a 70-run", 70, 70, ["After"]],
+    ["a 70-run, closer one short", 70, 69, ["Inside", "After"]],
+    ["a 70-run closed by a longer run", 70, 100, ["After"]],
+    ["a 5-run closed by a 100-run (the long closer serves the short opener)", 5, 100, ["After"]],
+    ["a 64-run closed by a 64-run (the last length with a bucket)", 64, 64, ["After"]],
+    ["a 65-run closed by a 65-run (the first length without one)", 65, 65, ["After"]],
+    ["a 65-run, closer one short (a bucketed 64)", 65, 64, ["Inside", "After"]],
+  ])("%s", (_what, open, close, expected) => {
+    expect(headings(fence(run(open), run(close)))).toEqual(expected);
+  });
+
+  it.each([
+    ["marked closer of the same length", 70, 70, ["After"]],
+    ["marked closer one short", 70, 69, ["In1", "After"]],
+  ])("a 70-run opened inside a block quote: %s", (_what, open, close, expected) => {
+    expect(headings(["Intro.", "", `> ${run(open)}`, ">", "> # In1", ">", `> ${run(close)}`, "", "# After"])).toEqual(expected);
+  });
+
+  it("a long closer past the block quote's end closes nothing inside it", () => {
+    // `until` bounds a quoted opener's lookahead: the unmarked blank line ends the quote, so a 70-run after it is another block's.
+    const lines = ["Intro.", "", `> ${run(70)}`, ">", "> # In1", "", run(70), "", "# After"];
+    expect(headings(lines)).toEqual(["In1", "After"]);
+  });
+});

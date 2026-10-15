@@ -6070,8 +6070,18 @@ const COMMONMARK_HTML_TYPE1_CLOSE = /<\/(?:pre|script|style|textarea)>/i;
  * `fenceMatchAt` below does, against the enclosing block's content column.** Until Session
  * 200 the class was CommonMark §4.5's ` {0,3}`, a tolerance measured from SOURCE column 0,
  * which inside a container refused the fence quarto builds there.
+ *
+ * ⚠ **THE RUN IS READ WITHOUT A BACK-REFERENCE, ON PURPOSE, AND THE FOUR FENCE PATTERNS BELOW SHARE
+ * THE SHAPE (Session 311).** `(([`~])\2{2,})` is the obvious spelling of "one fence char, at
+ * least three times", and V8 keeps one backtrack entry per repetition of a quantified
+ * back-reference: a 5 MB line of backticks overflows the regex stack and `exec` throws
+ * `RangeError`, from `scanRegions`, so every reader of the document answers nothing.
+ * `((?=([`~]))(?:`{3,}|~{3,}))` matches exactly the same strings with the same capture groups
+ * (1 the run, 2 the char) — compared on every string up to 7 characters over a 7-character
+ * alphabet, 3.8 million comparisons, groups included — and its literal runs loop without a
+ * stack. Do not "simplify" it back.
  */
-const FENCE_OPEN = /^[ \t]*(([`~])\2{2,})(.*)$/;
+const FENCE_OPEN = /^[ \t]*((?=([`~]))(?:`{3,}|~{3,}))(.*)$/;
 /**
  * Quarto's OWN cell opener, whose leading whitespace is **unbounded** — `^\s*`, tabs
  * included — where CommonMark's fence rule, and so `FENCE_OPEN` above, caps it at 3
@@ -6086,13 +6096,13 @@ const FENCE_OPEN = /^[ \t]*(([`~])\2{2,})(.*)$/;
  * `computeRegions` reaches this pattern only after `FENCE_OPEN` has declined AND the info
  * string parses as a cell. See `CELL_FENCE_CLOSE` for the matching closer rule.
  */
-const INDENTED_CELL_FENCE_OPEN = /^\s*((`)\2{2,})(.*)$/;
+const INDENTED_CELL_FENCE_OPEN = /^\s*((?=(`))`{3,})(.*)$/; // the run without a back-reference: see `FENCE_OPEN`
 /**
  * A closing fence: leading whitespace of either kind, ≥3 of one fence char only, optional
  * trailing space. Its indent is decided by `fenceMatchAt` exactly as the opener's is, and
  * against the SAME column stack — measured, not assumed to match the opener's own column.
  */
-const FENCE_CLOSE = /^[ \t]*(([`~])\2{2,})[ \t]*$/;
+const FENCE_CLOSE = /^[ \t]*((?=([`~]))(?:`{3,}|~{3,}))[ \t]*$/; // the run without a back-reference: see `FENCE_OPEN`
 /**
  * Quarto's `endCodeRegEx` — the same closer with UNBOUNDED leading whitespace. Used only
  * for a fence that opened as a CELL, so a plain fence keeps CommonMark's 0–3 cap exactly
@@ -6107,7 +6117,7 @@ const FENCE_CLOSE = /^[ \t]*(([`~])\2{2,})[ \t]*$/;
  * `scratchpad/s293/adv/L5t`). The narrower class was HEAD's, and it was masked: the closer it
  * could not see left the opener as paragraph text, which swallowed the heading by accident.
  */
-const CELL_FENCE_CLOSE = /^\s*(([`~])\2{2,})\s*$/;
+const CELL_FENCE_CLOSE = /^\s*((?=([`~]))(?:`{3,}|~{3,}))\s*$/; // the run without a back-reference: see `FENCE_OPEN`
 /**
  * A PLAIN fence match on `line` — opener or closer — or null if these bytes are not a fence
  * HERE (Session 200). `columns` is `[0, ...contentColumns]`, the same array the ATX heading,
@@ -13559,6 +13569,15 @@ function isCloser(line: string, open: OpenCellFence): boolean {
 }
 
 /**
+ * The longest run of a plain closer that `buildCloserIndex` files under one bucket per length (Session 311). A longer run is
+ * filed once, on a side list of `[line, run length]` that `hasCloserBelow` reads for an opener longer than this — see
+ * {@link longRunReaches}. Real fences are 3 to a handful of characters, so the side list is empty in practice; the bound is
+ * what keeps a single line of millions of backticks from filing millions of one-line buckets (3 s and a heap a line ten times
+ * longer would exhaust).
+ */
+const MAX_BUCKETED_FENCE_RUN = 64;
+
+/**
  * Every line that could close SOME fence, bucketed by the exact fence it would close.
  *
  * The key is `isCell|char|len` because `isCloser` answers differently along all three axes:
@@ -13586,6 +13605,19 @@ function buildCloserIndex(
       index.set(key, [line]);
     } else {
       bucket.push(line);
+    }
+  };
+  // A closer run longer than `MAX_BUCKETED_FENCE_RUN`: its line and its length, as two parallel ascending-by-line lists.
+  const pushLongRun = (key: string, line: number, len: number) => {
+    if (skip.has(line)) {
+      return;
+    }
+    push(`${key}|line`, line);
+    const lens = index.get(`${key}|len`);
+    if (lens === undefined) {
+      index.set(`${key}|len`, [len]);
+    } else {
+      lens.push(len);
     }
   };
   for (let i = 0; i < lines.length; i++) {
@@ -13621,8 +13653,11 @@ function buildCloserIndex(
     // with their headings intact (measured: `scratchpad/s200/ax`, `unt_b4_i04`).
     if (FENCE_CLOSE.test(lines[i])) {
       const col = indentColumn(lines[i]);
-      for (let n = 3; n <= len; n++) {
+      for (let n = 3; n <= Math.min(len, MAX_BUCKETED_FENCE_RUN); n++) {
         push(`p|${char}|${n}|${col}`, i);
+      }
+      if (len > MAX_BUCKETED_FENCE_RUN) {
+        pushLongRun(`pl|${char}|${col}`, i, len);
       }
     }
   }
@@ -13643,8 +13678,11 @@ function buildCloserIndex(
       continue;
     }
     const col = indentColumn(content);
-    for (let n = 3; n <= m[1].length; n++) {
+    for (let n = 3; n <= Math.min(m[1].length, MAX_BUCKETED_FENCE_RUN); n++) {
       push(`q|${m[2]}|${n}|${col}`, i);
+    }
+    if (m[1].length > MAX_BUCKETED_FENCE_RUN) {
+      pushLongRun(`ql|${m[2]}|${col}`, i, m[1].length);
     }
   }
   return index;
@@ -13798,12 +13836,12 @@ function hasCloserBelow(
     if (columnIsCodeDepth(col, open.columns)) {
       continue;
     }
-    if (bucketReaches(index.get(`p|${open.char}|${open.len}|${col}`), from, until)) {
+    if (plainCloserReaches(index, "p", open, col, from, until)) {
       return true;
     }
     // A fence opened INSIDE a quote is also closed by a MARKED closer, whose run sits past the
     // marker and so carries its own column (Session 225).
-    if (open.quoted && bucketReaches(index.get(`q|${open.char}|${open.len}|${col}`), from, until)) {
+    if (open.quoted && plainCloserReaches(index, "q", open, col, from, until)) {
       return true;
     }
   }
@@ -13830,6 +13868,60 @@ function bucketReaches(bucket: number[] | undefined, from: number, until: number
     }
   }
   return lo < bucket.length && bucket[lo] < until;
+}
+
+/**
+ * Whether a plain closer at column `col` reaches `open` from `from` and below `until`: the bucket for its exact run length when that
+ * is one `buildCloserIndex` files per length, the side list of long runs otherwise (`namespace` is `p` for an unmarked closer, `q` for
+ * one past a block-quote marker).
+ */
+function plainCloserReaches(
+  index: Map<string, number[]>,
+  namespace: "p" | "q",
+  open: OpenCellFence,
+  col: number,
+  from: number,
+  until: number,
+): boolean {
+  if (open.len <= MAX_BUCKETED_FENCE_RUN) {
+    return bucketReaches(index.get(`${namespace}|${open.char}|${open.len}|${col}`), from, until);
+  }
+  const key = `${namespace}l|${open.char}|${col}`;
+  return longRunReaches(index.get(`${key}|line`), index.get(`${key}|len`), open.len, from, until);
+}
+
+/**
+ * Whether the side list of long closer runs holds a line at or below `from` and BELOW `until` whose run is at least `len` — the
+ * question `bucketReaches` answers for the lengths that have a bucket of their own. `lines` is ascending (the order it is built in)
+ * and `runs[k]` is the run length of `lines[k]`; the search is binary to `from` and linear after it, which is bounded by the long
+ * runs a document has and which no real document has more than a few of.
+ */
+function longRunReaches(
+  lines: number[] | undefined,
+  runs: number[] | undefined,
+  len: number,
+  from: number,
+  until: number,
+): boolean {
+  if (lines === undefined || runs === undefined) {
+    return false;
+  }
+  let lo = 0;
+  let hi = lines.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (lines[mid] < from) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
+  }
+  for (let k = lo; k < lines.length && lines[k] < until; k++) {
+    if (runs[k] >= len) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
