@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveDocumentEngine } from "../../src/core/document-engine-resolve";
-import { findCellOptionLines, findHeadings, maskInlineCode } from "../../src/core/qmd/model";
+import { findCellOptionLines, findHeadings, knitrChunkHeaderLabel, maskInlineCode } from "../../src/core/qmd/model";
 import { quartoYamlRegions } from "../../src/core/qmd/quarto-yaml-regions";
 import { findLabel, indexLabels } from "../../src/core/refs";
 import { findProjectConfigKeyLines, findProjectConfigValueLines } from "../../src/core/project-yaml";
@@ -489,5 +489,41 @@ describe("Session 313 — a long run of spaces after the language word of a code
       expect(result).toEqual(expected(heading));
       expect(ms).toBeLessThan(1000);
     });
+  });
+});
+
+describe("Session 314 — a long run of spaces INSIDE a value the model trims at both ends", () => {
+  // `asciiTrim` was `.replace(/^[ \t]+|[ \t]+$/g, "")`: its `[ \t]+$` half is retried from every space of a run that is followed by a letter,
+  // so a value holding a run of spaces cost time proportional to the square of the run. With `from: gfm` or `from: commonmark_x` (the readers
+  // whose front matter the `from:` proof reads) EVERY top-level line reaches it, and a `from:` line reaches it three times (64,000 spaces took
+  // `findHeadings` 7.1 s for `from: gfm<run>x` and 2.4 s for `key: a<run>b`, a CPU profile 98% in the one regex). `trim()` is NOT the cure:
+  // it also strips a no-break space and every other Unicode space, which YAML does not (`ascii-trim.test.ts` holds the oracle).
+  const run = " ".repeat(100000);
+
+  it("findHeadings reads a `from: gfm` line whose value holds a 100,000-space run in linear time", () => {
+    const text = ["---", `from: gfm${run}x`, "---", "", "# H", ""].join("\n");
+    const { result, ms } = timed(() => findHeadings(text));
+    expect(result).toEqual([{ level: 1, text: "H", line: 4 }]);
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it("findHeadings reads another top-level value holding a 100,000-space run, under `from: gfm`, in linear time", () => {
+    const text = ["---", "from: gfm", `title: a${run}b`, "---", "", "# H", ""].join("\n");
+    const { result, ms } = timed(() => findHeadings(text));
+    expect(result).toEqual([{ level: 1, text: "H", line: 5 }]);
+    expect(ms).toBeLessThan(1000);
+  });
+
+  // The chunk-header slot reader (`knitrChunkHeaderLabel`) carried its own copy of the same trim, on the one UNNAMED slot (`{r, a<run>b}`).
+  it("knitrChunkHeaderLabel reads an unnamed chunk-header slot holding a 100,000-space run in linear time", () => {
+    const { result, ms } = timed(() => knitrChunkHeaderLabel(`\`\`\`{r, a${run}b}`));
+    expect(result).toBeNull();
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it("the label index reads a knitr chunk header whose unnamed slot holds a 100,000-space run in linear time", () => {
+    const { result, ms } = timed(() => indexLabels(`\`\`\`{r, a${run}b}\n1\n\`\`\`\n`, "knitr"));
+    expect(result).toEqual([]);
+    expect(ms).toBeLessThan(1000);
   });
 });

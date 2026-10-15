@@ -3094,9 +3094,22 @@ const PROOF_FENCE_OR_COMMENT = /<!--|```|~~~|^---/;
 function leadingSpaces(line: string): number {
   return /^ */.exec(line)![0].length;
 }
-/** `value` without the spaces and tabs YAML calls whitespace (JavaScript's `trim` also strips a non-breaking space, an em space, a form feed ...). */
-function asciiTrim(value: string): string {
-  return value.replace(/^[ \t]+|[ \t]+$/g, "");
+/**
+ * `value` without the spaces and tabs YAML calls whitespace, at BOTH ends, in one pass: what `.replace(/^[ \t]+|[ \t]+$/g, "")` answers, without that
+ * regex's cost (quadratic in a run of spaces INSIDE the value: 100,000 took 6 s per trim, and a `from:` line is trimmed three times; Session 314).
+ * ⚠ NOT `trim()`: it also strips a non-breaking space, a line separator, an em space, a form feed ..., which YAML does not trim. `trimEndBlanks`
+ * is the end-only sibling.
+ */
+export function asciiTrim(value: string): string {
+  let start = 0;
+  let end = value.length;
+  while (start < end && (value.charCodeAt(start) === 0x20 || value.charCodeAt(start) === 0x09)) {
+    start++;
+  }
+  while (end > start && (value.charCodeAt(end - 1) === 0x20 || value.charCodeAt(end - 1) === 0x09)) {
+    end--;
+  }
+  return value.slice(start, end);
 }
 /** What a value left open at the end of its line: a block scalar (text below, by indent), a quote that wraps, or a flow collection that wraps. */
 type ProofPending =
@@ -8329,7 +8342,7 @@ export function knitrChunkHeaderLabel(
   if (unnamed[0].index === 0 && segments.length > 1 && isBlankSlot(segments[1])) {
     return null;
   }
-  const text = unnamed[0].text.replace(/^[ \t]+|[ \t]+$/g, "");
+  const text = asciiTrim(unnamed[0].text);
   const read = readChunkLabelToken(text, unnamed[0].index === 0);
   const column = unnamed[0].start + unnamed[0].text.indexOf(text) + (read?.offset ?? 0);
   return read === null ? null : { value: read.value, column };
