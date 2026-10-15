@@ -527,3 +527,49 @@ describe("Session 314 — a long run of spaces INSIDE a value the model trims at
     expect(ms).toBeLessThan(1000);
   });
 });
+
+describe("Session 314 — thousands of sibling keys under a nested front matter container", () => {
+  // `findNestedFrontMatterValueLines` asks `nestedParentPath` for the container of EVERY nested line, and the ancestor walk looked for the nearest
+  // shallower line by scanning upward past every same-indent sibling (and, one level up, past every earlier sibling BLOCK), so n keys under
+  // `format:` / `html:` cost time proportional to n squared: 2,000 / 4,000 / 8,000 keys took 118 / 413 / 1,523 ms, a CPU profile 28% in
+  // `leadingWsLen` and 27% in `nearestShallowerLine`. The engine resolver reads this on every cross-reference request.
+  const SIBLINGS = 16000;
+  const BLOCKS = 8000;
+  const siblingKeys = (n: number): string => Array.from({ length: n }, (_, i) => `    k${i}: v`).join("\n");
+  const siblingBlocks = (n: number): string => Array.from({ length: n }, (_, i) => `    o${i}:\n      k: v`).join("\n");
+  const document = (body: string, after = ""): string => `---\nformat:\n  html:\n${body}\n${after}---\n\ntext\n`;
+
+  it("pins the small answer first: three sibling keys, then three sibling blocks", () => {
+    const entry = (line: number, parentPath: string[], key: string): unknown => ({ line, parentPath, key, valueRange: { startCol: parentPath.length === 2 ? 8 : 9, endCol: parentPath.length === 2 ? 9 : 10 }, rawToken: "v" });
+    expect(findNestedFrontMatterValueLines(document(siblingKeys(3)))).toEqual([0, 1, 2].map((i) => entry(3 + i, ["format", "html"], `k${i}`)));
+    expect(findNestedFrontMatterValueLines(document(siblingBlocks(3)))).toEqual([0, 1, 2].map((i) => entry(4 + 2 * i, ["format", "html", `o${i}`], "k")));
+  });
+
+  it("findNestedFrontMatterValueLines reads 16,000 sibling keys under format / html in linear time", () => {
+    const { result, ms } = timed(() => findNestedFrontMatterValueLines(document(siblingKeys(SIBLINGS))));
+    expect(result).toHaveLength(SIBLINGS);
+    expect(result[0]).toMatchObject({ line: 3, parentPath: ["format", "html"], key: "k0", rawToken: "v" });
+    expect(result[SIBLINGS - 1]).toMatchObject({ line: 3 + SIBLINGS - 1, parentPath: ["format", "html"], key: `k${SIBLINGS - 1}`, rawToken: "v" });
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it("findNestedFrontMatterValueLines reads 8,000 sibling mapping blocks under format / html in linear time", () => {
+    const { result, ms } = timed(() => findNestedFrontMatterValueLines(document(siblingBlocks(BLOCKS))));
+    expect(result).toHaveLength(BLOCKS);
+    expect(result[0]).toMatchObject({ line: 4, parentPath: ["format", "html", "o0"], key: "k" });
+    expect(result[BLOCKS - 1]).toMatchObject({ line: 4 + 2 * (BLOCKS - 1), parentPath: ["format", "html", `o${BLOCKS - 1}`], key: "k" });
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it("the engine resolver reads 16,000 sibling keys under format / html in linear time (the reported path)", () => {
+    const { result, ms } = timed(() => resolveDocumentEngine("a.qmd", document(siblingKeys(SIBLINGS), "engine: knitr\n")));
+    expect(result).toBe("knitr");
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it("the engine resolver reads 8,000 sibling mapping blocks under format / html in linear time", () => {
+    const { result, ms } = timed(() => resolveDocumentEngine("a.qmd", document(siblingBlocks(BLOCKS), "engine: knitr\n")));
+    expect(result).toBe("knitr");
+    expect(ms).toBeLessThan(1000);
+  });
+});

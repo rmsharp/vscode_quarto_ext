@@ -35,6 +35,7 @@
 
 import { findFrontMatter, frontMatterContentLines, scanFlow, trimEndBlanks } from "./qmd/model";
 import {
+  indexLineIndents,
   mappingColonAt,
   leadingWsLen,
   nestedParentPath,
@@ -88,6 +89,9 @@ export function findNestedFrontMatterValueLines(
   // lives inside this block, so the front-matter-bounded array finds the same
   // ancestors the absolute-line completion path would (Learning #14 — one scanner).
   const baseLine = fm.startLine + 1;
+  // Built once: the ancestor walk asks for the nearest shallower line of EVERY nested line, and scanning upward past every sibling for each
+  // one made n sibling keys cost time proportional to n squared (8,000 keys took 1.5 s; Session 314).
+  const indents = indexLineIndents(contentLines);
   const result: NestedFrontMatterValueLine[] = [];
   // State of an unclosed multi-line value that spans following lines. TWO forms, both of
   // which make a following line — even at the SAME indent as its key — a continuation, NOT
@@ -181,7 +185,7 @@ export function findNestedFrontMatterValueLines(
     // completion uses. `null` ⇒ skip: an unresolvable structure, a non-`format` column-0
     // root, OR a block-scalar/flow intermediate container (`mappingContainerKey` → null
     // on a `key: |` / `key: v` line) — which is what protects block-scalar content (§7.2).
-    const parentPath = nestedParentPath(contentLines, i, indent);
+    const parentPath = nestedParentPath(contentLines, i, indent, indents);
     if (parentPath === null) {
       continue;
     }

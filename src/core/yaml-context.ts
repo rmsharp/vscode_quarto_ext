@@ -264,13 +264,18 @@ function nestedKeyContextAt(
  * `leadingWsLen` were exported for. It returns the CONTAINER path EXCLUDING the line's
  * own key (unlike the completion CONTEXT's `parentPath`, which appends the key), so the
  * enumerator resolves with `frontMatterKeys(parentPath).find(name === key)`.
+ *
+ * A forward loop over every line passes `index` (`indexLineIndents(lines)`, built once): without
+ * it each call scans upward past every same-indent sibling, so n sibling keys cost time
+ * proportional to n squared (Session 314). The answer is the same either way.
  */
 export function nestedParentPath(
   lines: string[],
   line: number,
   indent: number,
+  index?: LineIndentIndex,
 ): string[] | null {
-  const parentLine = nearestShallowerLine(lines, line, indent);
+  const parentLine = nearestShallowerLine(lines, line, indent, index);
   if (parentLine < 0) {
     return null;
   }
@@ -291,7 +296,7 @@ export function nestedParentPath(
   let cur = parentLine;
   let curIndent = parentIndent;
   for (;;) {
-    const up = nearestShallowerLine(lines, cur, curIndent);
+    const up = nearestShallowerLine(lines, cur, curIndent, index);
     if (up < 0) {
       return null;
     }
@@ -351,12 +356,20 @@ export function leadingWsLen(text: string): number {
  * `indent` (siblings or deeper structure) are skipped so an intervening deeper
  * block does not hide the real parent. Returning the index (not the text) lets
  * the caller walk a second level up from the parent's own line.
+ *
+ * With an `index` of `lines` and a `line` that is a content line indented exactly `indent`
+ * (every call of a forward loop, and every step of the ancestor climb), the answer is read
+ * from the index instead of scanned for. Any other call falls back to the scan.
  */
 function nearestShallowerLine(
   lines: string[],
   line: number,
   indent: number,
+  index?: LineIndentIndex,
 ): number {
+  if (index !== undefined && line >= 0 && line < index.indent.length && index.indent[line] === indent) {
+    return index.shallower[line];
+  }
   for (let i = line - 1; i >= 0; i--) {
     const t = lines[i] ?? "";
     if (t.trim() === "") {
@@ -371,6 +384,47 @@ function nearestShallowerLine(
     }
   }
   return -1;
+}
+
+/**
+ * What {@link nearestShallowerLine} would answer for every CONTENT line of a block of lines, computed in one pass
+ * (Session 314). A content line is one that is neither blank (`trim()` leaves nothing, so a line of only
+ * no-break spaces counts as blank here, as it does in the scan) nor a comment (`#` after its spaces and tabs).
+ */
+export interface LineIndentIndex {
+  /** The leading spaces and tabs of a content line; `-1` for a blank or comment line, which the index does not answer for. */
+  readonly indent: Int32Array;
+  /** For a content line, the index of the nearest content line above it indented strictly LESS; `-1` when there is none. */
+  readonly shallower: Int32Array;
+}
+
+/**
+ * Index `lines` for {@link nestedParentPath}: the previous-smaller-element problem, solved with a stack of content lines
+ * whose indents strictly increase (a line pops every line indented as much or more, and what is left on top is its
+ * nearest shallower line), so the whole block costs time proportional to its length however many siblings share an
+ * indent. The scan it replaces walked past every sibling for every line: 8,000 keys took 1.5 s.
+ */
+export function indexLineIndents(lines: string[]): LineIndentIndex {
+  const indent = new Int32Array(lines.length).fill(-1);
+  const shallower = new Int32Array(lines.length).fill(-1);
+  const stack: number[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const t = lines[i] ?? "";
+    if (t.trim() === "") {
+      continue;
+    }
+    const lead = leadingWsLen(t);
+    if (t.slice(lead).startsWith("#")) {
+      continue;
+    }
+    while (stack.length > 0 && indent[stack[stack.length - 1]] >= lead) {
+      stack.pop();
+    }
+    indent[i] = lead;
+    shallower[i] = stack.length > 0 ? stack[stack.length - 1] : -1;
+    stack.push(i);
+  }
+  return { indent, shallower };
 }
 
 /**
