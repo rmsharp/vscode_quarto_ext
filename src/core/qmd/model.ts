@@ -6883,9 +6883,9 @@ const NO_KNITR_CLOSERS: KnitrChunkClosers = { silent: new Map(), uncertain: new 
  * rows are the "THE NORMAL CASE" block of `qmd-model.test.ts`; the sandwich with an uncertain middle is a pinned DELETING residual.
  * ⚠ What it still cannot see is a call that never runs (`eval=FALSE` on the setup chunk, a function never called) and a label that names nothing
  * (a07, fill_10, a02: RESIDUAL rows), and a code option set by a `source()`d file, a child, or a name built from pieces (a disclosed residual).
- * ⚠ Under `--no-execute` the setup chunk never runs, so quarto stays silent for every CODE channel (the inline call and the front matter
- * run in both modes): the two modes disagree and the Outline cannot be right in both. It follows the EXECUTING mode, as `KNITR_DOC_ECHO_ENGINES`
- * does for the shell engines (Session 287).
+ * ⚠ Under `--no-execute` a chunk's body never runs, so quarto stays silent for every CODE channel that lives in a chunk (the inline call and the front matter
+ * run in both modes): the two modes disagree. The Outline reads either one (Session 310, `knitrSilentChunkClosers(lines, executes)`): `opts` and `fill` open from a chunk's
+ * BODY only when the document executes; the front matter and an inline `r` call open them in both. The default is the EXECUTING reading.
  */
 interface KnitrCodeChannels {
   opts: boolean;
@@ -7218,10 +7218,11 @@ function knitrDocumentDefaults(lines: readonly string[]): KnitrDocDefaults {
  * How a document-level default decides a chunk that sets the option nowhere itself (Session 308, `exec` revised by Session 309).
  *  - `both`: silent whether or not knitr executes, because the FRONT MATTER says so (`execute:`, `knitr: opts_chunk:`, a top-level key, `format: html:`);
  *  - `exec`: silent when the document EXECUTES: a setup chunk's `opts_chunk$set(echo = FALSE)` never runs under `--no-execute`, so the two modes disagree (rendered, g13 d01-d36).
- *    ⚠ **The Outline FOLLOWS THE EXECUTING MODE (the operator's decision, Session 308 and again Session 309)**, so a chunk silenced by a call is SKIPPED like one silenced by the front
+ *    ⚠ **The DEFAULT reading follows the EXECUTING mode (the operator's decision, Session 308 and again Session 309); Session 310 made the other one selectable** (`quarto.symbols.renderMode`):
+ *    under `--no-execute` `knitrSilentChunkClosers` never records a chunk's call, so `exec` never arises. Executing, a chunk silenced by a call is SKIPPED like one silenced by the front
  *    matter: it emits nothing, or an output pair (two bare fences: the first closes the swallow open above it and the second reopens one), so the swallow runs through it either way (rendered, `scratchpad/s309/geo3`). Session 308 shipped it as `uncertain`
  *    (the chunk ended a swallow early, as a loud chunk's closer does) and measured the cost of the other choice; Session 309 measured the executing mode at 93 right to 116 of 150
- *    blind documents and `--no-execute` at 78 right to 64, with 7 to 21 of 100 documents hiding a heading quarto shows, and the operator chose the executing mode;
+ *    blind documents and `--no-execute` at 78 right to 64, with 7 to 21 of 100 documents hiding a heading quarto shows, and the operator chose the executing mode as the default;
  *  - `unsure`: a bare `F`, which a document can rebind to TRUE (soundness_02): the chunk is `uncertain`, so it may END a swallow early but never opens one (Learning 716);
  *  - `no`: not established silent (HEAD's answer: loud).
  */
@@ -7547,10 +7548,24 @@ const KNITR_SILENT_ENGINES: ReadonlySet<string> = new Set([
   "r", "R", "python", "bash", "sh", "zsh", "perl", "ruby", "awk", "rcpp", "css", "js", "node",
 ]);
 /**
+ * The engines whose hidden chunk is silent when NOTHING RUNS (Session 310): `KNITR_SILENT_ENGINES` plus 22 more, each rendered by quarto 1.7.33 under `--no-execute` with `echo=FALSE`
+ * and a loud `{r}` chunk below a stray fence (`scratchpad/s310/gc-ne`, `s14_*`): every one lists the same headings as a silent chunk does. When executing they are not trusted (most fail to
+ * render without a compiler, a database or an interpreter, and `c` is loud even when empty), which is why `KNITR_SILENT_ENGINES` leaves them out. `go` and `stan` could not render even
+ * with nothing running and stay out; `mermaid`, `dot` and `ojs` are quarto's own and re-emit their fence whatever `echo` says. A POSITIVE list of what was measured, never "all but".
+ */
+const KNITR_NO_EXECUTE_SILENT_ENGINES: ReadonlySet<string> = new Set([
+  ...KNITR_SILENT_ENGINES,
+  "c", "cc", "fortran", "fortran95", "haskell", "octave", "sas", "scala", "sql", "tikz", "Rscript", "asis", "cat", "block", "coffee", "groovy", "php", "sed", "gawk", "stata", "highlight", "mysql",
+]);
+/** A leading `#|` line that names an option: `#| child: [a.Rmd, b.Rmd]` is a YAML list `knitrPipeOptions` cannot read, but the line still says which option it sets. */
+const KNITR_PIPE_CHILD = /^#\|[ \t]*child[ \t]*:/;
+const KNITR_PIPE_ENGINE = /^#\|[ \t]*engine[ \t]*:/;
+/**
  * The engines for which a DOCUMENT-level `echo: false` is MEASURED silent in BOTH modes (R6 residual
  * (b), Session 287; `scratchpad/s287/e/`, every placement x engine x mode). `bash`, `sh`, `zsh`,
  * `perl` and `ruby` are left out: rendered, they are silent under `--no-execute` and LOUD when the
- * chunk executes, so the Outline cannot be right in both.
+ * chunk executes (they print), so the executing reading leaves them out; the no-execute reading
+ * (Session 310) applies the default to every engine `KNITR_SILENT_ENGINES` trusts.
  */
 const KNITR_DOC_ECHO_ENGINES: ReadonlySet<string> = new Set([
   "r", "R", "python", "awk", "css", "js", "node", "rcpp",
@@ -7572,18 +7587,25 @@ function knitrChunkIsSilent(
   // `{r}` chunk onto such an engine — measured, each renders the heading below it that a "silent"
   // reading deletes.
   const engine = /^\{([a-zA-Z0-9_]+)/.exec(header);
-  if (engine === null || !KNITR_SILENT_ENGINES.has(engine[1])) {
+  // Under `--no-execute` the engines in `KNITR_NO_EXECUTE_SILENT_ENGINES` too (Session 310): nothing is compiled or run, so none of them writes anything.
+  if (engine === null || !(executes ? KNITR_SILENT_ENGINES : KNITR_NO_EXECUTE_SILENT_ENGINES).has(engine[1])) {
     return "loud";
   }
   const options = knitrHeaderOptions(header.slice(engine[0].length, -1));
   const pipe = knitrPipeOptions(body);
+  // Under `--no-execute` the child document is NOT knit, so a `child=` chunk emits no fence at all, whatever its options say, whatever the child holds and whatever the engine is (rendered,
+  // `scratchpad/s310/gb-ne` for 12 child documents and `gc-ne` for the engines `r`, `bash`, `sh`, `zsh`, `perl`, `ruby`, `awk`, `python`, `rcpp`, `css`, `js` and `node`; `eval=TRUE` changes
+  // nothing). A pipe this cannot parse (a YAML list `#| child: [a.Rmd, b.Rmd]`) still names the option.
+  if (!executes && KNITR_SILENT_ENGINES.has(engine[1]) && options !== null && !options.has("engine")) {
+    const firstCode = body.findIndex((line) => !line.startsWith("#|"));
+    const leading = firstCode < 0 ? body : body.slice(0, firstCode);
+    const pipeChild = pipe === null ? leading.some((line) => KNITR_PIPE_CHILD.test(line)) && !leading.some((line) => KNITR_PIPE_ENGINE.test(line)) : pipe.has("child") && !pipe.has("engine");
+    if (options.has("child") || pipeChild) {
+      return "silent";
+    }
+  }
   if (options === null || pipe === null || options.has("engine") || pipe.has("engine")) {
     return "loud";
-  }
-  // Under `--no-execute` the child document is NOT knit, so a `child=` chunk emits no fence at all, whatever its options say and whatever the child holds (rendered, 12 documents,
-  // `scratchpad/s310/gb-ne`). Read for the R engines only, the ones rendered.
-  if (!executes && (engine[1] === "r" || engine[1] === "R") && (options.has("child") || pipe.has("child"))) {
-    return "silent";
   }
   // ⚠ An empty body is silent only when no option brings code in from OUTSIDE it: `file=`, `code=`
   // and `ref.label=` make the chunk echo that code (measured, the heading below is swallowed), and
@@ -7633,7 +7655,7 @@ function knitrChunkIsSilent(
 }
 /**
  * Whether a chunk whose code is NOT echoed still emits an output block (Session 309): a top-level statement that certainly prints.
- * Read for the EXECUTING mode, as every setup-call default is (Session 308).
+ * Read for the EXECUTING mode only, as every setup-call default is (Session 308): `knitrChunkIsSilent` does not ask under `--no-execute` (Session 310), where nothing prints.
  */
 function knitrChunkPrints(
   body: readonly string[],
@@ -8012,7 +8034,7 @@ const KNITR_FILE_READER = /\breadLines\s*\(/;
  * ⚠ Declining a silence is the SAFE side only while a later closer exists and no orphan fence follows it. With no later closer the stray fence has
  * nothing to pair with in quarto and every heading shows, so an UNCERTAIN chunk (`KnitrChunkClosers`) may end a swallow early but never opens one (shape P,
  * rendered p01-p10). With a second bare fence below (the sandwich) the early close turns that fence into an opener: a pinned DELETING residual.
- * Under `--no-execute` nothing runs, so quarto stays silent here and the two modes disagree: the model follows the executing one, as `KnitrCodeChannels` does.
+ * Under `--no-execute` nothing runs, so quarto stays silent here and the two modes disagree: the executing reading asks this, the no-execute one (Session 310) does not.
  */
 function knitrCodeWritesFence(
   body: readonly string[],

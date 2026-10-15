@@ -251,13 +251,38 @@ describe("Session 310 — what the review found unpinned", () => {
     expect(second[0]).toBe(first[0]);
   });
 
-  // The `child=` guard is for the R engine, the one the 12 rendered documents used (the reviewer's T01): another engine's child chunk keeps the answer it always had, `uncertain` when its code
-  // is hidden and loud otherwise. No render settles these two; they pin that the guard did not widen.
+  // The `child=` guard covers every engine the rule trusts (the reviewer's T01 asked what pinned its edge; the answer was a render). Rendered with quarto 1.7.33 under `--no-execute`
+  // (`scratchpad/s310/gc-ne`, `s13c_*`): a `child=` chunk of the R, bash, sh, zsh, perl, ruby, awk, python, rcpp, css, js and node engines lists `Top` and `Last`, so each is silent.
   const childDocument = (chunk: string): string =>
     ["---", "title: t", "---", "", "# Top", "", "```", "", "## Between", "", chunk, "", "## After", "", "```{r}", "y <- 1", "```", "", "## Last", ""].join("\n");
-  it.each(['```{bash, child="_c.Rmd", echo=FALSE}\n```', '```{python, child="_c.Rmd"}\n```'])("a non-R child chunk is not silenced: %s", (chunk) => {
-    expect(headings(childDocument(chunk), "no-execute")).toEqual(["Top", "After", "Last"]);
-    expect(headings(childDocument(chunk), "execute")).toEqual(["Top", "After", "Last"]);
+  it.each(["r", "bash", "sh", "zsh", "perl", "ruby", "awk", "python", "rcpp", "css", "js", "node"])("a {%s} child= chunk is silent", (engine) => {
+    expect(headings(childDocument("```{" + engine + ', child="_child_text.Rmd"}\n```'), "no-execute")).toEqual(["Top", "Last"]);
+  });
+  it("executing, an engine's child chunk keeps the answer it always had", () => {
+    expect(headings(childDocument('```{bash, child="_c.Rmd", echo=FALSE}\n```'), "execute")).toEqual(["Top", "After", "Last"]);
+    expect(headings(childDocument('```{python, child="_c.Rmd"}\n```'), "execute")).toEqual(["Top", "After", "Last"]);
+  });
+  // `scratchpad/s310/gc-ne` `s13c_r_child_list_pipe`: the YAML list spelling of the pipe option names the option too, though the reader cannot parse the value (the reviewer's S06), and
+  // `eval=TRUE` does not make a child run (`s13c_r_child_eval_true`, the reviewer's S09).
+  it("`#| child: [a, b]` and `child=` with `eval=TRUE` are silent as well", () => {
+    expect(headings(childDocument("```{r}\n#| child: [_child_text.Rmd, _child_text2.Rmd]\n```"), "no-execute")).toEqual(["Top", "Last"]);
+    expect(headings(childDocument('```{r, child="_child_text.Rmd", eval=TRUE}\n```'), "no-execute")).toEqual(["Top", "Last"]);
+    expect(headings(childDocument("```{r}\n#| child: [_child_text.Rmd, _child_text2.Rmd]\n```"), "execute")).toEqual(["Top", "After", "Last"]);
+  });
+  // The engines this rule does not trust when executing are silent under `--no-execute` (nothing is compiled or run, so nothing is written): `scratchpad/s310/gc-ne` `s14_*_echoF`, 22
+  // engines rendered with `echo=FALSE`, every one listing `Top` and `Last`. `go` and `stan` did not render and are NOT here; `mermaid`, `dot` and `ojs` are quarto's own and re-emit their fence.
+  const UNLISTED = [
+    "c", "cc", "fortran", "fortran95", "haskell", "octave", "sas", "scala", "sql", "tikz", "Rscript", "asis", "cat", "block", "coffee", "groovy", "php", "sed", "gawk", "stata", "highlight", "mysql",
+  ];
+  it.each(UNLISTED)("a {%s} chunk with echo=FALSE is silent when nothing runs, and loud as ever when it does", (engine) => {
+    const document = childDocument("```{" + engine + ", echo=FALSE}\nx\n```");
+    expect(headings(document, "no-execute")).toEqual(["Top", "Last"]);
+    expect(headings(document, "execute")).toEqual(["Top", "After", "Last"]);
+  });
+  it("an engine quarto handles itself still emits its fence: mermaid, dot, ojs are not silenced", () => {
+    for (const engine of ["mermaid", "dot", "ojs"]) {
+      expect(headings(childDocument("```{" + engine + ", echo=FALSE}\nx\n```"), "no-execute")).toEqual(["Top", "After", "Last"]);
+    }
   });
 
   // Code that supplies a chunk's code through the FRONT MATTER or an INLINE `r` call runs in both renders; one in a chunk's body does not (the reviewer's T04). Rendered with quarto 1.7.33
