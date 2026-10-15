@@ -8850,8 +8850,62 @@ function evaluateRLogical(source: string): boolean | null {
  * N (CommonMark §6.3). Its content is rendered literally, so any markup shown
  * inside it (a `{#fig-…}` label, a `$x$` math delimiter) is documentation, not a
  * live construct. Consumers mask it out before scanning a body line.
+ *
+ * ⚠ **THE RULE IS THE REGEX `(`+)(?:(?!\1)[\s\S])*?\1` — NOT CommonMark's "next run of EXACTLY N" — AND THIS READS IT IN ONE PASS
+ * (Session 311).** At each backtick the regex takes the longest group of backticks it can, ends the span at the FIRST occurrence of
+ * that many in a row (inside a longer run too, which is where it departs from CommonMark), and when there is none gives the group a
+ * backtick back and tries again. That backtracking is quadratic in a run with nothing to close it: 300,000 backticks took 52 s. The
+ * scanner below reaches the same answer from the runs alone: a run of `n` can be closed by the rest of its own run when the group is
+ * `floor(n / 2)` or less, and by a later run of at least the group's length otherwise, so the group is the larger of `floor(n / 2)`
+ * and `min(n, the longest later run)` (the run's own half wins a tie, being earlier), and a later closer is the FIRST later run that
+ * is long enough. The oracle in `test/unit/inline-code-spans.test.ts` is the regex itself, over every line of up to 18 characters made of a backtick and one other character and every line of up to 9 over four.
+ * Do not "simplify" it back to the regex.
  */
-const INLINE_CODE_SPAN = /(`+)(?:(?!\1)[\s\S])*?\1/g;
+function inlineCodeSpans(line: string): Array<[number, number]> {
+  const starts: number[] = [];
+  const lengths: number[] = [];
+  for (let i = line.indexOf("`"); i >= 0; ) {
+    let end = i + 1;
+    while (end < line.length && line.charCodeAt(end) === 96) {
+      end++;
+    }
+    starts.push(i);
+    lengths.push(end - i);
+    i = line.indexOf("`", end);
+  }
+  const spans: Array<[number, number]> = [];
+  // longest[r] is the longest run among runs r, r + 1, ... (0 past the last)
+  const longest = new Array<number>(starts.length + 1).fill(0);
+  for (let r = starts.length - 1; r >= 0; r--) {
+    longest[r] = Math.max(lengths[r], longest[r + 1]);
+  }
+  let pos = 0;
+  for (let r = 0; r < starts.length; ) {
+    const from = Math.max(pos, starts[r]);
+    const n = starts[r] + lengths[r] - from; // the backticks of this run not yet consumed
+    if (n <= 0) {
+      r++;
+      continue;
+    }
+    const inRun = n >> 1;
+    const later = Math.min(n, longest[r + 1]);
+    if (inRun >= 1 && inRun >= later) {
+      spans.push([from, from + 2 * inRun]);
+      pos = from + 2 * inRun;
+    } else if (later >= 1) {
+      let c = r + 1;
+      while (lengths[c] < later) {
+        c++;
+      }
+      spans.push([from, starts[c] + later]);
+      pos = starts[c] + later;
+      r = c;
+    } else {
+      break; // one backtick left and no run after it: nothing can close it
+    }
+  }
+  return spans;
+}
 
 /** An open fence the scanner is currently inside. */
 interface OpenFence {
@@ -12747,7 +12801,17 @@ export function findCodeFenceOpeners(text: string): CodeFenceOpener[] {
  * so the two cannot drift on what counts as a code span (Learning #14).
  */
 export function maskInlineCode(line: string): string {
-  return line.replace(INLINE_CODE_SPAN, (span) => " ".repeat(span.length));
+  const spans = inlineCodeSpans(line);
+  if (spans.length === 0) {
+    return line;
+  }
+  let masked = "";
+  let at = 0;
+  for (const [start, end] of spans) {
+    masked += line.slice(at, start) + " ".repeat(end - start);
+    at = end;
+  }
+  return masked + line.slice(at);
 }
 
 /**

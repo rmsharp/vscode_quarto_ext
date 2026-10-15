@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveDocumentEngine } from "../../src/core/document-engine-resolve";
-import { findCellOptionLines, findHeadings } from "../../src/core/qmd/model";
+import { findCellOptionLines, findHeadings, maskInlineCode } from "../../src/core/qmd/model";
 import { indexLabels } from "../../src/core/refs";
 import { valueSlotAfterColon } from "../../src/core/yaml-context";
 
@@ -160,5 +160,27 @@ describe("Session 311 — a fence whose run is longer than the closers `buildClo
     // `until` bounds a quoted opener's lookahead: the unmarked blank line ends the quote, so a 70-run after it is another block's.
     const lines = ["Intro.", "", `> ${run(70)}`, ">", "> # In1", "", run(70), "", "# After"];
     expect(headings(lines)).toEqual(["In1", "After"]);
+  });
+});
+
+describe("Session 311 — masking the inline code of a line that is one long run of backticks", () => {
+  // `maskInlineCode` (shared by the label index and the math detector) read the spans with `(`+)(?:(?!\1)[\s\S])*?\1`: for a run of n
+  // backticks with nothing to close it the engine tries every group length from n down, and the cost is quadratic in the run: 300,000
+  // backticks took 52 s in `indexLabels`. A run of n masks 2*floor(n/2) of its characters (the opener takes the largest closer it can
+  // find, and the run itself closes the half that fits), so an odd run keeps its last backtick.
+  it.each([
+    ["an even run of 100,000", 100000, " ".repeat(100000)],
+    ["an odd run of 100,001", 100001, `${" ".repeat(100000)}\``],
+  ])("%s is masked in linear time", (_what, n, expected) => {
+    const { result, ms } = timed(() => maskInlineCode("`".repeat(n)));
+    expect(result).toBe(expected);
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it("the label index reads a document holding such a line in linear time (the reported path: 300,000 backticks took 52 s)", () => {
+    const text = ["# T", "", "`".repeat(100000), "", "```{r fig-x}", '#| fig-cap: "Cap"', "plot(1)", "```", ""].join("\n");
+    const { result, ms } = timed(() => indexLabels(text, "knitr").map((l) => l.id));
+    expect(result).toEqual(["fig-x"]);
+    expect(ms).toBeLessThan(1000);
   });
 });
