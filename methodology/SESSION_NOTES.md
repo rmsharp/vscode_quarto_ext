@@ -8,9 +8,10 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 313 (IN PROGRESS): item (1) of the BACKLOG item "Other regexes still quadratic on a long run of blanks, CR or U+2028 after Session 312"** (operator pick at Phase 0, the recommended option).
-The code-cell header option tail `( *[ ,].*)?\}\s*$`, four literals: `CELL_INFO` and `KNITR_CHUNK_INFO` (`model.ts`), `START_CODE_CELL` (`quarto-yaml-regions.ts:65`), `languagesInMarkdown` (`document-engine.ts:549`). Strict TDD.
-**State:** claimed; baseline `npm test` 10,913 passing in 80 files (6.5 s); `context_budget.py` exits 2 as recorded since Session 264. Items (2) to (7) of that item stay filed. The gotchas below are Session 312's and still hold.
+**Task:** **NONE -- Session 313 closed out.** Item (1) of the Session 312 sweep item is fixed: the leading ` *` of the code-cell header option tail is gone in four regexes (7 to 9.5 s at 32,000 spaces to under 15 ms;
+1,000,000 spaces 19 to 93 ms). `BACKLOG.md` "Active" is empty; present ranked candidates via AskUserQuestion at Phase 0.
+**What the BACKLOG now holds:** the sweep item's (2) to (7) (two value trims, the `#|` gap, closing-run and rule-row patterns, the CR / U+2028 family, nested front matter keys); the Session 311 item's (3) to (9), with (3) corrected
+(IDENTICAL unclosed fence lines are quadratic too: 3.9 s at 16,000 lines); and a NEW item (the non-tail parts of the four literals are pinned by no test). The Session 165 item for `languagesInMarkdown` is deleted (fixed).
 **⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in a close-out commit).
 (2) TWO scratchpads: the repo's untracked `scratchpad/` (`s312/` holds the mutation scripts, the corpus differential, the agents' and reviewers' scripts and a README) and the session one under `/private/tmp/...` (frozen trees, probes; not durable).
 (3) The Edit tool EXPANDS an escape such as `\u00a0` into the glyph: write it from a quoted heredoc and `grep -c $'\xc2\xa0'` every file you touched. `cmd | grep ... && git commit` tests the grep: redirect a gate to a file,
@@ -21,13 +22,43 @@ before calling it (`completionContextAt(text, offset, thunk)`).
 flake as a kill: run it ALONE and read the failing titles (`mutate312.py` prints them).
 (6) Agents: `pkill -f <their scratch dir name>` after each reports (a reviewer's shell loop ran for an hour); bound a "find every other" sweep in its prompt; after a resume an agent may lack its structured-output tool and
 hand back by message, so a monitor that waits for N results never fires.
-(7) `test:integration` NOT run (core-only, takes the screen: ask). `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md`, `PROJECT_LEARNINGS.md` are past the 262,144 B read refusal: read in slices. Baseline `npm test` at HEAD: 10,913 passing in 80 files.
+(7) `test:integration` NOT run (core-only, takes the screen: ask). `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md`, `PROJECT_LEARNINGS.md` are past the 262,144 B read refusal: read in slices. Baseline `npm test` at HEAD: 11,176 passing in 81 files.
+(8) The BASH tool's quoted heredoc expands `\uXXXX` into the glyph too (`regex-equiv.js` got raw U+2028 and NBSP): write such characters with `chr()` or doubled backslashes from Python and `grep -c` the file. `rm -rf $A/$B` is
+BLOCKED by the safety check: use literal paths, and `git worktree remove --force <literal path>` for a worktree. A `( cmd ) &` inside a background Bash 'completes' at once: poll the process, not the notice.
+(9) FOUR timing rows flake under load, not two: Sessions 307 (9 MB) and 308 (200,000 lines) and, in `pathological-inputs.test.ts`, Session 311's "a cell option's value holding a 100,000-space run" and "many unclosed long openers".
+The operator's own `devtools::check` on another R package took the load to 22 here: look at `ps` before blaming a change, run the suite alone, never loosen.
+(10) Session 313's harness is `scratchpad/s313/` (README): `oracle-table.ts` + `gen-pin-test.py` (the pin rows from the PARENT's answers), `regex-equiv.js <depth> narrow|wide` + `regex-equiv-mutcheck.py`, `mutate313.py <worktree> <json> <test files>`
+and `mutate313-slow.py`, `corpusdiff313.cjs`, `hdr2.ts`. A clock row needs its OWN text (the engine-blind region cache holds two entries) and a mutant that is still quadratic but cheaper.
 
-### What Session 313 Did
-**Deliverable:** item (1) of the BACKLOG item "Other regexes still quadratic on a long run of blanks, CR or U+2028 after Session 312": the code-cell header option tail (IN PROGRESS)
-**Started:** 2026-10-15
-**Status:** Session claimed. Work beginning. Phase 0 found both ledger frontiers at HEAD (`7a07bc86`, gap 0), no `pending` receipt, the ratchet citation matching (2/2, results `bba236856bad`) and `npm test` green at 10,913 in 80 files.
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+## Session 312 Handoff Evaluation (by Session 313)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, gotchas 1 to 7, both ledger frontiers at HEAD (`7a07bc86`, gap 0), the ratchet citation (2/2, results `bba236856bad`), the test
+baseline (10,913 passing in 80 files, exact) and the "Active empty, present candidates" instruction all held at Phase 0, and the numbers of the item I took reproduced: `findHeadings` 448 ms, 1.8 s and 7.1 s (465 ms, 1,812 ms,
+7,125 ms here) and the engine resolver 9.4 s (9.5 s). The line numbers of the four literals (65, 549, 6714, 6767) were exact.
+**Helped:** item (1)'s own repro shape with its "MINE" marks; `scratchpad/s312/` (README, `probe-template.ts`, `topself.py`, `mutate312.py`, which I copied and gave a test-file argument); gotcha 5 (a mutation pass counts a flake as a
+kill), which sent every pass to a throwaway worktree with two test files; the recipe in the item ("profile the timed shape first, keep the OLD pattern as the oracle, mutate the fix, compare parent against final").
+**Missing:** that `KNITR_CHUNK_BEGIN` already carried this exact cure with a comment explaining it (a one-line proof and a sibling to copy); that `START_CODE_CELL` runs twice per `findHeadings` (66% of the profile); that the class is
+wider than "unterminated" (`} x`, `}x` and a bare run of spaces are quadratic too); that Session 165 had filed this very regex (BACKLOG, still open); that the region cache holds two entries, so a second clock row on the same text
+looks cheap; and that FOUR rows flake under load, not two.
+**Wrong:** (a) "an unterminated header" as the whole shape; (b) gotcha 3 says the EDIT tool expands `\uXXXX`: the Bash tool's heredoc does the same. **ROI: high.**
+
+## Session 313 Self-Assessment
+
+**Score: 8/10.**
+**Went right.** I reproduced the defect firsthand, profiled before reading code (99% in three regexes, `START_CODE_CELL` twice), and every fix row was RED for the right reason (the result assertion passed, only the clock failed: 2,395,
+2,401, 2,235 and 2,393 ms). Exactness has three independent legs: the old and new literals agree on every capture group over 430 million comparisons (1.43 billion on a 16-character alphabet), the corpus (3,382 documents, five probes) shows
+ZERO differences, and the real-document score and the Outline model output are byte-identical to the parent's (2,423 of 2,438). A four-lens read-only review (4 agents, about 0.8M subagent tokens, none read third-party source) returned 30 findings: NO defect in
+the change; the rest gaps and wording in my tests and record, each checked firsthand before I acted (fixed or corrected, one partly refuted: dropping `.trim()` at the main `CELL_INFO` call IS killed; the pre-existing holes filed).
+76 mutants of the final rows: 65 killed, the 11 survivors equivalent or redundant. Gates: `npm test` 11,176 in 81 files, oracle 2 of 2, `npm run package` DONE (44 files, 1.86 MB). Learnings 754 to 759.
+**Went wrong.** (1) My first clock rows were weak: 32,000 spaces (2.4x margin), one shape, and three of four passed a cheaper quadratic; the review measured it, I did not. (2) Three of my first five pin observables were constant over the
+table, and my comments said the silent-chunk rows pin `KNITR_CHUNK_INFO` when they pin `KNITR_CHUNK_BEGIN`. (3) Commit messages said "430,467,200 strings" (comparisons) and merged two profiles, and my first harness mutation-check was an
+inline command I never saved, over an alphabet with no tab or form feed. (4) A mutation runner of mine reused a variable name and left a mutant applied in the worktree (caught at once). (5) A quoted heredoc turned `\u2028` into a raw glyph
+again. (6) About eight "have not heard from you" nudges: the review took 35 minutes and the mutation passes ten. (7) `rm -rf` on shell variables was refused by the safety check; I had no need of it.
+**Known residuals (filed):** the sweep item's (2) to (7); the Session 311 item's (3) to (9) with (3) corrected; the non-tail item; the earlier Up Next items are untouched.
+**TDD:** RED before GREEN for the four fix rows. Passed on arrival, disclosed: all 255 pin rows (written from the parent's answers, then mutation-checked), and the 8 final clock rows (written after the fix; each shown failing against the
+parent, 22 to 94 s, and against the one-literal reverts, 8, 6, 2 and 2 rows).
+**Host:** `test:integration` NOT run (core-only change in `src/core`; it takes the screen and nobody was asked); the packaged bundle was grepped for the four new spellings instead. **Cost:** 4 agents (1 workflow), 177 mutant runs, 1.9 billion
+regex comparisons, 16,910 corpus comparisons, one `npm run package`, 0 quarto renders beyond the cached oracle.
 
 ## Session 311 Handoff Evaluation (by Session 312)
 
