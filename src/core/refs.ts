@@ -368,6 +368,9 @@ function kindOf(id: string): RefKind | null {
 export function indexLabels(text: string, documentEngine?: DocumentEngine | "ambiguous"): RefLabel[] {
   const labels: RefLabel[] = [];
   const headingLines = new Set<number>();
+  // Split ONCE: the heading loop below and Source 2 both read lines by index, and a split per heading made the index quadratic in the
+  // number of `{#sec-...}` headings (8,000 took 5.6 s, Session 312).
+  const sourceLines = text.split(/\r?\n/);
 
   // Source 1 — `sec-` ids on headings. (Headings only ever define sections.)
   for (const heading of findHeadings(text)) {
@@ -379,7 +382,7 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
       id: heading.id,
       kind: "sec",
       line: heading.line,
-      column: idColumn(text, heading.line, heading.id),
+      column: idColumn(sourceLines[heading.line] ?? "", heading.id),
     });
   }
 
@@ -391,7 +394,6 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
   // knitr and jupyter alike, a list-item cell of corpus ordinal 1887 being the real-document
   // witness): an option at the fence's indent or at column 0 is an option, one deeper or in
   // between is code. The scanner only ever sees column 0, so the stripped copy is what it is handed.
-  const sourceLines = text.split(/\r?\n/);
   const targetContext = documentEngine === "knitr" || documentEngine === "jupyter" ? cellTargetContext(text) : null;
   // ⚠ An id that the text spells as an ANCHOR somewhere else — `{#tbl-x}` in a `cat()` string, `#tbl-x` in an attribute list that may be
   // split over lines, a raw `id=tbl-x` — is defined at run time from there even when the cell that carries the same label defines
@@ -824,7 +826,7 @@ function dedupeById(labels: RefLabel[]): RefLabel[] {
 const ATTR_ID_CHAR = new RegExp(DEFINED_ID_CHAR_CLASS, "u");
 
 /**
- * The 0-based column where `#<id>` resolves to the start of `<id>` on `line`, or
+ * The 0-based column where `#<id>` resolves to the start of `<id>` on `lineText`, or
  * 0 if it cannot be located (defensive — go-to-definition still lands on the line).
  * Uses the LAST occurrence: the `{#id}` attribute block is trailing, so an
  * identical `#id` substring appearing earlier on the line (e.g. inside an inline
@@ -847,8 +849,7 @@ const ATTR_ID_CHAR = new RegExp(DEFINED_ID_CHAR_CLASS, "u");
  * which is no identifier character, so both occurrences qualify and the LAST still wins
  * (the Session 8 adversarial row).
  */
-function idColumn(text: string, line: number, id: string): number {
-  const lineText = text.split(/\r?\n/)[line] ?? "";
+function idColumn(lineText: string, id: string): number {
   return lastIdStart(lineText, id, lineText.length, 0) ?? 0;
 }
 

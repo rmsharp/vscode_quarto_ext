@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { resolveDocumentEngine } from "../../src/core/document-engine-resolve";
 import { findCellOptionLines, findHeadings, maskInlineCode } from "../../src/core/qmd/model";
-import { indexLabels } from "../../src/core/refs";
+import { findLabel, indexLabels } from "../../src/core/refs";
 import { valueSlotAfterColon } from "../../src/core/yaml-context";
 
 // Session 311 — the BACKLOG item "Three PRE-EXISTING slow or crashing inputs" (found by Session 304's robustness
@@ -272,5 +272,33 @@ describe("Session 311 — masking the inline code of a line that is one long run
     const { result, ms } = timed(() => indexLabels(text, "knitr").map((l) => l.id));
     expect(result).toEqual(["fig-x"]);
     expect(ms).toBeLessThan(1000);
+  });
+});
+
+describe("Session 312 — the label index of a document with thousands of `{#sec-...}` headings", () => {
+  // `indexLabels` (and `findLabel`, which is `indexLabels` plus a lookup) found each heading's id column with `idColumn`, which split the
+  // WHOLE text into lines once PER HEADING: 8,000 headings took 5.6 s and 20,000 took 22.8 s, and every completion and go-to-definition
+  // request calls it. A book chapter with thousands of section ids reaches it.
+  const headingsText = (n: number, eol = "\n"): string =>
+    Array.from({ length: n }, (_, i) => `## Heading ${i} {#sec-h${i}}${eol}${eol}text${eol}`).join(eol);
+  // Each item is four lines (heading, blank, `text`, blank), so heading i is on line 4 * i.
+  const expectedLabels = (n: number): { id: string; kind: string; line: number; column: number }[] =>
+    Array.from({ length: n }, (_, i) => ({ id: `sec-h${i}`, kind: "sec", line: 4 * i, column: `## Heading ${i} {#`.length }));
+
+  it("indexLabels reads 8,000 section headings in linear time and keeps every column exact", () => {
+    const { result, ms } = timed(() => indexLabels(headingsText(8000)));
+    expect(result).toEqual(expectedLabels(8000));
+    expect(ms).toBeLessThan(1500);
+  });
+
+  it("findLabel answers for the LAST of 8,000 section headings in linear time", () => {
+    const text = headingsText(8000);
+    const { result, ms } = timed(() => findLabel(text, "sec-h7999"));
+    expect(result).toEqual({ id: "sec-h7999", kind: "sec", line: 4 * 7999, column: "## Heading 7999 {#".length });
+    expect(ms).toBeLessThan(1500);
+  });
+
+  it("a CRLF document gives the same labels as an LF one (the text is split on `\\r?\\n`, once)", () => {
+    expect(indexLabels(headingsText(50, "\r\n"))).toEqual(expectedLabels(50));
   });
 });
