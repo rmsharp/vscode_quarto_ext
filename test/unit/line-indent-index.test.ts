@@ -33,13 +33,15 @@ function scan(lines: string[], line: number, indent: number): number {
 const isContent = (text: string): boolean => text.trim() !== "" && !text.slice(leadingWsLen(text)).startsWith("#");
 
 // Kinds of line a front matter holds, with the ones the scan treats specially: blank lines of every spelling (a line of only no-break spaces is
-// blank to `trim()` and has no leading spaces or tabs), comments at every indent, tab and mixed indents, scalars, a block scalar, sequence items,
+// blank to `trim()` and has no leading spaces or tabs; a no-break space before a `#` or a key is NOT an indent, so those lines are content at column 0), comments at every indent, tab and mixed indents, scalars, a block scalar, sequence items,
 // and the containers that decide the path (`format` and `execute`, a root that is not `format`).
 const KINDS: string[] = [
   "",
   "  ",
   "\t",
   NBSP,
+  `${NBSP}# c`,
+  `${NBSP}k:`,
   "# c",
   "  # c",
   "\t# c",
@@ -115,7 +117,7 @@ describe("indexLineIndents (Session 314)", () => {
     expect(index.shallower[1]).toBe(0);
   });
 
-  it("agrees with the scan on every content line of every document of up to four lines over 28 kinds of line (about 630,000 documents)", () => {
+  it(`agrees with the scan on every content line of every document of up to four lines over ${KINDS.length} kinds of line (about 840,000 documents)`, () => {
     let documents = 0;
     let lineCount = 0;
     const disagreements: string[] = [];
@@ -137,8 +139,8 @@ describe("indexLineIndents (Session 314)", () => {
       }
     }
     expect(disagreements.slice(0, 3)).toEqual([]);
-    expect(documents).toBe(28 + 28 ** 2 + 28 ** 3 + 28 ** 4);
-    expect(lineCount).toBe(28 * 1 + 28 ** 2 * 2 + 28 ** 3 * 3 + 28 ** 4 * 4);
+    expect(documents).toBe(KINDS.length + KINDS.length ** 2 + KINDS.length ** 3 + KINDS.length ** 4);
+    expect(lineCount).toBe(KINDS.length * 1 + KINDS.length ** 2 * 2 + KINDS.length ** 3 * 3 + KINDS.length ** 4 * 4);
   });
 
   it("agrees with the scan on 40,000 seeded documents of 5 to 24 lines", () => {
@@ -168,7 +170,7 @@ describe("nestedParentPath with an index answers what it answers without one (Se
 
   // Up to three lines the line is asked at its own indent AND at six others (the index must answer only for its own indent and fall back for any
   // other); at four lines, at its own indent only, to keep the run short.
-  it("agrees on every line of every document of up to three lines over 28 kinds of line, at its own indent and at others", () => {
+  it(`agrees on every line of every document of up to three lines over ${KINDS.length} kinds of line, at its own indent and at others`, () => {
     const disagreements: string[] = [];
     let asked = 0;
     for (const lines of everyDocument(KINDS, 3)) {
@@ -186,10 +188,10 @@ describe("nestedParentPath with an index answers what it answers without one (Se
       }
     }
     expect(disagreements.slice(0, 3)).toEqual([]);
-    expect(asked).toBe((28 * 1 + 28 ** 2 * 2 + 28 ** 3 * 3) * (1 + WRONG_INDENTS.length));
+    expect(asked).toBe((KINDS.length * 1 + KINDS.length ** 2 * 2 + KINDS.length ** 3 * 3) * (1 + WRONG_INDENTS.length));
   });
 
-  it("agrees on every line of every document of four lines over 28 kinds of line, at its own indent", () => {
+  it(`agrees on every line of every document of four lines over ${KINDS.length} kinds of line, at its own indent`, () => {
     const disagreements: string[] = [];
     for (const lines of everyDocument(KINDS, 4)) {
       if (lines.length < 4) {
@@ -268,5 +270,50 @@ describe("findNestedFrontMatterValueLines builds the index only when a nested li
 
   it("builds none when there is no front matter", () => {
     expect(built("# Title\n\n  indented prose\n")).toBe(0);
+  });
+});
+
+describe("rows a review round of Session 314 found the index tests did not pin", () => {
+  it("climbs past a SIBLING of an ancestor: a key between the hops is not the next container", () => {
+    // `toc: true` sits at the indent of `theme:` and above it. A climb that keeps the FIRST hop's indent for the second hop scans for a line shallower than
+    // `light` and finds `toc: true`, a scalar, so it would answer `null`; the right second hop asks for a line shallower than `theme`.
+    const lines = ["format:", "  html:", "    toc: true", "    theme:", "      light:", "        x: 1"];
+    const index = indexLineIndents(lines);
+    for (const given of [index, undefined]) {
+      expect(nestedParentPath(lines, 5, 8, given)).toEqual(["format", "html", "theme", "light"]);
+    }
+  });
+
+  it("keeps an indent of 200 and of 40,000 spaces, and a pointer past 32,767", () => {
+    // The typed arrays are 32-bit: an 8-bit indent would read 200 as -56, a 16-bit one 40,000 as -25,536 and a 16-bit pointer 33,000 as -32,536.
+    const wide = indexLineIndents(["a:", `${" ".repeat(200)}k:`, `${" ".repeat(40000)}k:`]);
+    expect(Array.from(wide.indent)).toEqual([0, 200, 40000]);
+    expect(Array.from(wide.shallower)).toEqual([-1, 0, 1]);
+    const far = indexLineIndents([...Array.from({ length: 33000 }, () => "# c"), "a:", "  b: v"]);
+    expect(far.shallower[33001]).toBe(33000);
+    expect(far.indent[33001]).toBe(2);
+  });
+
+  it("returns a fresh path for a ONE-level container, and every enumerated line gets its own parentPath", () => {
+    const lines = ["execute:", "  echo: v", "  eval: v"];
+    const index = indexLineIndents(lines);
+    const first = nestedParentPath(lines, 1, 2, index)!;
+    first.push("mutated");
+    expect(nestedParentPath(lines, 2, 2, index)).toEqual(["execute"]);
+    const entries = findNestedFrontMatterValueLines("---\nexecute:\n  echo: v\n  eval: v\n---\n\ntext\n");
+    expect(entries).toHaveLength(2);
+    expect(entries[0].parentPath).not.toBe(entries[1].parentPath);
+    entries[0].parentPath.push("mutated");
+    expect(entries[1].parentPath).toEqual(["execute"]);
+  });
+
+  it("a no-break space before a `#` or a key is not an indent: such a line is content at column 0 to the walk, and the enumerator reads the line below it as nested under nothing", () => {
+    // The enumerator skips a line whose `trim()` starts with `#` as a comment, while the ancestor walk (the old scan and the index alike) reads a comment after spaces and
+    // tabs only: the line below an NBSP-led comment inside a container finds a column-0 line that is no container. Pre-existing and identical in the parent: a lost
+    // diagnostic, never an invented one (filed in BACKLOG).
+    const plain = findNestedFrontMatterValueLines("---\nformat:\n  # c\n  toc: banana\n---\n\ntext\n");
+    const withNbsp = findNestedFrontMatterValueLines(`---\nformat:\n ${NBSP}# c\n  toc: banana\n---\n\ntext\n`);
+    expect(plain.map((entry) => entry.key)).toEqual(["toc"]);
+    expect(withNbsp).toEqual([]);
   });
 });

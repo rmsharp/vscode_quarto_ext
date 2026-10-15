@@ -20,6 +20,9 @@ const IDEOGRAPHIC_SPACE = String.fromCharCode(0x3000);
 const BYTE_ORDER_MARK = String.fromCharCode(0xfeff);
 const EM_SPACE = String.fromCharCode(0x2003);
 
+/** Every UTF-16 code unit `trim()` strips: tab, line feed, vertical tab, form feed, carriage return, space, no-break space, U+1680, U+2000 to U+200A, U+2028, U+2029, U+202F, U+205F, U+3000, U+FEFF. */
+const TRIM_WHITESPACE: string[] = [0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x20, 0xa0, 0x1680, ...Array.from({ length: 11 }, (_, i) => 0x2000 + i), 0x2028, 0x2029, 0x202f, 0x205f, 0x3000, 0xfeff].map((code) => String.fromCharCode(code));
+
 /** Every string of 0..maxLength characters over `alphabet`, shortest first. */
 function* everyString(alphabet: readonly string[], maxLength: number): Generator<string> {
   let level: string[] = [""];
@@ -37,12 +40,25 @@ function* everyString(alphabet: readonly string[], maxLength: number): Generator
 }
 
 describe("asciiTrim answers what /^[ \\t]+|[ \\t]+$/g answered (Session 314)", () => {
-  // Every string up to `maxLength` characters over the alphabet: 97,656 + 55,987 + 299,593 = 453,236 strings in all.
+  it("the fourth alphabet holds EVERY code unit trim() strips, and nothing else", () => {
+    const stripped: string[] = [];
+    for (let code = 0; code <= 0xffff; code++) {
+      if (String.fromCharCode(code).trim() === "") {
+        stripped.push(String.fromCharCode(code));
+      }
+    }
+    expect(TRIM_WHITESPACE).toHaveLength(25);
+    expect([...TRIM_WHITESPACE].sort()).toEqual([...stripped].sort());
+  });
+
+  // Every string up to `maxLength` characters over the alphabet: 97,656 + 55,987 + 299,593 + 475,255 = 928,491 strings in all.
   it.each([
     ["up to seven characters over blanks, a letter, a no-break space and a line feed", 7, [" ", "\t", "a", NBSP, "\n"]],
     ["up to six characters over blanks, a letter, a carriage return, U+2028 and U+0085", 6, [" ", "\t", "x", "\r", LINE_SEPARATOR, NEL]],
-    // The Unicode and ASCII spaces `trim()` strips that the two alphabets above leave out: a helper that also takes any of them survives those.
+    // Some of the Unicode and ASCII spaces `trim()` strips that the two alphabets above leave out (the fourth row holds ALL of them).
     ["up to six characters over blanks, a letter, a vertical tab, a form feed, U+3000, U+FEFF and U+2003", 6, [" ", "\t", "x", VERTICAL_TAB, FORM_FEED, IDEOGRAPHIC_SPACE, BYTE_ORDER_MARK, EM_SPACE]],
+    // Every one of the 25 UTF-16 code units `trim()` strips, and a letter: a helper that also takes ANY of them (U+1680, U+2000 to U+200A, U+2029, U+202F, U+205F included) fails.
+    ["up to four characters over the 25 characters trim() strips and a letter", 4, [...TRIM_WHITESPACE, "x"]],
   ] as const)("agrees with the regex on every string of %s", (_name, maxLength, alphabet) => {
     let checked = 0;
     const disagreements: string[] = [];

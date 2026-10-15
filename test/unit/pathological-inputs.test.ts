@@ -499,32 +499,34 @@ describe("Session 314 — a long run of spaces INSIDE a value the model trims at
   // `findHeadings` 7.1 s for `from: gfm<run>x` and 2.4 s for `key: a<run>b`, a CPU profile 98% in the one regex). `trim()` is NOT the cure:
   // it also strips a no-break space and every other Unicode space, which YAML does not (`ascii-trim.test.ts` holds the oracle).
   const run = " ".repeat(100000);
+  // The limit is 250 ms, not the file's usual 1,000: the linear spelling takes 1 to 8 ms (7.2 ms the worst cold run at load 36 to 54) and the regex 6 to 18 s, and a
+  // spelling that is still quadratic at 1/25 of the regex's cost would pass a one-call row at 1,000 ms.
 
   it("findHeadings reads a `from: gfm` line whose value holds a 100,000-space run in linear time", () => {
     const text = ["---", `from: gfm${run}x`, "---", "", "# H", ""].join("\n");
     const { result, ms } = timed(() => findHeadings(text));
     expect(result).toEqual([{ level: 1, text: "H", line: 4 }]);
-    expect(ms).toBeLessThan(1000);
+    expect(ms).toBeLessThan(250);
   });
 
   it("findHeadings reads another top-level value holding a 100,000-space run, under `from: gfm`, in linear time", () => {
     const text = ["---", "from: gfm", `title: a${run}b`, "---", "", "# H", ""].join("\n");
     const { result, ms } = timed(() => findHeadings(text));
     expect(result).toEqual([{ level: 1, text: "H", line: 5 }]);
-    expect(ms).toBeLessThan(1000);
+    expect(ms).toBeLessThan(250);
   });
 
   // The chunk-header slot reader (`knitrChunkHeaderLabel`) carried its own copy of the same trim, on the one UNNAMED slot (`{r, a<run>b}`).
   it("knitrChunkHeaderLabel reads an unnamed chunk-header slot holding a 100,000-space run in linear time", () => {
     const { result, ms } = timed(() => knitrChunkHeaderLabel(`\`\`\`{r, a${run}b}`));
     expect(result).toBeNull();
-    expect(ms).toBeLessThan(1000);
+    expect(ms).toBeLessThan(250);
   });
 
   it("the label index reads a knitr chunk header whose unnamed slot holds a 100,000-space run in linear time", () => {
     const { result, ms } = timed(() => indexLabels(`\`\`\`{r, a${run}b}\n1\n\`\`\`\n`, "knitr"));
     expect(result).toEqual([]);
-    expect(ms).toBeLessThan(1000);
+    expect(ms).toBeLessThan(250);
   });
 });
 
@@ -561,15 +563,26 @@ describe("Session 314 — thousands of sibling keys under a nested front matter 
     expect(ms).toBeLessThan(1000);
   });
 
-  it("the engine resolver reads 16,000 sibling keys under format / html in linear time (the reported path)", () => {
-    const { result, ms } = timed(() => resolveDocumentEngine("a.qmd", document(siblingKeys(SIBLINGS), "engine: knitr\n")));
+  // The engine resolver reads ONE nested key, `engine:` under `execute:`; a nested `engine: knitr` AFTER thousands of siblings answers "knitr" only if the
+  // enumeration reaches the last line (a top-level `engine:` would answer it whatever the enumerator returned).
+  const executeDocument = (body: string): string => `---\nexecute:\n${body}\n  engine: knitr\n---\n\ntext\n`;
+
+  it("the engine resolver reads 16,000 sibling keys under execute, then a nested engine, in linear time (the reported path)", () => {
+    const { result, ms } = timed(() => resolveDocumentEngine("a.qmd", executeDocument(Array.from({ length: SIBLINGS }, (_, i) => `  k${i}: v`).join("\n"))));
     expect(result).toBe("knitr");
     expect(ms).toBeLessThan(1000);
   });
 
-  it("the engine resolver reads 8,000 sibling mapping blocks under format / html in linear time", () => {
-    const { result, ms } = timed(() => resolveDocumentEngine("a.qmd", document(siblingBlocks(BLOCKS), "engine: knitr\n")));
+  it("the engine resolver reads 8,000 sibling mapping blocks under execute, then a nested engine, in linear time", () => {
+    const { result, ms } = timed(() => resolveDocumentEngine("a.qmd", executeDocument(Array.from({ length: BLOCKS }, (_, i) => `  o${i}:\n    k: v`).join("\n"))));
     expect(result).toBe("knitr");
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it("findNestedFrontMatterValueLines reads 16,000 indented keys that sit under NO column-0 container in linear time", () => {
+    // No line has a shallower line above it, so the index answers -1 for every one; a fallback to the upward scan on -1 would be quadratic here (the parent was).
+    const { result, ms } = timed(() => findNestedFrontMatterValueLines(`---\n${Array.from({ length: SIBLINGS }, (_, i) => `  k${i}: v`).join("\n")}\n---\n\ntext\n`));
+    expect(result).toEqual([]);
     expect(ms).toBeLessThan(1000);
   });
 });
