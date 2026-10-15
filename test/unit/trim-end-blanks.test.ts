@@ -25,16 +25,23 @@ function* everyString(alphabet: readonly string[], maxLength: number): Generator
 }
 
 describe("trimEndBlanks answers what /[ \\t]+$/ answered (Session 312)", () => {
+  // Every string up to `maxLength` characters over the alphabet: 97,656 + 55,987 + 299,593 = 453,236 strings in all.
   it.each([
-    ["blanks, a letter, a no-break space and a line feed", [" ", "\t", "a", "\u00a0", "\n"]],
-    ["blanks, a letter, a carriage return, U+2028 and U+0085", [" ", "\t", "x", "\r", "\u2028", "\u0085"]],
-  ] as const)("agrees with the regex on every string of up to seven characters over %s", (_name, alphabet) => {
+    ["up to seven characters over blanks, a letter, a no-break space and a line feed", 7, [" ", "\t", "a", "\u00a0", "\n"]],
+    ["up to six characters over blanks, a letter, a carriage return, U+2028 and U+0085", 6, [" ", "\t", "x", "\r", "\u2028", "\u0085"]],
+    // The Unicode and ASCII spaces `trimEnd()` strips that the two alphabets above leave out: a helper that also takes any of them survives those.
+    ["up to six characters over blanks, a letter, a vertical tab, a form feed, U+3000, U+FEFF and U+2003", 6, [" ", "\t", "x", "\u000b", "\u000c", "\u3000", "\ufeff", "\u2003"]],
+  ] as const)("agrees with the regex on every string of %s", (_name, maxLength, alphabet) => {
     let checked = 0;
-    for (const s of everyString(alphabet, alphabet.length === 5 ? 7 : 6)) {
-      expect(trimEndBlanks(s)).toBe(OLD(s));
+    const disagreements: string[] = [];
+    for (const s of everyString(alphabet, maxLength)) {
+      if (trimEndBlanks(s) !== OLD(s)) {
+        disagreements.push(JSON.stringify(s));
+      }
       checked++;
     }
-    expect(checked).toBeGreaterThan(50000);
+    expect(disagreements.slice(0, 5)).toEqual([]);
+    expect(checked).toBe((alphabet.length ** (maxLength + 1) - 1) / (alphabet.length - 1)); // every string of 0..maxLength characters, none skipped
   });
 
   it.each([

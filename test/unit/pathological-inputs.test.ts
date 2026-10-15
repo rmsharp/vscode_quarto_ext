@@ -3,8 +3,9 @@ import { resolveDocumentEngine } from "../../src/core/document-engine-resolve";
 import { findCellOptionLines, findHeadings, maskInlineCode } from "../../src/core/qmd/model";
 import { findLabel, indexLabels } from "../../src/core/refs";
 import { findProjectConfigKeyLines, findProjectConfigValueLines } from "../../src/core/project-yaml";
-import { completionContextAt, mappingContainerKey, valueSlotAfterColon } from "../../src/core/yaml-context";
+import { completionContextAt, mappingContainerKey, topLevelSlots, valueSlotAfterColon } from "../../src/core/yaml-context";
 import { findNestedFrontMatterValueLines } from "../../src/core/yaml-frontmatter-nested-values";
+import { findFrontMatterTopLevelLines } from "../../src/core/yaml-frontmatter-values";
 import { CURATED_SCHEMA_INDEX } from "../../src/core/yaml-schema";
 import { collectValueSources, valueFlags } from "../../src/core/yaml-value-flags";
 
@@ -281,7 +282,7 @@ describe("Session 311 — masking the inline code of a line that is one long run
 
 describe("Session 312 — the label index of a document with thousands of `{#sec-...}` headings", () => {
   // `indexLabels` (and `findLabel`, which is `indexLabels` plus a lookup) found each heading's id column with `idColumn`, which split the
-  // WHOLE text into lines once PER HEADING: 8,000 headings took 5.6 s and 20,000 took 22.8 s, and every completion and go-to-definition
+  // WHOLE text into lines once PER HEADING: 8,000 headings took 5.6 s and 16,000 took 22 s (about 4x per doubling), and every completion and go-to-definition
   // request calls it. A book chapter with thousands of section ids reaches it.
   const headingsText = (n: number, eol = "\n"): string =>
     Array.from({ length: n }, (_, i) => `## Heading ${i} {#sec-h${i}}${eol}${eol}text${eol}`).join(eol);
@@ -302,7 +303,9 @@ describe("Session 312 — the label index of a document with thousands of `{#sec
     expect(ms).toBeLessThan(1500);
   });
 
-  it("a CRLF document gives the same labels as an LF one (the text is split on `\\r?\\n`, once)", () => {
+  // This row pins the LINE INDEXING of the once-split under CRLF (an off-by-one fails it). It cannot tell `\r?\n` from `\n`: a trailing CR never
+  // moves an id column. That regex is pinned by the older rows of `refs-no-target.test.ts`.
+  it("a CRLF document gives the same labels as an LF one (line indexing survives the once-split)", () => {
     expect(indexLabels(headingsText(50, "\r\n"))).toEqual(expectedLabels(50));
   });
 });
@@ -383,9 +386,11 @@ describe("Session 312 — a long run of spaces inside a YAML KEY", () => {
     expect(mappingContainerKey("a \t : v")).toBeNull();
   });
 
-  it("findProjectConfigValueLines reads a `_quarto.yml` container whose key holds a 100,000-space run in linear time (the container walk calls mappingContainerKey)", () => {
-    const { result, ms } = timed(() => findProjectConfigValueLines(`project:\n  a${run}b:\n    c: v\n`));
-    expect(result).toEqual([{ line: 2, container: "project", path: [`a${run}b`], key: "c", valueRange: { startCol: 7, endCol: 8 }, rawToken: "v" }]);
+  // The container scan calls `mappingContainerKey` only for a COLUMN-0 key (`project-yaml.ts`), so the run goes on a column-0 container; an indented one
+  // reaches nothing but the key trim of `findProjectConfigValueLines`, which the plain row above already pins.
+  it("findProjectConfigValueLines reads a column-0 `_quarto.yml` container whose key holds a 100,000-space run in linear time (the scan calls mappingContainerKey)", () => {
+    const { result, ms } = timed(() => findProjectConfigValueLines(`a${run}b:\n  c: v\n`));
+    expect(result).toEqual([]);
     expect(ms).toBeLessThan(1000);
   });
 
@@ -399,5 +404,60 @@ describe("Session 312 — a long run of spaces inside a YAML KEY", () => {
   it("findNestedFrontMatterValueLines still trims the blanks BEFORE the colon off a nested front matter key", () => {
     const text = ["---", "execute:", "  echo \t : banana", "---", ""].join("\n");
     expect(findNestedFrontMatterValueLines(text)).toEqual([{ line: 2, parentPath: ["execute"], key: "echo", valueRange: { startCol: 11, endCol: 17 }, rawToken: "banana" }]);
+  });
+});
+
+describe("Session 312 — a key that ends in a no-break space keeps it, at each of the eight trim sites", () => {
+  // YAML trims a space or a tab off a key and nothing else, so `echo<NBSP>` is NOT the key `echo`. `trimEnd()` would strip it, and swapping any one
+  // site to `trimEnd()` is observable: a cell option `echo<NBSP>: banana` would be flagged as a wrong value for `echo` (a false positive), and a
+  // front matter `engine<NBSP>: knitr` would change the resolver's verdict. Each expectation is what the parent answered, byte for byte.
+  const NBSP = "\u00a0";
+  const nestedText = ["---", "execute:", `  echo${NBSP}: v`, "---", ""].join("\n");
+
+  it("findFrontMatterTopLevelLines (yaml-frontmatter-values.ts)", () => {
+    expect(findFrontMatterTopLevelLines(["---", `echo${NBSP}: v`, "---", ""].join("\n"))).toEqual([
+      { line: 1, key: `echo${NBSP}`, valueRange: { startCol: 7, endCol: 8 }, rawToken: "v", hasChildren: false },
+    ]);
+  });
+
+  it("topLevelSlots (yaml-context.ts, the top-level key slot), and it still trims the blanks BEFORE the colon", () => {
+    expect(topLevelSlots(`echo${NBSP}: v`)).toEqual({ keySlot: { startCol: 0, endCol: 5 }, valueSlot: { startCol: 7, endCol: 8 } });
+    expect(topLevelSlots("echo \t : v")).toEqual({ keySlot: { startCol: 0, endCol: 4 }, valueSlot: { startCol: 9, endCol: 10 } });
+  });
+
+  it("findNestedFrontMatterValueLines (yaml-frontmatter-nested-values.ts)", () => {
+    expect(findNestedFrontMatterValueLines(nestedText)).toEqual([
+      { line: 2, parentPath: ["execute"], key: `echo${NBSP}`, valueRange: { startCol: 9, endCol: 10 }, rawToken: "v" },
+    ]);
+  });
+
+  it("completionContextAt (yaml-context.ts, the nested key slot)", () => {
+    expect(completionContextAt(nestedText, nestedText.indexOf("  echo") + 3, () => undefined)).toEqual({
+      kind: "frontmatter-key",
+      parentPath: ["execute"],
+      token: "e",
+      replaceRange: { line: 2, startCol: 2, endCol: 7 },
+    });
+  });
+
+  it("mappingContainerKey (yaml-context.ts)", () => {
+    expect(mappingContainerKey(`echo${NBSP}:`)).toBe(`echo${NBSP}`);
+  });
+
+  it("findProjectConfigKeyLines (project-yaml.ts)", () => {
+    expect(findProjectConfigKeyLines(`project:\n  echo${NBSP}: v\n`)).toEqual([
+      { line: 1, container: "project", key: `echo${NBSP}`, keyRange: { startCol: 2, endCol: 7 } },
+    ]);
+  });
+
+  it("findProjectConfigValueLines (project-yaml.ts)", () => {
+    expect(findProjectConfigValueLines(`echo${NBSP}: v\n`)).toEqual([
+      { line: 0, container: "document", path: [], key: `echo${NBSP}`, valueRange: { startCol: 7, endCol: 8 }, rawToken: "v" },
+    ]);
+  });
+
+  it("valueFlags (yaml-value-flags.ts, a cell option key): `echo<NBSP>` is not the option `echo`, so nothing is flagged", () => {
+    const text = ["```{python}", `#| echo${NBSP}: banana`, "x = 1", "```", ""].join("\n");
+    expect(valueFlags(collectValueSources(text), "a.qmd", CURATED_SCHEMA_INDEX)).toEqual({ cell: [], frontMatter: [], nested: [] });
   });
 });
