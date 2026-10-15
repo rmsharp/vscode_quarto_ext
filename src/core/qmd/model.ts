@@ -8439,8 +8439,10 @@ function trimEndSpaces(value: string): string {
 }
 /**
  * `value` without its trailing ASCII spaces AND TABS, in one pass: what `.replace(/[ \t]+$/, "")` answers, without that regex's cost
- * (quadratic in a run of spaces inside a YAML key: 100,000 took 11 s, Session 312). ⚠ NOT `trimEnd()`: YAML trims a space or a tab only,
- * so a key ending in a no-break space, a line separator or any other Unicode space must keep it, and `trimEnd()` would strip it.
+ * (quadratic in a run of spaces inside a YAML key: 100,000 took 6 s per trim, Session 312; the engine resolver trims a top-level key twice).
+ * ⚠ NOT `trimEnd()`: YAML trims a space or a tab only, so a key ending in a no-break space, a line separator or any other Unicode space
+ * must keep it, and `trimEnd()` would strip it. It is a constant factor SLOWER than the regex for a key that ENDS in a very long blank run
+ * (4,000,000 trailing spaces: 21.7 ms against 6.7 ms through `findFrontMatterTopLevelLines`), and faster for every ordinary key.
  */
 export function trimEndBlanks(value: string): string {
   let end = value.length;

@@ -368,8 +368,8 @@ function kindOf(id: string): RefKind | null {
 export function indexLabels(text: string, documentEngine?: DocumentEngine | "ambiguous"): RefLabel[] {
   const labels: RefLabel[] = [];
   const headingLines = new Set<number>();
-  // Split ONCE: the heading loop below and Source 2 both read lines by index, and a split per heading made the index quadratic in the
-  // number of `{#sec-...}` headings (8,000 took 5.6 s, Session 312).
+  // Split ONCE: the heading loop below and Source 2 both read lines by index, and a split per heading made the index cost headings x lines
+  // (Session 312: 8,000 headings in a 32,000-line document took 5.6 s; 8,000 headings of one line each took 1.7 s).
   const sourceLines = text.split(/\r?\n/);
 
   // Source 1 — `sec-` ids on headings. (Headings only ever define sections.)
