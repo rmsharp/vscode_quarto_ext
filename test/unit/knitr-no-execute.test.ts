@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
-import { findHeadings } from "../../src/core/qmd/model";
+import { buildOutline, findAllCells, findHeadings, type OutlineSymbol } from "../../src/core/qmd/model";
 
 // Session 310: the Outline can read a knitr document for `quarto render --no-execute`. The executing reading (the default) is Session 308 and 309's; every row below that names a mode
 // passes it as the THIRD argument, and every document that ever drove the executing reading still has to answer the same when that argument is left out.
@@ -173,6 +173,17 @@ describe("Session 310 — a child= chunk emits nothing under --no-execute", () =
   });
 });
 
+describe("Session 310 — an unknown mode is the default reading, never the other one", () => {
+  // The review's finding H4: `resolveRenderMode` falls back to `execute` for anything it does not know, and the model must agree, because the non-default reading hides headings quarto
+  // shows when it is wrong. The type forbids this call; a JavaScript caller (the census harness reads an environment variable, a test passes a string) is not stopped by the type.
+  const DOCUMENT = [
+    "---", 'title: "ne"', "execute:", "  echo: false", "---", "", "Intro.", "", "```", "", "```{r}", 'print("p0")', "```", "", "# H0", "", "```{r}", 'print("p1")', "```", "", "# H1", "", "```{r}", 'print("p2")', "```", "", "# H2", "",
+  ].join("\n");
+  it.each(["banana", "", "No-Execute", "no_execute", null, 0, true])("%s reads as the executing render", (mode) => {
+    expect(findHeadings(DOCUMENT, "knitr", mode as never).map((h) => h.text)).toEqual(["H2"]);
+  });
+});
+
 describe("Session 310 — only a knitr document reads the mode", () => {
   // `knitrSilentChunkClosers` is reached for `engine === "knitr"` alone, so every other answer (`undefined`, `ambiguous`, a Jupyter, Julia or markdown document) is the pre-Session-273
   // Outline whatever the mode says, and shares ONE cache entry per text: `scanRegions` normalises the mode before it looks the entry up. The document is the tracked `ne_front_default` cost row,
@@ -213,5 +224,82 @@ describe("Session 310 — an option given as a `#|` expression still runs under 
     const document = pipeDocument("#| echo: !expr knitr::opts_chunk$set(echo = TRUE)");
     expect(headings(document, "no-execute")).toEqual(["Top", "After", "Last"]);
     expect(headings(document, "execute")).toEqual(["Top", "After", "Last"]);
+  });
+});
+
+describe("Session 310 — what the review found unpinned", () => {
+  const headings = (document: string, mode?: "execute" | "no-execute"): string[] => findHeadings(document, "knitr", mode).map((h) => h.text);
+  const names = (nodes: readonly OutlineSymbol[]): string[] => nodes.flatMap((n) => [n.name, ...names(n.children)]);
+  // The tracked `ne_front_default` cost row: executing lists `H2`, `--no-execute` lists all three.
+  const COST = [
+    "---", 'title: "ne"', "execute:", "  echo: false", "---", "", "Intro.", "", "```", "", "```{r}", 'print("p0")', "```", "", "# H0", "", "```{r}", 'print("p1")', "```", "", "# H1", "", "```{r}", 'print("p2")', "```", "", "# H2", "",
+  ].join("\n");
+
+  // The Outline and Go to Symbol in Workspace call `buildOutline`, not `findHeadings`: the unit rows above only reach the second (the reviewer's H3 and T05).
+  it("buildOutline carries the mode to the regions it builds the tree from", () => {
+    expect(names(buildOutline(COST, "knitr", "no-execute")).filter((n) => /^H\d$/.test(n))).toEqual(["H0", "H1", "H2"]);
+    expect(names(buildOutline(COST, "knitr", "execute")).filter((n) => /^H\d$/.test(n))).toEqual(["H2"]);
+    expect(names(buildOutline(COST, "knitr")).filter((n) => /^H\d$/.test(n))).toEqual(["H2"]);
+  });
+
+  // The engine-blind callers (`findAllCells`, `inFrontMatter`, completion) pass no engine and no mode, and the Outline passes both: they must keep separate entries, or each call evicts the
+  // other (the reviewer's H10). The returned heading objects are the memoized scan's own, so identity shows the knitr entry survived the blind call.
+  it("an engine-blind call between two no-execute reads does not evict the knitr entry", () => {
+    const first = findHeadings(COST, "knitr", "no-execute");
+    findAllCells(COST);
+    const second = findHeadings(COST, "knitr", "no-execute");
+    expect(second[0]).toBe(first[0]);
+  });
+
+  // The `child=` guard is for the R engine, the one the 12 rendered documents used (the reviewer's T01): another engine's child chunk keeps the answer it always had, `uncertain` when its code
+  // is hidden and loud otherwise. No render settles these two; they pin that the guard did not widen.
+  const childDocument = (chunk: string): string =>
+    ["---", "title: t", "---", "", "# Top", "", "```", "", "## Between", "", chunk, "", "## After", "", "```{r}", "y <- 1", "```", "", "## Last", ""].join("\n");
+  it.each(['```{bash, child="_c.Rmd", echo=FALSE}\n```', '```{python, child="_c.Rmd"}\n```'])("a non-R child chunk is not silenced: %s", (chunk) => {
+    expect(headings(childDocument(chunk), "no-execute")).toEqual(["Top", "After", "Last"]);
+    expect(headings(childDocument(chunk), "execute")).toEqual(["Top", "After", "Last"]);
+  });
+
+  // Code that supplies a chunk's code through the FRONT MATTER or an INLINE `r` call runs in both renders; one in a chunk's body does not (the reviewer's T04). Rendered with quarto 1.7.33
+  // (knitr 1.51), exit 0, both ways (`scratchpad/s307/g5ex` and `g5ne`): `k12_optschunk_in_yaml` and `k11_inline_r_opts_chunk` list `Top`, `After`, `Last` in BOTH renders (the empty chunk
+  // is filled and echoes a fence that ends the swallow), while `k08_opts_chunk_code`, the same call in a setup chunk's body, lists `Top`, `Last` under `--no-execute` (pinned above).
+  const EMPTY_CHUNK_BELOW = ["# Top", "", "```", "", "## Between", "", "```{r}", "```", "", "## After", "", "```{r}", "y <- 1", "```", "", "## Last", ""];
+  const SRC_CHUNK = ["```{r src, include=FALSE}", "z <- 3", "```", ""];
+  it("a front matter's `knitr: opts_chunk: ref.label` supplies the code in both modes", () => {
+    const document = ["---", "title: t", "knitr:", "  opts_chunk:", "    ref.label: src", "---", "", ...SRC_CHUNK, ...EMPTY_CHUNK_BELOW].join("\n");
+    expect(headings(document, "no-execute")).toEqual(["Top", "After", "Last"]);
+    expect(headings(document, "execute")).toEqual(["Top", "After", "Last"]);
+  });
+  it("an inline `r` call that sets `ref.label` supplies the code in both modes", () => {
+    const document = ["---", "title: t", "---", "", ...SRC_CHUNK, '`r knitr::opts_chunk$set(ref.label = "src")`', "", ...EMPTY_CHUNK_BELOW].join("\n");
+    expect(headings(document, "no-execute")).toEqual(["Top", "After", "Last"]);
+    expect(headings(document, "execute")).toEqual(["Top", "After", "Last"]);
+  });
+});
+
+describe("Session 310 — a #| expression inside a LISTED or QUOTED chunk still runs under --no-execute", () => {
+  // Found by the review round (the soundness attacker's `soundness_03` and `soundness_04`, the test critic's `critic_02`), each RENDERED by quarto 1.7.33 (knitr 1.51) both ways
+  // (`scratchpad/s310/rev/*`, exit 0): the option expression runs whether or not the chunk executes, sets `echo = TRUE` for the chunks below, and quarto lists what the EXECUTING
+  // reading already lists. A chunk inside a list item or a block quote is not judged, and its body lines carry the container's prefix (`  #| ...`, `> #| ...`), which a column-zero test of
+  // `#|` never matched: the first cut of the no-execute reading skipped the mention, trusted the front matter's silence and hid the heading.
+  const LISTED = [
+    "---", 'title: "critic 02 listed pipe expr"', "execute:", "  echo: false", "---", "", "- item", "", "  ```{r}", "  #| include: !expr is.null(knitr::opts_chunk$set(echo = TRUE))", "  invisible(NULL)", "  ```", "",
+    "# Top 02", "", "```", "", "## Between 02", "", "```{r}", "x <- 1", "```", "", "## Mid 02", "", "```{r, echo=TRUE}", "y <- 2", "```", "", "## After 02", "", "Text after.", "", "## Last 02", "", "Final text.", "",
+  ].join("\n");
+  const QUOTED = [
+    "---", 'title: "Orchard Yield Review"', "execute:", "  echo: false", "---", "", "# Summary", "", "This review looks at apple yield over four years.", "", "> Reader setup, run once:", ">",
+    "> ```{r}", "> #| include: !expr is.null(knitr::opts_chunk$set(echo = TRUE))", "> invisible(NULL)", "> ```", "", "# Orchard Layout", "", "The orchard has six rows of mixed varieties.", "", "```", "",
+    "## Pruning", "", "Pruning is done in late winter.", "", "```{r}", "x <- 1", "```", "", "## Pollination", "", "Hives are brought in during bloom.", "", "```{r, echo=TRUE}", "y <- 2", "```", "", "## Harvest", "",
+    "Picking runs for about three weeks.", "", "## Storage Losses", "", "Losses in cold storage stayed small.", "",
+  ].join("\n");
+  const headings = (document: string, mode?: "execute" | "no-execute"): string[] => findHeadings(document, "knitr", mode).map((h) => h.text);
+
+  it("listed: the same headings in both modes", () => {
+    expect(headings(LISTED, "execute")).toEqual(["Top 02", "Mid 02", "After 02", "Last 02"]);
+    expect(headings(LISTED, "no-execute")).toEqual(["Top 02", "Mid 02", "After 02", "Last 02"]);
+  });
+  it("quoted: the same headings in both modes", () => {
+    expect(headings(QUOTED, "execute")).toEqual(["Summary", "Orchard Layout", "Pollination", "Harvest", "Storage Losses"]);
+    expect(headings(QUOTED, "no-execute")).toEqual(["Summary", "Orchard Layout", "Pollination", "Harvest", "Storage Losses"]);
   });
 });

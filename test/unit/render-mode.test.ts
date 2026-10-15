@@ -50,9 +50,13 @@ describe("package.json contributes.configuration (quarto.symbols.renderMode)", (
     expect(key.enum).toEqual([...RENDER_MODES]);
     expect(key.default).toBe(DEFAULT_RENDER_MODE);
   });
-  it("describes each mode, in the order of the enum", () => {
+  // `enumDescriptions` render as PLAIN text in the Settings editor (markdown needs `markdownEnumDescriptions`), so a backtick would show literally; and each entry describes the enum value at its
+  // own index, so the order is pinned by what each one names (the reviewer's H9 and T20).
+  it("describes each mode, in the order of the enum, in plain text", () => {
     expect(key.enumDescriptions).toHaveLength(RENDER_MODES.length);
-    expect(key.enumDescriptions?.every((d) => d.length > 20)).toBe(true);
+    expect(key.enumDescriptions?.every((d) => d.length > 20 && !d.includes("`"))).toBe(true);
+    expect(key.enumDescriptions?.[0]).not.toContain("--no-execute");
+    expect(key.enumDescriptions?.[1]).toContain("--no-execute");
   });
   // Resource scope: whether a folder is rendered with `--no-execute` (a docs-only repository, frozen results) is a property of the folder, and `.vscode/settings.json` can carry it.
   it("is resource-scoped, so a folder can carry it", () => {

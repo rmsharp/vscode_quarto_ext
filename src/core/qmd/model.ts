@@ -6836,7 +6836,7 @@ function knitrSilentChunkClosers(lines: readonly string[], executes = true): Kni
       knitrApplyDefaultsUpdate(defaults, executes ? knitrChunkDefaultsUpdate(begin[3], body, frontNamesEval) : knitrHeaderMentionsOptsChunk(begin[3], body) ? "unknown" : null);
     } else if (begin[3].includes(KNITR_OPTS_CHUNK) || body.some((line) => line.includes(KNITR_OPTS_CHUNK))) {
       // A chunk this does not judge (listed, quoted, another engine): a mention in its body is an unreadable default only when the chunk RUNS (rendered, `scratchpad/s308/g18ne` p04, p06).
-      if (executes || knitrHeaderMentionsOptsChunk(begin[3], body)) {
+      if (executes || knitrHeaderMentionsOptsChunk(begin[3], body, begin[1])) {
         knitrApplyDefaultsUpdate(defaults, "unknown");
       }
     }
@@ -7297,6 +7297,15 @@ const KNITR_EVAL_KEY = /(?:^|[\s{,])["']?eval["']?[ \t]*:/;
 /** The head of the one call that sets a default: `knitr::opts_chunk$set(` (or `opts_chunk$set(` after `library(knitr)`). */
 const KNITR_OPTS_CHUNK_SET = /^(?:knitr[ \t]*::[ \t]*)?opts_chunk[ \t]*\$[ \t]*set[ \t]*\(/;
 /**
+ * A mention of `opts_chunk` that RUNS whether or not the document executes (Session 310): in the chunk HEADER (an option given as an R expression) or in a `#|` line (`!expr`), which
+ * knitr evaluates before it decides whether to run the chunk. Rendered with quarto 1.7.33 both ways with the SAME answer: a header (`scratchpad/s308/rev-soundness` 14, `scratchpad/s310/ga` e03),
+ * a `#|` line (`ga` e01, e02) and a `#|` line inside a LISTED or QUOTED chunk (`scratchpad/s310/rev` soundness_03, soundness_04, critic_02). `prefix` is the container prefix the chunk's own fence
+ * carries (`  `, `> `): its body lines carry it too, and a `#|` line is read once it is stripped. A judged chunk has no prefix, so what the executing reading reads is unchanged.
+ */
+function knitrHeaderMentionsOptsChunk(header: string, body: readonly string[], prefix = ""): boolean {
+  return header.includes(KNITR_OPTS_CHUNK) || body.some((line) => (line.startsWith(prefix) ? line.slice(prefix.length) : line).startsWith("#|") && line.includes(KNITR_OPTS_CHUNK));
+}
+/**
  * What a chunk's code does to the document defaults (Session 308): `null` when it never mentions `opts_chunk`, `unknown` when it mentions it in a shape this does
  * not read, and otherwise the options it sets to a literal `FALSE` / `F` (silent) or `TRUE` / `T` (loud).
  *
@@ -7310,14 +7319,6 @@ const KNITR_OPTS_CHUNK_SET = /^(?:knitr[ \t]*::[ \t]*)?opts_chunk[ \t]*\$[ \t]*s
  * An option named twice in one call takes the later value (m07, p05); a value this cannot read leaves only that option unread (q03); a bare `F` is `silentF`, never certain
  * silence beside a silent front matter, because a document can rebind `F` (soundness_02).
  */
-/**
- * A mention of `opts_chunk` that RUNS whether or not the document executes (Session 310): in the chunk HEADER (an option given as an R expression) or in a `#|` line (`!expr`), which
- * knitr evaluates before it decides to run the chunk. Rendered both ways with the same answer, `scratchpad/s308/rev-soundness_14`. The `#|` spelling was not rendered under
- * `--no-execute`: it is read like the header, which keeps HEAD's answer (the front matter's silence is not trusted below it).
- */
-function knitrHeaderMentionsOptsChunk(header: string, body: readonly string[]): boolean {
-  return header.includes(KNITR_OPTS_CHUNK) || body.some((line) => line.startsWith("#|") && line.includes(KNITR_OPTS_CHUNK));
-}
 function knitrChunkDefaultsUpdate(header: string, body: readonly string[], frontNamesEval: boolean): KnitrDefaultsUpdate {
   if (!header.includes(KNITR_OPTS_CHUNK) && !body.some((line) => line.includes(KNITR_OPTS_CHUNK))) {
     return null;
@@ -9021,7 +9022,8 @@ let regionsCache: [RegionsCacheEntry?, RegionsCacheEntry?] = [];
  * element's fields (`cell.code`, `heading.text`, …) — no consumer does.
  */
 function scanRegions(text: string, engine: EngineHint = undefined, requested: RenderMode = "execute"): Regions {
-  const mode: RenderMode = engine === "knitr" ? requested : "execute";
+  // Only the exact string `no-execute` selects the non-default reading, as in `resolveRenderMode`: it hides headings quarto shows when it is wrong, so no other value, however it got here, may select it.
+  const mode: RenderMode = engine === "knitr" && requested === "no-execute" ? "no-execute" : "execute";
   const hitAt = regionsCache.findIndex(
     (e) => e !== undefined && e.text === text && e.engine === engine && e.mode === mode,
   );

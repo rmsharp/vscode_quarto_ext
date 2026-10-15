@@ -487,8 +487,8 @@
             "no-execute"
           ],
           "enumDescriptions": [
-            "Read a knitr document as `quarto render` does, with its code running (the default).",
-            "Read a knitr document as `quarto render --no-execute` does, with nothing running."
+            "Read a knitr document as quarto render does, with its code running (the default).",
+            "Read a knitr document as quarto render --no-execute does, with nothing running."
           ],
           "default": "execute",
           "scope": "resource",
