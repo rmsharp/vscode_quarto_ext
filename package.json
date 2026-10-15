@@ -480,6 +480,20 @@
           "default": true,
           "description": "Show code cells in the Outline view and editor breadcrumbs."
         },
+        "quarto.symbols.renderMode": {
+          "type": "string",
+          "enum": [
+            "execute",
+            "no-execute"
+          ],
+          "enumDescriptions": [
+            "Read a knitr document as `quarto render` does, with its code running (the default).",
+            "Read a knitr document as `quarto render --no-execute` does, with nothing running."
+          ],
+          "default": "execute",
+          "scope": "resource",
+          "markdownDescription": "Which render the Outline and Go to Symbol in Workspace assume when they decide which headings a knitr document shows. A knitr document lists different headings for `quarto render` and for `quarto render --no-execute`: when the code runs, a setup chunk's `knitr::opts_chunk$set(echo = FALSE)` hides the chunks below it and a chunk that prints emits an output block; under `--no-execute` neither happens. Set `no-execute` if you render with `--no-execute`. Only knitr documents (`.Rmd`, or `.qmd` with `{r}` chunks) are affected; every other document reads the same either way."
+        },
         "quarto.cells.background.enabled": {
           "type": "boolean",
           "default": true,
