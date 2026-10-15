@@ -541,7 +541,7 @@ const INCLUDE_SHORTCODE = /\{\{<\s*include\b/;
  *   (exit 1).
  *   ⚠ The code spells that tail `([ ,].*)?`, the leading ` *` dropped (Session 313): the same strings (any tail
  *   that starts with a space or a comma), without the retry from every space of a long run that made an
- *   unterminated header quadratic. Only group 1, the language, is read.
+ *   header that does not match (no closing brace, or text after it) quadratic. Only group 1, the language, is read.
  * - `.toLowerCase()` — `{R}` selects knitr (measured exit 1 on `#| cache: banana`).
  *
  * The Set preserves FIRST-APPEARANCE order, which is the whole reason the answer is

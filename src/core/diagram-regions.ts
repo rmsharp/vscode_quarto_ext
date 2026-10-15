@@ -21,7 +21,8 @@
  * `=`/`#`/`.` — ```` ```{mermaid=x} ````, ```` ```{dot=1} ````,
  * ```` ```{mermaid#id} ````, ```` ```{mermaid.foo} ```` — was reported here as a
  * diagram even though Quarto draws none of them. `CELL_INFO` now carries quarto's
- * own grammar (`[=A-Za-z]` with a `( *[ ,].*)?` tail), so all four are excluded and
+ * own grammar (`[=A-Za-z]` with a `( *[ ,].*)?` tail, spelled `([ ,].*)?` since Session 313:
+ * the same strings), so all four are excluded and
  * `findDiagramRegions` needs no filter of its own.
  *
  * The old fix sketch — "require the engine token to end at whitespace, a comma, or

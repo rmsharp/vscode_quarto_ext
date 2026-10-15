@@ -6712,7 +6712,8 @@ function fenceInfoOpensBlock(
   return headingAttributesValid(block.content, commonmarkDialect, pandocEscapes);
 }
 // ⚠ The option tail is `([ ,].*)?`, quarto's `( *[ ,].*)?` with the leading ` *` dropped (Session 313): the same strings (any tail that starts
-// with a space or a comma), without the retry from every space of a long run that made an unterminated header quadratic. Only group 1 is read.
+// with a space or a comma), without the retry from every space of a long run that made a header that does not match (no closing brace, or text after it)
+// quadratic. Only group 1 is read.
 const CELL_INFO = /^\{([A-Za-z][=A-Za-z]*)([ ,].*)?\}$/;
 /**
  * The engine's OWN chunk grammar, for the one engine that runs BEFORE pandoc (Session 273).
@@ -6766,9 +6767,9 @@ const CELL_INFO = /^\{([A-Za-z][=A-Za-z]*)([ ,].*)?\}$/;
  * (A tilde fence of that shape IS a live divergence, with a different, pandoc-layer cause and
  * zero measured corpus reach; it is filed in `BACKLOG.md`, not handled here.)
  *
- * ⚠ The option tail is `([ ,][\s\S]*)?`, knitr's ` *[ ,].*` with the leading ` *` dropped (Session 313), as `KNITR_CHUNK_BEGIN`
- * below already spells it: the same strings, without the retry from every space of a long run that made an unterminated
- * header quadratic. The match is only tested, never read.
+ * ⚠ The option tail is `([ ,][\s\S]*)?`, knitr's ` *[ ,].*` with the leading ` *` dropped (Session 313), the way `KNITR_CHUNK_BEGIN`
+ * below already drops it (its tail is the non-capturing `(?:[ ,].*)?`): the same strings, without the retry from every space of a
+ * long run that made a header that does not match (no closing brace, or text after it) quadratic. The match is only tested, never read.
  */
 const KNITR_CHUNK_INFO = /^\{[A-Za-z][A-Za-z0-9_]*([ ,][\s\S]*)?\}$/;
 /**

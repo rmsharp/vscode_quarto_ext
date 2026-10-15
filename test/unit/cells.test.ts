@@ -181,7 +181,8 @@ describe("against the sample.qmd fixture", () => {
 /**
  * Session 172 — the fence-token grammar is quarto's, transcribed.
  *
- * `CELL_INFO` is now `/^\{([A-Za-z][=A-Za-z]*)( *[ ,].*)?\}$/`, whose class and tail come
+ * `CELL_INFO` is now `/^\{([A-Za-z][=A-Za-z]*)( *[ ,].*)?\}$/` (Session 313 dropped the leading ` *`
+ * of the tail, `([ ,].*)?`: the same strings), whose class and tail come
  * from `breakQuartoMd`'s own recognizer in the installed 1.7.33:
  * `^\s*(```+)\s*\{([=A-Za-z]+)( *[ ,].*)?\}\s*$`. A token that fails it is not a cell to
  * quarto AT ALL — no code cell is built, no options are partitioned, nothing is validated.
