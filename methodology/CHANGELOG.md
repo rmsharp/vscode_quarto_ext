@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-15 · [ad hoc] Session 313: cite the quality-gate run in the receipt and the ledger (2/2 pass at 5118ce8f)
+
+`quality_ratchet.py --run` after the ledger commit `5118ce8f`: 2/2 pass, 0 fail, 0 unmeasured, results bba236856bad, manifest 334939914945, head 5118ce8f (ledger-lag 0; release-gate is `npm run check-package`, 0). The `HANDOFFS.md` receipt's `quality_ratchet` line now carries the citation (`methodology/.quality-gates-results.json` is not tracked: the run is read from the file on disk).
+
 ### 2026-10-15 · [ad hoc] Session 313: dashboard and context-budget history refresh
 
 `methodology/dashboard_history.jsonl` (+1 line) and `methodology/.context-budget-history.jsonl` (+1 line), the two tracked history files the dashboard and `context_budget.py` append to on every run. The dashboard reads health 76/100, one high-or-above risk flag and 21 advisories (all in dev dependencies; `package.json` has no `dependencies` key), unchanged from Session 312; `context_budget.py` exits 2 for the same three files as since Session 264 (`BACKLOG.md` 413,502 B, `HANDOFFS.md` 396,482 B, `PROJECT_LEARNINGS.md` 1,206,362 B, against 65,536 B), and `SESSION_NOTES.md` is 20,611 B of its 120,000 B ceiling.
