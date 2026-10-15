@@ -142,36 +142,3 @@ them: one deliverable.
 of the critic round (eight no-break-space rows and the third alphabet, each killed by its mutant), the column-0 container row (written after the code, killed by its mutant) and the indent-2 reach row it replaced.
 **Host:** `test:integration` NOT run (core-only change in `src/core`; it takes the screen and nobody was asked). Headless instead: unit suite, oracle, corpus identity, mutation, `npm run package`. **Cost:** 9 agents (2 workflows,
 about 1.7M subagent tokens, 502 tool calls), 78 mutant runs, about 140 million differential cases (the reviewer's), one `npm run package`, 0 quarto renders beyond the cached oracle.
-
-## Session 310 Handoff Evaluation (by Session 311)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, gotchas 1 to 8, both ledger frontiers at HEAD (`677fae9a`, gap 0), the ratchet citation (2/2, results `bba236856bad`), the test baseline
-(10,815 passing in 77 files, exact) and the "Active empty, present candidates" instruction all held at Phase 0, and every number in the BACKLOG item I took reproduced: the 1.96 s resolver cost (1.86 s here), 52 s for the code-span line
-(51.5 s), 26 s for the unclosed flow mapping (26 s), the throw on `&#99999999999;`, and the 5 MB overflow.
-**Helped:** the item's measured numbers and its repro recipes (a timing pattern at `refs-no-target.test.ts:485`, `trimEndSpaces` as the model for a linear trim); gotcha 6, the 9 MB timing row, which flaked exactly as written (1.63 s at load
-43, 55 to 72 ms alone); gotcha 4 (zsh `${=VAR}`), which I hit the same minute; the Phase 0 picker rule.
-**Missing:** the CAUSES, which one profile each supplied: (3) is not in `indexLabels` but in `scanRegions`'s fence regexes, so EVERY reader answered nothing; (2) is one regex in `maskInlineCode`; (5) is `flowRegion`; that a first fix of (3)
-moves the failure to an index with one bucket per run length; and that the sibling KEY trims are `[ \t]+$`, so `trimEnd()` is wrong for them.
-**Wrong:** (1) named the `\s#` trims (the cost was `/\s+$/`), (3) named `indexLabels`, "the `execute: {` route declines early" was irrelevant, and "estimate: negligible reach" for the entity throw understates a whole-index failure. **ROI: high.**
-
-## Session 311 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** I reproduced all five defects firsthand, profiled each (`node --cpu-prof`, self time by function) and found causes the item had missed or misnamed: the `/\s+$/` trim, one code-span regex, `flowRegion`, four fence regexes in
-`scanRegions`. Each fix has the cheapest exactness proof I could find: `trimEnd` against `\s` on all 1,114,112 code points; the fence regexes against the old ones on 3,843,200 comparisons; the code-span scan against the old regex as an oracle on
-873,812 enumerated lines (9 of 9 mutants killed); `flowRegion` and the closer index against the parent on 140,000 + 120,000 front matters and 200,000 + 160,000 fence documents. After the first GREEN of (3) I profiled again and found 86%
-of the time in a per-length bucket loop that would have turned a `RangeError` into a heap exhaustion; a range-maximum side list replaced it. Over all 3,383 corpus documents the parent's and final headings are BYTE-IDENTICAL; the real-document
-score is unchanged (2,423 of 2,438); `npm test` 10,876 in 79 files, oracle 2 of 2, `npm run package` DONE (44 files, 1.86 MB). An independent review (3 read-only agents, about 0.9M subagent tokens, none read third-party source) found no
-output difference, ONE REGRESSION of mine (the side list scanned per opener: 100,000 lines 2.9 s against 0.68 s, reproduced and fixed), eight pre-existing pathologies (re-measured, filed) and 13 defects of my record. Mutation passes (68 mutant
-runs) found three real gaps in the first rows and five in the sparse-table rows; all closed or equivalent. Learnings 738 to 745.
-**Went wrong.** (1) My side list shipped a regression behind a docstring that said "no real document has more than a few"; the hunter found it, not my own adversarial pass. (2) Four numbers in commit messages were wrong or underived
-(`Eleven pin rows` were ten; `about 6 s each` hid an 18 s row; a guard row guarded nothing; `about 9 million` was never summed): corrected in the ledger and in the tip commit before anything sat on it. (3) My differential harness printed a clean
-zero while exercising nothing, three times (a correlated LCG, no blank lines, headings that never varied). (4) The first guard row passed the mutant it was written for. (5) A Python splice with the wrong anchor duplicated half a test file
-(the row count caught it); `cmd | grep && git commit` committed through a flake; the Edit tool wrote a literal U+FFFD glyph into `refs.ts`, which also made one mutant silently skip (found by counting 26 lines against 27 mutants). (6) About
-six "have not heard from you" nudges during long waits. (7) I widened (1) to the sibling `slotsOf` trims and the cell-option KEY (disclosed), but filed the seven key trims of another class instead of fixing them.
-**Known residuals (filed):** the BACKLOG item by title ("What is still quadratic or deep enough to overflow after Session 311"), items (1) to (9); the earlier Up Next items are untouched.
-**TDD:** RED before GREEN for the four value-trim rows (5.9 s each at the parent), the three entity rows (`RangeError`), the two flow rows (5.4 and 5.6 s), the 5 MB row (`RangeError`, then 3.6 s against 1.5 s), the three mask rows (5.7 s),
-the doubling row (2.9 s against 1.5 s). Passed on arrival, disclosed: the two oracle files (written after the scan; mutation-checked), the ten long-run pin rows, the guard row, the 7 rows of `c1b30f70`, the 9 + 12 + 6 rows of the review round
-(each verified against the PARENT tree's answers first), and the 2 entity pin rows (they throw at the parent; written after the code).
-**Host:** `test:integration` NOT run (core-only change: `src/core`; it takes the screen and nobody was asked). Headless instead: unit suite, oracle, corpus identity, `npm run package`. **Cost:** 3 agents (1 workflow, 279 tool calls), 68 mutant runs,
-about 700,000 lines of generated differential input, one `npm run package`, 0 quarto renders beyond the cached oracle.
