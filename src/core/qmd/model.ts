@@ -40,6 +40,7 @@
 // module, and the import graph was re-checked before relying on it.) The `vscode`-free
 // guardrail of architecture plan §3.3 is unaffected — the imported module is `core/` too.
 import type { DocumentEngine } from "../document-engine";
+import type { RenderMode } from "../render-mode";
 import { divOpenerVerdict } from "./attribute-block";
 import { jupyterKernelLanguage } from "./jupyter-kernel";
 import { quartoYamlRegions } from "./quarto-yaml-regions";
@@ -6772,7 +6773,7 @@ const KNITR_CHUNK_END = /^([\t >]*)(`{3,})[ \t\r\f\v]*$/;
  * ⚠ **Performance:** the closer search jumps to each chunk's end and every early exit returns, so
  * the pass is linear in the document.
  */
-function knitrSilentChunkClosers(lines: readonly string[]): KnitrChunkClosers {
+function knitrSilentChunkClosers(lines: readonly string[], executes = true): KnitrChunkClosers {
   const silent = new Map<number, number>();
   const uncertain = new Map<number, number>();
   const prints = new Map<number, number>();
@@ -6817,7 +6818,7 @@ function knitrSilentChunkClosers(lines: readonly string[]): KnitrChunkClosers {
     }
     const body = lines.slice(i + 1, end);
     if (begin[1] === "" && KNITR_CHUNK_INFO.test(begin[3])) {
-      const verdict = knitrChunkIsSilent(begin[3], body, knitrDefaultKinds(defaults), channels);
+      const verdict = knitrChunkIsSilent(begin[3], body, knitrDefaultKinds(defaults), channels, executes);
       if (verdict === "silent") {
         silent.set(end, i);
       } else if (verdict === "uncertain") {
@@ -6830,8 +6831,9 @@ function knitrSilentChunkClosers(lines: readonly string[]): KnitrChunkClosers {
           uncertain.set(end, i);
         }
       }
-      // The chunk's own call changes the defaults for the chunks BELOW it, never its own.
-      knitrApplyDefaultsUpdate(defaults, knitrChunkDefaultsUpdate(begin[3], body, frontNamesEval));
+      // The chunk's own call changes the defaults for the chunks BELOW it, never its own, and only when the chunk RUNS. Under `--no-execute` the body never does: only a mention in the
+      // header or a `#|` line still reaches R (`knitrHeaderMentionsOptsChunk`).
+      knitrApplyDefaultsUpdate(defaults, executes ? knitrChunkDefaultsUpdate(begin[3], body, frontNamesEval) : knitrHeaderMentionsOptsChunk(begin[3], body) ? "unknown" : null);
     } else if (begin[3].includes(KNITR_OPTS_CHUNK) || body.some((line) => line.includes(KNITR_OPTS_CHUNK))) {
       knitrApplyDefaultsUpdate(defaults, "unknown");
     }
@@ -7305,12 +7307,20 @@ const KNITR_OPTS_CHUNK_SET = /^(?:knitr[ \t]*::[ \t]*)?opts_chunk[ \t]*\$[ \t]*s
  * An option named twice in one call takes the later value (m07, p05); a value this cannot read leaves only that option unread (q03); a bare `F` is `silentF`, never certain
  * silence beside a silent front matter, because a document can rebind `F` (soundness_02).
  */
+/**
+ * A mention of `opts_chunk` that RUNS whether or not the document executes (Session 310): in the chunk HEADER (an option given as an R expression) or in a `#|` line (`!expr`), which
+ * knitr evaluates before it decides to run the chunk. Rendered both ways with the same answer, `scratchpad/s308/rev-soundness_14`. The `#|` spelling was not rendered under
+ * `--no-execute`: it is read like the header, which keeps HEAD's answer (the front matter's silence is not trusted below it).
+ */
+function knitrHeaderMentionsOptsChunk(header: string, body: readonly string[]): boolean {
+  return header.includes(KNITR_OPTS_CHUNK) || body.some((line) => line.startsWith("#|") && line.includes(KNITR_OPTS_CHUNK));
+}
 function knitrChunkDefaultsUpdate(header: string, body: readonly string[], frontNamesEval: boolean): KnitrDefaultsUpdate {
   if (!header.includes(KNITR_OPTS_CHUNK) && !body.some((line) => line.includes(KNITR_OPTS_CHUNK))) {
     return null;
   }
   // A mention in the chunk HEADER (an option given as an R expression) or in a `#|` line (`!expr`) runs R whatever the chunk's code is (reviewer, soundness_14): not read.
-  if (header.includes(KNITR_OPTS_CHUNK) || body.some((line) => line.startsWith("#|") && line.includes(KNITR_OPTS_CHUNK))) {
+  if (knitrHeaderMentionsOptsChunk(header, body)) {
     return "unknown";
   }
   const engine = /^\{([a-zA-Z0-9_]+)/.exec(header);
@@ -7551,6 +7561,7 @@ function knitrChunkIsSilent(
   body: readonly string[],
   defaults: KnitrDefaultKinds,
   channels: KnitrCodeChannels,
+  executes = true,
 ): "silent" | "uncertain" | "loud" | "prints" {
   // ⚠ ONLY the engines measured silent (`KNITR_SILENT_ENGINES`). quarto re-emits a `dot`, `mermaid`
   // or `ojs` chunk as its own fenced block whatever `echo` says, and an `engine=` option moves an
@@ -7598,7 +7609,7 @@ function knitrChunkIsSilent(
     if (options.has("child") || pipe.has("child")) {
       return "uncertain";
     }
-    if ((engine[1] === "r" || engine[1] === "R") && !channels.masks && defaults.outputKept && knitrChunkPrints(body, options, pipe, defaults.stderrKept && !channels.stderrOff && knitrStderrKept(options, pipe), channels.texts)) {
+    if (executes && (engine[1] === "r" || engine[1] === "R") && !channels.masks && defaults.outputKept && knitrChunkPrints(body, options, pipe, defaults.stderrKept && !channels.stderrOff && knitrStderrKept(options, pipe), channels.texts)) {
       return "prints";
     }
     return knitrCodeWritesFence(body, options, pipe) ? "uncertain" : "silent";
@@ -8971,8 +8982,12 @@ interface Regions {
  * `text` (no external state, time, or randomness), so equal text ⇒ equal regions;
  * the key comparison is a value comparison (JS `===` on strings).
  */
-type RegionsCacheEntry = { text: string; engine: EngineHint; regions: Regions };
+type RegionsCacheEntry = { text: string; engine: EngineHint; mode: RenderMode; regions: Regions };
 /**
+ * ⚠ The key is `text`, `engine` AND `mode` since Session 310: the Outline provider is re-registered when the render-mode setting changes, but the document text is NOT, so a key
+ * without the mode would serve the previous mode's regions for an unchanged document. `scanRegions` normalises the mode to `execute` for every engine but knitr (the only reader of
+ * it), so a markdown or Jupyter document is still ONE entry whatever the setting says.
+ *
  * ⚠ TWO entries, not one, since Session 273 made the regions depend on `text` AND `engine`.
  * One document is routinely asked for under both keys in the same edit cycle: the Outline
  * adapter knows the engine and passes it, while `findAllCells` / `inFrontMatter` /
@@ -8995,17 +9010,18 @@ let regionsCache: [RegionsCacheEntry?, RegionsCacheEntry?] = [];
  * that array are still the shared region objects, so a caller must not mutate an
  * element's fields (`cell.code`, `heading.text`, …) — no consumer does.
  */
-function scanRegions(text: string, engine: EngineHint = undefined): Regions {
+function scanRegions(text: string, engine: EngineHint = undefined, requested: RenderMode = "execute"): Regions {
+  const mode: RenderMode = engine === "knitr" ? requested : "execute";
   const hitAt = regionsCache.findIndex(
-    (e) => e !== undefined && e.text === text && e.engine === engine,
+    (e) => e !== undefined && e.text === text && e.engine === engine && e.mode === mode,
   );
   if (hitAt >= 0) {
     const hit = regionsCache[hitAt] as RegionsCacheEntry;
     if (hitAt !== 0) regionsCache = [hit, regionsCache[0]];
     return hit.regions;
   }
-  const regions = computeRegions(text, engine);
-  regionsCache = [{ text, engine, regions }, regionsCache[0]];
+  const regions = computeRegions(text, engine, mode);
+  regionsCache = [{ text, engine, mode, regions }, regionsCache[0]];
   return regions;
 }
 
@@ -9024,7 +9040,7 @@ function scanRegions(text: string, engine: EngineHint = undefined): Regions {
  * display form, ```` ```{.python} ```` Pandoc class blocks, and any `{lang}`
  * fence nested inside an outer (longer or tilde) fence.
  */
-function computeRegions(text: string, engine: EngineHint = undefined): Regions {
+function computeRegions(text: string, engine: EngineHint = undefined, mode: RenderMode = "execute"): Regions {
   const lines = text.split(/\r?\n/);
   const emptyTagPropagates = firstLineTagIsEmpty(lines[0]);
   let lastCommentCloserLine = -1;
@@ -9040,7 +9056,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   const closerIndex = buildCloserIndex(lines);
   // In a knitr document, the closers knitr consumes before pandoc sees them — see
   // `knitrSilentChunkClosers`. Only the silent chunk's OWN opener may still close on one.
-  const knitrClosers = engine === "knitr" ? knitrSilentChunkClosers(lines) : NO_KNITR_CLOSERS;
+  const knitrClosers = engine === "knitr" ? knitrSilentChunkClosers(lines, mode === "execute") : NO_KNITR_CLOSERS;
   const knitrSilent = knitrClosers.silent;
   const knitrSilentOpeners = new Set(knitrSilent.values());
   // A chunk that PRINTS with its code not echoed (Session 309) hands pandoc two bare fences, one where its opener stood and one at its closer: opener line -> closer line.
@@ -12048,8 +12064,8 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
  * so a caller may reorder/add/remove entries without affecting a later call; the
  * `Heading` elements themselves are shared and immutable (do not mutate a field).
  */
-export function findHeadings(text: string, engine: EngineHint = undefined): Heading[] {
-  return scanRegions(text, engine).headings.slice();
+export function findHeadings(text: string, engine: EngineHint = undefined, mode: RenderMode = "execute"): Heading[] {
+  return scanRegions(text, engine, mode).headings.slice();
 }
 
 /**
@@ -13790,9 +13806,9 @@ export function findCellAtPosition(text: string, line: number): Cell | null {
  * precede the first heading). A heading's range spans its whole section — up to
  * the line before the next heading of equal-or-higher level, or end of document.
  */
-export function buildOutline(text: string, engine: EngineHint = undefined): OutlineSymbol[] {
+export function buildOutline(text: string, engine: EngineHint = undefined, mode: RenderMode = "execute"): OutlineSymbol[] {
   const lastLine = Math.max(0, text.split(/\r?\n/).length - 1);
-  const { headings, cells } = scanRegions(text, engine);
+  const { headings, cells } = scanRegions(text, engine, mode);
   const sectionEnds = headings.map((_, k) => sectionEndOf(headings, k, lastLine));
 
   // One ordered stream of heading and cell events (they never share a line).
