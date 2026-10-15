@@ -1,5 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import * as yamlContext from "../../src/core/yaml-context";
 import { indexLineIndents, leadingWsLen, nestedParentPath } from "../../src/core/yaml-context";
+import { findNestedFrontMatterValueLines } from "../../src/core/yaml-frontmatter-nested-values";
 
 // Session 314 — `indexLineIndents` answers, for every content line of a block, what the ancestor walk's upward scan answered: the nearest content
 // line above it that is indented strictly LESS. The scan walked past every same-indent sibling (n sibling keys cost time proportional to n squared;
@@ -235,5 +237,36 @@ describe("nestedParentPath with an index answers what it answers without one (Se
     const first = nestedParentPath(lines, 4, 8, index)!;
     first.push("mutated");
     expect(nestedParentPath(lines, 5, 8, index)).toEqual(["format", "html", "theme", "light"]);
+  });
+});
+
+describe("findNestedFrontMatterValueLines builds the index only when a nested line needs it (Session 314)", () => {
+  // The index costs about 35 ns a line, and a front matter of column-0 keys (the commonest kind) never asks the ancestor walk anything: building it there was a 24 to
+  // 27 percent slowdown of the enumerator (a review's measurement; 8 to 9 percent end to end through the engine resolver, about 0.5 microseconds at 10 lines). It is built
+  // the first time a nested line needs a container, and once.
+  const built = (text: string): number => {
+    const spy = vi.spyOn(yamlContext, "indexLineIndents");
+    try {
+      findNestedFrontMatterValueLines(text);
+      return spy.mock.calls.length;
+    } finally {
+      spy.mockRestore();
+    }
+  };
+
+  it("builds it once for a document with nested lines (this row shows the spy sees the call)", () => {
+    expect(built("---\nformat:\n  html:\n    toc: true\n    code-fold: true\n---\n\ntext\n")).toBe(1);
+  });
+
+  it("builds none for a front matter of column-0 keys", () => {
+    expect(built("---\ntitle: t\nauthor: a\ntoc: true\n---\n\ntext\n")).toBe(0);
+  });
+
+  it("builds none for a front matter whose only indented lines are sequence items or inside a flow value", () => {
+    expect(built("---\ntitle: t\nkeywords:\n  - a\n  - b\nlist: [a,\n  b]\n---\n\ntext\n")).toBe(0);
+  });
+
+  it("builds none when there is no front matter", () => {
+    expect(built("# Title\n\n  indented prose\n")).toBe(0);
   });
 });
