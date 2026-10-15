@@ -17,9 +17,89 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
-### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 308: the chunk that PRINTS under a default, the shapes the readers decline, a front matter that code overrides, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 309 (in progress): claim -- residual (A), the chunk that PRINTS under a default
+### 2026-10-14 · [ad hoc] Session 309 close-out: handoff evaluation, self-assessment, receipt, ledger, BACKLOG item, Learnings, quality ratchet, release gate
 
-Session claimed; the operator chose residual (A) at the Phase 0 picker (the recommended option: the largest measured error left, 50 of 150 executing lens rows phantom-only, 119 headings) and CONFIRMED the Session 308 decision that a setup-call default follows the EXECUTING mode (`--no-execute` costs: 95 to 73 of 100 right). A chunk that prints (`print()`, `summary()`, a bare name, `head()`, `cat()`, `message()`, `warning()`) emits an output code block, which is a fence, so quarto is loud where the model reads the chunk as silent or uncertain. Baseline `npm test` 8,426 passing in 72 files at HEAD. Phase 3F records the outcome.
+`methodology/SESSION_NOTES.md` (ACTIVE TASK rewritten to NONE, the Session 308 evaluation and Session 309 self-assessment written, 8/10 and 8/10; trimmed to three pairs in its own commit), `methodology/HANDOFFS.md` (the `S309` receipt, `pending` to `complete`), `BACKLOG.md` (the Session 308 silence-rule item replaced by what Session 309 measured and left, including the OPEN `--no-execute` decision), `methodology/PROJECT_LEARNINGS.md` (724 to 731) and the two history files. Gates: `npm test` 8,426 to 9,278 passing in 74 files (72 before), `npm run check-types`, `check-backlog` clean, `npm run test:oracle` 2 of 2 against the real quarto CLI, `realdoc-score` unchanged (2,423 of 2,438, the same 15 divergent ordinals), all 3,382 corpus outputs identical (corpus reach 0), `npm run package` DONE (44 files, 1.86 MB, 1:25). `test:integration` NOT run (needs the screen; core-only change, as Sessions 294 to 298). Model: Claude Sonnet 5.5.
+
+### 2026-10-14 · [ad hoc] Session 309: the mutation passes
+
+Three runs of `mutate309.py` on committed trees: 139 mutants of the new code (92 killed first), 47 survivors scanned against 1,600 rendered documents (46 changed no answer), 8 deleted as redundant code (`930ad677`; a ninth, `pipe wins`, was reworded and killed), 17 new rendered rows killed 14 more and a last one killed two (K13 and the reworded `pipe wins`): 108 killed, 8 deleted, 23 accounted for (108 + 8 + 23 = 139) (a guard another guard makes redundant: `eval` word over an `eval = FALSE` default, the option whitelist over `set_alias`, a statement start regex over a closing paren; two memoizations that are performance-only; `fenceCloses`). A mutation pass counts a timing flake as a kill, so each ran alone.
+
+### 2026-10-14 · [ad hoc] Session 309: three workflows, the blind rounds and the reviewers
+
+Workflow 1 (`wf_5a30c963-4b3`): 4 blind authoring lenses (realistic, options, statements, masking), about 100 many-chunk documents with no stray fence, 633,675 subagent tokens, audit 0 of 127 tool calls flagged. Workflow 2 (`wf_147b9426-b0b`): 5 blind lenses (report, defaults, printing, hostile, layout), 150 documents each with ONE stray fence (round B), 802,236 tokens, 0 of 181 flagged. Workflow 3 (`wf_d364e3ae-acf`): 3 read-only reviewers in worktrees (precision hunter: 48 documents, 40 deleted a heading in the first cut; scanner attacker: 50 documents, 6 new deleting rows; test critic: nine findings, one a real quadratic), 1,098,806 tokens; the 18 flags of `audit307.py` are my own file names containing `knitr`, no third-party read. None rendered; I rendered about 1,450 documents (3 wide behind the load gate) and re-checked every claim. Evidence in `scratchpad/s309/` (untracked).
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 308: the chunk that PRINTS under a default, the shapes the readers decline, a front matter that code overrides, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 309: `de72e1cb` test: one more mutation row
+
+a function assigned to `summary` by the right arrow (`k13`): 17 mutation rows.
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 308: the chunk that PRINTS under a default, the shapes the readers decline, a front matter that code overrides, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 309: `930ad677` refactor: delete the code the mutation pass proved redundant, pin what it found unpinned
+
+Removed the output-option list the whitelist replaced, a dashed alias, an `endsWith`, and the closer index's `bare` argument; 16 rendered documents (`knitr-print-mutants`) make the other guards load-bearing.
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 308: the chunk that PRINTS under a default, the shapes the readers decline, a front matter that code overrides, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 309: `a40495f4` tools: the chunk-level ground-truth extractor
+
+`tools/knitr-print-grids/chunks309.py`.
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 308: the chunk that PRINTS under a default, the shapes the readers decline, a front matter that code overrides, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 309: `542dd85f` tools: the grid generators and the twin builder
+
+`gengeo309.py`, `gens309.py`, `genfn309.py`, `gencrit309.py`, `mktwins309.py`.
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 308: the chunk that PRINTS under a default, the shapes the readers decline, a front matter that code overrides, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 309: `160618a5` tools: a regeneration script
+
+`regen.py` re-renders every document the fixtures store and refreshes the quarto column (reproduced the critic fixture, 0 of 32 changed), with `render.sh`, `render309.sh`, `mkfixture_stm.py` and a README.
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 308: the chunk that PRINTS under a default, the shapes the readers decline, a front matter that code overrides, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 309: `00523069` test: the test critic's 32 guard documents and three `--no-execute` cost documents
+
+`knitr-print-critic`: never a deleted heading but the two unreadable-setup-call documents HEAD deletes too; three documents show the executing render matched and `--no-execute` hiding two headings quarto shows.
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 308: the chunk that PRINTS under a default, the shapes the readers decline, a front matter that code overrides, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 309: `11007f3f` fix: read `results` markup/hold in a setup call, pin 25 option names, correct overstated claims
+
+The string is masked before the option is judged, so `results = "hold"` was unreadable (the branch was dead code); read from the chunk's own code. 25 option names each rendered; stale Session 308 comments corrected; 410 statement documents (342 right, HEAD 98).
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 308: the chunk that PRINTS under a default, the shapes the readers decline, a front matter that code overrides, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 309: `b57634ff` test: pin the two reviewers' 98 rendered documents
+
+`knitr-print-hostile` (never a deleted heading, 48) and `knitr-print-geometry-hostile` (never worse than HEAD, 50) in `knitr-prints-review.test.ts`.
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 308: the chunk that PRINTS under a default, the shapes the readers decline, a front matter that code overrides, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 309: `c5803411` fix: close the holes the precision and geometry reviewers found
+
+The chunk's own options are a whitelist; redefinitions anywhere (quoted, after an `if`, replacement forms, a digit in the S3 class, `message`/`warning`); code the document can run unseen; front-matter keys (`enabled`, `opts.label`, escapes, a block below line 0, a reader), a body metadata key, an inline r expression alone on a line; whitespace escapes; a backtick in `comment`; `warn`; a file read into the output; a four-backtick chunk; a printing closer that opens nothing stands for a blank line; the `options(` check was quadratic (12 s at 40,000) and is linear. Realistic documents unchanged (117 and 130 right); the precision documents 8 to 42 right, 40 to 0 deleting. Overturns the Session 307 `s18` pin.
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 308: the chunk that PRINTS under a default, the shapes the readers decline, a front matter that code overrides, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 309: `8896154d` docs: correct two docstrings
+
+A stale `keepContent` mention and the masking function's own docstring.
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 308: the chunk that PRINTS under a default, the shapes the readers decline, a front matter that code overrides, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 309: `297410c5` feat: a bare name and `print(name)` print when the document last gave the name a value that prints as text
+
+Names tracked in document order (a literal, a range, `NULL`, a whole call of a text function, another text name, the datasets); any other way a chunk can assign a name makes it unknown. 43 rendered name documents 9 to 32 right, none deleting. Each chunk body is parsed once (a 300,000-line chunk 1.3 s to 0.9 s; HEAD 0.34 s).
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 308: the chunk that PRINTS under a default, the shapes the readers decline, a front matter that code overrides, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 309: `12b112f2` fix: a `child=` chunk whose code is not echoed is uncertain, never silent
+
+Round B's one deleting row (`hostile_18`): a child that prints or echoes emits fences the parent cannot show; the front matter's `echo: false` deleted the same heading before this session. Round B executing 52 to 127 right, deleting 0 to 0. Two Session 307 child rows become disclosed phantoms.
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 308: the chunk that PRINTS under a default, the shapes the readers decline, a front matter that code overrides, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 309: `caba6962` feat: a chunk silenced only by a setup call is skipped when executing (the operator's decision, measured)
+
+Session 308 shipped it as `uncertain` (it ended a swallow early). Rendered, such a chunk emits nothing or an output pair, and the swallow runs through it: 150 blind documents 93 to 116 right with no new deleting row; `--no-execute` 78 to 64 right and 7 to 21 of 100 documents hiding a heading. A bare `F` stays `unsure`. Overturns three Session 308 pins (`m15`, `p07`, `rev-soundness_16`).
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 308: the chunk that PRINTS under a default, the shapes the readers decline, a front matter that code overrides, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 309: `78a33ea4` test: pin 342 rendered statement documents closed-world
+
+`knitr-print-statements` with a never-deletes invariant and never-worse-than-HEAD (281 right then, HEAD 89).
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 308: the chunk that PRINTS under a default, the shapes the readers decline, a front matter that code overrides, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 309: `29e1f70d` feat: widen the printer whitelist from a rendered function grid and read `message()`/`warning()`
+
+110 base-R calls that printed in all 116 rendered cases; a whitespace-only `cat()` is quiet; `message`/`warning` count only while no `message`/`warning` option is set (rendered: `execute: warning: false` also hides a message). Overturns the Session 307 `q03` pin.
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 308: the chunk that PRINTS under a default, the shapes the readers decline, a front matter that code overrides, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 309: `e234c72e` feat: read which silenced knitr chunks certainly print under their own options, the front matter and a setup call
+
+RED first for `cat`, text calls, `print` of a call, masking, `results`, `execute: output: false`, a setup call default, a setup call that hides output and a backtick run. Overturns the Session 307 `q01` and Session 308 `t06` pins.
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 308: the chunk that PRINTS under a default, the shapes the readers decline, a front matter that code overrides, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 309: `78050b37` feat: a chunk that prints with its code not echoed emits two bare fences
+
+Geometry: the chunk's opener closes a plain fence opened above it and its closer opens the next. 256 rendered documents (a simulator frozen before any render matched 256 of 256; HEAD 242).
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 308: the chunk that PRINTS under a default, the shapes the readers decline, a front matter that code overrides, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 309: claim
+
+Session claimed at `7d406873`; the operator chose residual (A) at the Phase 0 picker (the recommended option) and CONFIRMED the Session 308 decision that a setup-call default follows the EXECUTING mode. Baseline `npm test` 8,426 passing in 72 files at HEAD.
 
 ### 2026-10-14 · [ad hoc] Session 308: trim SESSION_NOTES to three close-out pairs (`6fa4c08d`)
 
