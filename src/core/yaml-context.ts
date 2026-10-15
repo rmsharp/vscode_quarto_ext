@@ -612,7 +612,9 @@ export function valueSlotAfterColon(lineText: string, colon: number): Slot {
       valueRaw = valueRaw.slice(0, c);
     }
   }
-  const valueText = valueRaw.replace(/\s+$/, "");
+  // `trimEnd` strips exactly what `/\s+$/` matched (ECMAScript defines both over WhiteSpace and LineTerminator), in one pass:
+  // the regex retries from every space of a long run inside the value and costs time quadratic in the run (Session 311).
+  const valueText = valueRaw.trimEnd();
   const valueStart = afterColon + wsLen;
   return { startCol: valueStart, endCol: valueStart + valueText.length };
 }

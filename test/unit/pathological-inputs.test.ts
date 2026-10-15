@@ -1,0 +1,54 @@
+import { describe, expect, it } from "vitest";
+import { resolveDocumentEngine } from "../../src/core/document-engine-resolve";
+import { findCellOptionLines } from "../../src/core/qmd/model";
+import { valueSlotAfterColon } from "../../src/core/yaml-context";
+
+// Session 311 — the BACKLOG item "Three PRE-EXISTING slow or crashing inputs" (found by Session 304's robustness
+// hunter, timed firsthand, identical in the parent build). Every row here is a document nobody writes by hand and
+// an editor can still be handed: the extension must read it in time proportional to its size, and must not throw.
+// The limits are generous on purpose (a linear pass takes milliseconds); the inputs are sized so the quadratic
+// reading takes several seconds, so a regression cannot hide under a loaded machine.
+
+const timed = <T>(run: () => T): { result: T; ms: number } => {
+  const started = Date.now();
+  const result = run();
+  return { result, ms: Date.now() - started };
+};
+
+describe("Session 311 — a long run of spaces inside a YAML value", () => {
+  it("valueSlotAfterColon trims a 100,000-space run in linear time and keeps the slot exact", () => {
+    const run = " ".repeat(100000);
+    const { result, ms } = timed(() => valueSlotAfterColon(`subtitle: a${run}b`, 8));
+    expect(result).toEqual({ startCol: 10, endCol: 10 + 1 + 100000 + 1 });
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it("the engine resolver reads a front matter value holding a 100,000-space run in linear time (the reported path)", () => {
+    const run = " ".repeat(100000);
+    const text = ["---", "title: t", `subtitle: a${run}b`, "engine: knitr", "---", "", "Text."].join("\n");
+    const { result, ms } = timed(() => resolveDocumentEngine("a.qmd", text));
+    expect(result).toBe("knitr");
+    expect(ms).toBeLessThan(1000);
+  });
+
+  // `slotsOf` (the cell-option reader in `core/qmd/model`) carries a sibling copy of the same trim.
+  const cellOptions = (option: string): ReturnType<typeof findCellOptionLines> => findCellOptionLines(["```{r}", option, "plot(1)", "```"].join("\n"));
+
+  it("a cell option's value holding a 100,000-space run is read in linear time, and its value slot is exact", () => {
+    const run = " ".repeat(100000);
+    const option = `#| fig-cap: a${run}b`;
+    const { result, ms } = timed(() => cellOptions(option));
+    expect(result).toHaveLength(1);
+    expect(result[0].valueSlot).toEqual({ startCol: option.indexOf(": a") + 2, endCol: option.length });
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it("a cell option's key holding a 100,000-space run is read in linear time, and its key slot is exact", () => {
+    const run = " ".repeat(100000);
+    const option = `#| fig-cap${run}x: v`;
+    const { result, ms } = timed(() => cellOptions(option));
+    expect(result).toHaveLength(1);
+    expect(result[0].keySlot).toEqual({ startCol: option.indexOf("fig-cap"), endCol: option.indexOf(":") });
+    expect(ms).toBeLessThan(1000);
+  });
+});

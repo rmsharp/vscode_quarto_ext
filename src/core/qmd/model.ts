@@ -12563,7 +12563,7 @@ function slotsOf(
     return { keySlot: null, valueSlot: null };
   }
   const colon = rest.indexOf(":");
-  const keyText = (colon >= 0 ? rest.slice(0, colon) : rest).replace(/\s+$/, "");
+  const keyText = (colon >= 0 ? rest.slice(0, colon) : rest).trimEnd();
   const keySlot: Slot = { startCol: keyStart, endCol: keyStart + keyText.length };
   if (colon < 0) {
     return { keySlot, valueSlot: null };
@@ -12582,7 +12582,7 @@ function slotsOf(
       valueRaw = valueRaw.slice(0, c);
     }
   }
-  const valueText = valueRaw.replace(/\s+$/, "");
+  const valueText = valueRaw.trimEnd(); // one pass: `/\s+$/` is quadratic in a space run inside the value (Session 311)
   const valueStart = keyStart + afterColon + wsLen;
   return {
     keySlot,
