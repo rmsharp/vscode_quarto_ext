@@ -119,34 +119,3 @@ rows of every grid, the rows of the
 same behaviour after each first row, the critic's and the mutation rows (written after the code, every document rendered).
 **Host:** `test:integration` NOT run (needs the screen; core-only change, as Sessions 294 to 298). Headless instead: the oracle, the corpus identity and 9,278 unit tests. **Cost:** 12 agents (3 workflows, about 2.5M subagent tokens), about 1,450 renders by me,
 three mutation runs (179 mutant runs).
-
-## Session 307 Handoff Evaluation (by Session 308)
-
-**Score: 7/10.** Self-check by the same model family, not an independent score. Its function names, harness paths (`render304.sh`, `score307.py`, `mutate307.py`, `audit307.py`), the baseline (8,304 passing, 72 files), both ledger frontiers at HEAD and the
-ratchet citation all held at Phase 0; its forward-looking claims were marked "derived" or "estimate".
-**Helped:** the BACKLOG item named the witnesses (`a05`, `a14`, `defaults_13`, `defaults_14`), still on disk and reproducing at HEAD; the rule to price a guard by a realistic lens first (Learning 715), which I followed and which changed the verdict; gotcha 6
-(`--no-execute` never runs a setup chunk), which predicted the mode split exactly.
-**Missing:** that a chunk which PRINTS stays loud under a default (its family (6) said it for the chunk-level case only), which proved the dominant remaining error class; and that this was not one expression: a setup call needed a statement reader and an ordered
-state, about 300 lines and 80 rows.
-**Wrong:** "(2)'s later-chunk shape is the cheapest deleting family, since `knitrDocumentDefaults` already counts the keys": the counting reads the FRONT MATTER only and a blanket `opts_chunk` decline had to be replaced; the cost was eight work commits, two
-workflows (8 agents, about 1.6M subagent tokens) and four mutation passes. Its two operator decisions were not confirmed between sessions; I followed the executing mode and re-flagged it. **ROI: high.**
-
-## Session 308 Self-Assessment
-
-**Score: 7/10.**
-**Went right.** I grounded before code: nine grids (134 documents, 197 predictions frozen before any render, none wrong; HEAD wrong in 35 rows of the first grid). That changed two designs: `format: html:` needs no mode decision, and a setup-call default is
-`uncertain`, not `silent` (the silent variant on the same documents gained 4 executing rows and deleted 11 headings under `--no-execute` against 3). Five blind lenses (150 documents, 0 of 175 tool calls flagged) priced it by a realistic lens, and scoring by
-DIRECTION found the chunk that PRINTS: HEAD's blanket loud was right for it by accident, and all five executing regressions are such chunks. Executing, 150 documents: right 63 to 83, deleting rows 40 to 17, phantom headings 92 to 119; `realdoc-score` and all
-3,382 corpus outputs unchanged.
-A review round (3 reviewers, 42 counterexamples, every one rendered by me before acting) found 19 documents where my first cut regressed against HEAD; 17 are fixed (a `%#%` operator, a bare `F`, a function or `if` body on the next line, an `eval` default, an
-`opts_chunk` mention in a header or `#|` line, brackets hidden in quotes, a wrapped quoted scalar, `{echo:false}`, a second `format:` block, an alias key, `metadata-files:`), 2 are the `--no-execute` cost. Mutation: about 60 mutants over four runs, 4 survivors,
-all equivalent. Learnings 719 to 723.
-**Went wrong.** (1) The first cut shipped hazards I should have found; the reviewers did, and the front-matter ones were old holes of the shared reader that `format:` newly exposed. (2) I wrote the broad reader before its rows, so most rows passed on arrival
-(disclosed; the first mutation pass left 10 of 41 alive, three of them real gaps). (3) Four pins stated HEAD's answer as quarto's (found when they went red) and my test comments carried wrong counts and a false "cannot delete" (the critic found eight comment
-defects). (4) About eight "have not heard from you" nudges, the lesson Sessions 302, 306 and 307 recorded. (5) Three commands failed on shell traps (zsh `$l:exec`, BSD `sed -i`).
-**Known residuals (filed):** the BACKLOG item by letter: (A) a chunk that prints under a default, (B) the call shapes the reader declines, (C) a silent front matter that code overrides, (D) `format:` read for the first format only, (E) the S307 sandwich; and a
-pre-existing quadratic in an unclosed front-matter flow mapping (26 s on 20,000 lines, identical at HEAD).
-**TDD:** RED before GREEN for the format arm (`f01`), the setup call (`d01`), `cache = FALSE`, the later duplicate argument and the front matter surviving an unreadable call (`p01`, `p05`), the per-option unread (`q03`), and 16 review rows (16 red at once, then
-four, then eight, each fixed in turn). Passed on arrival, disclosed: the rows of the same behaviour after each first row and the g16 to g18 rows (later shown against mutants), the controls and the residual pins.
-**Host:** `test:integration` NOT run (needs the screen; core-only change, as Sessions 294 to 298). Headless instead: `npm run test:oracle` 2 of 2 against the real quarto CLI. **Cost:** 8 agents (two workflows, about 1.6M subagent tokens), about 650 renders by
-me, four mutation passes, `npm run package` 1:20.
