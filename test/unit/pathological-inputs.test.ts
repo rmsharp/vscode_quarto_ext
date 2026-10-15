@@ -463,33 +463,31 @@ describe("Session 312 — a key that ends in a no-break space keeps it, at each 
   });
 });
 
-describe("Session 313 — a long run of spaces in an UNTERMINATED code-cell header", () => {
-  // The option tail of a code-cell header, `( *[ ,].*)?\}\s*$`, is retried from every space of a run: the ` *` gives back one space at a time and
-  // `.*` re-reads the rest each time. An unterminated header, three backticks, `{r`, a run of spaces and no closing brace, is the shape (32,000 spaces
-  // took `findHeadings` 7.1 s and the engine resolver 9.5 s). Four literals carry the tail; each row below goes in through the entry that reaches one.
-  const header = (n: number): string => "```{r" + " ".repeat(n) + "x\n```\n\n# H\n";
+describe("Session 313 — a long run of spaces after the language word of a code-cell header that does not match", () => {
+  // The option tail of a code-cell header, `( *[ ,].*)?\}\s*$`, was retried from every space of a run: the ` *` gave back one space at a time and `.*`
+  // re-read the rest each time, so a header that FAILS to match (no closing brace, or text after it) cost time proportional to the square of the run.
+  // 32,000 spaces took `findHeadings` 7.1 s and the engine resolver 9.5 s in a fresh process (about 2.4 s for each of the four literals on its own;
+  // START_CODE_CELL is reached twice, and the resolver's engine-blind scan is cached per text, so a second entry on the SAME text pays less).
+  // Four literals carry the tail; each entry below reaches one, and every row has its own heading so the cache never answers for another row.
+  // 100,000 spaces: the old spelling takes about 25 s per literal (a regression fails slowly, never silently), and the linear one a few milliseconds.
+  const RUN = 100000;
+  const shapes: [string, (heading: string) => string][] = [
+    ["no closing brace", (heading) => "```{r" + " ".repeat(RUN) + "x\n```\n\n# " + heading + "\n"],
+    ["text after the closing brace", (heading) => "```{r" + " ".repeat(RUN) + "} x\n```\n\n# " + heading + "\n"],
+  ];
+  const entries: [string, (text: string) => unknown, (heading: string) => unknown][] = [
+    ["quartoYamlRegions (START_CODE_CELL)", (text) => quartoYamlRegions(text), () => []],
+    ["findHeadings (CELL_INFO)", (text) => findHeadings(text), (heading) => [{ level: 1, text: heading, line: 3 }]],
+    ["findHeadings on a knitr document (KNITR_CHUNK_INFO)", (text) => findHeadings(text, "knitr"), (heading) => [{ level: 1, text: heading, line: 3 }]],
+    ["the engine resolver (languagesInMarkdown)", (text) => resolveDocumentEngine("a.qmd", text), () => "markdown"],
+  ];
 
-  it("quartoYamlRegions (START_CODE_CELL) reads a 32,000-space header in linear time", () => {
-    const { result, ms } = timed(() => quartoYamlRegions(header(32000)));
-    expect(result).toEqual([]);
-    expect(ms).toBeLessThan(1000);
-  });
-
-  it("findHeadings (CELL_INFO) reads a 32,000-space header in linear time and still reports the heading below", () => {
-    const { result, ms } = timed(() => findHeadings(header(32000)));
-    expect(result).toEqual([{ level: 1, text: "H", line: 3 }]);
-    expect(ms).toBeLessThan(1000);
-  });
-
-  it("findHeadings on a knitr document (KNITR_CHUNK_INFO) reads a 32,000-space header in linear time", () => {
-    const { result, ms } = timed(() => findHeadings(header(32000), "knitr"));
-    expect(result).toEqual([{ level: 1, text: "H", line: 3 }]);
-    expect(ms).toBeLessThan(1000);
-  });
-
-  it("the engine resolver (languagesInMarkdown) reads a 32,000-space header in linear time and finds no language in it", () => {
-    const { result, ms } = timed(() => resolveDocumentEngine("a.qmd", header(32000)));
-    expect(result).toBe("markdown");
-    expect(ms).toBeLessThan(1000);
+  describe.each(shapes)("a header with %s", (shape, build) => {
+    it.each(entries)("%s reads a 100,000-space run in linear time and keeps its answer", (entry, run, expected) => {
+      const heading = `H ${shape} ${entry}`;
+      const { result, ms } = timed(() => run(build(heading)));
+      expect(result).toEqual(expected(heading));
+      expect(ms).toBeLessThan(1000);
+    });
   });
 });
