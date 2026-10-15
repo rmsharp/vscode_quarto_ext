@@ -93,7 +93,11 @@ failing silently.
 ### Navigation
 
 - **Document outline & symbols** — the Outline view and breadcrumbs show the
-  document's headings (nested by level) alongside its code cells.
+  document's headings (nested by level) alongside its code cells. The headings
+  are the ones `quarto render` produces, so a stray code fence that swallows a
+  heading in the rendered page is reflected; for knitr (R) documents, the
+  `quarto.symbols.renderMode` setting selects whether that is predicted for a
+  render that runs the code or for `quarto render --no-execute`.
 - **Cross-reference completion + Go to Definition** — type `@` in prose to get
   completions for the document's cross-reference labels (`@fig-`, `@tbl-`,
   `@sec-`, `@eq-`, `@lst-`), and use *Go to Definition* to jump to a label's
@@ -159,6 +163,7 @@ These are active only when the cursor is inside a code cell.
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
 | `quarto.path` | string | `""` | Absolute path to the `quarto` executable. When empty, `quarto` is resolved from `PATH`. |
+| `quarto.symbols.renderMode` | `"execute"` \| `"no-execute"` | `"execute"` | Which render the Outline and *Go to Symbol in Workspace* predict for **knitr** (R) documents. The two renders can list different headings for the same file: when the code runs, a setup chunk's `opts_chunk$set(echo = FALSE)` hides the chunks below it and a chunk that prints emits an output block; under `quarto render --no-execute` neither happens. Set `"no-execute"` if you render that way (it can be set per folder). Other documents read the same either way. |
 
 ## Code intelligence inside code cells
 

@@ -52,6 +52,7 @@ import {
   hideCellsInOutline,
   type OutlineSymbol,
 } from "../core/qmd/model";
+import { RENDER_MODE_SETTING, resolveRenderMode } from "../core/render-mode";
 
 const SHOW_CELLS_SETTING = "symbols.showCodeCellsInOutline";
 
@@ -61,7 +62,8 @@ export function registerOutlineProvider(context: vscode.ExtensionContext): void 
   context.subscriptions.push(
     new vscode.Disposable(() => registration.dispose()),
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration(`quarto.${SHOW_CELLS_SETTING}`)) {
+      // The render mode (Session 310) changes the headings of an UNCHANGED document, which VS Code's per-URI result cache cannot see: it needs the same re-registration.
+      if (e.affectsConfiguration(`quarto.${SHOW_CELLS_SETTING}`) || e.affectsConfiguration(`quarto.${RENDER_MODE_SETTING}`)) {
         registration.dispose();
         registration = registerProvider();
       }
@@ -100,12 +102,16 @@ class QmdDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
     const showCells = vscode.workspace
       .getConfiguration("quarto")
       .get<boolean>(SHOW_CELLS_SETTING, true);
+    // The render the Outline predicts (Session 310), read at the DOCUMENT's scope so a folder's own setting applies. Only a knitr document reads it.
+    const mode = resolveRenderMode(
+      vscode.workspace.getConfiguration("quarto", document.uri).get<unknown>(RENDER_MODE_SETTING),
+    );
     const text = document.getText();
     // ⚠ The engine is resolved HERE, not in the model (Session 273). `model.ts` is engine-blind
     // by design and cannot resolve it anyway: the answer can turn on the FILE NAME (an `.Rmd`
     // is knitr before a byte is read), and importing the resolver there would close a cycle.
     // Only `"knitr"` changes anything; every other answer reproduces the pre-S273 Outline.
-    const tree = buildOutline(text, resolveDocumentEngine(document.fileName, text));
+    const tree = buildOutline(text, resolveDocumentEngine(document.fileName, text), mode);
     const visible = showCells ? tree : hideCellsInOutline(tree);
     return Promise.all(
       visible.map((symbol) => toDocumentSymbol(symbol, document, text)),

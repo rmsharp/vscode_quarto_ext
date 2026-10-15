@@ -64,4 +64,32 @@ describe("Quarto: Workspace symbol provider (Go to Symbol in Workspace)", () => 
     const symbols = await workspaceSymbolsFor("zzz-nonexistent-symbol");
     assert.deepStrictEqual(symbols, []);
   });
+
+  it("quarto.symbols.renderMode: Go to Symbol in Workspace lists what the Outline lists for a knitr file (Session 310)", async () => {
+    // The adapter-level proof that this provider reads the SAME setting as the Outline (`providers/workspace-symbols.ts` reads it per file at the file's own scope). The document is the
+    // tracked `ne_front_default` cost row of `test/fixtures/knitr-print-critic/quarto-1.7.33.json` (quarto 1.7.33, both ways): executing lists the last heading only (each printing chunk is
+    // an output block, two bare fences), `--no-execute` lists all three. The file is written under the workspace root for this test and removed in `finally`, because the neighbouring
+    // tests pin the exact set of project files; the distinctive names keep the query from matching anything else.
+    const file = vscode.Uri.file(path.resolve(PROJECT_ROOT, "zz-render-mode-scratch.qmd"));
+    const text = [
+      "---", 'title: "ne"', "execute:", "  echo: false", "---", "",
+      "Intro.", "", "```", "",
+      "```{r}", 'print("p0")', "```", "", "# ZzModeH0", "",
+      "```{r}", 'print("p1")', "```", "", "# ZzModeH1", "",
+      "```{r}", 'print("p2")', "```", "", "# ZzModeH2", "",
+    ].join("\n");
+    const config = vscode.workspace.getConfiguration("quarto");
+    const names = async (): Promise<string[]> => (await workspaceSymbolsFor("ZzMode")).map((s) => s.name).sort();
+    await vscode.workspace.fs.writeFile(file, Buffer.from(text, "utf8"));
+    try {
+      assert.deepStrictEqual(await names(), ["ZzModeH2"], "the default reads the document as a render that executes");
+      await config.update("symbols.renderMode", "no-execute", vscode.ConfigurationTarget.Global);
+      assert.deepStrictEqual(await names(), ["ZzModeH0", "ZzModeH1", "ZzModeH2"], "no-execute: all three");
+      await config.update("symbols.renderMode", "execute", vscode.ConfigurationTarget.Global);
+      assert.deepStrictEqual(await names(), ["ZzModeH2"], "back to execute");
+    } finally {
+      await config.update("symbols.renderMode", undefined, vscode.ConfigurationTarget.Global);
+      await vscode.workspace.fs.delete(file, { useTrash: false });
+    }
+  });
 });

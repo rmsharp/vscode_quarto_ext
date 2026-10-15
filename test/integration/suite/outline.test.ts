@@ -2320,6 +2320,41 @@ describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity
     );
   });
 
+  it("quarto.symbols.renderMode: the Outline follows the setting for a knitr document, in both directions, with no edit (Session 310)", async () => {
+    // The adapter-level proof for the render mode: the unit suite proves the model reads `no-execute`, and nothing but the real host can prove `outline.ts` READS the setting, passes it,
+    // and refreshes when it changes (VS Code caches `executeDocumentSymbolProvider` per URI and a configuration change does not bump the document version, so the provider is
+    // re-registered; the document text is never touched here). `scratchpad/s309/necost` / the tracked `cost` row `ne_front_default` of
+    // `test/fixtures/knitr-print-critic/quarto-1.7.33.json`, rendered with quarto 1.7.33 both ways: executing lists `H2` only (each printing chunk is an output block, two bare fences),
+    // `--no-execute` lists all three. `openInMemory` scopes the document, so no exact-set pin over a fixture can be tripped by it.
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const doc = await openInMemory(
+      [
+        "---", 'title: "ne"', "execute:", "  echo: false", "---", "",
+        "Intro.", "", "```", "",
+        "```{r}", 'print("p0")', "```", "", "# H0", "",
+        "```{r}", 'print("p1")', "```", "", "# H1", "",
+        "```{r}", 'print("p2")', "```", "", "# H2", "",
+      ].join("\n"),
+    );
+    const headings = async (): Promise<string[]> =>
+      flatten(await symbolsForDoc(doc)).filter((name) => /^H\d$/.test(name));
+    const config = vscode.workspace.getConfiguration("quarto");
+    try {
+      assert.deepStrictEqual(await headings(), ["H2"], "the default reads the document as a render that executes");
+      await config.update("symbols.renderMode", "no-execute", vscode.ConfigurationTarget.Global);
+      assert.deepStrictEqual(
+        await headings(),
+        ["H0", "H1", "H2"],
+        "no-execute: nothing prints, so nothing is fenced and quarto lists all three",
+      );
+      await config.update("symbols.renderMode", "execute", vscode.ConfigurationTarget.Global);
+      assert.deepStrictEqual(await headings(), ["H2"], "back to execute, on the same unchanged text");
+    } finally {
+      await config.update("symbols.renderMode", undefined, vscode.ConfigurationTarget.Global);
+    }
+  });
+
   it("a fence that does not interrupt a paragraph leaves the heading below it in the outline (Session 277)", async () => {
     // The adapter-level proof for the paragraph-interrupt rule: the same `outline.ts` path the
     // product uses, on the bytes this session rendered. `openInMemory` scopes the documents, so

@@ -13,6 +13,7 @@
 import * as vscode from "vscode";
 import { resolveDocumentEngine } from "../core/document-engine-resolve";
 import { buildOutline } from "../core/qmd/model";
+import { RENDER_MODE_SETTING, resolveRenderMode } from "../core/render-mode";
 import {
   flattenOutline,
   matchesWorkspaceQuery,
@@ -47,9 +48,14 @@ class QmdWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider {
       // dirty/unsaved) document is returned as-is, not re-read from disk.
       const document = await vscode.workspace.openTextDocument(uri);
       const docText = document.getText();
+      // The same render mode the Outline reads (Session 310), at THIS file's scope, so the two surfaces never disagree about which headings exist. Nothing is cached on this side:
+      // every query reads the setting afresh.
+      const mode = resolveRenderMode(
+        vscode.workspace.getConfiguration("quarto", uri).get<unknown>(RENDER_MODE_SETTING),
+      );
       // The engine is resolved from the document the adapter already holds — see `outline.ts`.
       for (const symbol of flattenOutline(
-        buildOutline(docText, resolveDocumentEngine(document.fileName, docText)),
+        buildOutline(docText, resolveDocumentEngine(document.fileName, docText), mode),
       )) {
         if (!matchesWorkspaceQuery(symbol.name, query)) continue;
         results.push(
