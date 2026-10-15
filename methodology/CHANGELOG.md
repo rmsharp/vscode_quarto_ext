@@ -17,6 +17,14 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-15 · [ad hoc] Session 313: dashboard and context-budget history refresh
+
+`methodology/dashboard_history.jsonl` (+1 line) and `methodology/.context-budget-history.jsonl` (+1 line), the two tracked history files the dashboard and `context_budget.py` append to on every run. The dashboard reads health 76/100, one high-or-above risk flag and 21 advisories (all in dev dependencies; `package.json` has no `dependencies` key), unchanged from Session 312; `context_budget.py` exits 2 for the same three files as since Session 264 (`BACKLOG.md` 413,502 B, `HANDOFFS.md` 396,482 B, `PROJECT_LEARNINGS.md` 1,206,362 B, against 65,536 B), and `SESSION_NOTES.md` is 20,611 B of its 120,000 B ceiling.
+
+### 2026-10-15 · [ad hoc] Session 313: trim SESSION_NOTES to three close-out pairs (`b71ad183`)
+
+`methodology/SESSION_NOTES.md` dropped the Session 309 evaluation and the Session 310 self-assessment (33 deleted lines; 20,611 B and 130 lines left, against the 120,000 B and 400-line ceilings), in a commit that holds no other edit to that file (0 additions, 33 deletions). The dropped pair is one command away: `git show 1e2f7f6c:methodology/SESSION_NOTES.md`.
+
 ### 2026-10-15 · [ad hoc] Session 313 close-out: handoff evaluation, self-assessment, receipt, ledger, BACKLOG, Learnings 754 to 759
 
 Written in the close-out commit: the Session 312 handoff evaluation (8/10) and the Session 313 self-assessment (8/10) in `methodology/SESSION_NOTES.md` (ACTIVE TASK rewritten, the claim stub removed, gotchas 8 to 10 added), the `HANDOFFS.md` receipt (`pending` to `complete`), this ledger (the claim entry replaced by one entry per commit plus the entries below), the `BACKLOG.md` changes (next entry) and `PROJECT_LEARNINGS.md` rows 754 to 759.
