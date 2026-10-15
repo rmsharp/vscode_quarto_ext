@@ -112,27 +112,3 @@ uncertain middle (deletes), and the pre-existing shape-P `print()` output block.
 **TDD:** RED before GREEN for the empty-chunk guard (`a01`, `a06`), the writer guard (`m01`, `m05`, `m03`, `n12`), every narrowing (10, 4, 10, 8 rows), the uncertain-closer principle (10 shape-P rows), the performance row and each mutation survivor
 that got a row. Passed on arrival, disclosed: the rows of the same behaviour after each first row, the controls, the include decision rows (they pin HEAD, no logic), the residual pins.
 **Host:** `test:integration` NOT run (needs the screen; core-only change, as Sessions 294 to 298). **Cost:** 13 agents (two workflows), about 520 renders, four mutation sets (about 115 mutant runs), `npm run package` at close-out.
-
-## Session 305 Handoff Evaluation (by Session 306)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, gotchas 1, 3, 4, 6, 7 and 8, its harness paths (`render304.sh`, `build.sh`) and its `key_files` lines (`refs.ts:402`, `:422-430`, the 239-line
-`refs-cell-kinds.test.ts`) all held at HEAD; Phase 0 found both ledger frontiers at HEAD and the ratchet citation matched the stored results.
-**Helped:** `render304.sh`, reused unchanged (18 renders in 13 s); the standing `realdoc-score` command (5 s, unchanged at 2,423 of 2,438); gotcha 7 (three files past the read refusal: I read them in slices at once); gotcha 2 (the no-source rule,
-audited clean again); the BACKLOG item Session 304 filed, which named the function, the render to make and the one-expression fix.
-**Missing:** a pointer to `tools/realdoc-score/extract_headings.py` as the way to read quarto's headings back from rendered HTML (I found it through the README); and that a grep over an agent transcript for third-party paths matches the
-prompt prose, so every agent looks guilty until the `tool_use` inputs are parsed.
-**Wrong:** the unit total. The receipt gives `npm test` 7,739 passing as final, and a clean HEAD worktree runs 8,115 (the number was taken before the last two test commits, `59e9a508` and `e9885724`). Small. **ROI: high.**
-
-## Session 306 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** I measured before changing code: two grids (36 documents, both modes), predictions frozen first, and every one held; the dashed alias deleted a heading in 9 shapes at HEAD. The fix is one expression, the sibling's. What took the
-work was pricing it: one workflow (4 blind lenses and 2 read-only reviewers, 6 agents, about 640k subagent tokens, none rendered, transcripts audited clean) plus about 540 renders by me (3 wide) scored 189 fixed, 55 regressed, 35 wrong both
-before and after, 159 right both before and after, 30 unrenderable rows, over 234 documents in both modes (468 rows). The dotted-twin test classified all 55 regressions in one step (twin-equal 55 of 55), so the fix is the sibling's behaviour, not a new defect.
-Real-document score unchanged (2,423 of 2,438), corpus reach 0 of 3,383, mutation 9 of 9 non-equivalent mutants killed (M5 equivalent), unit 8,115 to 8,151, `npm run package` exit 0 (44 files, 1.85 MB, 1:19). Learning 714.
-**Went wrong.** (1) My first test comments overclaimed, and the test critic caught it: "each guard shown RED against a mutant" was false for three controls, two "RESIDUAL" rows pinned a regression the fix introduced (right before, wrong now), and
-(T)/(P) were defined only in a script. (2) The brief I wrote said the residual held "for BOTH spellings", false for the dashed one at HEAD. (3) Three commands failed on a relative path or a changed working directory, and one malformed mutant
-(M11) broke the build. (4) The first transcript audit matched every agent because it searched the prompt text. (5) About five long stretches drew "have not heard from you" nudges, the lesson Session 302 recorded.
-**Known residuals (filed):** the BACKLOG item with 3 families: a label that supplies no code, a default that hides it, and channels the rule never reads (the LOST direction).
-**TDD:** RED before GREEN for the first row (`g03`, `After` deleted); the other 35 rows passed on arrival (disclosed), each guard then shown against a mutant: dropping the alias turns 21 of the 36 RED, and the other 15 are controls or dotted residuals by design.
-**Host:** `test:integration` NOT run (needs the screen; core-only change, as Sessions 294 to 298). **Cost:** 6 agents, about 540 renders, one mutation pass, `npm run package` 1:19.
