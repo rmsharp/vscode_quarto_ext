@@ -72,3 +72,21 @@ describe("Session 309 — the test critic's rows: guards that nothing pinned, an
   });
 });
 
+describe("Session 309 — the mutation pass's rows: each guard load-bearing", () => {
+  // `[name, document, quarto's headings, this model's when written, what the row is about]`, see the fixture's `note`. 47 of 139 mutants of the new code survived the first run, and
+  // 46 of those 47 changed no answer on any of 1,600 rendered documents: some were REDUNDANT code (an output-option list the whitelist replaced, a dashed alias, an `endsWith` that
+  // `rCallEndsAt` implies, a closer index that adds nothing, all deleted), the rest were shapes no document had. Written after the code (disclosed), every document rendered.
+  type MutantRow = [string, string, string[], string[], string];
+  const mutants = (JSON.parse(readFileSync(path.join(__dirname, "../fixtures/knitr-print-mutants/quarto-1.7.33.json"), "utf8")) as { rows: MutantRow[] }).rows;
+  it("covers the whole fixture: 16 documents", () => {
+    expect(mutants).toHaveLength(16);
+  });
+  // `knit_exit()` (k07) drops the whole document, headings included (quarto lists none): the model still lists three, a phantom.
+  it("never hides a heading quarto renders", () => {
+    expect(mutants.filter((r) => r[2].some((t) => !findHeadings(r[1], "knitr").map((h) => h.text).includes(t))).map((r) => r[0])).toEqual([]);
+  });
+  it.each(mutants.map((r) => [r[0], r] as const))("pinned: %s", (_name, r) => {
+    expect(findHeadings(r[1], "knitr").map((h) => h.text)).toEqual(r[3]);
+  });
+});
+

@@ -7787,7 +7787,7 @@ function knitrOptionsKeepOutput(options: ReadonlyMap<string, string>, pipe: Read
       return false;
     }
   }
-  const both = (name: string): string | undefined => pipe.get(name) ?? pipe.get(name.replace(".", "-")) ?? options.get(name);
+  const both = (name: string): string | undefined => pipe.get(name) ?? options.get(name);
   const results = both("results");
   if (results !== undefined && !/^(?:markup|hold|"markup"|"hold"|'markup'|'hold')$/.test(results)) {
     return false;
@@ -7802,7 +7802,7 @@ function knitrOptionsKeepOutput(options: ReadonlyMap<string, string>, pipe: Read
   if (both("comment")?.includes("`") === true) {
     return false;
   }
-  return !["output", "class.output", "attr.output", "render", "out.lines"].some((name) => both(name) !== undefined);
+  return true;
 }
 const PARSED_BODIES = new WeakMap<readonly string[], ReturnType<typeof rTopLevelStatements>>();
 /**
@@ -7938,7 +7938,7 @@ function knitrStatementPrints(statement: string, stderrOk: boolean, texts: Reado
 /** `name(args)` where the call is ALL of `text` (a trailing `$x` or `+ 1` makes it something else), with its arguments split and trimmed. */
 function rWholeCall(text: string): { name: string; args: string[] } | null {
   const call = /^([A-Za-z.][A-Za-z0-9._]*)[ \t]*\(/.exec(text);
-  if (call === null || !text.endsWith(")") || !rCallEndsAt(text, call[0].length, text.length - 1)) {
+  if (call === null || !rCallEndsAt(text, call[0].length, text.length - 1)) {
     return null;
   }
   return { name: call[1], args: rSplitArguments(text.slice(call[0].length, -1)).map((argument) => argument.trim()) };
@@ -9048,15 +9048,14 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   for (const [closer, opener] of knitrClosers.prints) {
     knitrPrintOpeners.set(opener, closer);
   }
-  const printBare = new Set(knitrPrintOpeners.keys());
   const closerIndexPastKnitr =
-    knitrSilent.size > 0 || printBare.size > 0 ? buildCloserIndex(lines, knitrSilent, printBare) : closerIndex;
+    knitrSilent.size > 0 ? buildCloserIndex(lines, knitrSilent) : closerIndex;
   // ⚠ A PLAIN fence opens only if a closer lies below it, and an UNCERTAIN chunk's closer must not be that closer (Session 307; `KnitrChunkClosers`): it
   // may END a swallow early, as a loud chunk's closer does, but never START one. With it counted, a stray fence whose only closer below is a chunk that
   // may emit nothing swallowed every heading down to it, and quarto shows them all when that chunk is silent (shape P, rendered: 11 of 150 blind documents).
   const closerIndexPastUncertain =
     knitrClosers.uncertain.size > 0
-      ? buildCloserIndex(lines, new Map([...knitrSilent, ...knitrClosers.uncertain]), printBare)
+      ? buildCloserIndex(lines, new Map([...knitrSilent, ...knitrClosers.uncertain]))
       : closerIndexPastKnitr;
   // The openers that were allowed to run past a silent closer — only these skip one in-region.
   const knitrPastOpeners = new Set<number>();
@@ -13497,7 +13496,6 @@ function isCloser(line: string, open: OpenCellFence): boolean {
 function buildCloserIndex(
   lines: readonly string[],
   skip: ReadonlyMap<number, number> = new Map(),
-  bare: ReadonlySet<number> = new Set(),
 ): Map<string, number[]> {
   const index = new Map<string, number[]>();
   const push = (key: string, line: number) => {
@@ -13569,15 +13567,6 @@ function buildCloserIndex(
     for (let n = 3; n <= m[1].length; n++) {
       push(`q|${m[2]}|${n}|${col}`, i);
     }
-  }
-  // Lines that become a BARE ``` once knitr has run (the opener of a chunk that prints with its code not echoed, Session 309) close a plain fence opened above them, like any
-  // column-0 closer of three backticks, so they join that bucket in line order.
-  if (bare.size > 0) {
-    const key = "p|`|3|0";
-    const bucket = index.get(key) ?? [];
-    bucket.push(...bare);
-    bucket.sort((a, b) => a - b);
-    index.set(key, bucket);
   }
   return index;
 }
