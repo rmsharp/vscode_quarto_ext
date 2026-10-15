@@ -8,11 +8,10 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 314 (IN PROGRESS): items (2) and (6) of the BACKLOG item "Other regexes still quadratic on a long run of blanks, CR or U+2028 after Session 312"** (operator pick at Phase 0, the recommended option).
-(2) the two `[ \t]+$` value trims (`knitrChunkHeaderLabel`, `asciiTrim`); (6) `resolveDocumentEngine` and the front matter readers are quadratic in the NUMBER of nested keys. Strict TDD.
-**State:** claimed; Phase 0 found both ledger frontiers at HEAD, no `pending` receipt, the ratchet citation matching (2/2, results `bba236856bad`). Baseline `npm test` per Session 313's receipt (11,176 in 81 files); re-measured below once run.
-**What the BACKLOG now holds:** the sweep item's (2) to (7) (two value trims, the `#|` gap, closing-run and rule-row patterns, the CR / U+2028 family, nested front matter keys); the Session 311 item's (3) to (9), with (3) corrected
-(IDENTICAL unclosed fence lines are quadratic too: 3.9 s at 16,000 lines); and a NEW item (the non-tail parts of the four literals are pinned by no test). The Session 165 item for `languagesInMarkdown` is deleted (fixed).
+**Task:** **NONE -- Session 314 closed out.** Items (2) and (6) of the Session 312 sweep item are fixed: the `[ \t]+$` value trims (100,000 spaces 18.5 s to 8 ms) and the nested-key quadratic (8,000 keys 1,523 ms to 55 ms;
+512,000 keys 1.7 s). `BACKLOG.md` "Active" is empty; present ranked candidates via AskUserQuestion at Phase 0.
+**What the BACKLOG now holds:** the sweep item's (3) to (5) and (7), the new (8) and (9), and (6a) nesting depth (close to cubic: 1.2 s at depth 1,600), (6b) a no-break-space comment hides a key (lost diagnostic), (6c) the clock
+rows' reach; the Session 311 item's (3) to (9); the non-tail pin item; the earlier Up Next items are untouched.
 **⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in a close-out commit).
 (2) TWO scratchpads: the repo's untracked `scratchpad/` (`s312/` holds the mutation scripts, the corpus differential, the agents' and reviewers' scripts and a README) and the session one under `/private/tmp/...` (frozen trees, probes; not durable).
 (3) The Edit tool EXPANDS an escape such as `\u00a0` into the glyph: write it from a quoted heredoc and `grep -c $'\xc2\xa0'` every file you touched. `cmd | grep ... && git commit` tests the grep: redirect a gate to a file,
@@ -23,19 +22,60 @@ before calling it (`completionContextAt(text, offset, thunk)`).
 flake as a kill: run it ALONE and read the failing titles (`mutate312.py` prints them).
 (6) Agents: `pkill -f <their scratch dir name>` after each reports (a reviewer's shell loop ran for an hour); bound a "find every other" sweep in its prompt; after a resume an agent may lack its structured-output tool and
 hand back by message, so a monitor that waits for N results never fires.
-(7) `test:integration` NOT run (core-only, takes the screen: ask). `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md`, `PROJECT_LEARNINGS.md` are past the 262,144 B read refusal: read in slices. Baseline `npm test` at HEAD: 11,176 passing in 81 files.
+(7) `test:integration` NOT run (core-only, takes the screen: ask). `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md`, `PROJECT_LEARNINGS.md` are past the 262,144 B read refusal: read in slices. Baseline `npm test` at HEAD: 11,221 passing in 83 files (see 13).
 (8) The BASH tool's quoted heredoc expands `\uXXXX` into the glyph too (`regex-equiv.js` got raw U+2028 and NBSP): write such characters with `chr()` or doubled backslashes from Python and `grep -c` the file. `rm -rf $A/$B` is
 BLOCKED by the safety check: use literal paths, and `git worktree remove --force <literal path>` for a worktree. A `( cmd ) &` inside a background Bash 'completes' at once: poll the process, not the notice.
 (9) FOUR timing rows flake under load, not two: Sessions 307 (9 MB) and 308 (200,000 lines) and, in `pathological-inputs.test.ts`, Session 311's "a cell option's value holding a 100,000-space run" and "many unclosed long openers".
 The operator's own `devtools::check` on another R package took the load to 22 here: look at `ps` before blaming a change, run the suite alone, never loosen.
 (10) Session 313's harness is `scratchpad/s313/` (README): `oracle-table.ts` + `gen-pin-test.py` (the pin rows from the PARENT's answers), `regex-equiv.js <depth> narrow|wide` + `regex-equiv-mutcheck.py`, `mutate313.py <worktree> <json> <test files>`
 and `mutate313-slow.py`, `corpusdiff313.cjs`, `hdr2.ts`. A clock row needs its OWN text (the engine-blind region cache holds two entries) and a mutant that is still quadratic but cheaper.
+(11) The operator asked in Session 313 for a progress overview of the whole project; no file recorded it, and I answered in Session 314 and was told to STOP after answering until acknowledged (memory saved). The answer: v1
+(highlighting, render, preview, run cell, outline, `@` completion) done since Session 9; v2 shipped (toggles, math and diagram previews, YAML completion read from the installed Quarto, embedded-cell forwarding, 33 commands);
+recorded out of scope: visual editor, Zotero, the AI assistant, project-wide indexing (language server). No parity checklist against Posit's extension exists (build one by black-box observation); the Outline agrees with `quarto
+render` on 2,423 of 2,438 documents; `test:integration` has not run for four sessions.
+(12) Session 314's harness is `scratchpad/s314/` (README): `probe.ts` and `shapes2.ts` (n-scaled shapes, `@ROOT@` = a `src` directory), `corpus-entry.ts` + `corpusdiff314.cjs` (seven probes plus four `from:` variants) +
+`mutcheck-corpus.py` (the harness is blind to the trim mutants and sees the index one), `mutate314.py` (pass test files to focus it) with `mutants314.json` (35) and `mutants314b.json` (14), `resid.ts`. `vi.spyOn(namespace,
+"fn")` DOES intercept an importing module's call in vitest: the laziness rows use it with a control row.
+(13) An R job and a VM held the load at 8 to 22 for hours: full runs fail Session 308's 200,000-line row (and once Session 307's 9 MB row) at 2.3 to 2.5 s; each passes alone at 0.71 to 0.75 s. A whole-suite mutation pass counts
+them as kills: re-run survivors against the new test files alone. `git worktree list` also shows a foreign worktree under `.claude/worktrees/`: not mine, leave it.
 
-### What Session 314 Did
-**Deliverable:** items (2) and (6) of the BACKLOG item "Other regexes still quadratic on a long run of blanks, CR or U+2028 after Session 312": the front matter value trims and the nested-key quadratic (IN PROGRESS)
-**Started:** 2026-10-15
-**Status:** Session claimed. Work beginning. Phase 0 found both ledger frontiers at HEAD (`55390b90`, gap 0), no `pending` receipt, the ratchet citation matching (2/2, results `bba236856bad`).
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+## Session 313 Handoff Evaluation (by Session 314)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, gotchas 1 to 10, both ledger frontiers at HEAD (`55390b90`, gap 0), the ratchet citation (2/2, results `bba236856bad`), the test
+baseline (11,176 passing in 81 files, exact) and the "Active empty, present candidates" instruction all held at Phase 0, and the numbers of the item I took reproduced: `findHeadings` on `from: gfm<run>x` 18.5 s (18,479 ms at
+100,000 spaces), `knitrChunkHeaderLabel` 6.2 s (6,181 ms) and 8,000 nested keys 1.48 s (1,523 ms); `asciiTrim` was at `model.ts:3099` as filed.
+**Helped:** the item's own shapes with their "MINE" marks and the reviewer's reach statement for `asciiTrim`; its hypothesis for (6) (`nearestShallowerLine` walks past every same-indent sibling), which ONE profile confirmed
+(28.5% `leadingWsLen`, 27.0% `nearestShallowerLine`) and let me design at once; `scratchpad/s313/` (`mutate313.py`, which I copied and gave a test-file argument; the pin-from-the-parent idea) and `scratchpad/s312/topself.py`;
+gotchas 5 and 9 (load-flake rows), which I met again (Session 308's row, 2.3 to 2.6 s under load, 0.71 s alone); gotcha 8 (non-ASCII from `chr()`), which sent me to `String.fromCharCode` in the new tests; "a clock row needs a
+cheaper-quadratic mutant" (gotcha 10), though my rows still could not see one (6c).
+**Missing:** that (6) is not about `format:` / `html:` or even about keys: any indented line under any container pays (an unlisted container, comment lines, block-scalar prose), sibling BLOCKS cost 3.5 times as much per line,
+`valueFlags` enumerates twice, and the Outline, cross-reference and workspace-symbol providers all reach it through the resolver; that `asciiTrim` runs three times per `from:` line (18.5 s against 6.2 s for the same run); and
+the depth residual.
+**Wrong:** (a) the line of `knitrChunkHeaderLabel`'s trim, `model.ts:8325` (8,332 at HEAD: Session 313's own edits above it shifted it by seven); (b) the REACH sentence for (6) ("reached by the crossref provider") understates
+it, as above. **ROI: high.**
+
+## Session 314 Self-Assessment
+
+**Score: 8/10.**
+**Went right.** I reproduced all three defects firsthand and profiled before reading code (97.5 to 98.2% of the trim shapes in one regex; 55.5% of the nested shape in two functions), and every clock row was RED for the right
+reason: the result assertion passed and only the clock failed (18,479, 6,111, 6,181, 6,166 and about 6.2 s four times). Exactness has three independent legs: an oracle over 928,491 strings against the old regex, an index oracle
+over 837,930 documents and 40,000 seeded ones against a verbatim copy of the old scan, and a 3,382-document corpus differential (50,730 comparisons, 0 differences; the real-document score 2,423 of 2,438 and `model.tsv`
+byte-identical). A three-agent mapping workflow BEFORE the design showed one cause behind 18 shapes; a four-lens review AFTER it (42 findings, no behavioural defect) found one real small-input cost, which I fixed (`5b237ef0`),
+nine test gaps (eight closed with rows that fail on the parent) and four wrong numbers in my commit messages. Mutation: 35 and 14 mutants, 31 and 12 killed (the second pass by named rows), 6 survivors all equivalent. Gates: `npm
+test` 11,220 of 11,221 (one load-flake row, 0.71 s alone), oracle 2 of 2, `npm run package` DONE (44 files, 1.86 MB), `check-backlog` OK. Learnings 760 to 765.
+**Went wrong.** (1) Four numbers in my commit messages were wrong or loose ("614,656 documents" was 28^4; "up to seven characters over three alphabets"; "11,200 of 11,201" described the working tree; "single or low double-digit
+ms" was 42 to 65): the claims audit found them, not I; one was amended, three are corrected in the ledger. (2) I built the index for every document and called the work done: the 24 to 27% cost on flat front matter came from the
+review, not from my own A/B. (3) My oracle alphabets held 11 of the 25 characters `trim()` strips and my 28 kinds of line had no no-break-space-led line; a stale indent in the climb, the typed-array widths and shared arrays
+survived the suite until a reviewer named them. (4) My first resolver rows ended in a top-level `engine: knitr` and could not fail. (5) The whole-suite mutation pass counted two load-flake rows as kills of two mutants I had
+predicted would survive; I caught it only because prediction and table disagreed. My first monitor sent one notification per mutant (about 30). (6) The operator's Session 313 question about project progress was in no file: I
+said so, answered it, and stopped until told to continue; a feedback memory is saved.
+**Known residuals (filed):** (6a) nesting depth, (6b) the no-break-space comment, (6c) the clock rows' reach, (8) mid-document `---` blocks, (9) `proofValue`'s `[ \t]#.*$`; the sweep item's (3) to (5) and (7); the Session 311
+item's (3) to (9); the non-tail pin item; the earlier Up Next items are untouched.
+**TDD:** RED before GREEN for the 2 `from:` rows, the 2 chunk rows, the 4 nested rows, 2 of the 4 laziness rows and the 16-row `asciiTrim` oracle ("not a function"); the rows added in `8058d1c1` (no-root, two resolver, four
+trim) fail on the PARENT source on the clock alone (9 of 10; the small-answer pin passes). Passed on arrival, disclosed: that pin, the 9 index oracle rows (written after the code, then mutation-checked) and the review-round rows
+except those.
+**Host:** `test:integration` NOT run (core-only change in `src/core`; it takes the screen and nobody was asked). Headless instead: unit suite, oracle, corpus identity, real-document score, mutation, `npm run package`. **Cost:**
+7 agents (2 workflows, about 1.3M subagent tokens, 368 tool calls), 63 mutant runs, 5 corpus-harness mutants, 2 `npm run package`, 0 quarto renders beyond the cached oracle.
 
 ## Session 312 Handoff Evaluation (by Session 313)
 
