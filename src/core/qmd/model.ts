@@ -6835,11 +6835,14 @@ function knitrSilentChunkClosers(lines: readonly string[], executes = true): Kni
       // header or a `#|` line still reaches R (`knitrHeaderMentionsOptsChunk`).
       knitrApplyDefaultsUpdate(defaults, executes ? knitrChunkDefaultsUpdate(begin[3], body, frontNamesEval) : knitrHeaderMentionsOptsChunk(begin[3], body) ? "unknown" : null);
     } else if (begin[3].includes(KNITR_OPTS_CHUNK) || body.some((line) => line.includes(KNITR_OPTS_CHUNK))) {
-      knitrApplyDefaultsUpdate(defaults, "unknown");
+      // A chunk this does not judge (listed, quoted, another engine): a mention in its body is an unreadable default only when the chunk RUNS (rendered, `scratchpad/s308/g18ne` p04, p06).
+      if (executes || knitrHeaderMentionsOptsChunk(begin[3], body)) {
+        knitrApplyDefaultsUpdate(defaults, "unknown");
+      }
     }
-    // The chunk's own body counts only for the chunks BELOW it.
-    channels.opts = channels.opts || knitrOptsChunkSuppliesCode(body.filter((line) => !/^[ \t]*#/.test(line)).join("\n"));
-    channels.fill = channels.fill || body.some((line) => !/^[ \t]*#/.test(line) && KNITR_FILL_CALL.test(line));
+    // The chunk's own body counts only for the chunks BELOW it, and only when it RUNS: under `--no-execute` the front matter and an inline `r` call still supply code (they are read above), a chunk's call does not.
+    channels.opts = channels.opts || (executes && knitrOptsChunkSuppliesCode(body.filter((line) => !/^[ \t]*#/.test(line)).join("\n")));
+    channels.fill = channels.fill || (executes && body.some((line) => !/^[ \t]*#/.test(line) && KNITR_FILL_CALL.test(line)));
     channels.masks = channels.masks || knitrCodeMasksPrinters(body.filter((line) => !/^[ \t]*#/.test(line))) || knitrBringsCodeIn(begin[3], body);
     // `warn` is how R's `options()` switches warnings off, however the call is spelled (a call over several lines, `do.call`, `R.options`).
     channels.stderrOff = channels.stderrOff || body.some((line) => !/^[ \t]*#/.test(line) && /\bwarn\b/.test(line));
@@ -7612,7 +7615,8 @@ function knitrChunkIsSilent(
     if (executes && (engine[1] === "r" || engine[1] === "R") && !channels.masks && defaults.outputKept && knitrChunkPrints(body, options, pipe, defaults.stderrKept && !channels.stderrOff && knitrStderrKept(options, pipe), channels.texts)) {
       return "prints";
     }
-    return knitrCodeWritesFence(body, options, pipe) ? "uncertain" : "silent";
+    // Under `--no-execute` nothing runs, so no code writes a fence (rendered, `scratchpad/s307/g3ne` b04).
+    return executes && knitrCodeWritesFence(body, options, pipe) ? "uncertain" : "silent";
   }
   if (echo === "uncertain" || include === "uncertain") {
     // A bare `F` (or a value this cannot be sure of) may or may not silence the chunk: it ends a swallow early and never opens one (Learning 716).

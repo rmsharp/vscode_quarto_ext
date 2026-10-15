@@ -68,4 +68,65 @@ describe("Session 310 — a setup chunk's `opts_chunk$set()` does not run under 
     expect(headings(HEADER_CALL, "no-execute")).toEqual(["Top", "Mid", "After", "Last"]);
     expect(headings(HEADER_CALL, "execute")).toEqual(["Top", "Mid", "After", "Last"]);
   });
+
+  // `scratchpad/s308/g18ex` and `g18ne`, `p04_front_echoF_listed_chunk_call` (and `p06`, the same chunk in a block quote). A chunk inside a list item or a quote is never judged, but a call in
+  // its body still counted as an unreadable default when the document executes: the call runs, sets `echo = TRUE`, and `Between` is swallowed. Under `--no-execute` it never runs, the front
+  // matter's `echo: false` stands, the chunk below is silent and quarto lists `Between`.
+  const LISTED_CALL = [
+    "---", "title: t", "execute:", "  echo: false", "---", "", "- item", "", "  ```{r}", "  knitr::opts_chunk$set(echo = TRUE)", "  ```", "", "# Top", "", "```", "", "## Between", "", "```{r}", "x <- 1", "```", "",
+    "## Mid", "", "```{r}", "y <- 2", "```", "", "## After", "", "## Last", "",
+  ].join("\n");
+  it("a call in an unjudged (listed or quoted) chunk's body does not run, so the front matter's silence stands", () => {
+    expect(headings(LISTED_CALL, "no-execute")).toEqual(["Top", "Between", "Mid", "After", "Last"]);
+    expect(headings(LISTED_CALL, "execute")).toEqual(["Top", "Mid", "After", "Last"]);
+  });
+});
+
+describe("Session 310 — code that WRITES a fence writes nothing under --no-execute", () => {
+  // Rendered with quarto 1.7.33 (knitr 1.51), exit 0, both ways (`scratchpad/s307/g3ex` and `g3ne`, `b04_echoF_asis_cat_fence`). A chunk whose options hide its code but whose code writes a
+  // fence line (`results = "asis"` and `cat("```...")`) emits that fence when it runs, so the executing reading keeps it `uncertain` (it may end a swallow, never open one). Under
+  // `--no-execute` it emits nothing, the chunk is as silent as any other, and the stray fence pairs with the closer of the loud chunk below, which swallows `Between` AND `After`.
+  const WRITES_A_FENCE = [
+    "---", "title: t", "---", "", "```{r src, include=FALSE}", "z <- 3", "```", "", "# Top", "", "```", "", "## Between", "", '```{r, echo=FALSE, results="asis"}', 'cat("```\\nx\\n```\\n")', "```", "",
+    "## After", "", "", "```{r}", "y <- 1", "```", "", "## Last", "",
+  ].join("\n");
+  const headings = (document: string, mode?: "execute" | "no-execute"): string[] => findHeadings(document, "knitr", mode).map((h) => h.text);
+
+  it("is silent, so the stray fence swallows what quarto swallows", () => {
+    expect(headings(WRITES_A_FENCE, "no-execute")).toEqual(["Top", "Last"]);
+  });
+  // HEAD's answer, unchanged by the mode argument: a phantom `After` (quarto lists `Top`, `Last` when executing too, because the stray fence pairs with the fence the chunk writes).
+  it("executing, the answer is the one the model has always given", () => {
+    expect(headings(WRITES_A_FENCE, "execute")).toEqual(["Top", "After", "Last"]);
+    expect(headings(WRITES_A_FENCE)).toEqual(["Top", "After", "Last"]);
+  });
+});
+
+describe("Session 310 — code a setup chunk runs does not reach a chunk under --no-execute", () => {
+  // Rendered with quarto 1.7.33 (knitr 1.51), exit 0, both ways (`scratchpad/s307/g3ex` and `g3ne`, `a01_optschunk_ref_label`). A setup call `opts_chunk$set(ref.label = "src")` hands the
+  // code of `src` to EVERY chunk, so the empty `{r}` chunk below it echoes a fence when the document executes (the stray fence pairs with it and only `Between` is swallowed); under
+  // `--no-execute` the call never runs, the chunk stays empty and silent, and the stray fence pairs with the closer of the chunk after it, swallowing `After` too.
+  const REF_LABEL_CALL = [
+    "---", "title: t", "---", "", "```{r src, include=FALSE}", "z <- 3", "```", "", "```{r setup, include=FALSE}", 'knitr::opts_chunk$set(ref.label = "src")', "```", "", "# Top", "", "```", "", "## Between", "",
+    "```{r}", "```", "", "## After", "", "", "```{r}", "y <- 1", "```", "", "## Last", "",
+  ].join("\n");
+  const headings = (document: string, mode?: "execute" | "no-execute"): string[] => findHeadings(document, "knitr", mode).map((h) => h.text);
+
+  it("an `opts_chunk` call that supplies code supplies none: the empty chunk is silent", () => {
+    expect(headings(REF_LABEL_CALL, "no-execute")).toEqual(["Top", "Last"]);
+  });
+  it("executing, the call supplies the code and the empty chunk is not silent: unchanged", () => {
+    expect(headings(REF_LABEL_CALL, "execute")).toEqual(["Top", "After", "Last"]);
+    expect(headings(REF_LABEL_CALL)).toEqual(["Top", "After", "Last"]);
+  });
+
+  // `scratchpad/s307/g3ex` and `g3ne`, `a06_read_chunk_lbl`: `read_chunk("_lbl.R")` fills the LABELLED empty chunk `lbl` when it runs; under `--no-execute` it does not.
+  const READ_CHUNK_CALL = [
+    "---", "title: t", "---", "", "```{r src, include=FALSE}", "z <- 3", "```", "", "```{r setup, include=FALSE}", 'knitr::read_chunk("_lbl.R")', "```", "", "# Top", "", "```", "", "## Between", "",
+    "```{r lbl}", "```", "", "## After", "", "", "```{r}", "y <- 1", "```", "", "## Last", "",
+  ].join("\n");
+  it("a `read_chunk` call fills nothing: the labelled empty chunk is silent", () => {
+    expect(headings(READ_CHUNK_CALL, "no-execute")).toEqual(["Top", "Last"]);
+    expect(headings(READ_CHUNK_CALL, "execute")).toEqual(["Top", "After", "Last"]);
+  });
 });
