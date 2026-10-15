@@ -61,8 +61,12 @@ function isYamlDelimiter(lines: readonly string[], index: number, skipHRs: boole
  * (`qmd/model.ts`), and the differences are load-bearing rather than incidental:
  * the executable-cell opener tolerates leading whitespace while the PLAIN opener
  * is anchored at column 0, and the closer tolerates leading whitespace again.
+ *
+ * ⚠ The option tail is `([ ,].*)?`, quarto's `( *[ ,].*)?` with the leading ` *` dropped (Session 313):
+ * both accept exactly the strings that start with a space or a comma, and the ` *` is what made a long run of
+ * spaces quadratic (each retry gives back one space and `.*` re-reads the rest). Only group 1, the backtick run, is read.
  */
-const START_CODE_CELL = /^\s*(```+)\s*\{([=A-Za-z]+)( *[ ,].*)?\}\s*$/;
+const START_CODE_CELL = /^\s*(```+)\s*\{([=A-Za-z]+)([ ,].*)?\}\s*$/;
 const START_CODE = /^```/;
 const END_CODE = /^\s*(```+)\s*$/;
 

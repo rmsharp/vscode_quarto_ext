@@ -539,6 +539,9 @@ const INCLUDE_SHORTCODE = /\{\{<\s*include\b/;
  * - `( *[ ,].*)?` then `\s*$` — knitr's attribute forms (`{r, echo=FALSE}`, `{r echo=FALSE}`)
  *   count, but trailing text after the closing brace (```` ```{julia} x ````) does not
  *   (exit 1).
+ *   ⚠ The code spells that tail `([ ,].*)?`, the leading ` *` dropped (Session 313): the same strings (any tail
+ *   that starts with a space or a comma), without the retry from every space of a long run that made an
+ *   unterminated header quadratic. Only group 1, the language, is read.
  * - `.toLowerCase()` — `{R}` selects knitr (measured exit 1 on `#| cache: banana`).
  *
  * The Set preserves FIRST-APPEARANCE order, which is the whole reason the answer is
@@ -546,7 +549,7 @@ const INCLUDE_SHORTCODE = /\{\{<\s*include\b/;
  * across calls (quarto resets it twice by hand for the same reason).
  */
 function languagesInMarkdown(text: string): string[] {
-  const fenceLanguage = /^[\t >]*```+\s*\{([a-zA-Z0-9_]+)( *[ ,].*)?\}\s*$/gm;
+  const fenceLanguage = /^[\t >]*```+\s*\{([a-zA-Z0-9_]+)([ ,].*)?\}\s*$/gm;
   const languages: string[] = [];
   let match = fenceLanguage.exec(text);
   while (match !== null) {

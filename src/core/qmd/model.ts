@@ -6711,7 +6711,9 @@ function fenceInfoOpensBlock(
   }
   return headingAttributesValid(block.content, commonmarkDialect, pandocEscapes);
 }
-const CELL_INFO = /^\{([A-Za-z][=A-Za-z]*)( *[ ,].*)?\}$/;
+// ⚠ The option tail is `([ ,].*)?`, quarto's `( *[ ,].*)?` with the leading ` *` dropped (Session 313): the same strings (any tail that starts
+// with a space or a comma), without the retry from every space of a long run that made an unterminated header quadratic. Only group 1 is read.
+const CELL_INFO = /^\{([A-Za-z][=A-Za-z]*)([ ,].*)?\}$/;
 /**
  * The engine's OWN chunk grammar, for the one engine that runs BEFORE pandoc (Session 273).
  *
@@ -6763,8 +6765,12 @@ const CELL_INFO = /^\{([A-Za-z][=A-Za-z]*)( *[ ,].*)?\}$/;
  * ```` ~~~{zzz9, …} ```` chunk left VERBATIM in the intermediate — knitr does not claim it.
  * (A tilde fence of that shape IS a live divergence, with a different, pandoc-layer cause and
  * zero measured corpus reach; it is filed in `BACKLOG.md`, not handled here.)
+ *
+ * ⚠ The option tail is `([ ,][\s\S]*)?`, knitr's ` *[ ,].*` with the leading ` *` dropped (Session 313), as `KNITR_CHUNK_BEGIN`
+ * below already spells it: the same strings, without the retry from every space of a long run that made an unterminated
+ * header quadratic. The match is only tested, never read.
  */
-const KNITR_CHUNK_INFO = /^\{[A-Za-z][A-Za-z0-9_]*( *[ ,][\s\S]*)?\}$/;
+const KNITR_CHUNK_INFO = /^\{[A-Za-z][A-Za-z0-9_]*([ ,][\s\S]*)?\}$/;
 /**
  * knitr's own chunk delimiters, `knitr::all_patterns[["md"]]` (knitr 1.51) — the pre-pass below
  * reads the document as knitr does, which is BLIND to pandoc fences (Session 275).

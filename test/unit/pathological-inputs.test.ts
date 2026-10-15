@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { resolveDocumentEngine } from "../../src/core/document-engine-resolve";
 import { findCellOptionLines, findHeadings, maskInlineCode } from "../../src/core/qmd/model";
+import { quartoYamlRegions } from "../../src/core/qmd/quarto-yaml-regions";
 import { findLabel, indexLabels } from "../../src/core/refs";
 import { findProjectConfigKeyLines, findProjectConfigValueLines } from "../../src/core/project-yaml";
 import { completionContextAt, mappingContainerKey, topLevelSlots, valueSlotAfterColon } from "../../src/core/yaml-context";
@@ -459,5 +460,36 @@ describe("Session 312 — a key that ends in a no-break space keeps it, at each 
   it("valueFlags (yaml-value-flags.ts, a cell option key): `echo<NBSP>` is not the option `echo`, so nothing is flagged", () => {
     const text = ["```{python}", `#| echo${NBSP}: banana`, "x = 1", "```", ""].join("\n");
     expect(valueFlags(collectValueSources(text), "a.qmd", CURATED_SCHEMA_INDEX)).toEqual({ cell: [], frontMatter: [], nested: [] });
+  });
+});
+
+describe("Session 313 — a long run of spaces in an UNTERMINATED code-cell header", () => {
+  // The option tail of a code-cell header, `( *[ ,].*)?\}\s*$`, is retried from every space of a run: the ` *` gives back one space at a time and
+  // `.*` re-reads the rest each time. An unterminated header, three backticks, `{r`, a run of spaces and no closing brace, is the shape (32,000 spaces
+  // took `findHeadings` 7.1 s and the engine resolver 9.5 s). Four literals carry the tail; each row below goes in through the entry that reaches one.
+  const header = (n: number): string => "```{r" + " ".repeat(n) + "x\n```\n\n# H\n";
+
+  it("quartoYamlRegions (START_CODE_CELL) reads a 32,000-space header in linear time", () => {
+    const { result, ms } = timed(() => quartoYamlRegions(header(32000)));
+    expect(result).toEqual([]);
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it("findHeadings (CELL_INFO) reads a 32,000-space header in linear time and still reports the heading below", () => {
+    const { result, ms } = timed(() => findHeadings(header(32000)));
+    expect(result).toEqual([{ level: 1, text: "H", line: 3 }]);
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it("findHeadings on a knitr document (KNITR_CHUNK_INFO) reads a 32,000-space header in linear time", () => {
+    const { result, ms } = timed(() => findHeadings(header(32000), "knitr"));
+    expect(result).toEqual([{ level: 1, text: "H", line: 3 }]);
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it("the engine resolver (languagesInMarkdown) reads a 32,000-space header in linear time and finds no language in it", () => {
+    const { result, ms } = timed(() => resolveDocumentEngine("a.qmd", header(32000)));
+    expect(result).toBe("markdown");
+    expect(ms).toBeLessThan(1000);
   });
 });
