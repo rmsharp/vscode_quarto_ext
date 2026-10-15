@@ -23,7 +23,7 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ### 2026-10-14 · [ad hoc] Session 310 close-out: handoff evaluation, self-assessment, receipt, ledger, BACKLOG item, Learnings 732 to 737
 
-`methodology/SESSION_NOTES.md` (the evaluation of Session 309's handoff, 8/10, and this session's self-assessment, 8/10), the `HANDOFFS.md` receipt (`status: complete`), this ledger, the `BACKLOG.md` silence item replaced by its residuals (item (A), the render-mode argument, is delivered and removed), `PROJECT_LEARNINGS.md` rows 732 to 737, the dashboard and context-budget history. The quality-gate citation is added in the next commit, after this ledger commit (Learning 683).
+`methodology/SESSION_NOTES.md` (the evaluation of Session 309's handoff, 8/10, and this session's self-assessment, 8/10), the `HANDOFFS.md` receipt (`status: complete`), this ledger, the `BACKLOG.md` silence item replaced by its residuals (item (A), the render-mode argument, is delivered and removed), `PROJECT_LEARNINGS.md` rows 732 to 737, the dashboard and context-budget history. Quality gates: 2/2 pass, 0 unmeasured (ledger-lag 0, release-gate) at `84c61c43`, run after the ledger commit (Learning 683); `npm run package` DONE, 44 files, 1.86 MB, 1:22.
 
 ### 2026-10-14 · [ad hoc] Session 310: mutation pass on the new code (48 mutants, 48 killed)
 
