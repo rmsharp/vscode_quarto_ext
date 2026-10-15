@@ -6773,7 +6773,7 @@ const KNITR_CHUNK_END = /^([\t >]*)(`{3,})[ \t\r\f\v]*$/;
  * ⚠ **Performance:** the closer search jumps to each chunk's end and every early exit returns, so
  * the pass is linear in the document.
  */
-function knitrSilentChunkClosers(lines: readonly string[], executes = true): KnitrChunkClosers {
+function knitrSilentChunkClosers(lines: readonly string[], executes: boolean): KnitrChunkClosers {
   const silent = new Map<number, number>();
   const uncertain = new Map<number, number>();
   const prints = new Map<number, number>();
@@ -7580,7 +7580,7 @@ function knitrChunkIsSilent(
   body: readonly string[],
   defaults: KnitrDefaultKinds,
   channels: KnitrCodeChannels,
-  executes = true,
+  executes: boolean,
 ): "silent" | "uncertain" | "loud" | "prints" {
   // ⚠ ONLY the engines measured silent (`KNITR_SILENT_ENGINES`). quarto re-emits a `dot`, `mermaid`
   // or `ojs` chunk as its own fenced block whatever `echo` says, and an `engine=` option moves an
