@@ -94,10 +94,12 @@ describe("Session 311 — a front matter whose flow mapping never closes", () =>
     expect(engine.ms).toBeLessThan(1000);
   });
 
-  it("…while thousands of mappings that each close on their own line stay linear (the reason `flowRegion` reads windows, not the whole rest of the block)", () => {
-    const text = ["---", ...Array.from({ length: 40000 }, () => "format: {html: {from: gfm}}"), "---", "", "Text.", "# Tight", ""].join("\n");
+  it("…while thousands of mappings that each close on their own line and decide nothing stay linear (the reason `flowRegion` reads windows, not the whole rest of the block)", () => {
+    // A reader stops at the first mapping that resolves a `from:`, so only mappings that do NOT make it call `flowRegion` again for every line:
+    // joining the whole rest of the block on each call costs 10 s at 20,000 lines and 40 s at 40,000.
+    const text = ["---", ...Array.from({ length: 40000 }, () => "format: {html: {echo: false}}"), "---", "", "Text.", "# Tight", ""].join("\n");
     const headings = timed(() => findHeadings(text));
-    expect(headings.result.map((h) => h.text)).toEqual(["Tight"]);
+    expect(headings.result.map((h) => h.text)).toEqual([]); // the markdown reader: a heading directly under a paragraph line is no heading
     expect(headings.ms).toBeLessThan(1000);
     const engine = timed(() => resolveDocumentEngine("a.qmd", text));
     expect(engine.result).toBe("markdown");
@@ -150,10 +152,23 @@ describe("Session 311 — a fence whose run is longer than the closers `buildClo
   });
 
   it.each([
-    ["marked closer of the same length", 70, 70, ["After"]],
-    ["marked closer one short", 70, 69, ["In1", "After"]],
-  ])("a 70-run opened inside a block quote: %s", (_what, open, close, expected) => {
+    ["a 70-run, marked closer of the same length", 70, 70, ["After"]],
+    ["a 70-run, marked closer one short", 70, 69, ["In1", "After"]],
+    ["a 64-run, marked closer of the same length (the last length with a quoted bucket)", 64, 64, ["After"]],
+    ["a 64-run, marked closer longer", 64, 65, ["After"]],
+    ["a 65-run, marked closer of the same length (the first length without one)", 65, 65, ["After"]],
+    ["a 65-run, marked closer one short", 65, 64, ["In1", "After"]],
+  ])("opened inside a block quote: %s", (_what, open, close, expected) => {
     expect(headings(["Intro.", "", `> ${run(open)}`, ">", "> # In1", ">", `> ${run(close)}`, "", "# After"])).toEqual(expected);
+  });
+
+  it.each([
+    ["a backtick pair is no opener, whatever closes it below", ["Intro.", "", "``", "", "# Inside", "", "```", "", "# After"]],
+    ["…nor with nothing below", ["Intro.", "", "``", "", "# Inside", "", "# After"]],
+    ["a tilde pair is no opener either", ["Intro.", "", "~~", "", "# Inside", "", "~~~", "", "# After"]],
+  ])("a fence needs a run of three: %s", (_what, lines) => {
+    // The four fence patterns read the run as `(?:`{3,}|~{3,})`; a pair that a mutant reads as an opener is closed by the triple below.
+    expect(headings(lines)).toEqual(["Inside", "After"]);
   });
 
   it("a long closer past the block quote's end closes nothing inside it", () => {
