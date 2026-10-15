@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-15 · [BL-What is still quadratic or deep enough to overflow after Session 311, every shape re-measured on the final tree (`066cfcc1`) and none of it in that session's diff] Session 312 (in progress): claim -- items (1) and (2)
+
+Session claimed; the operator chose this item at the Phase 0 picker (the recommended option, "Slow label lookups"). Deliverable: items (1) and (2) of the item's nine residuals (`indexLabels` and `findLabel` quadratic in the number of `{#sec-...}` headings; the seven `/[ \t]+$/` key trims), strict TDD. Items (3) to (9) stay filed. Baseline `npm test` at HEAD: 10,876 passing in 79 files. Phase 3F replaces this entry with one per commit.
+
 ### 2026-10-15 · [ad hoc] Session 311: trim SESSION_NOTES to three close-out pairs (`464ff610`)
 
 `methodology/SESSION_NOTES.md` dropped the Session 307 evaluation and the Session 308 self-assessment (30 lines and a separator; 18,465 B and 121 lines left, against the 120,000 B and 400-line ceilings), in a commit that holds no other edit to that file (31 deletions, 0 additions). The dropped pair is `git show 4788f42e:methodology/SESSION_NOTES.md` away. The dashboard and context-budget history refresh is `22fc2a59`; the dashboard still reads health 76/100 with the same two flags (the dev-dependency advisories, and the oversized `BACKLOG.md`, now 407,674 B against its 65,536 B budget).

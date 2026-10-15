@@ -8,9 +8,9 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 311 closed out.** The five measured defects of the "slow or crashing inputs" item are fixed: a quadratic value trim, a quadratic code-span regex, a 5 MB fence line that threw `scanRegions`,
-an entity throw, a quadratic unclosed flow mapping; a review round found and fixed one regression of its own. `BACKLOG.md` "Active" is empty; present ranked candidates via AskUserQuestion at Phase 0.
-**What the BACKLOG now holds:** one item replaces the finished one, listing nine measured residuals; the likeliest to be met is `indexLabels` quadratic in `{#sec-...}` headings (8,000 headings 5.6 s), then seven key-side trims.
+**Task:** **Session 312 (IN PROGRESS): items (1) and (2) of the BACKLOG item "What is still quadratic or deep enough to overflow after Session 311"** (operator picked it at Phase 0, the recommended option).
+(1) `indexLabels`/`findLabel` quadratic in `{#sec-...}` headings (8,000 headings 5.6 s); (2) seven `/[ \t]+$/` key trims. Items (3) to (9) stay filed. Strict TDD, a timing row per defect.
+**State:** claimed; baseline `npm test` 10,876 passing in 79 files (5.5 s). The gotchas below are Session 311's and still hold.
 **⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in the
 close-out commit).
 (2) TWO scratchpads: the repo's untracked `scratchpad/` (`s311/` holds the harness scripts and a README; `s265/runs/s311-*` the corpus runs) and the session one under `/private/tmp/...` (frozen trees, reviewers' output; not durable).
@@ -20,6 +20,12 @@ close-out commit).
 (6) Before believing a differential harness's zero, mutate the code and see it report (Learning 740); `scanRegions` caches by text, so time a second reader on a different text.
 (7) The row `Session 307 ... a 9 MB line of opts_chunk$set( repeats` (1.5 s) flakes under load (1.63 s at load 43; 55 to 72 ms alone three times). Do not loosen it. zsh: `${=VAR}` to split; the Bash tool keeps a `cd`.
 (8) `test:integration` NOT run (core-only, takes the screen: ask). `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md`, `PROJECT_LEARNINGS.md` are past the 262,144 B read refusal: read in slices. Baseline `npm test` at HEAD: 10,876 passing in 79 files.
+
+### What Session 312 Did
+**Deliverable:** items (1) and (2) of the BACKLOG item "What is still quadratic or deep enough to overflow after Session 311" (IN PROGRESS)
+**Started:** 2026-10-15
+**Status:** Session claimed. Work beginning. Phase 0 found both ledger frontiers at HEAD (`a34f6e16`, gap 0), no `pending` receipt, the ratchet citation matching (2/2, results `bba236856bad`) and `npm test` green at 10,876 in 79 files (5.5 s).
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
 
 ## Session 310 Handoff Evaluation (by Session 311)
 
