@@ -8,10 +8,9 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 312 closed out.** Items (1) and (2) of the Session 311 residuals item are fixed: the `{#sec-...}` label index is linear (8,000 headings in a 32,000-line document 5.6 s to 100 ms) and all eight `/[ \t]+$/`
-key trims are one linear pass (`trimEndBlanks`; a 100,000-space key 6 to 12 s to under 20 ms). `BACKLOG.md` "Active" is empty; present ranked candidates via AskUserQuestion at Phase 0.
-**What the BACKLOG now holds:** the Session 311 item's (3) to (9) (unclosed fence-like lines, unclosed flow openers, `scanRegions` throwing on a 2.1 million `-` line, ...) and a NEW sweep item (1) to (7). Its first entry is the one
-a user feels: an unterminated `` ```{r `` plus 32,000 spaces costs `findHeadings` 7.1 s and the engine resolver 9.4 s, and the resolver is on the Outline's path.
+**Task:** **Session 313 (IN PROGRESS): item (1) of the BACKLOG item "Other regexes still quadratic on a long run of blanks, CR or U+2028 after Session 312"** (operator pick at Phase 0, the recommended option).
+The code-cell header option tail `( *[ ,].*)?\}\s*$`, four literals: `CELL_INFO` and `KNITR_CHUNK_INFO` (`model.ts`), `START_CODE_CELL` (`quarto-yaml-regions.ts:65`), `languagesInMarkdown` (`document-engine.ts:549`). Strict TDD.
+**State:** claimed; baseline `npm test` 10,913 passing in 80 files (6.5 s); `context_budget.py` exits 2 as recorded since Session 264. Items (2) to (7) of that item stay filed. The gotchas below are Session 312's and still hold.
 **⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in a close-out commit).
 (2) TWO scratchpads: the repo's untracked `scratchpad/` (`s312/` holds the mutation scripts, the corpus differential, the agents' and reviewers' scripts and a README) and the session one under `/private/tmp/...` (frozen trees, probes; not durable).
 (3) The Edit tool EXPANDS an escape such as `\u00a0` into the glyph: write it from a quoted heredoc and `grep -c $'\xc2\xa0'` every file you touched. `cmd | grep ... && git commit` tests the grep: redirect a gate to a file,
@@ -23,6 +22,12 @@ flake as a kill: run it ALONE and read the failing titles (`mutate312.py` prints
 (6) Agents: `pkill -f <their scratch dir name>` after each reports (a reviewer's shell loop ran for an hour); bound a "find every other" sweep in its prompt; after a resume an agent may lack its structured-output tool and
 hand back by message, so a monitor that waits for N results never fires.
 (7) `test:integration` NOT run (core-only, takes the screen: ask). `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md`, `PROJECT_LEARNINGS.md` are past the 262,144 B read refusal: read in slices. Baseline `npm test` at HEAD: 10,913 passing in 80 files.
+
+### What Session 313 Did
+**Deliverable:** item (1) of the BACKLOG item "Other regexes still quadratic on a long run of blanks, CR or U+2028 after Session 312": the code-cell header option tail (IN PROGRESS)
+**Started:** 2026-10-15
+**Status:** Session claimed. Work beginning. Phase 0 found both ledger frontiers at HEAD (`7a07bc86`, gap 0), no `pending` receipt, the ratchet citation matching (2/2, results `bba236856bad`) and `npm test` green at 10,913 in 80 files.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
 
 ## Session 311 Handoff Evaluation (by Session 312)
 

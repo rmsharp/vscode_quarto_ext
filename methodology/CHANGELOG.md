@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-15 · [BL-Other regexes still quadratic on a long run of blanks, CR or U+2028 after Session 312: a sweep's list, the code-cell header tail first] Session 313 (in progress): claim -- item (1)
+
+Session claimed; the operator chose this item at the Phase 0 picker (the recommended option, "Code-cell header regexes"). Deliverable: item (1) of the item's seven groups, the code-cell header option tail `( *[ ,].*)?\}\s*$` in four literals (`CELL_INFO` and `KNITR_CHUNK_INFO` in `model.ts`, `START_CODE_CELL` in `quarto-yaml-regions.ts`, `languagesInMarkdown` in `document-engine.ts`), strict TDD. Items (2) to (7) stay filed. Phase 0: both ledger frontiers at HEAD (`7a07bc86`, gap 0), no pending receipt, ratchet citation 2/2 matching the results file, baseline `npm test` 10,913 passing in 80 files; the dashboard (76/100, one risk flag, 21 advisories) and `context_budget.py` (exit 2) are unchanged from Session 312.
+
 ### 2026-10-15 · [ad hoc] Session 312: dashboard and context-budget history refresh (`23f09e39`)
 
 `methodology/dashboard_history.jsonl` (+1 line) and `methodology/.context-budget-history.jsonl` (+1 line), the two tracked history files the dashboard and `context_budget.py` append to on every run. The dashboard reads health 76/100, one high-or-above risk flag and 21 advisories (all in dev dependencies: `vitest`, `tinypool`, `@vscode/vsce` and their transitive packages; `package.json` has no `dependencies` key), unchanged from Session 311; the oversized `BACKLOG.md`, `PROJECT_LEARNINGS.md` and `HANDOFFS.md` still exceed their read budgets (`context_budget.py` exits 2), as recorded since Session 264.
