@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-15 · [ad hoc] Session 312: trim SESSION_NOTES to three close-out pairs (`0a914aee`)
+
+`methodology/SESSION_NOTES.md` dropped the Session 308 evaluation and the Session 309 self-assessment (32 lines; 20,097 B and 127 lines left, against the 120,000 B and 400-line ceilings), in a commit that holds no other edit to that file (0 additions, 33 deletions with the separator). The dropped pair is `git show 2bc380ae:methodology/SESSION_NOTES.md` away.
+
 ### 2026-10-15 · [ad hoc] Session 312 close-out: handoff evaluation, self-assessment, receipt, ledger, BACKLOG, Learnings 746 to 753
 
 Written in the close-out commit: the Session 311 handoff evaluation (8/10) and the Session 312 self-assessment (8/10) in `methodology/SESSION_NOTES.md`, the `HANDOFFS.md` receipt (`pending` to `complete`), this ledger (the claim entry replaced by one entry per commit and per non-commit action), `PROJECT_LEARNINGS.md` rows 746 to 753, and the `BACKLOG.md` change below. The claim commit is `2776936b` (operator pick at the Phase 0 picker, the recommended option). The SESSION_NOTES trim, the dashboard and context-budget history refresh and the quality-gate citation follow in their own commits, as in Sessions 309 to 311.
