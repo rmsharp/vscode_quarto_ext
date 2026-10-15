@@ -80,16 +80,22 @@ describe("Quarto: Workspace symbol provider (Go to Symbol in Workspace)", () => 
     ].join("\n");
     const config = vscode.workspace.getConfiguration("quarto");
     const names = async (): Promise<string[]> => (await workspaceSymbolsFor("ZzMode")).map((s) => s.name).sort();
+    // A scratch file a killed host left behind would break the neighbouring tests' exact-set pins, so the next run clears it first (the critic's T21), and the file is removed BEFORE the
+    // setting is reset, each in its own `finally`, so a rejected configuration update cannot strand it (the reviewer's H7).
+    await vscode.workspace.fs.delete(file, { useTrash: false }).then(undefined, () => undefined);
     await vscode.workspace.fs.writeFile(file, Buffer.from(text, "utf8"));
     try {
-      assert.deepStrictEqual(await names(), ["ZzModeH2"], "the default reads the document as a render that executes");
-      await config.update("symbols.renderMode", "no-execute", vscode.ConfigurationTarget.Global);
-      assert.deepStrictEqual(await names(), ["ZzModeH0", "ZzModeH1", "ZzModeH2"], "no-execute: all three");
-      await config.update("symbols.renderMode", "execute", vscode.ConfigurationTarget.Global);
-      assert.deepStrictEqual(await names(), ["ZzModeH2"], "back to execute");
+      try {
+        assert.deepStrictEqual(await names(), ["ZzModeH2"], "the default reads the document as a render that executes");
+        await config.update("symbols.renderMode", "no-execute", vscode.ConfigurationTarget.Global);
+        assert.deepStrictEqual(await names(), ["ZzModeH0", "ZzModeH1", "ZzModeH2"], "no-execute: all three");
+        await config.update("symbols.renderMode", "execute", vscode.ConfigurationTarget.Global);
+        assert.deepStrictEqual(await names(), ["ZzModeH2"], "back to execute");
+      } finally {
+        await vscode.workspace.fs.delete(file, { useTrash: false });
+      }
     } finally {
       await config.update("symbols.renderMode", undefined, vscode.ConfigurationTarget.Global);
-      await vscode.workspace.fs.delete(file, { useTrash: false });
     }
   });
 });

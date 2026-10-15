@@ -5,9 +5,10 @@
  * adapter: per-file parsing reuses the same `core/qmd/model` `buildOutline`
  * the Outline view and breadcrumbs use (`providers/outline.ts`), flattened
  * via `core/workspace-symbols.ts` `flattenOutline` and matched against the
- * query with `matchesWorkspaceQuery`. No `package.json` contribution is
- * needed — registering a workspace symbol provider needs no manifest entry,
- * so activation is unchanged.
+ * query with `matchesWorkspaceQuery`. Registering a workspace symbol provider
+ * needs no `package.json` entry, so activation is unchanged; it does read ONE
+ * contributed setting, `quarto.symbols.renderMode` (Session 310), per file, so
+ * that it lists the same headings the Outline does.
  */
 
 import * as vscode from "vscode";

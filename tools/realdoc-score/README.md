@@ -17,6 +17,11 @@ head: scored 2438 agree 2419 (99.22%) divergent 19 phantom 4 lost 8 level 7
    level   [837, 838, 840, 841, 842, 843, 847]
 ```
 
+**Which render mode it scores (Session 310).** Run as above it scores the model's default, EXECUTING reading (what the product assumes unless `quarto.symbols.renderMode` says otherwise),
+against truth that `quarto render` produced with `--no-execute`. `REALDOC_MODE=no-execute tools/realdoc-score/run.sh <label>` scores the no-execute reading instead, the like-for-like one.
+Over all 3,383 documents the two outputs are byte-identical (corpus reach 0), so the corpus cannot rank the two readings; the paired renders in `tools/knitr-print-grids/score_modes.py` can.
+A number cited from this measure should say which mode it ran (the line above is from before the mode existed and is the executing one).
+
 **Run it after any change to the heading model** (`src/core/qmd/model.ts` and anything feeding
 `findHeadings`), and cite the line in the close-out. A change that moves a corpus document in the
 losing direction is a defect, whatever the unit tests say.

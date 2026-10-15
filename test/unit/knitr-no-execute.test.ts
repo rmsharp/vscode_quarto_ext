@@ -41,8 +41,9 @@ describe("Session 310 — a hidden-code chunk that prints, read for --no-execute
 
 describe("Session 310 — a setup chunk's `opts_chunk$set()` does not run under --no-execute", () => {
   // Rendered with quarto 1.7.33 (knitr 1.51), exit 0, both ways (`scratchpad/s308/g13ex` and `g13ne`, `d02_set_echoF_abbrev`). A setup chunk's call changes the default for the chunks
-  // BELOW it only when the document EXECUTES: the chunks are silent then (no fence reaches pandoc, so the stray fence above never pairs and swallows nothing), and loud under
-  // `--no-execute` (each echoes its code as a fence, and the stray fence pairs with the first one, so `Between` and `After` are swallowed).
+  // BELOW it only when the document EXECUTES: the chunks are silent then (no fence reaches pandoc, so the stray fence above never pairs and swallows nothing). Under `--no-execute` the
+  // call never runs: the empty first `{r}` chunk still emits nothing, but the second echoes its code as a fence, and the stray fence pairs with THAT fence's closer, so `Between`
+  // AND `After` are swallowed. (`echo = F`, the abbreviation, is read as `unsure` when executing: the chunks then end a swallow early, which is the answer this row has always had.)
   const SETUP_CALL = [
     "---", "title: t", "---", "", "```{r setup, include=FALSE}", "knitr::opts_chunk$set(echo = F)", "```", "", "# Top", "", "```", "", "## Between", "", "```{r}", "```", "", "## After", "",
     "```{r}", "y <- 1", "```", "", "## Last", "",
@@ -52,9 +53,16 @@ describe("Session 310 — a setup chunk's `opts_chunk$set()` does not run under 
   it("the chunks below stay loud, so the stray fence swallows what quarto swallows", () => {
     expect(headings(SETUP_CALL, "no-execute")).toEqual(["Top", "Last"]);
   });
-  it("executing, the call applies and the chunks are silent: the headings the model always listed", () => {
+  it("executing, the call applies: the headings the model always listed", () => {
     expect(headings(SETUP_CALL, "execute")).toEqual(["Top", "Between", "After", "Last"]);
     expect(headings(SETUP_CALL)).toEqual(["Top", "Between", "After", "Last"]);
+  });
+  // The two common spellings (`scratchpad/s308/g13ex` and `g13ne`, `d01_set_echoF` and `d03_set_includeF`, rendered both ways): the call is CERTAIN silence when executing, which the
+  // abbreviation above is not, so these rows pin the guard on the kind (`exec`) the other row never reaches (the critic's T07).
+  it.each(["echo = FALSE", "include = FALSE"])("the call opts_chunk$set(%s) does not apply either", (call) => {
+    const document = SETUP_CALL.replace("echo = F)", call + ")");
+    expect(headings(document, "no-execute")).toEqual(["Top", "Last"]);
+    expect(headings(document, "execute")).toEqual(["Top", "Between", "After", "Last"]);
   });
 
   // What RUNS under --no-execute is not nothing: a chunk's HEADER options are R expressions that knitr evaluates before it decides whether to run the chunk. Rendered both ways with the
@@ -76,9 +84,14 @@ describe("Session 310 — a setup chunk's `opts_chunk$set()` does not run under 
     "---", "title: t", "execute:", "  echo: false", "---", "", "- item", "", "  ```{r}", "  knitr::opts_chunk$set(echo = TRUE)", "  ```", "", "# Top", "", "```", "", "## Between", "", "```{r}", "x <- 1", "```", "",
     "## Mid", "", "```{r}", "y <- 2", "```", "", "## After", "", "## Last", "",
   ].join("\n");
-  it("a call in an unjudged (listed or quoted) chunk's body does not run, so the front matter's silence stands", () => {
-    expect(headings(LISTED_CALL, "no-execute")).toEqual(["Top", "Between", "Mid", "After", "Last"]);
-    expect(headings(LISTED_CALL, "execute")).toEqual(["Top", "Mid", "After", "Last"]);
+  // `p06_front_echoF_quoted_chunk_call`: the same call in a chunk inside a block quote.
+  const QUOTED_CALL = [
+    "---", "title: t", "execute:", "  echo: false", "---", "", "> ```{r}", "> knitr::opts_chunk$set(echo = TRUE)", "> ```", "", "# Top", "", "```", "", "## Between", "", "```{r}", "x <- 1", "```", "",
+    "## Mid", "", "```{r}", "y <- 2", "```", "", "## After", "", "## Last", "",
+  ].join("\n");
+  it.each([["listed", LISTED_CALL], ["quoted", QUOTED_CALL]])("a call in an unjudged (%s) chunk's body does not run, so the front matter's silence stands", (_kind, document) => {
+    expect(headings(document, "no-execute")).toEqual(["Top", "Between", "Mid", "After", "Last"]);
+    expect(headings(document, "execute")).toEqual(["Top", "Mid", "After", "Last"]);
   });
 });
 
@@ -95,7 +108,8 @@ describe("Session 310 — code that WRITES a fence writes nothing under --no-exe
   it("is silent, so the stray fence swallows what quarto swallows", () => {
     expect(headings(WRITES_A_FENCE, "no-execute")).toEqual(["Top", "Last"]);
   });
-  // HEAD's answer, unchanged by the mode argument: a phantom `After` (quarto lists `Top`, `Last` when executing too, because the stray fence pairs with the fence the chunk writes).
+  // HEAD's answer, unchanged by the mode argument: a phantom `After` (quarto lists `Top`, `Last` when executing too, because the stray fence pairs with the fence the chunk writes). This control
+  // cannot tell a guard that LEAKED into the executing reading from an executing reading that was later FIXED; the fixture pin (`knitr-no-execute-fixture.test.ts`) holds the default byte-identical.
   it("executing, the answer is the one the model has always given", () => {
     expect(headings(WRITES_A_FENCE, "execute")).toEqual(["Top", "After", "Last"]);
     expect(headings(WRITES_A_FENCE)).toEqual(["Top", "After", "Last"]);
@@ -151,10 +165,11 @@ describe("Session 310 — a document-level `echo: false` silences the shell-like
 });
 
 describe("Session 310 — a child= chunk emits nothing under --no-execute", () => {
-  // Rendered with quarto 1.7.33 (knitr 1.51), exit 0, both ways (`scratchpad/s310/gb-ex` and `gb-ne`, 12 documents: a child that echoes a chunk, prints, holds a plain fence, is quiet or is
-  // plain text, each with the default options, `echo=FALSE`, `include=FALSE` or the `#| child:` spelling). The child document is NOT knit when nothing executes, so the chunk emits no
-  // fence at all, whatever its options say and whatever the child holds: quarto lists `Top` and `Last` in all 12 (the stray fence pairs with the loud chunk below). Executing, the
-  // child's own chunks are knit, so the model cannot tell (`uncertain`, as it has always said); it answers `Top`, `After`, `Last` for the default options, as it did before this session.
+  // Rendered with quarto 1.7.33 (knitr 1.51), exit 0, both ways (`scratchpad/s310/gb-ex` and `gb-ne`, 12 documents: five children (an echoed chunk, a printing chunk, a plain fence, a quiet
+  // chunk, plain text) each with the default options and with `echo=FALSE`, plus the echoing child with `include=FALSE` and with the `#| child:` spelling). The child document is NOT knit when
+  // nothing executes, so the chunk emits no fence at all, whatever its options say and whatever the child holds: quarto lists `Top` and `Last` in all 12 (the stray fence pairs with the loud
+  // chunk below). The model cannot see the child, so the four option spellings below run once. Executing, the child's own chunks are knit, so the model cannot tell (`uncertain`, as it has
+  // always said); it answers `Top`, `After`, `Last` for the default options, as it did before this session.
   const childDocument = (chunk: string): string =>
     ["---", "title: t", "---", "", "# Top", "", "```", "", "## Between", "", chunk, "", "## After", "", "```{r}", "y <- 1", "```", "", "## Last", ""].join("\n");
   const headings = (document: string, mode?: "execute" | "no-execute"): string[] => findHeadings(document, "knitr", mode).map((h) => h.text);
@@ -162,7 +177,7 @@ describe("Session 310 — a child= chunk emits nothing under --no-execute", () =
     "default options": '```{r, child="_child_echo.Rmd"}\n```',
     "echo=FALSE": '```{r, child="_child_echo.Rmd", echo=FALSE}\n```',
     "the #| child: spelling": "```{r}\n#| child: _child_echo.Rmd\n```",
-    "include=FALSE": '```{r, child="_child_echo.Rmd", include=FALSE}\n```',
+    "include=FALSE (a CONTROL: already silent through include, passes without the guard)": '```{r, child="_child_echo.Rmd", include=FALSE}\n```',
   };
   it.each(Object.keys(CHUNKS))("%s: silent, so the stray fence pairs with the loud chunk below", (name) => {
     expect(headings(childDocument(CHUNKS[name]), "no-execute")).toEqual(["Top", "Last"]);
@@ -220,6 +235,7 @@ describe("Session 310 — an option given as a `#|` expression still runs under 
     expect(headings(document, "no-execute")).toEqual(["Top", "Last"]);
     expect(headings(document, "execute")).toEqual(["Top", "Last"]);
   });
+  // Passes with or without the `#|` clause (the chunk's own unreadable `echo` makes it loud either way, so what follows cannot matter): a control for the same answer in both modes, not a pin.
   it("`#| echo: !expr` that calls opts_chunk$set: the same answer in both modes", () => {
     const document = pipeDocument("#| echo: !expr knitr::opts_chunk$set(echo = TRUE)");
     expect(headings(document, "no-execute")).toEqual(["Top", "After", "Last"]);
