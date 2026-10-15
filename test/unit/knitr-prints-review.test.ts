@@ -78,8 +78,8 @@ describe("Session 309 — the mutation pass's rows: each guard load-bearing", ()
   // `rCallEndsAt` implies, a closer index that adds nothing, all deleted), the rest were shapes no document had. Written after the code (disclosed), every document rendered.
   type MutantRow = [string, string, string[], string[], string];
   const mutants = (JSON.parse(readFileSync(path.join(__dirname, "../fixtures/knitr-print-mutants/quarto-1.7.33.json"), "utf8")) as { rows: MutantRow[] }).rows;
-  it("covers the whole fixture: 16 documents", () => {
-    expect(mutants).toHaveLength(16);
+  it("covers the whole fixture: 17 documents", () => {
+    expect(mutants).toHaveLength(17);
   });
   // `knit_exit()` (k07) drops the whole document, headings included (quarto lists none): the model still lists three, a phantom.
   it("never hides a heading quarto renders", () => {

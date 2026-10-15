@@ -24,6 +24,7 @@ add("k11_if_equals_redef", 'print("hi")', pre=chunk("{r red, include=FALSE}", "i
 add("k22_knit_child_pieces", 'print("hi")', pre=chunk("{r kc, include=FALSE}", 'knitr::knit_child(text = paste0("```{r}\\n", "pri", "nt <- function(...) invisible()\\n```"), quiet = TRUE)'), note="print redefined inside a child built from pieces")
 add("k07_knit_exit", 'print("hi")', pre=chunk("{r ke, include=FALSE}", "knitr::knit_exit()"), note="knit_exit drops the rest of the document")
 add("s02_print_digits", 'print(summary(x), digits = 3)', note="a named second argument: prints, and this declines")
+add("k13_right_arrow_summary", 'summary(x)', pre=chunk("{r ra, include=FALSE}", "quiet <- function(...) invisible()", "quiet -> summary"), note="a function assigned to summary by the right arrow")
 # stray fences of another kind WITH a later closer of the same kind
 add("g01_four_stray_with_closer", 'print("hi")', lines=["---", 'title: "s"', "---", "", *BASE, "# Top", "", "````", "", "## Between", "", "```{r, echo=FALSE}", 'print("hi")', "```", "", "## After", "", "````", "", "## Last", ""], note="a four-backtick stray fence with a four-backtick closer below")
 add("g02_tilde_stray_with_closer", 'print("hi")', lines=["---", 'title: "s"', "---", "", *BASE, "# Top", "", "~~~", "", "## Between", "", "```{r, echo=FALSE}", 'print("hi")', "```", "", "## After", "", "~~~", "", "## Last", ""], note="a tilde stray fence with a tilde closer below")
