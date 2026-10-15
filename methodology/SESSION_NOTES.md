@@ -8,24 +8,57 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 312 (IN PROGRESS): items (1) and (2) of the BACKLOG item "What is still quadratic or deep enough to overflow after Session 311"** (operator picked it at Phase 0, the recommended option).
-(1) `indexLabels`/`findLabel` quadratic in `{#sec-...}` headings (8,000 headings 5.6 s); (2) seven `/[ \t]+$/` key trims. Items (3) to (9) stay filed. Strict TDD, a timing row per defect.
-**State:** claimed; baseline `npm test` 10,876 passing in 79 files (5.5 s). The gotchas below are Session 311's and still hold.
-**⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in the
-close-out commit).
-(2) TWO scratchpads: the repo's untracked `scratchpad/` (`s311/` holds the harness scripts and a README; `s265/runs/s311-*` the corpus runs) and the session one under `/private/tmp/...` (frozen trees, reviewers' output; not durable).
-(3) The Edit tool EXPANDS an escape such as `\uFFFD` into the glyph: write it from Python with a doubled backslash and check `grep -c $'\xef\xbf\xbd'` on every file you touched (it bit `refs.ts`).
-(4) `cmd | grep ... && git commit` tests the grep: redirect a gate to a file, `set -o pipefail`, print `$?`. After a scripted edit to a test file COUNT the rows (a bad splice duplicated half of one).
-(5) `mutate311.py` prints NOTHING for a mutant whose pattern does not match: count result lines against mutants. Mutate in a throwaway `git worktree` with `node_modules` symlinked, never in the tree a reviewer reads.
-(6) Before believing a differential harness's zero, mutate the code and see it report (Learning 740); `scanRegions` caches by text, so time a second reader on a different text.
-(7) The row `Session 307 ... a 9 MB line of opts_chunk$set( repeats` (1.5 s) flakes under load (1.63 s at load 43; 55 to 72 ms alone three times). Do not loosen it. zsh: `${=VAR}` to split; the Bash tool keeps a `cd`.
-(8) `test:integration` NOT run (core-only, takes the screen: ask). `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md`, `PROJECT_LEARNINGS.md` are past the 262,144 B read refusal: read in slices. Baseline `npm test` at HEAD: 10,876 passing in 79 files.
+**Task:** **NONE -- Session 312 closed out.** Items (1) and (2) of the Session 311 residuals item are fixed: the `{#sec-...}` label index is linear (8,000 headings in a 32,000-line document 5.6 s to 100 ms) and all eight `/[ \t]+$/`
+key trims are one linear pass (`trimEndBlanks`; a 100,000-space key 6 to 12 s to under 20 ms). `BACKLOG.md` "Active" is empty; present ranked candidates via AskUserQuestion at Phase 0.
+**What the BACKLOG now holds:** the Session 311 item's (3) to (9) (unclosed fence-like lines, unclosed flow openers, `scanRegions` throwing on a 2.1 million `-` line, ...) and a NEW sweep item (1) to (7). Its first entry is the one
+a user feels: an unterminated `` ```{r `` plus 32,000 spaces costs `findHeadings` 7.1 s and the engine resolver 9.4 s, and the resolver is on the Outline's path.
+**⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in a close-out commit).
+(2) TWO scratchpads: the repo's untracked `scratchpad/` (`s312/` holds the mutation scripts, the corpus differential, the agents' and reviewers' scripts and a README) and the session one under `/private/tmp/...` (frozen trees, probes; not durable).
+(3) The Edit tool EXPANDS an escape such as `\u00a0` into the glyph: write it from a quoted heredoc and `grep -c $'\xc2\xa0'` every file you touched. `cmd | grep ... && git commit` tests the grep: redirect a gate to a file,
+`set -o pipefail`, print `$?`. After a scripted edit COUNT the rows.
+(4) zsh does not word-split `$VAR` (it bit me again): `${=VAR}`. A failed `toEqual` of two 100,000-character strings costs vitest 6 s of diff: probe the small-n output, pin it, THEN add the clock. Read an entry's signature
+before calling it (`completionContextAt(text, offset, thunk)`).
+(5) Two timing rows flake under load (Session 307's 9 MB row and Session 308's 200,000-line row failed in 3 of 5 full runs with four to six agents measuring; 0.7 s alone). Never loosen; run alone. A mutation pass counts a
+flake as a kill: run it ALONE and read the failing titles (`mutate312.py` prints them).
+(6) Agents: `pkill -f <their scratch dir name>` after each reports (a reviewer's shell loop ran for an hour); bound a "find every other" sweep in its prompt; after a resume an agent may lack its structured-output tool and
+hand back by message, so a monitor that waits for N results never fires.
+(7) `test:integration` NOT run (core-only, takes the screen: ask). `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md`, `PROJECT_LEARNINGS.md` are past the 262,144 B read refusal: read in slices. Baseline `npm test` at HEAD: 10,913 passing in 80 files.
 
-### What Session 312 Did
-**Deliverable:** items (1) and (2) of the BACKLOG item "What is still quadratic or deep enough to overflow after Session 311" (IN PROGRESS)
-**Started:** 2026-10-15
-**Status:** Session claimed. Work beginning. Phase 0 found both ledger frontiers at HEAD (`a34f6e16`, gap 0), no `pending` receipt, the ratchet citation matching (2/2, results `bba236856bad`) and `npm test` green at 10,876 in 79 files (5.5 s).
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+## Session 311 Handoff Evaluation (by Session 312)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, gotchas 1 to 8, both ledger frontiers at HEAD (`a34f6e16`, gap 0), the ratchet citation (2/2, results `bba236856bad`), the test
+baseline (10,876 passing in 79 files, exact) and the "Active empty, present candidates" instruction all held at Phase 0, and the numbers of the item I took reproduced: 5.6 s for 8,000 `{#sec-...}` headings (5,611 ms here) and 11.9 s
+for a 100,000-space key (11.2 s).
+**Helped:** `scratchpad/s311/resid.ts` and its README (the build-and-run recipe, one process per shape); `mutate311.py` (copied, plus the failing titles); gotcha 5 (count the mutant result lines) and gotcha 6 (mutation-check a
+harness), both used; gotcha 3 (the Edit tool expands an escape), which made me write every non-ASCII character from a quoted heredoc; the item's own "profile first", which put 98.5% of the key trim in one regex and showed it split
+between two sites.
+**Missing:** that the key trims reach the Outline, cross-reference and workspace-symbol providers through `resolveDocumentEngine` on every request (the mapping agents found it); that a SECOND timing row flakes (Session 308's
+200,000-line row, 2.1 s against 2 s, with four agents measuring); and that `findProjectConfigValueLines` calls `mappingContainerKey` only for a column-0 key.
+**Wrong:** (a) "seven `/[ \t]+$/` trims ... `yaml-context.ts` twice": EIGHT, three of them in `yaml-context.ts` (216, 337, 453); (b) "20,000 headings 22.8 s": that is the 16,000-heading figure (22.3 s and 23.3 s measured; 20,000 is
+about 35 to 39 s); (c) "a book chapter with thousands of section ids reaches it": the cost is headings times lines (8,000 one-line headings take 1.7 s, 8,000 in a 32,000-line chapter 5.6 s). **ROI: high.**
+
+## Session 312 Self-Assessment
+
+**Score: 8/10.**
+**Went right.** I reproduced both defects firsthand, profiled before reading code, and found the key trims were two sites on the resolver's path (fixing one halved the time, both took 12.3 s to 13 ms). Every row was RED first for
+the right reason except where disclosed. Three independent checks agreed with the diff: a read-only agent's scratch prototype was the same 8 lines, a second agent's profile gave the same halves, and the corpus run showed ZERO
+differences over 3,382 documents (after mutation-checking the harness: a wrong label column was seen in 180 documents and a no-op trim in 199). A three-lens review (two workflows, nine agents, about 1.7M subagent tokens, none read
+third-party source) found NO behaviour difference in about 140 million differential cases and seven defects of my tests and record, all fixed; the main one was that 8 of 8 `trimEnd()` swaps survived. Mutation 39 of 39 killed, each
+kill attributed to a test title. Gates: `npm test` 10,913 in 80 files, oracle 2 of 2, `npm run package` DONE (44 files, 1.86 MB), real-document score 2,423 of 2,438 unchanged. Learnings 746 to 753.
+**Went wrong.** (1) A "reach" row for `mappingContainerKey` protected nothing and I shipped it with a note that a mutation pass must decide; the critic decided it. (2) The first test round had no row that pins "space and tab only"
+at any site, the one thing the item warned about in capitals. (3) I copied "20,000 headings 22.8 s" into a test comment without re-measuring, wrote a test title that said "seven characters" for an alphabet that ran to six, and wrote
+a CRLF row that cannot tell `\r?\n` from `\n`. (4) A first RED row called `completionContextAt` with the wrong arguments (null in 5 ms); another "failed in 6 s" because vitest diffed two 100,000-character strings. (5) The sweep
+agent ran 45 minutes and had to be stopped by message, and a reviewer's shell loop kept a core busy for an hour (found when my first mutation pass looked slow): I re-ran the pass and its failing titles now show each kill. (6) Two
+timing rows flaked in three of five full runs and I committed with the failures named in the message and shown to pass alone instead of waiting for a quiet machine; the final run was clean. (7) About ten "have not heard from you"
+nudges during long waits, and three monitors that waited for a result that could not arrive. (8) I re-measured value-side siblings (`asciiTrim`, `knitrChunkHeaderLabel`, the `#|` gap) and filed them with figures rather than fixing
+them: one deliverable.
+**Known residuals (filed):** the BACKLOG items by title: "Other regexes still quadratic on a long run of blanks, CR or U+2028 after Session 312 ..." (1) to (7), and "What is still quadratic or deep enough to overflow after Session
+311 ..." (3) to (9); the earlier Up Next items are untouched.
+**TDD:** RED before GREEN for the label rows (5,868 and 5,701 ms), the helper (`is not a function`), the resolver row (12,276 ms), the `project-yaml.ts` and `yaml-value-flags.ts` rows (6,238, 7,471 and 6,366 ms) and the
+`completionContextAt`, `mappingContainerKey` and `findNestedFrontMatterValueLines` rows (6,147, 6,215 and 6,196 ms). Passed on arrival, disclosed: the CRLF row, the seven "still trims the blanks BEFORE the colon" rows, the nine rows
+of the critic round (eight no-break-space rows and the third alphabet, each killed by its mutant), the column-0 container row (written after the code, killed by its mutant) and the indent-2 reach row it replaced.
+**Host:** `test:integration` NOT run (core-only change in `src/core`; it takes the screen and nobody was asked). Headless instead: unit suite, oracle, corpus identity, mutation, `npm run package`. **Cost:** 9 agents (2 workflows,
+about 1.7M subagent tokens, 502 tool calls), 78 mutant runs, about 140 million differential cases (the reviewer's), one `npm run package`, 0 quarto renders beyond the cached oracle.
 
 ## Session 310 Handoff Evaluation (by Session 311)
 
