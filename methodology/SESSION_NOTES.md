@@ -121,33 +121,3 @@ pre-existing quadratic in an unclosed front-matter flow mapping (26 s on 20,000 
 four, then eight, each fixed in turn). Passed on arrival, disclosed: the rows of the same behaviour after each first row and the g16 to g18 rows (later shown against mutants), the controls and the residual pins.
 **Host:** `test:integration` NOT run (needs the screen; core-only change, as Sessions 294 to 298). Headless instead: `npm run test:oracle` 2 of 2 against the real quarto CLI. **Cost:** 8 agents (two workflows, about 1.6M subagent tokens), about 650 renders by
 me, four mutation passes, `npm run package` 1:20.
-## Session 306 Handoff Evaluation (by Session 307)
-
-**Score: 7/10.** Self-check by the same model family, not an independent score. Its file pointers (`model.ts:6977`, `:7575`), harness paths (`render304.sh`, `build.sh`, `diff306.py`), the baseline (8,151 passing, 72 files), both ledger frontiers at
-HEAD and the
-ratchet citation all held; its forward-looking claims were marked "derived" or "estimate". **Helped:** the BACKLOG item named the function, the five rendered rows (the `silenceinterplay` documents, still on disk and still reproducing at HEAD) and the
-sibling's pattern; gotchas 3, 4, 7.
-**Missing:** that the realistic-document lens must be run BEFORE the grid (I priced the first guard by my own grid and was wrong); that a bare-word guard is wrong in the normal case (the label index's `codeFromElsewhere` is a doc-level bare word and
-is safe there only because declining a removal is the safe side).
-**Wrong:** "(3) is the only family that DELETES headings and is about one `codeFromElsewhere` conjunct". Family (2) deletes too (`a05`, `a14`, a default that silences the LATER chunk), and the conjunct as a bare word regressed 12 normal documents
-against 1 fix; the real cost was ten commits, two workflows (13 agents, about 2.1M subagent tokens) and four mutation sets. Two of its five rows (`knit_child`, the include) are not that channel at all, and the include is not fixable. **ROI: high.**
-
-## Session 307 Self-Assessment
-
-**Score: 7/10.**
-**Went right.** Ground first: four grids with predictions frozen before any render (a05, the sandwich and `merge` were found by the predictions that missed), then TDD with RED shown for every behaviour. Two blind rounds (13 agents, about 2.1M
-subagent tokens, none rendered, both transcripts audited clean: 0 of 498 tool calls flagged), about 520 renders by me, and every reviewer
-claim re-checked against a render or the code. The decisions are evidence-backed: the include is NOT a closer (the fence, include, fence idiom rendered right at HEAD), an uncertain chunk may end a swallow but never open one (ten shape-P twins, every
-prediction held), the rule follows the executing mode (Session 287's precedent, flagged for the operator).
-Found by timing, not by a reviewer: a 4.2 s quadratic scan on a 5 MB line (RED 9.5 s, fixed to 28 ms). Final, execute mode over 407 documents: 84 fixed, 41 regressed, 101 wrong both before and after, 178 right both; `realdoc-score` 2,423 of 2,438
-unchanged and all 3,383 corpus outputs byte-identical; unit 8,151 to 8,304; mutation 83 killed on the final tree, 9 survivors accounted for (`read_demo`/`read_rforge`/`child` unmeasurable, two performance-only, `label=` equivalent, `G11`, `N13`,
-`N14`). Learnings 715 to 718.
-**Went wrong.** (1) My FIRST guard read bare words and I priced it by my own adversarial grid: the realistic lens scored 1 fix to 10 regressions and a reviewer's sandwich deleted a heading (Learning 714 again, at my own expense; it cost three commits
-and the second workflow). (2) I wrote a regex for a label before grepping for the label index's own reader (the round-2 reviewer found it weaker). (3) Counts in commit messages were wrong three times (28 rows for 30, 8,282 tests for 8,279, "255
-documents" for 253): two amended, `c3697b92` still says 255. (4) Three of my rows were vacuous or untrue (a comment that matched the option pattern, cell rows that pass with the cell missing, a row presented as a rendered document that was a
-variant). (5) About six long stretches drew "have not heard from you" nudges, the lesson Sessions 302 and 306 recorded.
-**Known residuals (filed):** the BACKLOG item, by family: label that supplies no code, a default hiding the later chunk (deletes), the unreadable channels (a fence built from pieces: 20 of 30 writer documents, wrong at HEAD too), the sandwich with an
-uncertain middle (deletes), and the pre-existing shape-P `print()` output block.
-**TDD:** RED before GREEN for the empty-chunk guard (`a01`, `a06`), the writer guard (`m01`, `m05`, `m03`, `n12`), every narrowing (10, 4, 10, 8 rows), the uncertain-closer principle (10 shape-P rows), the performance row and each mutation survivor
-that got a row. Passed on arrival, disclosed: the rows of the same behaviour after each first row, the controls, the include decision rows (they pin HEAD, no logic), the residual pins.
-**Host:** `test:integration` NOT run (needs the screen; core-only change, as Sessions 294 to 298). **Cost:** 13 agents (two workflows), about 520 renders, four mutation sets (about 115 mutant runs), `npm run package` at close-out.
