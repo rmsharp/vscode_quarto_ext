@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveDocumentEngine } from "../../src/core/document-engine-resolve";
-import { findCellOptionLines } from "../../src/core/qmd/model";
+import { findCellOptionLines, findHeadings } from "../../src/core/qmd/model";
 import { indexLabels } from "../../src/core/refs";
 import { valueSlotAfterColon } from "../../src/core/yaml-context";
 
@@ -73,5 +73,34 @@ describe("Session 311 — a numeric character reference in an id that names no c
       found = ids(text);
     }).not.toThrow();
     expect(found).toEqual([]);
+  });
+});
+
+describe("Session 311 — a front matter whose flow mapping never closes", () => {
+  // `flowRegion` joins the lines after a `format: {` one at a time until the brackets balance, and used to re-read the whole joined
+  // text after each one: 20,000 ordinary lines below an opener that never closes cost 26 s, in every reader of the front matter.
+  const unclosed = (opener: string, lines: number): string => ["---", opener, ...Array.from({ length: lines }, () => "x: 1"), "---", "", "# Heading", ""].join("\n");
+
+  it.each([
+    ["an unclosed mapping", "format: {html: {echo: false}"],
+    ["an unclosed mapping that holds a quoted brace", 'format: {html: {echo: "}"}'],
+  ])("%s below 12,000 ordinary lines is read in linear time by the Outline and by the engine resolver", (_what, opener) => {
+    const text = unclosed(opener, 12000);
+    const headings = timed(() => findHeadings(text));
+    expect(headings.result.map((h) => h.text)).toEqual(["Heading"]);
+    expect(headings.ms).toBeLessThan(1000);
+    const engine = timed(() => resolveDocumentEngine("a.qmd", text));
+    expect(engine.result).toBe("markdown");
+    expect(engine.ms).toBeLessThan(1000);
+  });
+
+  it("…while thousands of mappings that each close on their own line stay linear (the reason `flowRegion` reads windows, not the whole rest of the block)", () => {
+    const text = ["---", ...Array.from({ length: 40000 }, () => "format: {html: {from: gfm}}"), "---", "", "Text.", "# Tight", ""].join("\n");
+    const headings = timed(() => findHeadings(text));
+    expect(headings.result.map((h) => h.text)).toEqual(["Tight"]);
+    expect(headings.ms).toBeLessThan(1000);
+    const engine = timed(() => resolveDocumentEngine("a.qmd", text));
+    expect(engine.result).toBe("markdown");
+    expect(engine.ms).toBeLessThan(1000);
   });
 });

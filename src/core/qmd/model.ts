@@ -3791,6 +3791,14 @@ interface FlowEntry {
  * behaviour that shipped before Session 208.
  */
 function flowEntries(text: string): FlowEntry[] | null {
+  return flowScan(text)?.entries ?? null;
+}
+/** What {@link flowEntries} reads, and the index in `text` of the bracket that closes the mapping — where `flowRegion` stops joining lines. */
+interface FlowScan {
+  entries: FlowEntry[];
+  close: number;
+}
+function flowScan(text: string): FlowScan | null {
   const open = text.indexOf("{");
   if (open < 0) {
     return null;
@@ -3848,7 +3856,7 @@ function flowEntries(text: string): FlowEntry[] | null {
       depth--;
       if (depth === 0) {
         push(i);
-        return out;
+        return { entries: out, close: i };
       }
       continue;
     }
@@ -3902,21 +3910,42 @@ function flowValue(text: string, key: string): string | null {
  * reach a `from:` whose parent key ended the line before — and misses it in the DELETING
  * direction. Lines are joined with a space, which YAML flow context treats as the line break
  * it replaces.
+ *
+ * ⚠ **THE COST IS PROPORTIONAL TO THE REGION, AND THAT IS WHAT THE WINDOWS ARE FOR (Session 311).**
+ * The first version joined one line at a time and re-read the whole joined text after each one:
+ * 20,000 ordinary lines below a `format: {` that never closes cost 26 s, in every reader of the
+ * front matter. Reading the whole rest of the block once would be linear for that document and
+ * quadratic for the common one (a front matter of N lines that each close their own mapping,
+ * every call joining the rest of the block). So this reads a window of 1 line, then 2, 4, 8…,
+ * each from the start: a mapping that closes on its own line costs that line, and one that never
+ * closes costs at most a few reads of the block. The scan is a left-to-right walk that stops at
+ * the closing bracket, so a longer window never changes where it closes (a line is joined with
+ * a space, which neither a `''` look-ahead nor a `\` escape can read as part of the next line),
+ * and the region returned is still the SHORTEST run of lines that holds the closing bracket.
  */
 function flowRegion(block: readonly string[], from: number, offset: number): string | null {
-  let text = block[from].slice(offset);
-  if (!text.includes("{")) {
+  const head = block[from].slice(offset);
+  if (!head.includes("{")) {
     return null;
   }
-  for (let i = from; i < block.length; i++) {
-    if (flowEntries(text) !== null) {
-      return text;
+  for (let span = 1; ; span *= 2) {
+    const end = Math.min(from + span, block.length);
+    let text = head;
+    for (let i = from + 1; i < end; i++) {
+      text += ` ${block[i]}`;
     }
-    if (i + 1 < block.length) {
-      text += ` ${block[i + 1]}`;
+    const scan = flowScan(text);
+    if (scan !== null) {
+      let length = head.length;
+      for (let i = from + 1; length <= scan.close; i++) {
+        length += 1 + block[i].length;
+      }
+      return text.slice(0, length);
+    }
+    if (end === block.length) {
+      return null;
     }
   }
-  return flowEntries(text) === null ? null : text;
 }
 /**
  * The scalar written at `path` inside the flow mapping `text`, or `null` when the path does
