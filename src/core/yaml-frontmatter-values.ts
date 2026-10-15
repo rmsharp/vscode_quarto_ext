@@ -18,7 +18,7 @@
  * line, and a no-colon line are all skipped: they have no scalar value to check.
  */
 
-import { findFrontMatter, frontMatterContentLines, scanFlow } from "./qmd/model";
+import { findFrontMatter, frontMatterContentLines, scanFlow, trimEndBlanks } from "./qmd/model";
 import {
   leadingWsLen,
   mappingColonAt,
@@ -221,7 +221,7 @@ export function findFrontMatterTopLevelLines(text: string): FrontMatterTopLevelL
       // (`"toc`, `"toc" x`) has no matching pair, so it is left intact and stays silent, and
       // those documents are structural `YAMLException`s (exit 1) rather than value errors
       // anyway. `valueRange`/`rawToken` are computed from the separator and are unaffected.
-      key: unquoteKey(lineText.slice(0, colon).replace(/[ \t]+$/, "")),
+      key: unquoteKey(trimEndBlanks(lineText.slice(0, colon))),
       valueRange: { startCol: valueSlot.startCol, endCol: valueSlot.endCol },
       rawToken,
       // Only a line with NO scalar can open a block, so the lookahead is skipped entirely

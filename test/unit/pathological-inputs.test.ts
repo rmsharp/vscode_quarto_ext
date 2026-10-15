@@ -302,3 +302,17 @@ describe("Session 312 — the label index of a document with thousands of `{#sec
     expect(indexLabels(headingsText(50, "\r\n"))).toEqual(expectedLabels(50));
   });
 });
+
+describe("Session 312 — a long run of spaces inside a YAML KEY", () => {
+  // Eight `.replace(/[ \t]+$/, "")` key trims were quadratic in a run of spaces inside the key (the regex is retried from every space of
+  // the run): the engine resolver took 3.0 s on a 50,000-space key and 11.2 s on 100,000. They now call `trimEndBlanks`, which strips
+  // an ASCII space or tab ONLY, so a key ending in a no-break space keeps it (`trim-end-blanks.test.ts` holds the oracle).
+  const run = " ".repeat(100000);
+
+  it("the engine resolver reads a front matter key holding a 100,000-space run in linear time (the reported path)", () => {
+    const text = ["---", "title: t", `a${run}b: v`, "engine: knitr", "---", "", "Text."].join("\n");
+    const { result, ms } = timed(() => resolveDocumentEngine("a.qmd", text));
+    expect(result).toBe("knitr");
+    expect(ms).toBeLessThan(1000);
+  });
+});

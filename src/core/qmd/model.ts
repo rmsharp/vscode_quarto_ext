@@ -8438,6 +8438,18 @@ function trimEndSpaces(value: string): string {
   return value.slice(0, end);
 }
 /**
+ * `value` without its trailing ASCII spaces AND TABS, in one pass: what `.replace(/[ \t]+$/, "")` answers, without that regex's cost
+ * (quadratic in a run of spaces inside a YAML key: 100,000 took 11 s, Session 312). ⚠ NOT `trimEnd()`: YAML trims a space or a tab only,
+ * so a key ending in a no-break space, a line separator or any other Unicode space must keep it, and `trimEnd()` would strip it.
+ */
+export function trimEndBlanks(value: string): string {
+  let end = value.length;
+  while (end > 0 && (value.charCodeAt(end - 1) === 0x20 || value.charCodeAt(end - 1) === 0x09)) {
+    end--;
+  }
+  return value.slice(0, end);
+}
+/**
  * Whether the document's front matter is PLAIN (Session 304): absent, or the first thing in the file and made of nothing but
  * lines YAML and the engine resolver can only read one way. This is a WHITELIST, because the resolver reads the block as text and
  * round 2 of the hunt showed a blacklist of the spellings that blind it never ends (see `CellTargetContext.opaqueFrontMatter`).

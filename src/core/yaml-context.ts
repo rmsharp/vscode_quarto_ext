@@ -17,7 +17,7 @@
  */
 
 import type { DocumentEngine } from "./document-engine";
-import { findCellOptionLines, inFrontMatter } from "./qmd/model";
+import { findCellOptionLines, inFrontMatter, trimEndBlanks } from "./qmd/model";
 
 /** Which kind of YAML position the cursor is at. */
 export type YamlContextKind =
@@ -449,10 +449,7 @@ export function topLevelSlots(
     return { keySlot: null, valueSlot: null };
   }
   const colon = lineText.indexOf(":");
-  const keyText = (colon >= 0 ? lineText.slice(0, colon) : lineText).replace(
-    /[ \t]+$/,
-    "",
-  );
+  const keyText = trimEndBlanks(colon >= 0 ? lineText.slice(0, colon) : lineText);
   const keySlot: Slot = { startCol: 0, endCol: keyText.length };
   // ⚠ NO separator guard here, deliberately (S148). `isMappingSeparator` is a
   // DIAGNOSTICS-side rule, applied by the value ENUMERATORS, not by this shared
