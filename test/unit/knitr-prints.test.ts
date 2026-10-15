@@ -130,21 +130,21 @@ describe("Session 309 — WHICH silenced chunks print: a statement that certainl
 });
 
 describe("Session 309 — every statement shape rendered with quarto 1.7.33, document by document", () => {
-  // `[grid/name, document, quarto's headings, this model's headings when the fixture was written, HEAD's (Session 308)]`, 342 documents from three grids (`scratchpad/s309/stm`,
-  // `fn`, `msg`, untracked): see the fixture's own `note`. PASSING ON ARRIVAL, disclosed: written after the rules above, and pinned CLOSED-WORLD (Learning 685), so a rule that starts
+  // `[grid/name, document, quarto's headings, this model's headings when the fixture was written, HEAD's (Session 308)]`, 385 documents from four grids (`scratchpad/s309/stm`,
+  // `fn`, `msg`, `nm`, untracked): see the fixture's own `note`. PASSING ON ARRIVAL, disclosed: written after the rules above, and pinned CLOSED-WORLD (Learning 685), so a rule that starts
   // or stops hiding a heading on any row fails here until the fixture is regenerated on purpose.
   type StatementRow = [string, string, string[], string[], string[]];
   const FIXTURE = path.join(__dirname, "../fixtures/knitr-print-statements/quarto-1.7.33.json");
   const statementRows = (JSON.parse(readFileSync(FIXTURE, "utf8")) as { rows: StatementRow[] }).rows;
   const model = (r: StatementRow): string[] => findHeadings(r[1], "knitr").map((h) => h.text);
 
-  it("covers the whole fixture: 342 documents", () => {
-    expect(statementRows).toHaveLength(342);
+  it("covers the whole fixture: 385 documents", () => {
+    expect(statementRows).toHaveLength(385);
   });
 
-  it("agrees with quarto on 281 of them (HEAD, Session 308, agreed on 89)", () => {
-    expect(statementRows.filter((r) => model(r).join("|") === r[2].join("|"))).toHaveLength(281);
-    expect(statementRows.filter((r) => r[4].join("|") === r[2].join("|"))).toHaveLength(89);
+  it("agrees with quarto on 318 of them (HEAD, Session 308, agreed on 98)", () => {
+    expect(statementRows.filter((r) => model(r).join("|") === r[2].join("|"))).toHaveLength(318);
+    expect(statementRows.filter((r) => r[4].join("|") === r[2].join("|"))).toHaveLength(98);
   });
 
   // THE PROPERTY THIS SESSION EXISTS TO KEEP: a wrong "prints" hides a heading quarto renders. Three documents do, and HEAD hides the same three: with `collapse` the printed lines
@@ -161,6 +161,51 @@ describe("Session 309 — every statement shape rendered with quarto 1.7.33, doc
 
   it.each(statementRows.map((r) => [r[0], r] as const))("pinned: %s", (_name, r) => {
     expect(model(r)).toEqual(r[3]);
+  });
+});
+
+describe("Session 309 — a BARE NAME and `print(name)` print when the name holds text", () => {
+  // MEASURED (`scratchpad/s309/nm`, untracked): 43 documents in the statement layout, one chunk under test whose statement is a bare name or `print(name)`, the name assigned in the
+  // setup chunk above. A bare name always evaluates visibly, so it prints text unless the object is one knitr or a package renders another way (a `kable()` table, a plot, an
+  // htmlwidget, a class with a `knit_print` method): the model therefore needs to know HOW the name was assigned, from the code above it.
+  const NAME_PRE = (...code: string[]): string[] => ["```{r setup0, include=FALSE}", "x <- c(3, 1, 2, 5, 4)", "g <- factor(c('a','b','a','b','a'))", "df <- cars", ...code, "```", ""];
+  const nm = (code: string[], pre: string[], o: { header?: string; front?: string[] } = {}): string[] =>
+    outline(["---", 'title: "s"', ...(o.front ?? []), "---", "", ...pre, "# Top", "", "```", "", "## Between", "", `\`\`\`${o.header ?? "{r, echo=FALSE}"}`, ...code, "```", "", "## After", ""]);
+  const PRINTS = ["Top", "After"];
+
+  it("a vector assigned above, printed by its name (n001)", () => {
+    expect(nm(["v"], NAME_PRE("v <- c(1, 2)"))).toEqual(PRINTS);
+  });
+
+  const QUIET = ["Top", "Between", "After"];
+  it("the same name reassigned to a `kable()` table INSIDE an `if` above: the value is a table now (n008)", () => {
+    expect(nm(["v"], NAME_PRE("v <- c(1, 2)", "if (TRUE) v <- knitr::kable(df)"))).toEqual(QUIET);
+  });
+
+  it("`class(v) <- \"knit_asis\"` above makes knitr write the value as raw markdown, not a fenced block (n020)", () => {
+    expect(nm(["v"], NAME_PRE("v <- c(1, 2)", 'class(v) <- "knit_asis"'))).toEqual(QUIET);
+  });
+});
+
+describe("Session 309 — the new passes read a pathological chunk in linear time", () => {
+  // Timed firsthand (Learning 717): HEAD reads these in 340 ms and 46 ms, this build in about 900 ms and 550 ms (one parse per chunk body, memoized; the first cut parsed each chunk three
+  // times and took 1.3 s). The bound is LOOSE on purpose, because the suite runs these beside 70 other files: what it must catch is a reader that is not linear (a quadratic one takes
+  // minutes at these sizes), and a real document reads in milliseconds.
+  const timed = (code: string[]): { names: string[]; ms: number } => {
+    const text = ["---", "title: t", "---", "", "```{r setup0, include=FALSE}", "x <- 1", "```", "", "# Top", "", "```", "", "## Between", "", ...code, "", "## After", ""].join("\n");
+    const before = performance.now();
+    const names = findHeadings(text, "knitr").map((h) => h.text);
+    return { names, ms: performance.now() - before };
+  };
+  it("a silenced chunk of a million `summary(x);` statements on ONE line", () => {
+    const { names, ms } = timed(["```{r, echo=FALSE}", "summary(x); ".repeat(1000000), "```"]);
+    expect(ms).toBeLessThan(4000);
+    expect(names).toEqual(["Top", "After"]);
+  });
+  it("a silenced chunk of 300,000 assignment lines", () => {
+    const { names, ms } = timed(["```{r, echo=FALSE}", ...Array.from({ length: 300000 }, (_, i) => `v${i} <- ${i}`), "summary(x)", "```"]);
+    expect(ms).toBeLessThan(4000);
+    expect(names).toEqual(["Top", "After"]);
   });
 });
 

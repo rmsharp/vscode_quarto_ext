@@ -6778,7 +6778,7 @@ function knitrSilentChunkClosers(lines: readonly string[]): KnitrChunkClosers {
   const prints = new Map<number, number>();
   // What the lines ABOVE the chunk being judged can hand it as code (Session 307): see `KnitrCodeChannels`.
   const front = frontMatterOpenIndex(lines) === 0 ? frontMatterContent(lines) : null;
-  const channels: KnitrCodeChannels = { opts: front !== null && knitrFrontMatterSuppliesCode(front), fill: false, masks: front !== null && front.some((line) => KNITR_FRONT_OUTPUT_KEY.test(line)), stderrOff: front !== null && front.some((line) => KNITR_FRONT_STDERR_KEY.test(line)) };
+  const channels: KnitrCodeChannels = { opts: front !== null && knitrFrontMatterSuppliesCode(front), fill: false, masks: front !== null && front.some((line) => KNITR_FRONT_OUTPUT_KEY.test(line)), stderrOff: front !== null && front.some((line) => KNITR_FRONT_STDERR_KEY.test(line)), texts: knitrInitialTexts() };
   // The echo / include defaults, read in document order (Session 308): the front matter first, then each setup chunk's `opts_chunk$set()` for the chunks BELOW it.
   const frontDefaults = knitrDocumentDefaults(lines);
   const defaults: KnitrDefaultsState = { frontEcho: frontDefaults.echo, frontInclude: frontDefaults.include, echo: "none", include: "none", callsOff: false, outputUnsafe: false, stderrUnsafe: false };
@@ -6834,6 +6834,7 @@ function knitrSilentChunkClosers(lines: readonly string[]): KnitrChunkClosers {
     channels.opts = channels.opts || knitrOptsChunkSuppliesCode(body.filter((line) => !/^[ \t]*#/.test(line)).join("\n"));
     channels.fill = channels.fill || body.some((line) => !/^[ \t]*#/.test(line) && KNITR_FILL_CALL.test(line));
     channels.masks = channels.masks || knitrCodeMasksPrinters(body.filter((line) => !/^[ \t]*#/.test(line)));
+    knitrUpdateTexts(channels.texts, begin[3], body);
     i = end;
   }
   return { silent, uncertain, prints };
@@ -6881,6 +6882,8 @@ interface KnitrCodeChannels {
   masks: boolean;
   /** The front matter sets `message` or `warning` somewhere: a `message()` or `warning()` may be switched off (Session 309, `KNITR_FRONT_STDERR_KEY`). */
   stderrOff: boolean;
+  /** Whether each name the code above assigned holds a value that prints as plain text (Session 309, `knitrUpdateTexts`): a bare name or `print(name)` prints only then. */
+  texts: Map<string, boolean>;
 }
 /** A function that fills a chunk BY LABEL with code written elsewhere (`knit_code$get()` only reads one). `read_demo` and `read_rforge` are NOT rendered (they need a package demo / the network). */
 const KNITR_FILL_CALL = /read_chunk|read_demo|read_rforge|knit_code[ \t]*\$[ \t]*set/;
@@ -7321,7 +7324,7 @@ function knitrChunkDefaultsUpdate(header: string, body: readonly string[], front
   if (frontNamesEval || cached || bends.some((name) => options.has(name) || pipe.has(name) || pipe.has(name.replace(".", "-")))) {
     return "unknown";
   }
-  const parsed = rTopLevelStatements(codeLinesAfterPipe(body).join("\n"));
+  const parsed = knitrParsedBody(body);
   if (parsed === null || parsed.stringMention) {
     return "unknown";
   }
@@ -7431,7 +7434,7 @@ function rStringIsVisible(content: string): boolean {
  * with `if`, `for`, `while`, `repeat`, `function` or `else` and ends at a header (`if (x)` then a line break, then the body). Gluing too much is the safe side, because
  * a glued statement is no longer an exact call. Linear in the code.
  */
-function rTopLevelStatements(code: string, keepContent = false): { statements: string[]; stringMention: boolean } | null {
+function rTopLevelStatements(code: string): { statements: string[]; stringMention: boolean } | null {
   const statements: string[] = [];
   let current = "";
   let pending = "";
@@ -7465,9 +7468,9 @@ function rTopLevelStatements(code: string, keepContent = false): { statements: s
         return null;
       }
       stringMention = stringMention || code.slice(i + 1, end).includes(KNITR_OPTS_CHUNK);
-      // `keepContent` (Session 309) tells a string that WRITES something from one that does not, because `cat("")` and `cat("\n")` print nothing (rendered, ws1 to ws5): a string with a
-      // visible character becomes `"s"`, anything else (empty, only whitespace or whitespace escapes, or a `\u` / `\x` escape that may be a blank) stays `""`.
-      current += keepContent && rStringIsVisible(code.slice(i + 1, end)) ? '"s"' : '""';
+      // (Session 309) A string that WRITES something is told from one that does not, because `cat("")` and `cat("\n")` print nothing (rendered, ws1 to ws5): a string with a visible
+      // character becomes `"s"`, anything else (empty, only whitespace or whitespace escapes, or a `\u` / `\x` escape that may be a blank) stays `""`.
+      current += rStringIsVisible(code.slice(i + 1, end)) ? '"s"' : '""';
       i = end;
     } else if (ch === "`") {
       return null;
@@ -7584,7 +7587,7 @@ function knitrChunkIsSilent(
     if (options.has("child") || pipe.has("child")) {
       return "uncertain";
     }
-    if ((engine[1] === "r" || engine[1] === "R") && !channels.masks && defaults.outputKept && knitrChunkPrints(body, options, pipe, defaults.stderrKept && !channels.stderrOff && knitrStderrKept(options, pipe))) {
+    if ((engine[1] === "r" || engine[1] === "R") && !channels.masks && defaults.outputKept && knitrChunkPrints(body, options, pipe, defaults.stderrKept && !channels.stderrOff && knitrStderrKept(options, pipe), channels.texts)) {
       return "prints";
     }
     return knitrCodeWritesFence(body, options, pipe) ? "uncertain" : "silent";
@@ -7599,7 +7602,13 @@ function knitrChunkIsSilent(
  * Whether a chunk whose code is NOT echoed still emits an output block (Session 309): a top-level statement that certainly prints.
  * Read for the EXECUTING mode, as every setup-call default is (Session 308).
  */
-function knitrChunkPrints(body: readonly string[], options: ReadonlyMap<string, string>, pipe: ReadonlyMap<string, string>, stderrOk: boolean): boolean {
+function knitrChunkPrints(
+  body: readonly string[],
+  options: ReadonlyMap<string, string>,
+  pipe: ReadonlyMap<string, string>,
+  stderrOk: boolean,
+  texts: ReadonlyMap<string, boolean>,
+): boolean {
   if (!knitrOptionsKeepOutput(options, pipe)) {
     return false;
   }
@@ -7613,8 +7622,107 @@ function knitrChunkPrints(body: readonly string[], options: ReadonlyMap<string, 
   if (code.some((line) => line.includes("```"))) {
     return false;
   }
-  const parsed = rTopLevelStatements(code.join("\n"), true);
-  return parsed !== null && parsed.statements.some((statement) => knitrStatementPrints(statement, stderrOk));
+  const parsed = knitrParsedBody(body);
+  if (parsed === null) {
+    return false;
+  }
+  // The statements run in order, so a name assigned earlier in THIS chunk counts for a later one, unless the chunk also assigns it somewhere this does not follow.
+  const here = new Map(texts);
+  const unread = knitrUnreadAssignments(parsed.statements);
+  for (const name of unread) {
+    here.set(name, false);
+  }
+  for (const statement of parsed.statements) {
+    const assignment = knitrAssignment(statement);
+    if (assignment !== null) {
+      here.set(assignment.name, !unread.has(assignment.name) && knitrRhsIsText(assignment.rhs, here));
+    } else if (knitrStatementPrints(statement, stderrOk, here)) {
+      return true;
+    }
+  }
+  return false;
+}
+/**
+ * The names a chunk assigns in a way `knitrAssignment` does not follow (Session 309): an assignment inside an `if`, a loop, braces, a function or a call's arguments, `<<-`, a right
+ * assignment `->`, a `for` variable. Counted as OCCURRENCES against the top-level assignments: a name with more occurrences than top-level statements may hold anything. Rendered
+ * (`scratchpad/s309/nm` n008, n023, n047): `if (TRUE) v <- knitr::kable(df)` turns `v` into a table, and a `for (v in ...)` rebinds it.
+ */
+const UNREAD_ASSIGNMENTS = new WeakMap<readonly string[], Set<string>>();
+function knitrUnreadAssignments(statements: readonly string[]): Set<string> {
+  const known = UNREAD_ASSIGNMENTS.get(statements);
+  if (known !== undefined) {
+    return known;
+  }
+  const top = new Map<string, number>();
+  const seen = new Map<string, number>();
+  const unread = new Set<string>();
+  const bump = (counts: Map<string, number>, name: string): void => {
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  };
+  // Per statement, never over one joined string, and only where an assignment could hide: a plain `name <- rhs` counts its own name and scans the right-hand side, and a statement with
+  // no `<-`, `=`, `->` or `for` in it is skipped (a chunk of 300,000 statements made both visible: 1.3 s).
+  for (const statement of statements) {
+    const assignment = knitrAssignment(statement);
+    let rest = statement;
+    if (assignment !== null) {
+      bump(top, assignment.name);
+      bump(seen, assignment.name);
+      rest = assignment.rhs;
+    }
+    if (!/<-|=|->|\bfor\b/.test(rest)) {
+      continue;
+    }
+    for (const m of rest.matchAll(/(?:^|[^\w.$@])([A-Za-z.][A-Za-z0-9._]*)[ \t]*(?:<<-|<-|=(?!=))/g)) {
+      bump(seen, m[1]);
+    }
+    for (const m of rest.matchAll(/->>?[ \t]*([A-Za-z.][A-Za-z0-9._]*)|\bfor[ \t]*\([ \t]*([A-Za-z.][A-Za-z0-9._]*)[ \t]+in\b/g)) {
+      unread.add(m[1] ?? m[2]);
+    }
+  }
+  for (const [name, count] of seen) {
+    if (count > (top.get(name) ?? 0)) {
+      unread.add(name);
+    }
+  }
+  UNREAD_ASSIGNMENTS.set(statements, unread);
+  return unread;
+}
+/** Datasets of the `datasets` package that a document may name without assigning them: each prints as a plain table or vector. */
+const KNITR_DATASETS = ["cars", "mtcars", "iris", "airquality", "ToothGrowth", "women", "faithful", "pressure", "precip", "rivers", "trees", "sleep", "PlantGrowth", "USArrests"];
+function knitrInitialTexts(): Map<string, boolean> {
+  return new Map(KNITR_DATASETS.map((name) => [name, true] as const));
+}
+/** A top-level `name <- rhs` or `name = rhs` statement (`==` is a comparison), with the right-hand side as written. */
+function knitrAssignment(statement: string): { name: string; rhs: string } | null {
+  const m = /^([A-Za-z.][A-Za-z0-9._]*)[ \t]*(?:<-|=(?!=))[ \t]*([\s\S]+)$/.exec(statement);
+  return m === null || m[2].startsWith("=") ? null : { name: m[1], rhs: m[2].trim() };
+}
+/** Whether the value of `rhs` prints as plain text: a literal, a range, `NULL`, a whole call of `KNITR_TEXT_CALLS`, or a name that does. */
+function knitrRhsIsText(rhs: string, texts: ReadonlyMap<string, boolean>): boolean {
+  return R_PRINTABLE_LITERAL.test(rhs) || /^\d+:\d+$/.test(rhs) || rhs === "NULL" || rIsTextCall(rhs) || (/^[A-Za-z.][A-Za-z0-9._]*$/.test(rhs) && texts.get(rhs) === true);
+}
+/**
+ * What the code of one chunk does to what the names hold (Session 309). Each top-level assignment sets its name to whether the value prints as text. A chunk this cannot read (a
+ * backtick name, a raw string, an unbalanced bracket) or that brings code in from elsewhere (`child=`, `file=`, `code=`, `ref.label=`) may assign anything, so every name goes
+ * unknown.
+ */
+function knitrUpdateTexts(texts: Map<string, boolean>, header: string, body: readonly string[]): void {
+  const external = /(?:^|[\s,{])(?:child|file|code|ref\.label)[ \t]*=/.test(header) || body.some((line) => /^#\|[ \t]*(?:child|file|code|ref[.-]label):/.test(line));
+  const parsed = external ? null : knitrParsedBody(body);
+  if (parsed === null) {
+    texts.clear();
+    return;
+  }
+  const unread = knitrUnreadAssignments(parsed.statements);
+  for (const name of unread) {
+    texts.set(name, false);
+  }
+  for (const statement of parsed.statements) {
+    const assignment = knitrAssignment(statement);
+    if (assignment !== null) {
+      texts.set(assignment.name, !unread.has(assignment.name) && knitrRhsIsText(assignment.rhs, texts));
+    }
+  }
 }
 function knitrCodeMasksPrinters(code: readonly string[]): boolean {
   for (const line of code) {
@@ -7656,6 +7764,19 @@ function knitrOptionsKeepOutput(options: ReadonlyMap<string, string>, pipe: Read
   }
   return !["output", "class.output", "attr.output", "render", "out.lines"].some((name) => both(name) !== undefined);
 }
+const PARSED_BODIES = new WeakMap<readonly string[], ReturnType<typeof rTopLevelStatements>>();
+/**
+ * The top-level statements of a chunk body, read ONCE per body object (Session 309): the defaults reader, the printing reader and the name tracker all need them, and the first cut parsed
+ * each chunk three times, which a 300,000-line chunk made visible (1.3 s). `null` when the code is not shaped this reads with certainty (`rTopLevelStatements`).
+ */
+function knitrParsedBody(body: readonly string[]): ReturnType<typeof rTopLevelStatements> {
+  let parsed = PARSED_BODIES.get(body);
+  if (parsed === undefined) {
+    parsed = rTopLevelStatements(codeLinesAfterPipe(body).join("\n"));
+    PARSED_BODIES.set(body, parsed);
+  }
+  return parsed;
+}
 /** A literal whose `print()` is text: a string (`""` is `[1] ""`), a number or a logical. */
 const R_PRINTABLE_LITERAL = /^(?:""|"s"|\d+(?:\.\d+)?|TRUE|FALSE)$/;
 /**
@@ -7681,7 +7802,7 @@ const KNITR_PRINT_NAMES = ["print", "cat", ...KNITR_TEXT_CALLS].map((name) => na
  * a hook (`knit_hooks`, `opts_hooks`), code loaded or evaluated by name (`source`, `sys.source`, `eval`, `evalq`, `parse`), S3 and S4 registration, `knit_exit()`, and an
  * `options()` call that sets anything but a number format.
  */
-const KNITR_MASK_ASSIGN = new RegExp(`(?:^|[;{])[ \\t]*\`?(?:${KNITR_PRINT_NAMES})\`?[ \\t]*(?:<<?-|=(?!=))|->>?[ \\t]*\`?(?:${KNITR_PRINT_NAMES})\`?\\b|(?:^|[^\\w.$@])(?:print|summary|format|head|tail|str|cat|toString|table)\\.[A-Za-z_.]+[ \\t]*(?:<<?-|=(?!=))`);
+const KNITR_MASK_ASSIGN = new RegExp(`(?:^|[;{])[ \\t]*\`?(?:${KNITR_PRINT_NAMES})\`?[ \\t]*(?:<<?-|=(?!=))|->>?[ \\t]*\`?(?:${KNITR_PRINT_NAMES})\`?\\b|(?:^|[^\\w.$@])(?:print|summary|format|head|tail|str|cat|toString|table|knit_print)\\.[A-Za-z_.]+[ \\t]*(?:<<?-|=(?!=))|(?:^|[^\\w.$@])(?:class|oldClass|attr|attributes)[ \\t]*\\([^)]*\\)[ \\t]*(?:<<?-|=(?!=))`);
 /**
  * A front-matter KEY that can hide a printing chunk's output, move it into a block with an info string, or make a data frame print as a table instead of text (Session 309):
  * `output`, `results`, `eval`, `class.output` / `attr.output` (also dashed), `df-print`, `render`, and the keys that bring code in from outside (`child`, `ref.label`, `code`, `file`).
@@ -7706,18 +7827,22 @@ function knitrOptionKeepsOutput(name: string, value: string): boolean {
 }
 /** A front-matter `message` or `warning` key anywhere: rendered, `execute: warning: false` hides a message as well, and `execute: message: false` hides nothing (`msg` m005, m015, m016), so any of them declines. */
 const KNITR_FRONT_STDERR_KEY = /(?:^|[\s{,])["']?(?:message|warning)["']?[ \t]*:/;
-const KNITR_MASK_WORD = /\b(?:assign|sink|knit_hooks|opts_hooks|source|sys\.source|eval|evalq|parse|registerS3method|setMethod|setGeneric|setClass|setRefClass|knit_exit)\b/;
+const KNITR_MASK_WORD = /\b(?:assign|sink|knit_hooks|opts_hooks|source|sys\.source|eval|evalq|parse|registerS3method|setMethod|setGeneric|setClass|setRefClass|knit_exit|knit_print|knit_asis|asis_output)\b/;
 /**
  * Whether ONE top-level statement (strings masked, `rTopLevelStatements` with `keepContent`) certainly emits an output block, as a WHOLE call: a trailing `$x` or `+ 1` makes it
  * something else. `print()` of a literal, and `cat()` with a non-empty string literal among its unnamed arguments and no destination (`file=`, `fill=`): `cat("")` prints nothing.
  */
-function knitrStatementPrints(statement: string, stderrOk: boolean): boolean {
+function knitrStatementPrints(statement: string, stderrOk: boolean, texts: ReadonlyMap<string, boolean>): boolean {
+  // A bare name always evaluates visibly: it prints text when the name holds a value that does (`knitrUpdateTexts`).
+  if (/^[A-Za-z.][A-Za-z0-9._]*$/.test(statement)) {
+    return texts.get(statement) === true;
+  }
   const call = rWholeCall(statement);
   if (call === null) {
     return false;
   }
   if (call.name === "print") {
-    return call.args.length === 1 && (R_PRINTABLE_LITERAL.test(call.args[0]) || rIsTextCall(call.args[0]));
+    return call.args.length === 1 && (R_PRINTABLE_LITERAL.test(call.args[0]) || rIsTextCall(call.args[0]) || texts.get(call.args[0]) === true);
   }
   if (call.name === "cat") {
     const named = call.args.filter((argument) => /^[A-Za-z.][A-Za-z0-9._]*[ \t]*=(?!=)/.test(argument));
