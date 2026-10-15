@@ -23,7 +23,7 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ### 2026-10-15 · [ad hoc] Session 311 close-out: handoff evaluation, self-assessment, receipt, ledger, BACKLOG, Learnings 738 to 745
 
-Written in the close-out commit: the Session 310 handoff evaluation (8/10) and the Session 311 self-assessment (8/10) in `methodology/SESSION_NOTES.md`, the `HANDOFFS.md` receipt (`pending` to `complete`), this ledger (the claim entry replaced by one entry per commit and per non-commit action), `PROJECT_LEARNINGS.md` rows 738 to 745, and the `BACKLOG.md` change below. The SESSION_NOTES trim, the dashboard and context-budget history refresh and the quality-gate citation follow in their own commits, as in Sessions 309 and 310.
+Written in the close-out commit: the Session 310 handoff evaluation (8/10) and the Session 311 self-assessment (8/10) in `methodology/SESSION_NOTES.md`, the `HANDOFFS.md` receipt (`pending` to `complete`), this ledger (the claim entry replaced by one entry per commit and per non-commit action), `PROJECT_LEARNINGS.md` rows 738 to 745, and the `BACKLOG.md` change below. The SESSION_NOTES trim (`464ff610`, ledgered in `d16f379d`), the dashboard and context-budget history refresh (`22fc2a59`) and the quality-gate citation (this run: `quality_ratchet.py --run`, 2/2 pass, 0 fail, 0 unmeasured, results `bba236856bad`, manifest `334939914945`, at head `d16f379d`) followed in their own commits, as in Sessions 309 and 310.
 
 ### 2026-10-15 · [BL-Three PRE-EXISTING slow or crashing inputs, found by Session 304's robustness hunter and timed firsthand — identical in the parent build] BACKLOG: item removed as complete, residuals filed
 
