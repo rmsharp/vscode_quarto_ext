@@ -35,3 +35,40 @@ describe("Session 309 — the geometry reviewer's 50 documents: never worse than
     expect(r[2].filter((t) => r[3].includes(t) && !got.includes(t))).toEqual([]);
   });
 });
+
+describe("Session 309 — the test critic's rows: guards that nothing pinned, and the --no-execute cost", () => {
+  // `rows`: [name, document, quarto's headings, this model's when written, HEAD's]; `cost`: [name, document, quarto's headings executing, quarto's under `--no-execute`, this model's, HEAD's].
+  // See the fixture's `note`. Closed-world, and written after the code (disclosed): the critic named which guards a mutant could remove unseen, and every row was rendered first.
+  type CriticRow = [string, string, string[], string[], string[]];
+  type CostRow = [string, string, string[], string[], string[], string[]];
+  const critic = JSON.parse(readFileSync(path.join(__dirname, "../fixtures/knitr-print-critic/quarto-1.7.33.json"), "utf8")) as { rows: CriticRow[]; cost: CostRow[] };
+  const modelOf = (document: string): string[] => findHeadings(document, "knitr").map((h) => h.text);
+
+  it("covers the whole fixture: 32 guard documents and 3 cost documents", () => {
+    expect(critic.rows).toHaveLength(32);
+    expect(critic.cost).toHaveLength(3);
+  });
+
+  // The two that DELETE are a setup call this reader cannot read (`do.call(opts_chunk$set, ...)`, a call under an `if`): HEAD's own choice keeps the chunk loud there, so HEAD deletes the
+  // same heading. Disclosed in `BACKLOG.md` ("A call this cannot read DROPS the front matter's silence"), not caused by Session 309.
+  it("never hides a heading quarto renders, except the two unreadable-setup-call documents that HEAD hides too", () => {
+    const hiding = critic.rows.filter((r) => r[2].some((t) => !modelOf(r[1]).includes(t))).map((r) => r[0]);
+    expect(hiding).toEqual(["s_u01_do_call_set", "s_u02_if_set"]);
+    expect(critic.rows.filter((r) => r[2].some((t) => !r[4].includes(t))).map((r) => r[0])).toEqual(hiding);
+  });
+
+  it.each(critic.rows.map((r) => [r[0], r] as const))("pinned: %s", (_name, r) => {
+    expect(modelOf(r[1])).toEqual(r[3]);
+  });
+
+  // THE COST OF FOLLOWING THE EXECUTING MODE (the operator's decision, Sessions 308 and 309), as documents. Three printing chunks under a hidden-code default and a stray fence above
+  // them: a normal render swallows `H0` and `H1`, which the model now says (HEAD listed all three); under `--no-execute` nothing prints, nothing is fenced and quarto lists all three,
+  // so the model hides two headings quarto shows. Over 144 blind documents of this shape the cost was 1 document hiding a heading at HEAD and 77 now.
+  it.each(critic.cost.map((r) => [r[0], r] as const))("the model follows the EXECUTING render and hides under --no-execute: %s", (_name, r) => {
+    expect(r[2]).toEqual(["H2"]);
+    expect(r[3]).toEqual(["H0", "H1", "H2"]);
+    expect(modelOf(r[1])).toEqual(r[2]);
+    expect(r[5]).toEqual(r[3]);
+  });
+});
+
