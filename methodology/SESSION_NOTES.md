@@ -8,22 +8,55 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 310 (IN PROGRESS): a render-MODE argument for the Outline's knitr silence rule** (item (A) of the BACKLOG silence item: the executing-mode decision).
-Operator picked it at Phase 0 (the recommended option). S309's premise (the host knows `--no-execute`) is UNVERIFIED: no spawn in `src/` passes it. Settle the signal's source first; strict TDD.
-**⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in the close-out commit).
-(2) `scratchpad/s309/` (untracked) holds the harness; its tracked twin is `tools/knitr-print-grids/` (generators, `regen.py` re-renders every document the fixtures store). `score308.py <b1.cjs,b2.cjs> <dir:mode>...` (in `s308`) scores by DIRECTION; `mutate309.py
-<sha> <mutants.json>`.
-(3) Fixtures `test/fixtures/knitr-print-{geometry,statements,hostile,geometry-hostile,critic,mutants}/` are CLOSED-WORLD: a rule change that moves a row fails until `mkfixture_stm.py` (statements) or a deliberate edit regenerates it.
-(4) The Bash tool KEEPS a `cd`: use absolute paths. zsh: `${l}:exec`, not `$l:exec`; `echo ======` is a command; `node -e` argv starts at 1 (`slice(2)` for files); scripts written by Write are not executable.
-(5) Put "do not read installed quarto, knitr, xfun, rmarkdown or pandoc source" in EVERY agent prompt (Learnings 700, 709) and audit by parsing `tool_use` inputs (`scratchpad/s309/audit309.py` flags REPO reads too: right for blind authors, wrong for reviewers).
-(6) ⚠ OPEN DECISION FOR THE OPERATOR (BACKLOG item): the Outline follows the EXECUTING mode, and under `--no-execute` documents hide a heading quarto shows: 7 to 21 of 100 (S308's set) and 1 to 77 of 144 (round B). A mode argument from the host would end it.
-(7) `test:integration` takes the screen: ask first. `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` are past the 262,144 B read refusal: read them in slices. Baseline `npm test` at HEAD is 9,278 passing in 74 files.
+**Task:** **NONE -- Session 310 closed out.** The Outline can be read for `quarto render --no-execute`: `findHeadings`/`buildOutline` take a third `mode` argument, set by the new setting `quarto.symbols.renderMode`; the
+executing reading stays the DEFAULT. `BACKLOG.md` "Active" is empty; present ranked candidates via AskUserQuestion at Phase 0.
+**⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in the close-out
+commit).
+(2) TWO different scratchpads: the repo's untracked `scratchpad/` (`s310/` holds the harness, grids, 125 held-out documents, the reviewers' documents) and the session one under `/private/tmp/...` (the three review JSONs).
+Tracked twins: `tools/knitr-print-grids/score_modes.py`, `build_bundle.sh`.
+(3) `score_modes.py <build.cjs[,build.cjs@no-execute]> <exdir>~<nedir>...` scores a build against paired renders by DIRECTION (`--fixture` writes `test/fixtures/knitr-print-noexec/`, 707 rows, closed-world);
+`REALDOC_MODE=no-execute tools/realdoc-score/run.sh <label>`; `mutate310.py <sha> <mutants.json>` (in `s310`).
+(4) zsh: an unquoted `$VAR` does NOT split (use `${=VAR}`); quote `grep --include='*.ts'`; `echo =====` is a command; the Bash tool KEEPS a `cd`: use absolute paths.
+(5) Put "do not read installed quarto, knitr, xfun, rmarkdown or pandoc source" in EVERY agent prompt and audit `tool_use` inputs (`scratchpad/s309/audit309.py`: it flags REPO reads too, right for blind authors, noise for
+reviewers).
+(6) The row `Session 307 ... a 9 MB line of opts_chunk$set( repeats is read in linear time` (1.5 s bound) flakes when the machine is loaded (1.55 to 1.88 s at load average 30; about 650 ms alone). Do not loosen it; time it
+alone.
+(7) `test:integration` takes the screen: ask first (run once this session, 562 passing). `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md`, `PROJECT_LEARNINGS.md` are past the 262,144 B read refusal: read them in slices. Baseline
+`npm test` at HEAD is 10,815 passing in 77 files.
+(8) The default reading is byte-identical to Session 309's (707 paired documents and all 3,383 corpus outputs), pinned by `knitr-no-execute-fixture.test.ts`; a change to it fails there first.
 
-### What Session 310 Did
-**Deliverable:** a render-mode argument for the Outline's knitr silence rule, so the Outline follows the mode a render actually runs in (IN PROGRESS)
-**Started:** 2026-10-14
-**Status:** Session claimed. Work beginning. Phase 0 found both ledger frontiers at HEAD and the ratchet citation matching (2/2 at `35f188dc`). Baseline `npm test`: 9,277 passing plus ONE timing flake (the S307 9 MB `opts_chunk$set(` row, 1.55 to 1.88 s against its 1.5 s limit, load average 30 from unrelated processes), not a defect; the limit is not loosened.
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+## Session 309 Handoff Evaluation (by Session 310)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, gotchas 1 to 7, both ledger frontiers, the ratchet citation (2/2 at `35f188dc`), the test baseline (9,278 passing, 74 files; one timing row flaked under
+load) and the function pointers all held at Phase 0, and its derived claim that `src` had no `--no-execute` setting and that two call sites reach `buildOutline` held.
+**Helped:** item (A) with its three cost documents, which I put to the operator with numbers (they picked it); `scratchpad/s308` and `s309` had kept BOTH renders of about 500 documents, and `score308.py` was the template of the scorer I built; the
+audit script; the method paragraph (render first, score by direction, attacker before the blind round).
+**Missing:** that the cure needs a NEW SETTING (a manifest entry with a scope decision, README text, two provider integration tests), not only a core argument; that the paired renders made the whole core change scoreable for free (a reader inventory
+found them); and that the no-execute reading is nine guards, three of which no stored render exercised.
+**Wrong:** "the extension knows whether a render uses `--no-execute`" (`whats_next`; no spawn in `src/` passes the flag, and the BACKLOG text beside it said so correctly), and "estimate: one slice plus the host wiring": twelve work commits, three
+workflows, four render grids and a review round. **ROI: high.**
+
+## Session 310 Self-Assessment
+
+**Score: 8/10.**
+**Went right.** I read the data before designing: a reader inventoried about 500 paired renders already on disk, and a scorer built from them (by direction, per reading) priced every guard before it was written. Each guard came from a row that went
+red (the first on the tracked `ne_front_default` cost row), and the three guards the stored data did not exercise (shell engines, `child=`, unlisted engines) got a render grid each (27, 12 and 38 documents) before any code. Over 707 paired real
+renders the no-execute reading is right on 668 against 376, 27 rows hide a heading against 178, no row is worse than the executing reading, and the default is byte-identical to Session 309's on all 707 and on all 3,383 corpus documents (both modes
+agree on the corpus: 2,423 of 2,438). A blind round (5 lenses, 125 documents, 0 of 165 tool calls flagged) gave the honest number before any fix: 121 right of 125 against 78. A read-only attacker, test critic and host reviewer (3 agents, 228 tool
+calls) found one real regression (a `#|` expression inside a listed or quoted chunk: 3 documents, one root cause), an over-conservative guess of mine (R-only child), and 12 test gaps; every claim was checked by rendering their documents or reading
+the code. Mutation 48 of 48 killed (43, then the 5 child-rule survivors pinned). Integration (with your go-ahead) 562 passing including both provider tests. `npm run test:oracle` 2 of 2; `npm run package` DONE, 44 files, 1.86 MB. Learnings 732 to
+737.
+**Went wrong.** (1) My own prompt told the readers a wrong premise (an inline `r` call does nothing under `--no-execute`); one agent contradicted it from the repository and was right. (2) The first cut's `#|` test was column-zero and the child guard
+R-only because I generalised from what I had rendered: the first cost a regression the review found, the second a refuted guess a grid fixed. (3) I laid a test document out differently from the rendered grid it cited, and 8 of the critic's 12 comment
+findings were true (wrong pairing prose, a control named for something it does not test, a detached doc comment). (4) RED was NOT shown for the two provider integration tests: written first, first run after the adapters, one screen takeover with your
+go-ahead (a RED run would have cost a second). (5) About ten "have not heard from you" nudges, the lesson Sessions 302 and 306 to 309 recorded; long waits could have carried a one-line status. (6) I saved the review JSON in the session scratchpad and
+looked for it in the repository's (Learning 736).
+**Known residuals (filed):** the BACKLOG item by number: (1) header-borne channels (DELETING, both modes), (2) prefixed chunks (3 documents), (3) the document selecting the mode (`execute: enabled: false`, measured), (4) engines `go` and `stan`, (5)
+the label index is executing-only, (6) the front matter reader's declines, (7) executing-reading defects the review found, (8) host: resource scope unpinned, no RED for the provider tests, (9) S309's carried (B) to (F).
+**TDD:** RED before GREEN for the mode argument and its first guard, the cache flip, the setup call, the header call, the fence writer, the opts channel, `read_chunk`, the listed chunk's call, the shell engines (5 rows), the child rule (11 engines,
+the list pipe), the 22 engines, an unknown mode (7 rows), the prefixed `#|` (2 rows), `resolveRenderMode`, the manifest pin, the setting-key constant and the fixture (ENOENT). Passed on arrival, disclosed: every executing control, the buildOutline,
+engine-blind, front-matter and inline pins, `#|` e01 and e02, the five conservative child edges, the two provider integration tests, and the 1,418 fixture rows (written after the code, every document rendered).
+**Host:** `test:integration` run ONCE with the operator's go-ahead: 562 passing. **Cost:** 11 agents (3 workflows, about 2.4M subagent tokens), about 460 renders by me, 48 mutants, one `npm run package` (1:22).
 
 ## Session 308 Handoff Evaluation (by Session 309)
 

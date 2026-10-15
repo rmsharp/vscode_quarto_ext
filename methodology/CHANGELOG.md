@@ -17,9 +17,89 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
-### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 309: the `--no-execute` decision, the printers it cannot prove, printed text that is itself markdown, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 310 (in progress): claim -- a render-mode argument for the silence rule
+### 2026-10-14 · [ad hoc] Session 310 close-out: handoff evaluation, self-assessment, receipt, ledger, BACKLOG item, Learnings 732 to 737
 
-Session claimed; the operator chose item (A), the executing-mode decision, at the Phase 0 picker (the recommended option: the only deleting-direction item, 1 to 77 of 144 round-B documents hide a heading quarto shows under `--no-execute`). The S309 handoff said the extension knows the mode; a grep at claim time found no spawn in `src/` that passes `--no-execute`, so where the host gets the mode is the first thing to settle. Baseline `npm test`: 9,277 passing plus one timing flake (the S307 9 MB `opts_chunk$set(` row, 1.55 to 1.88 s against 1.5 s, load average 30 from unrelated processes); the limit is not loosened. Phase 3F records the outcome.
+`methodology/SESSION_NOTES.md` (the evaluation of Session 309's handoff, 8/10, and this session's self-assessment, 8/10), the `HANDOFFS.md` receipt (`status: complete`), this ledger, the `BACKLOG.md` silence item replaced by its residuals (item (A), the render-mode argument, is delivered and removed), `PROJECT_LEARNINGS.md` rows 732 to 737, the dashboard and context-budget history. The quality-gate citation is added in the next commit, after this ledger commit (Learning 683).
+
+### 2026-10-14 · [ad hoc] Session 310: mutation pass on the new code (48 mutants, 48 killed)
+
+`scratchpad/s310/mutate310.py` over a faithful `git archive` copy: the mode plumbing and cache key, the nine no-execute guards, `resolveRenderMode`, the constants and `buildOutline`/`findHeadings`. First run 43 killed, 5 survived (all in the `child=` rule: an unlisted engine's child, an `engine` option beside `child=` in the header or the pipe, a `#| child:` line below code); five conservative-edge pins (`7f91c679`) killed them. Run alone, no timing flake.
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 309: the `--no-execute` decision, the printers it cannot prove, printed text that is itself markdown, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 310: pin the conservative edges of the child rule (`7f91c679`)
+
+`test/unit/knitr-no-execute.test.ts`: five rows, none rendered (no render settles them), each pinning the answer the model always gave for an edge of the `child=` rule. Passed on arrival (disclosed); each kills a mutant.
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 309: the `--no-execute` decision, the printers it cannot prove, printed text that is itself markdown, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 310: the `executes` parameters are required (`aedcb1a6`)
+
+`src/core/qmd/model.ts`: `knitrSilentChunkClosers` and `knitrChunkIsSilent` lost their dead `executes = true` defaults (every caller passes it), so the type checker enforces it and no unkillable mutant is left. No behaviour change.
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 309: the `--no-execute` decision, the printers it cannot prove, printed text that is itself markdown, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 310: pin 707 paired quarto renders as a closed-world fixture (`ada9bc7e`)
+
+`test/fixtures/knitr-print-noexec/quarto-1.7.33.json` (707 documents, each rendered twice by quarto 1.7.33, exit 0, identical bytes, written by `score_modes.py --fixture`) and `test/unit/knitr-no-execute-fixture.test.ts` (1,418 rows plus the invariants and a ratchet: right on at least 668 and hiding a heading in at most 27, the default reading 376 and 178). RED was the missing fixture (ENOENT); the rows were written after the code (disclosed), every document rendered.
+
+### 2026-10-14 · [ad hoc] Session 310: the review round (soundness attacker, host and cache reviewer, test critic)
+
+Workflow, 3 read-only agents, about 841k subagent tokens, 228 tool calls (the audit of `tool_use` inputs found no third-party source read): 49 findings (16 soundness, 11 host, 22 critic) and 43 counterexample documents, which I rendered both ways with quarto 1.7.33 and scored by direction before acting. Real: a `#|` expression inside a listed or quoted chunk (3 documents, one cause, fixed in `7c352a7d`), an unknown mode read as no-execute (fixed), four stale and four wrong comments, a detached doc comment, enum descriptions with backticks, a vacuous control, 12 test gaps (pinned). Refuted or out of scope (mode-independent, filed in the BACKLOG item): header-borne channels, prefixed chunks, `go`/`stan`, the label index, the front matter reader's declines.
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 309: the `--no-execute` decision, the printers it cannot prove, printed text that is itself markdown, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 310: correct the review's comment and vacuity findings, harden the cleanup (`1547649d`)
+
+`test/unit/knitr-no-execute.test.ts` (rows for `echo = FALSE` and `include = FALSE` setup calls, the quoted twin of the listed-chunk call, a control named for what it is, comments that described the wrong pairing), `test/integration/suite/workspace-symbols.test.ts` (the scratch file is removed before the setting is reset and cleared before the test starts), `src/providers/workspace-symbols.ts` (header), `tools/realdoc-score/README.md` (`REALDOC_MODE`).
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 309: the `--no-execute` decision, the printers it cannot prove, printed text that is itself markdown, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 310: a child= chunk of any engine is silent under --no-execute, and 22 more engines are silent when hidden (`6052bbcd`)
+
+`src/core/qmd/model.ts`: the child rule covers every engine of `KNITR_SILENT_ENGINES` (12 rendered, including `eval=TRUE` and the `#| child: [a, b]` list), and `KNITR_NO_EXECUTE_SILENT_ENGINES` adds c, cc, fortran, fortran95, haskell, octave, sas, scala, sql, tikz, Rscript, asis, cat, block, coffee, groovy, php, sed, gawk, stata, highlight, mysql (each rendered with `echo=FALSE`). 34 rows red first. Corrected the comments that said the Outline follows only the executing mode.
+
+### 2026-10-14 · [ad hoc] Session 310: the engines-and-children grid (38 documents rendered under --no-execute)
+
+`scratchpad/s310/gen310c.py`, `gc-ne`: 24 unlisted engines with `echo=FALSE` (22 silent, `go` and `stan` did not render), 12 engines with `child=`, a YAML-list pipe child and `eval=TRUE`. It refuted the R-only child guard and grounded the 22-engine list.
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 309: the `--no-execute` decision, the printers it cannot prove, printed text that is itself markdown, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 310: a #| expression in a listed or quoted chunk still runs under --no-execute; only the exact string selects that reading (`7c352a7d`)
+
+`src/core/qmd/model.ts`: `knitrHeaderMentionsOptsChunk` strips the chunk's own container prefix before testing `#|` (a judged chunk has none, so the executing reading is unchanged), `scanRegions` normalises any mode but the exact string `no-execute` to `execute`; the doc comments are in the right order; `package.json` enum descriptions are plain text. 9 rows red first (2 prefixed documents rendered by quarto, 7 unknown modes); pins for `buildOutline`, the engine-blind cache entry, the front matter and inline channels, the R-only guard.
+
+### 2026-10-14 · [ad hoc] Session 310: five blind authors write 125 held-out documents; first look 121 right of 125 against 78
+
+Workflow, 5 agents, about 695k subagent tokens, 0 of 165 tool calls flagged by the audit (`scratchpad/s310/BRIEF310.md`, lenses report, defaults, channels, engines, layout). I rendered each document twice (2 wide behind the load gate, 250 renders, 0 failures). Scored BEFORE any fix to them: the no-execute reading right on 121, hiding a heading in 2 rows (both also wrong at HEAD); the executing reading right on 78 and hiding in 32. They are training data from the fixture commit on.
+
+### 2026-10-14 · [ad hoc] Session 310: `npm run test:integration` (562 passing), with the operator's go-ahead
+
+Asked first (`AskUserQuestion`), run once in the Extension Development Host: 562 passing, 0 failing, including `quarto.symbols.renderMode` for the Outline and for Go to Symbol in Workspace (flipped at the Global target in both directions, no text edit). RED was not shown for those two tests.
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 309: the `--no-execute` decision, the printers it cannot prove, printed text that is itself markdown, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 310: inertness for non-knitr engines, the #| expression, the scorer and a no-execute census (`957af9aa`)
+
+`test/unit/knitr-no-execute.test.ts` (every other engine ignores the mode and shares one cache entry; a `#|` expression runs in both modes, rendered), `tools/knitr-print-grids/score_modes.py` and `build_bundle.sh` (score any build against paired renders by direction; `--fixture` writes the closed-world fixture), `tools/realdoc-score/census.test.ts` (`REALDOC_MODE=no-execute`): 2,423 of 2,438 under both readings, all 3,383 outputs byte-identical to each other and to Session 309's.
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 309: the `--no-execute` decision, the printers it cannot prove, printed text that is itself markdown, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 310: the Outline and Go to Symbol in Workspace read quarto.symbols.renderMode (`d9473dd8`)
+
+`src/providers/outline.ts` (reads the setting at the document's scope, passes the mode, re-registers when it changes), `src/providers/workspace-symbols.ts` (reads it per file), README (setting and Outline text), two integration tests written first. The unit suite cannot reach this code; the tests were first run at the integration run above.
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 309: the `--no-execute` decision, the printers it cannot prove, printed text that is itself markdown, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 310: contribute quarto.symbols.renderMode and the helper that reads it (`9b7abcf4`)
+
+`package.json` (a resource-scoped enum setting, `execute` by default), `src/core/render-mode.ts` (`RenderMode`, `RENDER_MODES`, `DEFAULT_RENDER_MODE`, `RENDER_MODE_SETTING`, `resolveRenderMode`: only the exact string `no-execute` selects the other reading), `test/unit/render-mode.test.ts` (the table of raw values and the manifest pinned against the constants). Red first: the missing function, the missing setting, the missing key constant.
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 309: the `--no-execute` decision, the printers it cannot prove, printed text that is itself markdown, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 310: a document-level echo: false silences the shell-like engines under --no-execute, and a child= chunk emits nothing (`bab45fd5`)
+
+`src/core/qmd/model.ts`: grounded by a 27-document grid (executing and --no-execute) and a 12-document child grid (quarto 1.7.33): bash, sh, zsh, perl and ruby are silent under a front-matter `echo: false` when nothing runs and loud when they print, and an R `child=` chunk is silent in 12 of 12 documents. Tests red first (5 engines, 3 child rows); the executing controls passed on arrival.
+
+### 2026-10-14 · [ad hoc] Session 310: the shell-engine and child render grids (27 and 12 documents, both ways)
+
+`scratchpad/s310/gen310a.py` (`ga-ex`, `ga-ne`: the silence rule for 8 engines under a document and a per-chunk echo default, child chunks, three `#|`/header expression spellings) and `gen310b.py` (`gb-*`: five child documents). In the front-matter documents the final `{r}` chunk is silenced by the same default, so under --no-execute the stray fence pairs with nothing and all four headings show exactly when the shell chunk is silent (a loud one would swallow `Between`); executing, the shell chunk's printed output closes the fence.
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 309: the `--no-execute` decision, the printers it cannot prove, printed text that is itself markdown, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 310: no code writes a fence under --no-execute, and a setup call, a read_chunk call or a listed chunk's call supplies and changes nothing (`cdbb319f`)
+
+`src/core/qmd/model.ts`: four guards, each red first on a rendered document (`b04`, `a01`, `a06`, `p04`): `knitrCodeWritesFence` is not asked, the body-borne `opts` and `fill` channels do not open (the front matter and an inline `r` call still do), and a call in the body of a chunk this model does not judge no longer drops the front matter's silence. 500 paired renders: 478 right (executing: 266), 11 rows hiding a heading, all also wrong at HEAD.
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 309: the `--no-execute` decision, the printers it cannot prove, printed text that is itself markdown, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 310: findHeadings and buildOutline take a render mode (`a2d58ef6`)
+
+`src/core/qmd/model.ts` (`mode`, `execute` by default, through `findHeadings`, `buildOutline`, `scanRegions`, `computeRegions` to `knitrSilentChunkClosers(lines, executes)`; the 2-slot regions cache is keyed on the mode, normalised to `execute` for every engine but knitr), `src/core/render-mode.ts`, `test/unit/knitr-no-execute.test.ts`. First RED: the tracked `ne_front_default` cost row answered `H2` where quarto lists three; second RED: the cache served the previous mode's regions for unchanged text; third: a setup call is not a default (`d02`). A header or `#|` mention still counts (`rev-soundness_14`, rendered both ways).
+
+### 2026-10-14 · [ad hoc] Session 310: understanding workflow (three read-only readers) and the `execute: enabled: false` probe
+
+Workflow, 3 agents, about 846k subagent tokens, 262 tool calls (the audit found no third-party source read; the 76 flagged repository reads are the point of a reader): 17 mode-dependent sites of the silence rule with their evidence, the host surfaces and the proposed setting, and an inventory of the paired renders on disk (about 500 documents with both). One reader contradicted my prompt (an inline `r` call runs under --no-execute) and was right. My own 8-document probe: `execute: enabled: false` and `execute: eval: false` behave exactly like `--no-execute` for this rule (`H0 H1 H2` against `H2`).
+
+### 2026-10-14 · [BL-What the Outline's silence rule still gets wrong after Session 309: the `--no-execute` decision, the printers it cannot prove, printed text that is itself markdown, and the channels no word list can read — every row rendered, quarto 1.7.33, knitr 1.51] Session 310: claim -- a render-mode argument for the silence rule (`cbc33416`)
+
+Session claimed; the operator chose item (A), the executing-mode decision, at the Phase 0 picker (the recommended option: the only deleting-direction item, 1 to 77 of 144 round-B documents hide a heading quarto shows under `--no-execute`). A grep at claim time found no spawn in `src/` that passes `--no-execute`, so the S309 handoff's "the extension knows the mode" was wrong and a setting was needed. Baseline `npm test`: 9,277 passing plus one timing flake (the S307 9 MB row, 1.55 to 1.88 s against 1.5 s, load average 30 from unrelated processes); the limit is not loosened.
 
 ### 2026-10-14 · [ad hoc] Session 309: trim SESSION_NOTES to three close-out pairs (`bfec67f6`)
 
