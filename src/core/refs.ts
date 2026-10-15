@@ -416,7 +416,7 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
         keep(
           m[1].replace(/&#(\d+);|&#x([0-9a-f]+);/gi, (_all, dec?: string, hex?: string) => {
             const code = Number.parseInt(dec ?? (hex as string), dec === undefined ? 16 : 10);
-            return code > 0x10ffff ? "�" : String.fromCodePoint(code);
+            return code > 0x10ffff ? "\uFFFD" : String.fromCodePoint(code);
           }),
         );
       }
