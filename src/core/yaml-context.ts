@@ -211,9 +211,7 @@ function nestedKeyContextAt(
     return null;
   }
   const nlColon = lineText.indexOf(":", indent);
-  const keyText = (
-    nlColon >= 0 ? lineText.slice(indent, nlColon) : lineText.slice(indent)
-  ).replace(/[ \t]+$/, "");
+  const keyText = trimEndBlanks(nlColon >= 0 ? lineText.slice(indent, nlColon) : lineText.slice(indent));
   const keySlot: Slot = { startCol: indent, endCol: indent + keyText.length };
   if (col >= keySlot.startCol && col <= keySlot.endCol) {
     return {
@@ -334,7 +332,7 @@ export function mappingContainerKey(text: string): string | null {
   if (value !== "" && !value.startsWith("#")) {
     return null; // a scalar / flow / block-scalar value → not a pure mapping
   }
-  return trimmed.slice(0, colon).replace(/[ \t]+$/, "");
+  return trimEndBlanks(trimmed.slice(0, colon));
 }
 
 /**

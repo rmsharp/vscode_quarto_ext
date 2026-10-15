@@ -33,7 +33,7 @@
  * (plan §3.3 footgun, §11 dragon 2).
  */
 
-import { findFrontMatter, frontMatterContentLines, scanFlow } from "./qmd/model";
+import { findFrontMatter, frontMatterContentLines, scanFlow, trimEndBlanks } from "./qmd/model";
 import {
   mappingColonAt,
   leadingWsLen,
@@ -202,7 +202,7 @@ export function findNestedFrontMatterValueLines(
     // needs a MATCHING pair, so a merely quote-adjacent key (`"echo`, `"echo" x`) is left
     // intact and stays silent — and those are structural `YAMLException`s for quarto, never
     // value errors.
-    const key = unquoteKey(lineText.slice(indent, colon).replace(/[ \t]+$/, ""));
+    const key = unquoteKey(trimEndBlanks(lineText.slice(indent, colon)));
     if (key.length === 0) {
       continue; // `: value` with no key — malformed, nothing to resolve
     }

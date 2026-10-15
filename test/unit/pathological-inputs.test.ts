@@ -3,7 +3,8 @@ import { resolveDocumentEngine } from "../../src/core/document-engine-resolve";
 import { findCellOptionLines, findHeadings, maskInlineCode } from "../../src/core/qmd/model";
 import { findLabel, indexLabels } from "../../src/core/refs";
 import { findProjectConfigKeyLines, findProjectConfigValueLines } from "../../src/core/project-yaml";
-import { valueSlotAfterColon } from "../../src/core/yaml-context";
+import { completionContextAt, mappingContainerKey, valueSlotAfterColon } from "../../src/core/yaml-context";
+import { findNestedFrontMatterValueLines } from "../../src/core/yaml-frontmatter-nested-values";
 import { CURATED_SCHEMA_INDEX } from "../../src/core/yaml-schema";
 import { collectValueSources, valueFlags } from "../../src/core/yaml-value-flags";
 
@@ -357,5 +358,46 @@ describe("Session 312 — a long run of spaces inside a YAML KEY", () => {
     const { cell } = flagsFor("#| echo \t : banana");
     expect(cell).toHaveLength(1);
     expect(cell[0]).toMatchObject({ key: "echo", rawToken: "banana", line: 1, startCol: 12, endCol: 18 });
+  });
+
+  it("completionContextAt reads a nested front matter key holding a 100,000-space run in linear time and keeps the replace range exact", () => {
+    const text = ["---", "execute:", `  a${run}b: v`, "---", ""].join("\n");
+    const { result, ms } = timed(() => completionContextAt(text, text.indexOf("  a") + 3, () => undefined));
+    expect(result).toEqual({ kind: "frontmatter-key", parentPath: ["execute"], token: "a", replaceRange: { line: 2, startCol: 2, endCol: 2 + 1 + 100000 + 1 } });
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it("completionContextAt still trims the blanks BEFORE the colon off a nested front matter key", () => {
+    const text = ["---", "execute:", "  a \t : v", "---", ""].join("\n");
+    expect(completionContextAt(text, text.indexOf("  a") + 3, () => undefined)).toEqual({ kind: "frontmatter-key", parentPath: ["execute"], token: "a", replaceRange: { line: 2, startCol: 2, endCol: 3 } });
+  });
+
+  it("mappingContainerKey reads a container key holding a 100,000-space run in linear time and returns it whole", () => {
+    const { result, ms } = timed(() => mappingContainerKey(`a${run}b:`));
+    expect(result).toBe(`a${run}b`);
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it("mappingContainerKey still trims the blanks BEFORE the colon, and leaves a scalar value's line alone", () => {
+    expect(mappingContainerKey("  a \t :")).toBe("a");
+    expect(mappingContainerKey("a \t : v")).toBeNull();
+  });
+
+  it("findProjectConfigValueLines reads a `_quarto.yml` container whose key holds a 100,000-space run in linear time (the container walk calls mappingContainerKey)", () => {
+    const { result, ms } = timed(() => findProjectConfigValueLines(`project:\n  a${run}b:\n    c: v\n`));
+    expect(result).toEqual([{ line: 2, container: "project", path: [`a${run}b`], key: "c", valueRange: { startCol: 7, endCol: 8 }, rawToken: "v" }]);
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it("findNestedFrontMatterValueLines reads a nested front matter key holding a 100,000-space run in linear time and keeps the key and the value range exact", () => {
+    const text = ["---", "execute:", `  a${run}b: v`, "---", ""].join("\n");
+    const { result, ms } = timed(() => findNestedFrontMatterValueLines(text));
+    expect(result).toEqual([{ line: 2, parentPath: ["execute"], key: `a${run}b`, valueRange: { startCol: 100000 + 6, endCol: 100000 + 7 }, rawToken: "v" }]);
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it("findNestedFrontMatterValueLines still trims the blanks BEFORE the colon off a nested front matter key", () => {
+    const text = ["---", "execute:", "  echo \t : banana", "---", ""].join("\n");
+    expect(findNestedFrontMatterValueLines(text)).toEqual([{ line: 2, parentPath: ["execute"], key: "echo", valueRange: { startCol: 11, endCol: 17 }, rawToken: "banana" }]);
   });
 });
