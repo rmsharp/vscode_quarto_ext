@@ -21246,7 +21246,7 @@ describe("Session 308 — a document DEFAULT that silences the LATER chunk: `for
   });
 
   // A SETUP CHUNK's call (Session 308). It runs only when the document EXECUTES, so the two modes disagree: executing, the later chunk is silent (ALL, d01); under
-  // `--no-execute` the setup chunk never runs and the later chunk is loud (S). The verdict is therefore `uncertain` (an uncertain chunk's closer may end a swallow early,
+  // `--no-execute` the setup chunk never runs and the later chunk is loud (S). The verdict was therefore `uncertain` at Session 308 and is `silent` since Session 309 (the operator's decision to follow the executing mode: see the m15 row below) (an uncertain chunk's closer may end a swallow early,
   // as a loud chunk's does, but never opens one), exactly as for a code channel in Session 307. That is exact when executing for a stray fence with no certain closer below it,
   // UNLESS the silenced chunk prints, warns or messages (it then emits an output block: the RESIDUAL row at the end of this block, g20 t06); it adds no deleting error of its own
   // (the S307 sandwich, two bare fences around such a chunk, is a pinned DELETING residual: rev-soundness_16, below).
@@ -21317,7 +21317,7 @@ describe("Session 308 — a document DEFAULT that silences the LATER chunk: `for
     expect(outline(shape)).toEqual(["Top", "After", "Last"]);
   });
 
-  // THE FRONT MATTER SILENCES IN BOTH MODES, so it SKIPS a chunk (silent) where a setup chunk's call only makes it uncertain (g16 m01, m15). Two chunks below the stray fence:
+  // THE FRONT MATTER SILENCES IN BOTH MODES, so it SKIPS a chunk (silent) where a setup chunk's call made it uncertain until Session 309 and now skips it too (g16 m01, m15). Two chunks below the stray fence:
   // X under Between, then Y under Mid. Headings Top, Between, Mid, After, Last; `Top, After, Last` is quarto's answer when Y is loud and X is skipped. The truths in the titles
   // below that depend on a setup call hold WHEN EXECUTING (marked "(executing)"); under `--no-execute` the setup chunk never runs.
   const FRONT_ECHO_FALSE = ["execute:", "  echo: false"];
@@ -21328,7 +21328,7 @@ describe("Session 308 — a document DEFAULT that silences the LATER chunk: `for
   });
   // ⚠ OVERTURNED BY SESSION 309 (this row pinned "uncertain, not skipped", HEAD's answer, which Session 308 itself called wrong while executing; the exact document rendered again,
   // `scratchpad/s309/one/pin_m15`: quarto `Top, After, Last`, and the operator confirmed at Session 309 that the Outline follows the EXECUTING mode): a chunk silenced only by a setup
-  // call is SKIPPED when the document executes, whether it prints (a balanced pair of fences, which cancels) or not, so the stray fence pairs with the loud chunk below.
+  // call is SKIPPED when the document executes, whether it prints (a pair of bare fences, which closes the swallow and reopens one) or not, so the stray fence pairs with the loud chunk below.
   it("a setup call's default SKIPS the silenced chunk when executing, as the front matter's does (m15)", () => {
     expect(xy({ pre: setup(CALL) }, chunk("{r, echo=TRUE}", "y <- 2"))).toEqual(["Top", "After", "Last"]);
   });

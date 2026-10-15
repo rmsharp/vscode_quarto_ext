@@ -7214,7 +7214,7 @@ function knitrDocumentDefaults(lines: readonly string[]): KnitrDocDefaults {
  *  - `both`: silent whether or not knitr executes, because the FRONT MATTER says so (`execute:`, `knitr: opts_chunk:`, a top-level key, `format: html:`);
  *  - `exec`: silent when the document EXECUTES: a setup chunk's `opts_chunk$set(echo = FALSE)` never runs under `--no-execute`, so the two modes disagree (rendered, g13 d01-d36).
  *    ⚠ **The Outline FOLLOWS THE EXECUTING MODE (the operator's decision, Session 308 and again Session 309)**, so a chunk silenced by a call is SKIPPED like one silenced by the front
- *    matter: it emits nothing, or a balanced output pair that cancels, and the swallow runs through it (rendered, `scratchpad/s309/geo3`). Session 308 shipped it as `uncertain`
+ *    matter: it emits nothing, or an output pair (two bare fences: the first closes the swallow open above it and the second reopens one), so the swallow runs through it either way (rendered, `scratchpad/s309/geo3`). Session 308 shipped it as `uncertain`
  *    (the chunk ended a swallow early, as a loud chunk's closer does) and measured the cost of the other choice; Session 309 measured the executing mode at 93 right to 116 of 150
  *    blind documents and `--no-execute` at 78 right to 64, with 7 to 21 of 100 documents hiding a heading quarto shows, and the operator chose the executing mode;
  *  - `unsure`: a bare `F`, which a document can rebind to TRUE (soundness_02): the chunk is `uncertain`, so it may END a swallow early but never opens one (Learning 716);
@@ -7360,7 +7360,7 @@ function knitrChunkDefaultsUpdate(header: string, body: readonly string[], front
       }
       if (named[1] !== "echo" && named[1] !== "include") {
         // Any other option could hide a printing chunk's output or re-fence it (`results = "hide"`, `class.output`, `eval`), unless it is one rendered to change nothing there (Session 309).
-        if (!knitrOptionKeepsOutput(named[1], value)) {
+        if (!knitrOptionKeepsOutput(named[1], value, () => knitrResultsKept(body))) {
           update.outputUnsafe = true;
         }
         // `message` and `warning` leave a printed text alone but switch a message or a warning off (and one hides the other, rendered m015), so they only decline those.
@@ -7876,14 +7876,20 @@ function knitrFrontMasks(lines: readonly string[], front: readonly string[] | nu
  * results: hide` and `asis` and `df-print: kable` leave the chunk quiet or turn its output into a table; `message`, `warning`, `error`, `cache`, `freeze`, `collapse` and `comment` do not.
  */
 const KNITR_FRONT_OUTPUT_KEY = /(?:^|[\s{,])["']?(?:output|results|eval|enabled|from|opts[.-]label|class[.-]output|attr[.-]output|df[-_]print|render|child|ref[.-]label|code|file)["']?[ \t]*:|\\[ux]|`/;
+/** Whether the chunk's code sets `results` once, to `"markup"` or `"hold"` (either quote): the two values that leave a printed text where it was. */
+function knitrResultsKept(body: readonly string[]): boolean {
+  const code = codeLinesAfterPipe(body).filter((line) => !/^[ \t]*#/.test(line)).join("\n");
+  return (code.match(/\bresults\b/g) ?? []).length === 1 && /\bresults[ \t]*=[ \t]*(["'])(?:markup|hold)\1/.test(code);
+}
 /**
  * Whether setting the chunk option `name` to `value` as a DEFAULT leaves a printing chunk's output block where it was (Session 309). A closed list of what was rendered to change
  * nothing there (`scratchpad/s309/stm` c001-c014): `message`, `warning`, `error`, `collapse`, `comment`, `cache`, `tidy`, `prompt`, `dev`, `dpi`, `fig.*`, `out.width`, `out.height`,
  * `results` of `markup` or `hold`, and `eval` TRUE. Anything else (`results = "hide"`, `class.output`, `attr.output`, a variable) declines.
  */
-function knitrOptionKeepsOutput(name: string, value: string): boolean {
+function knitrOptionKeepsOutput(name: string, value: string, resultsKept: () => boolean): boolean {
   if (name === "results") {
-    return /^(?:"markup"|"hold"|'markup'|'hold')$/.test(value);
+    // The call's strings are masked (`""`), so the value is read from the chunk's own code, and only when `results` appears once in it.
+    return resultsKept();
   }
   if (name === "eval") {
     return value === "TRUE";
@@ -7942,7 +7948,7 @@ function rIsTextCall(text: string): boolean {
   const call = rWholeCall(text);
   return call !== null && KNITR_TEXT_CALLS.has(call.name);
 }
-/** One option's verdict for a chunk (Session 308): the chunk's OWN `#|` or header value wins; otherwise the document default decides, `exec` being `uncertain`. */
+/** One option's verdict for a chunk (Session 308): the chunk's OWN `#|` or header value wins; otherwise the document default decides: `both` and `exec` are silent (Session 309), `unsure` is uncertain. */
 function knitrDefaultVerdict(
   name: "echo" | "include",
   header: ReadonlyMap<string, string>,

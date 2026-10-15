@@ -11,6 +11,8 @@ describe("Session 309 — a chunk that PRINTS with its code not echoed emits TWO
   // A chunk with `echo=FALSE` whose code prints hands pandoc an OUTPUT block: a bare ``` line, the text, a bare ``` line. A stray bare fence above the document pairs with the
   // FIRST bare fence below it (that block's opener) and swallows every heading between them; the block's own closer then opens a region that pairs with the NEXT printing
   // chunk's opener, and so on, so every heading from the stray fence down to the opener of the LAST printing chunk is swallowed. The chunk's closer after it has nothing to pair with.
+  // ⚠ That one-line rule holds for printing and QUIET chunks only (this row, and every P/Q row below). An ECHOED chunk below ends a region at its own bare closer (its opening fence has an
+  // info string and cannot close one), so with an echoed chunk above the last printing chunk the rule over-hides (the test critic's C1: 26 of the 81 fixture rows with a printing chunk).
   it("a stray fence above three printing chunks swallows every heading down to the last chunk's opener (g_p-p-p_s0)", () => {
     expect(
       outline([
@@ -87,6 +89,11 @@ describe("Session 309 — WHICH silenced chunks print: a statement that certainl
     expect(stm(["print(summary(x))"], { header: "{r}", pre: [...SETUP("knitr::opts_chunk$set(echo = FALSE)"), ...PRE] })).toEqual(PRINTS);
   });
 
+  // `results = "hold"` and `results = "markup"` leave the printed text where it was (rendered, c003, c012), but the string is masked before the option is judged, so the first cut
+  // read them as unreadable and declined (the test critic's C3: the branch was dead code).
+  it("a setup call that sets `results = \"hold\"` leaves the printed text alone (c003)", () => {
+    expect(stm(["print(summary(x))"], { header: "{r}", pre: [...SETUP('knitr::opts_chunk$set(echo = FALSE, results = "hold")'), ...PRE] })).toEqual(PRINTS);
+  });
   it("a setup call that ALSO sets `results = \"hide\"`: the default hides the printed text (c002)", () => {
     expect(stm(["print(summary(x))"], { header: "{r}", pre: [...SETUP('knitr::opts_chunk$set(echo = FALSE, results = "hide")'), ...PRE] })).toEqual(QUIET);
   });
@@ -98,7 +105,8 @@ describe("Session 309 — WHICH silenced chunks print: a statement that certainl
   });
 
   // THE FUNCTION GRID (`scratchpad/s309/fn`): the same layout with a longer setup chunk (`g`, `tab`), ONE whole statement per document. 116 base-R calls printed and none was
-  // quiet (y001-y116); the 31 look-alikes that print nothing (`plot`, `hist`, `invisible`, `set.seed`, an assignment, ...) were never candidates (q001-q040).
+  // quiet (y001-y116); the 36 look-alikes (q001-q040, five numbers absent) were never candidates: 31 print nothing (`plot`, `hist`, `invisible`, `set.seed`, an assignment, ...) and 5 DO print
+  // (`NULL`, `message()`, `warning()`, `Sys.setlocale()`, `dev.off()`; the model reads the two stderr ones since the message rows below, and is right).
   const FN_PRE = [
     "```{r setup0, include=FALSE}", "x <- c(3, 1, 2, 5, 4)", "g <- factor(c('a','b','a','b','a'))", "df <- cars", "fit <- lm(dist ~ speed, data = cars)",
     "tab <- table(mtcars$cyl, mtcars$gear)", "```", "",
@@ -130,28 +138,31 @@ describe("Session 309 — WHICH silenced chunks print: a statement that certainl
 });
 
 describe("Session 309 — every statement shape rendered with quarto 1.7.33, document by document", () => {
-  // `[grid/name, document, quarto's headings, this model's headings when the fixture was written, HEAD's (Session 308)]`, 385 documents from four grids (`scratchpad/s309/stm`,
-  // `fn`, `msg`, `nm`, untracked): see the fixture's own `note`. PASSING ON ARRIVAL, disclosed: written after the rules above, and pinned CLOSED-WORLD (Learning 685), so a rule that starts
+  // `[grid/name, document, quarto's headings, this model's headings when the fixture was written, HEAD's (Session 308)]`, 410 documents from five grids (`scratchpad/s309/stm`,
+  // `fn`, `msg`, `nm`, `ko`, untracked; generators in `tools/knitr-print-grids/`). The HEAD column is STORED DATA (the code of Session 308 is not in this tree), so the two assertions that
+  // read it are fixture self-checks, not a live comparison.: see the fixture's own `note`. PASSING ON ARRIVAL, disclosed: written after the rules above, and pinned CLOSED-WORLD (Learning 685), so a rule that starts
   // or stops hiding a heading on any row fails here until the fixture is regenerated on purpose.
   type StatementRow = [string, string, string[], string[], string[]];
   const FIXTURE = path.join(__dirname, "../fixtures/knitr-print-statements/quarto-1.7.33.json");
   const statementRows = (JSON.parse(readFileSync(FIXTURE, "utf8")) as { rows: StatementRow[] }).rows;
   const model = (r: StatementRow): string[] => findHeadings(r[1], "knitr").map((h) => h.text);
 
-  it("covers the whole fixture: 385 documents", () => {
-    expect(statementRows).toHaveLength(385);
+  it("covers the whole fixture: 410 documents", () => {
+    expect(statementRows).toHaveLength(410);
   });
 
-  it("agrees with quarto on 317 of them (HEAD, Session 308, agreed on 98)", () => {
-    expect(statementRows.filter((r) => model(r).join("|") === r[2].join("|"))).toHaveLength(317);
+  it("agrees with quarto on 342 of them (HEAD, Session 308, agreed on 98)", () => {
+    expect(statementRows.filter((r) => model(r).join("|") === r[2].join("|"))).toHaveLength(342);
     expect(statementRows.filter((r) => r[4].join("|") === r[2].join("|"))).toHaveLength(98);
   });
 
-  // THE PROPERTY THIS SESSION EXISTS TO KEEP: a wrong "prints" hides a heading quarto renders. Three documents do, and HEAD hides the same three: with `collapse` the printed lines
-  // (`## [1] 3`) are written OUTSIDE any fence, and a line that begins `## ` is a HEADING that quarto lists (s_c005 `comment = NA` is the same, o012, p012). The model cannot know them.
-  it("never hides a heading quarto renders, except the three `collapse` documents that HEAD hides too", () => {
+  // THE PROPERTY THIS SESSION EXISTS TO KEEP: a wrong "prints" hides a heading quarto renders. Four documents lose a heading, and HEAD loses the same four, but NOT because the model calls
+  // a quiet chunk a print: all four print, quarto hides `Between` exactly as the model does, and with `collapse` knitr writes the printed lines (`## Min. 1st Qu. ...`, `## 1 2 3 3 4 5`)
+  // OUTSIDE any fence, where a line that begins `## ` is a HEADING that quarto lists and the source does not hold. The model cannot know them (stm c005 `collapse` and `comment = NA`,
+  // o012, p012 and ko o16 are the same). The exemption is by id, so a real regression on these four would pass it: their pinned rows are what catches one.
+  it("loses a heading quarto lists only on the four `collapse` documents whose printed lines are headings, which HEAD loses too", () => {
     const hiding = statementRows.filter((r) => r[2].some((t) => !model(r).includes(t))).map((r) => r[0]);
-    expect(hiding).toEqual(["stm/s_c005", "stm/s_o012", "stm/s_p012"]);
+    expect(hiding).toEqual(["stm/s_c005", "stm/s_o012", "stm/s_p012", "ko/s_o16_collapse"]);
     expect(statementRows.filter((r) => r[2].some((t) => !r[4].includes(t))).map((r) => r[0])).toEqual(hiding);
   });
 
