@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-14 · [ad hoc] Session 309: trim SESSION_NOTES to three close-out pairs (`bfec67f6`)
+
+`methodology/SESSION_NOTES.md` dropped the Session 305 evaluation and the Session 306 self-assessment (24 lines; 16,398 B and 114 lines left, against the 120,000 B and 400-line ceilings), in a commit that holds no other edit to that file. The dropped pair is `git show 3545efa0:methodology/SESSION_NOTES.md` away.
+
 ### 2026-10-14 · [ad hoc] Session 309 close-out: handoff evaluation, self-assessment, receipt, ledger, BACKLOG item, Learnings, quality ratchet, release gate
 
 `methodology/SESSION_NOTES.md` (ACTIVE TASK rewritten to NONE, the Session 308 evaluation and Session 309 self-assessment written, 8/10 and 8/10; trimmed to three pairs in its own commit), `methodology/HANDOFFS.md` (the `S309` receipt, `pending` to `complete`), `BACKLOG.md` (the Session 308 silence-rule item replaced by what Session 309 measured and left, including the OPEN `--no-execute` decision), `methodology/PROJECT_LEARNINGS.md` (724 to 731) and the two history files. Gates: `npm test` 8,426 to 9,278 passing in 74 files (72 before), `npm run check-types`, `check-backlog` clean, `npm run test:oracle` 2 of 2 against the real quarto CLI, `realdoc-score` unchanged (2,423 of 2,438, the same 15 divergent ordinals), all 3,382 corpus outputs identical (corpus reach 0), `npm run package` DONE (44 files, 1.86 MB, 1:25), `quality_ratchet.py --run` 2 of 2 pass at `3545efa0` (ledger-lag 0, release-gate 0; results `bba236856bad`). `test:integration` NOT run (needs the screen; core-only change, as Sessions 294 to 298). Model: Claude Sonnet 5.5.
