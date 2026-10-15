@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-15 · [BL-Three PRE-EXISTING slow or crashing inputs, found by Session 304's robustness hunter and timed firsthand — identical in the parent build] Session 311 (in progress): claim -- the five measured robustness defects
+
+Session claimed; the operator chose this item at the Phase 0 picker (the recommended option). Deliverable: fix the item's five sub-defects (the quadratic front-matter value slot, the 300,000-backtick line, the 5 MB backtick line's stack overflow, `writtenElsewhere`'s out-of-range entity throw, the quadratic unclosed flow mapping), strict TDD. Phase 3F replaces this entry with one per commit.
+
 ### 2026-10-14 · [ad hoc] Session 310: trim SESSION_NOTES to three close-out pairs (`fb06a8ce`)
 
 `methodology/SESSION_NOTES.md` dropped the Session 306 evaluation and the Session 307 self-assessment (30 lines; 17,591 B and 123 lines left, against the 120,000 B and 400-line ceilings), in a commit that holds no other edit to that file. The dropped pair is `git show b5caf20c:methodology/SESSION_NOTES.md` away.

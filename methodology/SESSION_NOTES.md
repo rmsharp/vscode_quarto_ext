@@ -8,8 +8,8 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 310 closed out.** The Outline can be read for `quarto render --no-execute`: `findHeadings`/`buildOutline` take a third `mode` argument, set by the new setting `quarto.symbols.renderMode`; the
-executing reading stays the DEFAULT. `BACKLOG.md` "Active" is empty; present ranked candidates via AskUserQuestion at Phase 0.
+**Task:** **Session 311 (IN PROGRESS): the five measured robustness defects of the BACKLOG item "Three PRE-EXISTING slow or crashing inputs"** (operator picked it at Phase 0, the recommended option).
+Linear scans and guards only, no behaviour change on well-formed input; strict TDD, a timing row per defect. The gotchas below are Session 310's and still hold.
 **⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in the close-out
 commit).
 (2) TWO different scratchpads: the repo's untracked `scratchpad/` (`s310/` holds the harness, grids, 125 held-out documents, the reviewers' documents) and the session one under `/private/tmp/...` (the three review JSONs).
@@ -24,6 +24,12 @@ alone.
 (7) `test:integration` takes the screen: ask first (run once this session, 562 passing). `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md`, `PROJECT_LEARNINGS.md` are past the 262,144 B read refusal: read them in slices. Baseline
 `npm test` at HEAD is 10,815 passing in 77 files.
 (8) The default reading is byte-identical to Session 309's (707 paired documents and all 3,383 corpus outputs), pinned by `knitr-no-execute-fixture.test.ts`; a change to it fails there first.
+
+### What Session 311 Did
+**Deliverable:** fix the five measured robustness defects of the BACKLOG item "Three PRE-EXISTING slow or crashing inputs" (IN PROGRESS)
+**Started:** 2026-10-15
+**Status:** Session claimed. Work beginning. Phase 0 found both ledger frontiers at HEAD (`677fae9a`, gap 0), the ratchet citation matching (2/2, results `bba236856bad`) and `npm test` green at 10,815 in 77 files (5.6 s, no timing flake).
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
 
 ## Session 309 Handoff Evaluation (by Session 310)
 
