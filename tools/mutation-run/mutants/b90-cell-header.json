@@ -1,0 +1,90 @@
+[
+ {
+  "name": "S01 START_CODE_CELL leading run is spaces only",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^ *(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "a TAB-indented cell fence stops being a cell, so it no longer swallows a `---` pair"
+ },
+ {
+  "name": "S02 START_CODE_CELL two backticks open a cell",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(``+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "a two-backtick line becomes a cell"
+ },
+ {
+  "name": "S03 START_CODE_CELL needs the brace right after the fence run",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(```+)\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "a fence run, a space, then the brace stops being a cell"
+ },
+ {
+  "name": "L04 languagesInMarkdown two backticks count as a fence",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]*``+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "a two-backtick `{python}` line counts as a jupyter cell"
+ },
+ {
+  "name": "L07 languagesInMarkdown language class loses the underscore",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9]+)([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "`{ob_ject}` stops being a language"
+ },
+ {
+  "name": "C12 indentedCellFenceAt tests the untrimmed info string",
+  "file": "src/core/qmd/model.ts",
+  "from": "CELL_INFO.test(m[3].trim())",
+  "to": "CELL_INFO.test(m[3])",
+  "expect": "killed",
+  "why": "an indented cell fence with a blank after the language stops being a cell"
+ },
+ {
+  "name": "C13 indentedCellFenceFor reads the language from the untrimmed info string",
+  "file": "src/core/qmd/model.ts",
+  "from": "CELL_INFO.exec(m[3].trim())![1]",
+  "to": "CELL_INFO.exec(m[3])![1]",
+  "expect": "killed",
+  "why": "the same header makes the free-case look throw"
+ },
+ {
+  "name": "K05 KNITR_CHUNK_INFO loses its start anchor",
+  "file": "src/core/qmd/model.ts",
+  "from": "const KNITR_CHUNK_INFO = /^\\{[A-Za-z][A-Za-z0-9_]*([ ,][\\s\\S]*)?\\}$/;",
+  "to": "const KNITR_CHUNK_INFO = /\\{[A-Za-z][A-Za-z0-9_]*([ ,][\\s\\S]*)?\\}$/;",
+  "expect": "killed",
+  "why": "a header with text before the brace is claimed as a chunk"
+ },
+ {
+  "name": "K10 knitrClaims trims the end only",
+  "file": "src/core/qmd/model.ts",
+  "from": "KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "to": "KNITR_CHUNK_INFO.test(fence[3].trimEnd());",
+  "expect": "killed",
+  "why": "a blank between the fence and the brace stops the claim"
+ },
+ {
+  "name": "K13 knitrClaims also claims a tilde fence",
+  "file": "src/core/qmd/model.ts",
+  "from": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "to": "        engine === \"knitr\" &&\n        !stripQuote &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "expect": "killed",
+  "why": "a tilde chunk is claimed"
+ },
+ {
+  "name": "K14 knitrClaims also claims a block-quoted fence",
+  "file": "src/core/qmd/model.ts",
+  "from": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "to": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "expect": "killed",
+  "why": "a block-quoted chunk is claimed"
+ }
+]
