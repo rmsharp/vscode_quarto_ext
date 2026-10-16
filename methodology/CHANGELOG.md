@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-16 · [BL-What is still quadratic or deep enough to overflow after Session 311, every shape re-measured on the final tree (`066cfcc1`) and none of it in that session's diff] Session 318 (in progress): claim -- g02 second session, part (7), a fence run followed by CR or U+2028
+
+Session claimed. Phase 0 found both ledger frontiers at HEAD (`f354b542`, gap 0, no merges), no pending receipt, the ratchet 2/2 (results bba236856bad, the receipt's citation holds) and the dashboard at 76/100 with 21 vulnerabilities (unchanged over four snapshots). At the Phase 0 picker the operator chose B88 part (7) (placed by: finishing a feature, g02 is the group in flight and the plan names this its next session). Deliverable: a doubling row RED on HEAD for a fence run followed by CR or U+2028 (reviewer's figures: 32,000 backticks then CR 1.2 s, 64,000 4.9 s, U+2028 4.5 s), located with `node --cpu-prof` before any code is read, then a rewrite proved identical to the old patterns. Phase 3F replaces this entry with the outcome.
+
 ### 2026-10-16 · [ad hoc] Session 317: cite the quality-gate run in the receipt and the ledger (2/2 pass at a0f5467f)
 
 `quality_ratchet.py --run` after the ledger commit `a0f5467f`: 2/2 pass, 0 fail, 0 unmeasured, results bba236856bad, manifest 334939914945, head a0f5467f (ledger-lag 0; release-gate is `npm run check-package`, 0). The `HANDOFFS.md` receipt's `quality_ratchet` line now carries the citation (`methodology/.quality-gates-results.json` is not tracked: the run is read from the file on disk).
