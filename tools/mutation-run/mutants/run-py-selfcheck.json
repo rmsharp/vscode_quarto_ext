@@ -1,0 +1,121 @@
+[
+ {
+  "name": "R01 a repeated pattern is accepted",
+  "file": "tools/mutation-run/run.py",
+  "from": "if occurs != 1:",
+  "to": "if occurs < 1:",
+  "expect": "killed"
+ },
+ {
+  "name": "R02 the file is not put back",
+  "file": "tools/mutation-run/run.py",
+  "from": "            finally:\n                with open(path, \"wb\") as f:\n                    f.write(original)",
+  "to": "            finally:\n                pass",
+  "expect": "killed"
+ },
+ {
+  "name": "R03 a red baseline is ignored",
+  "file": "tools/mutation-run/run.py",
+  "from": "        if rc != 0:\n            print(out[-3000:])",
+  "to": "        if rc != 0 and False:\n            print(out[-3000:])",
+  "expect": "killed"
+ },
+ {
+  "name": "R04 the expectation check is inverted",
+  "file": "tools/mutation-run/run.py",
+  "from": "if cls != \"error\" and cls != want:",
+  "to": "if cls != \"error\" and cls == want:",
+  "expect": "killed"
+ },
+ {
+  "name": "R05 a second primary clone is accepted",
+  "file": "tools/mutation-run/run.py",
+  "from": "or os.path.isdir(os.path.join(wt, \".git\"))",
+  "to": "or False",
+  "expect": "killed"
+ },
+ {
+  "name": "R06 the --tests files are not copied",
+  "file": "tools/mutation-run/run.py",
+  "from": "shutil.copyfile(src, os.path.join(wt, t))",
+  "to": "pass",
+  "expect": "killed"
+ },
+ {
+  "name": "R07 an ERROR does not change the exit code",
+  "file": "tools/mutation-run/run.py",
+  "from": "return 4 if counts[\"skipped\"] or counts[\"error\"] else",
+  "to": "return 4 if counts[\"skipped\"] else",
+  "expect": "killed"
+ },
+ {
+  "name": "R08 a timeout is no kill",
+  "file": "tools/mutation-run/run.py",
+  "from": "return \"killed\", \"KILLED (timeout)\"",
+  "to": "return \"survives\", \"SURVIVES\"",
+  "expect": "killed"
+ },
+ {
+  "name": "R09 vitest mode is never on",
+  "file": "tools/mutation-run/run.py",
+  "from": "vitest_mode = args.cmd is None",
+  "to": "vitest_mode = False",
+  "expect": "killed"
+ },
+ {
+  "name": "R10 --only selects everything",
+  "file": "tools/mutation-run/run.py",
+  "from": "any(m[\"name\"].startswith(p) for p in args.only)",
+  "to": "True",
+  "expect": "killed"
+ },
+ {
+  "name": "R11 node_modules is not linked",
+  "file": "tools/mutation-run/run.py",
+  "from": "os.symlink(os.path.join(repo, \"node_modules\"), os.path.join(wt, \"node_modules\"))",
+  "to": "pass",
+  "expect": "killed"
+ },
+ {
+  "name": "R12 --ref is ignored",
+  "file": "tools/mutation-run/run.py",
+  "from": "git(repo, \"worktree\", \"add\", \"--detach\", wt, args.ref)",
+  "to": "git(repo, \"worktree\", \"add\", \"--detach\", wt, \"HEAD\")",
+  "expect": "killed"
+ },
+ {
+  "name": "R13 duplicate names are accepted",
+  "file": "tools/mutation-run/run.py",
+  "from": "if m[\"name\"] in seen:",
+  "to": "if False:",
+  "expect": "killed"
+ },
+ {
+  "name": "R14 a missing --tests file is accepted",
+  "file": "tools/mutation-run/run.py",
+  "from": "        if not os.path.isfile(src):\n            die(2,",
+  "to": "        if False:\n            die(2,",
+  "expect": "killed"
+ },
+ {
+  "name": "R15 the throwaway worktree is not removed",
+  "file": "tools/mutation-run/run.py",
+  "from": "git(repo, \"worktree\", \"remove\", \"--force\", wt, check=False)",
+  "to": "pass",
+  "expect": "killed"
+ },
+ {
+  "name": "R16 a failing title keeps its duration",
+  "file": "tools/mutation-run/run.py",
+  "from": "re.sub(r\"\\s+\\d+ms$\", \"\", s)",
+  "to": "s",
+  "expect": "killed"
+ },
+ {
+  "name": "R17 equal from and to are accepted",
+  "file": "tools/mutation-run/run.py",
+  "from": "if m[\"from\"] == m[\"to\"]:",
+  "to": "if False:",
+  "expect": "killed"
+ }
+]
