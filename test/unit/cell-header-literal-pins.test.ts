@@ -14,8 +14,9 @@ import { quartoYamlRegions } from "../../src/core/qmd/quarto-yaml-regions";
 //   N01 ... N12                                  neighbours: the same literal part spelled another way (`[ \t]*` for `\s*`, `trimStart()` for `trim()`, an end anchor lost).
 //                                                `tools/mutation-run/mutants/b90-neighbours.json`. Only N01b, N02, N04, N05, N06, N11 and N12 have a row of their own; N01 is killed
 //                                                by the form feed and no-break space of S01, N03 by the tab of S03, N07 and N08 by C12, N09 and N10 by C13.
-//   A-S* A-L* B-S* B-L* E01 Y* W* Z* V*          the review round: 123 further edits by two adversarial reviewers; those the whole suite let live are pinned here, the rest are in
-//                                                `tools/mutation-run/mutants/b90-review.json` (killed) and `b90-residual.json` (still alive, with the reason).
+//   A-S* A-L* B-S* B-L* E01 L06 X* Y* W* Z* V* G*  the review round: 123 further edits invented by two adversarial reviewers, plus two from the claims audit and L06 from Session 313's
+//                                                critic. 85 are killed by rows here (`b90-review.json`), 25 are killed only by OLDER test files (`b90-older-suite.json`, run with the
+//                                                whole suite) and 16 are argued EQUIVALENT and survive on purpose (`b90-equivalent.json`, the argument in each `why`).
 // A row can kill several mutants (S01, S03 and N12 are tables, and C12 and C13 use tab blanks, because one member of a class does not pin the class). K00 is a control with no
 // mutant of the lists above: it fails when the `engine === "knitr"` term of `knitrClaims` goes or CELL_INFO's language class admits a digit (G2 and G5 of `b90-review.json`).
 // The sampler bounds, never proves: a mutant nobody thought of can still live, and the runner cannot tell an edit that changes nothing from one no test sees.
@@ -150,6 +151,9 @@ describe("languagesInMarkdown, seen through the engine resolver (Session 316)", 
     ["B-L01 a language of nine characters", "```{abcdefghi}\n", "jupyter"],
     ["A-L16 a language may start with a digit", "```{9lives}\n", "jupyter"],
     ["A-L17 a hyphen is not a language character", "```{my-lang}\n", "markdown"],
+    ["L06 a NEWLINE between the fence run and the brace still counts (quarto's regex is context-free and `\\s` crosses lines)", "intro\n```\n{python}\n", "jupyter"],
+    ["L06 a blank line between the fence run and the brace still counts", "intro\n```\n\n{python}\n", "jupyter"],
+    ["L06 a FORM FEED between the fence run and the brace counts", "intro\n```\f{python}\n", "jupyter"],
     ["A-L19 an empty language is no language", "```{}\n", "markdown"],
     ["A-L19 a blank before the language is no language", "``` { python}\n", "markdown"],
     ["A-L31 languages keep first-appearance order: r, julia, r is knitr", "```{r}\n```{julia}\n```{r}\n", "knitr"],

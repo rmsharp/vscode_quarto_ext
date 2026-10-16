@@ -1,0 +1,682 @@
+[
+ {
+  "name": "A-S01 START_CODE_CELL loses its start anchor",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-S02 START_CODE_CELL leading run needs one blank",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s+(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-S03 START_CODE_CELL group is the first three backticks only",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(```)`*\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-S04 START_CODE_CELL fence run capped at four",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(`{3,4})\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-S06 START_CODE_CELL gap before the brace is at most one blank",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(```+)\\s?\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-S07 START_CODE_CELL opening brace optional",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{?([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-S08 START_CODE_CELL language class loses upper case",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=a-z]+)([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-S09 START_CODE_CELL class upper range ends at Y",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Ya-z]+)([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-S10 START_CODE_CELL class lower range ends at y",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-y]+)([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-S11 START_CODE_CELL class admits underscore",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z_]+)([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-S12 START_CODE_CELL class A-z typo",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-z]+)([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-S13 START_CODE_CELL class =-Z typo",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-S14 START_CODE_CELL equals only as a trailing char",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([A-Za-z]+=?)([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-S15 START_CODE_CELL equals only as a leading char",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{(=?[A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-S16 START_CODE_CELL language may be empty",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]*)([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-S17 START_CODE_CELL leading run also admits >",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^[\\s>]*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-S18 START_CODE_CELL m flag",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/m;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-S19 START_CODE_CELL g flag",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/g;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-S21 START_CODE_CELL s flag",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/s;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-S23 START_CODE_CELL trailing blanks are spaces and tabs",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}[ \\t]*$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-S24 START_CODE_CELL no trailing blanks",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-S25 quartoYamlRegions reads a fixed run length",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "inCode = cellMatch[1].length;",
+  "to": "inCode = 3;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-S26 quartoYamlRegions reads the run length plus one",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "inCode = cellMatch[1].length;",
+  "to": "inCode = cellMatch[1].length + 1;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-S27 quartoYamlRegions reads the language length",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "inCode = cellMatch[1].length;",
+  "to": "inCode = cellMatch[2].length;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-S28 quartoYamlRegions reads the whole line length",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "inCode = cellMatch[1].length;",
+  "to": "inCode = cellMatch[0].length;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-S29 quartoYamlRegions never records a cell run length",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "inCode = cellMatch[1].length;",
+  "to": "inCode = 1;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-L01 fenceLanguage loses its line anchor",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-L08 fenceLanguage has no gap before the brace",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]*```+\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-L09 fenceLanguage gap is at most one blank",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]*```+\\s?\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-L10 fenceLanguage gap is spaces only",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]*```+ *\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-L11 fenceLanguage fence run capped at five",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]*`{3,5}\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-L12 fenceLanguage opening brace optional",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]*```+\\s*\\{?([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-L13 fenceLanguage class lower range ends at y",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-yA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-L14 fenceLanguage class upper range ends at Y",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Y0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-L15 fenceLanguage class digit range ends at 8",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-8_]+)([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-L16 fenceLanguage language cannot start with a digit",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z_][a-zA-Z0-9_]*)([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-L17 fenceLanguage class admits a hyphen",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_-]+)([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-L18 fenceLanguage class admits a dot",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_.]+)([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-L19 fenceLanguage language may be empty",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]*)([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-L20 fenceLanguage trailing blanks are spaces and tabs",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}[ \\t]*$/gm;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-L21 fenceLanguage has no m flag",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/g;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-L24 fenceLanguage s flag",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gms;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-L26 fenceLanguage y flag",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gmy;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-L30 languagesInMarkdown keeps the language order reversed",
+  "file": "src/core/document-engine.ts",
+  "from": "languages.push(language);",
+  "to": "languages.unshift(language);",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-L31 languagesInMarkdown last appearance wins the order",
+  "file": "src/core/document-engine.ts",
+  "from": "if (!languages.includes(language)) {\n      languages.push(language);\n    }",
+  "to": "const seen = languages.indexOf(language);\n    if (seen >= 0) {\n      languages.splice(seen, 1);\n    }\n    languages.push(language);",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-L33 languagesInMarkdown folds to upper case",
+  "file": "src/core/document-engine.ts",
+  "from": "const language = match[1].toLowerCase();",
+  "to": "const language = match[1].toUpperCase();",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-L34 languagesInMarkdown trims nothing but keeps raw case",
+  "file": "src/core/document-engine.ts",
+  "from": "const language = match[1].toLowerCase();",
+  "to": "const language = match[1];",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "A-L35 languagesInMarkdown folds only the first letter",
+  "file": "src/core/document-engine.ts",
+  "from": "const language = match[1].toLowerCase();",
+  "to": "const language = match[1][0].toLowerCase() + match[1].slice(1);",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "B-S01 START_CODE_CELL indent capped at seven",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s{0,7}(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "B-S02 START_CODE_CELL language at most two characters",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]{1,2})([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "B-S03 START_CODE_CELL fence run capped at six",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(`{3,6})\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "B-L01 fenceLanguage language at most eight characters",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]{1,8})([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "X02 CELL_INFO later chars lose '='",
+  "file": "src/core/qmd/model.ts",
+  "from": "const CELL_INFO = /^\\{([A-Za-z][=A-Za-z]*)([ ,].*)?\\}$/;",
+  "to": "const CELL_INFO = /^\\{([A-Za-z][A-Za-z]*)([ ,].*)?\\}$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "X03 CELL_INFO later chars admit digits",
+  "file": "src/core/qmd/model.ts",
+  "from": "const CELL_INFO = /^\\{([A-Za-z][=A-Za-z]*)([ ,].*)?\\}$/;",
+  "to": "const CELL_INFO = /^\\{([A-Za-z][=A-Za-z0-9]*)([ ,].*)?\\}$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "X07 CELL_INFO loses start anchor",
+  "file": "src/core/qmd/model.ts",
+  "from": "const CELL_INFO = /^\\{([A-Za-z][=A-Za-z]*)([ ,].*)?\\}$/;",
+  "to": "const CELL_INFO = /\\{([A-Za-z][=A-Za-z]*)([ ,].*)?\\}$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "X08 CELL_INFO loses end anchor",
+  "file": "src/core/qmd/model.ts",
+  "from": "const CELL_INFO = /^\\{([A-Za-z][=A-Za-z]*)([ ,].*)?\\}$/;",
+  "to": "const CELL_INFO = /^\\{([A-Za-z][=A-Za-z]*)([ ,].*)?\\}/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "X11 CELL_INFO needs two letters",
+  "file": "src/core/qmd/model.ts",
+  "from": "const CELL_INFO = /^\\{([A-Za-z][=A-Za-z]*)([ ,].*)?\\}$/;",
+  "to": "const CELL_INFO = /^\\{([A-Za-z][=A-Za-z]+)([ ,].*)?\\}$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "Y04 INDENTED run is four or more",
+  "file": "src/core/qmd/model.ts",
+  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.*)$/;",
+  "to": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{4,})(.*)$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "Y05 INDENTED run exactly three",
+  "file": "src/core/qmd/model.ts",
+  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.*)$/;",
+  "to": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3})(.*)$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "Y06 INDENTED run is two or more",
+  "file": "src/core/qmd/model.ts",
+  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.*)$/;",
+  "to": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{2,})(.*)$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "Y07 INDENTED loses start anchor",
+  "file": "src/core/qmd/model.ts",
+  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.*)$/;",
+  "to": "const INDENTED_CELL_FENCE_OPEN = /\\s*((?=(`))`{3,})(.*)$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "Y08 INDENTED loses end anchor",
+  "file": "src/core/qmd/model.ts",
+  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.*)$/;",
+  "to": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.*)/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "Y09 INDENTED group 3 must start with a non-blank",
+  "file": "src/core/qmd/model.ts",
+  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.*)$/;",
+  "to": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(\\S.*)$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "Y11 INDENTED admits tilde runs",
+  "file": "src/core/qmd/model.ts",
+  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.*)$/;",
+  "to": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=([`~]))[`~]{3,})(.*)$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "Z03 KNITR later chars lose digits",
+  "file": "src/core/qmd/model.ts",
+  "from": "const KNITR_CHUNK_INFO = /^\\{[A-Za-z][A-Za-z0-9_]*([ ,][\\s\\S]*)?\\}$/;",
+  "to": "const KNITR_CHUNK_INFO = /^\\{[A-Za-z][A-Za-z_]*([ ,][\\s\\S]*)?\\}$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "Z04 KNITR later chars lose upper case",
+  "file": "src/core/qmd/model.ts",
+  "from": "const KNITR_CHUNK_INFO = /^\\{[A-Za-z][A-Za-z0-9_]*([ ,][\\s\\S]*)?\\}$/;",
+  "to": "const KNITR_CHUNK_INFO = /^\\{[A-Za-z][a-z0-9_]*([ ,][\\s\\S]*)?\\}$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "Z08 KNITR needs two characters",
+  "file": "src/core/qmd/model.ts",
+  "from": "const KNITR_CHUNK_INFO = /^\\{[A-Za-z][A-Za-z0-9_]*([ ,][\\s\\S]*)?\\}$/;",
+  "to": "const KNITR_CHUNK_INFO = /^\\{[A-Za-z][A-Za-z0-9_]+([ ,][\\s\\S]*)?\\}$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "Z10 KNITR first char class stops at y",
+  "file": "src/core/qmd/model.ts",
+  "from": "const KNITR_CHUNK_INFO = /^\\{[A-Za-z][A-Za-z0-9_]*([ ,][\\s\\S]*)?\\}$/;",
+  "to": "const KNITR_CHUNK_INFO = /^\\{[A-Ya-y][A-Za-z0-9_]*([ ,][\\s\\S]*)?\\}$/;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "W01 knitrClaims also for undefined engine",
+  "file": "src/core/qmd/model.ts",
+  "from": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "to": "        (engine === \"knitr\" || engine === undefined) &&\n        char === \"`\" &&\n        !stripQuote &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "W02 knitrClaims also for markdown engine",
+  "file": "src/core/qmd/model.ts",
+  "from": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "to": "        (engine === \"knitr\" || engine === \"markdown\") &&\n        char === \"`\" &&\n        !stripQuote &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "W03 knitrClaims for every engine but jupyter",
+  "file": "src/core/qmd/model.ts",
+  "from": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "to": "        engine !== \"jupyter\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "W04 knitrClaims also for ambiguous engine",
+  "file": "src/core/qmd/model.ts",
+  "from": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "to": "        (engine === \"knitr\" || engine === \"ambiguous\") &&\n        char === \"`\" &&\n        !stripQuote &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "W06 knitrClaims skips fences inside a list item",
+  "file": "src/core/qmd/model.ts",
+  "from": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "to": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        contentColumns.length === 0 &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "W07 knitrClaims only three-backtick runs",
+  "file": "src/core/qmd/model.ts",
+  "from": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "to": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        fence[1].length === 3 &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "W09 knitrClaims not with a paragraph open",
+  "file": "src/core/qmd/model.ts",
+  "from": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "to": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        !paragraphOpen &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "W10 knitrClaims reads the untrimmed info string",
+  "file": "src/core/qmd/model.ts",
+  "from": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "to": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        KNITR_CHUNK_INFO.test(fence[3]);",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "W11 knitrClaims also lazy lines are unclaimed",
+  "file": "src/core/qmd/model.ts",
+  "from": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "to": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        !quoteOpen &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "V02 info site: quoted fences can be cells",
+  "file": "src/core/qmd/model.ts",
+  "from": "      const info = char === \"`\" && !stripQuote ? CELL_INFO.exec(fence[3].trim()) : null;",
+  "to": "      const info = char === \"`\" ? CELL_INFO.exec(fence[3].trim()) : null;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "V03 info site: no trim",
+  "file": "src/core/qmd/model.ts",
+  "from": "      const info = char === \"`\" && !stripQuote ? CELL_INFO.exec(fence[3].trim()) : null;",
+  "to": "      const info = char === \"`\" && !stripQuote ? CELL_INFO.exec(fence[3]) : null;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "V04 info site: trimEnd",
+  "file": "src/core/qmd/model.ts",
+  "from": "      const info = char === \"`\" && !stripQuote ? CELL_INFO.exec(fence[3].trim()) : null;",
+  "to": "      const info = char === \"`\" && !stripQuote ? CELL_INFO.exec(fence[3].trimEnd()) : null;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "V05 info site: trimStart",
+  "file": "src/core/qmd/model.ts",
+  "from": "      const info = char === \"`\" && !stripQuote ? CELL_INFO.exec(fence[3].trim()) : null;",
+  "to": "      const info = char === \"`\" && !stripQuote ? CELL_INFO.exec(fence[3].trimStart()) : null;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "V06 info site: spaces only",
+  "file": "src/core/qmd/model.ts",
+  "from": "      const info = char === \"`\" && !stripQuote ? CELL_INFO.exec(fence[3].trim()) : null;",
+  "to": "      const info = char === \"`\" && !stripQuote ? CELL_INFO.exec(fence[3].replace(/^ +| +$/g, \"\")) : null;",
+  "expect": "killed",
+  "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
+ },
+ {
+  "name": "G2 knitrClaims drops its engine === knitr term",
+  "file": "src/core/qmd/model.ts",
+  "from": "engine === \"knitr\" &&\n        char === \"`\" &&",
+  "to": "char === \"`\" &&",
+  "expect": "killed",
+  "why": "killed by the K00 control: a jupyter document would claim the chunk"
+ },
+ {
+  "name": "G5 CELL_INFO language class admits digits",
+  "file": "src/core/qmd/model.ts",
+  "from": "const CELL_INFO = /^\\{([A-Za-z][=A-Za-z]*)([ ,].*)?\\}$/;",
+  "to": "const CELL_INFO = /^\\{([A-Za-z][=A-Za-z0-9]*)([ ,].*)?\\}$/;",
+  "expect": "killed",
+  "why": "killed by the K00 control: {zzz9} would be a cell"
+ },
+ {
+  "name": "L06 languagesInMarkdown gap before the brace is blanks only",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]*```+[ \\t]*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "a newline between the fence run and the brace stops counting; Session 313's critic named this edit"
+ }
+]

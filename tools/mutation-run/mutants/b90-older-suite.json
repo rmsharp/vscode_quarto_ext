@@ -1,0 +1,202 @@
+[
+ {
+  "name": "A-L02 fenceLanguage prefix loses the tab",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[ >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "killed by an OLDER test file, not by the pins: test/unit/document-engine.test.ts > Session 165 — documentEngineForScoping: the DEFAULT engine, from the cell languages > counts a fence quarto's CONT"
+ },
+ {
+  "name": "A-L03 fenceLanguage prefix loses the space",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t>]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "killed by an OLDER test file, not by the pins: test/unit/document-engine.test.ts > Session 165 — documentEngineForScoping: the DEFAULT engine, from the cell languages > counts a fence quarto's CONT"
+ },
+ {
+  "name": "A-L04 fenceLanguage prefix loses the quote marker",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t ]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "killed by an OLDER test file, not by the pins: test/unit/document-engine.test.ts > Session 165 — documentEngineForScoping: the DEFAULT engine, from the cell languages > counts a fence quarto's CONT"
+ },
+ {
+  "name": "A-L05 fenceLanguage prefix is at most one character",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]?```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "killed by an OLDER test file, not by the pins: test/unit/document-engine.test.ts > Session 165 — documentEngineForScoping: the DEFAULT engine, from the cell languages > counts a fence quarto's CONT"
+ },
+ {
+  "name": "A-L06 fenceLanguage prefix is any whitespace",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^\\s*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "killed by an OLDER test file, not by the pins: test/unit/document-engine.test.ts > Session 165 — documentEngineForScoping: the DEFAULT engine, from the cell languages > counts a fence quarto's CONT"
+ },
+ {
+  "name": "A-L07 fenceLanguage prefix capped at three",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]{0,3}```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "killed by an OLDER test file, not by the pins: test/unit/document-engine.test.ts > Session 165 — documentEngineForScoping: the DEFAULT engine, from the cell languages > counts a fence quarto's CONT"
+ },
+ {
+  "name": "A-L32 languagesInMarkdown reads the first fence only",
+  "file": "src/core/document-engine.ts",
+  "from": "while (match !== null) {",
+  "to": "if (match !== null) {",
+  "expect": "killed",
+  "why": "killed by an OLDER test file, not by the pins: test/unit/document-engine.test.ts > Session 165 — documentEngineForScoping: the DEFAULT engine, from the cell languages > scopes a NON-r cell to knitr"
+ },
+ {
+  "name": "X01 CELL_INFO first char admits '='",
+  "file": "src/core/qmd/model.ts",
+  "from": "const CELL_INFO = /^\\{([A-Za-z][=A-Za-z]*)([ ,].*)?\\}$/;",
+  "to": "const CELL_INFO = /^\\{([=A-Za-z][=A-Za-z]*)([ ,].*)?\\}$/;",
+  "expect": "killed",
+  "why": "killed by an OLDER test file, not by the pins: test/unit/cells.test.ts > findAllCells — quarto's fence-token grammar (Session 172) > FP GUARD: an '='-LED raw block is still not a cell, though quart"
+ },
+ {
+  "name": "X04 CELL_INFO later chars admit underscore",
+  "file": "src/core/qmd/model.ts",
+  "from": "const CELL_INFO = /^\\{([A-Za-z][=A-Za-z]*)([ ,].*)?\\}$/;",
+  "to": "const CELL_INFO = /^\\{([A-Za-z][=A-Za-z_]*)([ ,].*)?\\}$/;",
+  "expect": "killed",
+  "why": "killed by an OLDER test file, not by the pins: test/unit/cells.test.ts > findAllCells — quarto's fence-token grammar (Session 172) > does not treat a HYPHEN or UNDERSCORE token as a cell"
+ },
+ {
+  "name": "X05 CELL_INFO first char loses upper case",
+  "file": "src/core/qmd/model.ts",
+  "from": "const CELL_INFO = /^\\{([A-Za-z][=A-Za-z]*)([ ,].*)?\\}$/;",
+  "to": "const CELL_INFO = /^\\{([a-z][=A-Za-z]*)([ ,].*)?\\}$/;",
+  "expect": "killed",
+  "why": "killed by an OLDER test file, not by the pins: test/unit/cell-option-lines.test.ts > findCellOptionLines — the comment char is scoped to the cell LANGUAGE (S161) > the language lookup is CASE-SENSI"
+ },
+ {
+  "name": "X06 CELL_INFO later chars lose upper case",
+  "file": "src/core/qmd/model.ts",
+  "from": "const CELL_INFO = /^\\{([A-Za-z][=A-Za-z]*)([ ,].*)?\\}$/;",
+  "to": "const CELL_INFO = /^\\{([A-Za-z][=a-z]*)([ ,].*)?\\}$/;",
+  "expect": "killed",
+  "why": "killed by an OLDER test file, not by the pins: test/unit/cell-option-lines.test.ts > findCellOptionLines — the comment char is scoped to the cell LANGUAGE (S161) > the language lookup is CASE-SENSI"
+ },
+ {
+  "name": "X12 CELL_INFO language group is the first letter only",
+  "file": "src/core/qmd/model.ts",
+  "from": "const CELL_INFO = /^\\{([A-Za-z][=A-Za-z]*)([ ,].*)?\\}$/;",
+  "to": "const CELL_INFO = /^\\{([A-Za-z])[=A-Za-z]*([ ,].*)?\\}$/;",
+  "expect": "killed",
+  "why": "killed by an OLDER test file, not by the pins: test/unit/cell-option-lines.test.ts > findCellOptionLines — detection inside executable cells > finds a single `#|` option line in a {python} cell"
+ },
+ {
+  "name": "Y01 INDENTED leading run is [ \\t]*",
+  "file": "src/core/qmd/model.ts",
+  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.*)$/;",
+  "to": "const INDENTED_CELL_FENCE_OPEN = /^[ \\t]*((?=(`))`{3,})(.*)$/;",
+  "expect": "killed",
+  "why": "killed by an OLDER test file, not by the pins: test/unit/qmd-model.test.ts > an INDENTED cell fence — quarto's rule, not CommonMark's (Session 178) > accepts EXOTIC whitespace — the indent class is"
+ },
+ {
+  "name": "Y02 INDENTED leading run is spaces only",
+  "file": "src/core/qmd/model.ts",
+  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.*)$/;",
+  "to": "const INDENTED_CELL_FENCE_OPEN = /^ *((?=(`))`{3,})(.*)$/;",
+  "expect": "killed",
+  "why": "killed by an OLDER test file, not by the pins: test/unit/qmd-model.test.ts > an INDENTED cell fence — quarto's rule, not CommonMark's (Session 178) > accepts a TAB and an 8-space indent — quarto's "
+ },
+ {
+  "name": "Y03 INDENTED leading run capped at 8",
+  "file": "src/core/qmd/model.ts",
+  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.*)$/;",
+  "to": "const INDENTED_CELL_FENCE_OPEN = /^\\s{0,8}((?=(`))`{3,})(.*)$/;",
+  "expect": "killed",
+  "why": "killed by an OLDER test file, not by the pins: test/unit/qmd-model.test.ts > Session 296 — the CommonMark-family readers (gfm, commonmark, commonmark_x) > ROUND 2: ordered mermaid r6 atfence col0 t"
+ },
+ {
+  "name": "Z01 KNITR first char is knitr's own class",
+  "file": "src/core/qmd/model.ts",
+  "from": "const KNITR_CHUNK_INFO = /^\\{[A-Za-z][A-Za-z0-9_]*([ ,][\\s\\S]*)?\\}$/;",
+  "to": "const KNITR_CHUNK_INFO = /^\\{[A-Za-z0-9_][A-Za-z0-9_]*([ ,][\\s\\S]*)?\\}$/;",
+  "expect": "killed",
+  "why": "killed by an OLDER test file, not by the pins: test/unit/qmd-model.test.ts > R5 — knitr's chunk grammar is wider than quarto's cell grammar (Session 273) > a digit-led or underscore-led engine name"
+ },
+ {
+  "name": "Z02 KNITR later chars lose underscore",
+  "file": "src/core/qmd/model.ts",
+  "from": "const KNITR_CHUNK_INFO = /^\\{[A-Za-z][A-Za-z0-9_]*([ ,][\\s\\S]*)?\\}$/;",
+  "to": "const KNITR_CHUNK_INFO = /^\\{[A-Za-z][A-Za-z0-9]*([ ,][\\s\\S]*)?\\}$/;",
+  "expect": "killed",
+  "why": "killed by an OLDER test file, not by the pins: test/unit/qmd-model.test.ts > R5 — knitr's chunk grammar is wider than quarto's cell grammar (Session 273) > an underscore-bearing engine name is clai"
+ },
+ {
+  "name": "Z05 KNITR first char loses upper case",
+  "file": "src/core/qmd/model.ts",
+  "from": "const KNITR_CHUNK_INFO = /^\\{[A-Za-z][A-Za-z0-9_]*([ ,][\\s\\S]*)?\\}$/;",
+  "to": "const KNITR_CHUNK_INFO = /^\\{[a-z][A-Za-z0-9_]*([ ,][\\s\\S]*)?\\}$/;",
+  "expect": "killed",
+  "why": "killed by an OLDER test file, not by the pins: test/unit/knitr-no-execute-fixture.test.ts > Session 310 — the paired no-execute fixture > default reading, as written: g14ex/g_R_echoF_default"
+ },
+ {
+  "name": "Z06 KNITR first char admits underscore",
+  "file": "src/core/qmd/model.ts",
+  "from": "const KNITR_CHUNK_INFO = /^\\{[A-Za-z][A-Za-z0-9_]*([ ,][\\s\\S]*)?\\}$/;",
+  "to": "const KNITR_CHUNK_INFO = /^\\{[A-Za-z_][A-Za-z0-9_]*([ ,][\\s\\S]*)?\\}$/;",
+  "expect": "killed",
+  "why": "killed by an OLDER test file, not by the pins: test/unit/qmd-model.test.ts > R5 — knitr's chunk grammar is wider than quarto's cell grammar (Session 273) > a digit-led or underscore-led engine name"
+ },
+ {
+  "name": "Z07 KNITR first char admits digit",
+  "file": "src/core/qmd/model.ts",
+  "from": "const KNITR_CHUNK_INFO = /^\\{[A-Za-z][A-Za-z0-9_]*([ ,][\\s\\S]*)?\\}$/;",
+  "to": "const KNITR_CHUNK_INFO = /^\\{[A-Za-z0-9][A-Za-z0-9_]*([ ,][\\s\\S]*)?\\}$/;",
+  "expect": "killed",
+  "why": "killed by an OLDER test file, not by the pins: test/unit/qmd-model.test.ts > R5 — knitr's chunk grammar is wider than quarto's cell grammar (Session 273) > a digit-led or underscore-led engine name"
+ },
+ {
+  "name": "W08 knitrClaims only with a paragraph open",
+  "file": "src/core/qmd/model.ts",
+  "from": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "to": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        paragraphOpen &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "expect": "killed",
+  "why": "killed by an OLDER test file, not by the pins: test/unit/qmd-model.test.ts > R5 — knitr's chunk grammar is wider than quarto's cell grammar (Session 273) > a knitr document's digit-bearing engine c"
+ },
+ {
+  "name": "V01 info site: tilde fences can be cells",
+  "file": "src/core/qmd/model.ts",
+  "from": "      const info = char === \"`\" && !stripQuote ? CELL_INFO.exec(fence[3].trim()) : null;",
+  "to": "      const info = !stripQuote ? CELL_INFO.exec(fence[3].trim()) : null;",
+  "expect": "killed",
+  "why": "killed by an OLDER test file, not by the pins: test/unit/qmd-model.test.ts > a fence that is never CLOSED is not a code block at all (Session 179) > the same three axes on a CELL fence, where the l"
+ },
+ {
+  "name": "V07 free case: lang is the whole match",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const lang = CELL_INFO.exec(m[3].trim())![1];",
+  "to": "  const lang = CELL_INFO.exec(m[3].trim())![0];",
+  "expect": "killed",
+  "why": "killed by an OLDER test file, not by the pins: test/unit/qmd-model.test.ts > Session 293 — a jupyter kernel cell closes only on its own indent > a ojs cell still pairs with a closer at another inde"
+ },
+ {
+  "name": "V08 indentedCellFenceAt: no CELL_INFO test",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return m !== null && CELL_INFO.test(m[3].trim()) ? m : null;",
+  "to": "  return m;",
+  "expect": "killed",
+  "why": "killed by an OLDER test file, not by the pins: test/unit/pathological-inputs.test.ts > Session 311 — a fence whose run is longer than the closers `buildCloserIndex` files one bucket per length > th"
+ },
+ {
+  "name": "V09 pre-pass: judges any prefix",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (begin[1] === \"\" && KNITR_CHUNK_INFO.test(begin[3])) {",
+  "to": "    if (KNITR_CHUNK_INFO.test(begin[3])) {",
+  "expect": "killed",
+  "why": "killed by an OLDER test file, not by the pins: test/unit/knitr-no-execute-fixture.test.ts > Session 310 — the paired no-execute fixture > default reading, as written: layout/layout_10_list_items_pr"
+ }
+]

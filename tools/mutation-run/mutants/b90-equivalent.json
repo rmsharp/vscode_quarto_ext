@@ -1,0 +1,130 @@
+[
+ {
+  "name": "A-S05 START_CODE_CELL fence run lazy",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(```+?)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "expect": "survives",
+  "why": "EQUIVALENT: only the whole backtick run can precede \\s*\\{, so lazy and greedy capture the same group (review lens A: 600,000 fuzz documents, 0 differences)"
+ },
+ {
+  "name": "A-S20 START_CODE_CELL i flag",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/i;",
+  "expect": "survives",
+  "why": "EQUIVALENT: the language class already holds both cases (lens A: 600,000 documents, 0 differences)"
+ },
+ {
+  "name": "A-S22 START_CODE_CELL u flag",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/u;",
+  "expect": "survives",
+  "why": "EQUIVALENT: only group 1, ASCII backticks, is read (lens A: 600,000 documents incl. lone surrogates, 0 differences)"
+ },
+ {
+  "name": "A-L23 fenceLanguage i flag",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gmi;",
+  "expect": "survives",
+  "why": "EQUIVALENT: the language class already holds both cases (lens A: 120,000 documents, 0 differences)"
+ },
+ {
+  "name": "A-L25 fenceLanguage u flag",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gmu;",
+  "expect": "survives",
+  "why": "EQUIVALENT: only ASCII group 1 is read (lens A: 120,000 documents incl. lone surrogates, 0 differences)"
+ },
+ {
+  "name": "A-L27 languagesInMarkdown lower-cases with the locale",
+  "file": "src/core/document-engine.ts",
+  "from": "const language = match[1].toLowerCase();",
+  "to": "const language = match[1].toLocaleLowerCase();",
+  "expect": "survives",
+  "why": "EQUIVALENT on this runtime: 'MERMAID'.toLocaleLowerCase() is 'mermaid' even under LC_ALL=tr_TR.UTF-8; only an explicit 'tr' locale gives a dotless i"
+ },
+ {
+  "name": "A-L28 languagesInMarkdown no de-duplication",
+  "file": "src/core/document-engine.ts",
+  "from": "if (!languages.includes(language)) {",
+  "to": "if (true) {",
+  "expect": "survives",
+  "why": "EQUIVALENT: engineFromLanguages takes the first r or julia, else the first language that is not ojs or a handler language, so repeats cannot change the answer (120,000 documents, 0 differences)"
+ },
+ {
+  "name": "A-L29 languagesInMarkdown de-duplicates on the raw spelling",
+  "file": "src/core/document-engine.ts",
+  "from": "if (!languages.includes(language)) {",
+  "to": "if (!languages.includes(match[1])) {",
+  "expect": "survives",
+  "why": "EQUIVALENT: the same argument as A-L28, since repeats are unobservable"
+ },
+ {
+  "name": "B-L02 fenceLanguage regex hoisted to module scope",
+  "file": "src/core/document-engine.ts",
+  "from": "function languagesInMarkdown(text: string): string[] {\n  const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;\n",
+  "to": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;\nfunction languagesInMarkdown(text: string): string[] {\n",
+  "expect": "survives",
+  "why": "EQUIVALENT: the exec loop always ends on a null match, which resets lastIndex to 0; building the regex per call is defensive only"
+ },
+ {
+  "name": "X09 CELL_INFO start anchor admits blanks",
+  "file": "src/core/qmd/model.ts",
+  "from": "const CELL_INFO = /^\\{([A-Za-z][=A-Za-z]*)([ ,].*)?\\}$/;",
+  "to": "const CELL_INFO = /^\\s*\\{([A-Za-z][=A-Za-z]*)([ ,].*)?\\}$/;",
+  "expect": "survives",
+  "why": "EQUIVALENT: all three call sites of CELL_INFO pass a string that has been trim()med (lens B: 75,000 generated documents, 0 separations)"
+ },
+ {
+  "name": "X10 CELL_INFO end anchor admits blanks",
+  "file": "src/core/qmd/model.ts",
+  "from": "const CELL_INFO = /^\\{([A-Za-z][=A-Za-z]*)([ ,].*)?\\}$/;",
+  "to": "const CELL_INFO = /^\\{([A-Za-z][=A-Za-z]*)([ ,].*)?\\}\\s*$/;",
+  "expect": "survives",
+  "why": "EQUIVALENT: the same argument as X09"
+ },
+ {
+  "name": "Y10 INDENTED group 3 non-empty",
+  "file": "src/core/qmd/model.ts",
+  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.*)$/;",
+  "to": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.+)$/;",
+  "expect": "survives",
+  "why": "EQUIVALENT: an empty info string is never a cell, so (.+) and (.*) answer alike"
+ },
+ {
+  "name": "Z09 KNITR end anchor admits blanks",
+  "file": "src/core/qmd/model.ts",
+  "from": "const KNITR_CHUNK_INFO = /^\\{[A-Za-z][A-Za-z0-9_]*([ ,][\\s\\S]*)?\\}$/;",
+  "to": "const KNITR_CHUNK_INFO = /^\\{[A-Za-z][A-Za-z0-9_]*([ ,][\\s\\S]*)?\\}\\s*$/;",
+  "expect": "survives",
+  "why": "EQUIVALENT: the callers pass fence[3].trim() or begin[3], which KNITR_CHUNK_BEGIN captures from the brace to the last brace"
+ },
+ {
+  "name": "W05 knitrClaims char test spelled !== tilde",
+  "file": "src/core/qmd/model.ts",
+  "from": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "to": "        engine === \"knitr\" &&\n        char !== \"~\" &&\n        !stripQuote &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "expect": "survives",
+  "why": "EQUIVALENT: the fence character is a backtick or a tilde and nothing else, so !== tilde and === backtick agree"
+ },
+ {
+  "name": "W12 knitrClaims !stripQuote -> quoteDepth===0",
+  "file": "src/core/qmd/model.ts",
+  "from": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "to": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        quoteDepth === 0 &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "expect": "survives",
+  "why": "EQUIVALENT (measured, 0 separations in 40,000 documents): quoteDepth === 0 is the negation of stripQuote"
+ },
+ {
+  "name": "V10 pre-pass: trims the header (equivalent)",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (begin[1] === \"\" && KNITR_CHUNK_INFO.test(begin[3])) {",
+  "to": "    if (begin[1] === \"\" && KNITR_CHUNK_INFO.test(begin[3].trim())) {",
+  "expect": "survives",
+  "why": "EQUIVALENT: begin[3] is captured from the brace to the last brace, so trim() changes nothing"
+ }
+]
