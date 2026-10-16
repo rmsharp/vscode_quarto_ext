@@ -24,6 +24,12 @@ prints 221. This session's one open finding is filed in g14 (the `knitrClaims` n
 `PROJECT_LEARNINGS.md` are past the read refusal: read in slices. macOS `sed` rejects `|` as a delimiter.
 (8) After answering a direct question, STOP and wait (memory). `git worktree list` may show a foreign worktree under `.claude/worktrees/`: not mine.
 
+### What Session 317 Did
+**Deliverable:** g02 of the backlog ordering plan, first session: B88 part (8), `scanRegions` must not throw `RangeError` on one line of 2,100,000 `-`, `*` or `_` (IN PROGRESS)
+**Started:** 2026-10-16
+**Status:** Session claimed. Work beginning. Strict TDD: a RED row first, then the iterative rewrite, with an exhaustive old-versus-new proof.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
 ### What Session 316 Did
 **Deliverable:** g01 of the backlog ordering plan -- pin the non-tail parts of the code-cell header literals (B90's eleven mutants) and commit a mutation runner -- DONE; claim `6ebed922`
 **Started:** 2026-10-15

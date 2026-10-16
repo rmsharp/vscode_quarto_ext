@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-16 · [BL-What is still quadratic or deep enough to overflow after Session 311, every shape re-measured on the final tree (`066cfcc1`) and none of it in that session's diff] Session 317 (in progress): claim -- g02 first session, part (8), the `scanRegions` stack overflow
+
+Session claimed. Phase 0 found both ledger frontiers at HEAD (`febd2c49`, gap 0, no merges), no pending receipt, the ratchet 2/2 (results bba236856bad, the receipt's citation holds) and the dashboard at 76/100 with 21 vulnerabilities. At the Phase 0 picker the operator chose g02 of `docs/planning/2026-10-15-backlog-ordering-plan.md` (placed by: finishing a feature, the in-flight group). Deliverable: a RED row that `scanRegions` does not throw on one line of 2,100,000 `-`, `*` and `_`; locate the pattern with `node --cpu-prof` or a bisection before reading code, rewrite it without the stack-deep construct, and prove old and new identical exhaustively. Phase 3F replaces this entry with the outcome.
+
 ### 2026-10-15 · [ad hoc] Session 316: cite the quality-gate run in the receipt and the ledger (2/2 pass at 075c4f60)
 
 `quality_ratchet.py --run` after the ledger commit `075c4f60`: 2/2 pass, 0 fail, 0 unmeasured, results bba236856bad, manifest 334939914945, head 075c4f60 (ledger-lag 0; release-gate is `npm run check-package`, 0). The `HANDOFFS.md` receipt's `quality_ratchet` line now carries the citation (`methodology/.quality-gates-results.json` is not tracked: the run is read from the file on disk).
