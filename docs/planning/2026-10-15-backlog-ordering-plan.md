@@ -8,9 +8,9 @@
 
 | Field | Value |
 |---|---|
-| In flight | Slow-input sweep (Sessions 311-314): B90 pins first, then B88 and B89, ending in one terminal bounded session with a stop line. |
-| Next group to offer at Phase 0 | `g01` — Sweep pins: cell-header literals |
-| Groups closed | none yet |
+| In flight | Slow-input sweep (Sessions 311-314, pins done in Session 316): B88 and B89 next, ending in one terminal bounded session with a stop line. |
+| Next group to offer at Phase 0 | `g02` — Slow-input sweep; its first session is B88 part (8), the scanRegions crash row |
+| Groups closed | `g01` (Session 316) |
 | Decisions answered | none yet; each is asked once, at or before the group named in the Decisions table (first: D8 before g05, D2 and D3 before g03) |
 
 **How a session uses this plan.** At Phase 0, offer the next item of the group already in progress first; if none is in progress, offer the first group in the order below whose hard prerequisites are closed. Say in each picker option which rule placed it (dependency, finishing a feature, or neither). One session works one deliverable from one group and stops (a group's first session is its first deliverable); each group below is a series of separate sessions. A group is **closed** when every core item is done or is filed as a RESIDUAL record with a named owner. At close-out, update the status column of the order table and this block, in the same commit as the session's other records.
@@ -66,7 +66,7 @@ Estimates are planning figures, not commitments: each assumes the parts-per-sess
 
 | # | Group | Name | Features | Sessions | Hard prerequisites | Decisions | Status |
 |---|---|---|---|---|---|---|---|
-| 1 | g01 | Sweep pins: cell-header literals | ROBUSTNESS-PERF, CELL-OPTIONS | 2 | — | — | open |
+| 1 | g01 | Sweep pins: cell-header literals | ROBUSTNESS-PERF, CELL-OPTIONS | 2 | — | — | closed (Session 316, 1 session) |
 | 2 | g02 | Slow-input sweep (in flight, Sessions 311-314) | ROBUSTNESS-PERF | 11 | — | — | open |
 | 3 | g03 | Record hygiene: stale prose, drains, duplicates | DOC-RECORD | 5 | — | D2, D3 | open |
 | 4 | g04 | Test and build tooling, advisories, repo safety | TOOLING-BUILD | 4 | — | D5, D6 | open |
@@ -128,6 +128,8 @@ Deferred (Session 252 enumeration-only; not scheduled unless decision D1 lifts i
 **Cannot enforce.** Mutants outside B90's list; a survivor's equivalence is argued, not proved.
 
 **First session.** Author the mutation runner and exact mutant list (the S313/S314 scripts are untracked); add rows for the four re-run survivors, expected values copied from the parent build.
+
+**Outcome (Session 316, one session, not two).** Closed against its criterion. `tools/mutation-run/` (runner, 28-case self-test, 33-mutant self-check, README) and `test/unit/cell-header-literal-pins.test.ts` (76 rows); all eleven B90 mutants killed, `git diff -- src` empty. A two-workflow review (4 probe agents, 4 reviewers, 123 further mutants) widened it: 85 of those are killed by the pins, 25 by older files, 16 are argued equivalent and survive on purpose (`tools/mutation-run/mutants/`). It also refuted the session's own "E01 is equivalent" record, found the INDENTED_CELL_FENCE_OPEN gap g02's fence rewrites need, and found six runner defects. One finding is filed in g14 (the no-break-space direction of the knitr claim).
 
 ### g02 — Slow-input sweep (in flight, Sessions 311-314)
 
@@ -459,6 +461,8 @@ Deferred (Session 252 enumeration-only; not scheduled unless decision D1 lifts i
 - `g09` — If D9 is yes, project-level opts_chunk rows become closable.
 
 **Decisions needed:** D8, D9, D15, D16, D17
+
+**Filed during execution (Session 316):** the BACKLOG item "`knitrClaims` trims the info string with JavaScript's `trim()` ..." (the no-break-space direction of the knitr claim; LOW; measure with quarto black-box first, then one row per character).
 
 | Item | Role | Deferred | What |
 |---|---|---|---|

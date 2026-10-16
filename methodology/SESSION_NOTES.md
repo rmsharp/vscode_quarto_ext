@@ -8,34 +8,65 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 315 closed out.** A planning session: the backlog ordering plan is written (`docs/planning/2026-10-15-backlog-ordering-plan.md`, commit `cf375442`) and the ordering rule is in `CLAUDE.md`.
-No source code changed. `BACKLOG.md` "Active" is empty: present candidates via AskUserQuestion at Phase 0, ranked by the plan, each option saying which rule placed it (dependency, finishing a feature, or neither).
-**What's next (derived from the plan, not a promise):** the in-flight group first: g01 (B90 header-literal pins, test-only, 2 sessions), then g02 (the slow-input sweep; its crash row, B88 part (8), may run before g01).
-Decisions are asked as the plan says: D2 and D3 before g03, D8 (plan mode once per group) before g05, D27 (format-name checks and `_metadata.yml` before or after the cell-option groups) before g10. Estimate: 202 core sessions.
+**Task:** **NONE -- Session 316 closed out.** g01 of the backlog ordering plan is closed: the eleven B90 mutants are pinned, with a tracked mutation runner and a review round that widened it (details in the receipt).
+Test-only: `git diff 6ebed922 HEAD -- src` is empty. `BACKLOG.md` "Active" is empty: present candidates via AskUserQuestion at Phase 0, ranked by the plan, each option saying which rule placed it.
+**What's next (derived from the plan, not a promise):** the in-flight group, g02, the slow-input sweep (estimate 11 sessions). Its first session is B88 part (8): a RED row that `scanRegions` does not throw on one line of 2,100,000 `-`, then `*` and `_`.
+g02 no longer waits on g01: `INDENTED_CELL_FENCE_OPEN` (which B88 (3) and (7) rewrite) and `START_CODE_CELL` are pinned in `test/unit/cell-header-literal-pins.test.ts`. Decisions as the plan says: D2 and D3 before g03, D8 before g05, D27 before g10.
 **⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in a close-out commit).
-(2) The plan's keys are `B<line>` at commit `1ed4197a` (`git show 1ed4197a:BACKLOG.md`); the live file's lines shift when g03 drains blocks. The plan's JSON source, its validator and the three workflows' results exist only
-in the session scratchpad under `/private/tmp/...` (not durable): the markdown IS the source now. Update its status column and "Current position" block at each close-out; after a structural edit check coverage:
-`sed -n '/^## Where each key went/,$p' docs/planning/2026-10-15-backlog-ordering-plan.md | grep -o 'B[0-9]\+' | sort -u | wc -l` prints 221.
-(3) The gates the plan names can only see what they measure: `test:oracle` runs the cell-option flag decision, `tools/realdoc-score` compares heading LEVELS; Outline and label-index groups close on their own tracked fixture plus a ratchet
-row (plan P6). Never run `tools/knitr-print-grids/regen.py` over `knitr-print-noexec`: it overwrites that fixture's engine column. Its `right(6)` 376 and `hiding(6)` 178 score the DEFAULT reading against the NO-EXECUTE render.
-(4) `test:integration` NOT run for five sessions (takes the screen: ask first); the plan marks adapter integration rows OPEN until the operator approves a run. `scratchpad/` evidence cited by old records is mostly gone (plan P5).
-(5) Four timing rows flake under load (Session 307's 9 MB row, 308's 200,000-line row, two of 311's): run alone, never loosen; a whole-suite mutation pass counts a flake as a kill. Baseline `npm test` at HEAD: 11,221 passing in 83 files.
-(6) The Edit tool and the Bash heredoc expand `\uXXXX` into the glyph: write such characters with `chr()` and `grep -c` the file; `rm -rf $A/$B` is blocked: use literal paths. `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md`
-and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices. zsh does not word-split `$VAR`: `${=VAR}`.
-(7) Workflow agents: `pkill -f <scratch dir name>` after each reports; `git worktree list` shows a foreign worktree under `.claude/worktrees/`: not mine, leave it. After answering a direct question, STOP and wait (memory).
-(8) The sweep's harnesses are `scratchpad/s312/` to `scratchpad/s314/` (READMEs: mutation runners, corpus differentials, `regex-equiv.js`, `probe.ts`); g01 must commit its own runner under `tools/` because they are untracked.
+(2) `tools/mutation-run/` is the tracked mutation runner (read its README): five mutant lists, a 28-case self-test, a 33-mutant self-check. It tests the COMMITTED tree (commit a source or `test_run.py` edit first); `--tests` copies uncommitted pin files; run it ALONE.
+(3) The machine is shared: the load average ran 87 to 438 from other projects' Playwright, next-server, R and VM jobs. Whole-suite runs then flake on clock rows and on vitest's 5 s timeout: use the README's
+`--testTimeout` command, name the failing titles, never loosen a row.
+(4) Workflow `isolation: 'worktree'` made worktrees at `82e6049e`, 166 commits behind HEAD: put `git log -1` in step one of the prompt. A Session 314 vitest worker (pid 84774, cwd `scratchpad/wt314`) was still at 100% CPU after 6 hours: not mine; ask before killing it.
+(5) `test:integration` NOT run for six sessions (takes the screen: ask first). Baseline `npm test` at HEAD: 11,297 passing in 84 files.
+(6) The plan: update its status column and "Current position" at each close-out; `sed -n '/^## Where each key went/,$p' docs/planning/2026-10-15-backlog-ordering-plan.md | grep -o 'B[0-9]\+' | sort -u | wc -l`
+prints 221. This session's one open finding is filed in g14 (the `knitrClaims` no-break-space item in `BACKLOG.md`).
+(7) The Edit tool and the Bash heredoc expand `\uXXXX` into the glyph: write such characters with `chr()` or a placeholder and check the file. `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and
+`PROJECT_LEARNINGS.md` are past the read refusal: read in slices. macOS `sed` rejects `|` as a delimiter.
+(8) After answering a direct question, STOP and wait (memory). `git worktree list` may show a foreign worktree under `.claude/worktrees/`: not mine.
 
 ### What Session 316 Did
-**Deliverable:** g01 of the backlog ordering plan: pin the eleven B90 mutants of the four code-cell header literals and commit a mutation runner under `tools/` (IN PROGRESS)
+**Deliverable:** g01 of the backlog ordering plan -- pin the non-tail parts of the code-cell header literals (B90's eleven mutants) and commit a mutation runner -- DONE; claim `6ebed922`
 **Started:** 2026-10-15
-**Status:** Session claimed. Work beginning. Test-only: `git diff -- src` must stay empty.
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
-
-### What Session 315 Did
-**Deliverable:** the backlog ordering plan (`docs/planning/2026-10-15-backlog-ordering-plan.md`) and the ordering rule in `CLAUDE.md` -- DONE (commit `cf375442`); claim `1ed4197a`
-**Started:** 2026-10-15
-**Status:** Closed out. 221 open items placed exactly once: 187 in 37 groups (36 scheduled in dependency order, one deferral-only), 34 parked; 23 decisions each asked once; three review rounds (125 findings, 9 high) with a disposition for each.
+**Status:** Closed out. 76 pin rows kill all eleven mutants; of the review round's 123 further mutants 85 are killed by the pins, 25 by older files and 16 argued equivalent. Runner: 28 self-tests, 33 of 33
+self-mutants killed. `npm test` 11,297 in 84 files; `npm run package` 44 files.
 **Ledger:** `CHANGELOG.md` 2026-10-15 -- one entry per action (the claim entry replaced), recorded in the close-out commit.
+
+## Session 315 Handoff Evaluation (by Session 316)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers at HEAD (`b7510a72`, gap 0), no `pending` receipt, the ratchet citation (2/2, results
+`bba236856bad`), the test baseline (11,221 passing in 83 files, exact) and the "Active empty, present candidates" instruction all held at Phase 0, and the picker the plan ranked (g01 first, g02's crash row
+allowed before it) was accurate.
+**Helped:** gotcha 8 (the sweep's harnesses are untracked, so g01 must commit its own runner) and the harnesses themselves: `scratchpad/s313/mutate313.py`, `mutants313-t5.json` and `review-results.json`
+(finding T5) gave the exact form of all eleven mutants, which the backlog item's prose alone could not; gotcha 5 (a whole-suite mutation pass counts a flake as a kill) named the trap I then met, and its "never
+loosen" kept me off the clock rows; the plan's g01 block (scope, done criterion, surface, first session) was exact; gotchas 1 and 6 (stage by path; `\uXXXX` expansion) saved time.
+**Missing:** (a) that B90's "survives the whole suite" holds only with the wall-clock rows excluded: measured under load, 8 of the 11 looked killed, five of them by clock rows; (b) that the B90 list is a
+sample, not the surface: two reviewers found 48 more unpinned parts of two small regexes and the five unpinned parts of `INDENTED_CELL_FENCE_OPEN`, the literal g02's fence rewrites touch; (c) that more than
+four rows flake: I met at least ten (jupyter-kernel's `stall` row, the 5-million-backtick row, two exhaustive rows over vitest's 5 s default timeout, the 307 and 308 rows); (d) that the machine is shared and
+loaded to 87 to 438 by other projects; (e) that a Session 314 vitest worker was still at 100% CPU after six hours; (f) that `isolation: 'worktree'` makes worktrees at an old commit.
+**Wrong:** the estimate "2 sessions" for g01 (one long session closed it), and gotcha 5's "four timing rows". **ROI: high.**
+
+## Session 316 Self-Assessment
+
+**Score: 7/10.**
+**Went right.** The deliverable is checkable on the committed tree: all eleven B90 mutants are killed by named rows (11 of 11 through the tracked runner), measured RED first (0 of 11 killed by the 78 files
+without wall-clock rows, and none by the other five files minus their clock rows), and `git diff 6ebed922 HEAD -- src` is empty. The tracked runner has a 28-case self-test (12 RED before its review fixes,
+shown) and 33 self-mutants, all killed after its own check found four gaps in the self-test. Two workflows (4 probe agents, 4 reviewers, about 1.27M subagent tokens) were each followed by firsthand checks: the
+reviewers refuted two of my own records (E01 "equivalent", the runner's "never edits the repo") and found the gap g02 needs. Final lists on the final tree: 11 killed; 14 killed and 1 expected survivor; 85
+killed; 25 killed; 16 survive; 0 contradictions. Gates: `npm test` 11,297 in 84 files, `check-types` clean, `check-backlog` OK, `npm run package` 44 files, 1.86 MB. Learnings 771 to 774.
+**Went wrong.** (1) My first record called E01 EQUIVALENT after 2,520 documents; it is not (a lazy line under a quoted paragraph, a header whose option tail pandoc refuses): two reviewers found it
+independently. (2) Runner v1 had six defects: a leaked worktree on a setup failure, a timeout that killed only `npx`, a mutant file that could leave the worktree, a `--worktree` that overwrote the user's files,
+a mangled dirty report, a crash that exited 1. (3) I started a 123-mutant run with that runner; one hang mutant left workers behind and the load rose; I stopped the runner and no process with a mutation
+worktree as its cwd remained. (4) The pin file's first header held several loose or false statements (the N-row coverage, K00's purpose, "tables", "drained"). (5) vitest does not type-check:
+`resolveDocumentEngine` returns `string | undefined`, and `check-types:unit` caught my helper's type. (6) The probe agents' worktrees were 166 commits old; I re-ran every row on HEAD (all held). (7) Scope: the
+review widened the work from 11 to 76 rows, and the runner from one file to a tool with a README; I judged it the one deliverable (the plan's scope sentence is "pin the unpinned non-tail parts" and a runner),
+and say so here; the operator may weigh it differently. (8) Whole-suite verification fought a machine at load 87 to 438: three red baselines, lists 4 and 5 re-run, and a wider title filter that hid the Y03
+killer until I narrowed it. (9) Several "have not heard from you" nudges during the long waits.
+**Known residuals (filed or stated):** the no-break-space direction of the knitr claim (BACKLOG, g14); the sampler bounds and never proves (about 190 mutants tried, none known unpinned and non-equivalent);
+`test:integration` NOT run; the option-tail test's comment ("BEGIN's tail is a subset of INFO's") omits that BEGIN's blanks are ASCII, not edited.
+**TDD:** the runner: its self-test was written first and was RED (7 of 9 failed; the 2 that passed did so by accident, Python exits 2 for a missing script), then 12 of 28 were RED before the review fixes.
+Passed on arrival, disclosed: the vitest-mode, ERROR and timeout self-tests (written after the code, then mutation-checked) and every pin row (written against existing behaviour; the RED is the mutant surviving
+the suite first, 0 of 11 killed, then 11 of 11 killed).
+**Host:** `test:integration` NOT run (test files and a tool only; it takes the screen). **Cost:** 8 agents in 2 workflows (about 1.27M subagent tokens, 368 tool calls), about 500 mutant runs, 0 quarto renders.
 
 ## Session 314 Handoff Evaluation (by Session 315)
 

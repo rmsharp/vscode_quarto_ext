@@ -17,9 +17,37 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
-### 2026-10-15 · [BL-The NON-TAIL parts of the four code-cell header literals are pinned by no unit test: a mutant of the leading whitespace run, the backtick count or the language class survives the whole suite] Session 316 (in progress): claim -- g01, test-only pins for the cell-header literals
+### 2026-10-15 · [BL-The NON-TAIL parts of the four code-cell header literals are pinned by no unit test: a mutant of the leading whitespace run, the backtick count or the language class survives the whole suite] Session 316: g01 closed -- the eleven B90 mutants are pinned, with a tracked runner and a review round
 
-Session claimed. Phase 0 found both ledger frontiers at HEAD (`b7510a72`, gap 0), no pending receipt, the ratchet 2/2 (results bba236856bad, the receipt's citation holds) and the dashboard at 76/100 with the same 21 dev-only advisories. At the Phase 0 picker the operator chose g01 of `docs/planning/2026-10-15-backlog-ordering-plan.md`. Deliverable: pin the eleven B90 mutants (four re-run survivors, seven reviewer-measured) with one RED-then-GREEN row each, and commit a mutation runner under `tools/`; `git diff -- src` stays empty. Phase 3F replaces this entry with the outcome.
+`test/unit/cell-header-literal-pins.test.ts` (76 rows, new) kills all eleven mutants the item listed (11 of 11, `tools/mutation-run/mutants/b90-cell-header.json`), measured RED first: against the 78 files without wall-clock rows and against the other five files minus their clock rows, 0 of 11 were killed. `git diff 6ebed922 HEAD -- src` is empty. A two-workflow review widened it: 123 further mutants two adversarial reviewers invented (85 killed by the pins incl. 13 neighbours, 25 killed only by older test files, 16 argued equivalent and kept as expected survivors), `INDENTED_CELL_FENCE_OPEN` (the literal B88 (3) and (7) rewrite) pinned, and the session's own first record refuted (E01 "equivalent" after 2,520 documents: a lazy line under a quoted paragraph with a header whose option tail pandoc refuses separates it). Verified on the final tree: lists 11 / 14 killed + 1 expected survivor / 85 / 25 killed, 16 survive, 0 contradictions each; `npm test` 11,297 in 84 files (11,221 + 76), `check-types` clean, `check-backlog` OK, `npm run package` 44 files, 1.86 MB. `BACKLOG.md`: the B90 item drained, one open item filed (the no-break-space direction of the knitr claim, g14). Plan: g01 closed. Workflows `wf_fbaba961-880` (4 probe agents, about 437,000 subagent tokens) and `wf_d5c840a8-607` (4 reviewers, about 836,000), no quarto renders; Learnings 771 to 774. Commits: claim `6ebed922`; `99c675cd`, `95328473`, `6d7e059d`, `26778365` (runner); `ffa731c6`, `320ceffc`, `1e93816e` (pins and lists); the close-out `HASH_CLOSE`.
+
+### 2026-10-15 · [BL-The NON-TAIL parts of the four code-cell header literals are pinned by no unit test: a mutant of the leading whitespace run, the backtick count or the language class survives the whole suite] Session 316: pin file, first 23 rows (`ffa731c6`)
+
+`test/unit/cell-header-literal-pins.test.ts`: START_CODE_CELL, `languagesInMarkdown` through `resolveDocumentEngine`, the two `.trim()` calls on the indented-cell path and the knitr claim at the paragraph gate; 23 rows kill the eleven B90 mutants and 13 neighbours (`b90-neighbours.json`). Passed on arrival (the code existed); the RED was the mutants surviving. One of its records, E01 "equivalent", was wrong (see the outcome entry).
+
+### 2026-10-15 · [BL-The NON-TAIL parts of the four code-cell header literals are pinned by no unit test: a mutant of the leading whitespace run, the backtick count or the language class survives the whole suite] Session 316: pin file grows to 73 rows (`320ceffc`) and 76 with the tracked lists (`1e93816e`)
+
+The review round's survivors: the captured backtick-run length that the closer must match, both `^` anchors, the class edges, the bounds of the run and the indent, the `g` and `m` flags, `INDENTED_CELL_FENCE_OPEN`, the `knitrClaims` terms and the E01 swap; L06 (a newline between the fence run and the brace) last. `1e93816e` adds `mutants/b90-review.json` (85), `b90-older-suite.json` (25) and `b90-equivalent.json` (16, survive on purpose with the argument in each `why`) and the README that names the five lists.
+
+### 2026-10-15 · [BL-The NON-TAIL parts of the four code-cell header literals are pinned by no unit test: a mutant of the leading whitespace run, the backtick count or the language class survives the whole suite] Session 316: the tracked mutation runner, first version (`99c675cd`, `95328473`)
+
+`tools/mutation-run/run.py` (one mutant at a time in a throwaway worktree, byte-exact restore, KILLED or SURVIVES), `test_run.py` (stdlib self-test, RED first: 7 of 9 failed, the other 2 passed by accident because Python exits 2 for a missing script) and the two mutant lists. Replaces the untracked Session 312 to 314 scripts. `tools/**` stays out of the `.vsix` (`.vscodeignore`).
+
+### 2026-10-15 · [BL-The NON-TAIL parts of the four code-cell header literals are pinned by no unit test: a mutant of the leading whitespace run, the backtick count or the language class survives the whole suite] Session 316: the runner after the review round (`6d7e059d`, `26778365`)
+
+Six defects found by the runner lens and fixed RED first (12 of 28 self-tests failed before): a setup failure leaked a worktree and a temp dir; a timeout killed only `npx`; an absolute `file`, a `..`, a committed symlink or the linked `node_modules` let a mutant edit the repo the runner was run from; `--worktree` overwrote the user's copies and its guard passed a subdirectory; the dirty report mangled the first status line; a crash exited 1. Also: unittest titles, overlapping occurrences, exit-code precedence, SIGTERM, exit 6. `run-py-selfcheck.json` (33 mutants) then found four gaps in the self-test itself (R18, R19, R24, R30), closed in `26778365`: 33 of 33 killed.
+
+### 2026-10-15 · [ad hoc] Session 316: the probe workflow `wf_fbaba961-880` (no commit)
+
+Four agents in isolated worktrees, one per source literal, each asked for the smallest document that tells HEAD from the mutant and a row that is green on HEAD and red under it. All eleven were distinguished and every row held on HEAD, but the worktrees were made at `82e6049e`, 166 commits behind HEAD (Learning 771): the rows were re-run on the real tree. About 437,000 subagent tokens, 141 tool uses, 7 minutes.
+
+### 2026-10-15 · [ad hoc] Session 316: the review workflow `wf_d5c840a8-607` (no commit)
+
+Four read-only lenses on the committed tree: adversarial new mutants for START_CODE_CELL and `fenceLanguage` (69 mutants), for the `model.ts` pieces (55) and an attack on the two "equivalent" verdicts (E01 refuted, E02 stands), the runner as a tool (12 findings) and a claims audit of the pin file, README and docstrings (15). 47 findings, 4 high; the highs were verified firsthand (E01 twice, the unpinned run length, the unpinned anchors) and the survivors re-run through the tracked runner. About 836,000 subagent tokens, 227 tool uses, 24 minutes.
+
+### 2026-10-15 · [ad hoc] Session 316: dashboard and context-budget history refresh (in the close-out commit `HASH_CLOSE`)
+
+`methodology/dashboard_history.jsonl` and `methodology/.context-budget-history.jsonl`. The dashboard reads health 76/100, one high-or-above risk flag and 21 advisories (all in dev dependencies), unchanged, 1,980 commits; `context_budget.py` exits 2 for the same three files as since Session 264 (`BACKLOG.md` 416,654 B, `HANDOFFS.md` 406,542 B, `PROJECT_LEARNINGS.md` 1,218,199 B, against 65,536 B); `CLAUDE.md` is 23,953 B (warn line 24,000 B).
 
 ### 2026-10-15 · [ad hoc] Session 315: cite the quality-gate run in the receipt and the ledger (2/2 pass at 3565e958)
 
