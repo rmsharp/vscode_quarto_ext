@@ -4206,7 +4206,7 @@ const SETEXT_UNDERLINE_RUN = /^(?:=+|-+)[ \t]*$/;
  * the heading-deleting direction on nine rows nobody has scored.
  *
  * ⚠ **Spelled as three literal markers and a tail, NOT as a quantified group (Session 317).** `(-[ \t]*){3,}` (and the `*` and `_` spellings)
- * costs V8's regex backtrack stack one entry per repetition, so a line of 2^21 = 2,097,152 or more `-`, `*` or `_` overflowed it and `test` threw
+ * costs V8's regex backtrack stack one entry per repetition, so a line of 2,097,144 or more (about 2^21) `-`, `*` or `_` overflowed it and `test` threw
  * `RangeError: Maximum call stack size exceeded`, from `scanRegions`. `-[ \t]*-[ \t]*-[ \t-]*` matches the same strings (three markers with blanks
  * between them, then any run of markers and blanks), and a tail that is one character class is a loop V8 runs without a stack entry per character.
  * `OPENS_FRESH_BLOCK` reads this same constant, so the two cannot spell it two ways (Learning #14). The old group spelling is kept as the oracle, with the other four patterns of
@@ -13296,7 +13296,7 @@ const LINEBLOCKISH = (l: string): boolean => LINE_BLOCK_START.test(l) || /^[ \t]
  * columns (` ---`), which a column-0 run is not (that is a setext underline or a break) and which pandoc reads as the dash line of a ONE-column table (Session 298, rendered `review3b/tables/r3b_008`-`011`).
  *
  * ⚠ The first alternative is a dash run, a blank run, a dash, then any dashes and blanks: NOT a group per dash run, `(?:[ \t]+-+)+` (Session 317). A quantified group costs V8's regex backtrack
- * stack one entry per repetition, and a line of about a million `- ` overflowed it and `test` threw `RangeError`, from `scanRegions`. Both spellings match the same strings (two dash runs or more).
+ * stack one entry per repetition, and a line of 2,097,145 or more `- ` (4.2 million characters) overflowed it and `test` threw `RangeError`, from `scanRegions`. Both spellings match the same strings (two dash runs or more).
  */
 export const DASH_COLUMN_LINE = /^ {0,3}-+[ \t]+-[ \t-]*$|^ {1,3}-+[ \t]*$/;
 /** A line made only of dashes and blanks: a simple table's rule, a setext underline or a thematic break. Spelled as a dash and a one-class tail for the reason `DASH_COLUMN_LINE` gives (Session 317). */

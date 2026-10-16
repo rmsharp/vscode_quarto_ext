@@ -64,7 +64,7 @@ describe("Session 317 — the thematic-break and dash-rule patterns answer what 
     expect(accepted).toBe(ACCEPTED[name]);
   }, 120_000);
 
-  // Seven characters hold a three-space indent and four markers but not a long mixed line, so a seeded sample of lines up to 50 characters stands beside the enumeration: half are
+  // Seven characters hold a three-space indent and four markers but not a long mixed line, so a seeded sample of lines up to 53 characters (an indent of up to 4 and up to 49 more) stands beside the enumeration: half are
   // built only from one marker and blanks (so most are accepted), the rest carry one or two foreign characters at random places. The generator is Mulberry32, so a failure replays.
   const LONG_LINES: string[] = (() => {
     let state = 317;
@@ -89,7 +89,7 @@ describe("Session 317 — the thematic-break and dash-rule patterns answer what 
     return lines;
   })();
 
-  it.each(Object.keys(OLD))("%s agrees on 100,000 seeded lines of up to 50 characters", (name) => {
+  it.each(Object.keys(OLD))("%s agrees on 100,000 seeded lines of up to 53 characters", (name) => {
     const disagreements: string[] = [];
     let accepted = 0;
     for (const text of LONG_LINES) {
@@ -121,13 +121,16 @@ describe("Session 317 — the thematic-break and dash-rule patterns answer what 
           lines.push(`${marker.repeat(n)}${blank.repeat(n)}${tail}`); //           a long run, then a long blank run
           lines.push(`${marker.repeat(n)}${blank.repeat(n)}${marker.repeat(n)}${tail}`); // two long runs around a long blank run
           lines.push(`${blank.repeat(n)}${tail}`); //                              blanks alone
+          lines.push(`${marker}${blank.repeat(n)}${tail}`); //                     ONE marker, then a long blank run (a redundant gap right after it is quadratic)
+          lines.push(`${marker}${blank.repeat(n)}${marker}${tail}`); //            two markers around a long blank run
+          lines.push(`${marker}${blank.repeat(n)}${marker}${blank.repeat(n)}${marker}${tail}`); // three markers, two long blank runs
         }
       }
     }
     return lines;
   };
 
-  it.each(Object.keys(OLD))("%s answers each of 96 lines of 50,000 characters like the old spelling, each in linear time", (name) => {
+  it.each(Object.keys(OLD))("%s answers each of 132 lines of 50,000 characters like the old spelling, each in linear time", (name) => {
     const disagreements: string[] = [];
     let slowest = 0;
     let accepted = 0;
@@ -144,5 +147,46 @@ describe("Session 317 — the thematic-break and dash-rule patterns answer what 
     expect(disagreements).toEqual([]);
     expect(accepted).toBeGreaterThan(0);
     expect(slowest).toBeLessThan(100);
+  }, 120_000);
+
+  // The enumeration holds gaps of up to 5 characters and the seeded sample is random, so a pattern that quietly CAPPED a gap or a run (`[ \t]{0,30}`) would be seen by neither. Every gap is
+  // swept here over lengths on both sides of the usual caps (1, 3, 8, 31/32/33, 41, 64, 100), for each indent, marker, kind of blank, first-run length and tail.
+  const GAPS = [0, 1, 2, 3, 8, 31, 32, 41, 64, 100];
+  function* gapGrid(): Generator<string> {
+    for (const indent of ["", " ", "   ", "    ", "\t", " \t"]) {
+      for (const marker of ["-", "*", "_"]) {
+        for (const blank of [" ", "\t", " \t"]) {
+          for (const first of [1, 2]) {
+            for (const g1 of GAPS) {
+              for (const g2 of GAPS) {
+                for (const g3 of [0, 33, 100]) {
+                  for (const tail of ["", " ", "x", "-", "*", "_"]) {
+                    yield `${indent}${marker.repeat(first)}${blank.repeat(g1)}${marker}${blank.repeat(g2)}${marker}${blank.repeat(g3)}${tail}`;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  const ACCEPTED_GRID: Record<string, number> = { THEMATIC_BREAK: 48_600, THEMATIC_BREAK_ANY_INDENT: 97_200, BULLET_THEMATIC_BREAK: 64_800, DASH_COLUMN_LINE: 16_158, DASH_ONLY_LINE: 16_200 }; // counted from the OLD spellings
+
+  it.each(Object.keys(OLD))("%s agrees on a grid of gap and run lengths on both sides of the usual caps", (name) => {
+    let compared = 0;
+    let accepted = 0;
+    const disagreements: string[] = [];
+    for (const text of gapGrid()) {
+      const expected = OLD[name].test(text);
+      compared++;
+      if (expected) accepted++;
+      if (NEW[name].test(text) !== expected && disagreements.length < 5) {
+        disagreements.push(JSON.stringify(text));
+      }
+    }
+    expect(disagreements).toEqual([]);
+    expect(compared).toBe(194_400);
+    expect(accepted).toBe(ACCEPTED_GRID[name]);
   }, 120_000);
 });

@@ -5047,6 +5047,13 @@ describe("a setext TITLE may be MULTI-LINE under a CommonMark reader (Session 20
     expect(names(doc("---", "from: gfm", "---", "", "Title", rule, "===="))).toEqual([]);
   });
 
+  it("a thematic break indented FOUR columns inside a list item still interrupts the paragraph: the interrupt list does not cap the indent at 3 (Session 317)", () => {
+    // Rendered with quarto 1.7.33 (Session 317): `- Title` / `    ***` / `  ====` under `from: gfm` is `<ul><li>Title<hr>====</li></ul>` plus the `# H` heading, and no heading
+    // for `Title`; the control without the break (`  continued`) renders `<h1>Title continued</h1>`. `THEMATIC_BREAK` caps its indent at 3 and `THEMATIC_BREAK_ANY_INDENT`
+    // does not, which is the whole reason for the second constant: the list reading the capped one (a one-token mutant) invented `h1:Title ***` and no other row noticed.
+    expect(names(doc("---", "from: gfm", "---", "", "- Title", "    ***", "  ====", "", "# H"))).toEqual(["h1:H"]);
+  });
+
   it("a HARD LINE BREAK's trailing backslash is not part of the joined text", () => {
     // `scratchpad/s203/mix` — `m_gfm_hardbs`, rendered this session: a line ending in `\` is a
     // HARD line break, which quarto renders as `<br>` and not as a literal character, so the

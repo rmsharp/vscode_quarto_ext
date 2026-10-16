@@ -374,5 +374,37 @@
   "to": "export const DASH_ONLY_LINE = /^ {0,3}-[ \\t-]+$/;",
   "expect": "killed",
   "why": "a lone `-` stops being a dash-only line"
+ },
+ {
+  "name": "X01 THEMATIC_BREAK_ANY_INDENT: redundant gap after the first underscore",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK_ANY_INDENT = /^[ \\t]*(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK_ANY_INDENT = /^[ \\t]*(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "expect": "killed",
+  "why": "same language, quadratic on `_` + a long blank run + a letter (1.6 s at 50,000 characters): the single-marker near-miss rows (Session 317 audit H1)"
+ },
+ {
+  "name": "X02 THEMATIC_BREAK: the gap between the second and third dash is capped at 30",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]{0,30}-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "expect": "killed",
+  "why": "`- -` + 31 blanks + `-` stops being a break: the gap grid (Session 317 audit H2)"
+ },
+ {
+  "name": "X03 DASH_ONLY_LINE: redundant gap after the first dash",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DASH_ONLY_LINE = /^ {0,3}-[ \\t-]*$/;",
+  "to": "export const DASH_ONLY_LINE = /^ {0,3}-[ \\t]*[ \\t-]*$/;",
+  "expect": "killed",
+  "why": "same language, quadratic on `-` + a long blank run + a letter: the single-marker near-miss rows (Session 317 audit H5)"
+ },
+ {
+  "name": "X04 BULLET_THEMATIC_BREAK: the first star gap is capped at 40",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const BULLET_THEMATIC_BREAK = /^[ \\t]*(?:-[ \\t]*-[ \\t]*-[ \\t-]*|\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*)$/;",
+  "to": "export const BULLET_THEMATIC_BREAK = /^[ \\t]*(?:-[ \\t]*-[ \\t]*-[ \\t-]*|\\*[ \\t]{0,40}\\*[ \\t]*\\*[ \\t*]*)$/;",
+  "expect": "killed",
+  "why": "`*` + 41 blanks + `**` stops being a break: the gap grid (Session 317 audit H6)"
  }
 ]

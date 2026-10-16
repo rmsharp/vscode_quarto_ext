@@ -14,5 +14,21 @@
   "to": "  /(?!)/, //                                               a thematic break\n",
   "expect": "killed",
   "why": "the two Session 317 rows in qmd-model.test.ts (\"a THEMATIC BREAK `***` / `___` interrupts the paragraph too\"); no older row noticed it"
+ },
+ {
+  "name": "W03 COMMONMARK_PARAGRAPH_INTERRUPT reads the indent-capped THEMATIC_BREAK",
+  "file": "src/core/qmd/model.ts",
+  "from": "  THEMATIC_BREAK_ANY_INDENT, //                            a thematic break\n",
+  "to": "  THEMATIC_BREAK, //                                         a thematic break\n",
+  "expect": "killed",
+  "why": "the Session 317 row \"a thematic break indented FOUR columns inside a list item still interrupts\" (qmd-model.test.ts): the mutant invents `h1:Title ***` from `- Title` / `    ***` / `  ====` under from: gfm (Session 317 audit F1)"
+ },
+ {
+  "name": "W04 OPENS_FRESH_BLOCK reads the any-indent THEMATIC_BREAK_ANY_INDENT",
+  "file": "src/core/qmd/model.ts",
+  "from": "  THEMATIC_BREAK, //                                         a thematic break\n",
+  "to": "  THEMATIC_BREAK_ANY_INDENT, //                            a thematic break\n",
+  "expect": "survives",
+  "why": "argued equivalent, not proved: a line indented 4 or more that is not indented code (inside a container) is the only difference, and 204,120 documents (10 containers x indents 0-8 x 6 rules x 3 underlines x 7 lines above x 3 item bodies x 3 readers x 2 placements) gave no different Outline (Session 317). Say how hard you looked before relying on it."
  }
 ]
