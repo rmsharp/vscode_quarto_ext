@@ -4212,7 +4212,7 @@ const SETEXT_UNDERLINE_RUN = /^(?:=+|-+)[ \t]*$/;
  * `OPENS_FRESH_BLOCK` reads this same constant, so the two cannot spell it two ways (Learning #14). The old group spelling is kept as the oracle, with the other four patterns of
  * this family, in `test/unit/thematic-break-equivalence.test.ts`.
  */
-export const THEMATIC_BREAK =/^ {0,3}(?:\*[ \t]*\*[ \t]*\*[ \t*]*|-[ \t]*-[ \t]*-[ \t-]*|_[ \t]*_[ \t]*_[ \t_]*)$/;
+export const THEMATIC_BREAK = /^ {0,3}(?:\*[ \t]*\*[ \t]*\*[ \t*]*|-[ \t]*-[ \t]*-[ \t-]*|_[ \t]*_[ \t]*_[ \t_]*)$/;
 /**
  * A thematic break at ANY indent: `THEMATIC_BREAK` with `^[ \t]*` for its ` {0,3}`, as `COMMONMARK_PARAGRAPH_INTERRUPT` spells it (the function that runs that list decides what an
  * indent of four or more means). The same three markers and a one-class tail, for the same reason (Session 317).
