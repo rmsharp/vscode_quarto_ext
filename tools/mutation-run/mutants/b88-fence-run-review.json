@@ -1,0 +1,138 @@
+[
+ {
+  "name": "N25 FENCE_OPEN: indent capped at 4096",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;",
+  "to": "export const FENCE_OPEN = /^[ \\t]{0,4096}((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;",
+  "expect": "killed",
+  "why": "a line with 5,000 or more blanks before the run stops being a fence; only the accepted-line row (5,000 to 200,000 characters) reads one, because every other comparison stops at 1,000 characters or 100 blanks and the 50,000-character lines are only timed. A cap is the obvious other cure for a quadratic regex."
+ },
+ {
+  "name": "N26 FENCE_OPEN: indent also reads a vertical tab",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;",
+  "to": "export const FENCE_OPEN = /^[ \\t\\v]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;",
+  "expect": "killed",
+  "why": "a vertical tab before a fence is read as part of the indent; no alphabet held one before the exotic-blank enumeration"
+ },
+ {
+  "name": "N28 FENCE_OPEN: run capped at 4096",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;",
+  "to": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,4096}(?!`)|~{3,4096}(?!~)))(.*)$/;",
+  "expect": "killed",
+  "why": "a run of 4,097 or more fence characters stops being a fence (the run capped); only the accepted-line row sees it"
+ },
+ {
+  "name": "N42 INDENTED: indent capped at 4096",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "export const INDENTED_CELL_FENCE_OPEN = /^\\s{0,4096}((?=(`))`{3,}(?!`))(.*)$/;",
+  "expect": "killed",
+  "why": "the INDENTED indent capped at 4,096 characters: a line of 5,000 or more blanks before a cell fence stops being one"
+ },
+ {
+  "name": "N43 INDENTED: indent without a vertical tab",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "export const INDENTED_CELL_FENCE_OPEN = /^[^\\S\\v]*((?=(`))`{3,}(?!`))(.*)$/;",
+  "expect": "killed",
+  "why": "the INDENTED indent without a vertical tab; also killed by qmd-model.test.ts (Session 178, EXOTIC whitespace), now by the exotic-blank enumeration too"
+ },
+ {
+  "name": "N44 INDENTED: indent without a byte order mark",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "export const INDENTED_CELL_FENCE_OPEN = /^[^\\S\\uFEFF]*((?=(`))`{3,}(?!`))(.*)$/;",
+  "expect": "killed",
+  "why": "the INDENTED indent without a byte order mark (a U+FEFF in front of a cell fence stops being one); only the exotic-blank enumeration reads one"
+ },
+ {
+  "name": "N45 INDENTED: indent spelled out",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "export const INDENTED_CELL_FENCE_OPEN = /^[ \\t\\f\\r\\n\\u00a0\\u2028\\u2029]*((?=(`))`{3,}(?!`))(.*)$/;",
+  "expect": "killed",
+  "why": "the INDENTED indent spelled out as ASCII blanks, CR, LF, NBSP, U+2028 and U+2029: loses the vertical tab, the byte order mark, U+3000 and the other Unicode spaces"
+ },
+ {
+  "name": "N53 INDENTED: run capped at 4096",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "export const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,4096}(?!`))(.*)$/;",
+  "expect": "killed",
+  "why": "the INDENTED run capped at 4,096 backticks"
+ },
+ {
+  "name": "N65 DIV_FENCE: indent also reads a vertical tab",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t\\v]*:{3,}(?!:)[ \\t]*(.*)$/;",
+  "expect": "killed",
+  "why": "a vertical tab before a div fence is read as part of the indent"
+ },
+ {
+  "name": "N66 DIV_FENCE: a list marker may precede the run",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
+  "to": "export const DIV_FENCE = /^(?:[ \\t]*(?:[-*+]|\\d{1,9}[.)])[ \\t]+)?[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
+  "expect": "killed",
+  "why": "DIV_FENCE accepts a list marker in front of the run, which a caller (divFenceRole) strips; killed by the marker enumeration, and by qmd-model.test.ts (Session 226)"
+ },
+ {
+  "name": "N70 DIV_FENCE: run capped at 4096",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,4096}(?!:)[ \\t]*(.*)$/;",
+  "expect": "killed",
+  "why": "a run of 4,097 or more colons stops being a div fence"
+ },
+ {
+  "name": "N71 DIV_FENCE: indent capped at 4096",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]{0,4096}:{3,}(?!:)[ \\t]*(.*)$/;",
+  "expect": "killed",
+  "why": "the DIV_FENCE indent capped at 4,096 blanks"
+ },
+ {
+  "name": "T01 oracle FENCE_OPEN drifts to the guarded spelling",
+  "file": "test/unit/fence-run-equivalence.test.ts",
+  "from": "FENCE_OPEN: /^[ \\t]*((?=([`~]))(?:`{3,}|~{3,}))(.*)$/,",
+  "to": "FENCE_OPEN: /^[ \\t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/,",
+  "expect": "killed",
+  "why": "the oracle table in the test file gets the lookahead: every FENCE_OPEN comparison becomes the new pattern against itself"
+ },
+ {
+  "name": "T02 oracle INDENTED drifts to the guarded spelling",
+  "file": "test/unit/fence-run-equivalence.test.ts",
+  "from": "INDENTED_CELL_FENCE_OPEN: /^\\s*((?=(`))`{3,})(.*)$/,",
+  "to": "INDENTED_CELL_FENCE_OPEN: /^\\s*((?=(`))`{3,}(?!`))(.*)$/,",
+  "expect": "killed",
+  "why": "the same for the INDENTED oracle"
+ },
+ {
+  "name": "T03 oracle DIV_FENCE drifts to the guarded spelling",
+  "file": "test/unit/fence-run-equivalence.test.ts",
+  "from": "DIV_FENCE: /^[ \\t]*:{3,}[ \\t]*(.*)$/,",
+  "to": "DIV_FENCE: /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/,",
+  "expect": "killed",
+  "why": "the same for the DIV_FENCE oracle"
+ },
+ {
+  "name": "C01 outranked list reads FENCE_OPEN in its unguarded spelling",
+  "file": "src/core/qmd/model.ts",
+  "from": "  FENCE_OPEN, //                   either fence delimiter (`FENCE_CLOSE` is a subset of this)",
+  "to": "  /^[ \\t]*((?=([`~]))(?:`{3,}|~{3,}))(.*)$/, //  either fence delimiter, unguarded",
+  "expect": "killed",
+  "why": "the outranked-header list (SIMPLE_TABLE_HEADER_OUTRANKED, a fourth call site of FENCE_OPEN) holds the old spelling inline: a long fence-run line above a dash row is quadratic again, and only the dash-row context rows reach this site"
+ },
+ {
+  "name": "C02 outranked list reads DIV_FENCE in its unguarded spelling",
+  "file": "src/core/qmd/model.ts",
+  "from": "  DIV_FENCE, //                    either `:::` fence",
+  "to": "  /^[ \\t]*:{3,}[ \\t]*(.*)$/, //  either `:::` fence, unguarded",
+  "expect": "killed",
+  "why": "the same for DIV_FENCE in the outranked-header list"
+ }
+]
