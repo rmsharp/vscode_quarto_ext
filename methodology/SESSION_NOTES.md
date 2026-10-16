@@ -8,42 +8,56 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 315 (IN PROGRESS): a PLANNING session** (operator: "do both"). Deliverable: `docs/planning/2026-10-15-backlog-ordering-plan.md`, the open BACKLOG items grouped by feature
-and ordered by dependency (test pins first), a done criterion per group; PLUS the standing ordering rule in `CLAUDE.md`. No source code; implementation is separate sessions.
-**What the BACKLOG now holds:** the sweep item's (3) to (5) and (7), the new (8) and (9), and (6a) nesting depth (close to cubic: 1.2 s at depth 1,600), (6b) a no-break-space comment hides a key (lost diagnostic), (6c) the clock
-rows' reach; the Session 311 item's (3) to (9); the non-tail pin item; the earlier Up Next items are untouched.
+**Task:** **NONE -- Session 315 closed out.** A planning session: the backlog ordering plan is written (`docs/planning/2026-10-15-backlog-ordering-plan.md`, commit `cf375442`) and the ordering rule is in `CLAUDE.md`.
+No source code changed. `BACKLOG.md` "Active" is empty: present candidates via AskUserQuestion at Phase 0, ranked by the plan, each option saying which rule placed it (dependency, finishing a feature, or neither).
+**What's next (derived from the plan, not a promise):** the in-flight group first: g01 (B90 header-literal pins, test-only, 2 sessions), then g02 (the slow-input sweep; its crash row, B88 part (8), may run before g01).
+Decisions are asked as the plan says: D2 and D3 before g03, D8 (plan mode once per group) before g05, D27 (format-name checks and `_metadata.yml` before or after the cell-option groups) before g10. Estimate: 202 core sessions.
 **⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in a close-out commit).
-(2) TWO scratchpads: the repo's untracked `scratchpad/` (`s312/` holds the mutation scripts, the corpus differential, the agents' and reviewers' scripts and a README) and the session one under `/private/tmp/...` (frozen trees, probes; not durable).
-(3) The Edit tool EXPANDS an escape such as `\u00a0` into the glyph: write it from a quoted heredoc and `grep -c $'\xc2\xa0'` every file you touched. `cmd | grep ... && git commit` tests the grep: redirect a gate to a file,
-`set -o pipefail`, print `$?`. After a scripted edit COUNT the rows.
-(4) zsh does not word-split `$VAR` (it bit me again): `${=VAR}`. A failed `toEqual` of two 100,000-character strings costs vitest 6 s of diff: probe the small-n output, pin it, THEN add the clock. Read an entry's signature
-before calling it (`completionContextAt(text, offset, thunk)`).
-(5) Two timing rows flake under load (Session 307's 9 MB row and Session 308's 200,000-line row failed in 3 of 5 full runs with four to six agents measuring; 0.7 s alone). Never loosen; run alone. A mutation pass counts a
-flake as a kill: run it ALONE and read the failing titles (`mutate312.py` prints them).
-(6) Agents: `pkill -f <their scratch dir name>` after each reports (a reviewer's shell loop ran for an hour); bound a "find every other" sweep in its prompt; after a resume an agent may lack its structured-output tool and
-hand back by message, so a monitor that waits for N results never fires.
-(7) `test:integration` NOT run (core-only, takes the screen: ask). `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md`, `PROJECT_LEARNINGS.md` are past the 262,144 B read refusal: read in slices. Baseline `npm test` at HEAD: 11,221 passing in 83 files (see 13).
-(8) The BASH tool's quoted heredoc expands `\uXXXX` into the glyph too (`regex-equiv.js` got raw U+2028 and NBSP): write such characters with `chr()` or doubled backslashes from Python and `grep -c` the file. `rm -rf $A/$B` is
-BLOCKED by the safety check: use literal paths, and `git worktree remove --force <literal path>` for a worktree. A `( cmd ) &` inside a background Bash 'completes' at once: poll the process, not the notice.
-(9) FOUR timing rows flake under load, not two: Sessions 307 (9 MB) and 308 (200,000 lines) and, in `pathological-inputs.test.ts`, Session 311's "a cell option's value holding a 100,000-space run" and "many unclosed long openers".
-The operator's own `devtools::check` on another R package took the load to 22 here: look at `ps` before blaming a change, run the suite alone, never loosen.
-(10) Session 313's harness is `scratchpad/s313/` (README): `oracle-table.ts` + `gen-pin-test.py` (the pin rows from the PARENT's answers), `regex-equiv.js <depth> narrow|wide` + `regex-equiv-mutcheck.py`, `mutate313.py <worktree> <json> <test files>`
-and `mutate313-slow.py`, `corpusdiff313.cjs`, `hdr2.ts`. A clock row needs its OWN text (the engine-blind region cache holds two entries) and a mutant that is still quadratic but cheaper.
-(11) The operator asked in Session 313 for a progress overview of the whole project; no file recorded it, and I answered in Session 314 and was told to STOP after answering until acknowledged (memory saved). The answer: v1
-(highlighting, render, preview, run cell, outline, `@` completion) done since Session 9; v2 shipped (toggles, math and diagram previews, YAML completion read from the installed Quarto, embedded-cell forwarding, 33 commands);
-recorded out of scope: visual editor, Zotero, the AI assistant, project-wide indexing (language server). No parity checklist against Posit's extension exists (build one by black-box observation); the Outline agrees with `quarto
-render` on 2,423 of 2,438 documents; `test:integration` has not run for four sessions.
-(12) Session 314's harness is `scratchpad/s314/` (README): `probe.ts` and `shapes2.ts` (n-scaled shapes, `@ROOT@` = a `src` directory), `corpus-entry.ts` + `corpusdiff314.cjs` (seven probes plus four `from:` variants) +
-`mutcheck-corpus.py` (the harness is blind to the trim mutants and sees the index one), `mutate314.py` (pass test files to focus it) with `mutants314.json` (35) and `mutants314b.json` (14), `resid.ts`. `vi.spyOn(namespace,
-"fn")` DOES intercept an importing module's call in vitest: the laziness rows use it with a control row.
-(13) An R job and a VM held the load at 8 to 22 for hours: full runs fail Session 308's 200,000-line row (and once Session 307's 9 MB row) at 2.3 to 2.5 s; each passes alone at 0.71 to 0.75 s. A whole-suite mutation pass counts
-them as kills: re-run survivors against the new test files alone. `git worktree list` also shows a foreign worktree under `.claude/worktrees/`: not mine, leave it.
+(2) The plan's keys are `B<line>` at commit `1ed4197a` (`git show 1ed4197a:BACKLOG.md`); the live file's lines shift when g03 drains blocks. The plan's JSON source, its validator and the three workflows' results exist only
+in the session scratchpad under `/private/tmp/...` (not durable): the markdown IS the source now. Update its status column and "Current position" block at each close-out; after a structural edit check coverage:
+`sed -n '/^## Where each key went/,$p' docs/planning/2026-10-15-backlog-ordering-plan.md | grep -o 'B[0-9]\+' | sort -u | wc -l` prints 221.
+(3) The gates the plan names can only see what they measure: `test:oracle` runs the cell-option flag decision, `tools/realdoc-score` compares heading LEVELS; Outline and label-index groups close on their own tracked fixture plus a ratchet
+row (plan P6). Never run `tools/knitr-print-grids/regen.py` over `knitr-print-noexec`: it overwrites that fixture's engine column. Its `right(6)` 376 and `hiding(6)` 178 score the DEFAULT reading against the NO-EXECUTE render.
+(4) `test:integration` NOT run for five sessions (takes the screen: ask first); the plan marks adapter integration rows OPEN until the operator approves a run. `scratchpad/` evidence cited by old records is mostly gone (plan P5).
+(5) Four timing rows flake under load (Session 307's 9 MB row, 308's 200,000-line row, two of 311's): run alone, never loosen; a whole-suite mutation pass counts a flake as a kill. Baseline `npm test` at HEAD: 11,221 passing in 83 files.
+(6) The Edit tool and the Bash heredoc expand `\uXXXX` into the glyph: write such characters with `chr()` and `grep -c` the file; `rm -rf $A/$B` is blocked: use literal paths. `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md`
+and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices. zsh does not word-split `$VAR`: `${=VAR}`.
+(7) Workflow agents: `pkill -f <scratch dir name>` after each reports; `git worktree list` shows a foreign worktree under `.claude/worktrees/`: not mine, leave it. After answering a direct question, STOP and wait (memory).
+(8) The sweep's harnesses are `scratchpad/s312/` to `scratchpad/s314/` (READMEs: mutation runners, corpus differentials, `regex-equiv.js`, `probe.ts`); g01 must commit its own runner under `tools/` because they are untracked.
 
 ### What Session 315 Did
-**Deliverable:** the backlog ordering plan (`docs/planning/2026-10-15-backlog-ordering-plan.md`) and the ordering rule in `CLAUDE.md` (IN PROGRESS)
+**Deliverable:** the backlog ordering plan (`docs/planning/2026-10-15-backlog-ordering-plan.md`) and the ordering rule in `CLAUDE.md` -- DONE (commit `cf375442`); claim `1ed4197a`
 **Started:** 2026-10-15
-**Status:** Session claimed. Work beginning. Phase 0 found both ledger frontiers at HEAD (`3a440054`, gap 0), no `pending` receipt, the ratchet citation matching (2/2, results `bba236856bad`).
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Status:** Closed out. 221 open items placed exactly once: 187 in 37 groups (36 scheduled in dependency order, one deferral-only), 34 parked; 23 decisions each asked once; three review rounds (125 findings, 9 high) with a disposition for each.
+**Ledger:** `CHANGELOG.md` 2026-10-15 -- one entry per action (the claim entry replaced), recorded in the close-out commit.
+
+## Session 314 Handoff Evaluation (by Session 315)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers at HEAD (`3a440054`, gap 0), no `pending` receipt, the ratchet citation (2/2, results `bba236856bad`), the test
+baseline (11,221 passing in 83 files, exact; the same at close-out) and the "Active empty, present candidates" instruction all held at Phase 0.
+**Helped:** gotcha 11's progress overview (v1 and v2 done, the recorded out-of-scope list, no Posit parity checklist) answered the operator's "what remains" follow-up with no new research; gotchas 1 (stage by exact path), 7 (read the
+400 KB files in slices) and 8 (non-ASCII from `chr()`) saved time at every step; the sizes of `BACKLOG.md` and `HANDOFFS.md` were exact; the receipt's `whats_next` marked its figures derived or estimate.
+**Missing:** that about 95 of the 221 open items sit under a Session 252 enumeration-only deferral (zero reach into authored documents; promotion bar: show the construct in a document someone wrote): "the earlier Up Next items are
+untouched" does not say it, and it decides whether a planner may schedule them (my first plan deadlocked on it); that no ordering rule existed in the repository; and an order across features: the "what's next" listed residuals of one
+thread, which my first picker followed.
+**Wrong:** nothing I could check. **ROI: high.**
+
+## Session 315 Self-Assessment
+
+**Score: 7/10.**
+**Went right.** The deliverable exists and is checkable: all 221 items placed exactly once (a script checks coverage, the dependency order, deferral flags, decision timing and the session totals), each group has a done criterion, a gate
+that can go red, a surface and a one-session first deliverable. Every high finding I checked firsthand was right (the deadlock on the deferral; scratch evidence gone; no unit test imports an adapter; `test:oracle` and the realdoc score
+cannot see the Outline or the label index; the front-matter resolver binds the first anchor; the g14 ratchet scored the wrong render, which I recomputed: 542 right and 70 hiding against 376 and 178). The operator's rule is in `CLAUDE.md`
+(23,953 B, under the 24,000 B warn line) and the plan. Gates: `npm test` 11,221 in 83 files, exact.
+**Went wrong.** (1) My first picker ranked four unconnected items by smallness and left out the user-visible gaps; the operator's "I want to always strive to address backlog items in the order that creates robust code" followed.
+(2) I launched the first workflow before reading the Session 252 deferral header: its draft scheduled about 80 deferred items, asked "lift or keep" in 22 groups and hard-required two deferral-only groups; the reviewers and I found it afterwards. (3) Three review rounds and about
+3 hours: 125 findings (4, 3 and 2 high), the last 18 applied by my own patch with no agent re-read, so the g08 split, D27 and the g06 gate were checked by me alone. (4) A commit message said 22 decisions; there are 23 (amended before
+anything sat on it, the same slip as Learning 764). (5) The planning checklist asks for the deepest reasoning mode at session start: I could not set it and ran the reviser at max or xhigh instead. (6) Several "have not heard from you" nudges
+during the workflow waits; the plan is 155 KB, so its first screen (position, order table) is what a successor will read.
+**Known residuals:** the plan can still be wrong in detail (125 findings found, the last round local); 23 decisions are unanswered; D27 puts the operator-named format-name and `_metadata.yml` gaps at about session 57 unless the operator
+reorders; B84 family (7) remainder and the other RESIDUAL records are filed in the plan, not yet in `BACKLOG.md`.
+**TDD:** not applicable: documents only, no logic changed. **Host:** `test:integration` NOT run (nothing to run); no runtime change, so no smoke test. **Cost:** 39 agents in 3 workflows (about 8.4M subagent tokens, 3 hours), 0 quarto
+renders, 0 mutation runs.
 
 ## Session 313 Handoff Evaluation (by Session 314)
 

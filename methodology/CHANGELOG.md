@@ -17,9 +17,33 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
-### 2026-10-15 · [ad hoc] Session 315 (in progress): claim -- a planning session to order the open backlog by feature and dependency, and to record the ordering rule in CLAUDE.md
+### 2026-10-15 · [ad hoc] Session 315 close-out: handoff evaluation, self-assessment, receipt, ledger, Learnings 766 to 770, memory
 
-Session claimed. At the Phase 0 picker the operator stated a standing rule (order backlog work so the code ends up robust, which is sometimes implementation- and test-sensitive; finish one feature before moving to another) and said "do both": record the rule in `CLAUDE.md` and make this session's deliverable the ordering plan. Deliverable: `docs/planning/2026-10-15-backlog-ordering-plan.md` plus the `CLAUDE.md` rule; no source code. Phase 0 found both ledger frontiers at HEAD (`3a440054`, gap 0) and the ratchet citation matching (2/2, results `bba236856bad`).
+Written in the close-out commit: the Session 314 handoff evaluation (8/10) and the Session 315 self-assessment (7/10) in `methodology/SESSION_NOTES.md` (ACTIVE TASK rewritten to NONE, the claim stub replaced), the `HANDOFFS.md` receipt (`pending` to `complete`; the `quality_ratchet` line is filled in the commit after the ledger commit, Learning 683), this ledger (the claim entry replaced by one entry per action), `PROJECT_LEARNINGS.md` rows 766 to 770, and, outside the repository, the feedback memory `backlog-order-robustness-and-cohesion` (now pointing at the plan). The claim commit is `1ed4197a`.
+
+### 2026-10-15 · [ad hoc] Session 315: gates (a documents-only session)
+
+`npm test` 11,221 passing in 83 files, identical to the baseline, run after the plan and `CLAUDE.md` were in place (it includes `check-backlog`, which reads `BACKLOG.md`: untouched this session). `python3 methodology/context_budget.py` exit 2 for the same three over-limit files as since Session 264 (`BACKLOG.md` 417,039 B, `HANDOFFS.md`, `PROJECT_LEARNINGS.md`); `CLAUDE.md` 23,953 B, under its 24,000 B warn line (my first draft of the rule took it to 25,536 B; it was trimmed before the commit). The dashboard reads health 76/100, one high-or-above risk flag and 21 advisories (all dev dependencies), unchanged from Session 314, 1,968 commits. No source file changed, so no type-check, oracle, package or runtime smoke run applies; `test:integration` NOT run (it takes the screen, and nothing changed that it exercises).
+
+### 2026-10-15 · [ad hoc] Session 315: third review Workflow, apply 52 findings (`wf_1b9f12f0-c1d`, 4 agents, about 1.3M subagent tokens, 248 tool calls, 47 minutes)
+
+Read-only (no builds, no renders, no third-party source). One reviser applied the 52 round-2 findings with a structure checker (coverage, dependency order, deferral flags, decision timing, session totals; zero violations after the first pass), then two fidelity reviewers returned 18 findings (2 high, the same defect: g14's ratchet scored the wrong render and named `regen.py`, which would overwrite the engine column of `knitr-print-noexec`; 7 medium; 9 low). The orchestrating session confirmed the high firsthand (recomputed 668 and 27, 376 and 178, and the new pair 542 and 70 from the fixture) and applied all 18 by patch, with no further agent review: g08 split into a no-behaviour part and a stated change, D15 moved before g10, a new decision D27, g06's gate changed to `package-activation.test.ts`.
+
+### 2026-10-15 · [ad hoc] Session 315: second review Workflow, restructure and re-review (`wf_2bab6e60-88d`, 4 agents, about 1.9M subagent tokens, 412 tool calls, 72 minutes)
+
+Read-only. One reviser restructured the first draft around the Session 252 deferral (items from line 407 on are `deferred`, never a hard prerequisite, never scheduled by default), hard versus soft prerequisites, deduplicated decisions and the in-flight sweep first, then three fresh reviewers returned 52 findings (3 high, 25 medium, 24 low). Confirmed firsthand before the next round: `test:oracle` runs the cell-option flag decision only, no `test/unit` file imports an adapter module, `topLevelAnchor` binds the first anchor, `maskInlineCode` already exists, the Outline already re-registers on the render-mode setting, `scratchpad/s301/hunt` is empty.
+
+### 2026-10-15 · [ad hoc] Session 315: first planning Workflow, inventory and draft (`wf_dff26134-d1c`, 31 agents, about 5.2M subagent tokens, 62 minutes)
+
+Read-only. Twelve readers inventoried all 221 open `BACKLOG.md` items, twelve grounders verified symbols and completion claims, three planners (robustness, cohesion and gating lenses) drafted, one synthesiser produced 43 groups (36 items parked), three reviewers returned 55 findings (4 high, 33 medium, 18 low). The orchestrating session confirmed 7 of 7 spot-checked findings firsthand: the draft hard-required two deferral-only groups, cited probe sets (`scratchpad/s276`, `s292`) that no longer exist, and scheduled adapter work no unit test can reach.
+
+### 2026-10-15 · [ad hoc] Session 315: backlog ordering plan and the `CLAUDE.md` ordering rule (`cf375442`)
+
+`docs/planning/2026-10-15-backlog-ordering-plan.md` (new, 1,470 lines): all 221 open items placed exactly once, keyed `B<line>` at `1ed4197a` (187 in 37 groups, of which 36 are scheduled in dependency order and one is deferral-only; 34 parked), hard and soft prerequisites, a done criterion, gate, surface and first session per group, 23 decisions each asked once, the in-flight slow-input sweep first, 202 core sessions (75 more if the Session 252 deferral were lifted), and the review record with a disposition for each of 125 findings. `CLAUDE.md` gained the section "Backlog ordering" (the operator's rule, the plan as the order, how the Phase 0 picker uses it) and a pointer from "Additional Phase 0 steps". `BACKLOG.md` is not changed: the plan files its RESIDUAL records itself, and "Active" stays empty so the picker still fires.
+
+### 2026-10-15 · [ad hoc] Session 315: claim -- a planning session to order the open backlog by feature and dependency, and to record the ordering rule in CLAUDE.md (`1ed4197a`)
+
+At the Phase 0 picker the operator stated a standing rule (order backlog work so the code ends up robust, which is sometimes implementation- and test-sensitive; finish one feature before moving to another) and said "do both": record the rule in `CLAUDE.md` and make this session's deliverable the ordering plan. Phase 0 found both ledger frontiers at HEAD (`3a440054`, gap 0), no pending receipt, the ratchet citation matching (2/2, results `bba236856bad`) and the baseline `npm test` 11,221 passing in 83 files.
 
 ### 2026-10-15 · [ad hoc] Session 314: cite the quality-gate run in the receipt and the ledger (2/2 pass at d2b9bf36)
 
