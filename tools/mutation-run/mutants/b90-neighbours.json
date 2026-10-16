@@ -1,0 +1,122 @@
+[
+ {
+  "name": "N01 START_CODE_CELL leading run is spaces or tabs",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^[ \\t]*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "a form feed or no-break space indent stops being a cell"
+ },
+ {
+  "name": "N01b START_CODE_CELL indent capped at three",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s{0,3}(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "a four-space indent stops being a cell"
+ },
+ {
+  "name": "N02 START_CODE_CELL fence run exactly three backticks",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(```)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "an indented four-backtick cell stops being a cell"
+ },
+ {
+  "name": "N03 START_CODE_CELL only spaces between the run and the brace",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "const START_CODE_CELL = /^\\s*(```+)\\s*\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "to": "const START_CODE_CELL = /^\\s*(```+) *\\{([=A-Za-z]+)([ ,].*)?\\}\\s*$/;",
+  "expect": "killed",
+  "why": "a tab between the run and the brace stops being a cell"
+ },
+ {
+  "name": "N04 languagesInMarkdown fence run exactly three backticks",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]*```\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "a four-backtick {python} header stops counting"
+ },
+ {
+  "name": "N05 languagesInMarkdown language class loses digits",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z_]+)([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "{python3} stops counting"
+ },
+ {
+  "name": "N06 languagesInMarkdown language class loses upper case",
+  "file": "src/core/document-engine.ts",
+  "from": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "to": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-z0-9_]+)([ ,].*)?\\}\\s*$/gm;",
+  "expect": "killed",
+  "why": "{R} stops counting"
+ },
+ {
+  "name": "N07 indentedCellFenceAt trims the end only",
+  "file": "src/core/qmd/model.ts",
+  "from": "CELL_INFO.test(m[3].trim())",
+  "to": "CELL_INFO.test(m[3].trimEnd())",
+  "expect": "killed",
+  "why": "a blank before the brace stops the cell"
+ },
+ {
+  "name": "N08 indentedCellFenceAt strips spaces only",
+  "file": "src/core/qmd/model.ts",
+  "from": "CELL_INFO.test(m[3].trim())",
+  "to": "CELL_INFO.test(m[3].replace(/^ +| +$/g, \"\"))",
+  "expect": "killed",
+  "why": "a tab blank stops the cell"
+ },
+ {
+  "name": "N09 indentedCellFenceFor trims the start only",
+  "file": "src/core/qmd/model.ts",
+  "from": "CELL_INFO.exec(m[3].trim())![1]",
+  "to": "CELL_INFO.exec(m[3].trimStart())![1]",
+  "expect": "killed",
+  "why": "a trailing blank makes the free-case read throw"
+ },
+ {
+  "name": "N10 indentedCellFenceFor strips spaces only",
+  "file": "src/core/qmd/model.ts",
+  "from": "CELL_INFO.exec(m[3].trim())![1]",
+  "to": "CELL_INFO.exec(m[3].replace(/^ +| +$/g, \"\"))![1]",
+  "expect": "killed",
+  "why": "a tab blank makes the free-case read throw"
+ },
+ {
+  "name": "N11 KNITR_CHUNK_INFO loses its end anchor",
+  "file": "src/core/qmd/model.ts",
+  "from": "const KNITR_CHUNK_INFO = /^\\{[A-Za-z][A-Za-z0-9_]*([ ,][\\s\\S]*)?\\}$/;",
+  "to": "const KNITR_CHUNK_INFO = /^\\{[A-Za-z][A-Za-z0-9_]*([ ,][\\s\\S]*)?\\}/;",
+  "expect": "killed",
+  "why": "a header with text after the brace is claimed"
+ },
+ {
+  "name": "N12 knitrClaims trims the start only",
+  "file": "src/core/qmd/model.ts",
+  "from": "KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "to": "KNITR_CHUNK_INFO.test(fence[3].trimStart());",
+  "expect": "killed",
+  "why": "a blank after the brace stops the claim"
+ },
+ {
+  "name": "E01 knitrClaims asks quoteOpen where it asks stripQuote",
+  "file": "src/core/qmd/model.ts",
+  "from": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "to": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !quoteOpen &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "expect": "survives",
+  "why": "EQUIVALENT as far as measured: 2,520 documents (lazy and unquoted paragraph lines, five opener spellings, seven bodies, four closers, three tails) answered alike on both"
+ },
+ {
+  "name": "E02 KNITR_CHUNK_INFO start anchor admits leading blanks",
+  "file": "src/core/qmd/model.ts",
+  "from": "const KNITR_CHUNK_INFO = /^\\{[A-Za-z][A-Za-z0-9_]*([ ,][\\s\\S]*)?\\}$/;",
+  "to": "const KNITR_CHUNK_INFO = /^\\s*\\{[A-Za-z][A-Za-z0-9_]*([ ,][\\s\\S]*)?\\}$/;",
+  "expect": "survives",
+  "why": "EQUIVALENT by argument: the only caller that can hand it a leading blank passes fence[3].trim(), and trim() strips exactly what \\s matches; the other caller passes begin[3], which KNITR_CHUNK_BEGIN captures from the brace"
+ }
+]
