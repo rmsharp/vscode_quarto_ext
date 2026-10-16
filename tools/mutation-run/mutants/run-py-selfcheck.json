@@ -9,15 +9,15 @@
  {
   "name": "R02 the file is not put back",
   "file": "tools/mutation-run/run.py",
-  "from": "            finally:\n                with open(path, \"wb\") as f:\n                    f.write(original)",
-  "to": "            finally:\n                pass",
+  "from": "        finally:\n            with open(path, \"wb\") as f:\n                f.write(original)",
+  "to": "        finally:\n            pass",
   "expect": "killed"
  },
  {
   "name": "R03 a red baseline is ignored",
   "file": "tools/mutation-run/run.py",
-  "from": "        if rc != 0:\n            print(out[-3000:])",
-  "to": "        if rc != 0 and False:\n            print(out[-3000:])",
+  "from": "    if rc != 0:\n        print(out[-3000:])",
+  "to": "    if rc != 0 and False:\n        print(out[-3000:])",
   "expect": "killed"
  },
  {
@@ -30,14 +30,14 @@
  {
   "name": "R05 a second primary clone is accepted",
   "file": "tools/mutation-run/run.py",
-  "from": "or os.path.isdir(os.path.join(wt, \".git\"))",
-  "to": "or False",
+  "from": "if gitdir == common or os.path.realpath(wt) == os.path.realpath(repo):",
+  "to": "if os.path.realpath(wt) == os.path.realpath(repo):",
   "expect": "killed"
  },
  {
   "name": "R06 the --tests files are not copied",
   "file": "tools/mutation-run/run.py",
-  "from": "shutil.copyfile(src, os.path.join(wt, t))",
+  "from": "shutil.copyfile(os.path.join(repo, t), os.path.join(wt, t))",
   "to": "pass",
   "expect": "killed"
  },
@@ -79,8 +79,8 @@
  {
   "name": "R12 --ref is ignored",
   "file": "tools/mutation-run/run.py",
-  "from": "git(repo, \"worktree\", \"add\", \"--detach\", wt, args.ref)",
-  "to": "git(repo, \"worktree\", \"add\", \"--detach\", wt, \"HEAD\")",
+  "from": "args.ref or \"HEAD\"",
+  "to": "\"HEAD\"",
   "expect": "killed"
  },
  {
@@ -93,14 +93,14 @@
  {
   "name": "R14 a missing --tests file is accepted",
   "file": "tools/mutation-run/run.py",
-  "from": "        if not os.path.isfile(src):\n            die(2,",
-  "to": "        if False:\n            die(2,",
+  "from": "            for t in args.tests:\n                if not os.path.isfile(os.path.join(repo, t)):",
+  "to": "            for t in []:\n                if not os.path.isfile(os.path.join(repo, t)):",
   "expect": "killed"
  },
  {
   "name": "R15 the throwaway worktree is not removed",
   "file": "tools/mutation-run/run.py",
-  "from": "git(repo, \"worktree\", \"remove\", \"--force\", wt, check=False)",
+  "from": "git(repo, \"worktree\", \"remove\", \"--force\", os.path.join(made, \"wt\"), check=False)",
   "to": "pass",
   "expect": "killed"
  },
@@ -116,6 +116,118 @@
   "file": "tools/mutation-run/run.py",
   "from": "if m[\"from\"] == m[\"to\"]:",
   "to": "if False:",
+  "expect": "killed"
+ },
+ {
+  "name": "R18 a timeout kills only the direct child",
+  "file": "tools/mutation-run/run.py",
+  "from": "os.killpg(p.pid, signal.SIGKILL)",
+  "to": "p.kill()",
+  "expect": "killed"
+ },
+ {
+  "name": "R19 the command shares the runner's process group",
+  "file": "tools/mutation-run/run.py",
+  "from": ", start_new_session=True)",
+  "to": ")",
+  "expect": "killed"
+ },
+ {
+  "name": "R20 a path may leave the worktree",
+  "file": "tools/mutation-run/run.py",
+  "from": "return real if real.startswith(root + os.sep) and os.path.isfile(real) else None",
+  "to": "return real if os.path.isfile(real) else None",
+  "expect": "killed"
+ },
+ {
+  "name": "R21 a path is not resolved before the check",
+  "file": "tools/mutation-run/run.py",
+  "from": "real = os.path.realpath(os.path.join(wt, rel))",
+  "to": "real = os.path.abspath(os.path.join(wt, rel))",
+  "expect": "killed"
+ },
+ {
+  "name": "R22 overlapping occurrences are not counted",
+  "file": "tools/mutation-run/run.py",
+  "from": "def occurrences(text, pattern):",
+  "to": "def occurrences(text, pattern):\n    return text.count(pattern)",
+  "expect": "killed"
+ },
+ {
+  "name": "R23 the dirty report ignores the state before the run",
+  "file": "tools/mutation-run/run.py",
+  "from": "stray = sorted(tracked_changes(wt) - before)",
+  "to": "stray = sorted(tracked_changes(wt))",
+  "expect": "killed"
+ },
+ {
+  "name": "R24 the dirty report drops the leading space of a status line",
+  "file": "tools/mutation-run/run.py",
+  "from": "return set(git(wt, \"status\", \"--porcelain\", \"--untracked-files=no\", check=False).stdout.splitlines())",
+  "to": "return set(git(wt, \"status\", \"--porcelain\", \"--untracked-files=no\", check=False).stdout.strip().splitlines())",
+  "expect": "killed"
+ },
+ {
+  "name": "R25 a unittest FAIL: line is not a title",
+  "file": "tools/mutation-run/run.py",
+  "from": "(\"FAIL \", \"FAIL:\", \"ERROR:\")",
+  "to": "(\"FAIL \",)",
+  "expect": "killed"
+ },
+ {
+  "name": "R26 a non-UTF-8 file is not skipped",
+  "file": "tools/mutation-run/run.py",
+  "from": "        except UnicodeDecodeError:",
+  "to": "        except ZeroDivisionError:",
+  "expect": "killed"
+ },
+ {
+  "name": "R27 an internal error exits 1",
+  "file": "tools/mutation-run/run.py",
+  "from": "        sys.exit(6)",
+  "to": "        sys.exit(1)",
+  "expect": "killed"
+ },
+ {
+  "name": "R28 SIGTERM is not handled",
+  "file": "tools/mutation-run/run.py",
+  "from": "    signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))",
+  "to": "    pass",
+  "expect": "killed"
+ },
+ {
+  "name": "R29 --ref is accepted with --worktree",
+  "file": "tools/mutation-run/run.py",
+  "from": "if args.ref is not None:\n                die(2, \"--ref is meaningless with --worktree: that tree is used as it stands\")",
+  "to": "if False:\n                die(2, \"--ref is meaningless with --worktree: that tree is used as it stands\")",
+  "expect": "killed"
+ },
+ {
+  "name": "R30 a subdirectory of a clone is accepted as a worktree",
+  "file": "tools/mutation-run/run.py",
+  "from": "if not top or os.path.realpath(top) != os.path.realpath(wt):",
+  "to": "if not top:",
+  "expect": "killed"
+ },
+ {
+  "name": "R31 a contradicted expectation outranks a skipped mutant",
+  "file": "tools/mutation-run/run.py",
+  "from": "return 4 if counts[\"skipped\"] or counts[\"error\"] else (1 if counts[\"mismatch\"] else 0)",
+  "to": "return 1 if counts[\"mismatch\"] else (4 if counts[\"skipped\"] or counts[\"error\"] else 0)",
+  "expect": "killed"
+ },
+ {
+  "name": "R32 test output is decoded strictly",
+  "file": "tools/mutation-run/run.py",
+  "from": "text=True, errors=\"replace\", env=env, start_new_session=True",
+  "to": "text=True, env=env, start_new_session=True",
+  "expect": "killed"
+ },
+ {
+  "name": "R33 a signal leaves the test command running",
+  "file": "tools/mutation-run/run.py",
+  "from": "    except BaseException:\n        kill_group(p)\n        p.wait()\n        raise",
+  "to": "    except BaseException:\n        raise",
   "expect": "killed"
  }
 ]
