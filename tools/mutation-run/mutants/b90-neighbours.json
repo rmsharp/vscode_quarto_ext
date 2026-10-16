@@ -108,8 +108,8 @@
   "file": "src/core/qmd/model.ts",
   "from": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
   "to": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !quoteOpen &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
-  "expect": "survives",
-  "why": "EQUIVALENT as far as measured: 2,520 documents (lazy and unquoted paragraph lines, five opener spellings, seven bodies, four closers, three tails) answered alike on both"
+  "expect": "killed",
+  "why": "NOT equivalent, although this entry first said so after 2,520 documents: a lazy line under a quoted paragraph (the opener is unquoted, quoteOpen is true, stripQuote is false) with a header whose option tail pandoc refuses separates it. Killed by the E01 row of cell-header-literal-pins.test.ts. Two reviewers found it independently."
  },
  {
   "name": "E02 KNITR_CHUNK_INFO start anchor admits leading blanks",
