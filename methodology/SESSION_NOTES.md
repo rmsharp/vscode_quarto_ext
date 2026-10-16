@@ -25,6 +25,12 @@ and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices. zsh does n
 (7) Workflow agents: `pkill -f <scratch dir name>` after each reports; `git worktree list` shows a foreign worktree under `.claude/worktrees/`: not mine, leave it. After answering a direct question, STOP and wait (memory).
 (8) The sweep's harnesses are `scratchpad/s312/` to `scratchpad/s314/` (READMEs: mutation runners, corpus differentials, `regex-equiv.js`, `probe.ts`); g01 must commit its own runner under `tools/` because they are untracked.
 
+### What Session 316 Did
+**Deliverable:** g01 of the backlog ordering plan: pin the eleven B90 mutants of the four code-cell header literals and commit a mutation runner under `tools/` (IN PROGRESS)
+**Started:** 2026-10-15
+**Status:** Session claimed. Work beginning. Test-only: `git diff -- src` must stay empty.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
 ### What Session 315 Did
 **Deliverable:** the backlog ordering plan (`docs/planning/2026-10-15-backlog-ordering-plan.md`) and the ordering rule in `CLAUDE.md` -- DONE (commit `cf375442`); claim `1ed4197a`
 **Started:** 2026-10-15

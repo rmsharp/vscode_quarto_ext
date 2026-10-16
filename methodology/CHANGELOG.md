@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-15 · [BL-The NON-TAIL parts of the four code-cell header literals are pinned by no unit test: a mutant of the leading whitespace run, the backtick count or the language class survives the whole suite] Session 316 (in progress): claim -- g01, test-only pins for the cell-header literals
+
+Session claimed. Phase 0 found both ledger frontiers at HEAD (`b7510a72`, gap 0), no pending receipt, the ratchet 2/2 (results bba236856bad, the receipt's citation holds) and the dashboard at 76/100 with the same 21 dev-only advisories. At the Phase 0 picker the operator chose g01 of `docs/planning/2026-10-15-backlog-ordering-plan.md`. Deliverable: pin the eleven B90 mutants (four re-run survivors, seven reviewer-measured) with one RED-then-GREEN row each, and commit a mutation runner under `tools/`; `git diff -- src` stays empty. Phase 3F replaces this entry with the outcome.
+
 ### 2026-10-15 · [ad hoc] Session 315: cite the quality-gate run in the receipt and the ledger (2/2 pass at 3565e958)
 
 `quality_ratchet.py --run` after the ledger commit `3565e958`: 2/2 pass, 0 fail, 0 unmeasured, results bba236856bad, manifest 334939914945, head 3565e958 (ledger-lag 0; release-gate is `npm run check-package`, 0). The `HANDOFFS.md` receipt's `quality_ratchet` line now carries the citation (`methodology/.quality-gates-results.json` is not tracked: the run is read from the file on disk).
