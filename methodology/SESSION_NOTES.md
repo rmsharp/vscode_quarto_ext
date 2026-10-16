@@ -133,33 +133,3 @@ trim) fail on the PARENT source on the clock alone (9 of 10; the small-answer pi
 except those.
 **Host:** `test:integration` NOT run (core-only change in `src/core`; it takes the screen and nobody was asked). Headless instead: unit suite, oracle, corpus identity, real-document score, mutation, `npm run package`. **Cost:**
 7 agents (2 workflows, about 1.3M subagent tokens, 368 tool calls), 63 mutant runs, 5 corpus-harness mutants, 2 `npm run package`, 0 quarto renders beyond the cached oracle.
-
-## Session 312 Handoff Evaluation (by Session 313)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, gotchas 1 to 7, both ledger frontiers at HEAD (`7a07bc86`, gap 0), the ratchet citation (2/2, results `bba236856bad`), the test
-baseline (10,913 passing in 80 files, exact) and the "Active empty, present candidates" instruction all held at Phase 0, and the numbers of the item I took reproduced: `findHeadings` 448 ms, 1.8 s and 7.1 s (465 ms, 1,812 ms,
-7,125 ms here) and the engine resolver 9.4 s (9.5 s). The line numbers of the four literals (65, 549, 6714, 6767) were exact.
-**Helped:** item (1)'s own repro shape with its "MINE" marks; `scratchpad/s312/` (README, `probe-template.ts`, `topself.py`, `mutate312.py`, which I copied and gave a test-file argument); gotcha 5 (a mutation pass counts a flake as a
-kill), which sent every pass to a throwaway worktree with two test files; the recipe in the item ("profile the timed shape first, keep the OLD pattern as the oracle, mutate the fix, compare parent against final").
-**Missing:** that `KNITR_CHUNK_BEGIN` already carried this exact cure with a comment explaining it (a one-line proof and a sibling to copy); that `START_CODE_CELL` runs twice per `findHeadings` (66% of the profile); that the class is
-wider than "unterminated" (`} x`, `}x` and a bare run of spaces are quadratic too); that Session 165 had filed this very regex (BACKLOG, still open); that the region cache holds two entries, so a second clock row on the same text
-looks cheap; and that FOUR rows flake under load, not two.
-**Wrong:** (a) "an unterminated header" as the whole shape; (b) gotcha 3 says the EDIT tool expands `\uXXXX`: the Bash tool's heredoc does the same. **ROI: high.**
-
-## Session 313 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** I reproduced the defect firsthand, profiled before reading code (99% in three regexes, `START_CODE_CELL` twice), and every fix row was RED for the right reason (the result assertion passed, only the clock failed: 2,395,
-2,401, 2,235 and 2,393 ms). Exactness has three independent legs: the old and new literals agree on every capture group over 430 million comparisons (1.43 billion on a 16-character alphabet), the corpus (3,382 documents, five probes) shows
-ZERO differences, and the real-document score and the Outline model output are byte-identical to the parent's (2,423 of 2,438). A four-lens read-only review (4 agents, about 0.8M subagent tokens, none read third-party source) returned 30 findings: NO defect in
-the change; the rest gaps and wording in my tests and record, each checked firsthand before I acted (fixed or corrected, one partly refuted: dropping `.trim()` at the main `CELL_INFO` call IS killed; the pre-existing holes filed).
-76 mutants of the final rows: 65 killed, the 11 survivors equivalent or redundant. Gates: `npm test` 11,176 in 81 files, oracle 2 of 2, `npm run package` DONE (44 files, 1.86 MB). Learnings 754 to 759.
-**Went wrong.** (1) My first clock rows were weak: 32,000 spaces (2.4x margin), one shape, and three of four passed a cheaper quadratic; the review measured it, I did not. (2) Three of my first five pin observables were constant over the
-table, and my comments said the silent-chunk rows pin `KNITR_CHUNK_INFO` when they pin `KNITR_CHUNK_BEGIN`. (3) Commit messages said "430,467,200 strings" (comparisons) and merged two profiles, and my first harness mutation-check was an
-inline command I never saved, over an alphabet with no tab or form feed. (4) A mutation runner of mine reused a variable name and left a mutant applied in the worktree (caught at once). (5) A quoted heredoc turned `\u2028` into a raw glyph
-again. (6) About eight "have not heard from you" nudges: the review took 35 minutes and the mutation passes ten. (7) `rm -rf` on shell variables was refused by the safety check; I had no need of it.
-**Known residuals (filed):** the sweep item's (2) to (7); the Session 311 item's (3) to (9) with (3) corrected; the non-tail item; the earlier Up Next items are untouched.
-**TDD:** RED before GREEN for the four fix rows. Passed on arrival, disclosed: all 255 pin rows (written from the parent's answers, then mutation-checked), and the 8 final clock rows (written after the fix; each shown failing against the
-parent, 22 to 94 s, and against the one-literal reverts, 8, 6, 2 and 2 rows).
-**Host:** `test:integration` NOT run (core-only change in `src/core`; it takes the screen and nobody was asked); the packaged bundle was grepped for the four new spellings instead. **Cost:** 4 agents (1 workflow), 177 mutant runs, 1.9 billion
-regex comparisons, 16,910 corpus comparisons, one `npm run package`, 0 quarto renders beyond the cached oracle.
