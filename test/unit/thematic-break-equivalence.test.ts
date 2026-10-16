@@ -102,4 +102,47 @@ describe("Session 317 — the thematic-break and dash-rule patterns answer what 
     expect(disagreements).toEqual([]);
     expect(accepted).toBeGreaterThan(5000); // a comparison where both sides refuse every line would pass; this makes sure each pattern accepts a real share of the sample
   }, 120_000);
+
+  // The enumeration cannot see cost: a tail written `-+[ \t-]*` for `-[ \t-]*`, a second run `-+` for `-`, or a trailing `[ \t]*` after a class that already holds the blanks all match the same
+  // strings, and every one retries the tail from each split of a long run once a letter ends the line (quadratic: 6 s at 100,000 characters, measured). So each pattern is also given lines of
+  // 50,000 characters built to defeat each ambiguity, accepted and not accepted, and must answer what the old spelling answers in a few milliseconds (linear: well under 1 ms measured).
+  const NEAR_MISS_LENGTH = 50_000;
+  const longLines = (): string[] => {
+    const lines: string[] = [];
+    const n = NEAR_MISS_LENGTH;
+    for (const marker of ["-", "*", "_"]) {
+      for (const blank of [" ", "\t"]) {
+        for (const tail of ["", "x"]) {
+          lines.push(`${marker.repeat(n)}${tail}`); //                              one long run
+          lines.push(`${marker}${blank}${marker.repeat(n)}${tail}`); //            a short run, a blank, then a long run
+          lines.push(`${marker}${blank}${marker}${blank.repeat(n)}${tail}`); //    two short runs, then a long blank run
+          lines.push(`${blank.repeat(n)}${marker.repeat(n)}${tail}`); //           a long indent, then a long run
+          lines.push(`${(marker + blank).repeat(n / 2)}${tail}`); //                many short runs
+          lines.push(`${marker.repeat(n)}${blank.repeat(n)}${tail}`); //           a long run, then a long blank run
+          lines.push(`${marker.repeat(n)}${blank.repeat(n)}${marker.repeat(n)}${tail}`); // two long runs around a long blank run
+          lines.push(`${blank.repeat(n)}${tail}`); //                              blanks alone
+        }
+      }
+    }
+    return lines;
+  };
+
+  it.each(Object.keys(OLD))("%s answers each of 96 lines of 50,000 characters like the old spelling, each in linear time", (name) => {
+    const disagreements: string[] = [];
+    let slowest = 0;
+    let accepted = 0;
+    for (const text of longLines()) {
+      const started = performance.now();
+      const actual = NEW[name].test(text);
+      slowest = Math.max(slowest, performance.now() - started);
+      const expected = OLD[name].test(text);
+      if (expected) accepted++;
+      if (actual !== expected && disagreements.length < 5) {
+        disagreements.push(JSON.stringify(text.slice(0, 20)));
+      }
+    }
+    expect(disagreements).toEqual([]);
+    expect(accepted).toBeGreaterThan(0);
+    expect(slowest).toBeLessThan(100);
+  }, 120_000);
 });
