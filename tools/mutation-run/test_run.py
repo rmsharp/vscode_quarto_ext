@@ -217,9 +217,13 @@ class RunnerTest(unittest.TestCase):
         pidfile = os.path.join(self.tmp, "grandchild.pid")
         self.write("check.py", 'import os, subprocess, sys, time\nif "ALPHA" in open("src.txt").read():\n    p = subprocess.Popen(["sleep", "60"])\n    open(os.environ["PIDFILE"], "w").write(str(p.pid))\n    time.sleep(60)\nsys.exit(0)\n')
         self.commit("check.py")
+        started = time.time()
         rc, out = self.run_runner([ONE], "--timeout", "3", env={"PIDFILE": pidfile})
+        elapsed = time.time() - started
         self.assertEqual(rc, 0, out)
         self.assertRegex(out, r"M1 alpha\s+KILLED \(timeout\)")
+        # A runner that kills only the direct child waits for the orphaned grandchild to close the pipe (60 s here): the grandchild is then dead, so only the time tells.
+        self.assertLess(elapsed, 40, f"the runner took {elapsed:.0f}s to return after a 3 s timeout: the grandchild held its pipe open")
         with open(pidfile) as f:
             pid = int(f.read())
         self.addCleanup(lambda: os.path.exists("/proc") or subprocess.run(["kill", "-9", str(pid)], capture_output=True))
@@ -271,6 +275,10 @@ class RunnerTest(unittest.TestCase):
         os.makedirs(os.path.join(self.repo, "sub"))
         rc, out = self.run_runner([ONE], "--worktree", os.path.join(self.repo, "sub"))
         self.assertEqual(rc, 2, out)
+        os.makedirs(os.path.join(lw, "sub"))  # a subdirectory of a LINKED worktree is no worktree root either
+        rc, out = self.run_runner([ONE], "--worktree", os.path.join(lw, "sub"))
+        self.assertEqual(rc, 2, out)
+        self.assertIn("not the root", out)
         self.assertEqual(self.read("src.txt"), "alpha\nbeta\nbeta\n")
 
     def test_a_modified_committed_test_file_is_not_reported_dirty_but_a_stray_write_is(self):
@@ -281,7 +289,7 @@ class RunnerTest(unittest.TestCase):
         self.write("check.py", CHECK)
         rc, out = self.run_runner([dict(ONE, expect="survives")], cmd="python3 -c \"open('src.txt', 'a').write('x')\"")
         self.assertEqual(rc, 0, out)
-        self.assertIn("worktree after the run: DIRTY", out)
+        self.assertIn("worktree after the run: DIRTY [' M src.txt']", out)  # the status line keeps its leading space
 
     def test_a_failing_test_is_titled_once_and_unittest_style_lines_count(self):
         env = self.fake_vitest('if grep -q ALPHA src.txt; then echo " \u00d7 suite > a row title 3ms"; echo " FAIL  test/unit/x.test.ts > suite > a row title"; echo "      Tests  1 failed | 5 passed (6)"; exit 1; fi\necho "      Tests  6 passed (6)"\n')
