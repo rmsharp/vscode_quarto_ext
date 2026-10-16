@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveDocumentEngine } from "../../src/core/document-engine-resolve";
-import { findCellOptionLines, findHeadings, knitrChunkHeaderLabel, maskInlineCode } from "../../src/core/qmd/model";
+import { findAllCells, findCellOptionLines, findCodeFenceOpeners, findHeadings, knitrChunkHeaderLabel, maskInlineCode } from "../../src/core/qmd/model";
 import { quartoYamlRegions } from "../../src/core/qmd/quarto-yaml-regions";
 import { findLabel, indexLabels } from "../../src/core/refs";
 import { findProjectConfigKeyLines, findProjectConfigValueLines } from "../../src/core/project-yaml";
@@ -657,25 +657,67 @@ describe("Session 317 — a single line of two million or more thematic-break ch
 });
 
 describe("Session 318 — a single line that is a long run of fence characters followed by a CR or a line separator", () => {
-  // `FENCE_OPEN` and `INDENTED_CELL_FENCE_OPEN` read `` `{3,} `` and then `(.*)$`, and `.` stops at a CR, U+2028 and U+2029. A line holding one of them after the run can never match, but the
-  // engine finds that out once per way of splitting the run: it gives the run up one character at a time and `(.*)` re-reads what was given back, which is quadratic (the BACKLOG item "What is
-  // still quadratic or deep enough to overflow after Session 311", part (7): 32,000 backticks then CR took 1.2 s, 64,000 took 4.9 s). A lone CR is the form that reaches a line: a CRLF is
-  // split off before any pattern runs. 100,000 characters take about 12 s read that way and a few milliseconds read linearly, so the 1 s limit has a wide margin both ways.
+  // `FENCE_OPEN`, `INDENTED_CELL_FENCE_OPEN` and `DIV_FENCE` read a run of fence characters and then `(.*)$`, and `.` stops at a CR, U+2028 and U+2029. A line holding one of them after the run can
+  // never match, but the engine used to find that out once per way of splitting the run: it gave the run up one character at a time and `(.*)` re-read what was given back, which is quadratic (the
+  // BACKLOG item "What is still quadratic or deep enough to overflow after Session 311", part (7): 32,000 backticks then CR took 1.2 s, 64,000 took 4.9 s). A lone CR is the form that reaches a line:
+  // a CRLF is split off before any pattern runs, so the CR is followed by a letter here. 100,000 characters take about 12 s read that way and a few milliseconds read linearly, so the 1 s limit
+  // has a wide margin both ways. The run is read in 7 to 14 contexts that each call a different one of the three patterns (`scratchpad/s318`, a 1,470-shape map: the parent was slow in 564 of 1,134
+  // shapes run so far and the fixed tree in none).
+  const LS = String.fromCharCode(0x2028);
+  const PS = String.fromCharCode(0x2029);
   const run = (unit: string, characters: number): string => unit.repeat(Math.ceil(characters / unit.length));
   const bodyLine = (line: string): string => `Intro.\n\n${line}\n\n# H\n`;
 
-  it("a body line of 100,000 backticks and then a CR is read by the Outline in linear time, and like a shorter run of the same shape", () => {
-    const shorter = findHeadings(bodyLine(`${run("`", 2000)}\rx`)).map((h) => h.text);
-    const { result, ms } = timed(() => findHeadings(bodyLine(`${run("`", 100_000)}\rx`)).map((h) => h.text));
-    expect(result).toEqual(shorter);
-    expect(ms).toBeLessThan(1000);
-  });
+  const UNITS: [string, string][] = [
+    ["backticks", "`"],
+    ["tildes", "~"],
+    ["colons", ":"],
+  ];
+  const TERMINATORS: [string, string][] = [
+    ["a CR and a letter", "\rx"],
+    ["U+2028", LS],
+    ["U+2029", PS],
+  ];
 
-  // The fenced-div fence is the same shape: `DIV_FENCE` reads `:{3,}` and then `[ \t]*(.*)$`, and it is tried on every line that reaches `divFenceRole` and on the interrupt list.
-  it("a body line of 100,000 colons and then a CR is read by the Outline in linear time, and like a shorter run of the same shape", () => {
-    const shorter = findHeadings(bodyLine(`${run(":", 2000)}\rx`)).map((h) => h.text);
-    const { result, ms } = timed(() => findHeadings(bodyLine(`${run(":", 100_000)}\rx`)).map((h) => h.text));
-    expect(result).toEqual(shorter);
+  it.each(UNITS.flatMap(([unitName, unit]) => TERMINATORS.map(([terminatorName, terminator]) => [unitName, unit, terminatorName, terminator])))(
+    "a body line of 100,000 %s and then %s is read by the Outline in linear time, and like a shorter run of the same shape",
+    (_unitName, unit, _terminatorName, terminator) => {
+      const shorter = findHeadings(bodyLine(`${run(unit, 2000)}${terminator}`)).map((h) => h.text);
+      const { result, ms } = timed(() => findHeadings(bodyLine(`${run(unit, 100_000)}${terminator}`)).map((h) => h.text));
+      expect(result).toEqual(shorter);
+      expect(ms).toBeLessThan(1000);
+    },
+  );
+
+  // The same line where another caller reads it: indented four columns (`indentedCellFenceAt`, a cell fence quarto still extracts), inside a list item and a block quote (`divFenceRole` strips the
+  // marker and tries the line again), directly under a paragraph of a `from: commonmark` document (the interrupt list) and in a knitr document.
+  const CONTEXTS: [string, (line: string) => string, "knitr" | undefined, string[]][] = [
+    ["indented four columns", (line) => `Intro.\n\n    ${line}\n\n# H\n`, undefined, ["`", ":"]],
+    ["inside a list item", (line) => `Intro.\n\n- ${line}\n\n# H\n`, undefined, [":"]], // a backtick fence in a list item never reached the slow patterns (measured)
+    ["inside a block quote", (line) => `Intro.\n\n> ${line}\n\n# H\n`, undefined, ["`", ":"]],
+    ["directly under a paragraph of a from: commonmark document", (line) => `---\nfrom: commonmark\n---\n\nIntro.\n${line}\n# H\n`, undefined, ["`", ":"]],
+    ["in a knitr document", bodyLine, "knitr", ["`", ":"]],
+  ];
+
+  it.each(CONTEXTS.flatMap(([where, build, engine, units]) => units.map((unit) => [where, build, engine, unit] as const)))(
+    "a line of 100,000 characters of a fence marker and then U+2028, %s, is read by the Outline in linear time, and like a shorter run (%#)",
+    (_where, build, engine, unit) => {
+      const shorter = findHeadings(build(`${run(unit, 2000)}${LS}`), engine).map((h) => h.text);
+      const { result, ms } = timed(() => findHeadings(build(`${run(unit, 100_000)}${LS}`), engine).map((h) => h.text));
+      expect(result).toEqual(shorter);
+      expect(ms).toBeLessThan(1000);
+    },
+  );
+
+  // Every other reader of a document goes through the same scan, which `scanRegions` memoizes for the last document it read: each row below therefore reads a document of its own (the intro line
+  // differs), or it would be handed the answer the row before it paid for and pass on the parent without reading the line at all (measured: three of these four did).
+  it.each([
+    ["indexLabels", (text: string) => indexLabels(text)],
+    ["resolveDocumentEngine", (text: string) => resolveDocumentEngine("a.qmd", text)],
+    ["findAllCells", (text: string) => findAllCells(text)],
+    ["findCodeFenceOpeners", (text: string) => findCodeFenceOpeners(text)],
+  ])("%s reads a document with a body line of 100,000 backticks and then U+2028 in linear time", (name, read) => {
+    const { ms } = timed(() => read(`Intro of ${name}.\n\n${run("`", 100_000)}${LS}\n\n# H\n`));
     expect(ms).toBeLessThan(1000);
   });
 });
