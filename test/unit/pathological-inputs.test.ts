@@ -636,4 +636,22 @@ describe("Session 317 — a single line of two million or more thematic-break ch
     }).not.toThrow();
     expect(found).toEqual(shorter);
   });
+
+  // Every row above is a line the patterns ACCEPT. The rewrite must also stay linear where the line is not a break: `-+[ \t-]*` matches the same strings as `-[ \t-]*`, but with a
+  // letter at the end it retries the tail from every split of the run, which is quadratic and which the equivalence enumeration (7 characters) cannot see. 100,000 characters
+  // take about 2 ms read linearly and several seconds read that way, so the 1 s limit has a wide margin both ways.
+  const NOT_A_BREAK_UNITS = ["-", "*", "_", "- ", "-\t", " -", "* ", "_ "];
+  it.each(NOT_A_BREAK_UNITS)("a body line of 100,000 characters of %j that ends in a letter is read in linear time, and like a shorter run", (unit) => {
+    const shorter = findHeadings(bodyLine(`${run(unit, 2000)}x`)).map((h) => h.text);
+    const { result, ms } = timed(() => findHeadings(bodyLine(`${run(unit, 100_000)}x`)).map((h) => h.text));
+    expect(result).toEqual(shorter);
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it.each(["*", "_", "* ", "_ "])("a line of 100,000 characters of %j that ends in a letter, directly under a paragraph of a from: commonmark document, is read in linear time", (unit) => {
+    const shorter = findHeadings(underParagraph(`${run(unit, 2000)}x`)).map((h) => h.text);
+    const { result, ms } = timed(() => findHeadings(underParagraph(`${run(unit, 100_000)}x`)).map((h) => h.text));
+    expect(result).toEqual(shorter);
+    expect(ms).toBeLessThan(1000);
+  });
 });
