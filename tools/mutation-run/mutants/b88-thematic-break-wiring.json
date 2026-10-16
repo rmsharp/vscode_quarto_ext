@@ -1,0 +1,18 @@
+[
+ {
+  "name": "W01 OPENS_FRESH_BLOCK reads no thematic-break row",
+  "file": "src/core/qmd/model.ts",
+  "from": "  THEMATIC_BREAK, //                                         a thematic break\n",
+  "to": "  /(?!)/, //                                                a thematic break\n",
+  "expect": "killed",
+  "why": "the Session 181 rows of qmd-model.test.ts (\"lets a thematic break open a fresh block\", the underscore spelling) and a Session 210 row"
+ },
+ {
+  "name": "W02 COMMONMARK_PARAGRAPH_INTERRUPT reads no thematic-break row",
+  "file": "src/core/qmd/model.ts",
+  "from": "  THEMATIC_BREAK_ANY_INDENT, //                            a thematic break\n",
+  "to": "  /(?!)/, //                                               a thematic break\n",
+  "expect": "killed",
+  "why": "the two Session 317 rows in qmd-model.test.ts (\"a THEMATIC BREAK `***` / `___` interrupts the paragraph too\"); no older row noticed it"
+ }
+]

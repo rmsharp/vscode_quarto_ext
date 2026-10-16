@@ -1,0 +1,378 @@
+[
+ {
+  "name": "T01 THEMATIC_BREAK: indent cap 3 to 4",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK = /^ {0,4}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "expect": "killed",
+  "why": "a four-space-indented line (indented code) becomes a break"
+ },
+ {
+  "name": "T02 THEMATIC_BREAK: indent cap 3 to 2",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK = /^ {0,2}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "expect": "killed",
+  "why": "a three-space-indented break stops being one"
+ },
+ {
+  "name": "T03 THEMATIC_BREAK: indent may hold a tab",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK = /^[ \\t]{0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "expect": "killed",
+  "why": "a tab-led line becomes a break"
+ },
+ {
+  "name": "T04 THEMATIC_BREAK: end anchor dropped",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)/;",
+  "expect": "killed",
+  "why": "a break followed by text becomes a break"
+ },
+ {
+  "name": "T05 THEMATIC_BREAK: two stars are enough",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "expect": "killed",
+  "why": "`**` becomes a break"
+ },
+ {
+  "name": "T06 THEMATIC_BREAK: four dashes are needed",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "expect": "killed",
+  "why": "`---` stops being a break"
+ },
+ {
+  "name": "T07 THEMATIC_BREAK: underscore tail is blanks only",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t]*)$/;",
+  "expect": "killed",
+  "why": "`____` stops being a break"
+ },
+ {
+  "name": "T08 THEMATIC_BREAK: star tail is blanks only",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "expect": "killed",
+  "why": "`****` stops being a break"
+ },
+ {
+  "name": "T09 THEMATIC_BREAK: dash tail is blanks only",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "expect": "killed",
+  "why": "`----` stops being a break"
+ },
+ {
+  "name": "T10 THEMATIC_BREAK: first gap is spaces only",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ ]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "expect": "killed",
+  "why": "`*<tab>**` stops being a break"
+ },
+ {
+  "name": "T11 THEMATIC_BREAK: dash tail refuses a tab",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ -]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "expect": "killed",
+  "why": "`---<tab>-` stops being a break"
+ },
+ {
+  "name": "T12 THEMATIC_BREAK: star tail admits other markers",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*_-]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "expect": "killed",
+  "why": "`***-` becomes a break"
+ },
+ {
+  "name": "T13 THEMATIC_BREAK: underscore alternative deleted",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*)$/;",
+  "expect": "killed",
+  "why": "`___` stops being a break"
+ },
+ {
+  "name": "T14 THEMATIC_BREAK: third star optional",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\**[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "expect": "killed",
+  "why": "`**` becomes a break"
+ },
+ {
+  "name": "T15 THEMATIC_BREAK: ambiguous dash tail `-+[ \\t-]*`",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-+[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "expect": "killed",
+  "why": "same language, quadratic when a letter ends the run: the not-a-break rows"
+ },
+ {
+  "name": "T16 THEMATIC_BREAK: ambiguous underscore tail",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_+[ \\t_]*)$/;",
+  "expect": "killed",
+  "why": "same language, quadratic when a letter ends the run"
+ },
+ {
+  "name": "T17 THEMATIC_BREAK: first two alternatives swapped",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK = /^ {0,3}(?:-[ \\t]*-[ \\t]*-[ \\t-]*|\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "expect": "survives",
+  "why": "equivalent: their first characters differ, so the order cannot change an answer"
+ },
+ {
+  "name": "T18 THEMATIC_BREAK: capturing group for the alternation",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK = /^ {0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK = /^ {0,3}(\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "expect": "survives",
+  "why": "equivalent: every caller reads `.test`, which ignores captures"
+ },
+ {
+  "name": "A01 THEMATIC_BREAK_ANY_INDENT: indent is spaces only",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK_ANY_INDENT = /^[ \\t]*(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK_ANY_INDENT = /^ *(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "expect": "killed",
+  "why": "a tab-led break stops being one"
+ },
+ {
+  "name": "A02 THEMATIC_BREAK_ANY_INDENT: indent capped at 3",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK_ANY_INDENT = /^[ \\t]*(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK_ANY_INDENT = /^[ \\t]{0,3}(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "expect": "killed",
+  "why": "a four-space-indented break stops being one"
+ },
+ {
+  "name": "A03 THEMATIC_BREAK_ANY_INDENT: indent required",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK_ANY_INDENT = /^[ \\t]*(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK_ANY_INDENT = /^[ \\t]+(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "expect": "killed",
+  "why": "a column-0 break stops being one"
+ },
+ {
+  "name": "A04 THEMATIC_BREAK_ANY_INDENT: end anchor dropped",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK_ANY_INDENT = /^[ \\t]*(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK_ANY_INDENT = /^[ \\t]*(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)/;",
+  "expect": "killed",
+  "why": "a break followed by text becomes a break"
+ },
+ {
+  "name": "A05 THEMATIC_BREAK_ANY_INDENT: two stars are enough",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK_ANY_INDENT = /^[ \\t]*(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK_ANY_INDENT = /^[ \\t]*(?:\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "expect": "killed",
+  "why": "`**` becomes a break"
+ },
+ {
+  "name": "A06 THEMATIC_BREAK_ANY_INDENT: four dashes are needed",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK_ANY_INDENT = /^[ \\t]*(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK_ANY_INDENT = /^[ \\t]*(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "expect": "killed",
+  "why": "`---` stops being a break"
+ },
+ {
+  "name": "A07 THEMATIC_BREAK_ANY_INDENT: underscore tail is blanks only",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK_ANY_INDENT = /^[ \\t]*(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK_ANY_INDENT = /^[ \\t]*(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t]*)$/;",
+  "expect": "killed",
+  "why": "`____` stops being a break"
+ },
+ {
+  "name": "A08 THEMATIC_BREAK_ANY_INDENT: underscore alternative deleted",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK_ANY_INDENT = /^[ \\t]*(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK_ANY_INDENT = /^[ \\t]*(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*)$/;",
+  "expect": "killed",
+  "why": "`___` stops being a break"
+ },
+ {
+  "name": "A09 THEMATIC_BREAK_ANY_INDENT: ambiguous dash tail",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const THEMATIC_BREAK_ANY_INDENT = /^[ \\t]*(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "to": "export const THEMATIC_BREAK_ANY_INDENT = /^[ \\t]*(?:\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*|-[ \\t]*-[ \\t]*-+[ \\t-]*|_[ \\t]*_[ \\t]*_[ \\t_]*)$/;",
+  "expect": "killed",
+  "why": "same language, quadratic when a letter ends the run"
+ },
+ {
+  "name": "B01 BULLET_THEMATIC_BREAK: indent is spaces only",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const BULLET_THEMATIC_BREAK = /^[ \\t]*(?:-[ \\t]*-[ \\t]*-[ \\t-]*|\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*)$/;",
+  "to": "export const BULLET_THEMATIC_BREAK = /^ *(?:-[ \\t]*-[ \\t]*-[ \\t-]*|\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*)$/;",
+  "expect": "killed",
+  "why": "a tab-led bullet break stops being one"
+ },
+ {
+  "name": "B02 BULLET_THEMATIC_BREAK: indent capped at 3",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const BULLET_THEMATIC_BREAK = /^[ \\t]*(?:-[ \\t]*-[ \\t]*-[ \\t-]*|\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*)$/;",
+  "to": "export const BULLET_THEMATIC_BREAK = /^[ \\t]{0,3}(?:-[ \\t]*-[ \\t]*-[ \\t-]*|\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*)$/;",
+  "expect": "killed",
+  "why": "a deeper bullet break stops being one"
+ },
+ {
+  "name": "B03 BULLET_THEMATIC_BREAK: end anchor dropped",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const BULLET_THEMATIC_BREAK = /^[ \\t]*(?:-[ \\t]*-[ \\t]*-[ \\t-]*|\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*)$/;",
+  "to": "export const BULLET_THEMATIC_BREAK = /^[ \\t]*(?:-[ \\t]*-[ \\t]*-[ \\t-]*|\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*)/;",
+  "expect": "killed",
+  "why": "`- - - x` becomes a break"
+ },
+ {
+  "name": "B04 BULLET_THEMATIC_BREAK: star alternative deleted",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const BULLET_THEMATIC_BREAK = /^[ \\t]*(?:-[ \\t]*-[ \\t]*-[ \\t-]*|\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*)$/;",
+  "to": "export const BULLET_THEMATIC_BREAK = /^[ \\t]*(?:-[ \\t]*-[ \\t]*-[ \\t-]*)$/;",
+  "expect": "killed",
+  "why": "`* * *` stops being a break"
+ },
+ {
+  "name": "B05 BULLET_THEMATIC_BREAK: four dashes are needed",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const BULLET_THEMATIC_BREAK = /^[ \\t]*(?:-[ \\t]*-[ \\t]*-[ \\t-]*|\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*)$/;",
+  "to": "export const BULLET_THEMATIC_BREAK = /^[ \\t]*(?:-[ \\t]*-[ \\t]*-[ \\t]*-[ \\t-]*|\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*)$/;",
+  "expect": "killed",
+  "why": "`- - -` stops being a break"
+ },
+ {
+  "name": "B06 BULLET_THEMATIC_BREAK: dash tail is blanks only",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const BULLET_THEMATIC_BREAK = /^[ \\t]*(?:-[ \\t]*-[ \\t]*-[ \\t-]*|\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*)$/;",
+  "to": "export const BULLET_THEMATIC_BREAK = /^[ \\t]*(?:-[ \\t]*-[ \\t]*-[ \\t]*|\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*)$/;",
+  "expect": "killed",
+  "why": "`- - - -` stops being a break"
+ },
+ {
+  "name": "B07 BULLET_THEMATIC_BREAK: ambiguous dash tail",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const BULLET_THEMATIC_BREAK = /^[ \\t]*(?:-[ \\t]*-[ \\t]*-[ \\t-]*|\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*)$/;",
+  "to": "export const BULLET_THEMATIC_BREAK = /^[ \\t]*(?:-[ \\t]*-[ \\t]*-+[ \\t-]*|\\*[ \\t]*\\*[ \\t]*\\*[ \\t*]*)$/;",
+  "expect": "killed",
+  "why": "same language, quadratic when a letter ends the run"
+ },
+ {
+  "name": "C01 DASH_COLUMN_LINE: blank run optional",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DASH_COLUMN_LINE = /^ {0,3}-+[ \\t]+-[ \\t-]*$|^ {1,3}-+[ \\t]*$/;",
+  "to": "export const DASH_COLUMN_LINE = /^ {0,3}-+[ \\t]*-[ \\t-]*$|^ {1,3}-+[ \\t]*$/;",
+  "expect": "killed",
+  "why": "an unbroken run `---` becomes a column line"
+ },
+ {
+  "name": "C02 DASH_COLUMN_LINE: indent cap 3 to 4",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DASH_COLUMN_LINE = /^ {0,3}-+[ \\t]+-[ \\t-]*$|^ {1,3}-+[ \\t]*$/;",
+  "to": "export const DASH_COLUMN_LINE = /^ {0,4}-+[ \\t]+-[ \\t-]*$|^ {1,3}-+[ \\t]*$/;",
+  "expect": "killed",
+  "why": "a four-space-indented `- -` becomes a column line"
+ },
+ {
+  "name": "C03 DASH_COLUMN_LINE: single indented run may be column 0",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DASH_COLUMN_LINE = /^ {0,3}-+[ \\t]+-[ \\t-]*$|^ {1,3}-+[ \\t]*$/;",
+  "to": "export const DASH_COLUMN_LINE = /^ {0,3}-+[ \\t]+-[ \\t-]*$|^ {0,3}-+[ \\t]*$/;",
+  "expect": "killed",
+  "why": "a column-0 `---` becomes a column line (it is a setext underline or a break)"
+ },
+ {
+  "name": "C04 DASH_COLUMN_LINE: single indented run may be 4 deep",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DASH_COLUMN_LINE = /^ {0,3}-+[ \\t]+-[ \\t-]*$|^ {1,3}-+[ \\t]*$/;",
+  "to": "export const DASH_COLUMN_LINE = /^ {0,3}-+[ \\t]+-[ \\t-]*$|^ {1,4}-+[ \\t]*$/;",
+  "expect": "killed",
+  "why": "an indent-4 `---` becomes a column line"
+ },
+ {
+  "name": "C05 DASH_COLUMN_LINE: tail refuses a third run",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DASH_COLUMN_LINE = /^ {0,3}-+[ \\t]+-[ \\t-]*$|^ {1,3}-+[ \\t]*$/;",
+  "to": "export const DASH_COLUMN_LINE = /^ {0,3}-+[ \\t]+-[ \\t]*$|^ {1,3}-+[ \\t]*$/;",
+  "expect": "killed",
+  "why": "`- - -` stops being a column line"
+ },
+ {
+  "name": "C06 DASH_COLUMN_LINE: end anchor dropped in the first alternative",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DASH_COLUMN_LINE = /^ {0,3}-+[ \\t]+-[ \\t-]*$|^ {1,3}-+[ \\t]*$/;",
+  "to": "export const DASH_COLUMN_LINE = /^ {0,3}-+[ \\t]+-[ \\t-]*|^ {1,3}-+[ \\t]*$/;",
+  "expect": "killed",
+  "why": "`- - x` becomes a column line"
+ },
+ {
+  "name": "C07 DASH_COLUMN_LINE: ambiguous second run",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DASH_COLUMN_LINE = /^ {0,3}-+[ \\t]+-[ \\t-]*$|^ {1,3}-+[ \\t]*$/;",
+  "to": "export const DASH_COLUMN_LINE = /^ {0,3}-+[ \\t]+-+[ \\t-]*$|^ {1,3}-+[ \\t]*$/;",
+  "expect": "killed",
+  "why": "same language, quadratic when a letter ends the run"
+ },
+ {
+  "name": "C08 DASH_COLUMN_LINE: redundant trailing blanks",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DASH_COLUMN_LINE = /^ {0,3}-+[ \\t]+-[ \\t-]*$|^ {1,3}-+[ \\t]*$/;",
+  "to": "export const DASH_COLUMN_LINE = /^ {0,3}-+[ \\t]+-[ \\t-]*[ \\t]*$|^ {1,3}-+[ \\t]*$/;",
+  "expect": "killed",
+  "why": "same language, quadratic on a long blank run before a letter"
+ },
+ {
+  "name": "D01 DASH_ONLY_LINE: one dash run only",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DASH_ONLY_LINE = /^ {0,3}-[ \\t-]*$/;",
+  "to": "export const DASH_ONLY_LINE = /^ {0,3}-+[ \\t]*$/;",
+  "expect": "killed",
+  "why": "`- -` stops being a dash-only line"
+ },
+ {
+  "name": "D02 DASH_ONLY_LINE: indent cap 3 to 4",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DASH_ONLY_LINE = /^ {0,3}-[ \\t-]*$/;",
+  "to": "export const DASH_ONLY_LINE = /^ {0,4}-[ \\t-]*$/;",
+  "expect": "killed",
+  "why": "a four-space-indented dash line becomes one"
+ },
+ {
+  "name": "D03 DASH_ONLY_LINE: end anchor dropped",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DASH_ONLY_LINE = /^ {0,3}-[ \\t-]*$/;",
+  "to": "export const DASH_ONLY_LINE = /^ {0,3}-[ \\t-]*/;",
+  "expect": "killed",
+  "why": "`--- x` becomes a dash-only line"
+ },
+ {
+  "name": "D04 DASH_ONLY_LINE: ambiguous run",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DASH_ONLY_LINE = /^ {0,3}-[ \\t-]*$/;",
+  "to": "export const DASH_ONLY_LINE = /^ {0,3}-+[ \\t-]*$/;",
+  "expect": "killed",
+  "why": "same language, quadratic when a letter ends the run"
+ },
+ {
+  "name": "D05 DASH_ONLY_LINE: one dash is not enough",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DASH_ONLY_LINE = /^ {0,3}-[ \\t-]*$/;",
+  "to": "export const DASH_ONLY_LINE = /^ {0,3}-[ \\t-]+$/;",
+  "expect": "killed",
+  "why": "a lone `-` stops being a dash-only line"
+ }
+]

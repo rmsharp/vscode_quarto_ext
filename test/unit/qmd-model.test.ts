@@ -5039,6 +5039,14 @@ describe("a setext TITLE may be MULTI-LINE under a CommonMark reader (Session 20
     ).toEqual([]);
   });
 
+  it.each(["***", "___"])("a THEMATIC BREAK `%s` interrupts the paragraph too, so it may not be joined into the title (Session 317)", (rule) => {
+    // Rendered with quarto 1.7.33 (Session 317): under `from: gfm`, `Title` / `***` (or `___`) / `====` is `<p>Title</p><hr><p>====</p>` and NO heading, while the same
+    // lines without the break render `<h1>Title continued</h1>`. Nothing pinned this row of `COMMONMARK_PARAGRAPH_INTERRUPT` before: deleting it (the mutant that read
+    // no thematic-break row) changed no answer in the suite, and would have invented `h1:Title ***`. `---` is not a probe: under a paragraph it is a setext underline,
+    // and `- - -` is also caught by the bullet row.
+    expect(names(doc("---", "from: gfm", "---", "", "Title", rule, "===="))).toEqual([]);
+  });
+
   it("a HARD LINE BREAK's trailing backslash is not part of the joined text", () => {
     // `scratchpad/s203/mix` — `m_gfm_hardbs`, rendered this session: a line ending in `\` is a
     // HARD line break, which quarto renders as `<br>` and not as a literal character, so the
