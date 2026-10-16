@@ -1,0 +1,290 @@
+[
+ {
+  "name": "F01 FENCE_OPEN: no guard after the backtick run",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;",
+  "to": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}|~{3,}(?!~)))(.*)$/;",
+  "expect": "killed",
+  "why": "the near-miss clock row (a refused 50,000-backtick line takes seconds) and the document rows"
+ },
+ {
+  "name": "F02 FENCE_OPEN: no guard after the tilde run",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;",
+  "to": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}))(.*)$/;",
+  "expect": "killed",
+  "why": "the near-miss clock row on tildes and the tilde document rows"
+ },
+ {
+  "name": "F03 FENCE_OPEN: the backtick guard looks for a tilde",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;",
+  "to": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!~)|~{3,}(?!~)))(.*)$/;",
+  "expect": "killed",
+  "why": "a backtick run followed by a tilde is refused (the enumeration) and a long refused line is quadratic again (the clock)"
+ },
+ {
+  "name": "F04 FENCE_OPEN: the tilde guard looks for a backtick",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;",
+  "to": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!`)))(.*)$/;",
+  "expect": "killed",
+  "why": "a tilde run followed by a backtick is refused and a long refused tilde line is quadratic"
+ },
+ {
+  "name": "F05 FENCE_OPEN: the backtick guard is positive",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;",
+  "to": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?=`)|~{3,}(?!~)))(.*)$/;",
+  "expect": "killed",
+  "why": "only a run followed by another backtick can match: the enumeration"
+ },
+ {
+  "name": "F06 FENCE_OPEN: both guards refuse either fence character",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;",
+  "to": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?![`~])|~{3,}(?![`~])))(.*)$/;",
+  "expect": "killed",
+  "why": "```~~~ stops being a fence: the enumeration"
+ },
+ {
+  "name": "F07 FENCE_OPEN: the guards refuse a word character",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;",
+  "to": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!\\w)|~{3,}(?!\\w)))(.*)$/;",
+  "expect": "killed",
+  "why": "an info string that starts at the run (```r) stops being a fence: the enumeration"
+ },
+ {
+  "name": "F08 FENCE_OPEN: the backtick guard reads a backtick AND a CR (same answers, still quadratic)",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;",
+  "to": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!`\\r)|~{3,}(?!~)))(.*)$/;",
+  "expect": "killed",
+  "why": "the language is unchanged, so only a clock row can notice: the guard passes at every split but the last, and (.*) re-reads the tail"
+ },
+ {
+  "name": "F09 FENCE_OPEN: the backtick guard reads two backticks (same answers, linear)",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;",
+  "to": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!``)|~{3,}(?!~)))(.*)$/;",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT: a longest run is never followed by a backtick, so the guard passes where it did; one split short of it is the only extra attempt, one pass of (.*), so the cost stays linear"
+ },
+ {
+  "name": "F10 FENCE_OPEN: a run of 3 to 40",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;",
+  "to": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,40}(?!`)|~{3,40}(?!~)))(.*)$/;",
+  "expect": "killed",
+  "why": "a run of 64 or 100 is refused: the gap grid"
+ },
+ {
+  "name": "F11 FENCE_OPEN: a run of two is enough",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;",
+  "to": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{2,}(?!`)|~{2,}(?!~)))(.*)$/;",
+  "expect": "killed",
+  "why": "``` needs three: the enumeration"
+ },
+ {
+  "name": "F12 FENCE_OPEN: the rest may hold U+2028",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;",
+  "to": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))([^\\r\\n]*)$/;",
+  "expect": "killed",
+  "why": "a fence line with a line separator is a fence: the enumeration"
+ },
+ {
+  "name": "F13 FENCE_OPEN: the rest is not anchored",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;",
+  "to": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)/;",
+  "expect": "killed",
+  "why": "a CR after the run no longer refuses the line: the enumeration"
+ },
+ {
+  "name": "F14 FENCE_OPEN: the indent is at most three spaces",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;",
+  "to": "export const FENCE_OPEN = /^ {0,3}((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;",
+  "expect": "killed",
+  "why": "a four-space or tab indent stops being read (the comment says it is NOT ` {0,3}`): the enumeration"
+ },
+ {
+  "name": "F15 FENCE_OPEN: the indent is spaces only",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const FENCE_OPEN = /^[ \\t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;",
+  "to": "export const FENCE_OPEN = /^ *((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;",
+  "expect": "killed",
+  "why": "a tab-indented fence stops being one: the enumeration"
+ },
+ {
+  "name": "I01 INDENTED_CELL_FENCE_OPEN: no guard after the run",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "export const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.*)$/;",
+  "expect": "killed",
+  "why": "the near-miss clock row and the indented-cell document rows"
+ },
+ {
+  "name": "I02 INDENTED_CELL_FENCE_OPEN: the guard looks for a tilde",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "export const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!~))(.*)$/;",
+  "expect": "killed",
+  "why": "a backtick run followed by a tilde is refused and a long refused line is quadratic"
+ },
+ {
+  "name": "I03 INDENTED_CELL_FENCE_OPEN: the guard is positive",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "export const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?=`))(.*)$/;",
+  "expect": "killed",
+  "why": "only a run followed by another backtick can match: the enumeration"
+ },
+ {
+  "name": "I04 INDENTED_CELL_FENCE_OPEN: the guard reads a backtick AND a CR (same answers, still quadratic)",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "export const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`\\r))(.*)$/;",
+  "expect": "killed",
+  "why": "language unchanged: only the clock row notices"
+ },
+ {
+  "name": "I05 INDENTED_CELL_FENCE_OPEN: a run of 3 to 40",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "export const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,40}(?!`))(.*)$/;",
+  "expect": "killed",
+  "why": "a run of 64 or 100 is refused: the gap grid"
+ },
+ {
+  "name": "I06 INDENTED_CELL_FENCE_OPEN: the indent is blanks and tabs only",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "export const INDENTED_CELL_FENCE_OPEN = /^[ \\t]*((?=(`))`{3,}(?!`))(.*)$/;",
+  "expect": "killed",
+  "why": "a form feed, a no-break space or a line terminator before the run stops being indent: the wide enumeration"
+ },
+ {
+  "name": "I07 INDENTED_CELL_FENCE_OPEN: the rest is not anchored",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "export const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)/;",
+  "expect": "killed",
+  "why": "a CR after the run no longer refuses the line: the enumeration"
+ },
+ {
+  "name": "I08 INDENTED_CELL_FENCE_OPEN: the guard reads two backticks (same answers, linear)",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "export const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!``))(.*)$/;",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT: as F09"
+ },
+ {
+  "name": "I09 INDENTED_CELL_FENCE_OPEN: a run of two is enough",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "export const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{2,}(?!`))(.*)$/;",
+  "expect": "killed",
+  "why": "``` needs three: the enumeration"
+ },
+ {
+  "name": "I10 INDENTED_CELL_FENCE_OPEN: an indent is required",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "export const INDENTED_CELL_FENCE_OPEN = /^\\s+((?=(`))`{3,}(?!`))(.*)$/;",
+  "expect": "killed",
+  "why": "a column-0 fence stops being read: the enumeration"
+ },
+ {
+  "name": "D01 DIV_FENCE: no guard after the colon run",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}[ \\t]*(.*)$/;",
+  "expect": "killed",
+  "why": "the near-miss clock row and the colon document rows"
+ },
+ {
+  "name": "D02 DIV_FENCE: the guard looks for a backtick",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!`)[ \\t]*(.*)$/;",
+  "expect": "killed",
+  "why": "a long refused colon line is quadratic again"
+ },
+ {
+  "name": "D03 DIV_FENCE: the guard is positive",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?=:)[ \\t]*(.*)$/;",
+  "expect": "killed",
+  "why": "only a run followed by another colon can match: the enumeration"
+ },
+ {
+  "name": "D04 DIV_FENCE: the guard reads a colon AND a CR (same answers, still quadratic)",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:\\r)[ \\t]*(.*)$/;",
+  "expect": "killed",
+  "why": "language unchanged: only the clock row notices"
+ },
+ {
+  "name": "D05 DIV_FENCE: the guard reads two colons (same answers, linear)",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!::)[ \\t]*(.*)$/;",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT: as F09"
+ },
+ {
+  "name": "D06 DIV_FENCE: a run of 3 to 40",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,40}(?!:)[ \\t]*(.*)$/;",
+  "expect": "killed",
+  "why": "a run of 64 or 100 is refused: the gap grid"
+ },
+ {
+  "name": "D07 DIV_FENCE: at least one blank after the run",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]+(.*)$/;",
+  "expect": "killed",
+  "why": "a bare ::: closer stops being a fence: the enumeration"
+ },
+ {
+  "name": "D08 DIV_FENCE: the rest is not anchored",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)/;",
+  "expect": "killed",
+  "why": "a CR after the run no longer refuses the line: the enumeration"
+ },
+ {
+  "name": "D09 DIV_FENCE: a run of two is enough",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{2,}(?!:)[ \\t]*(.*)$/;",
+  "expect": "killed",
+  "why": ":: is not a fence: the enumeration"
+ },
+ {
+  "name": "D10 DIV_FENCE: the indent is at most three spaces",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
+  "to": "export const DIV_FENCE = /^ {0,3}:{3,}(?!:)[ \\t]*(.*)$/;",
+  "expect": "killed",
+  "why": "a four-space or tab indent stops being read (the comment says it is NOT ` {0,3}`): the enumeration"
+ },
+ {
+  "name": "D11 DIV_FENCE: the blank run after the colons is also guarded (same answers, faster)",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT in answers and not worse in cost: it is the cure for the blank tail that BACKLOG item part (5) owns, and nothing here pins that tail as slow"
+ }
+]
