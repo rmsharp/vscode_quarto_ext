@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-16 · [ad hoc] Session 317: trim SESSION_NOTES to three close-out pairs (`049c676e`) and the close-out commit (`2f1eb5f3`)
+
+`methodology/SESSION_NOTES.md` dropped the Session 313 evaluation and the Session 314 self-assessment (38 deleted lines, 0 added; 19,102 B and 129 lines left, against the 120,000 B and 400-line ceilings), in a commit that holds no other edit to that file. The dropped pair is one command away: `git show 2f1eb5f3:methodology/SESSION_NOTES.md`. The close-out commit `2f1eb5f3` holds the BACKLOG and plan edits, Learnings 775 to 778, the receipt, this ledger and the two history refreshes (`dashboard_history.jsonl`, `.context-budget-history.jsonl`).
+
 ### 2026-10-16 · [BL-Nine more single-line overflow and slow-input families, none of them in Session 317's diff] Session 317: filed -- nine neighbouring families, found by the review round of part (8)
 
 `BACKLOG.md` item "Nine more single-line overflow and slow-input families, none of them in Session 317's diff" (222 open items, `check-backlog` OK), placed in g02. Every family was re-run on HEAD by the session unless it says AGENT-MEASURED, and all are identical on the parent `ad731aeb`: (1) `ATTR_ATOM_RUN` is exponential (`# H {` + `.A` x 26 + `!}` 474 ms, 4x per two units; an agent measured 30 units 7.5 s and 32 units 30 s), (2) a long heading or setext line of backticks, `[`, `{` or backslash is quadratic (25,000 backticks 759 ms), (3) the native-div one-line check is quadratic in `indexLabels` (10,000 units 440 ms), and RangeError at (4) `|-` / `-|` runs (`pipeTableOpensHere`, below part (8)'s threshold), (5) the front matter `from:` extension lists, (6) the YAML tag and anchor group (four files), (7) a run of `#`, (8) a run of `>`, (9) the LaTeX macro argument tail. The sweep ran 2,010 of 6,270 planned jobs (32%); the rest is named in the item. The plan's g02 block gained the row and an estimate of 3 to 5 more sessions, not yet in the totals.
