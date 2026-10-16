@@ -17,6 +17,14 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-15 · [ad hoc] Session 315: trim SESSION_NOTES to three close-out pairs (`50b3ed54`)
+
+`methodology/SESSION_NOTES.md` dropped the Session 311 evaluation and the Session 312 self-assessment (36 deleted lines, 0 added; 19,148 B and 128 lines left, against the 120,000 B and 400-line ceilings), in a commit that holds no other edit to that file. The dropped pair is one command away: `git show b38c8bc2:methodology/SESSION_NOTES.md`.
+
+### 2026-10-15 · [ad hoc] Session 315: dashboard and context-budget history refresh (in the close-out commit `b38c8bc2`)
+
+`methodology/dashboard_history.jsonl` and `methodology/.context-budget-history.jsonl`, the two tracked history files the dashboard and `context_budget.py` append to on every run. The dashboard reads health 76/100, one high-or-above risk flag and 21 advisories (all in dev dependencies; `package.json` has no `dependencies` key), unchanged from Session 314, 1,968 commits; `context_budget.py` exits 2 for the same three files as since Session 264 (`BACKLOG.md` 417,039 B, `HANDOFFS.md` 406,130 B, `PROJECT_LEARNINGS.md` 1,214,809 B, against 65,536 B), `CLAUDE.md` is 23,953 B (warn line 24,000 B) and `SESSION_NOTES.md` was 24,934 B before the trim, 19,148 B after, of its 120,000 B ceiling.
+
 ### 2026-10-15 · [ad hoc] Session 315 close-out: handoff evaluation, self-assessment, receipt, ledger, Learnings 766 to 770, memory
 
 Written in the close-out commit: the Session 314 handoff evaluation (8/10) and the Session 315 self-assessment (7/10) in `methodology/SESSION_NOTES.md` (ACTIVE TASK rewritten to NONE, the claim stub replaced), the `HANDOFFS.md` receipt (`pending` to `complete`; the `quality_ratchet` line is filled in the commit after the ledger commit, Learning 683), this ledger (the claim entry replaced by one entry per action), `PROJECT_LEARNINGS.md` rows 766 to 770, and, outside the repository, the feedback memory `backlog-order-robustness-and-cohesion` (now pointing at the plan). The claim commit is `1ed4197a`.
