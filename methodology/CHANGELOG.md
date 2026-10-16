@@ -17,9 +17,53 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
-### 2026-10-16 · [BL-What is still quadratic or deep enough to overflow after Session 311, every shape re-measured on the final tree (`066cfcc1`) and none of it in that session's diff] Session 317 (in progress): claim -- g02 first session, part (8), the `scanRegions` stack overflow
+### 2026-10-16 · [BL-Nine more single-line overflow and slow-input families, none of them in Session 317's diff] Session 317: filed -- nine neighbouring families, found by the review round of part (8)
 
-Session claimed. Phase 0 found both ledger frontiers at HEAD (`febd2c49`, gap 0, no merges), no pending receipt, the ratchet 2/2 (results bba236856bad, the receipt's citation holds) and the dashboard at 76/100 with 21 vulnerabilities. At the Phase 0 picker the operator chose g02 of `docs/planning/2026-10-15-backlog-ordering-plan.md` (placed by: finishing a feature, the in-flight group). Deliverable: a RED row that `scanRegions` does not throw on one line of 2,100,000 `-`, `*` and `_`; locate the pattern with `node --cpu-prof` or a bisection before reading code, rewrite it without the stack-deep construct, and prove old and new identical exhaustively. Phase 3F replaces this entry with the outcome.
+`BACKLOG.md` item "Nine more single-line overflow and slow-input families, none of them in Session 317's diff" (222 open items, `check-backlog` OK), placed in g02. Every family was re-run on HEAD by the session unless it says AGENT-MEASURED, and all are identical on the parent `ad731aeb`: (1) `ATTR_ATOM_RUN` is exponential (`# H {` + `.A` x 26 + `!}` 474 ms, 4x per two units; an agent measured 30 units 7.5 s and 32 units 30 s), (2) a long heading or setext line of backticks, `[`, `{` or backslash is quadratic (25,000 backticks 759 ms), (3) the native-div one-line check is quadratic in `indexLabels` (10,000 units 440 ms), and RangeError at (4) `|-` / `-|` runs (`pipeTableOpensHere`, below part (8)'s threshold), (5) the front matter `from:` extension lists, (6) the YAML tag and anchor group (four files), (7) a run of `#`, (8) a run of `>`, (9) the LaTeX macro argument tail. The sweep ran 2,010 of 6,270 planned jobs (32%); the rest is named in the item. The plan's g02 block gained the row and an estimate of 3 to 5 more sessions, not yet in the totals.
+
+### 2026-10-16 · [ad hoc] Session 317: the gates and the real-document score on the final tree
+
+`npm test` 11,347 passing and 1 failing in 85 files (11,297 + 51 new rows; the failure is Session 308's "is linear: 200,000 lines" clock row at 2.07 s against its 2 s bound with the load average at 6.6, and it passes alone in 0.69 to 0.75 s, as in the previous handoff); `npm run check-types` clean (src and test/unit); `npm run test:oracle` 2 of 2; `npm run package` DONE (44 files, 1.86 MB); `check-backlog` OK. `tools/realdoc-score/run.sh`: head and the parent `ad731aeb` score identically, 2423 of 2438 (99.38%), 15 divergent (phantom 2147 2275; lost 482 491 610 1352 2566 2898; level 837 838 840 841 842 843 847): the change moved no corpus document. `test:integration` NOT run (core-only change; it takes the screen and nobody was asked).
+
+### 2026-10-16 · [ad hoc] Session 317: review workflow `wf_ae68c297-809` and the firsthand check of its findings
+
+Five read-only lenses on the committed tree (no `isolation`; `git log -1` first in each prompt): equivalence and callers, static sibling hunt, empirical sweep, test and claims audit, parent-versus-HEAD differential; 667,011 subagent tokens, 197 tool calls, about 24 minutes. Equivalence held on 435,984,840 strings of 17 characters up to length 7 and on 6 further families (0 disagreements); the differential compared 330,000 random and 12,528 focused documents (0 differences). The auditor's F1 to F3 were real and are closed in `9d503bcf`; its number findings (E1, E2, F6) were true and fixed; the sibling findings were re-run by the session before being filed. The brief's rules (read no third-party source, one writer, load cap, no renders) held: no repository file changed during the run.
+
+### 2026-10-16 · [ad hoc] Session 317: three mutation passes with `tools/mutation-run`, two new lists
+
+`tools/mutation-run/mutants/b88-thematic-break.json` (51 mutants) and `b88-thematic-break-wiring.json` (4). First pass over the 47: 41 killed, 2 argued equivalent (alternation order; capture against non-capture), 4 unexpectedly alive (ambiguous tails, quadratic on a near-miss line): killed after `92fdbcf7`. Wiring pass: W01 killed by older rows; W02 (delete the interrupt list's thematic-break row) SURVIVED the whole suite, a gap older than the session, killed after `2733fc95`. Second round after the review: X01 to X04 and W03 killed, W04 (`OPENS_FRESH_BLOCK` reading the any-indent constant) an argued equivalent after 204,120 documents showed no difference. Totals: 49 of 51 pattern mutants killed, 3 of 4 wiring mutants killed, 3 argued equivalent. Run alone on the machine each time; no timeout verdicts.
+
+### 2026-10-16 · [BL-What is still quadratic or deep enough to overflow after Session 311, every shape re-measured on the final tree (`066cfcc1`) and none of it in that session's diff] Session 317: B88 part (8) closed -- five thematic-break and dash-rule patterns no longer overflow V8's regex stack
+
+`scanRegions` threw `RangeError: Maximum call stack size exceeded` on one line of 2,097,144 or more `-`, `*` or `_`: the item named one unlocated pattern and it was five in `qmd/model.ts` (`THEMATIC_BREAK`, the new `THEMATIC_BREAK_ANY_INDENT`, `BULLET_THEMATIC_BREAK`, `DASH_COLUMN_LINE`, `DASH_ONLY_LINE`), each reading the run as a quantified group that costs one backtrack-stack entry per repetition (thresholds: 2,097,144 capturing, 3,355,431 non-capturing, 2,097,145 repetitions of `- `). Each is now literal markers plus a one-class tail; `OPENS_FRESH_BLOCK` and the CommonMark interrupt list read the shared constants. RED first (15 overflow rows fail on the parent with RangeError), then GREEN site by site, the shape map re-run after each fix (99 of 99 shapes read at 4.5M and at 45M characters, slowest 0.7 s). Proof: the old spelling is the oracle over all 960,800 strings of up to 7 characters, 100,000 seeded lines, a 194,400-line gap grid and 132 near-miss lines of 50,000 characters, per pattern. `git diff ad731aeb HEAD -- src` is comment, five patterns, five `export`s and two constant references. Learnings 775 to 778. `BACKLOG.md`: part (8) marked CLOSED in the item. Plan: g02's first session done.
+
+### 2026-10-16 · [BL-What is still quadratic or deep enough to overflow after Session 311, every shape re-measured on the final tree (`066cfcc1`) and none of it in that session's diff] Session 317: checkpoint 6 -- the review round's test gaps (`9d503bcf`)
+
+The indent-4 interrupt row (audit F1: the list reading the capped constant invented `h1:Title ***`; quarto 1.7.33 rendered the expected answer), three single-marker near-miss shapes (F2), the gap grid (F3), the DASH_COLUMN_LINE and 2^21 comment numbers (E1, E2) and "up to 53 characters" (F6); mutants X01 to X04, W03 and W04 added to the lists.
+
+### 2026-10-16 · [BL-What is still quadratic or deep enough to overflow after Session 311, every shape re-measured on the final tree (`066cfcc1`) and none of it in that session's diff] Session 317: the CommonMark interrupt row pinned, the two mutant lists committed (`2733fc95`)
+
+Two rows in `qmd-model.test.ts` (`***`, `___` under a paragraph of a `from: gfm` document; quarto 1.7.33: a rule, no heading). They pass on arrival; the surviving wiring mutant W02 was the RED.
+
+### 2026-10-16 · [BL-What is still quadratic or deep enough to overflow after Session 311, every shape re-measured on the final tree (`066cfcc1`) and none of it in that session's diff] Session 317: the pattern-level near-miss rows (`92fdbcf7`)
+
+Five rows in `thematic-break-equivalence.test.ts`: 96 lines of 50,000 characters per pattern, the same answer as the old spelling in under 100 ms; kills the four ambiguous-tail mutants the first pass left alive.
+
+### 2026-10-16 · [BL-What is still quadratic or deep enough to overflow after Session 311, every shape re-measured on the final tree (`066cfcc1`) and none of it in that session's diff] Session 317: restore the space after `=` in the THEMATIC_BREAK export (`9f25cc89`)
+
+`4627675d` committed `export const THEMATIC_BREAK =/^ ...` because an Edit's replacement text lost its trailing space (Learning 778). No behavior change; found when the mutant-list generator matched nothing.
+
+### 2026-10-16 · [BL-What is still quadratic or deep enough to overflow after Session 311, every shape re-measured on the final tree (`066cfcc1`) and none of it in that session's diff] Session 317: long lines that are not breaks stay linear (`5a71b076`)
+
+12 rows in `pathological-inputs.test.ts` (100,000 characters of 8 units ending in `x`, 1 to 19 ms): they pass on the parent too and guard the rewrite, not the old code.
+
+### 2026-10-16 · [BL-What is still quadratic or deep enough to overflow after Session 311, every shape re-measured on the final tree (`066cfcc1`) and none of it in that session's diff] Session 317: the five patterns respelled (`4627675d`)
+
+The fix: 15 overflow rows (RED on the parent, all RangeError), `thematic-break-equivalence.test.ts` (new; the RED was the missing export), the five patterns exported.
+
+### 2026-10-16 · [ad hoc] Session 317: claim (`ad731aeb`)
+
+Phase 0 found both ledger frontiers at HEAD (`febd2c49`, gap 0, no merges), no pending receipt, the ratchet 2/2 (results bba236856bad, the receipt's citation held) and the dashboard at 76/100 with 21 vulnerabilities. At the Phase 0 picker the operator chose g02 (placed by: finishing a feature, the in-flight group).
 
 ### 2026-10-15 · [ad hoc] Session 316: cite the quality-gate run in the receipt and the ledger (2/2 pass at 075c4f60)
 

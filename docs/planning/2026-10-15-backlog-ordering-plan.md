@@ -8,8 +8,8 @@
 
 | Field | Value |
 |---|---|
-| In flight | Slow-input sweep (Sessions 311-314, pins done in Session 316): B88 and B89 next, ending in one terminal bounded session with a stop line. |
-| Next group to offer at Phase 0 | `g02` — Slow-input sweep; its first session is B88 part (8), the scanRegions crash row |
+| In flight | Slow-input sweep (Sessions 311-314, pins done in Session 316, B88 part (8) done in Session 317): the rest of B88 and B89 next, plus the item filed in Session 317 (nine neighbouring overflow and slow-input families), ending in one terminal bounded session with a stop line. |
+| Next group to offer at Phase 0 | `g02` — Slow-input sweep; its next session is B88 part (7), the fence patterns (the plan's order: crash row done, then fence patterns). The filed item's part (1), an exponential attribute-atom regex (a 74-byte heading takes seconds), is the one hang in the group: the operator may pull it first |
 | Groups closed | `g01` (Session 316) |
 | Decisions answered | none yet; each is asked once, at or before the group named in the Decisions table (first: D8 before g05, D2 and D3 before g03) |
 
@@ -67,7 +67,7 @@ Estimates are planning figures, not commitments: each assumes the parts-per-sess
 | # | Group | Name | Features | Sessions | Hard prerequisites | Decisions | Status |
 |---|---|---|---|---|---|---|---|
 | 1 | g01 | Sweep pins: cell-header literals | ROBUSTNESS-PERF, CELL-OPTIONS | 2 | — | — | closed (Session 316, 1 session) |
-| 2 | g02 | Slow-input sweep (in flight, Sessions 311-314) | ROBUSTNESS-PERF | 11 | — | — | open |
+| 2 | g02 | Slow-input sweep (in flight, Sessions 311-314) | ROBUSTNESS-PERF | 11 | — | — | open (first session done: Session 317, B88 part (8)) |
 | 3 | g03 | Record hygiene: stale prose, drains, duplicates | DOC-RECORD | 5 | — | D2, D3 | open |
 | 4 | g04 | Test and build tooling, advisories, repo safety | TOOLING-BUILD | 4 | — | D5, D6 | open |
 | 5 | g05 | Preview lifecycle and format parsing | PREVIEW-RENDER | 3 | — | D7, D8 | open |
@@ -146,6 +146,7 @@ Deferred (Session 252 enumeration-only; not scheduled unless decision D1 lifts i
 |---|---|---|---|
 | B88 What is still quadratic or deep enough to overflow after Session 311, every shape re-measured on the final tree (`066cfcc1`) an... | implementation | no | Parts (3)-(8): scanRegions crash first, then five quadratic shapes. |
 | B89 Other regexes still quadratic on a long run of blanks, CR or U+2028 after Session 312: a sweep's list, the code-cell header tai... | follow-up | no | Parts (3), (4), (5)+(9), (6a), (8) measured; (6b) stays a pin; (6c), (7) limits. |
+| (filed Session 317) Nine more single-line overflow and slow-input families, none of them in Session 317's diff | follow-up | no | (1) exponential attribute atoms, (2) heading text quadratic, (3) native div quadratic, (4)-(9) regex-stack overflows of B88 (8)'s class. |
 
 **Done when.** Each measured shape (B88 parts (3)-(8); B89 parts (3), (4), (5)+(9), (6a), (8)) has a counter or doubling row RED on HEAD and GREEN after, and a small-n equality row RED under a mutant. Rewritten regexes have an exhaustive old-versus-new proof; every other rewrite (closer scan, flowRegion, braceGroups, findMathRegions, insideHtmlComment, block scalars, consumedCloserLine, fenceMatchAt) keeps the OLD function in the test and passes a seeded differential over generated fence, flow, brace, comment and block-scalar documents before removal. scanRegions returns on a 2,100,000-character line; B89 (6b) stays its pin (RESIDUAL, D1: unscheduled); the terminal session files ONE RESIDUAL record and the sweep stops. B105 (i) (consumedCloserLine quadratic over consecutive refused openers) closes with B88 (3).
 
@@ -156,6 +157,10 @@ Deferred (Session 252 enumeration-only; not scheduled unless decision D1 lifts i
 **Cannot enforce.** Other quadratic shapes (the sampler bounds, never proves); wall-clock timings under load.
 
 **First session.** B88 part (8): RED row that scanRegions does not throw on one line of 2,100,000 '-', then '*' and '_'; profile with node --cpu-prof, rewrite the recursive pattern iteratively, prove old and new identical exhaustively. This session may run before g01: the crash row touches no header literal.
+
+**Outcome of the first session (Session 317).** B88 part (8) is closed against its criterion, and it was five patterns, not one: `THEMATIC_BREAK`, `THEMATIC_BREAK_ANY_INDENT` (new, the CommonMark interrupt list's spelling), `BULLET_THEMATIC_BREAK`, `DASH_COLUMN_LINE` and `DASH_ONLY_LINE` all read a run as a quantified group, which costs V8's regex stack one entry per repetition (first overflow at 2,097,144 repetitions). Each is literal markers and a one-class tail now; the old spelling is the oracle in `test/unit/thematic-break-equivalence.test.ts` (every string of up to 7 characters, 100,000 seeded lines, a 194,400-line gap grid, 132 near-miss lines of 50,000 characters per pattern) and `pathological-inputs.test.ts` holds the document rows. Mutation: 51 pattern mutants, 49 killed and 2 argued equivalent; 4 wiring mutants, 3 killed and 1 argued equivalent (`tools/mutation-run/mutants/b88-thematic-break*.json`). The review round (5 agents) found two things the first draft missed: ambiguous tails that an enumeration cannot see (so the pin rows time a FAILING long line as well as an accepted one) and a CommonMark interrupt row nothing pinned. A parent-versus-HEAD differential over 342,528 documents found no difference.
+
+**Filed during execution (Session 317):** the BACKLOG item "Nine more single-line overflow and slow-input families, none of them in Session 317's diff" (found by a sweep that ran 32% of its planned grid and a static pass over 540 regex sites; all pre-existing). Not yet counted in the totals above; estimate 3 to 5 more sessions for the group (parts (4) to (9) are part (8)'s class and cheap once a family rule exists; (1) to (3) need a profile first). The sweep's untracked harness is why the first session on it commits a seeded generator (rule P5).
 
 ### g03 — Record hygiene: stale prose, drains, duplicates
 
