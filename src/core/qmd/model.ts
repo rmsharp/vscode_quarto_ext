@@ -6109,8 +6109,13 @@ const COMMONMARK_HTML_TYPE1_CLOSE = /<\/(?:pre|script|style|textarea)>/i;
  * (1 the run, 2 the char) — compared on every string up to 7 characters over a 7-character
  * alphabet, 3.8 million comparisons, groups included — and its literal runs loop without a
  * stack. Do not "simplify" it back.
+ *
+ * ⚠ **THE RUN ENDS IN A LOOKAHEAD, `(?!`)` OR `(?!~)`, AND THAT IS WHAT KEEPS A LINE THE PATTERN REFUSES LINEAR (Session 318).** `.` stops at a CR, U+2028 and U+2029, so a line that
+ * holds one after the run can never match `(.*)$`; without the lookahead the engine finds that out once per way of splitting the run, giving it up one character at a time while `(.*)`
+ * re-reads what it gave back: 32,000 backticks then CR took 1.2 s, 100,000 took 12 s. With it, a shorter run is refused at once because a fence character follows. A match is unchanged:
+ * the run was already the longest one, since the first try is the only one that can succeed. Do not drop it as redundant.
  */
-const FENCE_OPEN = /^[ \t]*((?=([`~]))(?:`{3,}|~{3,}))(.*)$/;
+const FENCE_OPEN = /^[ \t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;
 /**
  * Quarto's OWN cell opener, whose leading whitespace is **unbounded** — `^\s*`, tabs
  * included — where CommonMark's fence rule, and so `FENCE_OPEN` above, caps it at 3
@@ -6125,7 +6130,7 @@ const FENCE_OPEN = /^[ \t]*((?=([`~]))(?:`{3,}|~{3,}))(.*)$/;
  * `computeRegions` reaches this pattern only after `FENCE_OPEN` has declined AND the info
  * string parses as a cell. See `CELL_FENCE_CLOSE` for the matching closer rule.
  */
-const INDENTED_CELL_FENCE_OPEN = /^\s*((?=(`))`{3,})(.*)$/; // the run without a back-reference: see `FENCE_OPEN`
+const INDENTED_CELL_FENCE_OPEN = /^\s*((?=(`))`{3,}(?!`))(.*)$/; // the run without a back-reference, ending in a lookahead: see `FENCE_OPEN`
 /**
  * A closing fence: leading whitespace of either kind, ≥3 of one fence char only, optional
  * trailing space. Its indent is decided by `fenceMatchAt` exactly as the opener's is, and

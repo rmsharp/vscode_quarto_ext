@@ -655,3 +655,19 @@ describe("Session 317 — a single line of two million or more thematic-break ch
     expect(ms).toBeLessThan(1000);
   });
 });
+
+describe("Session 318 — a single line that is a long run of fence characters followed by a CR or a line separator", () => {
+  // `FENCE_OPEN` and `INDENTED_CELL_FENCE_OPEN` read `` `{3,} `` and then `(.*)$`, and `.` stops at a CR, U+2028 and U+2029. A line holding one of them after the run can never match, but the
+  // engine finds that out once per way of splitting the run: it gives the run up one character at a time and `(.*)` re-reads what was given back, which is quadratic (the BACKLOG item "What is
+  // still quadratic or deep enough to overflow after Session 311", part (7): 32,000 backticks then CR took 1.2 s, 64,000 took 4.9 s). A lone CR is the form that reaches a line: a CRLF is
+  // split off before any pattern runs. 100,000 characters take about 12 s read that way and a few milliseconds read linearly, so the 1 s limit has a wide margin both ways.
+  const run = (unit: string, characters: number): string => unit.repeat(Math.ceil(characters / unit.length));
+  const bodyLine = (line: string): string => `Intro.\n\n${line}\n\n# H\n`;
+
+  it("a body line of 100,000 backticks and then a CR is read by the Outline in linear time, and like a shorter run of the same shape", () => {
+    const shorter = findHeadings(bodyLine(`${run("`", 2000)}\rx`)).map((h) => h.text);
+    const { result, ms } = timed(() => findHeadings(bodyLine(`${run("`", 100_000)}\rx`)).map((h) => h.text));
+    expect(result).toEqual(shorter);
+    expect(ms).toBeLessThan(1000);
+  });
+});
