@@ -586,3 +586,54 @@ describe("Session 314 — thousands of sibling keys under a nested front matter 
     expect(ms).toBeLessThan(1000);
   });
 });
+
+describe("Session 317 — a single line of two million or more thematic-break characters", () => {
+  // The thematic-break patterns read the run as a QUANTIFIED GROUP, `(-[ \t]*){3,}` (and the `*` and `_` spellings), and V8 keeps one entry of its regex
+  // backtrack stack per repetition of a group: 2,000,000 characters of `-`, `*` or `_` are read, 2,100,000 overflow the stack and `test` throws
+  // `RangeError: Maximum call stack size exceeded` (measured, Session 317). It is thrown from `scanRegions` (here through `opensFreshBlock`), so EVERY reader
+  // of the document (the Outline, the front matter, the engine resolver, the label index) answers nothing for it: the same class as the five million
+  // backticks of Session 311, in another pattern (the BACKLOG item "What is still quadratic or deep enough to overflow after Session 311", part (8)).
+  const run = (unit: string, characters: number): string => unit.repeat(Math.ceil(characters / unit.length));
+  const bodyLine = (line: string): string => `Intro.\n\n${line}\n\n# H\n`;
+
+  // 2,100,000 is the BACKLOG item's figure; 4,500,000 clears the second family, the non-capturing `(?:-[ \t]*){3,}` of `BULLET_THEMATIC_BREAK`, which overflows
+  // later (about 3,360,000 characters) because each repetition costs it a smaller entry.
+  for (const characters of [2_100_000, 4_500_000]) {
+    it.each(["-", "*", "_"])(`a body line of ${characters.toLocaleString("en-US")} \`%s\` is read by the Outline without throwing, and like a shorter run of the same shape`, (mark) => {
+      const shorter = findHeadings(bodyLine(run(mark, 2000))).map((h) => h.text);
+      let found: string[] = [];
+      expect(() => {
+        found = findHeadings(bodyLine(run(mark, characters))).map((h) => h.text);
+      }).not.toThrow();
+      expect(found).toEqual(shorter);
+    });
+  }
+
+  // Under a `from: commonmark` reader a line directly below a paragraph is tested against `COMMONMARK_PARAGRAPH_INTERRUPT`, which spells the break a third way
+  // (`^[ \t]*` indent, not ` {0,3}`) and was the same quantified group. `-` is left out: directly under a paragraph a run of dashes is its setext underline.
+  const underParagraph = (line: string): string => `---\nfrom: commonmark\n---\n\nIntro.\n${line}\n# H\n`;
+
+  for (const characters of [2_100_000, 4_500_000]) {
+    it.each(["*", "_"])(`a line of ${characters.toLocaleString("en-US")} \`%s\` directly under a paragraph of a from: commonmark document is read without throwing, and like a shorter run`, (mark) => {
+      const shorter = findHeadings(underParagraph(run(mark, 2000))).map((h) => h.text);
+      let found: string[] = [];
+      expect(() => {
+        found = findHeadings(underParagraph(run(mark, characters))).map((h) => h.text);
+      }).not.toThrow();
+      expect(found).toEqual(shorter);
+    });
+  }
+
+  // A break spelled with blanks between the markers is a different run of the same bytes: `- - - -` is the column line of a pandoc simple table, a bullet-spelled break, or
+  // a ONE-column table's dash line when indented, so `DASH_COLUMN_LINE` and `DASH_ONLY_LINE` read it with a group per dash run, `(?:[ \t]+-+)+`. The item cites 4.5 million
+  // characters of `- `, which is 2,250,000 repetitions.
+  const SPACED_UNITS = ["- ", "-\t", " -", "* ", "_ "];
+  it.each(SPACED_UNITS)("a body line of 4,500,000 characters of %j is read by the Outline without throwing, and like a shorter run of the same shape", (unit) => {
+    const shorter = findHeadings(bodyLine(run(unit, 2000))).map((h) => h.text);
+    let found: string[] = [];
+    expect(() => {
+      found = findHeadings(bodyLine(run(unit, 4_500_000))).map((h) => h.text);
+    }).not.toThrow();
+    expect(found).toEqual(shorter);
+  });
+});

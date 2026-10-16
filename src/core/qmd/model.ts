@@ -1102,8 +1102,11 @@ const BARE_BULLET_TAIL = /^[-*+][ \t]*$/;
  * one. It is reached only for a line that already matched `BULLET_LIST_MARKER`, so the `_` break
  * spelling and the run-together `---` / `***` spellings never come here — and `---` reaching here
  * would be actively wrong, since that IS this model's setext underline.
+ *
+ * ⚠ Three literal markers and a one-class tail, NOT `(?:-[ \t]*){3,}` (Session 317): a quantified group costs V8's regex backtrack stack one entry per repetition, and a line of about
+ * 3,360,000 `-` or `*` overflowed it and `test` threw `RangeError`, from `scanRegions`. See `THEMATIC_BREAK`, which is spelled the same way.
  */
-const BULLET_THEMATIC_BREAK = /^[ \t]*(?:-[ \t]*){3,}$|^[ \t]*(?:\*[ \t]*){3,}$/;
+export const BULLET_THEMATIC_BREAK = /^[ \t]*(?:-[ \t]*-[ \t]*-[ \t-]*|\*[ \t]*\*[ \t]*\*[ \t*]*)$/;
 /**
  * The ORDERED half of the one list-item marker grammar (`LIST_ITEM_MARKER_SRC`, Session 246),
  * named here so the strip below can ask for an ordered marker ALONE without respelling the
@@ -4201,8 +4204,20 @@ const SETEXT_UNDERLINE_RUN = /^(?:=+|-+)[ \t]*$/;
  * applies. It is stated here rather than folded into either because `CLOSES_PARAGRAPH`'s
  * remaining rows are UNMEASURED against an open paragraph — gating the whole list would be
  * the heading-deleting direction on nine rows nobody has scored.
+ *
+ * ⚠ **Spelled as three literal markers and a tail, NOT as a quantified group (Session 317).** `(-[ \t]*){3,}` (and the `*` and `_` spellings)
+ * costs V8's regex backtrack stack one entry per repetition, so a line of 2^21 = 2,097,152 or more `-`, `*` or `_` overflowed it and `test` threw
+ * `RangeError: Maximum call stack size exceeded`, from `scanRegions`. `-[ \t]*-[ \t]*-[ \t-]*` matches the same strings (three markers with blanks
+ * between them, then any run of markers and blanks), and a tail that is one character class is a loop V8 runs without a stack entry per character.
+ * `OPENS_FRESH_BLOCK` reads this same constant, so the two cannot spell it two ways (Learning #14). The old group spelling is kept as the oracle, with the other four patterns of
+ * this family, in `test/unit/thematic-break-equivalence.test.ts`.
  */
-const THEMATIC_BREAK = /^ {0,3}((\*[ \t]*){3,}|(-[ \t]*){3,}|(_[ \t]*){3,})$/;
+export const THEMATIC_BREAK =/^ {0,3}(?:\*[ \t]*\*[ \t]*\*[ \t*]*|-[ \t]*-[ \t]*-[ \t-]*|_[ \t]*_[ \t]*_[ \t_]*)$/;
+/**
+ * A thematic break at ANY indent: `THEMATIC_BREAK` with `^[ \t]*` for its ` {0,3}`, as `COMMONMARK_PARAGRAPH_INTERRUPT` spells it (the function that runs that list decides what an
+ * indent of four or more means). The same three markers and a one-class tail, for the same reason (Session 317).
+ */
+export const THEMATIC_BREAK_ANY_INDENT = /^[ \t]*(?:\*[ \t]*\*[ \t]*\*[ \t*]*|-[ \t]*-[ \t]*-[ \t-]*|_[ \t]*_[ \t]*_[ \t_]*)$/;
 /**
  * A raw TeX ENVIRONMENT delimiter — `\begin{…}` / `\end{…}`.
  *
@@ -5722,7 +5737,7 @@ const LINK_REFERENCE_DEFINITION = /^ {0,3}\[[^\^\]][^\]]*\]:/;
  * lost — a true positive nothing in this file was looking for.
  */
 const OPENS_FRESH_BLOCK: readonly RegExp[] = [
-  /^ {0,3}((\*[ \t]*){3,}|(-[ \t]*){3,}|(_[ \t]*){3,})$/, //  a thematic break
+  THEMATIC_BREAK, //                                         a thematic break
   LINK_REFERENCE_DEFINITION, //                              a link-reference definition — NOT `[^1]:`
   /^ {0,3}\|/, //                                            a pipe-table ROW; a bare `a | b` is prose
   /^ {0,3}#{1,6}[ \t]*$/, //                                 a bare `##` — an EMPTY heading to pandoc
@@ -5908,7 +5923,7 @@ const COMMONMARK_PARAGRAPH_INTERRUPT: readonly RegExp[] = [
   /^[ \t]*#{1,6}([ \t]|$)/, //                             an ATX heading — `#x` is NOT one
   /^[ \t]*(`{3,}|~{3,})/, //                               a fence, either char, any length
   /^[ \t]*>/, //                                           a block quote, space or not
-  /^[ \t]*((\*[ \t]*){3,}|(-[ \t]*){3,}|(_[ \t]*){3,})$/, // a thematic break
+  THEMATIC_BREAK_ANY_INDENT, //                            a thematic break
   /^[ \t]*[-*+][ \t]+\S/, //                               a NON-EMPTY bullet item
   /^[ \t]*1[.)][ \t]+\S/, //                               a non-empty ordered item, AT 1 ONLY
   /^[ \t]*\(1\)[ \t]+\S/, //                               pandoc's PAREN-WRAPPED one, likewise
@@ -13279,10 +13294,13 @@ const LINEBLOCKISH = (l: string): boolean => LINE_BLOCK_START.test(l) || /^[ \t]
 /**
  * A run of dashes separated by blanks, at least two runs (`- - -`, `-  -  -`): the column line of a simple table, and a bullet-spelled thematic break to pandoc's `hrule`; or ONE run indented one to three
  * columns (` ---`), which a column-0 run is not (that is a setext underline or a break) and which pandoc reads as the dash line of a ONE-column table (Session 298, rendered `review3b/tables/r3b_008`-`011`).
+ *
+ * ⚠ The first alternative is a dash run, a blank run, a dash, then any dashes and blanks: NOT a group per dash run, `(?:[ \t]+-+)+` (Session 317). A quantified group costs V8's regex backtrack
+ * stack one entry per repetition, and a line of about a million `- ` overflowed it and `test` threw `RangeError`, from `scanRegions`. Both spellings match the same strings (two dash runs or more).
  */
-const DASH_COLUMN_LINE = /^ {0,3}-+(?:[ \t]+-+)+[ \t]*$|^ {1,3}-+[ \t]*$/;
-/** A line made only of dashes and blanks: a simple table's rule, a setext underline or a thematic break. */
-const DASH_ONLY_LINE = /^ {0,3}-+(?:[ \t]+-+)*[ \t]*$/;
+export const DASH_COLUMN_LINE = /^ {0,3}-+[ \t]+-[ \t-]*$|^ {1,3}-+[ \t]*$/;
+/** A line made only of dashes and blanks: a simple table's rule, a setext underline or a thematic break. Spelled as a dash and a one-class tail for the reason `DASH_COLUMN_LINE` gives (Session 317). */
+export const DASH_ONLY_LINE = /^ {0,3}-[ \t-]*$/;
 /**
  * Whether the line at `y` is a link-reference definition pandoc ACCEPTS (Session 298, round-3b, rendered `review3b/codes/r3b_001`-`008`; the prefix test `LINK_REFERENCE_DEFINITION` is the first half). Pandoc's
  * grammar is wide: the URL may sit on the next line (a bare `[a]:` over any line that does not start with `[`), unquoted junk after the URL is part of it (`[a]: /u x y`), and an unclosed quote is junk too. It
