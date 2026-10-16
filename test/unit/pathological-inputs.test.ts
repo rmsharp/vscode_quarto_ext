@@ -670,4 +670,12 @@ describe("Session 318 — a single line that is a long run of fence characters f
     expect(result).toEqual(shorter);
     expect(ms).toBeLessThan(1000);
   });
+
+  // The fenced-div fence is the same shape: `DIV_FENCE` reads `:{3,}` and then `[ \t]*(.*)$`, and it is tried on every line that reaches `divFenceRole` and on the interrupt list.
+  it("a body line of 100,000 colons and then a CR is read by the Outline in linear time, and like a shorter run of the same shape", () => {
+    const shorter = findHeadings(bodyLine(`${run(":", 2000)}\rx`)).map((h) => h.text);
+    const { result, ms } = timed(() => findHeadings(bodyLine(`${run(":", 100_000)}\rx`)).map((h) => h.text));
+    expect(result).toEqual(shorter);
+    expect(ms).toBeLessThan(1000);
+  });
 });

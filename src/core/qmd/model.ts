@@ -4313,8 +4313,12 @@ const LIST_MARKER_PREFIX = /^ {0,3}(?:[-*+]|\d{1,9}[.)])[ \t]+/;
  * rendered). Which columns are legal is `divFenceRole`'s caller's question, because only it
  * knows the container stack; a line at CODE DEPTH is filtered there too, so a four-space
  * `:::` at the top level stays the indented code block it has always been (`r1/k10`).
+ *
+ * ⚠ **THE COLON RUN ENDS IN A LOOKAHEAD, `(?!:)` (Session 318), for the reason `FENCE_OPEN` gives:** a CR, U+2028 or U+2029 after the run makes `(.*)$` fail, and without the lookahead the
+ * engine retries it once per way of splitting the run (100,000 colons then CR took 12 s). The blanks after the run are NOT guarded: `:::` followed by a long blank run and a CR is still
+ * quadratic, and is part (5) of the BACKLOG item "Other regexes still quadratic on a long run of blanks, CR or U+2028", which owns the rule for every `[ \t]+(.*)$`.
  */
-const DIV_FENCE = /^[ \t]*:{3,}[ \t]*(.*)$/;
+export const DIV_FENCE = /^[ \t]*:{3,}(?!:)[ \t]*(.*)$/;
 /**
  * A mid-document YAML metadata block's `...` terminator, on its own line (Session 226). The
  * same spelling `CLOSER_LINE` and `CLOSES_PARAGRAPH` each carry, named here because the caller
@@ -6115,7 +6119,7 @@ const COMMONMARK_HTML_TYPE1_CLOSE = /<\/(?:pre|script|style|textarea)>/i;
  * re-reads what it gave back: 32,000 backticks then CR took 1.2 s, 100,000 took 12 s. With it, a shorter run is refused at once because a fence character follows. A match is unchanged:
  * the run was already the longest one, since the first try is the only one that can succeed. Do not drop it as redundant.
  */
-const FENCE_OPEN = /^[ \t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;
+export const FENCE_OPEN = /^[ \t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;
 /**
  * Quarto's OWN cell opener, whose leading whitespace is **unbounded** — `^\s*`, tabs
  * included — where CommonMark's fence rule, and so `FENCE_OPEN` above, caps it at 3
@@ -6130,7 +6134,7 @@ const FENCE_OPEN = /^[ \t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;
  * `computeRegions` reaches this pattern only after `FENCE_OPEN` has declined AND the info
  * string parses as a cell. See `CELL_FENCE_CLOSE` for the matching closer rule.
  */
-const INDENTED_CELL_FENCE_OPEN = /^\s*((?=(`))`{3,}(?!`))(.*)$/; // the run without a back-reference, ending in a lookahead: see `FENCE_OPEN`
+export const INDENTED_CELL_FENCE_OPEN = /^\s*((?=(`))`{3,}(?!`))(.*)$/; // the run without a back-reference, ending in a lookahead: see `FENCE_OPEN`
 /**
  * A closing fence: leading whitespace of either kind, ≥3 of one fence char only, optional
  * trailing space. Its indent is decided by `fenceMatchAt` exactly as the opener's is, and
