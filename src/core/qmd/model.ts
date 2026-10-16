@@ -4315,7 +4315,8 @@ const LIST_MARKER_PREFIX = /^ {0,3}(?:[-*+]|\d{1,9}[.)])[ \t]+/;
  * `:::` at the top level stays the indented code block it has always been (`r1/k10`).
  *
  * ⚠ **THE COLON RUN ENDS IN A LOOKAHEAD, `(?!:)` (Session 318), for the reason `FENCE_OPEN` gives:** a CR, U+2028 or U+2029 after the run makes `(.*)$` fail, and without the lookahead the
- * engine retries it once per way of splitting the run (100,000 colons then CR took 12 s). The blanks after the run are NOT guarded: `:::` followed by a long blank run and a CR is still
+ * engine retries it once per way of splitting the run (one `exec` of the old spelling took 6 s on 100,000 colons then CR, and `divFenceRole` runs it twice, on the line and again with a list or
+ * quote marker stripped, so a document took 12 s). The blanks after the run are NOT guarded: `:::` followed by a long blank run and a CR is still
  * quadratic, and is part (5) of the BACKLOG item "Other regexes still quadratic on a long run of blanks, CR or U+2028", which owns the rule for every `[ \t]+(.*)$`.
  */
 export const DIV_FENCE = /^[ \t]*:{3,}(?!:)[ \t]*(.*)$/;
@@ -6116,8 +6117,9 @@ const COMMONMARK_HTML_TYPE1_CLOSE = /<\/(?:pre|script|style|textarea)>/i;
  *
  * ⚠ **THE RUN ENDS IN A LOOKAHEAD, `(?!`)` OR `(?!~)`, AND THAT IS WHAT KEEPS A LINE THE PATTERN REFUSES LINEAR (Session 318).** `.` stops at a CR, U+2028 and U+2029, so a line that
  * holds one after the run can never match `(.*)$`; without the lookahead the engine finds that out once per way of splitting the run, giving it up one character at a time while `(.*)`
- * re-reads what it gave back: 32,000 backticks then CR took 1.2 s, 100,000 took 12 s. With it, a shorter run is refused at once because a fence character follows. A match is unchanged:
- * the run was already the longest one, since the first try is the only one that can succeed. Do not drop it as redundant.
+ * re-reads what it gave back: one `exec` of the old spelling took 0.6 s on 32,000 backticks then CR and 6 s on 100,000, and a document read the line with two patterns (this one and
+ * `INDENTED_CELL_FENCE_OPEN`): 1.2 s and 12 s. The CR is one that does not start a CRLF, which is split off before any pattern runs. With the lookahead, a shorter run is refused at once
+ * because a fence character follows. A match is unchanged: the run was already the longest one, since the first try is the only one that can succeed. Do not drop it as redundant.
  */
 export const FENCE_OPEN = /^[ \t]*((?=([`~]))(?:`{3,}(?!`)|~{3,}(?!~)))(.*)$/;
 /**

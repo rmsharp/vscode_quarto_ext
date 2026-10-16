@@ -3,7 +3,7 @@ import { DIV_FENCE, FENCE_OPEN, INDENTED_CELL_FENCE_OPEN } from "../../src/core/
 
 // Session 318 — the BACKLOG item "What is still quadratic or deep enough to overflow after Session 311", part (7). `FENCE_OPEN`, `INDENTED_CELL_FENCE_OPEN` and `DIV_FENCE` read a run of fence
 // characters and then `(.*)$`, and `.` stops at a CR, U+2028 and U+2029: a line that holds one after the run can never match, and the engine used to find that out once per way of splitting the run
-// (quadratic: 100,000 backticks then CR took 12 s; `pathological-inputs.test.ts` has the documents). Each run now ends in a lookahead, `(?!`)`, `(?!~)` or `(?!:)`, so a shorter run is refused at
+// (quadratic: a document with 100,000 backticks then CR took 12 s to read; `pathological-inputs.test.ts` has the documents). Each run now ends in a lookahead, `(?!`)`, `(?!~)` or `(?!:)`, so a shorter run is refused at
 // once. The cure is only sound if the new pattern answers what the old one answered on EVERY line, GROUPS INCLUDED (the callers read the run, the character and the info string), so the old
 // spelling is kept here as the oracle (Learning 738).
 
@@ -80,8 +80,13 @@ describe("Session 318 — the fence-run patterns answer what their unguarded spe
     expect(Object.keys(NEW).sort()).toEqual(Object.keys(OLD).sort());
   });
 
-  // The three fence characters, a blank, a tab, a CR, a line separator and a letter: eight characters, strings of up to seven. Seven reach a two-blank indent, a run of three, a terminator and a letter,
-  // which is the shortest string that tells a guard that stops at the longest run from one that does not.
+  // The oracle is the UNGUARDED spelling. A later "tidy-up" that added the lookahead to this table would turn every comparison below into the new pattern against itself.
+  it.each(Object.keys(OLD))("the oracle for %s is the spelling without the lookahead", (name) => {
+    expect(OLD[name].source).not.toContain("(?!");
+  });
+
+  // The three fence characters, a blank, a tab, a CR, a line separator and a letter: eight characters, strings of up to seven. Seven reach a two-blank indent, a run of three, a terminator and a letter.
+  // No answer differs with or without the lookahead, so no string tells them apart (the 50,000-character rows below, which time the pattern, do); what the enumeration pins is every OTHER answer.
   const SHORT = ["`", "~", ":", " ", "\t", "\r", LS, "x"];
   // How many of the strings each OLD pattern accepts, counted from the old spelling alone (and checked against a brute-force reading of the definition: blanks, a run of three or more of one
   // character, and a rest with no terminator): the comparison below cannot pass by both sides refusing everything.
@@ -136,9 +141,9 @@ describe("Session 318 — the fence-run patterns answer what their unguarded spe
     expect(accepted).toBe(ACCEPTED_SEEDED[name]);
   }, 120_000);
 
-  // The enumeration cannot see cost. The old spelling is quadratic on exactly the lines it refuses, so the answers are compared at 1,000 characters (a few milliseconds for the old spelling) and the NEW
-  // pattern is timed on the same shapes at 50,000 (about 3 s for the old one, well under 1 ms for the new): a lookahead that goes missing, guards the wrong character, or sits after a group that
-  // re-reads the tail passes every comparison and fails the clock.
+  // The enumeration cannot see cost. The old spelling is quadratic on many of the lines it refuses (a long run, a long indent, runs of two characters; not a run of terminators or many short runs), so
+  // the answers are compared at 1,000 characters (a few milliseconds for the old spelling) and the NEW pattern is timed on the same shapes at 50,000 (seconds a line for the old one, a millisecond
+  // or two for the new): a lookahead that goes missing, guards the wrong character, or sits after a group that re-reads the tail passes every comparison and fails the clock.
   const OTHER: Record<string, string> = { "`": "~", "~": "`", ":": "`" };
   type Shape = { what: string; build: (n: number, unit: string, term: string, blank: string) => string; blankTail?: boolean };
   const SHAPES: Shape[] = [
@@ -229,5 +234,55 @@ describe("Session 318 — the fence-run patterns answer what their unguarded spe
     expect(disagreements).toEqual([]);
     expect(compared).toBe(6 * UNITS[name].length * RUNS.length * GAPS.length * 2 * TAILS.length);
     expect(accepted).toBe(ACCEPTED_GRID[name]);
+  }, 120_000);
+
+  // Every comparison above stops at 1,000 characters or at a gap of 100, and the 50,000-character lines are only timed. A CAP on a run, an indent or the rest (`{3,4096}`, `[ \t]{0,4096}`: the
+  // obvious other cure for a quadratic regex) would answer all of them as before and refuse a line the old spelling accepts. So a line each pattern ACCEPTS is compared here at 5,000, 50,000 and
+  // 200,000 characters: the old spelling is linear on a line it accepts, so it stays the oracle. Every line is one it accepts, or both sides could be refusing.
+  function* longAcceptedLines(name: string): Generator<string> {
+    for (const n of [5_000, 50_000, 200_000]) {
+      for (const unit of UNITS[name]) {
+        for (const info of ["", " r", "{r}", "x y", "r".repeat(n)]) {
+          yield unit.repeat(n) + info;
+          for (const blank of BLANKS[name]) {
+            yield blank.repeat(n) + unit.repeat(3) + info;
+            yield blank.repeat(n) + unit.repeat(n) + info;
+          }
+        }
+      }
+    }
+  }
+
+  it.each(Object.keys(OLD))("%s answers each line it accepts, of 5,000 to 200,000 characters, like the old spelling, groups included", (name) => {
+    const { compared, accepted, disagreements } = compare(name, longAcceptedLines(name));
+    expect(disagreements).toEqual([]);
+    expect(compared).toBeGreaterThan(0);
+    expect(accepted).toBe(compared);
+  }, 120_000);
+
+  // The blanks and the prefixes none of the alphabets above hold. `\s` is wider than `[ \t]`: a vertical tab, a byte order mark, an ideographic space and an em space are in it, a next-line
+  // character (U+0085) is not; and a list marker or a quote mark in front of a run is NOT part of the pattern (a caller strips it). Five characters over twelve, then six over eight.
+  const BOM = String.fromCharCode(0xfeff);
+  const IDEOGRAPHIC = String.fromCharCode(0x3000);
+  const EM_SPACE = String.fromCharCode(0x2003);
+  const NEL = String.fromCharCode(0x85);
+  const EXOTIC = ["`", "~", ":", " ", "\t", "\v", BOM, IDEOGRAPHIC, EM_SPACE, NEL, "\r", "x"];
+  const ACCEPTED_EXOTIC: Record<string, number> = { FENCE_OPEN: 322, INDENTED_CELL_FENCE_OPEN: 266, DIV_FENCE: 161 }; // counted from the OLD spellings and checked by a regex-free reader
+
+  it.each(Object.keys(OLD))("%s agrees, groups included, on every string of up to 5 characters over a vertical tab, a byte order mark, an ideographic space, an em space and a next-line character", (name) => {
+    const { compared, accepted, disagreements } = compare(name, everyString(EXOTIC, 5));
+    expect(disagreements).toEqual([]);
+    expect(compared).toBe(271_453);
+    expect(accepted).toBe(ACCEPTED_EXOTIC[name]);
+  }, 120_000);
+
+  const MARKERS = ["-", "*", "1", ".", ">", " ", ":", "`"];
+  const ACCEPTED_MARKERS: Record<string, number> = { FENCE_OPEN: 668, INDENTED_CELL_FENCE_OPEN: 668, DIV_FENCE: 668 }; // the same for all three: this alphabet holds one fence character and one blank
+
+  it.each(Object.keys(OLD))("%s agrees, groups included, on every string of up to 6 characters over a list marker, a quote mark, a digit, a stop, a blank and a fence character", (name) => {
+    const { compared, accepted, disagreements } = compare(name, everyString(MARKERS, 6));
+    expect(disagreements).toEqual([]);
+    expect(compared).toBe(299_593);
+    expect(accepted).toBe(ACCEPTED_MARKERS[name]);
   }, 120_000);
 });
