@@ -126,39 +126,3 @@ again. (6) About eight "have not heard from you" nudges: the review took 35 minu
 parent, 22 to 94 s, and against the one-literal reverts, 8, 6, 2 and 2 rows).
 **Host:** `test:integration` NOT run (core-only change in `src/core`; it takes the screen and nobody was asked); the packaged bundle was grepped for the four new spellings instead. **Cost:** 4 agents (1 workflow), 177 mutant runs, 1.9 billion
 regex comparisons, 16,910 corpus comparisons, one `npm run package`, 0 quarto renders beyond the cached oracle.
-
-## Session 311 Handoff Evaluation (by Session 312)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, gotchas 1 to 8, both ledger frontiers at HEAD (`a34f6e16`, gap 0), the ratchet citation (2/2, results `bba236856bad`), the test
-baseline (10,876 passing in 79 files, exact) and the "Active empty, present candidates" instruction all held at Phase 0, and the numbers of the item I took reproduced: 5.6 s for 8,000 `{#sec-...}` headings (5,611 ms here) and 11.9 s
-for a 100,000-space key (11.2 s).
-**Helped:** `scratchpad/s311/resid.ts` and its README (the build-and-run recipe, one process per shape); `mutate311.py` (copied, plus the failing titles); gotcha 5 (count the mutant result lines) and gotcha 6 (mutation-check a
-harness), both used; gotcha 3 (the Edit tool expands an escape), which made me write every non-ASCII character from a quoted heredoc; the item's own "profile first", which put 98.5% of the key trim in one regex and showed it split
-between two sites.
-**Missing:** that the key trims reach the Outline, cross-reference and workspace-symbol providers through `resolveDocumentEngine` on every request (the mapping agents found it); that a SECOND timing row flakes (Session 308's
-200,000-line row, 2.1 s against 2 s, with four agents measuring); and that `findProjectConfigValueLines` calls `mappingContainerKey` only for a column-0 key.
-**Wrong:** (a) "seven `/[ \t]+$/` trims ... `yaml-context.ts` twice": EIGHT, three of them in `yaml-context.ts` (216, 337, 453); (b) "20,000 headings 22.8 s": that is the 16,000-heading figure (22.3 s and 23.3 s measured; 20,000 is
-about 35 to 39 s); (c) "a book chapter with thousands of section ids reaches it": the cost is headings times lines (8,000 one-line headings take 1.7 s, 8,000 in a 32,000-line chapter 5.6 s). **ROI: high.**
-
-## Session 312 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** I reproduced both defects firsthand, profiled before reading code, and found the key trims were two sites on the resolver's path (fixing one halved the time, both took 12.3 s to 13 ms). Every row was RED first for
-the right reason except where disclosed. Three independent checks agreed with the diff: a read-only agent's scratch prototype was the same 8 lines, a second agent's profile gave the same halves, and the corpus run showed ZERO
-differences over 3,382 documents (after mutation-checking the harness: a wrong label column was seen in 180 documents and a no-op trim in 199). A three-lens review (two workflows, nine agents, about 1.7M subagent tokens, none read
-third-party source) found NO behaviour difference in about 140 million differential cases and seven defects of my tests and record, all fixed; the main one was that 8 of 8 `trimEnd()` swaps survived. Mutation 39 of 39 killed, each
-kill attributed to a test title. Gates: `npm test` 10,913 in 80 files, oracle 2 of 2, `npm run package` DONE (44 files, 1.86 MB), real-document score 2,423 of 2,438 unchanged. Learnings 746 to 753.
-**Went wrong.** (1) A "reach" row for `mappingContainerKey` protected nothing and I shipped it with a note that a mutation pass must decide; the critic decided it. (2) The first test round had no row that pins "space and tab only"
-at any site, the one thing the item warned about in capitals. (3) I copied "20,000 headings 22.8 s" into a test comment without re-measuring, wrote a test title that said "seven characters" for an alphabet that ran to six, and wrote
-a CRLF row that cannot tell `\r?\n` from `\n`. (4) A first RED row called `completionContextAt` with the wrong arguments (null in 5 ms); another "failed in 6 s" because vitest diffed two 100,000-character strings. (5) The sweep
-agent ran 45 minutes and had to be stopped by message, and a reviewer's shell loop kept a core busy for an hour (found when my first mutation pass looked slow): I re-ran the pass and its failing titles now show each kill. (6) Two
-timing rows flaked in three of five full runs and I committed with the failures named in the message and shown to pass alone instead of waiting for a quiet machine; the final run was clean. (7) About ten "have not heard from you"
-nudges during long waits, and three monitors that waited for a result that could not arrive. (8) I re-measured value-side siblings (`asciiTrim`, `knitrChunkHeaderLabel`, the `#|` gap) and filed them with figures rather than fixing
-them: one deliverable.
-**Known residuals (filed):** the BACKLOG items by title: "Other regexes still quadratic on a long run of blanks, CR or U+2028 after Session 312 ..." (1) to (7), and "What is still quadratic or deep enough to overflow after Session
-311 ..." (3) to (9); the earlier Up Next items are untouched.
-**TDD:** RED before GREEN for the label rows (5,868 and 5,701 ms), the helper (`is not a function`), the resolver row (12,276 ms), the `project-yaml.ts` and `yaml-value-flags.ts` rows (6,238, 7,471 and 6,366 ms) and the
-`completionContextAt`, `mappingContainerKey` and `findNestedFrontMatterValueLines` rows (6,147, 6,215 and 6,196 ms). Passed on arrival, disclosed: the CRLF row, the seven "still trims the blanks BEFORE the colon" rows, the nine rows
-of the critic round (eight no-break-space rows and the third alphabet, each killed by its mutant), the column-0 container row (written after the code, killed by its mutant) and the indent-2 reach row it replaced.
-**Host:** `test:integration` NOT run (core-only change in `src/core`; it takes the screen and nobody was asked). Headless instead: unit suite, oracle, corpus identity, mutation, `npm run package`. **Cost:** 9 agents (2 workflows,
-about 1.7M subagent tokens, 502 tool calls), 78 mutant runs, about 140 million differential cases (the reviewer's), one `npm run package`, 0 quarto renders beyond the cached oracle.
