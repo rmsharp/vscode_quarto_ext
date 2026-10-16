@@ -659,10 +659,11 @@ describe("Session 317 — a single line of two million or more thematic-break ch
 describe("Session 318 — a single line that is a long run of fence characters followed by a CR or a line separator", () => {
   // `FENCE_OPEN`, `INDENTED_CELL_FENCE_OPEN` and `DIV_FENCE` read a run of fence characters and then `(.*)$`, and `.` stops at a CR, U+2028 and U+2029. A line holding one of them after the run can
   // never match, but the engine used to find that out once per way of splitting the run: it gave the run up one character at a time and `(.*)` re-read what was given back, which is quadratic (the
-  // BACKLOG item "What is still quadratic or deep enough to overflow after Session 311", part (7): 32,000 backticks then CR took 1.2 s, 64,000 took 4.9 s). A lone CR is the form that reaches a line:
-  // a CRLF is split off before any pattern runs, so the CR is followed by a letter here. 100,000 characters take about 12 s read that way and a few milliseconds read linearly, so the 1 s limit
-  // has a wide margin both ways. The run is read in 7 to 14 contexts that each call a different one of the three patterns (`scratchpad/s318`, a 1,470-shape map: the parent was slow in 564 of 1,134
-  // shapes run so far and the fixed tree in none).
+  // BACKLOG item "What is still quadratic or deep enough to overflow after Session 311", part (7): a document with 32,000 backticks then CR took 1.2 s to read, 64,000 took 4.9 s). A lone CR is the
+  // form that reaches a line: a CRLF is split off before any pattern runs (32,000 backticks then CRLF took 14 ms), so the CR is followed by a letter here. One `exec` of an old pattern on 100,000
+  // backticks took 6 s and a document took 12 s, because a backtick line is tried by two of them; tildes and the colons of a list item are tried by one at a time and take 6 s. Read linearly it is a few
+  // milliseconds, so the 1 s limit has a wide margin both ways. Session 318 timed 1,470 shapes (unit, terminator, 14 contexts, sizes, entry points) in each tree: 760 took 0.5 s or more on the parent
+  // and none on the fixed tree (slowest 41 ms); the map is in the session's notes, not in the repo.
   const LS = String.fromCharCode(0x2028);
   const PS = String.fromCharCode(0x2029);
   const run = (unit: string, characters: number): string => unit.repeat(Math.ceil(characters / unit.length));
@@ -679,9 +680,9 @@ describe("Session 318 — a single line that is a long run of fence characters f
     ["U+2029", PS],
   ];
 
-  it.each(UNITS.flatMap(([unitName, unit]) => TERMINATORS.map(([terminatorName, terminator]) => [unitName, unit, terminatorName, terminator])))(
+  it.each(UNITS.flatMap(([unitName, unit]) => TERMINATORS.map(([terminatorName, terminator]) => [unitName, terminatorName, unit, terminator])))(
     "a body line of 100,000 %s and then %s is read by the Outline in linear time, and like a shorter run of the same shape",
-    (_unitName, unit, _terminatorName, terminator) => {
+    (_unitName, _terminatorName, unit, terminator) => {
       const shorter = findHeadings(bodyLine(`${run(unit, 2000)}${terminator}`)).map((h) => h.text);
       const { result, ms } = timed(() => findHeadings(bodyLine(`${run(unit, 100_000)}${terminator}`)).map((h) => h.text));
       expect(result).toEqual(shorter);
@@ -689,14 +690,17 @@ describe("Session 318 — a single line that is a long run of fence characters f
     },
   );
 
-  // The same line where another caller reads it: indented four columns (`indentedCellFenceAt`, a cell fence quarto still extracts), inside a list item and a block quote (`divFenceRole` strips the
-  // marker and tries the line again), directly under a paragraph of a `from: commonmark` document (the interrupt list) and in a knitr document.
+  // The same line reached by another path. Timing each call on the parent shows that every context below reaches the same call sites, `fenceMatchAt` (`FENCE_OPEN`), `indentedCellFenceAt`
+  // (`INDENTED_CELL_FENCE_OPEN`) and `divFenceRole` (`DIV_FENCE`, on the line and again with a list or quote marker stripped), so the rows guard the PATHS to them and not separate patterns. Only two
+  // differ: in a list item the line's own try fails fast and only the marker-stripped retry is slow (a backtick line there is not slow at all), and above a dash row a simple table's header is
+  // tried against `SIMPLE_TABLE_HEADER_OUTRANKED`, a fourth call site that holds `FENCE_OPEN` and `DIV_FENCE` (not the indented opener).
   const CONTEXTS: [string, (line: string) => string, "knitr" | undefined, string[]][] = [
     ["indented four columns", (line) => `Intro.\n\n    ${line}\n\n# H\n`, undefined, ["`", ":"]],
     ["inside a list item", (line) => `Intro.\n\n- ${line}\n\n# H\n`, undefined, [":"]], // a backtick fence in a list item never reached the slow patterns (measured)
     ["inside a block quote", (line) => `Intro.\n\n> ${line}\n\n# H\n`, undefined, ["`", ":"]],
     ["directly under a paragraph of a from: commonmark document", (line) => `---\nfrom: commonmark\n---\n\nIntro.\n${line}\n# H\n`, undefined, ["`", ":"]],
     ["in a knitr document", bodyLine, "knitr", ["`", ":"]],
+    ["above a dash row, where a simple table's header is tried against the outranked list", (line) => `Intro.\n\n${line}\n ---\n# H\n`, undefined, ["~", ":"]],
   ];
 
   it.each(CONTEXTS.flatMap(([where, build, engine, units]) => units.map((unit) => [where, build, engine, unit] as const)))(
@@ -709,8 +713,8 @@ describe("Session 318 — a single line that is a long run of fence characters f
     },
   );
 
-  // Every other reader of a document goes through the same scan, which `scanRegions` memoizes for the last document it read: each row below therefore reads a document of its own (the intro line
-  // differs), or it would be handed the answer the row before it paid for and pass on the parent without reading the line at all (measured: three of these four did).
+  // Every other reader of a document goes through the same scan, which `scanRegions` memoizes for the last two documents it read (keyed on text, engine and mode): each row below therefore reads a
+  // document of its own (the intro line differs), or it would be handed the answer the row before it paid for and pass on the parent without reading the line at all (measured: three of these four did).
   it.each([
     ["indexLabels", (text: string) => indexLabels(text)],
     ["resolveDocumentEngine", (text: string) => resolveDocumentEngine("a.qmd", text)],
