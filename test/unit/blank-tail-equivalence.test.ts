@@ -6,6 +6,7 @@ import { KEY_LINE } from "../../src/core/qmd/jupyter-kernel";
 import { INDENTED_LINE } from "../../src/core/yaml-context";
 import { isWrongValue } from "../../src/core/yaml-value-check";
 import {
+  ATX_CLOSING,
   ATX_HEADING,
   ATX_HEADING_TIGHT,
   DIV_FENCE,
@@ -201,6 +202,48 @@ const SITES: Record<string, Site> = {
       `   +${"-+".repeat(Math.floor(n / 2))}`,
     ],
   },
+  // Session 320, part (4). An UNANCHORED search whose pattern begins with `[ \t]+`: the engine tried it from every blank inside a run, so a heading with n blanks inside it cost n^2/2 and no hash
+  // was needed (`x`, 32,000 blanks, `y`: 620 ms in one `exec`). The guard asks that the blank before the start is no blank, so only the start of a run is tried; the match is the same one (a match from the
+  // middle of a run implies one from its start, which is further left), and `buildHeading` reads `text.replace(closing, "")`, so the INDEX of the match is part of the answer and `compare` checks it.
+  ATX_CLOSING: {
+    old: /(?:^|[ \t]+)#+[ \t]*$/,
+    now: ATX_CLOSING,
+    guard: "(?<![ \\t])",
+    marks: ["#"],
+    foils: ["\\"],
+    heads: ["x", "#", "##", "x #", "x#", "x ##", " #"],
+    blanks: [" ", "\t"],
+    indents: [" ", "   ", "\t"],
+    shortLength: 8,
+    longIndent: false,
+    acceptedTails: ["#", "##", " #", "# "], // a closing run is a hash run at the end: a letter after the blanks ends it
+    extraLines: (n) => [
+      " ".repeat(n),
+      `${" ".repeat(n)}x`,
+      `${"\t".repeat(n)}x`,
+      `x${" ".repeat(n)}${"#".repeat(n)}${" ".repeat(n)}y`,
+      `x${" ".repeat(n)}${"#".repeat(n)}`,
+      `${"#".repeat(n)}${" ".repeat(n)}y`,
+      `x ${"#".repeat(n)}y`,
+      `${" #".repeat(Math.floor(n / 2))}y`,
+      `${" #".repeat(Math.floor(n / 2))}`,
+      `x${" ".repeat(Math.floor(n / 2))}\t${" ".repeat(Math.floor(n / 2))}y`,
+    ],
+    acceptedLines: (n) => [
+      `x${" ".repeat(n)}#`,
+      `x ${"#".repeat(n)}`,
+      `x ${"#".repeat(n)}${" ".repeat(n)}`,
+      `${" ".repeat(n)}#${" ".repeat(n)}`,
+      `x${"\t".repeat(n)}#`,
+      "#".repeat(n),
+      `${"#".repeat(n)}${" ".repeat(n)}`,
+      `x${" ".repeat(n)}${"#".repeat(n)}${" ".repeat(n)}`,
+      `${" #".repeat(Math.floor(n / 2))}`,
+      // A search is unanchored, so a line it ACCEPTS can hold a long run that fails before the match, and the OLD spelling is quadratic on that run (250 ms at 20,000, 995 ms at 40,000): the first run stops
+      // at 5,000 so the oracle can answer this line at every size. The near-miss lines hold the long failing runs, and the clock row times them.
+      `a${" ".repeat(Math.min(n, 5_000))}b${" ".repeat(n)}#`,
+    ],
+  },
 };
 
 // How many strings of each comparison the OLD spelling accepts, counted from the old spelling alone: no comparison below can pass by both sides refusing everything, and an edit to the oracle moves the count.
@@ -219,6 +262,7 @@ const ACCEPTED: Record<string, { short: number; wide: number; exotic: number; se
   "CELL_OPTION_PREFIX (*": { short: 6468, wide: 554, exotic: 1385, seeded: 8582, grid: 480 },
   PIPE_DELIMITER_ROW: { short: 3695, wide: 995, exotic: 995, seeded: 12128, grid: 1466 },
   TABLE_RULE_ROW: { short: 25385, wide: 23341, exotic: 16270, seeded: 32842, grid: 6974 },
+  ATX_CLOSING: { short: 448674, wide: 3981, exotic: 3981, seeded: 7510, grid: 944 },
   BIBLIOGRAPHY_ITEM_LINE: { short: 171156, wide: 31144, exotic: 26418, seeded: 60899, grid: 2240 },
   SEQUENCE_ITEM_LINE: { short: 18662, wide: 1170, exotic: 2928, seeded: 7387, grid: 144 },
   JUPYTER_KEY_LINE: { short: 49977, wide: 5744, exotic: 6692, seeded: 29662, grid: 3504 },

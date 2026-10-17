@@ -926,6 +926,17 @@ describe("Session 320 — a long run of blanks in a rule row or a closing run", 
     { site: "TABLE_RULE_ROW, the pipe body (`-:`, blanks, a letter)", build: (blanks) => `Intro of the pipe rule row and a colon.\n\n-:${blanks}x\n\n# H\n`, read: headings, answer: () => ["H"] },
     { site: "TABLE_RULE_ROW, the grid body (`+`, blanks, a letter)", build: (blanks) => `Intro of the grid rule row.\n\n+${blanks}x\n\n# H\n`, read: headings, answer: () => ["H"] },
     { site: "TABLE_RULE_ROW, the grid body (`+`, blanks, a lone CR and a letter)", build: (blanks) => `Intro of the grid rule row and a CR.\n\n+${blanks}\rx\n\n# H\n`, read: headings, answer: () => ["H"] },
+    // ATX_CLOSING is the closing run of the CommonMark-family readers (`from: gfm`, `commonmark`, `commonmark_x`): an UNANCHORED search that begins with `[ \t]+`, so it was retried from every blank of
+    // a run inside the heading text. 100,000 blanks in a heading took 6 s on the parent. The pandoc readers use another spelling (`markdown` is the control row: linear before and after).
+    ...(["gfm", "commonmark", "commonmark_x"] as const).map((from): Row => ({
+      site: `ATX_CLOSING under from: ${from} (a heading with a long blank run inside it)`,
+      build: (blanks) => `---\nfrom: ${from}\n---\n\nIntro of the closing run under ${from}.\n\n# a${blanks}b\n\n# H\n`,
+      read: headings,
+      answer: (blanks) => [`a${blanks}b`, "H"],
+    })),
+    { site: "ATX_CLOSING under from: gfm (a heading that ends in a long blank run)", build: (blanks) => `---\nfrom: gfm\n---\n\nIntro of the closing run and a trailing run.\n\n# a${blanks}\n\n# H\n`, read: headings, answer: () => ["a", "H"] },
+    { site: "ATX_CLOSING under from: gfm (a hash, a long blank run, then a letter)", build: (blanks) => `---\nfrom: gfm\n---\n\nIntro of the closing run after a hash.\n\n# a #${blanks}b\n\n# H\n`, read: headings, answer: (blanks) => [`a #${blanks}b`, "H"] },
+    { site: "the pandoc readers' closing run (control: `markdown`, a heading with a long blank run inside it)", build: (blanks) => `---\nfrom: markdown\n---\n\nIntro of the pandoc closing run.\n\n# a${blanks}b\n\n# H\n`, read: headings, answer: (blanks) => [`a${blanks}b`, "H"] },
   ];
 
   it.each(ROWS.map((row) => [row.site, row] as const))("%s: 100,000 blanks are read in linear time, and the answer is the short run's", (_site, row) => {

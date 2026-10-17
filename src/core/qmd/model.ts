@@ -272,8 +272,13 @@ const COMMONMARK_LIST_MARKER = /^[ \t]*(?:[-+*]|\d{1,9}[.)])(?:[ \t]|$)/;
  * markdown family** (Session 215; the docstring's own claim is what `BACKLOG` filed). See
  * `ATX_CLOSING_PANDOC` below for the six readers that do not require the space, and
  * `atxClosingRun` for the gate between them.
+ *
+ * ⚠ **A search starts only at the beginning of a run of blanks (Session 320).** This is an unanchored search that used to begin with `[ \t]+`, so a heading with n blanks inside it was tried from
+ * every one of them and each try read the rest of the run (`x`, 32,000 blanks, `y`: 620 ms in one `exec`; no hash needed). The match that `text.replace` removes is the leftmost one, and a match from
+ * the middle of a run always implies one from its first blank, which is further left, so `(?<![ \t])` loses no match and moves none: the index and the match are the same on every string
+ * (`blank-tail-equivalence.test.ts` holds the old spelling as the oracle). `ATX_CLOSING_PANDOC` has its own quadratic, on a long `#` run, filed apart.
  */
-const ATX_CLOSING = /(?:^|[ \t]+)#+[ \t]*$/;
+export const ATX_CLOSING = /(?:^|(?<![ \t])[ \t]+)#+[ \t]*$/;
 /**
  * The same closing sequence for the pandoc `markdown*` family, which does **not** require a space
  * before it: `# Cal Learning C#` renders `<h1>Cal Learning C</h1>` (Session 215).
