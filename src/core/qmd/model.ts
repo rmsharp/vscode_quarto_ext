@@ -124,8 +124,15 @@ export interface OutlineSymbol {
  * are unchanged and `parseHeadingLine` still reads them — `m[1].length` counts `#`, not
  * whitespace, so it is not the character-counting bug Sessions 194–197 removed from six other
  * sites.
+ *
+ * ⚠ **`(?=[ \t].*$)` ASKS ONCE, UP FRONT, THAT A BLANK FOLLOWS AND THE REST OF THE LINE HOLDS NO TERMINATOR (Session 319); it is not `(?![ \t])` after the run, and it must not move.** `.` stops at a CR,
+ * U+2028 and U+2029, so a line with one after the blanks can never match, and without the lookahead the engine found that out once per way of splitting the blanks (100,000 blanks then CR: 6 s
+ * in one `exec`, 12 s for a table header, which is tried a second time against `SIMPLE_TABLE_HEADER_OUTRANKED`). The lookahead holds on every line the old pattern matched (everything it consumes
+ * is a blank, a `#` or `.`, and `$` is the end of the input), so a line without a terminator takes the old path and answers the same, groups included. The idiom Sessions 318 and 319 use elsewhere,
+ * `(?![ \t])` after the run, is NOT exact here: `(.+)` must find a character, so `#` and three blanks matches by giving one blank back, with the blank as the text, and `buildHeading` and the
+ * scanner's ATX state both see that match. `(?=` placed after the run would be exact and still quadratic (it is re-read for every split). `blank-tail-equivalence.test.ts` holds the old spelling.
  */
-const ATX_HEADING = /^[ \t]*(#{1,6})[ \t]+(.+)$/;
+export const ATX_HEADING = /^[ \t]*(#{1,6})(?=[ \t].*$)[ \t]+(.+)$/;
 /**
  * The same row for a reader that has `space_in_atx_header` **OFF**, where the separator between
  * the hashes and the text is optional and `#Heading` is a real heading (Session 212).
@@ -142,8 +149,11 @@ const ATX_HEADING = /^[ \t]*(#{1,6})[ \t]+(.+)$/;
  *
  * The two capture groups are identical to `ATX_HEADING`'s, so `parseHeadingLine` reads this
  * match unchanged, and `(.+)` still refuses a bare hash run with no text (`cal/c4_bare_strict`).
+ *
+ * ⚠ **`(?=.*$)` after `(?!#)` is `ATX_HEADING`'s Session 319 lookahead, for the same reason and in the same place:** one up-front check that the line holds no CR, U+2028 or U+2029, instead of a
+ * retry of `(.+)$` for every split of the blanks. It comes AFTER `(?!#)` so a run of seven or more `#` is refused before any scan.
  */
-const ATX_HEADING_TIGHT = /^[ \t]*(#{1,6})(?!#)[ \t]*(.+)$/;
+export const ATX_HEADING_TIGHT = /^[ \t]*(#{1,6})(?!#)(?=.*$)[ \t]*(.+)$/;
 /**
  * An ATX line of SEVEN or more `#`, bare or carrying text — a real pandoc `Header` that the
  * outline does not show (Session 266).

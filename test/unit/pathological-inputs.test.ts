@@ -747,6 +747,24 @@ describe("Session 319 — a long run of blanks followed by a CR, U+2028 or U+202
       build: (blanks, terminator) => `Intro of DIV_FENCE.\n\n:::${blanks}${terminator}\n\n# H\n`,
       read: (text) => findHeadings(text).map((h) => h.text),
     },
+    {
+      site: "ATX_HEADING (hashes, then blanks)",
+      terminators: [CR_AND_LETTER, LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
+      build: (blanks, terminator) => `Intro of ATX_HEADING.\n\n# ${blanks}${terminator}\n\n# H\n`,
+      read: (text) => findHeadings(text).map((h) => h.text),
+    },
+    {
+      site: "ATX_HEADING (as the header of a simple table, tried against the outranked list)",
+      terminators: [CR_AND_LETTER, LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
+      build: (blanks, terminator) => `Intro of ATX_HEADING in a table.\n\n# ${blanks}${terminator}\n ---\n# H\n`,
+      read: (text) => findHeadings(text).map((h) => h.text),
+    },
+    {
+      site: "ATX_HEADING_TIGHT (a reader whose space after the hashes is optional)",
+      terminators: [CR_AND_LETTER, LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
+      build: (blanks, terminator) => `---\nfrom: markdown-space_in_atx_header\n---\n\nIntro of ATX_HEADING_TIGHT.\n\n# ${blanks}${terminator}\n\n# H\n`,
+      read: (text) => findHeadings(text).map((h) => h.text),
+    },
   ];
 
   it.each(ROWS.flatMap((row) => row.terminators.map(([terminatorName, terminator]) => [row.site, terminatorName, row, terminator] as const)))(

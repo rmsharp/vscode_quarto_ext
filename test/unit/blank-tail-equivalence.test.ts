@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DIV_FENCE } from "../../src/core/qmd/model";
+import { ATX_HEADING, ATX_HEADING_TIGHT, DIV_FENCE } from "../../src/core/qmd/model";
 import { BOM, EM_SPACE, IDEOGRAPHIC, LS, NBSP, NEL, PS, compare, countStrings, everyString, seededRandom, slowestExec } from "./support/regex-equivalence";
 
 // Session 319 — the BACKLOG item "Other regexes still quadratic on a long run of blanks, CR or U+2028", parts (5) and (9). A pattern that reads a run of blanks and then `(.*)$` (or `(.+)$`) fails on a line
@@ -28,12 +28,16 @@ interface Site {
 
 const SITES: Record<string, Site> = {
   DIV_FENCE: { old: /^[ \t]*:{3,}(?!:)[ \t]*(.*)$/, now: DIV_FENCE, guard: "(?![ \\t])", marks: [":"], heads: [":::", "::::", ":::::"], blanks: [" ", "\t"], indents: [" ", "   ", "    ", "\t"], shortLength: 7 },
+  ATX_HEADING: { old: /^[ \t]*(#{1,6})[ \t]+(.+)$/, now: ATX_HEADING, guard: "(?=[ \\t].*$)", marks: ["#"], heads: ["#", "##", "######"], blanks: [" ", "\t"], indents: [" ", "   ", "    ", "\t"], shortLength: 7 },
+  ATX_HEADING_TIGHT: { old: /^[ \t]*(#{1,6})(?!#)[ \t]*(.+)$/, now: ATX_HEADING_TIGHT, guard: "(?=.*$)", marks: ["#"], heads: ["#", "##", "######"], blanks: [" ", "\t"], indents: [" ", "   ", "    ", "\t"], shortLength: 7 },
 };
 
 // How many strings of each comparison the OLD spelling accepts, counted from the old spelling alone: no comparison below can pass by both sides refusing everything, and an edit to the oracle moves the count.
 // The three enumerated counts were also taken with Python's `re` (`.` and `$` spelled out), so the oracle's answers do not rest on V8 alone (Learning 780).
 const ACCEPTED: Record<string, { short: number; wide: number; exotic: number; seeded: number; grid: number }> = {
   DIV_FENCE: { short: 651, wide: 61, exotic: 115, seeded: 34268, grid: 2400 },
+  ATX_HEADING: { short: 6792, wide: 852, exotic: 2304, seeded: 28562, grid: 2130 },
+  ATX_HEADING_TIGHT: { short: 10548, wide: 2260, exotic: 9424, seeded: 33344, grid: 2340 },
 };
 
 const TERMINATORS = ["\r", LS, PS] as const;
@@ -115,7 +119,7 @@ describe("Session 319 — the blank-run patterns answer what their unguarded spe
   const names = Object.keys(SITES);
 
   it("pins an accepted count for every site", () => {
-    expect(Object.keys(ACCEPTED).sort()).toEqual(names.sort());
+    expect(Object.keys(ACCEPTED).sort()).toEqual([...names].sort());
   });
 
   // The oracle is the UNGUARDED spelling. A later "tidy-up" that added the guard to this table would turn every comparison below into the new pattern against itself.
