@@ -375,6 +375,29 @@ describe("Session 319 — the blank-run patterns answer what their unguarded spe
     expect([...ACCEPTED_SIZES]).toEqual([5_000, 50_000, 200_000]);
     expect(STRIP_PAIRS).toBe(200_000);
     expect(SEEDED_LINES).toBe(100_000);
+    // Each site's seeded sample is seeded with 319 plus its POSITION in SITES, so an entry put anywhere but the end moves every later site's seed and its pinned `seeded` count. Pin the order, so
+    // that mistake fails here with a readable diff and not as five unrelated seeded rows (Session 320 made it once): a new site is an entry, five counts, and one name at the end of this list.
+    expect(names).toEqual([
+      "DIV_FENCE",
+      "ATX_HEADING",
+      "ATX_HEADING_TIGHT",
+      "PROOF_KEY_LINE",
+      "PLAIN_KEY_LINE",
+      "PLAIN_ITEM_LINE",
+      "KNITR_ECHO_INCLUDE_LINE",
+      "LINK_DEFINITION_LINE",
+      "CELL_OPTION_PREFIX #",
+      "CELL_OPTION_PREFIX //",
+      "CELL_OPTION_PREFIX (*",
+      "PIPE_DELIMITER_ROW",
+      "BIBLIOGRAPHY_ITEM_LINE",
+      "SEQUENCE_ITEM_LINE",
+      "JUPYTER_KEY_LINE",
+      "INDENTED_LINE",
+      "TOP_LEVEL_ANCHOR_DECL",
+      "TABLE_RULE_ROW",
+      "ATX_CLOSING",
+    ]);
     for (const name of names) {
       expect(SITES[name].shortLength, name).toBeGreaterThanOrEqual(6);
       expect(SITES[name].smallLength ?? 1_000, name).toBeGreaterThanOrEqual(200);

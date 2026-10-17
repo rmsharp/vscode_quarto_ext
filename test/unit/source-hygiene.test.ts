@@ -42,3 +42,25 @@ describe("source hygiene: no TypeScript source may contain a raw NUL byte", () =
     expect(offenders).toEqual([]);
   });
 });
+
+/**
+ * Session 320. U+2028 and U+2029 are LINE TERMINATORS to a regular-expression literal, so a raw one inside a pattern is a syntax error, and inside a comment it splits a line that tools count
+ * differently. The editing tools write the character in place of the escape: Session 319's `hash-comment.ts` held two (found two commits later by a mutant-list generator) and Session 320's
+ * `render-args.ts` held two the moment its pattern was edited (Learning 786, twice). The escape (a backslash and `u2028`) is the only spelling `src/` may use; a string in a TEST may hold the raw
+ * character legally, so this scans `src/` only.
+ */
+describe("source hygiene: no TypeScript source may contain a raw line or paragraph separator", () => {
+  it("scans src/**/*.ts and finds none (write the escape; the editing tools turn it into the character)", () => {
+    const offenders: string[] = [];
+    for (const file of tsFilesUnder(SRC_DIR)) {
+      readFileSync(file, "utf8")
+        .split("\n")
+        .forEach((line, index) => {
+          if (line.includes(String.fromCharCode(0x2028)) || line.includes(String.fromCharCode(0x2029))) {
+            offenders.push(`${file.slice(SRC_DIR.length + 1)}:${index + 1}`);
+          }
+        });
+    }
+    expect(offenders).toEqual([]);
+  });
+});
