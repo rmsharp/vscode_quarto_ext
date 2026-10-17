@@ -5,7 +5,7 @@
   "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
   "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
   "expect": "killed",
-  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+  "why": "no answer changes, so cost tells it: the near-miss clock rows at 50,000 characters and the document rows at 100,000 fail (and the guard-text row, when the guard text goes)"
  },
  {
   "name": "D02 DIV_FENCE: the blank guard reads a space only (a tab run is still retried)",
@@ -13,7 +13,7 @@
   "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
   "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?! )(.*)$/;",
   "expect": "killed",
-  "why": "the near-miss lines with a TAB run are quadratic again: only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+  "why": "the near-miss lines with a TAB run are quadratic again: no answer changes, so cost tells it: the near-miss clock rows at 50,000 characters and the document rows at 100,000 fail (and the guard-text row, when the guard text goes)"
  },
  {
   "name": "D03 DIV_FENCE: the guard sits BEFORE the blanks (refuses `::: x`)",
@@ -45,7 +45,7 @@
   "from": "export const ATX_HEADING = /^[ \\t]*(#{1,6})(?=[ \\t].*$)[ \\t]+(.+)$/;",
   "to": "export const ATX_HEADING = /^[ \\t]*(#{1,6})[ \\t]+(.+)$/;",
   "expect": "killed",
-  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+  "why": "no answer changes, so cost tells it: the near-miss clock rows at 50,000 characters and the document rows at 100,000 fail (and the guard-text row, when the guard text goes)"
  },
  {
   "name": "A02 ATX_HEADING: the idiom `(?![ \\t])` after the blanks instead (inexact on a blank-only tail)",
@@ -61,7 +61,7 @@
   "from": "export const ATX_HEADING = /^[ \\t]*(#{1,6})(?=[ \\t].*$)[ \\t]+(.+)$/;",
   "to": "export const ATX_HEADING = /^[ \\t]*(#{1,6})(?=[ \\t])[ \\t]+(.+)$/;",
   "expect": "killed",
-  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+  "why": "no answer changes, so cost tells it: the near-miss clock rows at 50,000 characters and the document rows at 100,000 fail (and the guard-text row, when the guard text goes)"
  },
  {
   "name": "A04 ATX_HEADING: the lookahead has no end anchor",
@@ -69,7 +69,7 @@
   "from": "export const ATX_HEADING = /^[ \\t]*(#{1,6})(?=[ \\t].*$)[ \\t]+(.+)$/;",
   "to": "export const ATX_HEADING = /^[ \\t]*(#{1,6})(?=[ \\t].*)[ \\t]+(.+)$/;",
   "expect": "killed",
-  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+  "why": "no answer changes, so cost tells it: the near-miss clock rows at 50,000 characters and the document rows at 100,000 fail (and the guard-text row, when the guard text goes)"
  },
  {
   "name": "A05 ATX_HEADING: the lookahead without the blank test (the other exact spelling)",
@@ -85,7 +85,7 @@
   "from": "export const ATX_HEADING_TIGHT = /^[ \\t]*(#{1,6})(?!#)(?=.*$)[ \\t]*(.+)$/;",
   "to": "export const ATX_HEADING_TIGHT = /^[ \\t]*(#{1,6})(?!#)[ \\t]*(.+)$/;",
   "expect": "killed",
-  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+  "why": "no answer changes, so cost tells it: the near-miss clock rows at 50,000 characters and the document rows at 100,000 fail (and the guard-text row, when the guard text goes)"
  },
  {
   "name": "A07 ATX_HEADING_TIGHT: the lookahead has no end anchor",
@@ -93,7 +93,7 @@
   "from": "export const ATX_HEADING_TIGHT = /^[ \\t]*(#{1,6})(?!#)(?=.*$)[ \\t]*(.+)$/;",
   "to": "export const ATX_HEADING_TIGHT = /^[ \\t]*(#{1,6})(?!#)(?=.*)[ \\t]*(.+)$/;",
   "expect": "killed",
-  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+  "why": "no answer changes, so cost tells it: the near-miss clock rows at 50,000 characters and the document rows at 100,000 fail (and the guard-text row, when the guard text goes)"
  },
  {
   "name": "A08 ATX_HEADING_TIGHT: the lookahead before `(?!#)`",
@@ -117,7 +117,7 @@
   "from": "export const PROOF_KEY_LINE = /^([A-Za-z0-9_][A-Za-z0-9_.-]*):(?:[ \\t]+(?![ \\t])(.*))?$/;",
   "to": "export const PROOF_KEY_LINE = /^([A-Za-z0-9_][A-Za-z0-9_.-]*):(?:[ \\t]+(.*))?$/;",
   "expect": "killed",
-  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+  "why": "no answer changes, so cost tells it: the near-miss clock rows at 50,000 characters and the document rows at 100,000 fail (and the guard-text row, when the guard text goes)"
  },
  {
   "name": "P02 PROOF_KEY_LINE: the blank run is optional",
@@ -133,7 +133,7 @@
   "from": "export const PLAIN_KEY_LINE = /^( *)(- +)?([A-Za-z_][A-Za-z0-9_.-]*) *:(?: +(?! )(.*))?$/;",
   "to": "export const PLAIN_KEY_LINE = /^( *)(- +)?([A-Za-z_][A-Za-z0-9_.-]*) *:(?: +(.*))?$/;",
   "expect": "killed",
-  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+  "why": "no answer changes, so cost tells it: the near-miss clock rows at 50,000 characters and the document rows at 100,000 fail (and the guard-text row, when the guard text goes)"
  },
  {
   "name": "K02 PLAIN_KEY_LINE: the guard also refuses a tab (`k: \\tx` stops matching)",
@@ -149,7 +149,7 @@
   "from": "export const PLAIN_ITEM_LINE = /^( *)- +(?! )(.*)$/;",
   "to": "export const PLAIN_ITEM_LINE = /^( *)- +(.*)$/;",
   "expect": "killed",
-  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+  "why": "no answer changes, so cost tells it: the near-miss clock rows at 50,000 characters and the document rows at 100,000 fail (and the guard-text row, when the guard text goes)"
  },
  {
   "name": "E01 KNITR_ECHO_INCLUDE_LINE: no guard",
@@ -157,7 +157,7 @@
   "from": "export const KNITR_ECHO_INCLUDE_LINE = /^(echo|include):[ \\t]*(?![ \\t])(.*)$/;",
   "to": "export const KNITR_ECHO_INCLUDE_LINE = /^(echo|include):[ \\t]*(.*)$/;",
   "expect": "killed",
-  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+  "why": "no answer changes, so cost tells it: the near-miss clock rows at 50,000 characters and the document rows at 100,000 fail (and the guard-text row, when the guard text goes)"
  },
  {
   "name": "E02 KNITR_ECHO_INCLUDE_LINE: the guard sits before the blanks",
@@ -173,7 +173,7 @@
   "from": "export const LINK_DEFINITION_LINE = /^ {0,3}\\[[^\\^\\]][^\\]]*\\]:[ \\t]*(?![ \\t])(.*)$/;",
   "to": "export const LINK_DEFINITION_LINE = /^ {0,3}\\[[^\\^\\]][^\\]]*\\]:[ \\t]*(.*)$/;",
   "expect": "killed",
-  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+  "why": "no answer changes, so cost tells it: the near-miss clock rows at 50,000 characters and the document rows at 100,000 fail (and the guard-text row, when the guard text goes)"
  },
  {
   "name": "L02 LINK_DEFINITION_LINE: the guard sits before the blanks",
@@ -189,7 +189,7 @@
   "from": "  return new RegExp(\"^(\" + escapeRegExp(open) + \")([ \\\\t]*)\\\\|([ \\\\t]*)(?![ \\\\t])(.*)$\");",
   "to": "  return new RegExp(\"^(\" + escapeRegExp(open) + \")([ \\\\t]*)\\\\|([ \\\\t]*)(.*)$\");",
   "expect": "killed",
-  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+  "why": "no answer changes, so cost tells it: the near-miss clock rows at 50,000 characters and the document rows at 100,000 fail (and the guard-text row, when the guard text goes)"
  },
  {
   "name": "C02 cellOptionPrefixFor: the guard reads a space only",
@@ -197,7 +197,7 @@
   "from": "  return new RegExp(\"^(\" + escapeRegExp(open) + \")([ \\\\t]*)\\\\|([ \\\\t]*)(?![ \\\\t])(.*)$\");",
   "to": "  return new RegExp(\"^(\" + escapeRegExp(open) + \")([ \\\\t]*)\\\\|([ \\\\t]*)(?! )(.*)$\");",
   "expect": "killed",
-  "why": "a tab gap is retried again: only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+  "why": "a tab gap is retried again: no answer changes, so cost tells it: the near-miss clock rows at 50,000 characters and the document rows at 100,000 fail (and the guard-text row, when the guard text goes)"
  },
  {
   "name": "C03 cellOptionPrefixFor: the guard inside the gap's group",
@@ -245,7 +245,7 @@
   "from": "export const BIBLIOGRAPHY_ITEM_LINE = /^\\s*-\\s+(?!\\s)(.*)$/;",
   "to": "export const BIBLIOGRAPHY_ITEM_LINE = /^\\s*-\\s+(.*)$/;",
   "expect": "killed",
-  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+  "why": "no answer changes, so cost tells it: the near-miss clock rows at 50,000 characters and the document rows at 100,000 fail (and the guard-text row, when the guard text goes)"
  },
  {
   "name": "B02 BIBLIOGRAPHY_ITEM_LINE: the guard reads a blank or a tab only",
@@ -253,7 +253,7 @@
   "from": "export const BIBLIOGRAPHY_ITEM_LINE = /^\\s*-\\s+(?!\\s)(.*)$/;",
   "to": "export const BIBLIOGRAPHY_ITEM_LINE = /^\\s*-\\s+(?![ \\t])(.*)$/;",
   "expect": "killed",
-  "why": "a CR or a line separator inside the run is still retried: only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+  "why": "a run of no-break spaces, vertical tabs or U+3000 (all `\\s`, none a blank or a tab) is retried again: the site's blanks hold them since the Session 319 review; before that only the guard-text row noticed"
  },
  {
   "name": "Q01 SEQUENCE_ITEM_LINE: no guard",
@@ -261,7 +261,7 @@
   "from": "export const SEQUENCE_ITEM_LINE = /^-[ \\t]+(?![ \\t])(.*)$/;",
   "to": "export const SEQUENCE_ITEM_LINE = /^-[ \\t]+(.*)$/;",
   "expect": "killed",
-  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+  "why": "no answer changes, so cost tells it: the near-miss clock rows at 50,000 characters and the document rows at 100,000 fail (and the guard-text row, when the guard text goes)"
  },
  {
   "name": "J01 jupyter KEY_LINE: no guard",
@@ -269,7 +269,7 @@
   "from": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
   "to": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(.*)|)$/;",
   "expect": "killed",
-  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+  "why": "no answer changes, so cost tells it: the near-miss clock rows at 50,000 characters and the document rows at 100,000 fail (and the guard-text row, when the guard text goes)"
  },
  {
   "name": "J02 jupyter KEY_LINE: the blank run is optional",
@@ -285,7 +285,7 @@
   "from": "export const INDENTED_LINE = /^([ \\t]+)(?![ \\t])(.*)$/;",
   "to": "export const INDENTED_LINE = /^([ \\t]+)(.*)$/;",
   "expect": "killed",
-  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+  "why": "no answer changes, so cost tells it: the near-miss clock rows at 50,000 characters and the document rows at 100,000 fail (and the guard-text row, when the guard text goes)"
  },
  {
   "name": "N02 INDENTED_LINE: the guard reads a space only",
@@ -293,7 +293,7 @@
   "from": "export const INDENTED_LINE = /^([ \\t]+)(?![ \\t])(.*)$/;",
   "to": "export const INDENTED_LINE = /^([ \\t]+)(?! )(.*)$/;",
   "expect": "killed",
-  "why": "a tab indent is retried again: only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+  "why": "a tab indent is retried again: no answer changes, so cost tells it: the near-miss clock rows at 50,000 characters and the document rows at 100,000 fail (and the guard-text row, when the guard text goes)"
  },
  {
   "name": "T01 TOP_LEVEL_ANCHOR_DECL: no tail guard",

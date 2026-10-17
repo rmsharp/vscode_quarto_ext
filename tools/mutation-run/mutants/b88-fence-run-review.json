@@ -66,32 +66,32 @@
  {
   "name": "N65 DIV_FENCE: indent also reads a vertical tab",
   "file": "src/core/qmd/model.ts",
-  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
-  "to": "export const DIV_FENCE = /^[ \\t\\v]*:{3,}(?!:)[ \\t]*(.*)$/;",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t\\v]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
   "expect": "killed",
   "why": "a vertical tab before a div fence is read as part of the indent"
  },
  {
   "name": "N66 DIV_FENCE: a list marker may precede the run",
   "file": "src/core/qmd/model.ts",
-  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
-  "to": "export const DIV_FENCE = /^(?:[ \\t]*(?:[-*+]|\\d{1,9}[.)])[ \\t]+)?[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const DIV_FENCE = /^(?:[ \\t]*(?:[-*+]|\\d{1,9}[.)])[ \\t]+)?[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
   "expect": "killed",
   "why": "DIV_FENCE accepts a list marker in front of the run, which a caller (divFenceRole) strips; killed by the marker enumeration, and by qmd-model.test.ts (Session 226)"
  },
  {
   "name": "N70 DIV_FENCE: run capped at 4096",
   "file": "src/core/qmd/model.ts",
-  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
-  "to": "export const DIV_FENCE = /^[ \\t]*:{3,4096}(?!:)[ \\t]*(.*)$/;",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,4096}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
   "expect": "killed",
   "why": "a run of 4,097 or more colons stops being a div fence"
  },
  {
   "name": "N71 DIV_FENCE: indent capped at 4096",
   "file": "src/core/qmd/model.ts",
-  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
-  "to": "export const DIV_FENCE = /^[ \\t]{0,4096}:{3,}(?!:)[ \\t]*(.*)$/;",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]{0,4096}:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
   "expect": "killed",
   "why": "the DIV_FENCE indent capped at 4,096 blanks"
  },

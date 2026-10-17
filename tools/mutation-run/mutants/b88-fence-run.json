@@ -202,89 +202,81 @@
  {
   "name": "D01 DIV_FENCE: no guard after the colon run",
   "file": "src/core/qmd/model.ts",
-  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
-  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}[ \\t]*(.*)$/;",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}[ \\t]*(?![ \\t])(.*)$/;",
   "expect": "killed",
   "why": "the near-miss clock row and the colon document rows"
  },
  {
   "name": "D02 DIV_FENCE: the guard looks for a backtick",
   "file": "src/core/qmd/model.ts",
-  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
-  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!`)[ \\t]*(.*)$/;",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!`)[ \\t]*(?![ \\t])(.*)$/;",
   "expect": "killed",
   "why": "a long refused colon line is quadratic again"
  },
  {
   "name": "D03 DIV_FENCE: the guard is positive",
   "file": "src/core/qmd/model.ts",
-  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
-  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?=:)[ \\t]*(.*)$/;",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?=:)[ \\t]*(?![ \\t])(.*)$/;",
   "expect": "killed",
   "why": "only a run followed by another colon can match: the enumeration"
  },
  {
   "name": "D04 DIV_FENCE: the guard reads a colon AND a CR (same answers, still quadratic)",
   "file": "src/core/qmd/model.ts",
-  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
-  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:\\r)[ \\t]*(.*)$/;",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:\\r)[ \\t]*(?![ \\t])(.*)$/;",
   "expect": "killed",
   "why": "language unchanged: only the clock row notices"
  },
  {
   "name": "D05 DIV_FENCE: the guard reads two colons (same answers, linear)",
   "file": "src/core/qmd/model.ts",
-  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
-  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!::)[ \\t]*(.*)$/;",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!::)[ \\t]*(?![ \\t])(.*)$/;",
   "expect": "survives",
   "why": "ARGUED EQUIVALENT: as F09"
  },
  {
   "name": "D06 DIV_FENCE: a run of 3 to 40",
   "file": "src/core/qmd/model.ts",
-  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
-  "to": "export const DIV_FENCE = /^[ \\t]*:{3,40}(?!:)[ \\t]*(.*)$/;",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,40}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
   "expect": "killed",
   "why": "a run of 64 or 100 is refused: the gap grid"
  },
  {
   "name": "D07 DIV_FENCE: at least one blank after the run",
   "file": "src/core/qmd/model.ts",
-  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
-  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]+(.*)$/;",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]+(?![ \\t])(.*)$/;",
   "expect": "killed",
   "why": "a bare ::: closer stops being a fence: the enumeration"
  },
  {
   "name": "D08 DIV_FENCE: the rest is not anchored",
   "file": "src/core/qmd/model.ts",
-  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
-  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)/;",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)/;",
   "expect": "killed",
   "why": "a CR after the run no longer refuses the line: the enumeration"
  },
  {
   "name": "D09 DIV_FENCE: a run of two is enough",
   "file": "src/core/qmd/model.ts",
-  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
-  "to": "export const DIV_FENCE = /^[ \\t]*:{2,}(?!:)[ \\t]*(.*)$/;",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{2,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
   "expect": "killed",
   "why": ":: is not a fence: the enumeration"
  },
  {
   "name": "D10 DIV_FENCE: the indent is at most three spaces",
   "file": "src/core/qmd/model.ts",
-  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
-  "to": "export const DIV_FENCE = /^ {0,3}:{3,}(?!:)[ \\t]*(.*)$/;",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const DIV_FENCE = /^ {0,3}:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
   "expect": "killed",
   "why": "a four-space or tab indent stops being read (the comment says it is NOT ` {0,3}`): the enumeration"
- },
- {
-  "name": "D11 DIV_FENCE: the blank run after the colons is also guarded (same answers, faster)",
-  "file": "src/core/qmd/model.ts",
-  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
-  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
-  "expect": "survives",
-  "why": "ARGUED EQUIVALENT in answers and not worse in cost: it is the cure for the blank tail that BACKLOG item part (5) owns, and nothing here pins that tail as slow"
  }
 ]
