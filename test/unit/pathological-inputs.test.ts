@@ -907,3 +907,37 @@ describe("Session 319 — a long run of blanks followed by a CR, U+2028 or U+202
     expect([RUN, SHORT_RUN, LIMIT_MS]).toEqual([100_000, 2_000, 1000]);
   });
 });
+
+describe("Session 320 — a long run of blanks in a rule row or a closing run", () => {
+  // The BACKLOG item "Other regexes still quadratic on a long run of blanks, CR or U+2028", part (4). A pattern that reads a run of blanks and then ends the match on a character the run cannot give back
+  // is quadratic in two ways: two atoms over overlapping classes with nothing between them (`TABLE_RULE_ROW`'s `[ \t]*` then `\s*`, and `[-+=: ]*` then `\s*`) re-split the run for ANY character that ends
+  // the match, and an unanchored search that begins with `[ \t]+` is retried from every blank inside the run. Bare `exec`, 8,000 / 16,000 / 32,000 blanks (Session 320, fresh process, minimum of 5): 38 / 154
+  // / 617 ms for `TABLE_RULE_ROW`. Every body line goes through `TABLE_RULE_ROW.test` twice (the table opener and the line-block arm), so a document costs twice that. Read linearly each row is a few
+  // milliseconds, so the 1 s limit has a wide margin both ways.
+  const BLANK_RUN = 100_000;
+  const SHORTER_RUN = 2_000;
+  const CLOCK_MS = 1000;
+  const headings = (text: string): string[] => findHeadings(text).map((h) => h.text);
+  type Row = { site: string; build: (blanks: string) => string; read: (text: string) => unknown; answer: (blanks: string) => unknown };
+
+  const ROWS: Row[] = [
+    { site: "TABLE_RULE_ROW, the pipe body (`-`, blanks, a letter)", build: (blanks) => `Intro of the pipe rule row.\n\n-${blanks}x\n\n# H\n`, read: headings, answer: () => ["H"] },
+    { site: "TABLE_RULE_ROW, the pipe body (`-`, blanks, a lone CR and a letter)", build: (blanks) => `Intro of the pipe rule row and a CR.\n\n-${blanks}\rx\n\n# H\n`, read: headings, answer: () => ["H"] },
+    { site: "TABLE_RULE_ROW, the pipe body (`-:`, blanks, a letter)", build: (blanks) => `Intro of the pipe rule row and a colon.\n\n-:${blanks}x\n\n# H\n`, read: headings, answer: () => ["H"] },
+    { site: "TABLE_RULE_ROW, the grid body (`+`, blanks, a letter)", build: (blanks) => `Intro of the grid rule row.\n\n+${blanks}x\n\n# H\n`, read: headings, answer: () => ["H"] },
+    { site: "TABLE_RULE_ROW, the grid body (`+`, blanks, a lone CR and a letter)", build: (blanks) => `Intro of the grid rule row and a CR.\n\n+${blanks}\rx\n\n# H\n`, read: headings, answer: () => ["H"] },
+  ];
+
+  it.each(ROWS.map((row) => [row.site, row] as const))("%s: 100,000 blanks are read in linear time, and the answer is the short run's", (_site, row) => {
+    const shorter = row.read(row.build(" ".repeat(SHORTER_RUN)));
+    expect(shorter).toEqual(row.answer(" ".repeat(SHORTER_RUN)));
+    const { result, ms } = timed(() => row.read(row.build(" ".repeat(BLANK_RUN))));
+    expect(result).toEqual(row.answer(" ".repeat(BLANK_RUN)));
+    expect(ms).toBeLessThan(CLOCK_MS);
+  });
+
+  // A row run at 1,000 blanks, or allowed 100 s, would pass on the parent too.
+  it("keeps the run, the shorter run and the limit its rows are built on", () => {
+    expect([BLANK_RUN, SHORTER_RUN, CLOCK_MS]).toEqual([100_000, 2_000, 1000]);
+  });
+});

@@ -15,6 +15,7 @@ import {
   PLAIN_ITEM_LINE,
   PLAIN_KEY_LINE,
   PROOF_KEY_LINE,
+  TABLE_RULE_ROW,
   TOP_LEVEL_ANCHOR_DECL,
   cellOptionPrefixFor,
 } from "../../src/core/qmd/model";
@@ -76,6 +77,8 @@ const cellOptionSite = (open: string): Site => ({
 /** A run of seven or more `#` is no heading (the Outline caps at six): both readers must refuse these, and neither is a head any other row builds (a head is accepted by definition). */
 const sevenHashes = (n: number): string[] => ["#######", "####### x", "#######x", "#######  ", `#######${" ".repeat(n)}x`, `${"#".repeat(n)} x`, `${"#".repeat(n)}x`];
 
+// ⚠ APPEND a new site at the END: each site's seeded sample is seeded with 319 plus its position here, so an entry put in the middle moves every later site's seed and its pinned `seeded` count
+// (Session 320 put TABLE_RULE_ROW mid-table first and five later sites failed their seeded rows).
 const SITES: Record<string, Site> = {
   DIV_FENCE: { old: /^[ \t]*:{3,}(?!:)[ \t]*(.*)$/, now: DIV_FENCE, guard: "(?![ \\t])", marks: [":"], heads: [":::", "::::", ":::::"], blanks: [" ", "\t"], indents: [" ", "   ", "    ", "\t"], shortLength: 7, acceptedLines: (n) => [":".repeat(n), `${":".repeat(n)} x`] },
   ATX_HEADING: { old: /^[ \t]*(#{1,6})[ \t]+(.+)$/, now: ATX_HEADING, guard: "(?=[ \\t].*$)", marks: ["#"], heads: ["#", "##", "######"], blanks: [" ", "\t"], indents: [" ", "   ", "    ", "\t"], shortLength: 7, extraLines: sevenHashes },
@@ -146,6 +149,58 @@ const SITES: Record<string, Site> = {
       `"k"${" ".repeat(n)}: &${"a".repeat(10)}`,
     ],
   },
+  // Session 320, part (4). TWO quadratics in one pattern, and neither needs a terminator: the pipe body's last cell ends in `[ \t]*`, an optional pipe and then the shared `\s*`, so a blank run after the
+  // last cell is split between the two runs for ANY character that ends the match (`-`, 32,000 blanks, a letter: 617 ms); and the grid body's `[-+=: ]*` and `\s*` share the space the same way (`+`, blanks, a
+  // letter). The pipe body takes `PIPE_DELIMITER_ROW`'s spelling (each blank run in front of the pipe it belongs to); the grid body asks for its last non-space character before the shared `\s*`.
+  TABLE_RULE_ROW: {
+    old: /^ {0,3}(?:\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?|\+[-+=: ]*)\s*$/,
+    now: TABLE_RULE_ROW,
+    guard: "(?:[ \\t]*\\|)?",
+    marks: ["|", "-", ":", "+", "="],
+    foils: ["*"],
+    heads: ["-", "|-", ":-:", "|--", "+", "+-", "+=", "+:"],
+    blanks: [" ", "\t"],
+    indents: [" ", "  ", "   ", "    "],
+    shortLength: 6,
+    longIndent: false,
+    acceptedTails: [""], // a letter, a pipe or a colon straight after the blanks ends neither body (the grid body takes no pipe; a cell after blanks needs its pipe)
+    tails: ["", "-", "|", " | - ", ":-:", "x", "\r", LS, PS, " \r", "-\r", "-|\r", "|-", "-x", "+", " +", "=", "\f", NBSP],
+    extraLines: (n) => [
+      `-:${" ".repeat(n)}x`,
+      `-:${" ".repeat(n)}\rx`,
+      `|${" ".repeat(n)}x`,
+      `-|${" ".repeat(n)}x`,
+      `-|${" ".repeat(n)}-`,
+      `|:-:|${" ".repeat(n)}-|${" ".repeat(n)}x`,
+      `+${" ".repeat(n)}-${" ".repeat(n)}x`,
+      `+-${" ".repeat(n)}-${" ".repeat(n)}\rx`,
+      `+${"- ".repeat(Math.floor(n / 2))}x`,
+      `|${"-|".repeat(Math.floor(n / 2))}x`,
+      `-${" |-".repeat(Math.floor(n / 3))}x`,
+      `${"-".repeat(n)}x`,
+      `+${"=".repeat(n)}x`,
+    ],
+    acceptedLines: (n) => [
+      `-${" ".repeat(n)}`,
+      `-${" ".repeat(n)}|`,
+      `|${" ".repeat(n)}-`,
+      `|-|${" ".repeat(n)}-`,
+      `-${" ".repeat(n)}|${" ".repeat(n)}-`,
+      `${"-|".repeat(Math.floor(n / 2))}-`,
+      `|${"-|".repeat(Math.floor(n / 2))}`,
+      `   |${" ".repeat(n)}:-:${" ".repeat(n)}|${" ".repeat(n)}`,
+      `-${" ".repeat(n)}\f${" ".repeat(n)}`,
+      `-${" ".repeat(n)}\r`,
+      `+${" ".repeat(n)}`,
+      `+${"-".repeat(n)}`,
+      `+${"- ".repeat(Math.floor(n / 2))}`,
+      `+${"=:".repeat(Math.floor(n / 2))} `,
+      `+${" ".repeat(n)}-`,
+      `+${" ".repeat(n)}-${" ".repeat(n)}`,
+      `+-${" ".repeat(n)}+${" ".repeat(n)}\f`,
+      `   +${"-+".repeat(Math.floor(n / 2))}`,
+    ],
+  },
 };
 
 // How many strings of each comparison the OLD spelling accepts, counted from the old spelling alone: no comparison below can pass by both sides refusing everything, and an edit to the oracle moves the count.
@@ -163,6 +218,7 @@ const ACCEPTED: Record<string, { short: number; wide: number; exotic: number; se
   "CELL_OPTION_PREFIX //": { short: 6468, wide: 554, exotic: 1385, seeded: 8572, grid: 480 },
   "CELL_OPTION_PREFIX (*": { short: 6468, wide: 554, exotic: 1385, seeded: 8582, grid: 480 },
   PIPE_DELIMITER_ROW: { short: 3695, wide: 995, exotic: 995, seeded: 12128, grid: 1466 },
+  TABLE_RULE_ROW: { short: 25385, wide: 23341, exotic: 16270, seeded: 32842, grid: 6974 },
   BIBLIOGRAPHY_ITEM_LINE: { short: 171156, wide: 31144, exotic: 26418, seeded: 60899, grid: 2240 },
   SEQUENCE_ITEM_LINE: { short: 18662, wide: 1170, exotic: 2928, seeded: 7387, grid: 144 },
   JUPYTER_KEY_LINE: { short: 49977, wide: 5744, exotic: 6692, seeded: 29662, grid: 3504 },
