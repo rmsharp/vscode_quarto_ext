@@ -28,6 +28,12 @@ The new 50,000-character row in the equivalence file allows 100 ms per `exec` (a
 (10) The sibling reproductions (`scratchpad/s318/sib.cjs`) will be gone: the first session on the filed items commits a seeded generator under `tools/` (plan rule P5).
 `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices. macOS `sed` rejects `|` as a delimiter. After answering a direct question, STOP and wait (memory).
 
+### What Session 319 Did
+**Deliverable:** g02 of the backlog ordering plan, third session: B89 parts (5)+(9), the CR / U+2028 family: a `[ \t]+(.*)$` tail where a CR or a line separator stops the `.` is quadratic in a long blank run (IN PROGRESS)
+**Started:** 2026-10-16
+**Status:** Session claimed. Work beginning. Strict TDD: profile ONE shape first (`node --cpu-prof`, the B89 trap), a RED doubling row, then a rewrite proved identical to the old pattern; only then a family rule.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
 ### What Session 318 Did
 **Deliverable:** g02 of the backlog ordering plan, second session: B88 part (7), a fence run followed by CR or U+2028 is quadratic in the fence patterns' tails -- DONE; claim `b89b6d4c`
 **Started:** 2026-10-16

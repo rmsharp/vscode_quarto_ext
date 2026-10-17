@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-16 · [BL-Other regexes still quadratic on a long run of blanks, CR or U+2028 after Session 312: a sweep's list, the code-cell header tail first] Session 319 (in progress): claim -- g02 third session, parts (5)+(9), the CR / U+2028 family
+
+Session claimed. Phase 0 found both ledger frontiers at HEAD (`c20e473d`, gap 0, no merges), no pending receipt, the ratchet 2/2 (results bba236856bad, the receipt's citation holds) and the dashboard at 76/100 with 21 vulnerabilities (risk "critical" on that count alone). At the Phase 0 picker the operator chose B89 parts (5)+(9) (placed by: finishing a feature, g02 is the group in flight and the plan names this its next session). Deliverable: doubling rows RED on HEAD for the blank-run-then-CR / U+2028 shapes (`DIV_FENCE`'s blank tail first: 237 ms at 20,000 blanks, 953 ms at 40,000), one shape profiled with `node --cpu-prof` before a family rule, then rewrites proved identical to the old patterns. Phase 3F replaces this entry with the outcome.
+
 ### 2026-10-16 · [ad hoc] Session 318: cite the quality-gate run in the receipt and the ledger (2/2 pass at d752d2f4)
 
 `quality_ratchet.py --run` after the ledger commit `d752d2f4`: 2/2 pass, 0 fail, 0 unmeasured, results bba236856bad, manifest 334939914945 (ledger-lag 0; release-gate is `npm run check-package`, 0). The first run, made after the trim commit and before it had an entry, read 1/2 with ledger-lag 1 (results ef628a07495a): the gate did what it is for, and `d752d2f4` is the entry that cleared it. The `HANDOFFS.md` receipt's `quality_ratchet` line now carries the citation.
