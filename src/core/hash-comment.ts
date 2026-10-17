@@ -1,4 +1,4 @@
-const TERMINATORS = "\n\r  ";
+const TERMINATORS = "\n\r\u2028\u2029";
 
 /**
  * `text` without its trailing ` #` comment: everything from the first blank (one of `blanks`) that is followed by `#`, provided no line terminator comes after that `#`.
