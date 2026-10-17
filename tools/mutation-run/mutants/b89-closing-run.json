@@ -1,0 +1,442 @@
+[
+ {
+  "name": "T01 TABLE_RULE_ROW: the pipe body back to the old spelling (two blank runs touch)",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "to": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?[ \\t]*(?:\\|[ \\t]*:?-+:?[ \\t]*)*\\|?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "expect": "killed",
+  "why": "no answer changes, so cost tells it: the near-miss clock row at 50,000 characters and the document rows at 100,000 fail (and the guard-text row, when the guard text goes)"
+ },
+ {
+  "name": "T02 TABLE_RULE_ROW: the grid body back to the old spelling (its space shared with `\\s*`)",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "to": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+[-+=: ]*)\\s*$/;",
+  "expect": "killed",
+  "why": "no answer changes, so cost tells it: the near-miss clock row at 50,000 characters and the document rows at 100,000 fail (and the guard-text row, when the guard text goes)"
+ },
+ {
+  "name": "T03 TABLE_RULE_ROW: the grid body may end in a space (the runs touch again)",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "to": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=: ])?)\\s*$/;",
+  "expect": "killed",
+  "why": "the language is unchanged, so only cost tells it: `+`, blanks, a letter is quadratic again (the grid rows of the clock row, the `+` document rows)"
+ },
+ {
+  "name": "T04 TABLE_RULE_ROW: the grid body may not end in a colon",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "to": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=])?)\\s*$/;",
+  "expect": "killed",
+  "why": "`+:` stops being a rule row: the enumeration"
+ },
+ {
+  "name": "T05 TABLE_RULE_ROW: the grid body needs a character after the plus",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "to": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:]))\\s*$/;",
+  "expect": "killed",
+  "why": "a bare `+` stops being a rule row: the enumeration"
+ },
+ {
+  "name": "T06 TABLE_RULE_ROW: the tail reads blanks and tabs only, not `\\s`",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "to": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)[ \\t]*$/;",
+  "expect": "killed",
+  "why": "a form feed, a no-break space or a CR after the rule is refused: the wide and exotic enumerations"
+ },
+ {
+  "name": "T07 TABLE_RULE_ROW: no end anchor",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "to": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*/;",
+  "expect": "killed",
+  "why": "`-x` starts matching: the enumeration"
+ },
+ {
+  "name": "T08 TABLE_RULE_ROW: an indent of four is allowed",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "to": "/^ {0,4}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "expect": "killed",
+  "why": "a four-space indent (an indented code block) starts matching: the indent grid"
+ },
+ {
+  "name": "T09 TABLE_RULE_ROW: any indent",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "to": "/^ *(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "expect": "killed",
+  "why": "a four-space and a longer indent starts matching: the indent grid and the accepted-lines leg"
+ },
+ {
+  "name": "T10 TABLE_RULE_ROW: no leading pipe",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "to": "/^ {0,3}(?:[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "expect": "killed",
+  "why": "`|-` stops being a rule row: the enumeration"
+ },
+ {
+  "name": "T11 TABLE_RULE_ROW: no leading colon on the first cell",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "to": "/^ {0,3}(?:\\|?[ \\t]*-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "expect": "killed",
+  "why": "`:-:` stops being a rule row: the enumeration"
+ },
+ {
+  "name": "T12 TABLE_RULE_ROW: no blanks before the final pipe",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "to": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "expect": "killed",
+  "why": "`- |` stops being a rule row: the enumeration"
+ },
+ {
+  "name": "T13 TABLE_RULE_ROW: the cells after the first are required",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "to": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)+(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "expect": "killed",
+  "why": "a single cell `-` stops being a rule row: the enumeration"
+ },
+ {
+  "name": "T14 TABLE_RULE_ROW: the first dash run is capped at 4096",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "to": "/^ {0,3}(?:\\|?[ \\t]*:?-{1,4096}:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "expect": "killed",
+  "why": "a dash row of 5,000 to 200,000 dashes is refused: the accepted-lines leg (it survived until Session 320 added the long dash lines)"
+ },
+ {
+  "name": "T15 TABLE_RULE_ROW: the blanks before the first cell are capped at 4096",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "to": "/^ {0,3}(?:\\|?[ \\t]{0,4096}:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "expect": "killed",
+  "why": "a long gap before the dashes is refused: the accepted-lines leg"
+ },
+ {
+  "name": "T16 TABLE_RULE_ROW: the grid body's run is capped at 4096",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "to": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]{0,4096}[-+=:])?)\\s*$/;",
+  "expect": "killed",
+  "why": "`+` and 5,000 blanks then a dash is refused: the accepted-lines leg"
+ },
+ {
+  "name": "T17 TABLE_RULE_ROW: the cells are capped at 4096",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "to": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?){0,4096}(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "expect": "killed",
+  "why": "a row of 100,000 cells is refused: the accepted-lines leg"
+ },
+ {
+  "name": "T18 TABLE_RULE_ROW: the two bodies in the other order",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "to": "/^ {0,3}(?:\\+(?:[-+=: ]*[-+=:])?|\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?)\\s*$/;",
+  "expect": "survives",
+  "why": "the first characters are disjoint (`+` against a pipe, a colon, a dash or a blank), so the order cannot change an answer or a cost; argued, 1,000,000+ strings agree"
+ },
+ {
+  "name": "T19 TABLE_RULE_ROW: the last grid character may repeat",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "to": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:]+)?)\\s*$/;",
+  "expect": "killed",
+  "why": "the same language, but the star and the plus now share a class, so `+`, a long run of dashes and a letter retries the plus at every split (218 / 876 / 3,507 ms at 8,000 / 16,000 / 32,000; Session 320 argued it equivalent and was wrong about the cost): only the 50,000-character clock row tells it"
+ },
+ {
+  "name": "A01 ATX_CLOSING: no guard (the old unanchored search)",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_CLOSING = /(?:^|(?<![ \\t])[ \\t]+)#+[ \\t]*$/;",
+  "to": "export const ATX_CLOSING = /(?:^|[ \\t]+)#+[ \\t]*$/;",
+  "expect": "killed",
+  "why": "no answer changes, so cost tells it: the near-miss clock row at 50,000 characters and the document rows at 100,000 fail (and the guard-text row, when the guard text goes)"
+ },
+ {
+  "name": "A02 ATX_CLOSING: the guard reads a space only (a tab run is retried)",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_CLOSING = /(?:^|(?<![ \\t])[ \\t]+)#+[ \\t]*$/;",
+  "to": "export const ATX_CLOSING = /(?:^|(?<! )[ \\t]+)#+[ \\t]*$/;",
+  "expect": "killed",
+  "why": "the near-miss lines with a TAB run are quadratic again: no answer changes, so cost tells it: the near-miss clock row at 50,000 characters and the document rows at 100,000 fail (and the guard-text row, when the guard text goes)"
+ },
+ {
+  "name": "A03 ATX_CLOSING: the guard reads `\\s` (a form feed or a no-break space before a run hides it)",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_CLOSING = /(?:^|(?<![ \\t])[ \\t]+)#+[ \\t]*$/;",
+  "to": "export const ATX_CLOSING = /(?:^|(?<!\\s)[ \\t]+)#+[ \\t]*$/;",
+  "expect": "killed",
+  "why": "`x<FF>  #` stops matching: the wide and exotic enumerations"
+ },
+ {
+  "name": "A04 ATX_CLOSING: the guard also refuses a hash before the run",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_CLOSING = /(?:^|(?<![ \\t])[ \\t]+)#+[ \\t]*$/;",
+  "to": "export const ATX_CLOSING = /(?:^|(?<![ \\t#])[ \\t]+)#+[ \\t]*$/;",
+  "expect": "killed",
+  "why": "`#  #` stops matching: the enumeration"
+ },
+ {
+  "name": "A05 ATX_CLOSING: no start-of-text alternative",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_CLOSING = /(?:^|(?<![ \\t])[ \\t]+)#+[ \\t]*$/;",
+  "to": "export const ATX_CLOSING = /(?:(?<![ \\t])[ \\t]+)#+[ \\t]*$/;",
+  "expect": "killed",
+  "why": "`##` (an all-hash heading) stops matching: the enumeration"
+ },
+ {
+  "name": "A06 ATX_CLOSING: the run may be empty",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_CLOSING = /(?:^|(?<![ \\t])[ \\t]+)#+[ \\t]*$/;",
+  "to": "export const ATX_CLOSING = /(?:^|(?<![ \\t])[ \\t]*)#+[ \\t]*$/;",
+  "expect": "killed",
+  "why": "`x#` starts matching (a hash glued to a word is no closing run here): the enumeration"
+ },
+ {
+  "name": "A07 ATX_CLOSING: the hash run is capped at six",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_CLOSING = /(?:^|(?<![ \\t])[ \\t]+)#+[ \\t]*$/;",
+  "to": "export const ATX_CLOSING = /(?:^|(?<![ \\t])[ \\t]+)#{1,6}[ \\t]*$/;",
+  "expect": "killed",
+  "why": "a closing run of 5,000 hashes stops matching: the accepted-lines leg"
+ },
+ {
+  "name": "A08 ATX_CLOSING: no end anchor",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_CLOSING = /(?:^|(?<![ \\t])[ \\t]+)#+[ \\t]*$/;",
+  "to": "export const ATX_CLOSING = /(?:^|(?<![ \\t])[ \\t]+)#+[ \\t]*/;",
+  "expect": "killed",
+  "why": "`x #y` starts matching: the enumeration"
+ },
+ {
+  "name": "A09 ATX_CLOSING: no trailing blanks after the hashes",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_CLOSING = /(?:^|(?<![ \\t])[ \\t]+)#+[ \\t]*$/;",
+  "to": "export const ATX_CLOSING = /(?:^|(?<![ \\t])[ \\t]+)#+$/;",
+  "expect": "killed",
+  "why": "`x # ` stops matching: the enumeration"
+ },
+ {
+  "name": "A10 ATX_CLOSING: the guard asks for a character before the run (the start of the text fails it)",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_CLOSING = /(?:^|(?<![ \\t])[ \\t]+)#+[ \\t]*$/;",
+  "to": "export const ATX_CLOSING = /(?:^|(?<=[^ \\t])[ \\t]+)#+[ \\t]*$/;",
+  "expect": "killed",
+  "why": "a heading that begins with a blank run and a hash, `  #`, stops matching: the enumeration"
+ },
+ {
+  "name": "A11 ATX_CLOSING: the alternatives in the other order",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_CLOSING = /(?:^|(?<![ \\t])[ \\t]+)#+[ \\t]*$/;",
+  "to": "export const ATX_CLOSING = /(?:(?<![ \\t])[ \\t]+|^)#+[ \\t]*$/;",
+  "expect": "survives",
+  "why": "both reach the same end and the same start for any text (the first alternative needs the start of the text, the second a blank); argued equivalent"
+ },
+ {
+  "name": "A12 ATX_CLOSING: the hash run in a group",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_CLOSING = /(?:^|(?<![ \\t])[ \\t]+)#+[ \\t]*$/;",
+  "to": "export const ATX_CLOSING = /(?:^|(?<![ \\t])[ \\t]+)(?:#+)[ \\t]*$/;",
+  "expect": "survives",
+  "why": "a non-capturing group changes nothing; argued equivalent"
+ },
+ {
+  "name": "K01 knitrDocumentDefaults: the echo / include value strip is the regex again",
+  "file": "src/core/qmd/model.ts",
+  "from": "KNITR_YAML_FALSE.test(cutHashComment(m[2], \" \\t\").trim())",
+  "to": "KNITR_YAML_FALSE.test(m[2].replace(/[ \\t]+#.*$/, \"\").trim())",
+  "expect": "killed",
+  "why": "the document rows (echo: false and a long run, 100,000 blanks) fail at 6 s"
+ },
+ {
+  "name": "K02 knitrDocumentDefaults: the key value strip is the regex again",
+  "file": "src/core/qmd/model.ts",
+  "from": "const value = cutHashComment(rest.slice(key.length + 1), \" \\t\").trim();",
+  "to": "const value = rest.slice(key.length + 1).replace(/[ \\t]+#.*$/, \"\").trim();",
+  "expect": "killed",
+  "why": "the document rows (execute: and a long run, ` #` pairs and U+2028) fail at 6 to 11 s"
+ },
+ {
+  "name": "K03 knitrDocumentDefaults: the echo / include strip cuts at a space only",
+  "file": "src/core/qmd/model.ts",
+  "from": "KNITR_YAML_FALSE.test(cutHashComment(m[2], \" \\t\").trim())",
+  "to": "KNITR_YAML_FALSE.test(cutHashComment(m[2], \" \").trim())",
+  "expect": "killed",
+  "why": "`echo: false<TAB># c` is no longer silenced: a tab before the hash must count"
+ },
+ {
+  "name": "K04 knitrDocumentDefaults: the key strip cuts at a space only",
+  "file": "src/core/qmd/model.ts",
+  "from": "const value = cutHashComment(rest.slice(key.length + 1), \" \\t\").trim();",
+  "to": "const value = cutHashComment(rest.slice(key.length + 1), \" \").trim();",
+  "expect": "killed",
+  "why": "`execute:<TAB># c` is no longer a block mapping: a tab before the hash must count"
+ },
+ {
+  "name": "K05 knitrDocumentDefaults: the echo / include strip is not trimmed",
+  "file": "src/core/qmd/model.ts",
+  "from": "KNITR_YAML_FALSE.test(cutHashComment(m[2], \" \\t\").trim())",
+  "to": "KNITR_YAML_FALSE.test(cutHashComment(m[2], \" \\t\"))",
+  "expect": "killed",
+  "why": "`echo: false  # c` keeps a blank where the regex cut it: the cut is at the blank before the hash, only the trim removes the rest"
+ },
+ {
+  "name": "K06 knitrDocumentDefaults: the key strip is not trimmed",
+  "file": "src/core/qmd/model.ts",
+  "from": "const value = cutHashComment(rest.slice(key.length + 1), \" \\t\").trim();",
+  "to": "const value = cutHashComment(rest.slice(key.length + 1), \" \\t\");",
+  "expect": "killed",
+  "why": "`execute:  # c` leaves blanks and is not the empty value of a block mapping"
+ },
+ {
+  "name": "R01 OUTPUT_CREATED_LINE: the blanks after the colon are spaces only",
+  "file": "src/core/render-args.ts",
+  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\r\\u2028\\u2029]*)/g;",
+  "to": "const OUTPUT_CREATED_LINE = /Output created:([ ]*)([^\\n\\r\\u2028\\u2029]*)/g;",
+  "expect": "killed",
+  "why": "a path after a tab keeps the tab: the readable rows and the enumerations"
+ },
+ {
+  "name": "R02 OUTPUT_CREATED_LINE: a CR does not end the line",
+  "file": "src/core/render-args.ts",
+  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\r\\u2028\\u2029]*)/g;",
+  "to": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\u2028\\u2029]*)/g;",
+  "expect": "killed",
+  "why": "`Output created: a<CR>b` answers `a\\rb`: the enumeration"
+ },
+ {
+  "name": "R03 OUTPUT_CREATED_LINE: U+2028 does not end the line",
+  "file": "src/core/render-args.ts",
+  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\r\\u2028\\u2029]*)/g;",
+  "to": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\r\\u2029]*)/g;",
+  "expect": "killed",
+  "why": "`Output created: a<U+2028>b` answers `a<U+2028>b`: the enumeration and the readable row"
+ },
+ {
+  "name": "R04 OUTPUT_CREATED_LINE: U+2029 does not end the line",
+  "file": "src/core/render-args.ts",
+  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\r\\u2028\\u2029]*)/g;",
+  "to": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\r\\u2028]*)/g;",
+  "expect": "killed",
+  "why": "the second token set holds U+2029: the enumeration"
+ },
+ {
+  "name": "R05 OUTPUT_CREATED_LINE: a LF does not end the line",
+  "file": "src/core/render-args.ts",
+  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\r\\u2028\\u2029]*)/g;",
+  "to": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\r\\u2028\\u2029]*)/g;",
+  "expect": "killed",
+  "why": "the line runs on into the next line: the readable rows"
+ },
+ {
+  "name": "R06 OUTPUT_CREATED_LINE: the rest of the line needs a character",
+  "file": "src/core/render-args.ts",
+  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\r\\u2028\\u2029]*)/g;",
+  "to": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\r\\u2028\\u2029]+)/g;",
+  "expect": "killed",
+  "why": "a line of blanks after the colon gives back a blank to the rest and answers an empty string: the readable rows"
+ },
+ {
+  "name": "R07 OUTPUT_CREATED_LINE: not global",
+  "file": "src/core/render-args.ts",
+  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\r\\u2028\\u2029]*)/g;",
+  "to": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\r\\u2028\\u2029]*)/;",
+  "expect": "killed",
+  "why": "matchAll refuses a non-global pattern: every row"
+ },
+ {
+  "name": "R08 parseOutputPath: the trailing trim reads spaces only",
+  "file": "src/core/render-args.ts",
+  "from": "while (rest[end - 1] === \" \" || rest[end - 1] === \"\\t\") {",
+  "to": "while (rest[end - 1] === \" \") {",
+  "expect": "killed",
+  "why": "`out.html \\t ` keeps its tab: the readable row"
+ },
+ {
+  "name": "R09 parseOutputPath: the trailing trim reads tabs only",
+  "file": "src/core/render-args.ts",
+  "from": "while (rest[end - 1] === \" \" || rest[end - 1] === \"\\t\") {",
+  "to": "while (rest[end - 1] === \"\\t\") {",
+  "expect": "killed",
+  "why": "`out.html \\t ` keeps its blank: the readable row"
+ },
+ {
+  "name": "R10 parseOutputPath: the trailing trim reads any whitespace",
+  "file": "src/core/render-args.ts",
+  "from": "while (rest[end - 1] === \" \" || rest[end - 1] === \"\\t\") {",
+  "to": "while (rest[end - 1] !== undefined && rest[end - 1].trim() === \"\") {",
+  "expect": "killed",
+  "why": "a trailing no-break space or form feed is cut: the second enumeration"
+ },
+ {
+  "name": "R11 parseOutputPath: the path is not trimmed",
+  "file": "src/core/render-args.ts",
+  "from": "last = rest.slice(0, end);",
+  "to": "last = rest;",
+  "expect": "killed",
+  "why": "`out.html ` keeps its blank: the readable rows"
+ },
+ {
+  "name": "R12 parseOutputPath: a blank-only line answers nothing",
+  "file": "src/core/render-args.ts",
+  "from": "    } else if (blanks !== \"\") {\n      last = blanks[blanks.length - 1];\n    }\n",
+  "to": "    }\n",
+  "expect": "killed",
+  "why": "`Output created:   ` answers its last blank in the lazy pattern: the readable rows"
+ },
+ {
+  "name": "R13 parseOutputPath: a blank-only line answers a space whatever the blank",
+  "file": "src/core/render-args.ts",
+  "from": "last = blanks[blanks.length - 1];",
+  "to": "last = \" \";",
+  "expect": "killed",
+  "why": "`Output created: \\t` answers a tab: the readable row"
+ },
+ {
+  "name": "R14 parseOutputPath: a blank-only line answers its first blank",
+  "file": "src/core/render-args.ts",
+  "from": "last = blanks[blanks.length - 1];",
+  "to": "last = blanks[0];",
+  "expect": "killed",
+  "why": "`Output created: \\t` answers its LAST blank, a tab: the readable row"
+ },
+ {
+  "name": "R15 parseOutputPath: a rest of blanks that are not [ \\t] counts as empty",
+  "file": "src/core/render-args.ts",
+  "from": "if (rest !== \"\") {",
+  "to": "if (rest.trim() !== \"\") {",
+  "expect": "killed",
+  "why": "`Output created:<NBSP>` answers the no-break space: the second enumeration"
+ },
+ {
+  "name": "R16 parseOutputPath: the first marker wins, not the last",
+  "file": "src/core/render-args.ts",
+  "from": "      last = rest.slice(0, end);\n",
+  "to": "      last = rest.slice(0, end);\n      break;\n",
+  "expect": "killed",
+  "why": "`Output created: a` then `Output created: b` answers `b`: the readable row"
+ },
+ {
+  "name": "R17 parseOutputPath: the colour escapes are not stripped",
+  "file": "src/core/render-args.ts",
+  "from": "const clean = output.replace(ANSI_PATTERN, \"\");",
+  "to": "const clean = output;",
+  "expect": "killed",
+  "why": "`\\x1b[1mOutput created: out.html\\x1b[22m` keeps the escape: the readable rows"
+ },
+ {
+  "name": "R18 parseOutputPath: the lazy pattern again",
+  "file": "src/core/render-args.ts",
+  "from": "  for (const [, blanks, rest] of clean.matchAll(OUTPUT_CREATED_LINE)) {\n    if (rest !== \"\") {\n      let end = rest.length;\n      while (rest[end - 1] === \" \" || rest[end - 1] === \"\\t\") {\n        end--;\n      }\n      last = rest.slice(0, end);\n    } else if (blanks !== \"\") {\n      last = blanks[blanks.length - 1];\n    }\n  }\n",
+  "to": "  const re = /Output created:[ \\t]*(.+?)[ \\t]*$/gm;\n  let match: RegExpExecArray | null;\n  while ((match = re.exec(clean)) !== null) {\n    last = match[1];\n  }\n",
+  "expect": "killed",
+  "why": "no answer changes, so cost tells it: the near-miss clock row at 50,000 characters and the document row at 100,000 blanks fail"
+ }
+]

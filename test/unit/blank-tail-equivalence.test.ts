@@ -192,6 +192,11 @@ const SITES: Record<string, Site> = {
       `   |${" ".repeat(n)}:-:${" ".repeat(n)}|${" ".repeat(n)}`,
       `-${" ".repeat(n)}\f${" ".repeat(n)}`,
       `-${" ".repeat(n)}\r`,
+      // A long DASH run in the pipe body (a cap on `-+` anywhere but the first cell is seen by the cell lines above; the first cell, the colons and a run after a pipe are these).
+      "-".repeat(n),
+      `:${"-".repeat(n)}:`,
+      `|${"-".repeat(n)}|`,
+      `-|${"-".repeat(n)}`,
       `+${" ".repeat(n)}`,
       `+${"-".repeat(n)}`,
       `+${"- ".repeat(Math.floor(n / 2))}`,
