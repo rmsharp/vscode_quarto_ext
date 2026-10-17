@@ -12468,9 +12468,12 @@ function escapeRegExp(s: string): string {
  * `{sql}` + `#| echo: banana` renders exit 0 and we emitted it for value-diagnostics to
  * squiggle (the cardinal sin). Both grounded firsthand vs 1.7.33 across the table's nine
  * distinct openers (S161).
+ *
+ * ⚠ **The gap after the pipe (group 3) ends in a lookahead, `(?![ \t])` (Session 319)**: a CR, U+2028 or U+2029 after it makes `(.*)$` fail, and the engine retried it once per way of splitting the
+ * blanks (6 s on 100,000). Exact, because the remainder may be empty and may itself start with a blank. Exported for `blank-tail-equivalence.test.ts`, which builds the old pattern for three openers.
  */
-function cellOptionPrefixFor({ open }: CommentChars): RegExp {
-  return new RegExp("^(" + escapeRegExp(open) + ")([ \\t]*)\\|([ \\t]*)(.*)$");
+export function cellOptionPrefixFor({ open }: CommentChars): RegExp {
+  return new RegExp("^(" + escapeRegExp(open) + ")([ \\t]*)\\|([ \\t]*)(?![ \\t])(.*)$");
 }
 
 /**
@@ -13339,13 +13342,19 @@ export const DASH_COLUMN_LINE = /^ {0,3}-+[ \t]+-[ \t-]*$|^ {1,3}-+[ \t]*$/;
 /** A line made only of dashes and blanks: a simple table's rule, a setext underline or a thematic break. Spelled as a dash and a one-class tail for the reason `DASH_COLUMN_LINE` gives (Session 317). */
 export const DASH_ONLY_LINE = /^ {0,3}-[ \t-]*$/;
 /**
+ * The first line of a link-reference definition: up to three spaces, `[label]:`, and the rest of the line as group 1. ⚠ **The blank run after the colon ends in a lookahead, `(?![ \t])` (Session 319)**:
+ * a CR, U+2028 or U+2029 after it makes `(.*)$` fail, and the engine retried it once per way of splitting the blanks (12 s for a document with 100,000, which reads the line twice). Exact, because
+ * `(.*)` may be empty and may itself start with a blank, so the longest run is the only try that can succeed; `blank-tail-equivalence.test.ts` holds the old spelling as the oracle.
+ */
+export const LINK_DEFINITION_LINE = /^ {0,3}\[[^\^\]][^\]]*\]:[ \t]*(?![ \t])(.*)$/;
+/**
  * Whether the line at `y` is a link-reference definition pandoc ACCEPTS (Session 298, round-3b, rendered `review3b/codes/r3b_001`-`008`; the prefix test `LINK_REFERENCE_DEFINITION` is the first half). Pandoc's
  * grammar is wide: the URL may sit on the next line (a bare `[a]:` over any line that does not start with `[`), unquoted junk after the URL is part of it (`[a]: /u x y`), and an unclosed quote is junk too. It
  * refuses three shapes, each of which is then paragraph text and ends nothing: a URL that starts with `[` (`[a]:[b]: /u`, `[a]: [x]`, a bare `[a]:` over a line starting `[`), a quoted or parenthesised title with
  * junk after it (`[a]: /u 't' x`), and link attributes with junk after them (`[a]: /u {#id} x`). A bare `[a]:` over a blank line has no URL at all.
  */
 function linkDefinitionAt(lines: readonly string[], y: number): boolean {
-  const m = /^ {0,3}\[[^\^\]][^\]]*\]:[ \t]*(.*)$/.exec(lines[y]);
+  const m = LINK_DEFINITION_LINE.exec(lines[y]);
   if (m === null) {
     return false;
   }
@@ -13583,8 +13592,15 @@ function tableOrLineBlockEndsAt(b: BlockBoundaries, x: number, nextContinues = f
   }
   return false;
 }
-/** A pipe-table delimiter row: cells of dashes with optional alignment colons, optionally between outer pipes (the caller also requires a `|`). */
-const PIPE_DELIMITER_ROW = /^ {0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/;
+/**
+ * A pipe-table delimiter row: cells of dashes with optional alignment colons, optionally between outer pipes (the caller also requires a `|`).
+ *
+ * ⚠ **No two blank runs touch (Session 319).** The old spelling gave every cell its own trailing `[ \t]*` and then allowed an optional pipe and one more `[ \t]*`: with no further cell and no pipe the
+ * two runs were adjacent, so for n blanks the engine tried all n+1 ways to split them and each split re-read the second run (quadratic, and for ANY character that ends the match, not only a
+ * terminator: 6 s on 100,000 blanks then U+2028, 18 s then a CR and a letter). Each blank run now sits in front of the pipe it belongs to (`[ \t]*\|`), so the engine meets a run once per
+ * position. The strings accepted are the same (`blank-tail-equivalence.test.ts` holds the old spelling as the oracle); the pattern has no group and every caller reads `.test`.
+ */
+export const PIPE_DELIMITER_ROW = /^ {0,3}\|?[ \t]*:?-+:?(?:[ \t]*\|[ \t]*:?-+:?)*(?:[ \t]*\|)?[ \t]*$/;
 /** The top border of a grid table: dashes only between the plus signs (a `+====+` first border is no table). */
 const GRID_PLAIN_BORDER = /^\+(?:-+\+)+[ \t]*$/;
 

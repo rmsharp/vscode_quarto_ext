@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { ATX_HEADING, ATX_HEADING_TIGHT, DIV_FENCE, KNITR_ECHO_INCLUDE_LINE, PLAIN_ITEM_LINE, PLAIN_KEY_LINE, PROOF_KEY_LINE } from "../../src/core/qmd/model";
+import {
+  ATX_HEADING,
+  ATX_HEADING_TIGHT,
+  DIV_FENCE,
+  KNITR_ECHO_INCLUDE_LINE,
+  LINK_DEFINITION_LINE,
+  PIPE_DELIMITER_ROW,
+  PLAIN_ITEM_LINE,
+  PLAIN_KEY_LINE,
+  PROOF_KEY_LINE,
+  cellOptionPrefixFor,
+} from "../../src/core/qmd/model";
 import { BOM, EM_SPACE, IDEOGRAPHIC, LS, NBSP, NEL, PS, compare, countStrings, everyString, seededRandom, slowestExec } from "./support/regex-equivalence";
 
 // Session 319 — the BACKLOG item "Other regexes still quadratic on a long run of blanks, CR or U+2028", parts (5) and (9). A pattern that reads a run of blanks and then `(.*)$` (or `(.+)$`) fails on a line
@@ -24,7 +35,27 @@ interface Site {
   indents: readonly string[];
   /** The longest string of the first enumeration (its alphabet is the marks, a blank, a tab, a CR, U+2028 and a letter). */
   shortLength: number;
+  /** False when a long indent is refused (` {0,3}`), so a line that starts with one is not an ACCEPTED line. */
+  longIndent?: boolean;
+  /** What may follow the head and a long blank run on a line the pattern accepts (default: nothing, a letter, words, a long word). */
+  acceptedTails?: readonly string[];
+  /** The tails of the seeded sample and the grid (default `TAILS`). */
+  tails?: readonly string[];
 }
+
+const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/** The cell-option prefix as Session 318 left it: the gap after the pipe is not guarded. */
+const oldCellOptionPrefix = (open: string): RegExp => new RegExp("^(" + escapeRegExp(open) + ")([ \\t]*)\\|([ \\t]*)(.*)$");
+const cellOptionSite = (open: string): Site => ({
+  old: oldCellOptionPrefix(open),
+  now: cellOptionPrefixFor({ open, close: null }),
+  guard: "(?![ \\t])",
+  marks: [open, "|"],
+  heads: [`${open}|`, `${open} |`, `${open}\t|`],
+  blanks: [" ", "\t"],
+  indents: [],
+  shortLength: 7,
+});
 
 const SITES: Record<string, Site> = {
   DIV_FENCE: { old: /^[ \t]*:{3,}(?!:)[ \t]*(.*)$/, now: DIV_FENCE, guard: "(?![ \\t])", marks: [":"], heads: [":::", "::::", ":::::"], blanks: [" ", "\t"], indents: [" ", "   ", "    ", "\t"], shortLength: 7 },
@@ -34,6 +65,23 @@ const SITES: Record<string, Site> = {
   PLAIN_KEY_LINE: { old: /^( *)(- +)?([A-Za-z_][A-Za-z0-9_.-]*) *:(?: +(.*))?$/, now: PLAIN_KEY_LINE, guard: "(?! )", marks: ["k", ":", "-"], heads: ["k:", "- k:", "key.a-b:"], blanks: [" "], indents: [" ", "   ", "    "], shortLength: 7 },
   PLAIN_ITEM_LINE: { old: /^( *)- +(.*)$/, now: PLAIN_ITEM_LINE, guard: "(?! )", marks: ["-"], heads: ["-"], blanks: [" "], indents: [" ", "   ", "    "], shortLength: 7 },
   KNITR_ECHO_INCLUDE_LINE: { old: /^(echo|include):[ \t]*(.*)$/, now: KNITR_ECHO_INCLUDE_LINE, guard: "(?![ \\t])", marks: ["echo:", "include:"], heads: ["echo:", "include:"], blanks: [" ", "\t"], indents: [], shortLength: 6 },
+  LINK_DEFINITION_LINE: { old: /^ {0,3}\[[^\^\]][^\]]*\]:[ \t]*(.*)$/, now: LINK_DEFINITION_LINE, guard: "(?![ \\t])", marks: ["[", "]", ":", "^"], heads: ["[a]:", "[ab c]:", "[1]:"], blanks: [" ", "\t"], indents: [" ", "  ", "   ", "    "], shortLength: 7, longIndent: false },
+  "CELL_OPTION_PREFIX #": cellOptionSite("#"),
+  "CELL_OPTION_PREFIX //": cellOptionSite("//"),
+  "CELL_OPTION_PREFIX (*": cellOptionSite("(*"),
+  PIPE_DELIMITER_ROW: {
+    old: /^ {0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/,
+    now: PIPE_DELIMITER_ROW,
+    guard: "(?:[ \\t]*\\|)?[ \\t]*$",
+    marks: ["|", "-", ":"],
+    heads: ["-", "|-", ":-:", "|--"],
+    blanks: [" ", "\t"],
+    indents: [" ", "  ", "   ", "    "],
+    shortLength: 7,
+    longIndent: false,
+    acceptedTails: ["", "|", "|-", " | - |", " |:-|"], // a cell straight after the blanks is no cell: the pipe between cells is what the pattern asks for
+    tails: ["", "-", "|", " | - ", ":-:", "x", "\r", LS, PS, " \r", "-\r", "-|\r", "|-", "-x"],
+  },
 };
 
 // How many strings of each comparison the OLD spelling accepts, counted from the old spelling alone: no comparison below can pass by both sides refusing everything, and an edit to the oracle moves the count.
@@ -46,6 +94,11 @@ const ACCEPTED: Record<string, { short: number; wide: number; exotic: number; se
   PLAIN_KEY_LINE: { short: 10470, wide: 452, exotic: 602, seeded: 18583, grid: 876 },
   PLAIN_ITEM_LINE: { short: 1818, wide: 310, exotic: 922, seeded: 18467, grid: 288 },
   KNITR_ECHO_INCLUDE_LINE: { short: 7812, wide: 5602, exotic: 22222, seeded: 8606, grid: 320 },
+  LINK_DEFINITION_LINE: { short: 14574, wide: 253, exotic: 286, seeded: 21530, grid: 1920 },
+  "CELL_OPTION_PREFIX #": { short: 6468, wide: 554, exotic: 1385, seeded: 8719, grid: 480 },
+  "CELL_OPTION_PREFIX //": { short: 6468, wide: 554, exotic: 1385, seeded: 8572, grid: 480 },
+  "CELL_OPTION_PREFIX (*": { short: 6468, wide: 554, exotic: 1385, seeded: 8582, grid: 480 },
+  PIPE_DELIMITER_ROW: { short: 13364, wide: 995, exotic: 995, seeded: 12128, grid: 1466 },
 };
 
 const TERMINATORS = ["\r", LS, PS] as const;
@@ -62,7 +115,7 @@ function* seededLines(site: Site, seed: number): Generator<string> {
   for (let i = 0; i < 100_000; i++) {
     let line = pick(["", "", " ", "  ", "\t", " \t", "   ", "    "]) + pick(site.heads);
     line += pick(["", " ", "  ", "\t", " \t ", "         ", " ".repeat(Math.floor(random() * 40))]);
-    line += pick(TAILS);
+    line += pick(site.tails ?? TAILS);
     if (random() < 0.4) line += pick(["\r", LS, PS, "\r\n", "\n"]);
     if (random() < 0.4) line += pick(["x", " ", "\t", pick(site.marks)]);
     yield line;
@@ -74,7 +127,7 @@ function* gapGrid(site: Site): Generator<string> {
     for (const head of site.heads) {
       for (const run of RUNS) {
         for (const blank of site.blanks) {
-          for (const tail of TAILS) {
+          for (const tail of site.tails ?? TAILS) {
             yield `${indent}${head}${blank.repeat(run)}${tail}`;
           }
         }
@@ -112,11 +165,13 @@ function* longAcceptedLines(site: Site): Generator<string> {
   for (const n of [5_000, 50_000, 200_000]) {
     for (const head of site.heads) {
       for (const blank of site.blanks) {
-        for (const tail of ["", "x", "x y", "r".repeat(n)]) {
+        for (const tail of site.acceptedTails ?? ["", "x", "x y", "r".repeat(n)]) {
           yield `${head}${blank.repeat(n)}${tail}`;
         }
-        for (const indent of site.indents) {
-          yield `${indent}${blank.repeat(n)}${head}${blank}x`;
+        if (site.longIndent !== false) {
+          for (const indent of site.indents) {
+            yield `${indent}${blank.repeat(n)}${head}${blank}x`;
+          }
         }
       }
     }
@@ -177,7 +232,7 @@ describe("Session 319 — the blank-run patterns answer what their unguarded spe
     const site = SITES[name];
     const { compared, accepted, disagreements } = compare(site.old, site.now, gapGrid(site));
     expect(disagreements).toEqual([]);
-    expect(compared).toBe((1 + site.indents.length) * site.heads.length * RUNS.length * site.blanks.length * TAILS.length);
+    expect(compared).toBe((1 + site.indents.length) * site.heads.length * RUNS.length * site.blanks.length * (site.tails ?? TAILS).length);
     expect(accepted).toBe(ACCEPTED[name]?.grid);
   }, 120_000);
 

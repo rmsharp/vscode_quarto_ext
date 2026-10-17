@@ -789,6 +789,26 @@ describe("Session 319 — a long run of blanks followed by a CR, U+2028 or U+202
       build: (blanks, terminator) => `---\necho:${blanks}${terminator}\n---\n\nIntro of the echo default.\n\n# H\n`,
       read: (text) => findHeadings(text, "knitr").map((h) => h.text),
     },
+    {
+      site: "linkDefinitionAt (`[a]:` and blanks, then a dash row)",
+      terminators: [CR_AND_LETTER, LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
+      build: (blanks, terminator) => `Intro of the link definition.\n\n[a]:${blanks}${terminator}x\n- - -\n\n# H\n`,
+      read: (text) => findHeadings(text).map((h) => h.text),
+    },
+    {
+      site: "the cell option prefix (`#|` and blanks at the head of a code cell)",
+      terminators: [CR_AND_LETTER, LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
+      build: (blanks, terminator) => `Intro of the cell option prefix.\n\n\`\`\`{python}\n#|${blanks}${terminator}x\n\`\`\`\n`,
+      read: (text) => findCellOptionLines(text).length,
+    },
+    {
+      // No CR row: `TABLE_RULE_ROW` embeds the same delimiter-row alternation followed by `\s*$`, and a CR and a letter after the blanks reach IT (12 s with PIPE_DELIMITER_ROW already fixed). That pattern is
+      // part (4) of the same BACKLOG item and has its own session; its cure is this pattern's new spelling (no two blank runs touch).
+      site: "PIPE_DELIMITER_ROW (a pipe table's delimiter row, a long blank run inside it)",
+      terminators: [LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
+      build: (blanks, terminator) => `Intro of the delimiter row.\n\na|b\n|-${blanks}|${terminator}\n***\n\n# H\n`,
+      read: (text) => findHeadings(text).map((h) => h.text),
+    },
   ];
 
   it.each(ROWS.flatMap((row) => row.terminators.map(([terminatorName, terminator]) => [row.site, terminatorName, row, terminator] as const)))(
