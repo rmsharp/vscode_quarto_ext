@@ -29,6 +29,10 @@ g02's third session (operator chose it at the Phase 0 picker; claim `6ea0db00`).
 - **Left, in BACKLOG:** `TABLE_RULE_ROW` still carries the old delimiter-row alternation (part (4)); `test:integration` NOT run (nine sessions).
 - **Model:** Claude Sonnet 5.5.
 
+### 2026-10-17 · [ad hoc] Session 319: trim SESSION_NOTES to three close-out pairs, and the close-out and BACKLOG commits (`3f4ee22d`, `5582eca4`)
+
+`methodology/SESSION_NOTES.md` dropped the Session 315 evaluation and the Session 316 self-assessment (37 deleted lines, 0 added; 28,460 B before, well under the 120,000 B and 400-line ceilings), in a commit that holds no other edit to that file (recoverable with `git show 3f4ee22d:methodology/SESSION_NOTES.md`). The close-out commit `3f4ee22d` holds the notes, the receipt, the ledger, Learnings 783 to 789 and the budget history; `5582eca4` holds the new BACKLOG item, the in-place closures and the plan.
+
 ### 2026-10-17 · [ad hoc] Session 319: filed the BACKLOG item "More quadratic and stack-overflow shapes found by Session 319's sweep and review", closed B89 parts (5) and (9) and the Session 318 item's part (8) in place, corrected the plan
 
 Non-commit part of the close-out (the edits ride the close-out commit): one new open item from the sweep and the completeness critic (container columns, quoted openers, angle constructs, unanchored scans, regex-stack overflows; ten shapes re-run by the session in fresh processes, the rest by the critic), BACKLOG lines 88 to 92 edited, `docs/planning/2026-10-15-backlog-ordering-plan.md` "Current position", the order table and the g02 block updated, Learnings 783 to 789 appended.
