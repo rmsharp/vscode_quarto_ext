@@ -73,10 +73,13 @@ const cellOptionSite = (open: string): Site => ({
   acceptedLines: (n) => [`${open}${" ".repeat(n)}| x`, `${open}${"\t".repeat(n)}|x`, `${open}|${" ".repeat(n)}x`],
 });
 
+/** A run of seven or more `#` is no heading (the Outline caps at six): both readers must refuse these, and neither is a head any other row builds (a head is accepted by definition). */
+const sevenHashes = (n: number): string[] => ["#######", "####### x", "#######x", "#######  ", `#######${" ".repeat(n)}x`, `${"#".repeat(n)} x`, `${"#".repeat(n)}x`];
+
 const SITES: Record<string, Site> = {
   DIV_FENCE: { old: /^[ \t]*:{3,}(?!:)[ \t]*(.*)$/, now: DIV_FENCE, guard: "(?![ \\t])", marks: [":"], heads: [":::", "::::", ":::::"], blanks: [" ", "\t"], indents: [" ", "   ", "    ", "\t"], shortLength: 7, acceptedLines: (n) => [":".repeat(n), `${":".repeat(n)} x`] },
-  ATX_HEADING: { old: /^[ \t]*(#{1,6})[ \t]+(.+)$/, now: ATX_HEADING, guard: "(?=[ \\t].*$)", marks: ["#"], heads: ["#", "##", "######"], blanks: [" ", "\t"], indents: [" ", "   ", "    ", "\t"], shortLength: 7 },
-  ATX_HEADING_TIGHT: { old: /^[ \t]*(#{1,6})(?!#)[ \t]*(.+)$/, now: ATX_HEADING_TIGHT, guard: "(?=.*$)", marks: ["#"], heads: ["#", "##", "######"], blanks: [" ", "\t"], indents: [" ", "   ", "    ", "\t"], shortLength: 7 },
+  ATX_HEADING: { old: /^[ \t]*(#{1,6})[ \t]+(.+)$/, now: ATX_HEADING, guard: "(?=[ \\t].*$)", marks: ["#"], heads: ["#", "##", "######"], blanks: [" ", "\t"], indents: [" ", "   ", "    ", "\t"], shortLength: 7, extraLines: sevenHashes },
+  ATX_HEADING_TIGHT: { old: /^[ \t]*(#{1,6})(?!#)[ \t]*(.+)$/, now: ATX_HEADING_TIGHT, guard: "(?=.*$)", marks: ["#"], heads: ["#", "##", "######"], blanks: [" ", "\t"], indents: [" ", "   ", "    ", "\t"], shortLength: 7, extraLines: sevenHashes },
   PROOF_KEY_LINE: { old: /^([A-Za-z0-9_][A-Za-z0-9_.-]*):(?:[ \t]+(.*))?$/, now: PROOF_KEY_LINE, guard: "(?![ \\t])", marks: ["k", ":"], foils: ["_", "A", "9", "."], heads: ["k:", "key:", "a.b-c:", "k1:"], blanks: [" ", "\t"], indents: [], shortLength: 6, acceptedLines: (n) => [`${"k".repeat(n)}:`, `${"a.b-".repeat(Math.floor(n / 4))}: x`, `${"_".repeat(n)}: x`, `A${"9".repeat(n)}: x`] },
   PLAIN_KEY_LINE: { old: /^( *)(- +)?([A-Za-z_][A-Za-z0-9_.-]*) *:(?: +(.*))?$/, now: PLAIN_KEY_LINE, guard: "(?! )", marks: ["k", ":", "-"], foils: ["_", "A", "9", "."], heads: ["k:", "- k:", "key.a-b:"], blanks: [" "], indents: [" ", "   ", "    "], shortLength: 6, acceptedLines: (n) => [`${"k".repeat(n)}: x`, `k${" ".repeat(n)}: x`, `-${" ".repeat(n)}k: x`, `${" ".repeat(n)}- k: x`, `_${"A9.-".repeat(Math.floor(n / 4))}: x`] },
   PLAIN_ITEM_LINE: { old: /^( *)- +(.*)$/, now: PLAIN_ITEM_LINE, guard: "(?! )", marks: ["-"], heads: ["-"], blanks: [" "], indents: [" ", "   ", "    "], shortLength: 7, acceptedLines: (n) => [`- ${"x".repeat(n)}`] },
@@ -168,6 +171,14 @@ const ACCEPTED: Record<string, { short: number; wide: number; exotic: number; se
 };
 
 const TERMINATORS = ["\r", LS, PS] as const;
+/** Lines the NEW spelling is timed on, how long one `exec` may take on them (a quadratic spelling takes seconds), and the sizes of the lines the OLD spelling accepts and the NEW one is compared on. */
+const NEAR_MISS_CHARACTERS = 50_000;
+const CLOCK_LIMIT_MS = 100;
+const ACCEPTED_SIZES = [5_000, 50_000, 200_000] as const;
+const SEEDED_LINES = 100_000;
+/** The strip's pair-heavy texts and the terminators they use. */
+const STRIP_PAIRS = 200_000;
+const STRIP_TERMINATORS = ["\r", LS, PS, "\n"] as const;
 const TAILS = ["", "x", "r", "x y", "{r}", "#", "x#", "\r", LS, PS, "x\r", " \r", "x ", "x\r "] as const;
 const RUNS = [0, 1, 2, 3, 4, 31, 32, 33, 64, 100] as const;
 
@@ -178,7 +189,7 @@ const exoticAlphabet = (site: Site): string[] => [...site.marks, ...(site.foils 
 function* seededLines(site: Site, seed: number): Generator<string> {
   const random = seededRandom(seed);
   const pick = <T,>(items: readonly T[]): T => items[Math.floor(random() * items.length)];
-  for (let i = 0; i < 100_000; i++) {
+  for (let i = 0; i < SEEDED_LINES; i++) {
     let line = pick(["", "", " ", "  ", "\t", " \t", "   ", "    "]) + pick(site.heads);
     line += pick(["", " ", "  ", "\t", " \t ", "         ", " ".repeat(Math.floor(random() * 40))]);
     line += pick(site.tails ?? TAILS);
@@ -233,7 +244,7 @@ function nearMissLines(site: Site, n: number): string[] {
 }
 
 function* longAcceptedLines(site: Site): Generator<string> {
-  for (const n of [5_000, 50_000, 200_000]) {
+  for (const n of ACCEPTED_SIZES) {
     for (const head of site.heads) {
       for (const blank of site.blanks) {
         for (const tail of site.acceptedTails ?? ["", "x", "x y", "r".repeat(n)]) {
@@ -254,6 +265,21 @@ function* longAcceptedLines(site: Site): Generator<string> {
 
 describe("Session 319 — the blank-run patterns answer what their unguarded spellings answered", () => {
   const names = Object.keys(SITES);
+
+  // The sizes, limits and terminators the rows below depend on. A row that was quietly weakened (a clock row run at 5,000 characters instead of 50,000, a terminator dropped from the list) would still pass.
+  it("keeps the sizes, the clock limit and the terminators its rows are built on", () => {
+    expect([...TERMINATORS]).toEqual(["\r", LS, PS]);
+    expect([...STRIP_TERMINATORS]).toEqual(["\r", LS, PS, "\n"]);
+    expect(NEAR_MISS_CHARACTERS).toBe(50_000);
+    expect(CLOCK_LIMIT_MS).toBe(100);
+    expect([...ACCEPTED_SIZES]).toEqual([5_000, 50_000, 200_000]);
+    expect(STRIP_PAIRS).toBe(200_000);
+    expect(SEEDED_LINES).toBe(100_000);
+    for (const name of names) {
+      expect(SITES[name].shortLength, name).toBeGreaterThanOrEqual(6);
+      expect(SITES[name].smallLength ?? 1_000, name).toBeGreaterThanOrEqual(200);
+    }
+  });
 
   it("pins an accepted count for every site", () => {
     expect(Object.keys(ACCEPTED).sort()).toEqual([...names].sort());
@@ -297,9 +323,12 @@ describe("Session 319 — the blank-run patterns answer what their unguarded spe
 
   it.each(names)("%s agrees, groups included, on 100,000 seeded lines", (name) => {
     const site = SITES[name];
-    const { compared, accepted, disagreements } = compare(site.old, site.now, seededLines(site, 319 + names.indexOf(name)));
+    const lines = [...seededLines(site, 319 + names.indexOf(name))];
+    const { compared, accepted, disagreements } = compare(site.old, site.now, lines);
     expect(disagreements).toEqual([]);
-    expect(compared).toBe(100_000);
+    // The sample must carry every kind of terminator: the accepted count cannot tell a CR from a line separator (no site accepts either), so a sample that dropped one would pass.
+    expect(["\r", LS, PS, "\n"].map((terminator) => lines.some((line) => line.includes(terminator)))).toEqual([true, true, true, true]);
+    expect(compared).toBe(SEEDED_LINES);
     expect(accepted).toBe(ACCEPTED[name]?.seeded);
   }, 120_000);
 
@@ -326,7 +355,7 @@ describe("Session 319 — the blank-run patterns answer what their unguarded spe
   }, 120_000);
 
   it.each(names)("%s refuses or accepts each near-miss line of 50,000 characters in linear time", (name) => {
-    const { slowestText, slow } = slowestExec(SITES[name].now, nearMissLines(SITES[name], 50_000), 100);
+    const { slowestText, slow } = slowestExec(SITES[name].now, nearMissLines(SITES[name], NEAR_MISS_CHARACTERS), CLOCK_LIMIT_MS);
     expect({ slowestText, slow }).toEqual({ slowestText, slow: false });
   }, 120_000);
 
@@ -416,7 +445,7 @@ describe("Session 319 — cutHashComment answers what the unanchored replace ans
   const pairShapes = (n: number): string[] => {
     const pairs = " #".repeat(n);
     const lines: string[] = [];
-    for (const terminator of ["\r", LS, PS, "\n"]) {
+    for (const terminator of STRIP_TERMINATORS) {
       lines.push(`1${pairs}${terminator}`, `1${pairs}${terminator}x`, `1${terminator}${pairs}`, `1${pairs}${terminator}${pairs}`, `1${pairs}${terminator} #`, `${terminator}${pairs}`);
     }
     lines.push(`1${pairs}`, `1${pairs} `, `${pairs}x`, "#".repeat(n), "\t#".repeat(n), `a${"  ".repeat(n)}#${LS}`);
@@ -433,7 +462,7 @@ describe("Session 319 — cutHashComment answers what the unanchored replace ans
   it.each(names)("%s: each pair-heavy text of 200,000 pairs is cut in linear time", (name) => {
     let slowest = 0;
     let slowestText = "";
-    for (const text of pairShapes(200_000)) {
+    for (const text of pairShapes(STRIP_PAIRS)) {
       const started = performance.now();
       STRIPS[name].now(text);
       const took = performance.now() - started;
@@ -442,7 +471,7 @@ describe("Session 319 — cutHashComment answers what the unanchored replace ans
         slowestText = JSON.stringify(text.slice(0, 12));
       }
     }
-    expect({ slowestText, slow: slowest >= 100 }).toEqual({ slowestText, slow: false });
+    expect({ slowestText, slow: slowest >= CLOCK_LIMIT_MS }).toEqual({ slowestText, slow: false });
   }, 120_000);
 
   // The blanks each call site hands to the strip are part of its answer. The value checker's two sites read a SPACE only (a tab before the hash is no comment, so `1<TAB># c` is not a number),

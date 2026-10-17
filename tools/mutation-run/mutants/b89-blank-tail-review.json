@@ -1,0 +1,618 @@
+[
+ {
+  "name": "R-DV02 DIV_FENCE: the colon run is capped at 4096",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,4096}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. a 5,000-colon fence is refused; only the Session 318 document rows hold a long colon run"
+ },
+ {
+  "name": "R-DV05 DIV_FENCE: the colon lookahead reads two colons",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!::)[ \\t]*(?![ \\t])(.*)$/;",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT by the Session 319 review: giving back ONE colon is the only extra try, it re-reads the same tail, so the answer is the old one and the cost is one more retry"
+ },
+ {
+  "name": "R-DV07 SIMPLE_TABLE_HEADER_OUTRANKED holds the old DIV_FENCE spelling",
+  "file": "src/core/qmd/model.ts",
+  "from": "  DIV_FENCE, //                    either `:::` fence",
+  "to": "  /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/, //  either `:::` fence",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. a fourth call site of the Session 318 kind: the pathological row for the outranked list holds an ATX header only"
+ },
+ {
+  "name": "R-AX03 ATX_HEADING: a lazy text group",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_HEADING = /^[ \\t]*(#{1,6})(?=[ \\t].*$)[ \\t]+(.+)$/;",
+  "to": "export const ATX_HEADING = /^[ \\t]*(#{1,6})(?=[ \\t].*$)[ \\t]+(.+?)$/;",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT by the Session 319 review: `$` forces the lazy group to the end of the same terminator-free rest: same match"
+ },
+ {
+  "name": "R-AX06 ATX_HEADING: the hashes are lazy",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_HEADING = /^[ \\t]*(#{1,6})(?=[ \\t].*$)[ \\t]+(.+)$/;",
+  "to": "export const ATX_HEADING = /^[ \\t]*(#{1,6}?)(?=[ \\t].*$)[ \\t]+(.+)$/;",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT by the Session 319 review: the lookahead needs a blank straight after the hashes, so the lazy run has to grow to the whole run"
+ },
+ {
+  "name": "R-AX16 ATX_HEADING_TIGHT: the hashes are lazy",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_HEADING_TIGHT = /^[ \\t]*(#{1,6})(?!#)(?=.*$)[ \\t]*(.+)$/;",
+  "to": "export const ATX_HEADING_TIGHT = /^[ \\t]*(#{1,6}?)(?!#)(?=.*$)[ \\t]*(.+)$/;",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT by the Session 319 review: `(?!#)` forces the lazy run to the whole run"
+ },
+ {
+  "name": "R-PR01 PROOF_KEY_LINE: the first key character has no underscore",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const PROOF_KEY_LINE = /^([A-Za-z0-9_][A-Za-z0-9_.-]*):(?:[ \\t]+(?![ \\t])(.*))?$/;",
+  "to": "export const PROOF_KEY_LINE = /^([A-Za-z0-9][A-Za-z0-9_.-]*):(?:[ \\t]+(?![ \\t])(.*))?$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. `_k:` is refused; no alphabet holds an underscore"
+ },
+ {
+  "name": "R-PR02 PROOF_KEY_LINE: the first key character is lower case or a digit",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const PROOF_KEY_LINE = /^([A-Za-z0-9_][A-Za-z0-9_.-]*):(?:[ \\t]+(?![ \\t])(.*))?$/;",
+  "to": "export const PROOF_KEY_LINE = /^([a-z0-9_][A-Za-z0-9_.-]*):(?:[ \\t]+(?![ \\t])(.*))?$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. `K:` is refused; no alphabet holds a capital"
+ },
+ {
+  "name": "R-PR03 PROOF_KEY_LINE: the key is capped at 4096",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const PROOF_KEY_LINE = /^([A-Za-z0-9_][A-Za-z0-9_.-]*):(?:[ \\t]+(?![ \\t])(.*))?$/;",
+  "to": "export const PROOF_KEY_LINE = /^([A-Za-z0-9_][A-Za-z0-9_.-]{0,4096}):(?:[ \\t]+(?![ \\t])(.*))?$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no head is longer than 8 characters"
+ },
+ {
+  "name": "R-AN01 TOP_LEVEL_ANCHOR_DECL: the quoted-branch lookbehind has no `^`",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=^[\"'])[^:]*\\1[ \\t]*:|(?<!^[\"'])[^:]*:)[ \\t]*&([^\\s,[\\]{}]+)[ \\t]+(?![ \\t])(.*)$/;",
+  "to": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=[\"'])[^:]*\\1[ \\t]*:|(?<!^[\"'])[^:]*:)[ \\t]*&([^\\s,[\\]{}]+)[ \\t]+(?![ \\t])(.*)$/;",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT by the Session 319 review: group 1 spans 0 or 1 character, so the lookbehind is only ever asked at index 0 or 1"
+ },
+ {
+  "name": "R-AN02 TOP_LEVEL_ANCHOR_DECL: the plain-branch lookbehind has no `^`",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=^[\"'])[^:]*\\1[ \\t]*:|(?<!^[\"'])[^:]*:)[ \\t]*&([^\\s,[\\]{}]+)[ \\t]+(?![ \\t])(.*)$/;",
+  "to": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=^[\"'])[^:]*\\1[ \\t]*:|(?<![\"'])[^:]*:)[ \\t]*&([^\\s,[\\]{}]+)[ \\t]+(?![ \\t])(.*)$/;",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT by the Session 319 review: same argument: asked at index 0 or 1 only"
+ },
+ {
+  "name": "R-AN03 TOP_LEVEL_ANCHOR_DECL: the two branches are swapped",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=^[\"'])[^:]*\\1[ \\t]*:|(?<!^[\"'])[^:]*:)[ \\t]*&([^\\s,[\\]{}]+)[ \\t]+(?![ \\t])(.*)$/;",
+  "to": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<!^[\"'])[^:]*:|(?<=^[\"'])[^:]*\\1[ \\t]*:)[ \\t]*&([^\\s,[\\]{}]+)[ \\t]+(?![ \\t])(.*)$/;",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT by the Session 319 review: the lookbehinds exclude each other, so the order cannot matter"
+ },
+ {
+  "name": "R-AN04 TOP_LEVEL_ANCHOR_DECL: the anchor name is capped at 4096",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=^[\"'])[^:]*\\1[ \\t]*:|(?<!^[\"'])[^:]*:)[ \\t]*&([^\\s,[\\]{}]+)[ \\t]+(?![ \\t])(.*)$/;",
+  "to": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=^[\"'])[^:]*\\1[ \\t]*:|(?<!^[\"'])[^:]*:)[ \\t]*&([^\\s,[\\]{}]{1,4096})[ \\t]+(?![ \\t])(.*)$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no line has a name longer than 10"
+ },
+ {
+  "name": "R-AN07 TOP_LEVEL_ANCHOR_DECL: two blank runs after the colon",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=^[\"'])[^:]*\\1[ \\t]*:|(?<!^[\"'])[^:]*:)[ \\t]*&([^\\s,[\\]{}]+)[ \\t]+(?![ \\t])(.*)$/;",
+  "to": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=^[\"'])[^:]*\\1[ \\t]*:|(?<!^[\"'])[^:]*:)[ \\t]*[ \\t]*&([^\\s,[\\]{}]+)[ \\t]+(?![ \\t])(.*)$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. `k:` and a long blank run then no `&` is split n+1 ways: the near-miss shapes always hold `&a` after the run"
+ },
+ {
+  "name": "R-AN08 TOP_LEVEL_ANCHOR_DECL: the blank run before `&` is capped at 4096",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=^[\"'])[^:]*\\1[ \\t]*:|(?<!^[\"'])[^:]*:)[ \\t]*&([^\\s,[\\]{}]+)[ \\t]+(?![ \\t])(.*)$/;",
+  "to": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=^[\"'])[^:]*\\1[ \\t]*:|(?<!^[\"'])[^:]*:)[ \\t]{0,4096}&([^\\s,[\\]{}]+)[ \\t]+(?![ \\t])(.*)$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. every head has one blank between the colon and `&`"
+ },
+ {
+  "name": "R-KN01 KNITR_ECHO_INCLUDE_LINE: a third key",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const KNITR_ECHO_INCLUDE_LINE = /^(echo|include):[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const KNITR_ECHO_INCLUDE_LINE = /^(echo|include|exclude):[ \\t]*(?![ \\t])(.*)$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. `exclude:` is not composed from the marks"
+ },
+ {
+  "name": "R-KN02 KNITR_ECHO_INCLUDE_LINE: case-insensitive",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const KNITR_ECHO_INCLUDE_LINE = /^(echo|include):[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const KNITR_ECHO_INCLUDE_LINE = /^(echo|include):[ \\t]*(?![ \\t])(.*)$/i;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. `ECHO: x` is read; no alphabet holds a capital"
+ },
+ {
+  "name": "R-PK01 PLAIN_KEY_LINE: the spaces before the colon are capped at 4096",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const PLAIN_KEY_LINE = /^( *)(- +)?([A-Za-z_][A-Za-z0-9_.-]*) *:(?: +(?! )(.*))?$/;",
+  "to": "export const PLAIN_KEY_LINE = /^( *)(- +)?([A-Za-z_][A-Za-z0-9_.-]*) {0,4096}:(?: +(?! )(.*))?$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. every head has the colon straight after the key"
+ },
+ {
+  "name": "R-PK02 PLAIN_KEY_LINE: the spaces after the dash are capped at 4096",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const PLAIN_KEY_LINE = /^( *)(- +)?([A-Za-z_][A-Za-z0-9_.-]*) *:(?: +(?! )(.*))?$/;",
+  "to": "export const PLAIN_KEY_LINE = /^( *)(- {1,4096})?([A-Za-z_][A-Za-z0-9_.-]*) *:(?: +(?! )(.*))?$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. every head is `- k:` with one space"
+ },
+ {
+  "name": "R-PK03 PLAIN_KEY_LINE: the first key character has no underscore",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const PLAIN_KEY_LINE = /^( *)(- +)?([A-Za-z_][A-Za-z0-9_.-]*) *:(?: +(?! )(.*))?$/;",
+  "to": "export const PLAIN_KEY_LINE = /^( *)(- +)?([A-Za-z][A-Za-z0-9_.-]*) *:(?: +(?! )(.*))?$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no alphabet holds an underscore"
+ },
+ {
+  "name": "R-PK04 PLAIN_KEY_LINE: two space runs before the colon",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const PLAIN_KEY_LINE = /^( *)(- +)?([A-Za-z_][A-Za-z0-9_.-]*) *:(?: +(?! )(.*))?$/;",
+  "to": "export const PLAIN_KEY_LINE = /^( *)(- +)?([A-Za-z_][A-Za-z0-9_.-]*) * *:(?: +(?! )(.*))?$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. a key, a long space run and no colon is split n+1 ways; every head has the colon"
+ },
+ {
+  "name": "R-PI03 PLAIN_ITEM_LINE: the text group is lazy",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const PLAIN_ITEM_LINE = /^( *)- +(?! )(.*)$/;",
+  "to": "export const PLAIN_ITEM_LINE = /^( *)- +(?! )(.*?)$/;",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT by the Session 319 review: `$` forces it to the end of the same rest"
+ },
+ {
+  "name": "R-LK01 LINK_DEFINITION_LINE: the label is capped at 4096",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const LINK_DEFINITION_LINE = /^ {0,3}\\[[^\\^\\]][^\\]]*\\]:[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const LINK_DEFINITION_LINE = /^ {0,3}\\[[^\\^\\]][^\\]]{0,4096}\\]:[ \\t]*(?![ \\t])(.*)$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no head has a label longer than 5"
+ },
+ {
+  "name": "R-CL01 cellOptionPrefixFor: the gap before the pipe is capped at 4096",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return new RegExp(\"^(\" + escapeRegExp(open) + \")([ \\\\t]*)\\\\|([ \\\\t]*)(?![ \\\\t])(.*)$\");",
+  "to": "  return new RegExp(\"^(\" + escapeRegExp(open) + \")([ \\\\t]{0,4096})\\\\|([ \\\\t]*)(?![ \\\\t])(.*)$\");",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. every head has at most one blank before the pipe"
+ },
+ {
+  "name": "R-CL03 cellOptionPrefixFor: the remainder is lazy",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return new RegExp(\"^(\" + escapeRegExp(open) + \")([ \\\\t]*)\\\\|([ \\\\t]*)(?![ \\\\t])(.*)$\");",
+  "to": "  return new RegExp(\"^(\" + escapeRegExp(open) + \")([ \\\\t]*)\\\\|([ \\\\t]*)(?![ \\\\t])(.*?)$\");",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT by the Session 319 review: `$` forces it to the end of the same rest"
+ },
+ {
+  "name": "R-PP01 PIPE_DELIMITER_ROW: the run after the leading pipe is capped at 4096",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
+  "to": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]{0,4096}:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no accepted line has a long run between the leading pipe and the first dash"
+ },
+ {
+  "name": "R-PP02 PIPE_DELIMITER_ROW: the run after an inner pipe is capped at 4096",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
+  "to": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]{0,4096}:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. every accepted tail has at most one blank after a pipe"
+ },
+ {
+  "name": "R-PP03 PIPE_DELIMITER_ROW: the first dash run is capped at 4096",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
+  "to": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-{1,4096}:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no accepted line has more than two dashes"
+ },
+ {
+  "name": "R-PP04 PIPE_DELIMITER_ROW: the cell count is capped at 4096",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
+  "to": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?){0,4096}(?:[ \\t]*\\|)?[ \\t]*$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no accepted line has more than a few hundred cells"
+ },
+ {
+  "name": "R-PP07 PIPE_DELIMITER_ROW: two blank runs after an inner pipe",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
+  "to": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. `-|` and a long run then no dash"
+ },
+ {
+  "name": "R-BB05 BIBLIOGRAPHY_ITEM_LINE: the item is lazy",
+  "file": "src/core/frontmatter.ts",
+  "from": "export const BIBLIOGRAPHY_ITEM_LINE = /^\\s*-\\s+(?!\\s)(.*)$/;",
+  "to": "export const BIBLIOGRAPHY_ITEM_LINE = /^\\s*-\\s+(?!\\s)(.*?)$/;",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT by the Session 319 review: `$` forces it to the end of the same rest"
+ },
+ {
+  "name": "R-JK01 jupyter KEY_LINE: the dash prefixes are capped at 4096",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
+  "to": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+){0,4096}(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no head has more than one `- `"
+ },
+ {
+  "name": "R-JK02 jupyter KEY_LINE: a quoted key may hold a backslash",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
+  "to": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no alphabet holds a backslash"
+ },
+ {
+  "name": "R-JK03 jupyter KEY_LINE: a plain key may end in a blank (the Session 294 quadratic)",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
+  "to": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_][A-Za-z0-9_. -]*)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. answers equal (a blank before the colon is taken by either run); `k` + a long run + `x` is quadratic"
+ },
+ {
+  "name": "R-JK04 jupyter KEY_LINE: two blank runs before the colon",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
+  "to": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. `k` + a long run + a letter is quadratic; every head has the colon"
+ },
+ {
+  "name": "R-JK05 jupyter KEY_LINE: the blank run before the colon is capped at 4096",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
+  "to": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]{0,4096}:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no head has more than one blank before the colon"
+ },
+ {
+  "name": "R-JK06 jupyter KEY_LINE: the plain key is capped at 4096",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
+  "to": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]{0,4096}[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no head is longer than 8"
+ },
+ {
+  "name": "R-IN03 INDENTED_LINE: the rest is lazy",
+  "file": "src/core/yaml-context.ts",
+  "from": "export const INDENTED_LINE = /^([ \\t]+)(?![ \\t])(.*)$/;",
+  "to": "export const INDENTED_LINE = /^([ \\t]+)(?![ \\t])(.*?)$/;",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT by the Session 319 review: `$` forces it to the end of the same rest"
+ },
+ {
+  "name": "R-HC01 cutHashComment: the scan starts at the last terminator",
+  "file": "src/core/hash-comment.ts",
+  "from": "      from = Math.max(0, k - 1);",
+  "to": "      from = k;",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT by the Session 319 review: a pair cannot start at the terminator or end on it: provably the same"
+ },
+ {
+  "name": "R-HC02 cutHashComment: the scan starts just after the last terminator",
+  "file": "src/core/hash-comment.ts",
+  "from": "      from = Math.max(0, k - 1);",
+  "to": "      from = k + 1;",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT by the Session 319 review: the first index a pair can start at: provably the same"
+ },
+ {
+  "name": "R-HC03 cutHashComment: no clamp at zero",
+  "file": "src/core/hash-comment.ts",
+  "from": "      from = Math.max(0, k - 1);",
+  "to": "      from = k - 1;",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT by the Session 319 review: k = 0 starts at -1, where `text[0]` is the terminator, not `#`"
+ },
+ {
+  "name": "R-HC05 cutHashComment: a no-break space also starts a comment",
+  "file": "src/core/hash-comment.ts",
+  "from": "    if (text[i + 1] === \"#\" && blanks.includes(text[i])) {",
+  "to": "    if (text[i + 1] === \"#\" && (blanks.includes(text[i]) || text[i] === \"\\u00a0\")) {",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no alphabet holds a no-break space"
+ },
+ {
+  "name": "R-HC06 cutHashComment: a form feed also starts a comment",
+  "file": "src/core/hash-comment.ts",
+  "from": "    if (text[i + 1] === \"#\" && blanks.includes(text[i])) {",
+  "to": "    if (text[i + 1] === \"#\" && (blanks.includes(text[i]) || text[i] === \"\\f\")) {",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no alphabet holds a form feed"
+ },
+ {
+  "name": "R-HC11 cutHashComment: NEL ends a line",
+  "file": "src/core/hash-comment.ts",
+  "from": "const TERMINATORS = \"\\n\\r\\u2028\\u2029\";",
+  "to": "const TERMINATORS = \"\\n\\r\\u2028\\u2029\\u0085\";",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. U+0085 is in no alphabet: `.` matches it, the mutant stops there"
+ },
+ {
+  "name": "R-HC12 cutHashComment: a vertical tab ends a line",
+  "file": "src/core/hash-comment.ts",
+  "from": "const TERMINATORS = \"\\n\\r\\u2028\\u2029\";",
+  "to": "const TERMINATORS = \"\\n\\r\\u2028\\u2029\\v\";",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. \\v is in no alphabet of the strip enumerations"
+ },
+ {
+  "name": "R-WR08 isWrongNumber: a tab also starts the comment",
+  "file": "src/core/yaml-value-check.ts",
+  "from": "  const trimmed = cutHashComment(rawToken, \" \").trim();\n  if (trimmed.length === 0) {",
+  "to": "  const trimmed = cutHashComment(rawToken, \" \\t\").trim();\n  if (trimmed.length === 0) {",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. the blanks argument is a call-site constant; the strip tests call cutHashComment directly"
+ },
+ {
+  "name": "R-WR09 isWrongNumericMember: a tab also starts the comment",
+  "file": "src/core/yaml-value-check.ts",
+  "from": "  const trimmed = cutHashComment(rawToken, \" \").trim();\n  if (!NUMBER_LITERAL.test(trimmed)) {",
+  "to": "  const trimmed = cutHashComment(rawToken, \" \\t\").trim();\n  if (!NUMBER_LITERAL.test(trimmed)) {",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. same"
+ },
+ {
+  "name": "R-HL01 sameMatch: ignores the groups",
+  "file": "test/unit/support/regex-equivalence.ts",
+  "from": "  for (let i = 0; i < a.length; i++) {",
+  "to": "  for (let i = 0; i < 1; i++) {",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. the helper has no test of its own: a source whose group 2 is wrong then passes"
+ },
+ {
+  "name": "R-HL02 sameMatch: an unset group equals an empty one",
+  "file": "test/unit/support/regex-equivalence.ts",
+  "from": "    if (a[i] !== b[i]) {",
+  "to": "    if ((a[i] ?? \"\") !== (b[i] ?? \"\")) {",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. L2-PR05 and L2-JK07 are killed only by this distinction"
+ },
+ {
+  "name": "R-HL03 sameMatch: ignores the index and the whole match",
+  "file": "test/unit/support/regex-equivalence.ts",
+  "from": "  if (a.index !== b.index || a.length !== b.length) {",
+  "to": "  if (a.length !== b.length) {",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. an unanchored copy would be seen by the strings only"
+ },
+ {
+  "name": "R-HL04 sameMatch: ignores the group count",
+  "file": "test/unit/support/regex-equivalence.ts",
+  "from": "  if (a.index !== b.index || a.length !== b.length) {",
+  "to": "  if (a.index !== b.index) {",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. a source with an extra group is compared on the old pattern's groups only"
+ },
+ {
+  "name": "R-HL05 slowestExec: never reports slow",
+  "file": "test/unit/support/regex-equivalence.ts",
+  "from": "return { slowestText, slow: slowest >= limitMs };",
+  "to": "return { slowestText, slow: false };",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. the 50,000-character timing rows can then fail nothing; the document rows are the only clock left"
+ },
+ {
+  "name": "R-HL08 sameMatch: the whole-match compare is dropped (index only)",
+  "file": "test/unit/support/regex-equivalence.ts",
+  "from": "  for (let i = 0; i < a.length; i++) {",
+  "to": "  for (let i = 1; i < a.length; i++) {",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. the whole match is implied by index, groups and the pattern's anchors"
+ },
+ {
+  "name": "R-CX04 PLAIN_KEY_LINE: a key has no digit",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const PLAIN_KEY_LINE = /^( *)(- +)?([A-Za-z_][A-Za-z0-9_.-]*) *:(?: +(?! )(.*))?$/;",
+  "to": "export const PLAIN_KEY_LINE = /^( *)(- +)?([A-Za-z_][A-Za-z_.-]*) *:(?: +(?! )(.*))?$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no PLAIN_KEY head holds a digit"
+ },
+ {
+  "name": "R-CX05 PLAIN_KEY_LINE: a key starts lower case",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const PLAIN_KEY_LINE = /^( *)(- +)?([A-Za-z_][A-Za-z0-9_.-]*) *:(?: +(?! )(.*))?$/;",
+  "to": "export const PLAIN_KEY_LINE = /^( *)(- +)?([a-z_][A-Za-z0-9_.-]*) *:(?: +(?! )(.*))?$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no capital in any alphabet"
+ },
+ {
+  "name": "R-CX06 TOP_LEVEL_ANCHOR_DECL: the anchor name may hold a comma",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=^[\"'])[^:]*\\1[ \\t]*:|(?<!^[\"'])[^:]*:)[ \\t]*&([^\\s,[\\]{}]+)[ \\t]+(?![ \\t])(.*)$/;",
+  "to": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=^[\"'])[^:]*\\1[ \\t]*:|(?<!^[\"'])[^:]*:)[ \\t]*&([^\\s[\\]{}]+)[ \\t]+(?![ \\t])(.*)$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no comma in any alphabet"
+ },
+ {
+  "name": "R-CX07 TOP_LEVEL_ANCHOR_DECL: the anchor name may hold a left bracket",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=^[\"'])[^:]*\\1[ \\t]*:|(?<!^[\"'])[^:]*:)[ \\t]*&([^\\s,[\\]{}]+)[ \\t]+(?![ \\t])(.*)$/;",
+  "to": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=^[\"'])[^:]*\\1[ \\t]*:|(?<!^[\"'])[^:]*:)[ \\t]*&([^\\s,\\]{}]+)[ \\t]+(?![ \\t])(.*)$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no bracket in any alphabet"
+ },
+ {
+  "name": "R-CX12 jupyter KEY_LINE: a single-quoted key may not hold a backslash",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
+  "to": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^'\\\\]*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no backslash in any alphabet"
+ },
+ {
+  "name": "R-CX13 jupyter KEY_LINE: the first plain character has no underscore",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
+  "to": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no underscore in any alphabet"
+ },
+ {
+  "name": "R-CX14 BIBLIOGRAPHY_ITEM_LINE: a star is an item marker too",
+  "file": "src/core/frontmatter.ts",
+  "from": "export const BIBLIOGRAPHY_ITEM_LINE = /^\\s*-\\s+(?!\\s)(.*)$/;",
+  "to": "export const BIBLIOGRAPHY_ITEM_LINE = /^\\s*[-*]\\s+(?!\\s)(.*)$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no star in any alphabet"
+ },
+ {
+  "name": "R-CX15 PIPE_DELIMITER_ROW: an equals sign is a delimiter too",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
+  "to": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?[-=]+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no equals sign in any alphabet"
+ },
+ {
+  "name": "R-CX16 KNITR_ECHO_INCLUDE_LINE: `=` may stand for the colon",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const KNITR_ECHO_INCLUDE_LINE = /^(echo|include):[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const KNITR_ECHO_INCLUDE_LINE = /^(echo|include)[:=][ \\t]*(?![ \\t])(.*)$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no equals sign in any alphabet"
+ },
+ {
+  "name": "R-CX18 SEQUENCE_ITEM_LINE: a plus is an item marker too",
+  "file": "src/core/preview-format.ts",
+  "from": "export const SEQUENCE_ITEM_LINE = /^-[ \\t]+(?![ \\t])(.*)$/;",
+  "to": "export const SEQUENCE_ITEM_LINE = /^[-+][ \\t]+(?![ \\t])(.*)$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no plus in any alphabet"
+ },
+ {
+  "name": "R-GN BIBLIOGRAPHY_ITEM_LINE: the guard does not stop a no-break-space run (text kept)",
+  "file": "src/core/frontmatter.ts",
+  "from": "export const BIBLIOGRAPHY_ITEM_LINE = /^\\s*-\\s+(?!\\s)(.*)$/;",
+  "to": "export const BIBLIOGRAPHY_ITEM_LINE = /^\\s*-\\s+(?:(?!\\s)| )(.*)$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. answers equal; a long run of U+00A0 is retried per split; no near-miss line uses a blank other than a space or a tab"
+ },
+ {
+  "name": "R-GV BIBLIOGRAPHY_ITEM_LINE: the guard does not stop a vertical-tab run (text kept)",
+  "file": "src/core/frontmatter.ts",
+  "from": "export const BIBLIOGRAPHY_ITEM_LINE = /^\\s*-\\s+(?!\\s)(.*)$/;",
+  "to": "export const BIBLIOGRAPHY_ITEM_LINE = /^\\s*-\\s+(?:(?!\\s)|\\v)(.*)$/;",
+  "expect": "killed",
+  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. same for U+000B"
+ },
+ {
+  "name": "R-GE cutHashComment: re-checks the rest after the first pair found (always true, so an equivalent edit)",
+  "file": "src/core/hash-comment.ts",
+  "from": "    if (text[i + 1] === \"#\" && blanks.includes(text[i])) {\n      return text.slice(0, i);\n    }",
+  "to": "    if (text[i + 1] === \"#\" && blanks.includes(text[i]) && !/[\\n\\r\\u2028\\u2029]/.test(text.slice(i + 2))) {\n      return text.slice(0, i);\n    }",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT by the Session 319 review: the backward scan already starts after the last terminator, so the extra test is always true; one extra read of the rest: still linear"
+ },
+ {
+  "name": "RT01 near-miss timing at 5,000 characters",
+  "file": "test/unit/blank-tail-equivalence.test.ts",
+  "from": "const NEAR_MISS_CHARACTERS = 50_000;",
+  "to": "const NEAR_MISS_CHARACTERS = 5_000;",
+  "expect": "killed",
+  "why": "the table-invariants row: a clock row at 5,000 characters would pass a guard narrowed to a space"
+ },
+ {
+  "name": "RT02 clock limit of 100 s",
+  "file": "test/unit/blank-tail-equivalence.test.ts",
+  "from": "const CLOCK_LIMIT_MS = 100;",
+  "to": "const CLOCK_LIMIT_MS = 100_000;",
+  "expect": "killed",
+  "why": "the table-invariants row"
+ },
+ {
+  "name": "RT03 accepted lines only at 5,000",
+  "file": "test/unit/blank-tail-equivalence.test.ts",
+  "from": "const ACCEPTED_SIZES = [5_000, 50_000, 200_000] as const;",
+  "to": "const ACCEPTED_SIZES = [5_000] as const;",
+  "expect": "killed",
+  "why": "the table-invariants row: a cap of 4,096 is seen only by a line past it"
+ },
+ {
+  "name": "RT04 no U+2029 among the terminators",
+  "file": "test/unit/blank-tail-equivalence.test.ts",
+  "from": "const TERMINATORS = [\"\\r\", LS, PS] as const;",
+  "to": "const TERMINATORS = [\"\\r\", LS] as const;",
+  "expect": "killed",
+  "why": "the table-invariants row"
+ },
+ {
+  "name": "RT05 no U+2028 among the terminators",
+  "file": "test/unit/blank-tail-equivalence.test.ts",
+  "from": "const TERMINATORS = [\"\\r\", LS, PS] as const;",
+  "to": "const TERMINATORS = [\"\\r\", PS] as const;",
+  "expect": "killed",
+  "why": "the table-invariants row"
+ },
+ {
+  "name": "RT06 the strip's texts carry no U+2029",
+  "file": "test/unit/blank-tail-equivalence.test.ts",
+  "from": "const STRIP_TERMINATORS = [\"\\r\", LS, PS, \"\\n\"] as const;",
+  "to": "const STRIP_TERMINATORS = [\"\\r\", LS, \"\\n\"] as const;",
+  "expect": "killed",
+  "why": "the table-invariants row"
+ },
+ {
+  "name": "RT07 the strip is timed at 2,000 pairs",
+  "file": "test/unit/blank-tail-equivalence.test.ts",
+  "from": "const STRIP_PAIRS = 200_000;",
+  "to": "const STRIP_PAIRS = 2_000;",
+  "expect": "killed",
+  "why": "the table-invariants row"
+ },
+ {
+  "name": "RT08 the seeded sample picks only CR",
+  "file": "test/unit/blank-tail-equivalence.test.ts",
+  "from": "if (random() < 0.4) line += pick([\"\\r\", LS, PS, \"\\r\\n\", \"\\n\"]);",
+  "to": "if (random() < 0.4) line += pick([\"\\r\", \"\\r\", \"\\r\", \"\\r\\n\", \"\\n\"]);",
+  "expect": "survives",
+  "why": "redundant, not a gap: `TAILS` also carries U+2028 and U+2029, so the sample still holds every terminator when this pick loses them; the seeded test's own check (every terminator occurs in the sample) is what a sample WITHOUT them would fail"
+ },
+ {
+  "name": "RT09 the document rows read 1,000 blanks",
+  "file": "test/unit/pathological-inputs.test.ts",
+  "from": "const RUN = 100_000;",
+  "to": "const RUN = 1_000;",
+  "expect": "killed",
+  "why": "the invariants row of the Session 319 describe"
+ },
+ {
+  "name": "RT10 the document rows allow 100 s",
+  "file": "test/unit/pathological-inputs.test.ts",
+  "from": "const LIMIT_MS = 1000;",
+  "to": "const LIMIT_MS = 100_000;",
+  "expect": "killed",
+  "why": "the invariants row of the Session 319 describe"
+ },
+ {
+  "name": "RT11 ATX_HEADING reads up to seven hashes",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_HEADING = /^[ \\t]*(#{1,6})(?=[ \\t].*$)[ \\t]+(.+)$/;",
+  "to": "export const ATX_HEADING = /^[ \\t]*(#{1,7})(?=[ \\t].*$)[ \\t]+(.+)$/;",
+  "expect": "killed",
+  "why": "the seven-hash lines of the ATX sites' extraLines"
+ }
+]

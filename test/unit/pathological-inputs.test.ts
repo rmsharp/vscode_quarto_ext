@@ -741,6 +741,10 @@ describe("Session 319 — a long run of blanks followed by a CR, U+2028 or U+202
   const CR_AND_LETTER = ["a CR and a letter", "\rx"] as const;
   const LINE_SEPARATOR = ["U+2028", LS] as const;
   const PARAGRAPH_SEPARATOR = ["U+2029", PS] as const;
+  // The size of the run, the shorter run it is compared with, and the limit: a quadratic spelling takes 5 to 23 s at 100,000, so the 1 s limit has a wide margin both ways.
+  const RUN = 100_000;
+  const SHORT_RUN = 2_000;
+  const LIMIT_MS = 1000;
   type Terminator = readonly [string, string];
   type Row = { site: string; run?: string; terminators: readonly Terminator[]; build: (blanks: string, terminator: string) => string; read: (text: string) => unknown };
 
@@ -891,10 +895,15 @@ describe("Session 319 — a long run of blanks followed by a CR, U+2028 or U+202
   it.each(ROWS.flatMap((row) => row.terminators.map(([terminatorName, terminator]) => [row.site, row.run ?? "blanks", terminatorName, row, terminator] as const)))(
     "%s: 100,000 %s and then %s is read in linear time, and like a shorter run of the same shape",
     (_site, _run, _terminatorName, row, terminator) => {
-      const shorter = row.read(row.build(" ".repeat(2000), terminator));
-      const { result, ms } = timed(() => row.read(row.build(" ".repeat(100_000), terminator)));
+      const shorter = row.read(row.build(" ".repeat(SHORT_RUN), terminator));
+      const { result, ms } = timed(() => row.read(row.build(" ".repeat(RUN), terminator)));
       expect(result).toEqual(shorter);
-      expect(ms).toBeLessThan(1000);
+      expect(ms).toBeLessThan(LIMIT_MS);
     },
   );
+
+  // A row run at 1,000 blanks, or allowed 100 s, would pass on the parent too.
+  it("keeps the run, the shorter run and the limit its rows are built on", () => {
+    expect([RUN, SHORT_RUN, LIMIT_MS]).toEqual([100_000, 2_000, 1000]);
+  });
 });
