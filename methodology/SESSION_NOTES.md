@@ -8,27 +8,32 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 317 closed out.** g02's first session is done: B88 part (8) is closed, and it was five patterns, not one. Nine neighbouring overflow and slow-input families are filed (BACKLOG line 90).
-Source change: five regexes respelled and exported in `src/core/qmd/model.ts` (`git diff ad731aeb HEAD -- src`). `BACKLOG.md` "Active" is empty: present candidates via AskUserQuestion at Phase 0, ranked by the plan, each saying which rule placed it.
-**What's next (derived from the plan, not a promise):** g02 is still in flight (estimate 11 sessions, plus 3 to 5 for the filed item, not yet in the plan's totals). Its next session is B88 part (7): a fence run followed by CR or U+2028 is quadratic.
-The filed item's part (1), the exponential `ATTR_ATOM_RUN` (a 74-byte heading takes seconds), is the one hang in the group: the operator may pull it first; parts (4) to (9) are part (8)'s class. Decisions as the plan says: D2, D3 before g03.
+**Task:** **NONE -- Session 318 closed out.** g02's second session is done: B88 part (7) is closed, and it was three patterns (`FENCE_OPEN`, `INDENTED_CELL_FENCE_OPEN`, `DIV_FENCE`), not the `\s*$` tails the item named.
+Each run now ends in a lookahead (`git diff b89b6d4c HEAD -- src`: three regexes exported and respelled, comments). The review round filed a new item (BACKLOG line 91): eight more quadratic regexes and one quadratic paragraph reader.
+`BACKLOG.md` "Active" is empty: present candidates via AskUserQuestion at Phase 0, ranked by the plan, each saying which rule placed it.
+**What's next (derived from the plan, not a promise):** g02 is still in flight (estimate 11 sessions plus 3 to 5 for the S317 item, plus the S318 item: neither is in the plan's totals). Candidates the picker can offer:
+(a) B89 part (5)+(9), the blank-run-then-CR family (finishing a feature: `DIV_FENCE`'s blank tail is measured and has a one-line cure, `(?![ \t])`, but Learning 779 says prove it per site); (b) the S317 item's part (1), the exponential `ATTR_ATOM_RUN`;
+(c) the S318 item's part (9), a long paragraph under `from: gfm` (likeliest for a real document). Decisions as the plan says: D2, D3 before g03.
 **⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in a close-out commit).
-(2) `tools/mutation-run/` tests the COMMITTED tree (README). My lists: `mutants/b88-thematic-break.json` (`--tests test/unit/thematic-break-equivalence.test.ts test/unit/pathological-inputs.test.ts`) and `-wiring.json` (whole suite, about 10 s a mutant).
-The README's whole-suite command shows `\|`, which is markdown table escaping: type a plain `|` in `-t '^(?!.*([Ll]inear|cost time|proportional|doubling)).*'`, or nothing is excluded. Run it ALONE.
-(3) One clock row flakes at load 6 to 14: Session 308's "is linear: 200,000 lines, each a call" in `qmd-model.test.ts` (2.07 s against 2 s; 0.75 s alone). Name it, re-run it alone, never loosen it.
-(4) A Session 314 vitest worker (pid 84774, cwd `scratchpad/wt314`) is STILL at 100% CPU after 23.5 hours, 760 MB: not mine; ask before killing it. `git worktree list` may show a foreign worktree under `.claude/worktrees/`: not mine.
-(5) `test:integration` NOT run for seven sessions (takes the screen: ask first). Baseline `npm test` at HEAD: 11,348 tests in 85 files (11,347 plus the clock row of (3) when the machine is busy).
-(6) The Edit tool drops trailing whitespace from `new_string` (Learning 778): end `old_string` and `new_string` on a visible character. It and the Bash heredoc also expand `\uXXXX`: use `chr()` or a placeholder.
-(7) The sweep's harnesses (`scratchpad/wf317/*`, in the session scratchpad) will be gone: the first session on the filed item commits a seeded generator under `tools/` (plan rule P5).
+(2) `tools/mutation-run/` tests the COMMITTED tree. My lists: `mutants/b88-fence-run.json` (36; `--tests test/unit/fence-run-equivalence.test.ts`) and `b88-fence-run-review.json` (17; the README row has the command). S317's two
+`b88-thematic-break*.json` lists are still not in the README table.
+(3) The lookahead idiom does not travel (Learning 779): on `YAML_ALIAS_VALUE` it differs on 74,160 of 6,725,601 strings. Keep the old spelling as the oracle, enumerate, and add accepted lines of 5,000 to 200,000 characters and a `{3,4096}` cap mutant (Learning 780).
+(4) `scanRegions` memoizes the last TWO texts: every timed row needs its own text (three of my four entry-point rows passed on the parent until I gave each one). Time a bare `exec` before writing a figure beside a pattern (Learning 781).
+(5) One clock row flakes at load 6 to 14: Session 308's "is linear: 200,000 lines, each a call" in `qmd-model.test.ts` (it failed once in my full runs, 725 ms alone; the last full run was clean). Name it, re-run it alone, never loosen it.
+The new 50,000-character row in the equivalence file allows 100 ms per `exec` (about 1 ms measured); at a load of 200 or more it is unmeasured: re-time the line twice, never raise the limit.
+(6) A Session 314 vitest worker (pid 84774, cwd `scratchpad/wt314`) is STILL at about 99% CPU after 1 day 1.5 hours, 730 MB: not mine; ask before killing it. The foreign worktree `.claude/worktrees/wf_f559ba89-653-5` is not mine either.
+(7) `test:integration` NOT run for eight sessions (takes the screen: ask first). Baseline `npm test` at HEAD: 11,403 tests in 86 files, clean.
 (8) Real-document score: `REALDOC_DATA=scratchpad/s265 REALDOC_ORDINALS=scratchpad/s251/realfiles.txt tools/realdoc-score/run.sh head` prints 2423 of 2438 (99.38%), 15 divergent; the parent is identical.
-(9) The plan: update its status column and "Current position" at each close-out; its key count command (`sed -n '/^## Where each key went/,$p' ... | grep -o 'B[0-9]\+' | sort -u | wc -l`) prints 221.
+(9) The plan: update its status column and "Current position" at each close-out; its key count command (`sed -n '/^## Where each key went/,$p' ... | grep -o 'B[0-9]\+' | sort -u | wc -l`) prints 221 (filed items carry no key).
+(10) The sibling reproductions (`scratchpad/s318/sib.cjs`) will be gone: the first session on the filed items commits a seeded generator under `tools/` (plan rule P5).
 `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices. macOS `sed` rejects `|` as a delimiter. After answering a direct question, STOP and wait (memory).
 
 ### What Session 318 Did
-**Deliverable:** g02 of the backlog ordering plan, second session: B88 part (7), a fence run followed by CR or U+2028 is quadratic in the fence patterns' tails (IN PROGRESS)
+**Deliverable:** g02 of the backlog ordering plan, second session: B88 part (7), a fence run followed by CR or U+2028 is quadratic in the fence patterns' tails -- DONE; claim `b89b6d4c`
 **Started:** 2026-10-16
-**Status:** Session claimed. Work beginning. Strict TDD: profile the shape first (`node --cpu-prof`), a RED doubling row, then the rewrite with an exhaustive old-versus-new proof.
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Status:** Closed out. Three patterns respelled (`f7076a6f`, `01954e39`), proved against their old spellings, 22 document rows RED on the parent (`398c68c0`), 36 mutants (`c7c510b1`), a five-lens review whose fixes landed in `73f6689f`, `602eba91`, `4755299f`.
+One new item filed (eight regexes and a paragraph reader). `npm test` 11,403 passing in 86 files; `npm run package` 44 files; real-document score unchanged.
+**Ledger:** `CHANGELOG.md` 2026-10-16 -- one entry per action (the claim entry replaced), recorded in the close-out commit.
 
 ### What Session 317 Did
 **Deliverable:** g02 of the backlog ordering plan, first session: B88 part (8), `scanRegions` must not throw `RangeError` on one line of 2,100,000 `-`, `*` or `_` -- DONE; claim `ad731aeb`
@@ -36,6 +41,40 @@ The README's whole-suite command shows `\|`, which is markdown table escaping: t
 **Status:** Closed out. Five patterns respelled (`4627675d`), exhaustive proof plus near-miss and gap-grid rows, 51 + 4 mutants (49 + 3 killed, 3 argued equivalent), a five-lens review round that closed three test gaps.
 Nine more families filed. `npm test` 11,347 passing plus one load-flake clock row (11,348 in 85 files); `npm run package` 44 files; real-document score unchanged.
 **Ledger:** `CHANGELOG.md` 2026-10-16 -- one entry per action (the claim entry replaced), recorded in the close-out commit.
+
+## Session 317 Handoff Evaluation (by Session 318)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers at HEAD (`f354b542`, gap 0), no `pending` receipt, the ratchet citation (2/2, results `bba236856bad`),
+the baseline (11,348 in 85 files), the real-document score (2423 of 2438, identical on the parent and HEAD) and the plan's key count (221) all held at Phase 0, and the picker the plan ranked was accurate.
+**Helped:** gotcha 2 (the runner tests the COMMITTED tree, the plain `|`): I committed before every list and used `--only` for re-runs; gotcha 3 named the flaky clock row and the rule, and it did flake once, so I named it, ran it alone and left it;
+gotcha 6 (the Edit tool drops trailing whitespace) is why I ended every edit on a visible character; `thematic-break-equivalence.test.ts` and its 'Session 317' describe were the template for my equivalence file and document rows
+(old spelling as oracle, near-miss lines timed at the pattern level, a gap grid); Learnings 775 to 778 were all used; the worker note (4) was exact and saved a kill.
+**Missing:** (a) which patterns: the next-session line said 'the fence patterns' `(.*)$` and `\s*$` tails'. A profile found THREE patterns (`DIV_FENCE` too, which nobody had named) and the `\s*$` tails are linear (measured, flat from 20,000 to 80,000 characters);
+(b) the `scanRegions` two-entry memo, which made three of my four entry-point rows pass on the parent; (c) the README table has no row for the two `b88-thematic-break*.json` lists (the receipt names them by a glob).
+**Wrong:** (a) the `\s*$` half of part (7) (carried from the Session 311 review, not written by Session 317); (b) nothing else I could find. **ROI: high.**
+
+## Session 318 Self-Assessment
+
+**Score: 7/10.**
+**Went right.** The cause was found by profile before any code was read: three patterns, not the item's attribution. The cure (a lookahead after the longest run) is argued, not assumed: the first try is the only one that can
+succeed, and the old spelling is the oracle over every string of up to 7 and 5 characters,
+100,000 seeded lines and a gap grid, with accepted counts checked by a regex-free Python reader; a parent-versus-fixed differential over 320,000 documents (and the review's 120 million strings per pattern) found no difference,
+with a control mutant to show the harness can see one.
+22 document rows fail on the parent (5.7 to 12.4 s each) and pass in milliseconds. I ran the new rows against the parent's `model.ts` and found the memo trap myself. I left `DIV_FENCE`'s blank tail to B89 part (5) and measured it
+(237 ms at 20,000 blanks, 953 ms at 40,000) instead of widening scope.
+Every review finding was reproduced before I acted: 12 gap mutants survived the file I had committed, I wrote the rows, and all 17 are killed. Eight siblings and a quadratic paragraph were reproduced at two sizes and filed; the
+performance agent's cause for the last was wrong and a profile corrected it. Learnings 779 to 782.
+**Went wrong.** (1) My pins were incomplete for the third session running: answers on ACCEPTED lines were compared only to 1,000 characters, so a `{3,4096}` cap (the obvious other cure) passed everything; the alphabets lacked a
+vertical tab and a byte order mark; the oracle table could drift to the new spelling.
+(2) I never read the verbose titles of my own it.each: nine rows had three titles, the terminator named nowhere. (3) Several comments were wrong, found by reviewers: contexts 'each call a different pattern' (they reach the same
+three sites; a fourth site had no row), a document's 12 s placed beside one pattern, a mid-run '564 of 1,134', a 'shortest string' claim that cannot be true, and a commit message that said 23 rows (22; amended).
+(4) The review took about 70 minutes and 1.32 million subagent tokens; its finds were worth it, but my checkpoint 4 declared the pins done before the test lens ran. (5) One full run hit the known clock row; I named it and re-ran
+it alone. (6) I did not change the 100 ms clock threshold the test lens flagged: its exposure at load 200 is arithmetic, not measured.
+**Known residuals (filed or stated):** the filed item (nine shapes); `DIV_FENCE`'s blank tail (B89 part (5)); the clock-row exposure at extreme load; four argued-equivalent mutants F09, I08, D05, D11 (three guards that read two
+characters, one blank guard that changes no answer); `test:integration` NOT run.
+**TDD:** RED before GREEN for the 22 document rows (all fail on the parent), the 9 title fixes (the duplicate list shown, then 9 distinct titles), and every review addition (17 mutants survived, then 17 killed, each by the row
+meant for it). Passed on arrival, disclosed: the equivalence rows themselves (RED = a surviving mutant, or the missing exports), and the memo-trap rows until I gave each its own text.
+**Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** 5 agents in 1 workflow (1,322,038 subagent tokens, 506 tool calls, about 70 minutes), about 150 mutant runs, no quarto renders (the realdoc score and the oracle used the cached corpus).
 
 ## Session 316 Handoff Evaluation (by Session 317)
 
