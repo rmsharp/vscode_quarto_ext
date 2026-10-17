@@ -132,8 +132,11 @@ function flowKernelspecLanguage(kernelspec: string): string | null {
  *
  * ⚠ A plain key ENDS on a non-space character: `[A-Za-z0-9_. -]*[A-Za-z0-9_.-]`, not `[...]*?` followed by `[ \t]*`. The overlapping classes
  * backtracked quadratically on a long run of spaces (30,000 spaces cost about 550 ms through `findHeadings`, Session 294).
+ *
+ * ⚠ The blank run after the colon ends in a lookahead, `(?![ \t])` (Session 319): a CR, U+2028 or U+2029 after it makes `(.*)$` fail, and the engine retried it once per way of splitting the run
+ * (6 s on 100,000). Exact, because `(.*)` may be empty and may itself start with a blank. Group 1 is unset for a colon with nothing after it and `""` for blanks only, and `leavesOpen` reads the difference.
  */
-const KEY_LINE = /^[ \t]*(?:-[ \t]+)*(?:"[^"\\]*"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \t]*:(?:[ \t]+(.*)|)$/;
+export const KEY_LINE = /^[ \t]*(?:-[ \t]+)*(?:"[^"\\]*"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \t]*:(?:[ \t]+(?![ \t])(.*)|)$/;
 
 /** Whether the value written on `line` opens a quoted scalar or a flow collection that the same line does not close. */
 function leavesOpen(line: string): boolean {

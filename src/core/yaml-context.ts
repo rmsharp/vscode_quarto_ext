@@ -174,6 +174,13 @@ function frontMatterContextAt(
 }
 
 /**
+ * An indented front-matter line split into its indent (group 1) and the rest (group 2). The indent ends in a lookahead, `(?![ \t])` (Session 319): a CR, U+2028 or U+2029 in the rest makes
+ * `(.*)$` fail, and the engine retried it once per way of splitting the indent (6 s on 100,000 blanks). Exact, because `(.*)` may be empty and may itself start with a blank, so the longest
+ * indent is the only try that can succeed; `blank-tail-equivalence.test.ts` holds the old spelling as the oracle.
+ */
+export const INDENTED_LINE = /^([ \t]+)(?![ \t])(.*)$/;
+
+/**
  * The nested front-matter KEY or VALUE context for an indented line whose
  * enclosing structure is one this slice completes, or `null`. The detector is
  * deliberately conservative — it offers nested keys ONLY when nesting is
@@ -195,7 +202,7 @@ function nestedKeyContextAt(
   col: number,
 ): YamlCompletionContext | null {
   const lineText = lines[line] ?? "";
-  const indented = /^([ \t]+)(.*)$/.exec(lineText);
+  const indented = INDENTED_LINE.exec(lineText);
   if (indented === null) {
     return null; // a column-0 line is handled by the top-level path, not here
   }

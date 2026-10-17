@@ -3,6 +3,7 @@ import { resolveDocumentEngine } from "../../src/core/document-engine-resolve";
 import { bibliographyPaths } from "../../src/core/frontmatter";
 import { parseDeclaredFormats } from "../../src/core/preview-format";
 import { findAllCells, findCellOptionLines, findCodeFenceOpeners, findHeadings, knitrChunkHeaderLabel, maskInlineCode, plainFrontMatter } from "../../src/core/qmd/model";
+import { jupyterKernelLanguage } from "../../src/core/qmd/jupyter-kernel";
 import { quartoYamlRegions } from "../../src/core/qmd/quarto-yaml-regions";
 import { findLabel, indexLabels } from "../../src/core/refs";
 import { findProjectConfigKeyLines, findProjectConfigValueLines } from "../../src/core/project-yaml";
@@ -814,6 +815,18 @@ describe("Session 319 — a long run of blanks followed by a CR, U+2028 or U+202
       terminators: [CR_AND_LETTER, LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
       build: (blanks, terminator) => `---\ntitle: a\nformat:\n  -${blanks}${terminator}\n---\nbody of the format list item\n`,
       read: (text) => parseDeclaredFormats(text),
+    },
+    {
+      site: "KEY_LINE in the jupyter reader (`k:` and blanks in a front matter line)",
+      terminators: [CR_AND_LETTER, LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
+      build: (blanks, terminator) => `title: a\nk:${blanks}${terminator}`,
+      read: (text) => jupyterKernelLanguage(text.split("\n"), []),
+    },
+    {
+      site: "the indent split of a nested front matter line (a line of blanks, then the terminator, under `title:`)",
+      terminators: [CR_AND_LETTER, LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
+      build: (blanks, terminator) => `---\ntitle: a\n${blanks}${terminator}\n---\nbody of the nested line\n`,
+      read: (text) => completionContextAt(text, 14, () => undefined),
     },
     {
       // No CR row: `TABLE_RULE_ROW` embeds the same delimiter-row alternation followed by `\s*$`, and a CR and a letter after the blanks reach IT (12 s with PIPE_DELIMITER_ROW already fixed). That pattern is
