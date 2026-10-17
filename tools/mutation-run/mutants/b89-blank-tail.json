@@ -1,0 +1,410 @@
+[
+ {
+  "name": "D01 DIV_FENCE: no guard after the blank run",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(.*)$/;",
+  "expect": "killed",
+  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+ },
+ {
+  "name": "D02 DIV_FENCE: the blank guard reads a space only (a tab run is still retried)",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?! )(.*)$/;",
+  "expect": "killed",
+  "why": "the near-miss lines with a TAB run are quadratic again: only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+ },
+ {
+  "name": "D03 DIV_FENCE: the guard sits BEFORE the blanks (refuses `::: x`)",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)(?![ \\t])[ \\t]*(.*)$/;",
+  "expect": "killed",
+  "why": "a fence with a blank after the colons stops matching: the enumeration and the document rows"
+ },
+ {
+  "name": "D04 DIV_FENCE: the blank run is capped at 4096",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]{0,4096}(?![ \\t])(.*)$/;",
+  "expect": "killed",
+  "why": "a 5,000 to 200,000-blank line the old spelling accepts is refused: the long accepted lines"
+ },
+ {
+  "name": "D05 DIV_FENCE: the tail needs a character",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const DIV_FENCE = /^[ \\t]*:{3,}(?!:)[ \\t]*(?![ \\t])(.+)$/;",
+  "expect": "killed",
+  "why": "a blank-only tail stops matching (it is what makes the fence a CLOSER): the enumeration"
+ },
+ {
+  "name": "A01 ATX_HEADING: no up-front check",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_HEADING = /^[ \\t]*(#{1,6})(?=[ \\t].*$)[ \\t]+(.+)$/;",
+  "to": "export const ATX_HEADING = /^[ \\t]*(#{1,6})[ \\t]+(.+)$/;",
+  "expect": "killed",
+  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+ },
+ {
+  "name": "A02 ATX_HEADING: the idiom `(?![ \\t])` after the blanks instead (inexact on a blank-only tail)",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_HEADING = /^[ \\t]*(#{1,6})(?=[ \\t].*$)[ \\t]+(.+)$/;",
+  "to": "export const ATX_HEADING = /^[ \\t]*(#{1,6})[ \\t]+(?![ \\t])(.+)$/;",
+  "expect": "killed",
+  "why": "`#` and two blanks stops matching: the enumeration and the grid"
+ },
+ {
+  "name": "A03 ATX_HEADING: the lookahead stops at the blank (`(?=[ \\t])`)",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_HEADING = /^[ \\t]*(#{1,6})(?=[ \\t].*$)[ \\t]+(.+)$/;",
+  "to": "export const ATX_HEADING = /^[ \\t]*(#{1,6})(?=[ \\t])[ \\t]+(.+)$/;",
+  "expect": "killed",
+  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+ },
+ {
+  "name": "A04 ATX_HEADING: the lookahead has no end anchor",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_HEADING = /^[ \\t]*(#{1,6})(?=[ \\t].*$)[ \\t]+(.+)$/;",
+  "to": "export const ATX_HEADING = /^[ \\t]*(#{1,6})(?=[ \\t].*)[ \\t]+(.+)$/;",
+  "expect": "killed",
+  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+ },
+ {
+  "name": "A05 ATX_HEADING: the lookahead without the blank test (the other exact spelling)",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_HEADING = /^[ \\t]*(#{1,6})(?=[ \\t].*$)[ \\t]+(.+)$/;",
+  "to": "export const ATX_HEADING = /^[ \\t]*(#{1,6})(?=.*$)[ \\t]+(.+)$/;",
+  "expect": "killed",
+  "why": "the other exact spelling: the same answers on every line (6 rescans of a 7+ hash run, 0.9 ms at 200,000 characters); only the row that asserts the guard text is in the source notices"
+ },
+ {
+  "name": "A06 ATX_HEADING_TIGHT: no up-front check",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_HEADING_TIGHT = /^[ \\t]*(#{1,6})(?!#)(?=.*$)[ \\t]*(.+)$/;",
+  "to": "export const ATX_HEADING_TIGHT = /^[ \\t]*(#{1,6})(?!#)[ \\t]*(.+)$/;",
+  "expect": "killed",
+  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+ },
+ {
+  "name": "A07 ATX_HEADING_TIGHT: the lookahead has no end anchor",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_HEADING_TIGHT = /^[ \\t]*(#{1,6})(?!#)(?=.*$)[ \\t]*(.+)$/;",
+  "to": "export const ATX_HEADING_TIGHT = /^[ \\t]*(#{1,6})(?!#)(?=.*)[ \\t]*(.+)$/;",
+  "expect": "killed",
+  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+ },
+ {
+  "name": "A08 ATX_HEADING_TIGHT: the lookahead before `(?!#)`",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_HEADING_TIGHT = /^[ \\t]*(#{1,6})(?!#)(?=.*$)[ \\t]*(.+)$/;",
+  "to": "export const ATX_HEADING_TIGHT = /^[ \\t]*(#{1,6})(?=.*$)(?!#)[ \\t]*(.+)$/;",
+  "expect": "survives",
+  "why": "same answers; a 7+ hash run is scanned six times (0.9 ms at 200,000)"
+ },
+ {
+  "name": "A09 ATX_HEADING_TIGHT: the idiom `(?![ \\t])` after the blanks instead",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_HEADING_TIGHT = /^[ \\t]*(#{1,6})(?!#)(?=.*$)[ \\t]*(.+)$/;",
+  "to": "export const ATX_HEADING_TIGHT = /^[ \\t]*(#{1,6})(?!#)[ \\t]*(?![ \\t])(.+)$/;",
+  "expect": "killed",
+  "why": "a blank-only tail stops matching: the enumeration"
+ },
+ {
+  "name": "P01 PROOF_KEY_LINE: no guard",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const PROOF_KEY_LINE = /^([A-Za-z0-9_][A-Za-z0-9_.-]*):(?:[ \\t]+(?![ \\t])(.*))?$/;",
+  "to": "export const PROOF_KEY_LINE = /^([A-Za-z0-9_][A-Za-z0-9_.-]*):(?:[ \\t]+(.*))?$/;",
+  "expect": "killed",
+  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+ },
+ {
+  "name": "P02 PROOF_KEY_LINE: the blank run is optional",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const PROOF_KEY_LINE = /^([A-Za-z0-9_][A-Za-z0-9_.-]*):(?:[ \\t]+(?![ \\t])(.*))?$/;",
+  "to": "export const PROOF_KEY_LINE = /^([A-Za-z0-9_][A-Za-z0-9_.-]*):(?:[ \\t]*(?![ \\t])(.*))?$/;",
+  "expect": "killed",
+  "why": "`k:x` starts matching: the enumeration"
+ },
+ {
+  "name": "K01 PLAIN_KEY_LINE: no guard",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const PLAIN_KEY_LINE = /^( *)(- +)?([A-Za-z_][A-Za-z0-9_.-]*) *:(?: +(?! )(.*))?$/;",
+  "to": "export const PLAIN_KEY_LINE = /^( *)(- +)?([A-Za-z_][A-Za-z0-9_.-]*) *:(?: +(.*))?$/;",
+  "expect": "killed",
+  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+ },
+ {
+  "name": "K02 PLAIN_KEY_LINE: the guard also refuses a tab (`k: \\tx` stops matching)",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const PLAIN_KEY_LINE = /^( *)(- +)?([A-Za-z_][A-Za-z0-9_.-]*) *:(?: +(?! )(.*))?$/;",
+  "to": "export const PLAIN_KEY_LINE = /^( *)(- +)?([A-Za-z_][A-Za-z0-9_.-]*) *:(?: +(?![ \\t])(.*))?$/;",
+  "expect": "killed",
+  "why": "a tab after the space run is part of the value: the enumeration"
+ },
+ {
+  "name": "I01 PLAIN_ITEM_LINE: no guard",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const PLAIN_ITEM_LINE = /^( *)- +(?! )(.*)$/;",
+  "to": "export const PLAIN_ITEM_LINE = /^( *)- +(.*)$/;",
+  "expect": "killed",
+  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+ },
+ {
+  "name": "E01 KNITR_ECHO_INCLUDE_LINE: no guard",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const KNITR_ECHO_INCLUDE_LINE = /^(echo|include):[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const KNITR_ECHO_INCLUDE_LINE = /^(echo|include):[ \\t]*(.*)$/;",
+  "expect": "killed",
+  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+ },
+ {
+  "name": "E02 KNITR_ECHO_INCLUDE_LINE: the guard sits before the blanks",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const KNITR_ECHO_INCLUDE_LINE = /^(echo|include):[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const KNITR_ECHO_INCLUDE_LINE = /^(echo|include):(?![ \\t])[ \\t]*(.*)$/;",
+  "expect": "killed",
+  "why": "`echo: false` stops matching: the enumeration and the echo document row"
+ },
+ {
+  "name": "L01 LINK_DEFINITION_LINE: no guard",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const LINK_DEFINITION_LINE = /^ {0,3}\\[[^\\^\\]][^\\]]*\\]:[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const LINK_DEFINITION_LINE = /^ {0,3}\\[[^\\^\\]][^\\]]*\\]:[ \\t]*(.*)$/;",
+  "expect": "killed",
+  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+ },
+ {
+  "name": "L02 LINK_DEFINITION_LINE: the guard sits before the blanks",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const LINK_DEFINITION_LINE = /^ {0,3}\\[[^\\^\\]][^\\]]*\\]:[ \\t]*(?![ \\t])(.*)$/;",
+  "to": "export const LINK_DEFINITION_LINE = /^ {0,3}\\[[^\\^\\]][^\\]]*\\]:(?![ \\t])[ \\t]*(.*)$/;",
+  "expect": "killed",
+  "why": "`[a]: /url` stops matching: the enumeration"
+ },
+ {
+  "name": "C01 cellOptionPrefixFor: no guard after the gap",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return new RegExp(\"^(\" + escapeRegExp(open) + \")([ \\\\t]*)\\\\|([ \\\\t]*)(?![ \\\\t])(.*)$\");",
+  "to": "  return new RegExp(\"^(\" + escapeRegExp(open) + \")([ \\\\t]*)\\\\|([ \\\\t]*)(.*)$\");",
+  "expect": "killed",
+  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+ },
+ {
+  "name": "C02 cellOptionPrefixFor: the guard reads a space only",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return new RegExp(\"^(\" + escapeRegExp(open) + \")([ \\\\t]*)\\\\|([ \\\\t]*)(?![ \\\\t])(.*)$\");",
+  "to": "  return new RegExp(\"^(\" + escapeRegExp(open) + \")([ \\\\t]*)\\\\|([ \\\\t]*)(?! )(.*)$\");",
+  "expect": "killed",
+  "why": "a tab gap is retried again: only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+ },
+ {
+  "name": "C03 cellOptionPrefixFor: the guard inside the gap's group",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return new RegExp(\"^(\" + escapeRegExp(open) + \")([ \\\\t]*)\\\\|([ \\\\t]*)(?![ \\\\t])(.*)$\");",
+  "to": "  return new RegExp(\"^(\" + escapeRegExp(open) + \")([ \\\\t]*)\\\\|([ \\\\t]*(?![ \\\\t]))(.*)$\");",
+  "expect": "survives",
+  "why": "the same strings and the same groups (the guard asserts nothing the group's greedy run does not already end on)"
+ },
+ {
+  "name": "R01 PIPE_DELIMITER_ROW: back to the old spelling (two blank runs touch)",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
+  "to": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?[ \\t]*(?:\\|[ \\t]*:?-+:?[ \\t]*)*\\|?[ \\t]*$/;",
+  "expect": "killed",
+  "why": "the language is the same; the document rows (U+2028, U+2029) and the near-miss clock row notice"
+ },
+ {
+  "name": "R02 PIPE_DELIMITER_ROW: no optional trailing pipe",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
+  "to": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "`-|` stops being a delimiter row: the enumeration"
+ },
+ {
+  "name": "R03 PIPE_DELIMITER_ROW: a cell may be empty of dashes",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
+  "to": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-*:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
+  "expect": "killed",
+  "why": "`-||` starts matching: the enumeration"
+ },
+ {
+  "name": "R04 PIPE_DELIMITER_ROW: the leading pipe is required",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
+  "to": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
+  "expect": "killed",
+  "why": "`-` stops being a row: the enumeration"
+ },
+ {
+  "name": "B01 BIBLIOGRAPHY_ITEM_LINE: no guard",
+  "file": "src/core/frontmatter.ts",
+  "from": "export const BIBLIOGRAPHY_ITEM_LINE = /^\\s*-\\s+(?!\\s)(.*)$/;",
+  "to": "export const BIBLIOGRAPHY_ITEM_LINE = /^\\s*-\\s+(.*)$/;",
+  "expect": "killed",
+  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+ },
+ {
+  "name": "B02 BIBLIOGRAPHY_ITEM_LINE: the guard reads a blank or a tab only",
+  "file": "src/core/frontmatter.ts",
+  "from": "export const BIBLIOGRAPHY_ITEM_LINE = /^\\s*-\\s+(?!\\s)(.*)$/;",
+  "to": "export const BIBLIOGRAPHY_ITEM_LINE = /^\\s*-\\s+(?![ \\t])(.*)$/;",
+  "expect": "killed",
+  "why": "a CR or a line separator inside the run is still retried: only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+ },
+ {
+  "name": "Q01 SEQUENCE_ITEM_LINE: no guard",
+  "file": "src/core/preview-format.ts",
+  "from": "export const SEQUENCE_ITEM_LINE = /^-[ \\t]+(?![ \\t])(.*)$/;",
+  "to": "export const SEQUENCE_ITEM_LINE = /^-[ \\t]+(.*)$/;",
+  "expect": "killed",
+  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+ },
+ {
+  "name": "J01 jupyter KEY_LINE: no guard",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
+  "to": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(.*)|)$/;",
+  "expect": "killed",
+  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+ },
+ {
+  "name": "J02 jupyter KEY_LINE: the blank run is optional",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
+  "to": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]*(?![ \\t])(.*)|)$/;",
+  "expect": "killed",
+  "why": "`k:x` starts matching: the enumeration"
+ },
+ {
+  "name": "N01 INDENTED_LINE: no guard",
+  "file": "src/core/yaml-context.ts",
+  "from": "export const INDENTED_LINE = /^([ \\t]+)(?![ \\t])(.*)$/;",
+  "to": "export const INDENTED_LINE = /^([ \\t]+)(.*)$/;",
+  "expect": "killed",
+  "why": "only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+ },
+ {
+  "name": "N02 INDENTED_LINE: the guard reads a space only",
+  "file": "src/core/yaml-context.ts",
+  "from": "export const INDENTED_LINE = /^([ \\t]+)(?![ \\t])(.*)$/;",
+  "to": "export const INDENTED_LINE = /^([ \\t]+)(?! )(.*)$/;",
+  "expect": "killed",
+  "why": "a tab indent is retried again: only a clock row can notice: the language and the groups are unchanged, so the near-miss rows at 50,000 characters and the document rows at 100,000 are what fail"
+ },
+ {
+  "name": "T01 TOP_LEVEL_ANCHOR_DECL: no tail guard",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=^[\"'])[^:]*\\1[ \\t]*:|(?<!^[\"'])[^:]*:)[ \\t]*&([^\\s,[\\]{}]+)[ \\t]+(?![ \\t])(.*)$/;",
+  "to": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=^[\"'])[^:]*\\1[ \\t]*:|(?<!^[\"'])[^:]*:)[ \\t]*&([^\\s,[\\]{}]+)[ \\t]+(.*)$/;",
+  "expect": "killed",
+  "why": "the tail is quadratic again (a CR after the blanks): the tail document rows and the near-miss clock row"
+ },
+ {
+  "name": "T02 TOP_LEVEL_ANCHOR_DECL: the unquoted key is `[^:]*[ \\t]*:` again (the two classes share the blanks)",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=^[\"'])[^:]*\\1[ \\t]*:|(?<!^[\"'])[^:]*:)[ \\t]*&([^\\s,[\\]{}]+)[ \\t]+(?![ \\t])(.*)$/;",
+  "to": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=^[\"'])[^:]*\\1[ \\t]*:|(?<!^[\"'])[^:]*[ \\t]*:)[ \\t]*&([^\\s,[\\]{}]+)[ \\t]+(?![ \\t])(.*)$/;",
+  "expect": "killed",
+  "why": "the key half is quadratic again with NO terminator: the two key document rows and the `extraLines` clock row"
+ },
+ {
+  "name": "T03 TOP_LEVEL_ANCHOR_DECL: the anchor mark needs a blank before it",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=^[\"'])[^:]*\\1[ \\t]*:|(?<!^[\"'])[^:]*:)[ \\t]*&([^\\s,[\\]{}]+)[ \\t]+(?![ \\t])(.*)$/;",
+  "to": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=^[\"'])[^:]*\\1[ \\t]*:|(?<!^[\"'])[^:]*:)[ \\t]+&([^\\s,[\\]{}]+)[ \\t]+(?![ \\t])(.*)$/;",
+  "expect": "killed",
+  "why": "`k:&a x` stops matching: the enumeration"
+ },
+ {
+  "name": "T04 TOP_LEVEL_ANCHOR_DECL: the unquoted branch is chosen for a quoted key too",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=^[\"'])[^:]*\\1[ \\t]*:|(?<!^[\"'])[^:]*:)[ \\t]*&([^\\s,[\\]{}]+)[ \\t]+(?![ \\t])(.*)$/;",
+  "to": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=^[\"'])[^:]*\\1[ \\t]*:|[^:]*:)[ \\t]*&([^\\s,[\\]{}]+)[ \\t]+(?![ \\t])(.*)$/;",
+  "expect": "killed",
+  "why": "group 1 can be a quote while the plain branch matches: the enumeration compares group 1"
+ },
+ {
+  "name": "T05 TOP_LEVEL_ANCHOR_DECL: the quoted branch drops the closing quote",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=^[\"'])[^:]*\\1[ \\t]*:|(?<!^[\"'])[^:]*:)[ \\t]*&([^\\s,[\\]{}]+)[ \\t]+(?![ \\t])(.*)$/;",
+  "to": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=^[\"'])[^:]*[ \\t]*:|(?<!^[\"'])[^:]*:)[ \\t]*&([^\\s,[\\]{}]+)[ \\t]+(?![ \\t])(.*)$/;",
+  "expect": "killed",
+  "why": "`\"k:&a x` starts matching with a quote group: the enumeration"
+ },
+ {
+  "name": "H01 cutHashComment: starts one pair late",
+  "file": "src/core/hash-comment.ts",
+  "from": "      from = Math.max(0, k - 1);",
+  "to": "      from = k + 2;",
+  "expect": "killed",
+  "why": "a pair that starts right after the last terminator is not cut: the enumeration"
+ },
+ {
+  "name": "H02 cutHashComment: no backward scan (starts at 0)",
+  "file": "src/core/hash-comment.ts",
+  "from": "      from = Math.max(0, k - 1);",
+  "to": "      from = 0;",
+  "expect": "killed",
+  "why": "a pair BEFORE the last terminator is cut: the enumeration"
+ },
+ {
+  "name": "H03 cutHashComment: a space only (the tab variant)",
+  "file": "src/core/hash-comment.ts",
+  "from": "    if (text[i + 1] === \"#\" && blanks.includes(text[i])) {",
+  "to": "    if (text[i + 1] === \"#\" && text[i] === \" \") {",
+  "expect": "killed",
+  "why": "a tab before the hash is no longer a pair: the enumeration (`[ \\t]` strip)"
+ },
+ {
+  "name": "H04 cutHashComment: a pair may start at the last character",
+  "file": "src/core/hash-comment.ts",
+  "from": "  for (let i = from; i + 1 < text.length; i++) {",
+  "to": "  for (let i = from; i < text.length; i++) {",
+  "expect": "survives",
+  "why": "text[i + 1] is undefined there, never `#`: the same answers"
+ },
+ {
+  "name": "H05 cutHashComment: U+2029 is no terminator",
+  "file": "src/core/hash-comment.ts",
+  "from": "const TERMINATORS = \"\\n\\r\\u2028\\u2029\";",
+  "to": "const TERMINATORS = \"\\n\\r\\u2028\";",
+  "expect": "killed",
+  "why": "a pair before a U+2029 is cut: the enumeration"
+ },
+ {
+  "name": "H06 cutHashComment: finds the FIRST terminator, not the last",
+  "file": "src/core/hash-comment.ts",
+  "from": "  for (let k = text.length - 1; k >= 0; k--) {",
+  "to": "  for (let k = 0; k < text.length; k++) {",
+  "expect": "killed",
+  "why": "the scan starts before a later terminator: the enumeration"
+ },
+ {
+  "name": "H07 proofValue: back to the retried regex",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (/^[&*!%@`,\\]}]/.test(text) || /^[-?:](?:[ \\t]|$)/.test(text) || /:(?:[ \\t]|$)/.test(cutHashComment(text, \" \\t\"))) {",
+  "to": "  if (/^[&*!%@`,\\]}]/.test(text) || /^[-?:](?:[ \\t]|$)/.test(text) || /:(?:[ \\t]|$)/.test(text.replace(/[ \\t]#.*$/, \"\"))) {",
+  "expect": "killed",
+  "why": "the proof row (U+2028, U+2029) fails the clock"
+ },
+ {
+  "name": "H08 isWrongNumber: back to the retried regex",
+  "file": "src/core/yaml-value-check.ts",
+  "from": "  const trimmed = cutHashComment(rawToken, \" \").trim();\n  if (trimmed.length === 0) {",
+  "to": "  const trimmed = rawToken.replace(/ #.*$/, \"\").trim();\n  if (trimmed.length === 0) {",
+  "expect": "killed",
+  "why": "the isWrongNumber row (a CR and a letter, U+2028, U+2029) fails the clock"
+ },
+ {
+  "name": "H09 isWrongNumericMember: back to the retried regex",
+  "file": "src/core/yaml-value-check.ts",
+  "from": "  const trimmed = cutHashComment(rawToken, \" \").trim();\n  if (!NUMBER_LITERAL.test(trimmed)) {",
+  "to": "  const trimmed = rawToken.replace(/ #.*$/, \"\").trim();\n  if (!NUMBER_LITERAL.test(trimmed)) {",
+  "expect": "killed",
+  "why": "the isWrongNumericMember row fails the clock"
+ }
+]

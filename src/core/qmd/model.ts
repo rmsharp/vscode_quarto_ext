@@ -13608,8 +13608,8 @@ function tableOrLineBlockEndsAt(b: BlockBoundaries, x: number, nextContinues = f
  *
  * ⚠ **No two blank runs touch (Session 319).** The old spelling gave every cell its own trailing `[ \t]*` and then allowed an optional pipe and one more `[ \t]*`: with no further cell and no pipe the
  * two runs were adjacent, so for n blanks the engine tried all n+1 ways to split them and each split re-read the second run (quadratic, and for ANY character that ends the match, not only a
- * terminator: 6 s on 100,000 blanks then U+2028, 18 s then a CR and a letter). Each blank run now sits in front of the pipe it belongs to (`[ \t]*\|`), so the engine meets a run once per
- * position. The strings accepted are the same (`blank-tail-equivalence.test.ts` holds the old spelling as the oracle); the pattern has no group and every caller reads `.test`.
+ * terminator: `-` and 32,000 blanks then `x` took 625 ms in one `exec`, and a document with 100,000 blanks then U+2028 took 6 s). `TABLE_RULE_ROW` still carries the old alternation (part (4) of
+ * the BACKLOG item). Each blank run now sits in front of the pipe it belongs to (`[ \t]*\|`), so the engine meets a run once per position. The strings accepted are the same (`blank-tail-equivalence.test.ts` holds the old spelling as the oracle); the pattern has no group and every caller reads `.test`.
  */
 export const PIPE_DELIMITER_ROW = /^ {0,3}\|?[ \t]*:?-+:?(?:[ \t]*\|[ \t]*:?-+:?)*(?:[ \t]*\|)?[ \t]*$/;
 /** The top border of a grid table: dashes only between the plus signs (a `+====+` first border is no table). */
