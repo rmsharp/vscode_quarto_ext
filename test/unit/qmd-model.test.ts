@@ -21559,6 +21559,12 @@ describe("R6 residual (b) — a DOCUMENT-level echo/include default silences a c
     ["`execute:` siblings around the key", ["execute:", "  daemon: false", "  echo: false", "  warning: false"]],
     ["a 4-space indent", ["execute:", "    echo: false"]],
     ["a trailing comment", ["execute:", "  echo: false # hide"]],
+    // Session 320: the comment is cut by `cutHashComment`, which cuts at the blank right before the `#` where the regex cut at the start of the run, so the TRIM after it is what leaves `false`
+    // (two blanks), and a TAB before the `#` must count as a blank (a space-only cut keeps the whole comment). The same two questions for the key strip in `mappingAt`.
+    ["a trailing comment after a TAB", ["execute:", "  echo: false\t# hide"]],
+    ["a trailing comment after two blanks", ["execute:", "  echo: false  # hide"]],
+    ["a comment after the `execute:` key and a TAB", ["execute:\t# outputs", "  echo: false"]],
+    ["a comment after the `execute:` key and two blanks", ["execute:  # outputs", "  echo: false"]],
     ["`format: html: echo: false`, the first format (Session 308, f01; measured silent in BOTH modes)", ["format:", "  html:", "    echo: false"]],
   ])("silent: %s", (_n, fm) => {
     expect(findHeadings(stray(fm, r), "knitr").map((h) => h.text)).toEqual(both);
