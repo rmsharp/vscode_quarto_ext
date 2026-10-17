@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-16 · [ad hoc] Session 318: trim SESSION_NOTES to three close-out pairs (`5ef93952`) and the close-out commit (`98607ca9`)
+
+`methodology/SESSION_NOTES.md` dropped the Session 314 evaluation and the Session 315 self-assessment (28 deleted lines, 0 added; 21,604 B left, against the 120,000 B and 400-line ceilings), in a commit that holds no other edit to that file. The dropped pair is one command away: `git show 98607ca9:methodology/SESSION_NOTES.md`. The close-out commit `98607ca9` holds the receipt, this ledger's entries, Learnings 779 to 782, the plan's status rows, the BACKLOG edits and the context-budget history.
+
 ### 2026-10-16 · [ad hoc] Session 318: the gates and the real-document score on the final tree
 
 `npm test` 11,403 passing in 86 files (clean; the known clock row passed), `npm run check-types` clean, `npm run test:oracle` 2 of 2, `npm run package` DONE (44 files, 1.86 MB), `check-backlog` OK (223 open items) and `python3 methodology/context_budget.py` exit 2 for the same three over-limit files as since Session 316 (`HANDOFFS.md`, `BACKLOG.md`, `PROJECT_LEARNINGS.md`; `SESSION_NOTES.md` ok). Real-document score `head: scored 2438 agree 2423 (99.38%) divergent 15 phantom 2 lost 6 level 7`, the number Session 317 left and the parent's. `test:integration` NOT run (core-only change; it takes the screen; nobody was asked), the eighth session without it.
