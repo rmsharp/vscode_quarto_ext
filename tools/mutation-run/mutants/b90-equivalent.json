@@ -90,8 +90,8 @@
  {
   "name": "Y10 INDENTED group 3 non-empty",
   "file": "src/core/qmd/model.ts",
-  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.*)$/;",
-  "to": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.+)$/;",
+  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.+)$/;",
   "expect": "survives",
   "why": "EQUIVALENT: an empty info string is never a cell, so (.+) and (.*) answer alike"
  },

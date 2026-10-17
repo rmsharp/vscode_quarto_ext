@@ -458,56 +458,56 @@
  {
   "name": "Y04 INDENTED run is four or more",
   "file": "src/core/qmd/model.ts",
-  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.*)$/;",
-  "to": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{4,})(.*)$/;",
+  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{4,}(?!`))(.*)$/;",
   "expect": "killed",
   "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
  },
  {
   "name": "Y05 INDENTED run exactly three",
   "file": "src/core/qmd/model.ts",
-  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.*)$/;",
-  "to": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3})(.*)$/;",
+  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3}(?!`))(.*)$/;",
   "expect": "killed",
   "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
  },
  {
   "name": "Y06 INDENTED run is two or more",
   "file": "src/core/qmd/model.ts",
-  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.*)$/;",
-  "to": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{2,})(.*)$/;",
+  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{2,}(?!`))(.*)$/;",
   "expect": "killed",
   "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
  },
  {
   "name": "Y07 INDENTED loses start anchor",
   "file": "src/core/qmd/model.ts",
-  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.*)$/;",
-  "to": "const INDENTED_CELL_FENCE_OPEN = /\\s*((?=(`))`{3,})(.*)$/;",
+  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "const INDENTED_CELL_FENCE_OPEN = /\\s*((?=(`))`{3,}(?!`))(.*)$/;",
   "expect": "killed",
   "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
  },
  {
   "name": "Y08 INDENTED loses end anchor",
   "file": "src/core/qmd/model.ts",
-  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.*)$/;",
-  "to": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.*)/;",
+  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)/;",
   "expect": "killed",
   "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
  },
  {
   "name": "Y09 INDENTED group 3 must start with a non-blank",
   "file": "src/core/qmd/model.ts",
-  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.*)$/;",
-  "to": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(\\S.*)$/;",
+  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(\\S.*)$/;",
   "expect": "killed",
   "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
  },
  {
   "name": "Y11 INDENTED admits tilde runs",
   "file": "src/core/qmd/model.ts",
-  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.*)$/;",
-  "to": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=([`~]))[`~]{3,})(.*)$/;",
+  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=([`~]))[`~]{3,}(?!`))(.*)$/;",
   "expect": "killed",
   "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
  },

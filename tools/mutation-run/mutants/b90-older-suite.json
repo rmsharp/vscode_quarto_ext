@@ -98,24 +98,24 @@
  {
   "name": "Y01 INDENTED leading run is [ \\t]*",
   "file": "src/core/qmd/model.ts",
-  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.*)$/;",
-  "to": "const INDENTED_CELL_FENCE_OPEN = /^[ \\t]*((?=(`))`{3,})(.*)$/;",
+  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "const INDENTED_CELL_FENCE_OPEN = /^[ \\t]*((?=(`))`{3,}(?!`))(.*)$/;",
   "expect": "killed",
   "why": "killed by an OLDER test file, not by the pins: test/unit/qmd-model.test.ts > an INDENTED cell fence — quarto's rule, not CommonMark's (Session 178) > accepts EXOTIC whitespace — the indent class is"
  },
  {
   "name": "Y02 INDENTED leading run is spaces only",
   "file": "src/core/qmd/model.ts",
-  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.*)$/;",
-  "to": "const INDENTED_CELL_FENCE_OPEN = /^ *((?=(`))`{3,})(.*)$/;",
+  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "const INDENTED_CELL_FENCE_OPEN = /^ *((?=(`))`{3,}(?!`))(.*)$/;",
   "expect": "killed",
   "why": "killed by an OLDER test file, not by the pins: test/unit/qmd-model.test.ts > an INDENTED cell fence — quarto's rule, not CommonMark's (Session 178) > accepts a TAB and an 8-space indent — quarto's "
  },
  {
   "name": "Y03 INDENTED leading run capped at 8",
   "file": "src/core/qmd/model.ts",
-  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,})(.*)$/;",
-  "to": "const INDENTED_CELL_FENCE_OPEN = /^\\s{0,8}((?=(`))`{3,})(.*)$/;",
+  "from": "const INDENTED_CELL_FENCE_OPEN = /^\\s*((?=(`))`{3,}(?!`))(.*)$/;",
+  "to": "const INDENTED_CELL_FENCE_OPEN = /^\\s{0,8}((?=(`))`{3,}(?!`))(.*)$/;",
   "expect": "killed",
   "why": "killed by an OLDER test file, not by the pins: test/unit/qmd-model.test.ts > Session 296 — the CommonMark-family readers (gfm, commonmark, commonmark_x) > ROUND 2: ordered mermaid r6 atfence col0 t"
  },
