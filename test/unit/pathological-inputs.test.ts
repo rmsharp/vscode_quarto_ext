@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { resolveDocumentEngine } from "../../src/core/document-engine-resolve";
 import { bibliographyPaths } from "../../src/core/frontmatter";
 import { parseDeclaredFormats } from "../../src/core/preview-format";
+import { parseOutputPath } from "../../src/core/render-args";
 import { findAllCells, findCellOptionLines, findCodeFenceOpeners, findHeadings, knitrChunkHeaderLabel, maskInlineCode, plainFrontMatter } from "../../src/core/qmd/model";
 import { jupyterKernelLanguage } from "../../src/core/qmd/jupyter-kernel";
 import { quartoYamlRegions } from "../../src/core/qmd/quarto-yaml-regions";
@@ -947,6 +948,9 @@ describe("Session 320 — a long run of blanks in a rule row or a closing run", 
     { site: "the key `execute:` followed by a long blank run and a letter", build: (blanks) => `---\nexecute: ${blanks}x\n---\n\nIntro of the execute key strip.\n\n# H\n`, read: knitrHeadings, answer: () => ["H"] },
     { site: "the key `format:` followed by a long blank run and a letter", build: (blanks) => `---\nformat: ${blanks}x\n---\n\nIntro of the format key strip.\n\n# H\n`, read: knitrHeadings, answer: () => ["H"] },
     { site: "the key `execute:` followed by ` #` pairs and U+2028", run: "` #` pairs", build: (blanks) => `---\nexecute:${" #".repeat(blanks.length)}${LS}\n---\n\nIntro of the execute key pairs.\n\n# H\n`, read: knitrHeadings, answer: () => ["H"] },
+    // `parseOutputPath` reads the whole output of a successful `quarto render` (stdout and stderr, which holds whatever the document's own code printed). Its lazy `(.+?)[ \t]*$` re-read the rest of a
+    // blank run at every character: `Output created: a`, 32,000 blanks, `b` took 2.1 s in one `exec` (8,000 / 16,000 / 32,000: 132 / 524 / 2,132 ms).
+    { site: "parseOutputPath (an `Output created:` line with a long blank run inside the path)", build: (blanks) => `Output created: a${blanks}b`, read: parseOutputPath, answer: (blanks) => `a${blanks}b` },
   ];
 
   it.each(ROWS.map((row) => [row.site, row.run ?? "blanks", row] as const))("%s: 100,000 %s are read in linear time, and the answer is the short run's", (_site, _run, row) => {

@@ -62,6 +62,13 @@ export function buildCacheRefreshArgs(file: string): string[] {
 const ANSI_PATTERN = /\x1b\[[0-9;]*m/g;
 
 /**
+ * The marker, the blanks after it, and the rest of the line (up to a `\n`, `\r`, U+2028 or
+ * U+2029, which is where `.` and a multiline `$` stop). Nothing here can backtrack: the path's
+ * trailing blanks are cut by `parseOutputPath` itself.
+ */
+const OUTPUT_CREATED_LINE = /Output created:([ \t]*)([^\n\r\u2028\u2029]*)/g;
+
+/**
  * Extract the output path from a successful `quarto render` run.
  *
  * Quarto prints `Output created: <path>` (verified live against 1.7.33 — note
@@ -70,16 +77,29 @@ const ANSI_PATTERN = /\x1b\[[0-9;]*m/g;
  * LAST match, since a multi-format render prints one line per format and the
  * caller most likely wants the final artifact.
  *
+ * The line is read once and its trailing blanks are cut by a scan. The lazy `(.+?)[ \t]*$` this
+ * replaces re-read the rest of a blank run at every character it took, so a line with n blanks
+ * inside the path cost n squared (21 s for 100,000), and the output holds whatever the
+ * document's own code printed. It answers what that pattern answered, including the odd case:
+ * a line that is only blanks after the colon gives back its last blank, and an empty one
+ * matches nothing.
+ *
  * @returns the reported path (verbatim, possibly relative), or `null` if the
  *   success marker is absent.
  */
 export function parseOutputPath(output: string): string | null {
   const clean = output.replace(ANSI_PATTERN, "");
-  const re = /Output created:[ \t]*(.+?)[ \t]*$/gm;
-  let match: RegExpExecArray | null;
   let last: string | null = null;
-  while ((match = re.exec(clean)) !== null) {
-    last = match[1];
+  for (const [, blanks, rest] of clean.matchAll(OUTPUT_CREATED_LINE)) {
+    if (rest !== "") {
+      let end = rest.length;
+      while (rest[end - 1] === " " || rest[end - 1] === "\t") {
+        end--;
+      }
+      last = rest.slice(0, end);
+    } else if (blanks !== "") {
+      last = blanks[blanks.length - 1];
+    }
   }
   return last;
 }
