@@ -828,6 +828,26 @@ describe("Session 319 — a long run of blanks followed by a CR, U+2028 or U+202
       build: (blanks, terminator) => `---\ntitle: a\n${blanks}${terminator}\n---\nbody of the nested line\n`,
       read: (text) => completionContextAt(text, 14, () => undefined),
     },
+    // `TOP_LEVEL_ANCHOR_DECL` is read only for a front matter whose `from:` is an ALIAS (`*a`), on every top-level line until the anchor is found. It holds TWO quadratics: the tail (the blanks
+    // after `&name`, as above) and the KEY, `[^:]*` then `[ \t]*` then `:`, where a blank run the key swallows can be re-split between the two classes and NO terminator is needed.
+    {
+      site: "TOP_LEVEL_ANCHOR_DECL, the tail (`k: &a`, blanks, then the terminator)",
+      terminators: [CR_AND_LETTER, LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
+      build: (blanks, terminator) => `---\nfrom: *a\nk: &a${blanks}${terminator}\n---\n\nIntro of the anchor tail.\n\n# H\n`,
+      read: (text) => findHeadings(text).map((h) => h.text),
+    },
+    {
+      site: "TOP_LEVEL_ANCHOR_DECL, the key (a top-level word and a long blank run, no colon)",
+      terminators: [["nothing", ""]],
+      build: (blanks, terminator) => `---\nfrom: *a\nkx${blanks}${terminator}\n---\n\nIntro of the anchor key.\n\n# H\n`,
+      read: (text) => findHeadings(text).map((h) => h.text),
+    },
+    {
+      site: "TOP_LEVEL_ANCHOR_DECL, the key (a word, a long blank run, a colon, and no anchor after it)",
+      terminators: [["nothing", ""]],
+      build: (blanks, terminator) => `---\nfrom: *a\nk${blanks}: x${terminator}\n---\n\nIntro of the anchor colon.\n\n# H\n`,
+      read: (text) => findHeadings(text).map((h) => h.text),
+    },
     {
       // No CR row: `TABLE_RULE_ROW` embeds the same delimiter-row alternation followed by `\s*$`, and a CR and a letter after the blanks reach IT (12 s with PIPE_DELIMITER_ROW already fixed). That pattern is
       // part (4) of the same BACKLOG item and has its own session; its cure is this pattern's new spelling (no two blank runs touch).

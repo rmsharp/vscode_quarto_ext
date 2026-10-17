@@ -3412,8 +3412,18 @@ function topLevelAnchor(content: readonly string[], top: number, name: string): 
   }
   return null;
 }
-/** A top-level `key: &anchor value` declaration — the key, the anchor name, and the value. */
-const TOP_LEVEL_ANCHOR_DECL = /^(["']?)[^:]*\1[ \t]*:[ \t]*&([^\s,[\]{}]+)[ \t]+(.*)$/;
+/**
+ * A top-level `key: &anchor value` declaration — the key, the anchor name, and the value.
+ *
+ * ⚠ **TWO QUADRATICS LIVED HERE, AND ONLY ONE NEEDS A TERMINATOR (Session 319).** (1) The TAIL: `[ \t]+(.*)$` failed once per way of splitting the blanks after the name when a CR, U+2028 or
+ * U+2029 followed (6 s on 100,000); it now ends in `(?![ \t])`, exact because `(.*)` may be empty and may start with a blank. (2) The KEY: `[^:]*` swallows blanks and `[ \t]*` takes them too, so
+ * any top-level line with a long blank run in or after its key and NO `&name` after the colon (`kx` and blanks; `k`, blanks, `: x`) was split n+1 ways for nothing (6 s on 100,000, no terminator
+ * needed; it ran for every top-level line of an alias `from:` until the anchor was found). The key can only end at the FIRST colon, and what follows the colon does not depend on how the key was
+ * split, so the extra splits were pure repeats. Group 1 is a quote only when the key is `Q...Q` and the colon follows the closing `Q` after blanks; otherwise it is `""` and the key is `[^:]*:`.
+ * The lookbehinds pick the branch by where group 1 stopped (position 1 right after a quote at the start: the quoted branch; position 0: the plain one), which keeps the old order of preference
+ * (quote first, then empty) and keeps group 1 `""` rather than unset. `blank-tail-equivalence.test.ts` holds the old spelling.
+ */
+export const TOP_LEVEL_ANCHOR_DECL = /^(["']?)(?:(?<=^["'])[^:]*\1[ \t]*:|(?<!^["'])[^:]*:)[ \t]*&([^\s,[\]{}]+)[ \t]+(?![ \t])(.*)$/;
 /** How many leading space/tab characters `line` carries. */
 function leadingWhitespace(line: string): number {
   return (/^[ \t]*/.exec(line) as RegExpExecArray)[0].length;

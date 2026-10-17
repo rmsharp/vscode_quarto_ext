@@ -13,6 +13,7 @@ import {
   PLAIN_ITEM_LINE,
   PLAIN_KEY_LINE,
   PROOF_KEY_LINE,
+  TOP_LEVEL_ANCHOR_DECL,
   cellOptionPrefixFor,
 } from "../../src/core/qmd/model";
 import { BOM, EM_SPACE, IDEOGRAPHIC, LS, NBSP, NEL, PS, compare, countStrings, everyString, seededRandom, slowestExec } from "./support/regex-equivalence";
@@ -45,6 +46,10 @@ interface Site {
   acceptedTails?: readonly string[];
   /** The tails of the seeded sample and the grid (default `TAILS`). */
   tails?: readonly string[];
+  /** How long the near-miss lines are when the OLD spelling answers them (default 1,000): a pattern with a quadratic KEY costs the oracle 20 ms a line there. */
+  smallLength?: number;
+  /** Lines of `n` characters that are slow for a reason the shapes below do not cover (a quadratic with no terminator in it, say). */
+  extraLines?: (n: number) => string[];
 }
 
 const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -100,6 +105,29 @@ const SITES: Record<string, Site> = {
     shortLength: 6,
   },
   INDENTED_LINE: { old: /^([ \t]+)(.*)$/, now: INDENTED_LINE, guard: "(?![ \\t])", marks: ["-"], heads: [""], blanks: [" ", "\t"], indents: [], shortLength: 8 },
+  // Two quadratics in one pattern: the tail (as above) and the KEY, which needs no terminator (`extraLines`: a key and blanks and no colon, blanks before the colon, blanks inside a quote).
+  TOP_LEVEL_ANCHOR_DECL: {
+    old: /^(["']?)[^:]*\1[ \t]*:[ \t]*&([^\s,[\]{}]+)[ \t]+(.*)$/,
+    now: TOP_LEVEL_ANCHOR_DECL,
+    guard: "(?![ \\t])",
+    marks: ['"', "'", ":", "&"],
+    heads: ["k: &a", '"k": &a', "'k':&a", ": &a", "a b : &name"],
+    blanks: [" ", "\t"],
+    indents: [" ", "\t"],
+    shortLength: 7,
+    smallLength: 200,
+    extraLines: (n) => [
+      `kx${" ".repeat(n)}`,
+      `kx${"\t".repeat(n)}`,
+      `k${" ".repeat(n)}: x`,
+      `"k"${" ".repeat(n)}: x`,
+      `"${" ".repeat(n)}x"${" ".repeat(n)}: x`,
+      `"${" ".repeat(n)}`,
+      `'${" ".repeat(n)}x'${" ".repeat(n)}`,
+      `${" ".repeat(n)}: x`,
+      `"k"${" ".repeat(n)}: &${"a".repeat(10)}`,
+    ],
+  },
 };
 
 // How many strings of each comparison the OLD spelling accepts, counted from the old spelling alone: no comparison below can pass by both sides refusing everything, and an edit to the oracle moves the count.
@@ -121,6 +149,7 @@ const ACCEPTED: Record<string, { short: number; wide: number; exotic: number; se
   SEQUENCE_ITEM_LINE: { short: 2730, wide: 518, exotic: 1640, seeded: 7387, grid: 144 },
   JUPYTER_KEY_LINE: { short: 12588, wide: 1978, exotic: 2362, seeded: 29662, grid: 3504 },
   INDENTED_LINE: { short: 43690, wide: 3110, exotic: 14762, seeded: 32881, grid: 144 },
+  TOP_LEVEL_ANCHOR_DECL: { short: 40020, wide: 290, exotic: 396, seeded: 31183, grid: 2220 },
 };
 
 const TERMINATORS = ["\r", LS, PS] as const;
@@ -180,7 +209,7 @@ function nearMissLines(site: Site, n: number): string[] {
       }
     }
   }
-  return lines;
+  return site.extraLines === undefined ? lines : [...lines, ...site.extraLines(n)];
 }
 
 function* longAcceptedLines(site: Site): Generator<string> {
@@ -261,9 +290,9 @@ describe("Session 319 — the blank-run patterns answer what their unguarded spe
   // The enumeration cannot see cost. The old spelling is quadratic on the near-miss lines (a long run then a terminator, in several shapes), so the answers are compared at 1,000 characters (a few
   // milliseconds for the old spelling) and the NEW pattern is timed on the same shapes at 50,000 (seconds a line for the old one, a millisecond or two for the new): a guard that goes missing, guards the
   // wrong character, or sits after a group that re-reads the tail passes every comparison and fails the clock.
-  it.each(names)("%s answers each near-miss line of 1,000 characters like the old spelling, groups included", (name) => {
+  it.each(names)("%s answers each near-miss line (1,000 characters, or the site's own length) like the old spelling, groups included", (name) => {
     const site = SITES[name];
-    const lines = nearMissLines(site, 1_000);
+    const lines = nearMissLines(site, site.smallLength ?? 1_000);
     const { compared, accepted, disagreements } = compare(site.old, site.now, lines);
     expect(disagreements).toEqual([]);
     expect(compared).toBe(lines.length);
