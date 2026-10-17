@@ -84,6 +84,8 @@ describe("Session 320 — parseOutputPath answers what the lazy pattern answered
       `${PREFIX}${blanks}a${blanks}`,
       `${PREFIX}${PREFIX}${blanks}x`,
       `${PREFIX} ${"a ".repeat(Math.floor(n / 2))}b`,
+      // A run that exists only AFTER the colour escapes are stripped: the text holds no visible run (a research agent found 5.4 / 21.3 / 85.3 ms at 8,000 / 16,000 / 32,000 on the old pattern).
+      `${PREFIX} a${" \x1b[0m".repeat(Math.floor(n / 5))}b`,
       `${PREFIX} a b\n`.repeat(Math.floor(n / 15)),
       `${PREFIX}\n`.repeat(Math.floor(n / 16)),
       PREFIX.repeat(Math.floor(n / 15)),
