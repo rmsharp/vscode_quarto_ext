@@ -725,3 +725,37 @@ describe("Session 318 — a single line that is a long run of fence characters f
     expect(ms).toBeLessThan(1000);
   });
 });
+
+describe("Session 319 — a long run of blanks followed by a CR, U+2028 or U+2029 in a line a pattern reads to its end", () => {
+  // The BACKLOG item "Other regexes still quadratic on a long run of blanks, CR or U+2028", parts (5) and (9). A pattern of the shape `X[ \t]*(.*)$` (or `[ \t]+(.+)$`) reads a run of blanks and then a tail
+  // to the end of the line, and `.` stops at a CR, U+2028 and U+2029: a line holding one of them after the run can never match, but the engine used to find that out once per way of splitting the run
+  // (it gave the blanks back one at a time and `(.*)` re-read what was given back), which is quadratic. 32,000 blanks then CR took 0.6 s in one `exec` and 100,000 took 6 s (Session 319, bare `exec`, 8,000 /
+  // 16,000 / 32,000 blanks: 38 / 154 / 616 ms). A lone CR is the form that reaches a line: a CRLF is split off before any pattern runs, so the CR is followed by a letter here. Read linearly each row
+  // is a few milliseconds, so the 1 s limit has a wide margin both ways. `scanRegions` memoizes the last two documents it read, so every row's document carries its own name.
+  const LS = String.fromCharCode(0x2028);
+  const PS = String.fromCharCode(0x2029);
+  const CR_AND_LETTER = ["a CR and a letter", "\rx"] as const;
+  const LINE_SEPARATOR = ["U+2028", LS] as const;
+  const PARAGRAPH_SEPARATOR = ["U+2029", PS] as const;
+  type Terminator = readonly [string, string];
+  type Row = { site: string; terminators: readonly Terminator[]; build: (blanks: string, terminator: string) => string; read: (text: string) => unknown };
+
+  const ROWS: Row[] = [
+    {
+      site: "DIV_FENCE (a div fence followed by blanks)",
+      terminators: [CR_AND_LETTER, LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
+      build: (blanks, terminator) => `Intro of DIV_FENCE.\n\n:::${blanks}${terminator}\n\n# H\n`,
+      read: (text) => findHeadings(text).map((h) => h.text),
+    },
+  ];
+
+  it.each(ROWS.flatMap((row) => row.terminators.map(([terminatorName, terminator]) => [row.site, terminatorName, row, terminator] as const)))(
+    "%s: 100,000 blanks and then %s is read in linear time, and like a shorter run of the same shape",
+    (_site, _terminatorName, row, terminator) => {
+      const shorter = row.read(row.build(" ".repeat(2000), terminator));
+      const { result, ms } = timed(() => row.read(row.build(" ".repeat(100_000), terminator)));
+      expect(result).toEqual(shorter);
+      expect(ms).toBeLessThan(1000);
+    },
+  );
+});

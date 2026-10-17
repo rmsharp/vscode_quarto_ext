@@ -145,7 +145,7 @@ describe("Session 318 — the fence-run patterns answer what their unguarded spe
   // the answers are compared at 1,000 characters (a few milliseconds for the old spelling) and the NEW pattern is timed on the same shapes at 50,000 (seconds a line for the old one, a millisecond
   // or two for the new): a lookahead that goes missing, guards the wrong character, or sits after a group that re-reads the tail passes every comparison and fails the clock.
   const OTHER: Record<string, string> = { "`": "~", "~": "`", ":": "`" };
-  type Shape = { what: string; build: (n: number, unit: string, term: string, blank: string) => string; blankTail?: boolean };
+  type Shape = { what: string; build: (n: number, unit: string, term: string, blank: string) => string };
   const SHAPES: Shape[] = [
     { what: "one long run", build: (n, u, t) => u.repeat(n) + t },
     { what: "one long run and a letter after the terminator", build: (n, u, t) => `${u.repeat(n)}${t}x` },
@@ -155,7 +155,7 @@ describe("Session 318 — the fence-run patterns answer what their unguarded spe
     { what: "a long run, then a long run of another fence character", build: (n, u, t) => u.repeat(n) + OTHER[u].repeat(n) + t },
     { what: "a long run, a blank, then another long run", build: (n, u, t, b) => u.repeat(n) + b + u.repeat(n) + t },
     { what: "many short runs", build: (n, u, t, b) => (u.repeat(3) + b).repeat(Math.floor(n / 4)) + t },
-    { what: "a long run and a long blank run", build: (n, u, t, b) => u.repeat(n) + b.repeat(n) + t, blankTail: true },
+    { what: "a long run and a long blank run", build: (n, u, t, b) => u.repeat(n) + b.repeat(n) + t },
     { what: "a long blank run alone", build: (n, _unit, t, b) => b.repeat(n) + t },
     { what: "a long run of terminators and then a fence", build: (n, u, t) => t.repeat(n) + u.repeat(3) + "x" },
   ];
@@ -165,13 +165,13 @@ describe("Session 318 — the fence-run patterns answer what their unguarded spe
   const NEAR_MISS_LENGTH = 50_000;
   const SMALL_LENGTH = 1_000;
 
-  function nearMissLines(name: string, n: number): { text: string; blankTail: boolean }[] {
-    const lines: { text: string; blankTail: boolean }[] = [];
+  function nearMissLines(name: string, n: number): string[] {
+    const lines: string[] = [];
     for (const unit of UNITS[name]) {
       for (const term of ["", "\r", LS, PS]) {
         for (const blank of BLANKS[name]) {
           for (const shape of SHAPES) {
-            lines.push({ text: shape.build(n, unit, term, blank), blankTail: shape.blankTail === true });
+            lines.push(shape.build(n, unit, term, blank));
           }
         }
       }
@@ -180,7 +180,7 @@ describe("Session 318 — the fence-run patterns answer what their unguarded spe
   }
 
   it.each(Object.keys(OLD))("%s answers each near-miss line of 1,000 characters like the old spelling, groups included", (name) => {
-    const { compared, accepted, disagreements } = compare(name, nearMissLines(name, SMALL_LENGTH).map((line) => line.text));
+    const { compared, accepted, disagreements } = compare(name, nearMissLines(name, SMALL_LENGTH));
     expect(disagreements).toEqual([]);
     expect(compared).toBe(UNITS[name].length * 4 * BLANKS[name].length * SHAPES.length);
     expect(accepted).toBeGreaterThan(0);
@@ -189,10 +189,7 @@ describe("Session 318 — the fence-run patterns answer what their unguarded spe
   it.each(Object.keys(OLD))("%s refuses or accepts each near-miss line of 50,000 characters in linear time", (name) => {
     let slowest = 0;
     let slowestText = "";
-    for (const { text, blankTail } of nearMissLines(name, NEAR_MISS_LENGTH)) {
-      if (name === "DIV_FENCE" && blankTail) {
-        continue; // `:::`, a long blank run and a terminator: quadratic in `[ \t]*(.*)$`, which is part (5) of the BACKLOG item "Other regexes still quadratic on a long run of blanks, CR or U+2028"
-      }
+    for (const text of nearMissLines(name, NEAR_MISS_LENGTH)) {
       const started = performance.now();
       NEW[name].exec(text);
       const took = performance.now() - started;

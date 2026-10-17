@@ -4316,10 +4316,11 @@ const LIST_MARKER_PREFIX = /^ {0,3}(?:[-*+]|\d{1,9}[.)])[ \t]+/;
  *
  * ⚠ **THE COLON RUN ENDS IN A LOOKAHEAD, `(?!:)` (Session 318), for the reason `FENCE_OPEN` gives:** a CR, U+2028 or U+2029 after the run makes `(.*)$` fail, and without the lookahead the
  * engine retries it once per way of splitting the run (one `exec` of the old spelling took 6 s on 100,000 colons then CR, and `divFenceRole` runs it twice, on the line and again with a list or
- * quote marker stripped, so a document took 12 s). The blanks after the run are NOT guarded: `:::` followed by a long blank run and a CR is still
- * quadratic, and is part (5) of the BACKLOG item "Other regexes still quadratic on a long run of blanks, CR or U+2028", which owns the rule for every `[ \t]+(.*)$`.
+ * quote marker stripped, so a document took 12 s). **THE BLANKS AFTER THE RUN END IN ONE TOO, `(?![ \t])` (Session 319)**, for the same reason: `:::` and a long blank run and then a CR made `(.*)$`
+ * fail once per way of splitting the blanks (a document took 11 s on 100,000). The guard is the run's OWN class, so it is exact: `(.*)` may be empty and may itself start with a blank, so giving a
+ * blank back can only put one more blank in front of the same rest, and the first (longest) try is the only one that can succeed (`blank-tail-equivalence.test.ts` holds the old spelling as the oracle).
  */
-export const DIV_FENCE = /^[ \t]*:{3,}(?!:)[ \t]*(.*)$/;
+export const DIV_FENCE = /^[ \t]*:{3,}(?!:)[ \t]*(?![ \t])(.*)$/;
 /**
  * A mid-document YAML metadata block's `...` terminator, on its own line (Session 226). The
  * same spelling `CLOSER_LINE` and `CLOSES_PARAGRAPH` each carry, named here because the caller
