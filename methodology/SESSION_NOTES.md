@@ -29,6 +29,12 @@ In Python `.` is `[^\n\r\u2028\u2029]`, `$` is `\Z`, and JavaScript's `\s` needs
 (10) The sweep's harnesses (`scratchpad/s319/`) will be gone: the first session on the filed items commits a seeded generator under `tools/` (plan rule P5). The Write and Edit tools can turn a backslash-u escape into the raw character: `xxd` the line (Learning 786).
 `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices. macOS `sed` rejects `|` as a delimiter. After answering a direct question, STOP and wait (memory).
 
+### What Session 320 Did
+**Deliverable:** g02 of the backlog ordering plan, fourth session: B89 part (4), the closing-run and rule-row patterns: `TABLE_RULE_ROW`, the two `[ \t]+#.*$` of `knitrDocumentDefaults`, `ATX_CLOSING` and `render-args.ts:78` (IN PROGRESS)
+**Started:** 2026-10-17
+**Status:** Session claimed. Work beginning. Strict TDD: time each named site firsthand before reading code (the item's list was a sample three sessions running), a RED doubling row per site, then a rewrite proved identical to the old pattern.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
 ### What Session 319 Did
 **Deliverable:** g02 of the backlog ordering plan, third session: B89 parts (5)+(9), the CR / U+2028 family, a blank run followed by a tail a CR stops -- DONE; claim `6ea0db00`
 **Started:** 2026-10-16
