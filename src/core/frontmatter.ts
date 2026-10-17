@@ -50,6 +50,13 @@ function stripComment(raw: string): string {
 }
 
 /**
+ * A block-list item under `bibliography:`, the path (and any comment) as group 1. The whitespace run ends in a lookahead, `(?!\s)`, so a CR, U+2028 or U+2029 after the
+ * path cannot make the engine retry `(.*)$` once per way of splitting the run (quadratic: 6 s on 100,000 blanks). Exact: `(.*)` may be empty and may start with a blank,
+ * so the longest run is the only try that can succeed.
+ */
+export const BIBLIOGRAPHY_ITEM_LINE = /^\s*-\s+(?!\s)(.*)$/;
+
+/**
  * The bibliography file path(s) declared in the document's YAML front matter, in
  * order, or `[]` if none. Handles the three forms Quarto accepts:
  *   - a scalar:      `bibliography: refs.bib`
@@ -74,7 +81,7 @@ export function bibliographyPaths(text: string): string[] {
   if (value === "") {
     const items: string[] = [];
     for (let i = keyIndex + 1; i < lines.length; i++) {
-      const m = /^\s*-\s+(.*)$/.exec(lines[i]);
+      const m = BIBLIOGRAPHY_ITEM_LINE.exec(lines[i]);
       if (!m) {
         break;
       }

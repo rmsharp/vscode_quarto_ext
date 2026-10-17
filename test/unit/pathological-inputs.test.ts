@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { resolveDocumentEngine } from "../../src/core/document-engine-resolve";
+import { bibliographyPaths } from "../../src/core/frontmatter";
+import { parseDeclaredFormats } from "../../src/core/preview-format";
 import { findAllCells, findCellOptionLines, findCodeFenceOpeners, findHeadings, knitrChunkHeaderLabel, maskInlineCode, plainFrontMatter } from "../../src/core/qmd/model";
 import { quartoYamlRegions } from "../../src/core/qmd/quarto-yaml-regions";
 import { findLabel, indexLabels } from "../../src/core/refs";
@@ -800,6 +802,18 @@ describe("Session 319 — a long run of blanks followed by a CR, U+2028 or U+202
       terminators: [CR_AND_LETTER, LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
       build: (blanks, terminator) => `Intro of the cell option prefix.\n\n\`\`\`{python}\n#|${blanks}${terminator}x\n\`\`\`\n`,
       read: (text) => findCellOptionLines(text).length,
+    },
+    {
+      site: "the bibliography list item (`-`, blanks, a word, then the terminator: `\\s` takes a CR that comes right after the blanks, so the terminator follows a word)",
+      terminators: [CR_AND_LETTER, LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
+      build: (blanks, terminator) => `---\ntitle: a\nbibliography:\n-${blanks}y${terminator}\n---\nbody of the bibliography item\n`,
+      read: (text) => bibliographyPaths(text),
+    },
+    {
+      site: "the format list item in the preview's declared formats (`-`, blanks, then the terminator)",
+      terminators: [CR_AND_LETTER, LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
+      build: (blanks, terminator) => `---\ntitle: a\nformat:\n  -${blanks}${terminator}\n---\nbody of the format list item\n`,
+      read: (text) => parseDeclaredFormats(text),
     },
     {
       // No CR row: `TABLE_RULE_ROW` embeds the same delimiter-row alternation followed by `\s*$`, and a CR and a letter after the blanks reach IT (12 s with PIPE_DELIMITER_ROW already fixed). That pattern is

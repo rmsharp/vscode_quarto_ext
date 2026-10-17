@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { BIBLIOGRAPHY_ITEM_LINE } from "../../src/core/frontmatter";
+import { SEQUENCE_ITEM_LINE } from "../../src/core/preview-format";
 import {
   ATX_HEADING,
   ATX_HEADING_TIGHT,
@@ -82,6 +84,9 @@ const SITES: Record<string, Site> = {
     acceptedTails: ["", "|", "|-", " | - |", " |:-|"], // a cell straight after the blanks is no cell: the pipe between cells is what the pattern asks for
     tails: ["", "-", "|", " | - ", ":-:", "x", "\r", LS, PS, " \r", "-\r", "-|\r", "|-", "-x"],
   },
+  // `\s` takes a CR, U+2028 and U+2029 as blanks, so a terminator RIGHT after the run is part of it; the slow line has the terminator after a word (`near-miss` shapes 3 and 5).
+  BIBLIOGRAPHY_ITEM_LINE: { old: /^\s*-\s+(.*)$/, now: BIBLIOGRAPHY_ITEM_LINE, guard: "(?!\\s)", marks: ["-"], heads: ["-"], blanks: [" ", "\t"], indents: [" ", "  ", "\t"], shortLength: 7 },
+  SEQUENCE_ITEM_LINE: { old: /^-[ \t]+(.*)$/, now: SEQUENCE_ITEM_LINE, guard: "(?![ \\t])", marks: ["-"], heads: ["-"], blanks: [" ", "\t"], indents: [], shortLength: 7 },
 };
 
 // How many strings of each comparison the OLD spelling accepts, counted from the old spelling alone: no comparison below can pass by both sides refusing everything, and an edit to the oracle moves the count.
@@ -99,6 +104,8 @@ const ACCEPTED: Record<string, { short: number; wide: number; exotic: number; se
   "CELL_OPTION_PREFIX //": { short: 6468, wide: 554, exotic: 1385, seeded: 8572, grid: 480 },
   "CELL_OPTION_PREFIX (*": { short: 6468, wide: 554, exotic: 1385, seeded: 8582, grid: 480 },
   PIPE_DELIMITER_ROW: { short: 13364, wide: 995, exotic: 995, seeded: 12128, grid: 1466 },
+  BIBLIOGRAPHY_ITEM_LINE: { short: 67660, wide: 23608, exotic: 18676, seeded: 60899, grid: 896 },
+  SEQUENCE_ITEM_LINE: { short: 2730, wide: 518, exotic: 1640, seeded: 7387, grid: 144 },
 };
 
 const TERMINATORS = ["\r", LS, PS] as const;

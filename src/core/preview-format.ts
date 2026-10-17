@@ -138,12 +138,18 @@ function parseFlowCollection(scalar: string): string[] | null {
 }
 
 /**
+ * A block-sequence item (`- html`) in a format list, the name (and any comment) as group 1. The blank run ends in a lookahead, `(?![ \t])`, so a CR, U+2028 or U+2029 after
+ * the name cannot make the engine retry `(.*)$` once per way of splitting the run (quadratic: 6 s on 100,000 blanks). Exact: `(.*)` may be empty and may start with a blank.
+ */
+export const SEQUENCE_ITEM_LINE = /^-[ \t]+(?![ \t])(.*)$/;
+
+/**
  * Extract a format name from a child line's content (indentation already
  * stripped): a block-sequence item `- html` or a mapping key `html:` /
  * `html: default`. Returns `null` for a line that is neither.
  */
 function childName(content: string): string | null {
-  const seq = /^-[ \t]+(.*)$/.exec(content);
+  const seq = SEQUENCE_ITEM_LINE.exec(content);
   if (seq !== null) {
     const v = unquote(stripComment(seq[1]).trim());
     return v.length > 0 ? v : null;
