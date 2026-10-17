@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-16 · [ad hoc] Session 318: cite the quality-gate run in the receipt and the ledger (2/2 pass at d752d2f4)
+
+`quality_ratchet.py --run` after the ledger commit `d752d2f4`: 2/2 pass, 0 fail, 0 unmeasured, results bba236856bad, manifest 334939914945 (ledger-lag 0; release-gate is `npm run check-package`, 0). The first run, made after the trim commit and before it had an entry, read 1/2 with ledger-lag 1 (results ef628a07495a): the gate did what it is for, and `d752d2f4` is the entry that cleared it. The `HANDOFFS.md` receipt's `quality_ratchet` line now carries the citation.
+
 ### 2026-10-16 · [ad hoc] Session 318: trim SESSION_NOTES to three close-out pairs (`5ef93952`) and the close-out commit (`98607ca9`)
 
 `methodology/SESSION_NOTES.md` dropped the Session 314 evaluation and the Session 315 self-assessment (28 deleted lines, 0 added; 21,604 B left, against the 120,000 B and 400-line ceilings), in a commit that holds no other edit to that file. The dropped pair is one command away: `git show 98607ca9:methodology/SESSION_NOTES.md`. The close-out commit `98607ca9` holds the receipt, this ledger's entries, Learnings 779 to 782, the plan's status rows, the BACKLOG edits and the context-budget history.
