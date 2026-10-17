@@ -7253,7 +7253,9 @@ function knitrDocumentDefaults(lines: readonly string[]): KnitrDocDefaults {
         continue;
       }
       const m = KNITR_ECHO_INCLUDE_LINE.exec(block[i].slice(indent));
-      if (m !== null && KNITR_YAML_FALSE.test(m[2].replace(/[ \t]+#.*$/, "").trim())) {
+      // `cutHashComment` and not `replace(/[ \t]+#.*$/, "")` (Session 320): that search is retried from every blank of a run and at every ` #` pair, so a long value cost the square of its length. It cuts at
+      // the blank before the `#`, the regex at the start of that run; the `.trim()` removes the difference.
+      if (m !== null && KNITR_YAML_FALSE.test(cutHashComment(m[2], " \t").trim())) {
         read[m[1] as "echo" | "include"]++;
       }
     }
@@ -7278,7 +7280,7 @@ function knitrDocumentDefaults(lines: readonly string[]): KnitrDocDefaults {
     if (!rest.startsWith(`${key}:`)) {
       return null;
     }
-    const value = rest.slice(key.length + 1).replace(/[ \t]+#.*$/, "").trim();
+    const value = cutHashComment(rest.slice(key.length + 1), " \t").trim();
     return value === "" ? "block" : value.startsWith("{") ? "flow" : null;
   };
   readMapping(content, top);

@@ -483,6 +483,9 @@ describe("Session 319 — cutHashComment answers what the unanchored replace ans
   const STRIPS: Record<string, Strip> = {
     "[ \\t]#.*$": { old: (text) => text.replace(/[ \t]#.*$/, ""), now: (text) => cutHashComment(text, " \t"), changed: { a: 139_806, b: 271_700, c: 71_754 } },
     " #.*$": { old: (text) => text.replace(/ #.*$/, ""), now: (text) => cutHashComment(text, " "), changed: { a: 71_697, b: 271_700, c: 36_353 } },
+    // Session 320, part (4): the two `[ \t]+#.*$` strips of `knitrDocumentDefaults`, both followed by `.trim()`. The regex removes from the START of the blank run before the `#`, `cutHashComment` from the blank
+    // right before it, so the two results differ by blanks the `.trim()` removes: that is the whole argument, and this row compares the results AFTER the trim, which is what both callers read.
+    "[ \\t]+#.*$ then trim()": { old: (text) => text.replace(/[ \t]+#.*$/, "").trim(), now: (text) => cutHashComment(text, " \t").trim(), changed: { a: 2_273_094, b: 1_149_692, c: 1_022_244 } },
   };
   const names = Object.keys(STRIPS);
 
@@ -549,6 +552,8 @@ describe("Session 319 — cutHashComment answers what the unanchored replace ans
       lines.push(`1${pairs}${terminator}`, `1${pairs}${terminator}x`, `1${terminator}${pairs}`, `1${pairs}${terminator}${pairs}`, `1${pairs}${terminator} #`, `${terminator}${pairs}`);
     }
     lines.push(`1${pairs}`, `1${pairs} `, `${pairs}x`, "#".repeat(n), "\t#".repeat(n), `a${"  ".repeat(n)}#${LS}`);
+    // Session 320: a run with no hash in it at all (the `[ \t]+#.*$` strip was quadratic on this), a run of tabs, and a run that a form feed splits.
+    lines.push(`false${" ".repeat(2 * n)}x`, `false${" ".repeat(2 * n)}`, `false${"\t".repeat(2 * n)}x`, `x${" ".repeat(n)}\f${" ".repeat(n)}y`, `${" ".repeat(2 * n)}#`);
     return lines;
   };
 

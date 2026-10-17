@@ -918,7 +918,9 @@ describe("Session 320 — a long run of blanks in a rule row or a closing run", 
   const SHORTER_RUN = 2_000;
   const CLOCK_MS = 1000;
   const headings = (text: string): string[] => findHeadings(text).map((h) => h.text);
-  type Row = { site: string; build: (blanks: string) => string; read: (text: string) => unknown; answer: (blanks: string) => unknown };
+  const knitrHeadings = (text: string): string[] => findHeadings(text, "knitr").map((h) => h.text);
+  const LS = String.fromCharCode(0x2028);
+  type Row = { site: string; run?: string; build: (blanks: string) => string; read: (text: string) => unknown; answer: (blanks: string) => unknown };
 
   const ROWS: Row[] = [
     { site: "TABLE_RULE_ROW, the pipe body (`-`, blanks, a letter)", build: (blanks) => `Intro of the pipe rule row.\n\n-${blanks}x\n\n# H\n`, read: headings, answer: () => ["H"] },
@@ -937,9 +939,17 @@ describe("Session 320 — a long run of blanks in a rule row or a closing run", 
     { site: "ATX_CLOSING under from: gfm (a heading that ends in a long blank run)", build: (blanks) => `---\nfrom: gfm\n---\n\nIntro of the closing run and a trailing run.\n\n# a${blanks}\n\n# H\n`, read: headings, answer: () => ["a", "H"] },
     { site: "ATX_CLOSING under from: gfm (a hash, a long blank run, then a letter)", build: (blanks) => `---\nfrom: gfm\n---\n\nIntro of the closing run after a hash.\n\n# a #${blanks}b\n\n# H\n`, read: headings, answer: (blanks) => [`a #${blanks}b`, "H"] },
     { site: "the pandoc readers' closing run (control: `markdown`, a heading with a long blank run inside it)", build: (blanks) => `---\nfrom: markdown\n---\n\nIntro of the pandoc closing run.\n\n# a${blanks}b\n\n# H\n`, read: headings, answer: (blanks) => [`a${blanks}b`, "H"] },
+    // The two `[ \t]+#.*$` strips of `knitrDocumentDefaults`, one in the reader of a mapping's `echo` / `include` lines and one in the test for a key whose value is a mapping. Unanchored searches that begin with
+    // `[ \t]+`: tried from every blank of a run (no hash needed: `echo: false`, 32,000 blanks, a letter took 652 ms through `findHeadings`), and, for the second, retried at every ` #` pair when a terminator
+    // follows (32,000 pairs then U+2028 took 1.19 s). A terminator in an `echo:` line is refused by the line pattern before the strip runs, so only the second strip has a pairs row.
+    { site: "knitr default `echo: false` followed by a long blank run and a letter", build: (blanks) => `---\necho: false${blanks}x\n---\n\nIntro of the echo strip.\n\n# H\n`, read: knitrHeadings, answer: () => ["H"] },
+    { site: "knitr default `echo: false` under execute: followed by a long blank run and a letter", build: (blanks) => `---\nexecute:\n  echo: false${blanks}x\n---\n\nIntro of the nested echo strip.\n\n# H\n`, read: knitrHeadings, answer: () => ["H"] },
+    { site: "the key `execute:` followed by a long blank run and a letter", build: (blanks) => `---\nexecute: ${blanks}x\n---\n\nIntro of the execute key strip.\n\n# H\n`, read: knitrHeadings, answer: () => ["H"] },
+    { site: "the key `format:` followed by a long blank run and a letter", build: (blanks) => `---\nformat: ${blanks}x\n---\n\nIntro of the format key strip.\n\n# H\n`, read: knitrHeadings, answer: () => ["H"] },
+    { site: "the key `execute:` followed by ` #` pairs and U+2028", run: "` #` pairs", build: (blanks) => `---\nexecute:${" #".repeat(blanks.length)}${LS}\n---\n\nIntro of the execute key pairs.\n\n# H\n`, read: knitrHeadings, answer: () => ["H"] },
   ];
 
-  it.each(ROWS.map((row) => [row.site, row] as const))("%s: 100,000 blanks are read in linear time, and the answer is the short run's", (_site, row) => {
+  it.each(ROWS.map((row) => [row.site, row.run ?? "blanks", row] as const))("%s: 100,000 %s are read in linear time, and the answer is the short run's", (_site, _run, row) => {
     const shorter = row.read(row.build(" ".repeat(SHORTER_RUN)));
     expect(shorter).toEqual(row.answer(" ".repeat(SHORTER_RUN)));
     const { result, ms } = timed(() => row.read(row.build(" ".repeat(BLANK_RUN))));
