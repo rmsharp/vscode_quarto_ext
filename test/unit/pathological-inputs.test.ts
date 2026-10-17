@@ -742,13 +742,19 @@ describe("Session 319 — a long run of blanks followed by a CR, U+2028 or U+202
   const LINE_SEPARATOR = ["U+2028", LS] as const;
   const PARAGRAPH_SEPARATOR = ["U+2029", PS] as const;
   type Terminator = readonly [string, string];
-  type Row = { site: string; terminators: readonly Terminator[]; build: (blanks: string, terminator: string) => string; read: (text: string) => unknown };
+  type Row = { site: string; run?: string; terminators: readonly Terminator[]; build: (blanks: string, terminator: string) => string; read: (text: string) => unknown };
 
   const ROWS: Row[] = [
     {
       site: "DIV_FENCE (a div fence followed by blanks)",
       terminators: [CR_AND_LETTER, LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
       build: (blanks, terminator) => `Intro of DIV_FENCE.\n\n:::${blanks}${terminator}\n\n# H\n`,
+      read: (text) => findHeadings(text).map((h) => h.text),
+    },
+    {
+      site: "DIV_FENCE (as the header of a simple table, tried against the outranked list)",
+      terminators: [CR_AND_LETTER, LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
+      build: (blanks, terminator) => `Intro of DIV_FENCE in a table.\n\n:::${blanks}${terminator}\n ---\n# H\n`,
       read: (text) => findHeadings(text).map((h) => h.text),
     },
     {
@@ -861,27 +867,30 @@ describe("Session 319 — a long run of blanks followed by a CR, U+2028 or U+202
     // run becomes one ` #`, which is why these rows are twice as long as the others). A lone CR is refused before the proof reads a value, so only U+2028 and U+2029 reach the first row.
     {
       site: "proofValue's comment strip (a list item of ` #` pairs under a from: commonmark front matter)",
+      run: "` #` pairs",
       terminators: [LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
       build: (blanks, terminator) => `---\nfrom: commonmark\nlist:\n  - a${" #".repeat(blanks.length)}${terminator}\n---\n\nIntro of the proof value.\n\n# Heading\n`,
       read: (text) => findHeadings(text).map((h) => h.text),
     },
     {
       site: "isWrongNumber's comment strip (` #` pairs after a number)",
+      run: "` #` pairs",
       terminators: [CR_AND_LETTER, LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
       build: (blanks, terminator) => `1${" #".repeat(blanks.length)}${terminator}`,
       read: (text) => isWrongValue(text, { name: "fig-width", scalarType: "number" }),
     },
     {
       site: "isWrongNumericMember's comment strip (` #` pairs after a member of a numeric enum)",
+      run: "` #` pairs",
       terminators: [CR_AND_LETTER, LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
       build: (blanks, terminator) => `1${" #".repeat(blanks.length)}${terminator}`,
       read: (text) => isWrongValue(text, { name: "aspectratio", valuesClosed: true, values: ["43", "169"], numericMemberEnum: true }),
     },
   ];
 
-  it.each(ROWS.flatMap((row) => row.terminators.map(([terminatorName, terminator]) => [row.site, terminatorName, row, terminator] as const)))(
-    "%s: 100,000 blanks and then %s is read in linear time, and like a shorter run of the same shape",
-    (_site, _terminatorName, row, terminator) => {
+  it.each(ROWS.flatMap((row) => row.terminators.map(([terminatorName, terminator]) => [row.site, row.run ?? "blanks", terminatorName, row, terminator] as const)))(
+    "%s: 100,000 %s and then %s is read in linear time, and like a shorter run of the same shape",
+    (_site, _run, _terminatorName, row, terminator) => {
       const shorter = row.read(row.build(" ".repeat(2000), terminator));
       const { result, ms } = timed(() => row.read(row.build(" ".repeat(100_000), terminator)));
       expect(result).toEqual(shorter);

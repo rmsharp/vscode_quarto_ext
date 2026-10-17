@@ -4,6 +4,7 @@ import { cutHashComment } from "../../src/core/hash-comment";
 import { SEQUENCE_ITEM_LINE } from "../../src/core/preview-format";
 import { KEY_LINE } from "../../src/core/qmd/jupyter-kernel";
 import { INDENTED_LINE } from "../../src/core/yaml-context";
+import { isWrongValue } from "../../src/core/yaml-value-check";
 import {
   ATX_HEADING,
   ATX_HEADING_TIGHT,
@@ -51,6 +52,10 @@ interface Site {
   smallLength?: number;
   /** Lines of `n` characters that are slow for a reason the shapes below do not cover (a quadratic with no terminator in it, say). */
   extraLines?: (n: number) => string[];
+  /** Characters just outside the site's grammar (a key's `_` and capital, a name's comma, a marker's star): added to every enumeration, so a class edited to drop or admit one is seen. */
+  foils?: readonly string[];
+  /** Lines the pattern ACCEPTS with a run or a token of `n` characters somewhere other than the first blank run (a long key, a gap before the colon): a cap on any run the other lines do not reach is seen. */
+  acceptedLines?: (n: number) => string[];
 }
 
 const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -65,17 +70,18 @@ const cellOptionSite = (open: string): Site => ({
   blanks: [" ", "\t"],
   indents: [],
   shortLength: 7,
+  acceptedLines: (n) => [`${open}${" ".repeat(n)}| x`, `${open}${"\t".repeat(n)}|x`, `${open}|${" ".repeat(n)}x`],
 });
 
 const SITES: Record<string, Site> = {
-  DIV_FENCE: { old: /^[ \t]*:{3,}(?!:)[ \t]*(.*)$/, now: DIV_FENCE, guard: "(?![ \\t])", marks: [":"], heads: [":::", "::::", ":::::"], blanks: [" ", "\t"], indents: [" ", "   ", "    ", "\t"], shortLength: 7 },
+  DIV_FENCE: { old: /^[ \t]*:{3,}(?!:)[ \t]*(.*)$/, now: DIV_FENCE, guard: "(?![ \\t])", marks: [":"], heads: [":::", "::::", ":::::"], blanks: [" ", "\t"], indents: [" ", "   ", "    ", "\t"], shortLength: 7, acceptedLines: (n) => [":".repeat(n), `${":".repeat(n)} x`] },
   ATX_HEADING: { old: /^[ \t]*(#{1,6})[ \t]+(.+)$/, now: ATX_HEADING, guard: "(?=[ \\t].*$)", marks: ["#"], heads: ["#", "##", "######"], blanks: [" ", "\t"], indents: [" ", "   ", "    ", "\t"], shortLength: 7 },
   ATX_HEADING_TIGHT: { old: /^[ \t]*(#{1,6})(?!#)[ \t]*(.+)$/, now: ATX_HEADING_TIGHT, guard: "(?=.*$)", marks: ["#"], heads: ["#", "##", "######"], blanks: [" ", "\t"], indents: [" ", "   ", "    ", "\t"], shortLength: 7 },
-  PROOF_KEY_LINE: { old: /^([A-Za-z0-9_][A-Za-z0-9_.-]*):(?:[ \t]+(.*))?$/, now: PROOF_KEY_LINE, guard: "(?![ \\t])", marks: ["k", ":"], heads: ["k:", "key:", "a.b-c:", "k1:"], blanks: [" ", "\t"], indents: [], shortLength: 7 },
-  PLAIN_KEY_LINE: { old: /^( *)(- +)?([A-Za-z_][A-Za-z0-9_.-]*) *:(?: +(.*))?$/, now: PLAIN_KEY_LINE, guard: "(?! )", marks: ["k", ":", "-"], heads: ["k:", "- k:", "key.a-b:"], blanks: [" "], indents: [" ", "   ", "    "], shortLength: 7 },
-  PLAIN_ITEM_LINE: { old: /^( *)- +(.*)$/, now: PLAIN_ITEM_LINE, guard: "(?! )", marks: ["-"], heads: ["-"], blanks: [" "], indents: [" ", "   ", "    "], shortLength: 7 },
-  KNITR_ECHO_INCLUDE_LINE: { old: /^(echo|include):[ \t]*(.*)$/, now: KNITR_ECHO_INCLUDE_LINE, guard: "(?![ \\t])", marks: ["echo:", "include:"], heads: ["echo:", "include:"], blanks: [" ", "\t"], indents: [], shortLength: 6 },
-  LINK_DEFINITION_LINE: { old: /^ {0,3}\[[^\^\]][^\]]*\]:[ \t]*(.*)$/, now: LINK_DEFINITION_LINE, guard: "(?![ \\t])", marks: ["[", "]", ":", "^"], heads: ["[a]:", "[ab c]:", "[1]:"], blanks: [" ", "\t"], indents: [" ", "  ", "   ", "    "], shortLength: 7, longIndent: false },
+  PROOF_KEY_LINE: { old: /^([A-Za-z0-9_][A-Za-z0-9_.-]*):(?:[ \t]+(.*))?$/, now: PROOF_KEY_LINE, guard: "(?![ \\t])", marks: ["k", ":"], foils: ["_", "A", "9", "."], heads: ["k:", "key:", "a.b-c:", "k1:"], blanks: [" ", "\t"], indents: [], shortLength: 6, acceptedLines: (n) => [`${"k".repeat(n)}:`, `${"a.b-".repeat(Math.floor(n / 4))}: x`, `${"_".repeat(n)}: x`, `A${"9".repeat(n)}: x`] },
+  PLAIN_KEY_LINE: { old: /^( *)(- +)?([A-Za-z_][A-Za-z0-9_.-]*) *:(?: +(.*))?$/, now: PLAIN_KEY_LINE, guard: "(?! )", marks: ["k", ":", "-"], foils: ["_", "A", "9", "."], heads: ["k:", "- k:", "key.a-b:"], blanks: [" "], indents: [" ", "   ", "    "], shortLength: 6, acceptedLines: (n) => [`${"k".repeat(n)}: x`, `k${" ".repeat(n)}: x`, `-${" ".repeat(n)}k: x`, `${" ".repeat(n)}- k: x`, `_${"A9.-".repeat(Math.floor(n / 4))}: x`] },
+  PLAIN_ITEM_LINE: { old: /^( *)- +(.*)$/, now: PLAIN_ITEM_LINE, guard: "(?! )", marks: ["-"], heads: ["-"], blanks: [" "], indents: [" ", "   ", "    "], shortLength: 7, acceptedLines: (n) => [`- ${"x".repeat(n)}`] },
+  KNITR_ECHO_INCLUDE_LINE: { old: /^(echo|include):[ \t]*(.*)$/, now: KNITR_ECHO_INCLUDE_LINE, guard: "(?![ \\t])", marks: ["echo:", "include:"], foils: ["ECHO:", "exclude:", "echo="], heads: ["echo:", "include:"], blanks: [" ", "\t"], indents: [], shortLength: 6, acceptedLines: (n) => [`echo: ${"x".repeat(n)}`, `include:${" ".repeat(n)}false`] },
+  LINK_DEFINITION_LINE: { old: /^ {0,3}\[[^\^\]][^\]]*\]:[ \t]*(.*)$/, now: LINK_DEFINITION_LINE, guard: "(?![ \\t])", marks: ["[", "]", ":", "^"], heads: ["[a]:", "[ab c]:", "[1]:"], blanks: [" ", "\t"], indents: [" ", "  ", "   ", "    "], shortLength: 7, longIndent: false, acceptedLines: (n) => [`[${"a".repeat(n)}]: /u`, `[${"a b ".repeat(Math.floor(n / 4))}]: /u`, `[a]: ${"/u".repeat(Math.floor(n / 2))}`] },
   "CELL_OPTION_PREFIX #": cellOptionSite("#"),
   "CELL_OPTION_PREFIX //": cellOptionSite("//"),
   "CELL_OPTION_PREFIX (*": cellOptionSite("(*"),
@@ -87,14 +93,18 @@ const SITES: Record<string, Site> = {
     heads: ["-", "|-", ":-:", "|--"],
     blanks: [" ", "\t"],
     indents: [" ", "  ", "   ", "    "],
-    shortLength: 7,
+    shortLength: 6,
     longIndent: false,
     acceptedTails: ["", "|", "|-", " | - |", " |:-|"], // a cell straight after the blanks is no cell: the pipe between cells is what the pattern asks for
     tails: ["", "-", "|", " | - ", ":-:", "x", "\r", LS, PS, " \r", "-\r", "-|\r", "|-", "-x"],
+    foils: ["*", "=", "+"],
+    // A long run AFTER a pipe and then a wrong character (`-|` and blanks and a letter), which none of the head-and-run shapes build, and long cells and cell counts the pattern accepts.
+    extraLines: (n) => [`-|${" ".repeat(n)}x`, `|-|${" ".repeat(n)}x`, `-|${" ".repeat(n)}-`, `|:-:|${" ".repeat(n)}-|${" ".repeat(n)}x`, `|${"- ".repeat(Math.floor(n / 2))}x`],
+    acceptedLines: (n) => ["-".repeat(n), `|${" ".repeat(n)}-`, `|-|${" ".repeat(n)}-`, `-${" ".repeat(n)}|${" ".repeat(n)}-`, `${"-|".repeat(Math.floor(n / 2))}-`, `|${"-|".repeat(Math.floor(n / 2))}`, `   |${" ".repeat(n)}:-:${" ".repeat(n)}|`],
   },
   // `\s` takes a CR, U+2028 and U+2029 as blanks, so a terminator RIGHT after the run is part of it; the slow line has the terminator after a word (`near-miss` shapes 3 and 5).
-  BIBLIOGRAPHY_ITEM_LINE: { old: /^\s*-\s+(.*)$/, now: BIBLIOGRAPHY_ITEM_LINE, guard: "(?!\\s)", marks: ["-"], heads: ["-"], blanks: [" ", "\t"], indents: [" ", "  ", "\t"], shortLength: 7 },
-  SEQUENCE_ITEM_LINE: { old: /^-[ \t]+(.*)$/, now: SEQUENCE_ITEM_LINE, guard: "(?![ \\t])", marks: ["-"], heads: ["-"], blanks: [" ", "\t"], indents: [], shortLength: 7 },
+  BIBLIOGRAPHY_ITEM_LINE: { old: /^\s*-\s+(.*)$/, now: BIBLIOGRAPHY_ITEM_LINE, guard: "(?!\\s)", marks: ["-"], foils: ["*", "+"], heads: ["-"], blanks: [" ", "\t", NBSP, "\v", IDEOGRAPHIC], indents: [" ", "  ", "\t"], shortLength: 7 },
+  SEQUENCE_ITEM_LINE: { old: /^-[ \t]+(.*)$/, now: SEQUENCE_ITEM_LINE, guard: "(?![ \\t])", marks: ["-"], foils: ["*", "+"], heads: ["-"], blanks: [" ", "\t"], indents: [], shortLength: 7 },
   JUPYTER_KEY_LINE: {
     old: /^[ \t]*(?:-[ \t]+)*(?:"[^"\\]*"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \t]*:(?:[ \t]+(.*)|)$/,
     now: KEY_LINE,
@@ -104,6 +114,8 @@ const SITES: Record<string, Site> = {
     blanks: [" ", "\t"],
     indents: [" ", "  ", "\t"],
     shortLength: 6,
+    foils: ["_", "9", "\\"],
+    acceptedLines: (n) => [`${"k".repeat(n)}: x`, `k${" ".repeat(n)}: x`, `${"- ".repeat(Math.floor(n / 2))}k: x`, `"${"k".repeat(n)}": x`, `'${"k".repeat(n)}': x`, `${"a ".repeat(Math.floor(n / 2))}b: x`],
   },
   INDENTED_LINE: { old: /^([ \t]+)(.*)$/, now: INDENTED_LINE, guard: "(?![ \\t])", marks: ["-"], heads: [""], blanks: [" ", "\t"], indents: [], shortLength: 8 },
   // Two quadratics in one pattern: the tail (as above) and the KEY, which needs no terminator (`extraLines`: a key and blanks and no colon, blanks before the colon, blanks inside a quote).
@@ -115,8 +127,10 @@ const SITES: Record<string, Site> = {
     heads: ["k: &a", '"k": &a', "'k':&a", ": &a", "a b : &name"],
     blanks: [" ", "\t"],
     indents: [" ", "\t"],
-    shortLength: 7,
+    shortLength: 6,
     smallLength: 200,
+    foils: [",", "[", "}"],
+    acceptedLines: (n) => [`k: &${"a".repeat(n)} x`, `k:${" ".repeat(n)}&a x`, `k${" ".repeat(n)}: &a x`, `"${"k".repeat(n)}": &a x`, `${"k".repeat(n)}: &a x`],
     extraLines: (n) => [
       `kx${" ".repeat(n)}`,
       `kx${"\t".repeat(n)}`,
@@ -132,34 +146,34 @@ const SITES: Record<string, Site> = {
 };
 
 // How many strings of each comparison the OLD spelling accepts, counted from the old spelling alone: no comparison below can pass by both sides refusing everything, and an edit to the oracle moves the count.
-// The three enumerated counts were also taken with Python's `re` (`.` and `$` spelled out), so the oracle's answers do not rest on V8 alone (Learning 780).
+// The three enumerated counts were also taken with Python's `re` (`.` and `$` spelled out), so the oracle's answers do not rest on V8 alone (Learning 780 asks for a count from a reader that is not a regex; Python's engine is a second regex engine, which is as far as this goes).
 const ACCEPTED: Record<string, { short: number; wide: number; exotic: number; seeded: number; grid: number }> = {
   DIV_FENCE: { short: 651, wide: 61, exotic: 115, seeded: 34268, grid: 2400 },
   ATX_HEADING: { short: 6792, wide: 852, exotic: 2304, seeded: 28562, grid: 2130 },
   ATX_HEADING_TIGHT: { short: 10548, wide: 2260, exotic: 9424, seeded: 33344, grid: 2340 },
-  PROOF_KEY_LINE: { short: 5250, wide: 338, exotic: 578, seeded: 7429, grid: 584 },
-  PLAIN_KEY_LINE: { short: 10470, wide: 452, exotic: 602, seeded: 18583, grid: 876 },
+  PROOF_KEY_LINE: { short: 27195, wide: 3705, exotic: 4665, seeded: 7429, grid: 584 },
+  PLAIN_KEY_LINE: { short: 28876, wide: 3576, exotic: 4020, seeded: 18583, grid: 876 },
   PLAIN_ITEM_LINE: { short: 1818, wide: 310, exotic: 922, seeded: 18467, grid: 288 },
-  KNITR_ECHO_INCLUDE_LINE: { short: 7812, wide: 5602, exotic: 22222, seeded: 8606, grid: 320 },
+  KNITR_ECHO_INCLUDE_LINE: { short: 74898, wide: 22222, exotic: 61882, seeded: 8606, grid: 320 },
   LINK_DEFINITION_LINE: { short: 14574, wide: 253, exotic: 286, seeded: 21530, grid: 1920 },
   "CELL_OPTION_PREFIX #": { short: 6468, wide: 554, exotic: 1385, seeded: 8719, grid: 480 },
   "CELL_OPTION_PREFIX //": { short: 6468, wide: 554, exotic: 1385, seeded: 8572, grid: 480 },
   "CELL_OPTION_PREFIX (*": { short: 6468, wide: 554, exotic: 1385, seeded: 8582, grid: 480 },
-  PIPE_DELIMITER_ROW: { short: 13364, wide: 995, exotic: 995, seeded: 12128, grid: 1466 },
-  BIBLIOGRAPHY_ITEM_LINE: { short: 67660, wide: 23608, exotic: 18676, seeded: 60899, grid: 896 },
-  SEQUENCE_ITEM_LINE: { short: 2730, wide: 518, exotic: 1640, seeded: 7387, grid: 144 },
-  JUPYTER_KEY_LINE: { short: 12588, wide: 1978, exotic: 2362, seeded: 29662, grid: 3504 },
+  PIPE_DELIMITER_ROW: { short: 3695, wide: 995, exotic: 995, seeded: 12128, grid: 1466 },
+  BIBLIOGRAPHY_ITEM_LINE: { short: 171156, wide: 31144, exotic: 26418, seeded: 60899, grid: 2240 },
+  SEQUENCE_ITEM_LINE: { short: 18662, wide: 1170, exotic: 2928, seeded: 7387, grid: 144 },
+  JUPYTER_KEY_LINE: { short: 49977, wide: 5744, exotic: 6692, seeded: 29662, grid: 3504 },
   INDENTED_LINE: { short: 43690, wide: 3110, exotic: 14762, seeded: 32881, grid: 144 },
-  TOP_LEVEL_ANCHOR_DECL: { short: 40020, wide: 290, exotic: 396, seeded: 31183, grid: 2220 },
+  TOP_LEVEL_ANCHOR_DECL: { short: 5460, wide: 350, exotic: 468, seeded: 31183, grid: 2220 },
 };
 
 const TERMINATORS = ["\r", LS, PS] as const;
 const TAILS = ["", "x", "r", "x y", "{r}", "#", "x#", "\r", LS, PS, "x\r", " \r", "x ", "x\r "] as const;
 const RUNS = [0, 1, 2, 3, 4, 31, 32, 33, 64, 100] as const;
 
-const shortAlphabet = (site: Site): string[] => [...site.marks, " ", "\t", "\r", LS, "x"];
-const wideAlphabet = (site: Site): string[] => [...site.marks, " ", "\t", "\r", "\n", LS, PS, "\f", NBSP, "x"];
-const exoticAlphabet = (site: Site): string[] => [...site.marks, " ", "\t", "\v", BOM, IDEOGRAPHIC, EM_SPACE, NEL, "\r", "x"];
+const shortAlphabet = (site: Site): string[] => [...site.marks, ...(site.foils ?? []), " ", "\t", "\r", LS, "x"];
+const wideAlphabet = (site: Site): string[] => [...site.marks, ...(site.foils ?? []), " ", "\t", "\r", "\n", LS, PS, "\f", NBSP, "x"];
+const exoticAlphabet = (site: Site): string[] => [...site.marks, ...(site.foils ?? []), " ", "\t", "\v", BOM, IDEOGRAPHIC, EM_SPACE, NEL, "\r", "x"];
 
 function* seededLines(site: Site, seed: number): Generator<string> {
   const random = seededRandom(seed);
@@ -207,6 +221,11 @@ function nearMissLines(site: Site, n: number): string[] {
         for (const indent of site.indents) {
           lines.push(`${indent}${run}${head}${run}${terminator}`);
         }
+        // A long run after each BEGINNING of the head, not only after all of it (`k` and blanks and a letter, `-` and blanks and a letter): a guard in the wrong place leaves the shorter beginnings slow.
+        for (let cut = 1; cut < head.length; cut++) {
+          lines.push(`${head.slice(0, cut)}${run}x`);
+          if (terminator !== "") lines.push(`${head.slice(0, cut)}${run}${terminator}x`);
+        }
       }
     }
   }
@@ -227,6 +246,9 @@ function* longAcceptedLines(site: Site): Generator<string> {
         }
       }
     }
+    if (site.acceptedLines !== undefined) {
+      yield* site.acceptedLines(n);
+    }
   }
 }
 
@@ -237,7 +259,9 @@ describe("Session 319 — the blank-run patterns answer what their unguarded spe
     expect(Object.keys(ACCEPTED).sort()).toEqual([...names].sort());
   });
 
-  // The oracle is the UNGUARDED spelling. A later "tidy-up" that added the guard to this table would turn every comparison below into the new pattern against itself.
+  // The oracle is the UNGUARDED spelling. A later "tidy-up" that added the guard to this table would turn every comparison below into the new pattern against itself. The second assertion is a substring test:
+  // it is the ONLY row that notices an edit of the guard that changes no answer and no cost (a `\r` added to its class), and the only one for a guard narrowed to a class no site generates (U+202F); where the
+  // guard text stays and its effect is weakened, it is the clock rows below that fail.
   it.each(names)("the oracle for %s is the spelling without the guard, and the new source holds it", (name) => {
     expect(SITES[name].old.source).not.toContain(SITES[name].guard);
     expect(SITES[name].now.source).toContain(SITES[name].guard);
@@ -279,7 +303,8 @@ describe("Session 319 — the blank-run patterns answer what their unguarded spe
     expect(accepted).toBe(ACCEPTED[name]?.seeded);
   }, 120_000);
 
-  // A guard that quietly CAPPED a run (`[ \t]{0,4096}`) or a gap would be seen by neither the enumeration nor the sample. Every run length is swept on both sides of the usual caps.
+  // A guard that quietly CAPPED a run (`[ \t]{0,40}`) or a gap would be seen by neither the enumeration nor the sample. Every run length is swept here on both sides of the small caps (31, 32, 33, 64, 100);
+  // a cap of 4,096 is what the lines of 5,000 to 200,000 characters below are for.
   it.each(names)("%s agrees, groups included, on a grid of indent, run length, blank and tail on both sides of the usual caps", (name) => {
     const site = SITES[name];
     const { compared, accepted, disagreements } = compare(site.old, site.now, gapGrid(site));
@@ -324,11 +349,11 @@ describe("Session 319 — cutHashComment answers what the unanchored replace ans
     old: (text: string) => string;
     now: (text: string) => string;
     /** How many strings of each enumeration the old call changes, counted with Python's `re` (so the comparison cannot pass by both sides changing nothing). */
-    changed: { a: number; b: number };
+    changed: { a: number; b: number; c: number };
   }
   const STRIPS: Record<string, Strip> = {
-    "[ \\t]#.*$": { old: (text) => text.replace(/[ \t]#.*$/, ""), now: (text) => cutHashComment(text, " \t"), changed: { a: 139_806, b: 271_700 } },
-    " #.*$": { old: (text) => text.replace(/ #.*$/, ""), now: (text) => cutHashComment(text, " "), changed: { a: 71_697, b: 271_700 } },
+    "[ \\t]#.*$": { old: (text) => text.replace(/[ \t]#.*$/, ""), now: (text) => cutHashComment(text, " \t"), changed: { a: 139_806, b: 271_700, c: 71_754 } },
+    " #.*$": { old: (text) => text.replace(/ #.*$/, ""), now: (text) => cutHashComment(text, " "), changed: { a: 71_697, b: 271_700, c: 36_353 } },
   };
   const names = Object.keys(STRIPS);
 
@@ -347,6 +372,8 @@ describe("Session 319 — cutHashComment answers what the unanchored replace ans
 
   const ALPHABET_A = [" ", "\t", "#", "x", "\r", "\n", LS, PS];
   const ALPHABET_B = [" ", "#", LS, "x"];
+  // The characters `\s` and the terminators leave out or take: a vertical tab, a form feed and a no-break space are not blanks to the strip, and a next-line character and a vertical tab are not line ends.
+  const ALPHABET_C = [" ", "\t", "#", "\v", "\f", NBSP, NEL, "\r", LS, "x"];
 
   it.each(names)("%s: the result is the same on every string of up to 7 characters over a blank, a tab, a hash, a letter and all four terminators", (name) => {
     const { compared, changed, disagreements } = compareStrips(STRIPS[name], everyString(ALPHABET_A, 7));
@@ -361,6 +388,13 @@ describe("Session 319 — cutHashComment answers what the unanchored replace ans
     expect(disagreements).toEqual([]);
     expect(compared).toBe(countStrings(ALPHABET_B.length, 10));
     expect(changed).toBe(STRIPS[name].changed.b);
+  }, 120_000);
+
+  it.each(names)("%s: the result is the same on every string of up to 6 characters over a vertical tab, a form feed, a no-break space, a next-line character and the usual blanks and terminators", (name) => {
+    const { compared, changed, disagreements } = compareStrips(STRIPS[name], everyString(ALPHABET_C, 6));
+    expect(disagreements).toEqual([]);
+    expect(compared).toBe(countStrings(ALPHABET_C.length, 6));
+    expect(changed).toBe(STRIPS[name].changed.c);
   }, 120_000);
 
   it.each(names)("%s: the result is the same on 100,000 seeded texts of up to 14 pieces", (name) => {
@@ -410,4 +444,15 @@ describe("Session 319 — cutHashComment answers what the unanchored replace ans
     }
     expect({ slowestText, slow: slowest >= 100 }).toEqual({ slowestText, slow: false });
   }, 120_000);
+
+  // The blanks each call site hands to the strip are part of its answer. The value checker's two sites read a SPACE only (a tab before the hash is no comment, so `1<TAB># c` is not a number),
+  // which is a difference nothing else in the suite sees. The proof's site (`" \t"`) and the jupyter reader have no caller-level difference: their blank class is pinned by the enumerations above.
+  it("the value checker's strips read a space only: a tab before the hash is no comment, a space is", () => {
+    const number = { name: "fig-width", scalarType: "number" } as const;
+    const member = { name: "aspectratio", valuesClosed: true, values: ["43", "169"], numericMemberEnum: true };
+    expect(isWrongValue("1\t# c", number)).toBe(true);
+    expect(isWrongValue("1 # c", number)).toBe(false);
+    expect(isWrongValue("43\t# c", member)).toBe(true);
+    expect(isWrongValue("43 # c", member)).toBe(false);
+  });
 });
