@@ -29,6 +29,10 @@ g02's third session (operator chose it at the Phase 0 picker; claim `6ea0db00`).
 - **Left, in BACKLOG:** `TABLE_RULE_ROW` still carries the old delimiter-row alternation (part (4)); `test:integration` NOT run (nine sessions).
 - **Model:** Claude Sonnet 5.5.
 
+### 2026-10-17 · [ad hoc] Session 319: cite the quality-gate run in the receipt and the ledger (2/2 pass at 441e8f5e)
+
+`quality_ratchet.py --run` after the ledger commit `441e8f5e`: 2/2 pass, 0 fail, 0 unmeasured, results bba236856bad, manifest 334939914945, head 441e8f5e (ledger-lag 0; release-gate is `npm run check-package`, 0). The `HANDOFFS.md` receipt's `quality_ratchet` line now carries the citation (`methodology/.quality-gates-results.json` is not tracked: the run is read from the file on disk).
+
 ### 2026-10-17 · [ad hoc] Session 319: trim SESSION_NOTES to three close-out pairs, and the close-out and BACKLOG commits (`3f4ee22d`, `5582eca4`)
 
 `methodology/SESSION_NOTES.md` dropped the Session 315 evaluation and the Session 316 self-assessment (37 deleted lines, 0 added; 28,460 B before, well under the 120,000 B and 400-line ceilings), in a commit that holds no other edit to that file (recoverable with `git show 3f4ee22d:methodology/SESSION_NOTES.md`). The close-out commit `3f4ee22d` holds the notes, the receipt, the ledger, Learnings 783 to 789 and the budget history; `5582eca4` holds the new BACKLOG item, the in-place closures and the plan.
