@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ATX_HEADING, ATX_HEADING_TIGHT, DIV_FENCE } from "../../src/core/qmd/model";
+import { ATX_HEADING, ATX_HEADING_TIGHT, DIV_FENCE, KNITR_ECHO_INCLUDE_LINE, PLAIN_ITEM_LINE, PLAIN_KEY_LINE, PROOF_KEY_LINE } from "../../src/core/qmd/model";
 import { BOM, EM_SPACE, IDEOGRAPHIC, LS, NBSP, NEL, PS, compare, countStrings, everyString, seededRandom, slowestExec } from "./support/regex-equivalence";
 
 // Session 319 — the BACKLOG item "Other regexes still quadratic on a long run of blanks, CR or U+2028", parts (5) and (9). A pattern that reads a run of blanks and then `(.*)$` (or `(.+)$`) fails on a line
@@ -30,6 +30,10 @@ const SITES: Record<string, Site> = {
   DIV_FENCE: { old: /^[ \t]*:{3,}(?!:)[ \t]*(.*)$/, now: DIV_FENCE, guard: "(?![ \\t])", marks: [":"], heads: [":::", "::::", ":::::"], blanks: [" ", "\t"], indents: [" ", "   ", "    ", "\t"], shortLength: 7 },
   ATX_HEADING: { old: /^[ \t]*(#{1,6})[ \t]+(.+)$/, now: ATX_HEADING, guard: "(?=[ \\t].*$)", marks: ["#"], heads: ["#", "##", "######"], blanks: [" ", "\t"], indents: [" ", "   ", "    ", "\t"], shortLength: 7 },
   ATX_HEADING_TIGHT: { old: /^[ \t]*(#{1,6})(?!#)[ \t]*(.+)$/, now: ATX_HEADING_TIGHT, guard: "(?=.*$)", marks: ["#"], heads: ["#", "##", "######"], blanks: [" ", "\t"], indents: [" ", "   ", "    ", "\t"], shortLength: 7 },
+  PROOF_KEY_LINE: { old: /^([A-Za-z0-9_][A-Za-z0-9_.-]*):(?:[ \t]+(.*))?$/, now: PROOF_KEY_LINE, guard: "(?![ \\t])", marks: ["k", ":"], heads: ["k:", "key:", "a.b-c:", "k1:"], blanks: [" ", "\t"], indents: [], shortLength: 7 },
+  PLAIN_KEY_LINE: { old: /^( *)(- +)?([A-Za-z_][A-Za-z0-9_.-]*) *:(?: +(.*))?$/, now: PLAIN_KEY_LINE, guard: "(?! )", marks: ["k", ":", "-"], heads: ["k:", "- k:", "key.a-b:"], blanks: [" "], indents: [" ", "   ", "    "], shortLength: 7 },
+  PLAIN_ITEM_LINE: { old: /^( *)- +(.*)$/, now: PLAIN_ITEM_LINE, guard: "(?! )", marks: ["-"], heads: ["-"], blanks: [" "], indents: [" ", "   ", "    "], shortLength: 7 },
+  KNITR_ECHO_INCLUDE_LINE: { old: /^(echo|include):[ \t]*(.*)$/, now: KNITR_ECHO_INCLUDE_LINE, guard: "(?![ \\t])", marks: ["echo:", "include:"], heads: ["echo:", "include:"], blanks: [" ", "\t"], indents: [], shortLength: 6 },
 };
 
 // How many strings of each comparison the OLD spelling accepts, counted from the old spelling alone: no comparison below can pass by both sides refusing everything, and an edit to the oracle moves the count.
@@ -38,6 +42,10 @@ const ACCEPTED: Record<string, { short: number; wide: number; exotic: number; se
   DIV_FENCE: { short: 651, wide: 61, exotic: 115, seeded: 34268, grid: 2400 },
   ATX_HEADING: { short: 6792, wide: 852, exotic: 2304, seeded: 28562, grid: 2130 },
   ATX_HEADING_TIGHT: { short: 10548, wide: 2260, exotic: 9424, seeded: 33344, grid: 2340 },
+  PROOF_KEY_LINE: { short: 5250, wide: 338, exotic: 578, seeded: 7429, grid: 584 },
+  PLAIN_KEY_LINE: { short: 10470, wide: 452, exotic: 602, seeded: 18583, grid: 876 },
+  PLAIN_ITEM_LINE: { short: 1818, wide: 310, exotic: 922, seeded: 18467, grid: 288 },
+  KNITR_ECHO_INCLUDE_LINE: { short: 7812, wide: 5602, exotic: 22222, seeded: 8606, grid: 320 },
 };
 
 const TERMINATORS = ["\r", LS, PS] as const;

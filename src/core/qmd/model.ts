@@ -3130,6 +3130,13 @@ type ProofPending =
   | { kind: "quote"; quote: string }
   | { kind: "flow"; closers: string; valueStart: boolean };
 /**
+ * A plain `key:` line of the `from:` proof: the key as group 1 and the value after the colon as group 2 (unset for a bare `key:`).
+ * ⚠ **The blank run ends in a lookahead, `(?![ \t])` (Session 319).** `(.*)$` fails when a U+2028 or U+2029 follows the run (`.` stops there), and without the lookahead the engine
+ * retried it once per way of splitting the blanks (22 s for a document with 100,000 of them). Exact, because `(.*)` may be empty and may itself start with a blank, so the longest run is the
+ * only try that can succeed; `blank-tail-equivalence.test.ts` holds the old spelling as the oracle.
+ */
+export const PROOF_KEY_LINE = /^([A-Za-z0-9_][A-Za-z0-9_.-]*):(?:[ \t]+(?![ \t])(.*))?$/;
+/**
  * One front-matter line read by the proof's grammar, or `null` when the line is anything it does not fully understand: a plain key (`[A-Za-z0-9_.-]`, never quoted,
  * escaped or complex), optionally behind `- ` list-item prefixes, with a value `proofValue` reads, or a list item holding such a value. A tab in the indent, a quoted or
  * complex key and a continuation line of a plain scalar are all `null`: each is a place where a `from:` can hide, or where a lexer can lose its place.
@@ -3151,7 +3158,7 @@ function proofLine(line: string): { column: number; dashColumn: number; key: str
   if (dash && rest === "") {
     return { column, dashColumn, key: null, value: "", dash, pending: null, plain: false };
   }
-  const keyLine = /^([A-Za-z0-9_][A-Za-z0-9_.-]*):(?:[ \t]+(.*))?$/.exec(rest);
+  const keyLine = PROOF_KEY_LINE.exec(rest);
   if (keyLine === null && !dash) {
     return null;
   }
@@ -7108,6 +7115,11 @@ const NO_KNITR_DOC_DEFAULTS: KnitrDocDefaults = { echo: false, include: false };
  * not a reading of it: see `knitrDocumentDefaults`.
  */
 const KNITR_OPTION_KEY = /(?:^|[\s{,])["']?(echo|include)["']?[ \t]*:/g;
+/**
+ * One `echo:` / `include:` line of a front-matter mapping, the value as group 2. ⚠ **The blank run ends in a lookahead, `(?![ \t])` (Session 319)**: a CR, U+2028 or U+2029 after it makes `(.*)$`
+ * fail, and the engine retried it once per way of splitting the blanks (6 s on 100,000). Exact for the reason `PROOF_KEY_LINE` gives, and here the run may be empty (`echo:x` still matches).
+ */
+export const KNITR_ECHO_INCLUDE_LINE = /^(echo|include):[ \t]*(?![ \t])(.*)$/;
 /** The YAML false spellings measured to silence a chunk (`FALSE`/`False`/`false`); `F`, `no`, `"false"` are not. */
 const KNITR_YAML_FALSE = /^(?:false|FALSE|False)$/;
 /**
@@ -7218,7 +7230,7 @@ function knitrDocumentDefaults(lines: readonly string[]): KnitrDocDefaults {
       if (leadingWhitespace(block[i]) !== indent || FRONTMATTER_NOT_CONTENT.test(block[i])) {
         continue;
       }
-      const m = /^(echo|include):[ \t]*(.*)$/.exec(block[i].slice(indent));
+      const m = KNITR_ECHO_INCLUDE_LINE.exec(block[i].slice(indent));
       if (m !== null && KNITR_YAML_FALSE.test(m[2].replace(/[ \t]+#.*$/, "").trim())) {
         read[m[1] as "echo" | "include"]++;
       }
@@ -8476,10 +8488,13 @@ export function cellTargetContext(text: string): CellTargetContext {
   };
 }
 const PLAIN_ENGINE_KEYS: ReadonlySet<string> = new Set(["jupyter", "knitr", "engine", "julia"]);
-/** One `key: value` line (the key bare, optionally behind a `- ` item marker), the indent and the value split out. */
-const PLAIN_KEY_LINE = /^( *)(- +)?([A-Za-z_][A-Za-z0-9_.-]*) *:(?: +(.*))?$/;
-/** One `- value` sequence item. */
-const PLAIN_ITEM_LINE = /^( *)- +(.*)$/;
+/**
+ * One `key: value` line (the key bare, optionally behind a `- ` item marker), the indent and the value split out. ⚠ **The space run ends in `(?! )` (Session 319)**: a lone CR after it makes `(.*)$`
+ * fail, and the engine retried it once per way of splitting the spaces (23 s on 100,000). Exact for the reason `PROOF_KEY_LINE` gives; a TAB may still start the value.
+ */
+export const PLAIN_KEY_LINE = /^( *)(- +)?([A-Za-z_][A-Za-z0-9_.-]*) *:(?: +(?! )(.*))?$/;
+/** One `- value` sequence item. Its space run ends in `(?! )` for the reason `PLAIN_KEY_LINE` gives (Session 319). */
+export const PLAIN_ITEM_LINE = /^( *)- +(?! )(.*)$/;
 /**
  * A space-like character other than an ASCII space or tab: the engine resolver trims with JavaScript's `\s`, which takes these, and
  * YAML does not, so `engine: knitr` followed by one reads as knitr to the resolver and as the string `knitr<nbsp>` to quarto

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveDocumentEngine } from "../../src/core/document-engine-resolve";
-import { findAllCells, findCellOptionLines, findCodeFenceOpeners, findHeadings, knitrChunkHeaderLabel, maskInlineCode } from "../../src/core/qmd/model";
+import { findAllCells, findCellOptionLines, findCodeFenceOpeners, findHeadings, knitrChunkHeaderLabel, maskInlineCode, plainFrontMatter } from "../../src/core/qmd/model";
 import { quartoYamlRegions } from "../../src/core/qmd/quarto-yaml-regions";
 import { findLabel, indexLabels } from "../../src/core/refs";
 import { findProjectConfigKeyLines, findProjectConfigValueLines } from "../../src/core/project-yaml";
@@ -764,6 +764,30 @@ describe("Session 319 — a long run of blanks followed by a CR, U+2028 or U+202
       terminators: [CR_AND_LETTER, LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
       build: (blanks, terminator) => `---\nfrom: markdown-space_in_atx_header\n---\n\nIntro of ATX_HEADING_TIGHT.\n\n# ${blanks}${terminator}\n\n# H\n`,
       read: (text) => findHeadings(text).map((h) => h.text),
+    },
+    {
+      site: "the front matter's key line in the `from:` proof (`key:` and blanks; only U+2028 and U+2029 reach it, a lone CR is refused first)",
+      terminators: [LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
+      build: (blanks, terminator) => `---\nfrom: commonmark\nk:${blanks}${terminator}x\n---\n\nIntro of the proof key line.\n\n# H\n`,
+      read: (text) => findHeadings(text).map((h) => h.text),
+    },
+    {
+      site: "PLAIN_KEY_LINE (`key:` and blanks in a plain front matter; only a lone CR reaches it)",
+      terminators: [CR_AND_LETTER],
+      build: (blanks, terminator) => `---\nk:${blanks}${terminator}\n---\n# H of PLAIN_KEY_LINE\n`,
+      read: (text) => plainFrontMatter(text),
+    },
+    {
+      site: "PLAIN_ITEM_LINE (`- ` and blanks in a plain front matter; only a lone CR reaches it)",
+      terminators: [CR_AND_LETTER],
+      build: (blanks, terminator) => `---\n- ${blanks}${terminator}\n---\n# H of PLAIN_ITEM_LINE\n`,
+      read: (text) => plainFrontMatter(text),
+    },
+    {
+      site: "the knitr document default `echo:` followed by blanks",
+      terminators: [CR_AND_LETTER, LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
+      build: (blanks, terminator) => `---\necho:${blanks}${terminator}\n---\n\nIntro of the echo default.\n\n# H\n`,
+      read: (text) => findHeadings(text, "knitr").map((h) => h.text),
     },
   ];
 
