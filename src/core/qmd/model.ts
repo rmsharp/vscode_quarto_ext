@@ -40,6 +40,7 @@
 // module, and the import graph was re-checked before relying on it.) The `vscode`-free
 // guardrail of architecture plan §3.3 is unaffected — the imported module is `core/` too.
 import type { DocumentEngine } from "../document-engine";
+import { cutHashComment } from "../hash-comment";
 import type { RenderMode } from "../render-mode";
 import { divOpenerVerdict } from "./attribute-block";
 import { jupyterKernelLanguage } from "./jupyter-kernel";
@@ -3209,7 +3210,7 @@ function proofValue(value: string, column: number): { pending: ProofPending | nu
     return state === null ? null : { pending: state === "closed" ? null : { kind: "flow", closers: state.closers, valueStart: state.valueStart }, plain: false };
   }
   // A plain scalar cannot hold `: `: text that does is a MAPPING whose key this grammar did not read (`- a b: "multi`), so whatever it opens is invisible here.
-  if (/^[&*!%@`,\]}]/.test(text) || /^[-?:](?:[ \t]|$)/.test(text) || /:(?:[ \t]|$)/.test(text.replace(/[ \t]#.*$/, ""))) {
+  if (/^[&*!%@`,\]}]/.test(text) || /^[-?:](?:[ \t]|$)/.test(text) || /:(?:[ \t]|$)/.test(cutHashComment(text, " \t"))) {
     return null;
   }
   return { pending: null, plain: true };

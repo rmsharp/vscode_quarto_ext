@@ -19,6 +19,7 @@
  * accepted set of a closed field is `values` ∪ (the null spellings, when `acceptsNull`).
  */
 
+import { cutHashComment } from "./hash-comment";
 import type { SchemaField } from "./yaml-schema";
 
 /** The six YAML-1.2 boolean spellings Quarto accepts UNQUOTED (plan §2). */
@@ -148,7 +149,7 @@ function isWrongNumber(rawToken: string, acceptsBoolean: boolean): boolean {
   if (firstChar === '"' || firstChar === "'") {
     return true; // a quoted scalar is a string — rejected for a number field (plan §2.2)
   }
-  const trimmed = rawToken.replace(/ #.*$/, "").trim();
+  const trimmed = cutHashComment(rawToken, " ").trim();
   if (trimmed.length === 0) {
     return true; // empty (mid-edit); the loops already skip this — belt-and-suspenders
   }
@@ -181,7 +182,7 @@ function isWrongNumericMember(rawToken: string, members: string[]): boolean {
   if (firstChar === '"' || firstChar === "'") {
     return true; // quarto rejects the quoted form even if its content matches a member (§2.3)
   }
-  const trimmed = rawToken.replace(/ #.*$/, "").trim();
+  const trimmed = cutHashComment(rawToken, " ").trim();
   if (!NUMBER_LITERAL.test(trimmed)) {
     return true; // not a number literal → a genuine non-member (`banana`)
   }

@@ -11,6 +11,7 @@ import { completionContextAt, mappingContainerKey, topLevelSlots, valueSlotAfter
 import { findNestedFrontMatterValueLines } from "../../src/core/yaml-frontmatter-nested-values";
 import { findFrontMatterTopLevelLines } from "../../src/core/yaml-frontmatter-values";
 import { CURATED_SCHEMA_INDEX } from "../../src/core/yaml-schema";
+import { isWrongValue } from "../../src/core/yaml-value-check";
 import { collectValueSources, valueFlags } from "../../src/core/yaml-value-flags";
 
 // Session 311 — the BACKLOG item "Three PRE-EXISTING slow or crashing inputs" (found by Session 304's robustness
@@ -855,6 +856,26 @@ describe("Session 319 — a long run of blanks followed by a CR, U+2028 or U+202
       terminators: [LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
       build: (blanks, terminator) => `Intro of the delimiter row.\n\na|b\n|-${blanks}|${terminator}\n***\n\n# H\n`,
       read: (text) => findHeadings(text).map((h) => h.text),
+    },
+    // The unanchored sibling, part (9): `text.replace(/[ \t]#.*$/, "")` is retried at every ` #` pair when a terminator follows, so the run is made of pairs (each BLANK of the row's
+    // run becomes one ` #`, which is why these rows are twice as long as the others). A lone CR is refused before the proof reads a value, so only U+2028 and U+2029 reach the first row.
+    {
+      site: "proofValue's comment strip (a list item of ` #` pairs under a from: commonmark front matter)",
+      terminators: [LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
+      build: (blanks, terminator) => `---\nfrom: commonmark\nlist:\n  - a${" #".repeat(blanks.length)}${terminator}\n---\n\nIntro of the proof value.\n\n# Heading\n`,
+      read: (text) => findHeadings(text).map((h) => h.text),
+    },
+    {
+      site: "isWrongNumber's comment strip (` #` pairs after a number)",
+      terminators: [CR_AND_LETTER, LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
+      build: (blanks, terminator) => `1${" #".repeat(blanks.length)}${terminator}`,
+      read: (text) => isWrongValue(text, { name: "fig-width", scalarType: "number" }),
+    },
+    {
+      site: "isWrongNumericMember's comment strip (` #` pairs after a member of a numeric enum)",
+      terminators: [CR_AND_LETTER, LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
+      build: (blanks, terminator) => `1${" #".repeat(blanks.length)}${terminator}`,
+      read: (text) => isWrongValue(text, { name: "aspectratio", valuesClosed: true, values: ["43", "169"], numericMemberEnum: true }),
     },
   ];
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BIBLIOGRAPHY_ITEM_LINE } from "../../src/core/frontmatter";
+import { cutHashComment } from "../../src/core/hash-comment";
 import { SEQUENCE_ITEM_LINE } from "../../src/core/preview-format";
 import { KEY_LINE } from "../../src/core/qmd/jupyter-kernel";
 import { INDENTED_LINE } from "../../src/core/yaml-context";
@@ -312,5 +313,101 @@ describe("Session 319 — the blank-run patterns answer what their unguarded spe
     expect(disagreements).toEqual([]);
     expect(compared).toBeGreaterThan(0);
     expect(accepted).toBe(compared);
+  }, 120_000);
+});
+
+// The unanchored sibling, part (9): `text.replace(/[ \t]#.*$/, "")` (and the same with a space only) is retried at every ` #` pair when a terminator follows, so it is a function now, `cutHashComment`.
+// The oracle is the two old `replace` calls, compared as RESULT STRINGS: the strip removes from the first ` #` whose rest holds no terminator, so a text with a terminator after a pair keeps that pair
+// (and a later pair, after the last terminator, can still be cut).
+describe("Session 319 — cutHashComment answers what the unanchored replace answered", () => {
+  interface Strip {
+    old: (text: string) => string;
+    now: (text: string) => string;
+    /** How many strings of each enumeration the old call changes, counted with Python's `re` (so the comparison cannot pass by both sides changing nothing). */
+    changed: { a: number; b: number };
+  }
+  const STRIPS: Record<string, Strip> = {
+    "[ \\t]#.*$": { old: (text) => text.replace(/[ \t]#.*$/, ""), now: (text) => cutHashComment(text, " \t"), changed: { a: 139_806, b: 271_700 } },
+    " #.*$": { old: (text) => text.replace(/ #.*$/, ""), now: (text) => cutHashComment(text, " "), changed: { a: 71_697, b: 271_700 } },
+  };
+  const names = Object.keys(STRIPS);
+
+  function compareStrips(strip: Strip, texts: Iterable<string>): { compared: number; changed: number; disagreements: string[] } {
+    let compared = 0;
+    let changed = 0;
+    const disagreements: string[] = [];
+    for (const text of texts) {
+      const expected = strip.old(text);
+      compared++;
+      if (expected !== text) changed++;
+      if (strip.now(text) !== expected && disagreements.length < 5) disagreements.push(JSON.stringify(text));
+    }
+    return { compared, changed, disagreements };
+  }
+
+  const ALPHABET_A = [" ", "\t", "#", "x", "\r", "\n", LS, PS];
+  const ALPHABET_B = [" ", "#", LS, "x"];
+
+  it.each(names)("%s: the result is the same on every string of up to 7 characters over a blank, a tab, a hash, a letter and all four terminators", (name) => {
+    const { compared, changed, disagreements } = compareStrips(STRIPS[name], everyString(ALPHABET_A, 7));
+    expect(disagreements).toEqual([]);
+    expect(compared).toBe(countStrings(ALPHABET_A.length, 7));
+    expect(changed).toBe(STRIPS[name].changed.a);
+  }, 120_000);
+
+  // Eleven characters hold four pairs and a terminator in the middle: the shapes where the first pair is NOT the one that is cut.
+  it.each(names)("%s: the result is the same on every string of up to 10 characters over a blank, a hash, a line separator and a letter", (name) => {
+    const { compared, changed, disagreements } = compareStrips(STRIPS[name], everyString(ALPHABET_B, 10));
+    expect(disagreements).toEqual([]);
+    expect(compared).toBe(countStrings(ALPHABET_B.length, 10));
+    expect(changed).toBe(STRIPS[name].changed.b);
+  }, 120_000);
+
+  it.each(names)("%s: the result is the same on 100,000 seeded texts of up to 14 pieces", (name) => {
+    const random = seededRandom(3190);
+    const pieces = ["a", " ", "  ", "\t", " #", " # c", "#", "x y", "\r", LS, PS, "\n", '"', ":", " #:", "# "];
+    const texts: string[] = [];
+    for (let i = 0; i < 100_000; i++) {
+      let text = "";
+      for (let k = Math.floor(random() * 15); k > 0; k--) text += pieces[Math.floor(random() * pieces.length)];
+      texts.push(text);
+    }
+    const { compared, changed, disagreements } = compareStrips(STRIPS[name], texts);
+    expect(disagreements).toEqual([]);
+    expect(compared).toBe(100_000);
+    expect(changed).toBeGreaterThan(10_000);
+  }, 120_000);
+
+  // The shapes that cost the regex seconds, answered at 1,000 pairs by the oracle and TIMED at 200,000 for the function: a terminator after the last pair, one before every pair, none, and one at the very end.
+  const pairShapes = (n: number): string[] => {
+    const pairs = " #".repeat(n);
+    const lines: string[] = [];
+    for (const terminator of ["\r", LS, PS, "\n"]) {
+      lines.push(`1${pairs}${terminator}`, `1${pairs}${terminator}x`, `1${terminator}${pairs}`, `1${pairs}${terminator}${pairs}`, `1${pairs}${terminator} #`, `${terminator}${pairs}`);
+    }
+    lines.push(`1${pairs}`, `1${pairs} `, `${pairs}x`, "#".repeat(n), "\t#".repeat(n), `a${"  ".repeat(n)}#${LS}`);
+    return lines;
+  };
+
+  it.each(names)("%s: the result is the same on each pair-heavy text of 1,000 pairs", (name) => {
+    const { compared, changed, disagreements } = compareStrips(STRIPS[name], pairShapes(1_000));
+    expect(disagreements).toEqual([]);
+    expect(compared).toBe(pairShapes(1_000).length);
+    expect(changed).toBeGreaterThan(0);
+  });
+
+  it.each(names)("%s: each pair-heavy text of 200,000 pairs is cut in linear time", (name) => {
+    let slowest = 0;
+    let slowestText = "";
+    for (const text of pairShapes(200_000)) {
+      const started = performance.now();
+      STRIPS[name].now(text);
+      const took = performance.now() - started;
+      if (took > slowest) {
+        slowest = took;
+        slowestText = JSON.stringify(text.slice(0, 12));
+      }
+    }
+    expect({ slowestText, slow: slowest >= 100 }).toEqual({ slowestText, slow: false });
   }, 120_000);
 });
