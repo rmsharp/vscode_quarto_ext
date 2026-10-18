@@ -30,6 +30,12 @@ For that third kind the oracle is quadratic on an ACCEPTED line too: cap the fir
 (12) The plan: update its status column and "Current position" at each close-out; its key count command (`sed -n '/^## Where each key went/,$p' ... | grep -o 'B[0-9]\+' | sort -u | wc -l`) prints 221 (filed items carry no key).
 `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices. macOS `sed` rejects `|` as a delimiter. After answering a direct question, STOP and wait (memory).
 
+### What Session 321 Did
+**Deliverable:** g02 of the backlog ordering plan, fifth session: B89 part (3), `refs.ts:502`'s `/[ \t]*$/.exec(...)` over the gap between `#|` and a cell option key, an unanchored blank-run search (IN PROGRESS)
+**Started:** 2026-10-17
+**Status:** Session claimed. Work beginning. Strict TDD: time the site firsthand at doubling sizes before reading code (the item's numbers are one session's), a RED doubling row, then a rewrite proved identical to the old pattern (the old spelling is the oracle).
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
 ### What Session 320 Did
 **Deliverable:** g02 of the backlog ordering plan, fourth session: B89 part (4), the closing-run and rule-row patterns: `TABLE_RULE_ROW`, the two `[ \t]+#.*$` of `knitrDocumentDefaults`, `ATX_CLOSING` and `parseOutputPath` -- DONE; claim `9d0ffbcb`
 **Started:** 2026-10-17
