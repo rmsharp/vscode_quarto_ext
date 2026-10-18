@@ -14,6 +14,7 @@ import { findFrontMatterTopLevelLines } from "../../src/core/yaml-frontmatter-va
 import { CURATED_SCHEMA_INDEX } from "../../src/core/yaml-schema";
 import { isWrongValue } from "../../src/core/yaml-value-check";
 import { collectValueSources, valueFlags } from "../../src/core/yaml-value-flags";
+import { LS } from "./support/regex-equivalence";
 
 // Session 311 — the BACKLOG item "Three PRE-EXISTING slow or crashing inputs" (found by Session 304's robustness
 // hunter, timed firsthand, identical in the parent build). Every row here is a document nobody writes by hand and
@@ -26,6 +27,21 @@ const timed = <T>(run: () => T): { result: T; ms: number } => {
   const result = run();
   return { result, ms: Date.now() - started };
 };
+
+// Every clock assertion of this file reads `timed`. A timer that always reported 0 would pass them all, so it is checked once against a run of known length (Session 320 review).
+describe("the clock helper", () => {
+  it("timed reports the milliseconds the run took and hands back its result", () => {
+    const { result, ms } = timed(() => {
+      const started = Date.now();
+      while (Date.now() - started < 30) {
+        /* spin */
+      }
+      return "done";
+    });
+    expect(result).toBe("done");
+    expect(ms).toBeGreaterThanOrEqual(25);
+  });
+});
 
 describe("Session 311 — a long run of spaces inside a YAML value", () => {
   it("valueSlotAfterColon trims a 100,000-space run in linear time and keeps the slot exact", () => {
@@ -669,7 +685,6 @@ describe("Session 318 — a single line that is a long run of fence characters f
   // backticks took 6 s and a document took 12 s, because a backtick line is tried by two of them; tildes and the colons of a list item are tried by one at a time and take 6 s. Read linearly it is a few
   // milliseconds, so the 1 s limit has a wide margin both ways. Session 318 timed 1,470 shapes (unit, terminator, 14 contexts, sizes, entry points) in each tree: 760 took 0.5 s or more on the parent
   // and none on the fixed tree (slowest 41 ms); the map is in the session's notes, not in the repo.
-  const LS = String.fromCharCode(0x2028);
   const PS = String.fromCharCode(0x2029);
   const run = (unit: string, characters: number): string => unit.repeat(Math.ceil(characters / unit.length));
   const bodyLine = (line: string): string => `Intro.\n\n${line}\n\n# H\n`;
@@ -737,7 +752,6 @@ describe("Session 319 — a long run of blanks followed by a CR, U+2028 or U+202
   // (it gave the blanks back one at a time and `(.*)` re-read what was given back), which is quadratic. 32,000 blanks then CR took 0.6 s in one `exec` and 100,000 took 6 s (Session 319, bare `exec`, 8,000 /
   // 16,000 / 32,000 blanks: 38 / 154 / 616 ms). A lone CR is the form that reaches a line: a CRLF is split off before any pattern runs, so the CR is followed by a letter here. Read linearly each row
   // is a few milliseconds, so the 1 s limit has a wide margin both ways. `scanRegions` memoizes the last two documents it read, so every row's document carries its own name.
-  const LS = String.fromCharCode(0x2028);
   const PS = String.fromCharCode(0x2029);
   const CR_AND_LETTER = ["a CR and a letter", "\rx"] as const;
   const LINE_SEPARATOR = ["U+2028", LS] as const;
@@ -915,12 +929,13 @@ describe("Session 320 — a long run of blanks in a rule row or a closing run", 
   // the match, and an unanchored search that begins with `[ \t]+` is retried from every blank inside the run. Bare `exec`, 8,000 / 16,000 / 32,000 blanks (Session 320, fresh process, minimum of 5): 38 / 154
   // / 617 ms for `TABLE_RULE_ROW`. Every body line goes through `TABLE_RULE_ROW.test` twice (the table opener and the line-block arm), so a document costs twice that. Read linearly each row is a few
   // milliseconds, so the 1 s limit has a wide margin both ways.
+  // Named apart from the Session 319 describe's RUN / SHORT_RUN / LIMIT_MS on purpose: that session's mutation list (`b89-blank-tail-review.json`) matches their text, and the same text twice in the file
+  // makes its `from` ambiguous (`mutation-lists-apply.test.ts` reds).
   const BLANK_RUN = 100_000;
   const SHORTER_RUN = 2_000;
   const CLOCK_MS = 1000;
   const headings = (text: string): string[] => findHeadings(text).map((h) => h.text);
   const knitrHeadings = (text: string): string[] => findHeadings(text, "knitr").map((h) => h.text);
-  const LS = String.fromCharCode(0x2028);
   type Row = { site: string; run?: string; build: (blanks: string) => string; read: (text: string) => unknown; answer: (blanks: string) => unknown };
 
   const ROWS: Row[] = [
@@ -957,16 +972,18 @@ describe("Session 320 — a long run of blanks in a rule row or a closing run", 
     { site: "parseOutputPath (an `Output created:` line with a long blank run inside the path)", build: (blanks) => `Output created: a${blanks}b`, read: parseOutputPath, answer: (blanks) => `a${blanks}b` },
   ];
 
-  it.each(ROWS.map((row) => [row.site, row.run ?? "blanks", row] as const))("%s: 100,000 %s are read in linear time, and the answer is the short run's", (_site, _run, row) => {
+  it.each(ROWS.map((row) => [row.site, row.run ?? "blanks", row] as const))("%s: 100,000 %s are read in linear time, and the answer is the same as the short run's", (_site, _run, row) => {
     const shorter = row.read(row.build(" ".repeat(SHORTER_RUN)));
     expect(shorter).toEqual(row.answer(" ".repeat(SHORTER_RUN)));
-    const { result, ms } = timed(() => row.read(row.build(" ".repeat(BLANK_RUN))));
+    const longText = row.build(" ".repeat(BLANK_RUN));
+    expect(longText.length).toBeGreaterThanOrEqual(BLANK_RUN);
+    const { result, ms } = timed(() => row.read(longText));
     expect(result).toEqual(row.answer(" ".repeat(BLANK_RUN)));
     expect(ms).toBeLessThan(CLOCK_MS);
   });
 
   // A row run at 1,000 blanks, or allowed 100 s, would pass on the parent too.
-  it("keeps the run, the shorter run and the limit its rows are built on", () => {
+  it("keeps the run, the shorter run and the limit the Session 320 rows are built on", () => {
     expect([BLANK_RUN, SHORTER_RUN, CLOCK_MS]).toEqual([100_000, 2_000, 1000]);
   });
 });
