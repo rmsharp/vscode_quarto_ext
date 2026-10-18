@@ -61,7 +61,7 @@
   "from": "lines[scanned].indexOf(\"-->\", at)",
   "to": "lines[scanned].indexOf(\"-->\")",
   "expect": "killed",
-  "why": "a closer before the opener on one line closes it, and the loop never ends on `--><!--`: killed by timeout (run this list with --timeout 60, not the default 600)"
+  "why": "a closer before the opener on one line closes it again and again: the loop never ends when text follows the opener (`--><!--x`, `a --> b <!-- c`; the line `--><!--` alone ends): killed by timeout (run this list with --timeout 60, not the default 600)"
  },
  {
   "name": "H09 htmlCommentOpenAt: steps over four after a closer and three after an opener",
@@ -69,7 +69,7 @@
   "from": "at = next + (open ? 3 : 4);",
   "to": "at = next + (open ? 4 : 3);",
   "expect": "killed",
-  "why": "`<!-->` and `--><!--` read differently: the named rows and the enumerations"
+  "why": "`<!--->` reads differently (three after an opener finds the closer in its own dashes: the named row and the enumerations) and so does `--><!--` (four after a closer skips the `<` of the opener that follows it); `<!-->` reads the same"
  },
  {
   "name": "H10 htmlCommentOpenAt: steps over four after a closer too",
@@ -77,7 +77,7 @@
   "from": "at = next + (open ? 3 : 4);",
   "to": "at = next + 4;",
   "expect": "killed",
-  "why": "a closer's last-but-one character can start an opener (`--><!--`): the line shape and the token enumeration"
+  "why": "four after a closer skips the character right after it, the `<` of an opener that begins there (`--><!--`): the token and the line-list enumerations"
  },
  {
   "name": "H11 htmlCommentOpenAt: steps over three after an opener too",

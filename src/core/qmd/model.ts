@@ -3599,7 +3599,8 @@ const FENCE_ANYWHERE_IN_BLOCK = /^\s*(?:```|~~~)/;
  * Asked through the returned function, which keeps how far it has read and whether a comment was open
  * there, so the blocks of one document, asked in the order they come, read each line once between them
  * (Session 322: the first spelling rescanned from the top for each block, blocks x lines, 2.9 s for
- * 8,000 small blocks); a line before the one last asked starts again from the top. Exported for
+ * 8,000 small blocks); a line before the position it has read to (the line last asked, or the line
+ * count when that was past the end) starts again from the top. Exported for
  * `html-comment-open-equivalence.test.ts`, which keeps that rescan as the oracle.
  */
 export function htmlCommentOpenAt(lines: readonly string[]): (line: number) => boolean {

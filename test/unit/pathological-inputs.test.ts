@@ -1036,8 +1036,8 @@ describe("Session 322 — many metadata blocks in the body of one document", () 
   // The BACKLOG item "Other regexes still quadratic on a long run of blanks, CR or U+2028", part (8). Every entry that scans regions reads the YAML blocks below the front matter to learn the reader, and for each of them
   // it asked whether an HTML comment is still open at the block's first line by scanning every line from the top of the document: the cost was blocks x lines. The shape is the item's: 6 lines a block
   // (`---`, `format:`, `  html:`, `    k: v`, `---`, `text`). Bare entries, one fresh process each (Session 322, load average about 5): `findHeadings` 87 / 235 / 742 / 2,892 / 10,511 ms at 1,000 / 2,000 / 4,000 / 8,000 / 16,000 blocks
-  // (2.7, 3.2, 3.9 and 3.6 times per doubling: the first steps are mostly the process starting), `indexLabels` 4.1 s and `resolveDocumentEngine` 2.8 s at 8,000; `findAllCells`, `collectValueSources` and `valueFlags` 2.8 s each.
-  // Every row builds a text no other row builds: `scanRegions` memoizes the last two texts, so a second row on the same text would read in 0 ms whatever the code does.
+  // (2.7, 3.2, 3.9 and 3.6 times per doubling in this run, 2.5, 3.2, 3.7 and 3.7 in a second: the small sizes carry the first call's own one-off cost), `indexLabels` 4.1 s and `resolveDocumentEngine` 2.8 s at 8,000; `findAllCells`, `collectValueSources` and `valueFlags` 2.8 s each.
+  // Every row builds a text no other row builds: `scanRegions` memoizes the last two texts, so a second row on the same text would be answered from the memo (0 ms for `findHeadings`, a part of the time for the others) whatever the code does.
   const MANY_BLOCKS = 8_000;
   const FEW_BLOCKS = 200;
   const MANY_BLOCKS_LIMIT_MS = 1000;

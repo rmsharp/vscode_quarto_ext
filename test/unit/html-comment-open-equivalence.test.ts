@@ -38,7 +38,7 @@ const REPEAT_LIMIT_MS = 100;
  */
 const ANSWERED = { characters: 8_803, tokens: 640_029, lineLists: 176_328, seeded: 29_956 };
 
-// The three alphabets of the exhaustive rows, named so that one row can pin what is in them (a letter put in place of `!` would move neither the string count nor the answered count).
+// The three alphabets of the exhaustive rows, named so that one row can pin what is in them (a letter put in place of a character leaves the string count as it is, and moves the answered count: to 0 for `!`, to 8,836 for `>`).
 const CHARACTER_ALPHABET = ["<", "!", "-", ">", "\n"];
 const TOKEN_ALPHABET = ["<!--", "-->", "x", "\n"];
 const LINE_SHAPES = ["", "x", "<!--", "-->", "<!-- -->", "--><!--"];
@@ -128,7 +128,7 @@ describe("Session 322 — htmlCommentOpenAt answers what the rescan from the top
     expect(htmlCommentOpenAt(lines)(gap + 2)).toBe(true);
   });
 
-  // Every document of up to a length over an alphabet, every line asked from -1 to one past the end, in three orders, through one closure and through a fresh one for each question.
+  // Every document of up to a length over an alphabet, every line asked from -1 to one more than the line count, in three orders, through one closure and through a fresh one for each question.
   it.each([
     ["up to eight characters over `<`, `!`, `-`, `>` and a line feed (the openers, the closers and the strings they overlap in)", CHARACTER_ALPHABET, CHARACTER_LIMIT, "characters"],
     ["up to nine tokens over `<!--`, `-->`, a letter and a line feed (several openers and closers on one line)", TOKEN_ALPHABET, TOKEN_LIST_LIMIT, "tokens"],
@@ -223,7 +223,7 @@ describe("Session 322 — htmlCommentOpenAt answers what the rescan from the top
     expect(took).toBeLessThan(REPEAT_LIMIT_MS);
   });
 
-  // A limit of 100 s, or 2,000 lines, would pass the rescan too, and a letter put in an alphabet in place of a character moves neither its string count nor its answered count.
+  // A size of 2,000 lines would pass the rescan too (asking every line of 200,000 takes it minutes), and a letter put in an alphabet in place of a character moves the answered count but not the string count.
   it("keeps the limits, the sizes and the alphabets the rows above are built on", () => {
     expect([LINE_LIST_LIMIT, TOKEN_LIST_LIMIT, CHARACTER_LIMIT, SEEDED_DOCUMENTS, LINEAR_LINES, LINEAR_LIMIT_MS]).toEqual([6, 9, 8, 100_000, 200_000, 500]);
     expect([REPEAT_LINES, REPEAT_ASKS, REPEAT_LIMIT_MS]).toEqual([20_000, 2_000, 100]);
@@ -245,7 +245,7 @@ describe("Session 322 — through findHeadings, a metadata block is read or refu
 
   it.each([
     ["a block below the front matter is read", doc(...FM, "", "Prose one.", "", "---", "from: gfm", "---", ...BODY), READ],
-    // The comment opens on line 0, so a reader that starts at the second line, or at the first content line, never sees it.
+    // The comment opens on line 0, so a reader that starts at the second line never sees it (a reader handed the lines from the first content line still does: the first content line is line 0 here).
     ["a comment that opens on line 0 holds the block", doc("<!--", "Prose one.", "", "---", "from: gfm", "---", "", "-->", ...BODY), REFUSED],
     ["control: the same document without the comment is read", doc("Prose one.", "", "---", "from: gfm", "---", ...BODY), READ],
     // The marker is in the block's OWN line, below its opener: it opens nothing above the block. Three blank lines above the front matter would move a reader that is handed the lines from the first content line.
