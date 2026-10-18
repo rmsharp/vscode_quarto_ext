@@ -125,35 +125,3 @@ characters, one blank guard that changes no answer); `test:integration` NOT run.
 **TDD:** RED before GREEN for the 22 document rows (all fail on the parent), the 9 title fixes (the duplicate list shown, then 9 distinct titles), and every review addition (17 mutants survived, then 17 killed, each by the row
 meant for it). Passed on arrival, disclosed: the equivalence rows themselves (RED = a surviving mutant, or the missing exports), and the memo-trap rows until I gave each its own text.
 **Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** 5 agents in 1 workflow (1,322,038 subagent tokens, 506 tool calls, about 70 minutes), about 150 mutant runs, no quarto renders (the realdoc score and the oracle used the cached corpus).
-
-## Session 316 Handoff Evaluation (by Session 317)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers at HEAD (`febd2c49`, gap 0), no `pending` receipt, the ratchet citation (2/2, results
-`bba236856bad`), the test baseline (11,297 passing in 84 files; 11,323 with my first 26 rows) and the "Active empty, present candidates" instruction all held at Phase 0, and the picker the plan ranked was accurate.
-**Helped:** gotcha 2 (the runner tests the COMMITTED tree): I committed before every run and used `--only` to re-run four survivors; the runner's README was exact apart from the item under Wrong; gotcha 3 named the failure
-(clock rows flake) and the rule (name the title, never loosen); gotcha 4 (`git log -1` first in every agent prompt) is why all five lenses reported HEAD; gotcha 1 and the plan's "Current position" and g02 block (first session,
-soft prerequisite on g01) were exact; g01's pins on `INDENTED_CELL_FENCE_OPEN` are in place for the fence rewrites that come next.
-**Missing:** (a) that "the pattern is not located" hid FIVE patterns with different thresholds (2,097,144 and 3,355,431 repetitions) and that the first fix moves the throw: a row at the item's own 2.1 million goes green
-while `-` and `*` still throw at 3.36 million; (b) the one row that flakes at load 6 to 14, by title (Session 308's "is linear: 200,000 lines"); Session 314's evaluation had it, Session 316's gotcha 3 did not; (c) that the
-Session 314 worker had by now run 23.5 hours (the note said six).
-**Wrong:** (a) "rewrite the recursive pattern iteratively": nothing recurses; a quantified GROUP costs one stack entry per repetition and the cure is literal markers and a one-class tail; (b) the README's whole-suite
-command is written with `\|` (markdown table escaping): typed as written it matches only a literal pipe and excludes no clock row. **ROI: high.**
-
-## Session 317 Self-Assessment
-
-**Score: 7/10.**
-**Went right.** The deliverable is checkable on the committed tree: 15 overflow rows fail on the parent with RangeError and pass now; the old spelling is the oracle for all five patterns over 960,800 strings, 100,000
-seeded lines, a 194,400-line gap grid and 132 near-miss lines each; 99 of 99 shapes read at 4.5M and at 45M characters (slowest 0.7 s); the real-document score is identical to the parent's (2423 of 2438). I located
-the throw before reading code and re-ran the shape map after every fix, which found the next site three times. Expected answers came from quarto 1.7.33 black-box renders (3 documents), not from my own output.
-The review round (5 lenses, 667,011 subagent tokens) was held to firsthand checking: I reproduced every sibling family before filing it and tested the auditor's mutants before acting. Learnings 775 to 778.
-**Went wrong.** (1) My first pins were incomplete twice: the first mutation pass left 4 ambiguous-tail mutants alive (I had only built lines the patterns accept) and the review found 3 more gaps (an indent-4
-interrupt row, a redundant gap after one marker, capped gaps): checkpoints 4 and 6 are repairs to checkpoint 1. (2) Two numbers in my own comments were wrong and found by reviewers, not by me: "about a million `- `"
-(my search script counted characters where I meant repetitions; the first overflow is 2,097,145 repetitions) and "2^21 = 2,097,152" (2,097,144). (3) The Edit tool dropped a trailing space and I committed
-`THEMATIC_BREAK =/^`; a generator found it two commits later. (4) My W02 `why` ("the Session 203 rows") was a guess the surviving mutant refuted. (5) I told you the `* ` and `_ ` controls "already pass"; that held
-for the tree after two fixes, and on the parent they fail. (6) Scope: one pattern became five, plus two mutant lists and a review round; I judged it one deliverable (one root cause, one capability) and the nine
-other families I filed and did not fix. Several "paused here" status messages while the machine ran.
-**Known residuals (filed or stated):** the nine families; the sweep ran 32% of its grid; the sampler bounds and never proves; W04 (the `OPENS_FRESH_BLOCK` swap) is argued equivalent, not proved;
-`test:integration` NOT run; the plan's totals do not yet count the filed item.
-**TDD:** RED before GREEN for the 3 body-line rows at 2.1M, the `-`/`*` rows at 4.5M, the 4 `from: commonmark` rows and the 5 spaced-unit rows (all fail with RangeError on the parent). Passed on arrival,
-disclosed: the equivalence file (its RED was the missing exports), the 12 not-a-break rows (they pass on the parent too), the pattern-level near-miss and gap-grid rows and the 3 `qmd-model.test.ts` rows (RED = a surviving mutant each).
-**Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** 5 agents in 1 workflow (667,011 subagent tokens, 197 tool calls, about 24 minutes), about 60 mutant runs, 3 quarto renders.
