@@ -95,27 +95,37 @@ describe("Session 322 — htmlCommentOpenAt answers what the rescan from the top
     ["a line past the end of a closed comment", ["<!-- a -->"], 9, false],
     ["a negative line reads nothing", ["<!--"], -1, false],
     ["no lines at all", [], 3, false],
+    // The markers are found by `indexOf` whatever stands beside them: a reader that skips a line indented by four spaces or a tab, or that reads only the first 1,000 or 4,096 characters of a line, answers otherwise.
+    ["an opener indented by four spaces", ["    <!-- a"], 1, true],
+    ["an opener indented by a tab", ["\t<!-- a"], 1, true],
+    ["a closer indented by four spaces", ["<!--", "    -->"], 2, false],
+    ["a closer indented by a tab", ["<!--", "\t-->"], 2, false],
+    ["an opener and its closer after 5,000 characters of a line", ["x".repeat(5000) + "<!-- a --> y"], 1, false],
   ] as const)("%s", (_what, lines, line, expected) => {
     expect(oldInsideHtmlComment(lines, line)).toBe(expected);
     expect(htmlCommentOpenAt(lines)(line)).toBe(expected);
   });
 
-  it("asked in document order, a block after the comment closes is not inside it, and one inside it is", () => {
-    const lines = ["---", "a: 1", "---", "<!--", "---", "b: 2", "---", "-->", "---", "c: 3", "---"];
+  // One closure for a run of questions, the way the metadata reader asks; the answers are written out, and the rescan must give the same.
+  it.each([
+    ["in document order, a block after the comment closes is not inside it, and one inside it is", ["---", "a: 1", "---", "<!--", "---", "b: 2", "---", "-->", "---", "c: 3", "---"], [0, 4, 8], [false, true, false]],
+    ["a line before the one it read to: it reads again from the top", ["a", "<!--", "b", "-->", "c", "<!--"], [6, 3, 2, 4, 0, 6, 1], [true, true, true, false, false, true, false]],
+    // One line back is the smallest step back: a reader that starts over only when the line is two before the cursor answers the state after both lines, `false`.
+    ["the line before the one it read to, by one", ["<!--", "-->"], [2, 1], [false, true]],
+    // A negative line after a read starts again too, and reads nothing: a closure that starts again only for a line at or after the first answers `true` for it.
+    ["a negative line after a read", ["<!--"], [1, -1, 1], [true, false, true]],
+    ["the same line again and again: the same answer", ["<!--", "a"], [2, 2, 2, 1, 1], [true, true, true, true, true]],
+  ] as const)("asked %s", (_what, lines, asks, expected) => {
     const openAt = htmlCommentOpenAt(lines);
-    expect([0, 4, 8].map((line) => openAt(line))).toEqual([false, true, false]);
+    expect(asks.map((line) => openAt(line))).toEqual(expected);
+    expect(asks.map((line) => oldInsideHtmlComment(lines, line))).toEqual(expected);
   });
 
-  it("asked a line before the one it read to, it reads again from the top", () => {
-    const lines = ["a", "<!--", "b", "-->", "c", "<!--"];
-    const openAt = htmlCommentOpenAt(lines);
-    expect([6, 3, 2, 4, 0, 6, 1].map((line) => openAt(line))).toEqual([true, true, true, false, false, true, false]);
-  });
-
-  it("asked the same line twice, it answers the same without reading again", () => {
-    const lines = ["<!--", "a"];
-    const openAt = htmlCommentOpenAt(lines);
-    expect([2, 2, 2, 1, 1].map((line) => openAt(line))).toEqual([true, true, true, true, true]);
+  // The line asked is a long way below the comment's opener, and nothing was asked before it: a reader that reads at most so many lines for one question (100, 1,000, 5,000 or 100,000) answers `false` here.
+  it.each([200, 1_500, 150_000])("a comment opened %i lines above the line asked, asked first of all, is open", (gap) => {
+    const lines = ["a", ...Array.from({ length: gap }, () => "x"), "<!--", "b"];
+    expect(oldInsideHtmlComment(lines, gap + 2)).toBe(true);
+    expect(htmlCommentOpenAt(lines)(gap + 2)).toBe(true);
   });
 
   // Every document of up to a length over an alphabet, every line asked from -1 to one past the end, in three orders, through one closure and through a fresh one for each question.
@@ -167,8 +177,8 @@ describe("Session 322 — htmlCommentOpenAt answers what the rescan from the top
     expect(answered).toBe(ANSWERED.seeded);
   });
 
-  // The reading never starts again only because the regions come in strictly increasing order of their start line (`midDocumentMetadataBlocks` relies on it for the linear cost).
-  it("is asked in increasing order: the regions of a document start on strictly later lines, and each starts after the one before ended", () => {
+  // `midDocumentMetadataBlocks` is linear only because the regions it asks about come in strictly increasing order of their start line: a property of `quartoYamlRegions`, pinned here beside the reader that relies on it.
+  it("the regions of a document start on strictly later lines, each after the one before ended (so the reader is asked in increasing order)", () => {
     const random = seededRandom(3220);
     const fragments = ["---", "---", "from: gfm", "text", "", "```{python}", "```", "```", "...", "<!--", "-->"];
     for (let doc = 0; doc < 20_000; doc++) {
@@ -250,6 +260,14 @@ describe("Session 322 — through findHeadings, a metadata block is read or refu
     ["a closer with no opener above is ignored: the block is read", doc(...FM, "", "Prose one.", "", "x --> y", "", "---", "from: gfm", "---", ...BODY), READ],
     ["two closed comments above: the block is read", doc(...FM, "", "<!-- a -->", "", "<!-- b -->", "", "---", "from: gfm", "---", ...BODY), READ],
     ["`<!---->` right above the block opens and closes: the block is read", doc(...FM, "", "Prose one.", "", "<!---->", "---", "from: gfm", "---", ...BODY), READ],
+    // The first line of content is line 0 here, so the block on line 1 is the first one below it: a filter that drops the block on the line after the first content line loses it.
+    ["a block on the line right after the first line of content is read", doc("Prose first line", "---", "from: gfm", "---", ...BODY), ["h2:Prose first line", ...READ]],
+    // `...` ends a block as `---` does, and quarto reads an unterminated block's content, so the comment is the only thing that refuses this one: the question is asked of every block, terminated or not.
+    ["a block closed by `...` inside a comment is refused", doc(...FM, "", "Prose one.", "", "<!--", "---", "from: gfm", "...", "-->", ...BODY), REFUSED],
+    ["control: the same block closed by `...` outside a comment is read", doc(...FM, "", "Prose one.", "", "---", "from: gfm", "...", ...BODY), ["h1:Pressed Heading", "h2:Control Heading"]],
+    // 1,500 lines between the first block's question and the second's: a reader that reads at most so many lines for one question never reaches the opener.
+    ["a comment opened 1,500 lines above a block, after another block was asked about: the block is refused", doc(...FM, "", "Prose one.", "", "---", "from: markdown", "---", ...Array.from({ length: 1_500 }, () => ""), "<!--", "---", "from: gfm", "---", "-->", ...BODY), ["h2:from: markdown", "h2:Control Heading"]],
+    ["control: the same document without the comment is read", doc(...FM, "", "Prose one.", "", "---", "from: markdown", "---", ...Array.from({ length: 1_500 }, () => ""), "---", "from: gfm", "---", ...BODY), ["h2:from: markdown", ...READ]],
   ] as const)("%s", (_what, text, expected) => {
     expect(names(text)).toEqual(expected);
   });

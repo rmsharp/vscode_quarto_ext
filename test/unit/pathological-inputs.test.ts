@@ -1073,6 +1073,7 @@ describe("Session 322 — many metadata blocks in the body of one document", () 
   it.each(BLOCK_ROWS.map((row) => [row.site, row] as const))("%s: 8,000 blocks are read in linear time, and the answer is the stated one at 200 blocks and at 8,000", (_site, row) => {
     expect(row.read(row.build(FEW_BLOCKS))).toEqual(row.answer(FEW_BLOCKS));
     const longText = row.build(MANY_BLOCKS);
+    expect(longText.split("\n").length).toBeGreaterThan(6 * MANY_BLOCKS); // every row's text has at least 6 lines a block: the timed text is the long one
     const { result, ms } = timed(() => row.read(longText));
     expect(result).toEqual(row.answer(MANY_BLOCKS));
     expect(ms).toBeLessThan(MANY_BLOCKS_LIMIT_MS);

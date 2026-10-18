@@ -158,5 +158,93 @@
   "to": "const commentOpenAt = htmlCommentOpenAt(lines.slice(1));",
   "expect": "killed",
   "why": "every line number is one out: a comment opened on line 0 is never seen (the line-0 comment row)"
+ },
+ {
+  "name": "H15 htmlCommentOpenAt: reads at most 100 lines further per question",
+  "file": "src/core/qmd/model.ts",
+  "from": "const end = Math.min(line, lines.length);",
+  "to": "const end = Math.min(line, lines.length, scanned + 100);",
+  "expect": "killed",
+  "why": "a line asked 200, 1,500 or 150,000 lines below an opener nothing asked about before: the `lines above the line asked, asked first of all` rows, and the 1,500-line findHeadings row"
+ },
+ {
+  "name": "H16 htmlCommentOpenAt: reads at most 1,000 lines further per question",
+  "file": "src/core/qmd/model.ts",
+  "from": "const end = Math.min(line, lines.length);",
+  "to": "const end = Math.min(line, lines.length, scanned + 1000);",
+  "expect": "killed",
+  "why": "the 1,500- and 150,000-line rows of `lines above the line asked`, and the findHeadings row with 1,500 blank lines between two blocks"
+ },
+ {
+  "name": "H17 htmlCommentOpenAt: stops reading after 100,000 lines",
+  "file": "src/core/qmd/model.ts",
+  "from": "const end = Math.min(line, lines.length);",
+  "to": "const end = Math.min(line, lines.length, 100000);",
+  "expect": "killed",
+  "why": "the 150,000-line row of `lines above the line asked`: the opener is past the cap (the 200,000-line clock row opens at the start of each pair, so a cap does not move its count by itself)"
+ },
+ {
+  "name": "H18 htmlCommentOpenAt: looks for a second marker only in the first 1,000 characters of a line",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let at = 0; at < lines[scanned].length; ) {",
+  "to": "for (let at = 0; at < Math.min(lines[scanned].length, 1000); ) {",
+  "expect": "killed",
+  "why": "the 5,000-character line ending in a closed comment, asked on the next line: the closer is past the cap, so the comment stays open"
+ },
+ {
+  "name": "H19 htmlCommentOpenAt: looks for a second marker only in the first 4,096 characters of a line",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let at = 0; at < lines[scanned].length; ) {",
+  "to": "for (let at = 0; at < Math.min(lines[scanned].length, 4096); ) {",
+  "expect": "killed",
+  "why": "the same 5,000-character row"
+ },
+ {
+  "name": "H20 htmlCommentOpenAt: a line indented four spaces holds no marker",
+  "file": "src/core/qmd/model.ts",
+  "from": "    for (; scanned < end; scanned++) {",
+  "to": "    for (; scanned < end; scanned++) {\n      if (lines[scanned].startsWith(\"    \")) {\n        continue;\n      }",
+  "expect": "killed",
+  "why": "the `opener indented by four spaces` and `closer indented by four spaces` named rows"
+ },
+ {
+  "name": "H21 htmlCommentOpenAt: a tab-indented line holds no marker",
+  "file": "src/core/qmd/model.ts",
+  "from": "    for (; scanned < end; scanned++) {",
+  "to": "    for (; scanned < end; scanned++) {\n      if (lines[scanned].startsWith(\"\\t\")) {\n        continue;\n      }",
+  "expect": "killed",
+  "why": "the `opener indented by a tab` and `closer indented by a tab` named rows"
+ },
+ {
+  "name": "H22 htmlCommentOpenAt: starts again only when the line is two before the cursor",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (line < scanned) {",
+  "to": "if (line < scanned - 1) {",
+  "expect": "killed",
+  "why": "`the line before the one it read to, by one`: asked 2 then 1 on [`<!--`, `-->`], the answer is true and this one answers the state after both lines"
+ },
+ {
+  "name": "H23 htmlCommentOpenAt: a negative line never starts again",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (line < scanned) {",
+  "to": "if (line < scanned && line >= 0) {",
+  "expect": "killed",
+  "why": "`a negative line after a read`: asked 1, -1, 1 on [`<!--`] the middle answer is false and this one keeps the open state"
+ },
+ {
+  "name": "W07 midDocumentMetadataBlocks: the comment is asked only of a terminated block",
+  "file": "src/core/qmd/model.ts",
+  "from": "|| commentOpenAt(region.startLine)) {",
+  "to": "|| (region.terminated && commentOpenAt(region.startLine))) {",
+  "expect": "killed",
+  "why": "the `closed by ...` row: quarto reads an unterminated block's content, so the comment is all that refuses it; the `...` outside a comment is its control"
+ },
+ {
+  "name": "W08 midDocumentMetadataBlocks: a block one line below the first content line is skipped",
+  "file": "src/core/qmd/model.ts",
+  "from": "region.startLine <= firstContent",
+  "to": "region.startLine <= firstContent + 1",
+  "expect": "killed",
+  "why": "the `block on the line right after the first line of content` row; the guard was there before Session 322 and no row stood on that line"
  }
 ]
