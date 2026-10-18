@@ -44,6 +44,7 @@ import {
   knitrChunkHeaderLabel,
   maskInlineCode,
   quartoFenceTagRewrite,
+  trimEndBlanks,
 } from "./qmd/model";
 
 /** The cross-reference kinds Quarto recognizes that this index supports. */
@@ -212,6 +213,15 @@ const HEADER_LABEL_ID = new RegExp(String.raw`^(fig|tbl)-` + DEFINED_ID_CHAR_CLA
 const COLUMN_ZERO_ONLY_LANGUAGES: ReadonlySet<string> = new Set(["mermaid", "dot", "ojs"]);
 /** A closing fence once its indent is taken off: backticks and nothing else but trailing blanks. */
 const BARE_FENCE = /^`{3,}[ \t]*$/;
+/**
+ * The blanks (spaces and tabs) that END `text`, what `/[ \t]*$/.exec(text)?.[0] ?? ""` answers, without that search's cost: it is unanchored, so it is
+ * tried from every position, and a blank run that is not at the end (the one between a cell option line's `#` and `|`) is scanned to its end from each
+ * of its blanks and then refused (quadratic: 100,000 blanks took 6 s in {@link indexLabels}, Session 321). `trimEndBlanks` scans back from the end and
+ * stops at the first character that is not a blank. Exported for `cell-option-gap-equivalence.test.ts`, which keeps the old search as the oracle.
+ */
+export function trailingBlanks(text: string): string {
+  return text.slice(trimEndBlanks(text).length);
+}
 /**
  * A cross-ref id at the very start of a brace group's content — `{#fig-plot …}`. Group 1 is
  * the id; its column is the group's `start + 2` (past the `{#`). `sec-` is excluded on
@@ -499,7 +509,7 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
         continue; // a bare `#|` line or a YAML comment fixes no indent
       }
       // The whitespace between the pipe and the key, less the ONE space quarto's `| ?` consumes.
-      const gap = /[ \t]*$/.exec(lineText.slice(0, keySlot.startCol))?.[0] ?? "";
+      const gap = trailingBlanks(lineText.slice(0, keySlot.startCol));
       const foldedIndent = gap.startsWith(" ") ? gap.length - 1 : gap.length;
       if (baseIndent === null) {
         baseIndent = foldedIndent;

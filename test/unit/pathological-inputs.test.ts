@@ -989,3 +989,43 @@ describe("Session 320 — a long run of blanks in a rule row or a closing run", 
     expect([BLANK_RUN, SHORTER_RUN, CLOCK_MS]).toEqual([100_000, 2_000, 1000]);
   });
 });
+
+describe("Session 321 — a long run of blanks between `#` and `|` on a cell option line", () => {
+  // The BACKLOG item "Other regexes still quadratic on a long run of blanks, CR or U+2028", part (3). `indexLabels` reads the blanks between a cell option line's pipe and its key with
+  // an UNANCHORED search for the blanks that END the text before the key. The search is retried from every position, so a blank run that is NOT at the end of that text (the one between the `#` and the
+  // `|`) is scanned to its end from each of its blanks and then refused. A run just before the key (`#|` then blanks then the key) is the match itself and costs nothing: that is the control row.
+  // Bare `indexLabels`, 8,000 / 16,000 / 32,000 blanks (Session 321, fresh process, minimum of 5, load average about 60): 87 / 497 / 1,638 ms for the item's shape.
+  // Named apart from the Session 319 and 320 describes' constants on purpose: their mutation lists match those names, and the same text twice makes a `from` ambiguous (Learning 796).
+  const GAP_BLANKS = 100_000;
+  const GAP_SHORTER = 2_000;
+  const GAP_LIMIT_MS = 1000;
+  const labelsOf = (text: string, engine: "jupyter" | "knitr"): string[] => indexLabels(text, engine).map((label) => `${label.id}@${label.line}:${label.column}`);
+  type GapRow = { site: string; engine: "jupyter" | "knitr"; build: (blanks: string) => string; answer: (blanks: string) => string[] };
+
+  const GAP_ROWS: GapRow[] = [
+    { site: "the option line `#`, blanks, `| label: fig-a` in a python cell (the item's shape)", engine: "jupyter", build: (blanks) => `\`\`\`{python}\n#${blanks}| label: fig-a\n\`\`\`\n`, answer: (blanks) => [`fig-a@1:${blanks.length + 10}`] },
+    { site: "the same with TABS between the `#` and the `|`", engine: "jupyter", build: (blanks) => `\`\`\`{python}\n#${"\t".repeat(blanks.length)}| label: fig-a\n\`\`\`\n`, answer: (blanks) => [`fig-a@1:${blanks.length + 10}`] },
+    { site: "the same with a run of alternating blanks and tabs", engine: "jupyter", build: (blanks) => `\`\`\`{python}\n#${" \t".repeat(blanks.length / 2)}| label: fig-a\n\`\`\`\n`, answer: (blanks) => [`fig-a@1:${blanks.length + 10}`] },
+    { site: "a knitr cell with a plot (the label is kept)", engine: "knitr", build: (blanks) => `\`\`\`{r}\n#${blanks}| label: fig-a\nplot(1)\n\`\`\`\n`, answer: (blanks) => [`fig-a@1:${blanks.length + 10}`] },
+    { site: "the run on the SECOND option line, after a label", engine: "jupyter", build: (blanks) => `\`\`\`{python}\n#| label: fig-a\n#${blanks}| fig-cap: x\n\`\`\`\n`, answer: () => ["fig-a@1:10"] },
+    { site: "a cell inside a list item (its indent is stripped first)", engine: "jupyter", build: (blanks) => `- item\n\n  \`\`\`{python}\n  #${blanks}| label: fig-a\n  \`\`\`\n`, answer: (blanks) => [`fig-a@3:${blanks.length + 12}`] },
+    // Control: the long run IS the gap (`#|`, blanks, the key). The search matches it at its first blank, so this was linear before and must stay so.
+    { site: "control: `#|`, blanks, then the key (the run is the gap itself)", engine: "jupyter", build: (blanks) => `\`\`\`{python}\n#|${blanks}label: fig-a\n\`\`\`\n`, answer: (blanks) => [`fig-a@1:${blanks.length + 9}`] },
+  ];
+
+  it.each(GAP_ROWS.map((row) => [row.site, row] as const))("%s: 100,000 blanks are read in linear time, and the answer is the same as the short run's", (_site, row) => {
+    const shortBlanks = " ".repeat(GAP_SHORTER);
+    expect(labelsOf(row.build(shortBlanks), row.engine)).toEqual(row.answer(shortBlanks));
+    const blanks = " ".repeat(GAP_BLANKS);
+    const longText = row.build(blanks);
+    expect(longText.length).toBeGreaterThanOrEqual(GAP_BLANKS);
+    const { result, ms } = timed(() => labelsOf(longText, row.engine));
+    expect(result).toEqual(row.answer(blanks));
+    expect(ms).toBeLessThan(GAP_LIMIT_MS);
+  });
+
+  // A row run at 1,000 blanks, or allowed 100 s, would pass on the parent too.
+  it("keeps the run, the shorter run and the limit the Session 321 rows are built on", () => {
+    expect([GAP_BLANKS, GAP_SHORTER, GAP_LIMIT_MS]).toEqual([100_000, 2_000, 1000]);
+  });
+});
