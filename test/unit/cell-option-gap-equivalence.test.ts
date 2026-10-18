@@ -135,4 +135,28 @@ describe("Session 321 — the gap decides which option line holds a label (behav
   ])("%s", (_what, optionLines, expected) => {
     expect(labelsIn(optionLines)).toEqual(expected);
   });
+
+  // The prefix is read from the line with the cell's indent already taken off, because the key slot's columns count from there: a reading of the raw line would cut the text two columns early in a list item
+  // and see a smaller gap. A CRLF document is split on `\r?\n`, so no carriage return stands between the key and the line's end.
+  const labelsInListItem = (optionLines: string): string[] =>
+    indexLabels(`- item\n\n  \`\`\`{python}\n${optionLines.split("\n").map((line) => `  ${line}`).join("\n")}\n  \`\`\`\n`, "jupyter").map((label) => `${label.id}@${label.line}:${label.column}`);
+  const labelsInCrlf = (optionLines: string): string[] =>
+    indexLabels(`\`\`\`{python}\r\n${optionLines.split("\n").join("\r\n")}\r\n\`\`\`\r\n`, "jupyter").map((label) => `${label.id}@${label.line}:${label.column}`);
+
+  it.each([
+    ["a list-item cell with a one-blank gap", "#| label: lst-a", ["lst-a@3:12"]],
+    ["a list-item cell: a key deeper than the first option is skipped", "#| fig-cap: x\n#|  label: lst-a", []],
+    ["a list-item cell: two blanks on both lines are equally deep", "#|  fig-cap: x\n#|  label: lst-a", ["lst-a@4:13"]],
+    ["a list-item cell: a key shallower than the first option is skipped", "#|  fig-cap: x\n#| label: lst-a", []],
+    ["a list-item cell: blanks before the pipe do not make the key deeper", "#| fig-cap: x\n#   | label: lst-a", ["lst-a@4:15"]],
+  ])("%s", (_what, optionLines, expected) => {
+    expect(labelsInListItem(optionLines)).toEqual(expected);
+  });
+
+  it.each([
+    ["a CRLF document: a key deeper than the first option is skipped", "#| fig-cap: x\n#|  label: lst-a", []],
+    ["a CRLF document: two blanks on both lines are equally deep", "#|  fig-cap: x\n#|  label: lst-a", ["lst-a@2:11"]],
+  ])("%s", (_what, optionLines, expected) => {
+    expect(labelsInCrlf(optionLines)).toEqual(expected);
+  });
 });

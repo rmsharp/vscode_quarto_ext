@@ -1,0 +1,114 @@
+[
+ {
+  "name": "C01 trailingBlanks: back to the unanchored search",
+  "file": "src/core/refs.ts",
+  "from": "return text.slice(trimEndBlanks(text).length);",
+  "to": "return /[ \\t]*$/.exec(text)?.[0] ?? \"\";",
+  "expect": "killed",
+  "why": "no answer changes, so cost tells it: the near-miss clock rows (a run in the middle, 50,000 blanks, 100 ms) and the six document rows at 100,000 blanks fail"
+ },
+ {
+  "name": "C02 trailingBlanks: one character too few of the run",
+  "file": "src/core/refs.ts",
+  "from": "return text.slice(trimEndBlanks(text).length);",
+  "to": "return text.slice(trimEndBlanks(text).length + 1);",
+  "expect": "killed",
+  "why": "the enumerations and the fixed rows: the first blank of every run is lost"
+ },
+ {
+  "name": "C03 trailingBlanks: one character too many",
+  "file": "src/core/refs.ts",
+  "from": "return text.slice(trimEndBlanks(text).length);",
+  "to": "return text.slice(Math.max(0, trimEndBlanks(text).length - 1));",
+  "expect": "killed",
+  "why": "a text with no trailing blank answers its last character: the enumerations and the fixed rows"
+ },
+ {
+  "name": "C04 trailingBlanks: the run ends where trimEnd() would (every Unicode space and line end)",
+  "file": "src/core/refs.ts",
+  "from": "return text.slice(trimEndBlanks(text).length);",
+  "to": "return text.slice(text.trimEnd().length);",
+  "expect": "killed",
+  "why": "a no-break space, a carriage return, a line feed and U+2028 end the text for trimEnd(), not for the search: the second and third enumerations and the fixed rows"
+ },
+ {
+  "name": "C05 trailingBlanks: spaces only, a tab ends the run",
+  "file": "src/core/refs.ts",
+  "from": "return text.slice(trimEndBlanks(text).length);",
+  "to": "return text.slice(text.replace(/ +$/, \"\").length);",
+  "expect": "killed",
+  "why": "the tab rows: the fixed rows, the enumerations and the behaviour rows with a tab gap"
+ },
+ {
+  "name": "C06 trailingBlanks: answers the text WITHOUT the run",
+  "file": "src/core/refs.ts",
+  "from": "return text.slice(trimEndBlanks(text).length);",
+  "to": "return trimEndBlanks(text);",
+  "expect": "killed",
+  "why": "inverted: every row"
+ },
+ {
+  "name": "C07 trailingBlanks: the first run of blanks anywhere, not the one that ends the text",
+  "file": "src/core/refs.ts",
+  "from": "return text.slice(trimEndBlanks(text).length);",
+  "to": "return /[ \\t]+/.exec(text)?.[0] ?? \"\";",
+  "expect": "killed",
+  "why": "the reading the item's shape invites (a run before the pipe taken for the gap): the enumerations, the fixed rows with a run before the pipe, and the behaviour rows with blanks before the pipe"
+ },
+ {
+  "name": "C08 trailingBlanks: a gap of at most one character",
+  "file": "src/core/refs.ts",
+  "from": "return text.slice(trimEndBlanks(text).length);",
+  "to": "return text.slice(trimEndBlanks(text).length).slice(0, 1);",
+  "expect": "killed",
+  "why": "a two-blank gap becomes one: the mixed-run fixed row, the enumerations and the deeper-key behaviour rows"
+ },
+ {
+  "name": "C09 trailingBlanks: a gap of at most 4,096 characters",
+  "file": "src/core/refs.ts",
+  "from": "return text.slice(trimEndBlanks(text).length);",
+  "to": "return text.slice(trimEndBlanks(text).length).slice(0, 4096);",
+  "expect": "killed",
+  "why": "a cap on the run (the obvious other cure for a quadratic): the near-miss row where the run is the gap itself (50,000 and 1,000,000) and the 200,000-blank row"
+ },
+ {
+  "name": "C10 call site: the whole line, not the text before the key",
+  "file": "src/core/refs.ts",
+  "from": "const gap = trailingBlanks(lineText.slice(0, keySlot.startCol));",
+  "to": "const gap = trailingBlanks(lineText);",
+  "expect": "killed",
+  "why": "the gap is the line's trailing run, which is empty: the deeper-key behaviour rows"
+ },
+ {
+  "name": "C11 call site: the text up to the END of the key",
+  "file": "src/core/refs.ts",
+  "from": "const gap = trailingBlanks(lineText.slice(0, keySlot.startCol));",
+  "to": "const gap = trailingBlanks(lineText.slice(0, keySlot.endCol));",
+  "expect": "killed",
+  "why": "the prefix ends in the key, so the gap is empty: the deeper-key behaviour rows"
+ },
+ {
+  "name": "C12 call site: the text up to one column before the key",
+  "file": "src/core/refs.ts",
+  "from": "const gap = trailingBlanks(lineText.slice(0, keySlot.startCol));",
+  "to": "const gap = trailingBlanks(lineText.slice(0, keySlot.startCol - 1));",
+  "expect": "killed",
+  "why": "one blank of every gap is lost: a two-blank gap reads as one, so the deeper-key row finds a label it must skip"
+ },
+ {
+  "name": "C13 call site: the RAW line, indent not taken off",
+  "file": "src/core/refs.ts",
+  "from": "const gap = trailingBlanks(lineText.slice(0, keySlot.startCol));",
+  "to": "const gap = trailingBlanks(rawLine.slice(0, keySlot.startCol));",
+  "expect": "killed",
+  "why": "the key slot counts from the stripped line, so in a list item the prefix is cut two columns early: the list-item deeper-key row"
+ },
+ {
+  "name": "C14 call site: the text AFTER the key's start",
+  "file": "src/core/refs.ts",
+  "from": "const gap = trailingBlanks(lineText.slice(0, keySlot.startCol));",
+  "to": "const gap = trailingBlanks(lineText.slice(keySlot.startCol));",
+  "expect": "killed",
+  "why": "the gap is the value's trailing blanks, empty: the deeper-key behaviour rows"
+ }
+]
