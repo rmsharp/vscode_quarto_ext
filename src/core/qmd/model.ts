@@ -3576,11 +3576,7 @@ const YAML_DOCUMENT_END = /^\.\.\.[ \t]*$/;
 const FENCE_ANYWHERE_IN_BLOCK = /^\s*(?:```|~~~)/;
 /**
  * Whether an HTML comment is still OPEN at 0-based `line` — a mid-document metadata block
- * inside one resolves nothing (Session 211). Asked of `lines` through the returned function, which
- * keeps how far it has read and whether a comment was open there, so that a document's blocks, asked
- * in the order they come, read each line once between them (Session 322: the first spelling scanned
- * from the top of the document for each block, and cost blocks x lines — 2.9 s for 8,000 small blocks).
- * A line before the one last asked starts the reading again from the top.
+ * inside one resolves nothing (Session 211).
  *
  * ⚠ Found by this session's ADVERSARIAL pass, and it is the one finding the designed corpora
  * structurally could not produce: not one of them wraps a block in anything.
@@ -3599,6 +3595,12 @@ const FENCE_ANYWHERE_IN_BLOCK = /^\s*(?:```|~~~)/;
  * a rule that is known wrong to fix a phantom would trade one defect for another. The control
  * `a8_html_comment_ctl`, and the CLOSED-comment-above row pinned in the tests, are what keep this
  * from degenerating into "any document containing a comment".
+ *
+ * Asked through the returned function, which keeps how far it has read and whether a comment was open
+ * there, so the blocks of one document, asked in the order they come, read each line once between them
+ * (Session 322: the first spelling rescanned from the top for each block, blocks x lines, 2.9 s for
+ * 8,000 small blocks); a line before the one last asked starts again from the top. Exported for
+ * `html-comment-open-equivalence.test.ts`, which keeps that rescan as the oracle.
  */
 export function htmlCommentOpenAt(lines: readonly string[]): (line: number) => boolean {
   let scanned = 0;
@@ -3608,7 +3610,8 @@ export function htmlCommentOpenAt(lines: readonly string[]): (line: number) => b
       scanned = 0;
       open = false;
     }
-    for (const end = Math.min(line, lines.length); scanned < end; scanned++) {
+    const end = Math.min(line, lines.length);
+    for (; scanned < end; scanned++) {
       for (let at = 0; at < lines[scanned].length; ) {
         const next = open ? lines[scanned].indexOf("-->", at) : lines[scanned].indexOf("<!--", at);
         if (next < 0) {
