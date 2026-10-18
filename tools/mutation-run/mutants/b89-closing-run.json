@@ -438,5 +438,173 @@
   "to": "  const re = /Output created:[ \\t]*(.+?)[ \\t]*$/gm;\n  let match: RegExpExecArray | null;\n  while ((match = re.exec(clean)) !== null) {\n    last = match[1];\n  }\n",
   "expect": "killed",
   "why": "no answer changes, so cost tells it: the near-miss clock row at 50,000 characters and the document row at 100,000 blanks fail"
+ },
+ {
+  "name": "T20 TABLE_RULE_ROW: a later cell's dash run split in two (the same language, quadratic)",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "to": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+-*:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "expect": "killed",
+  "why": "no answer changes, so cost tells it: `-|`, dashes, a letter is 483 ms at 8,000 dashes and 1,932 ms at 16,000 (x4 per doubling); only the two extra lines of the table and the pipe row's near-miss set hold a long dash run after a pipe (Session 320 review, N27)"
+ },
+ {
+  "name": "T21 TABLE_RULE_ROW: the grid body's middle class admits an underscore",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "to": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: _]*[-+=:])?)\\s*$/;",
+  "expect": "killed",
+  "why": "kind (d), a class edited to admit a character no alphabet holds: `+_-` is a rule row; the one-code-unit sweep (Session 320 review, N15)"
+ },
+ {
+  "name": "T22 TABLE_RULE_ROW: the grid body's classes admit an underscore (middle and last)",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "to": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=:_ ]*[-+=:_])?)\\s*$/;",
+  "expect": "killed",
+  "why": "kind (d): `+_`, `+ _`, `+=_`; the one-code-unit sweep (Session 320 review, N16)"
+ },
+ {
+  "name": "T23 TABLE_RULE_ROW: the first cell's dash class admits an underscore",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "to": "/^ {0,3}(?:\\|?[ \\t]*:?[-_]+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "expect": "killed",
+  "why": "kind (d): `_`, `-_`, `|-_`; the one-code-unit sweep (Session 320 review, N18)"
+ },
+ {
+  "name": "T24 TABLE_RULE_ROW: the tail also reads U+200B",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)\\s*$/;",
+  "to": "/^ {0,3}(?:\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?|\\+(?:[-+=: ]*[-+=:])?)[\\s\\u200b]*$/;",
+  "expect": "killed",
+  "why": "kind (d): `-` and a zero-width space is a rule row; the one-code-unit sweep (Session 320 review, N24)"
+ },
+ {
+  "name": "A13 ATX_CLOSING: the closing run admits a star",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_CLOSING = /(?:^|(?<![ \\t])[ \\t]+)#+[ \\t]*$/;",
+  "to": "export const ATX_CLOSING = /(?:^|(?<![ \\t])[ \\t]+)[#*]+[ \\t]*$/;",
+  "expect": "killed",
+  "why": "kind (d): `x *` loses its closing run; the one-code-unit sweep (Session 320 review, N46)"
+ },
+ {
+  "name": "A14 ATX_CLOSING: the guard also refuses a hyphen before the run",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_CLOSING = /(?:^|(?<![ \\t])[ \\t]+)#+[ \\t]*$/;",
+  "to": "export const ATX_CLOSING = /(?:^|(?<![ \\t-])[ \\t]+)#+[ \\t]*$/;",
+  "expect": "killed",
+  "why": "kind (d): `a- #` loses its closing run (index 2 on HEAD, no match on the mutant); killed by the sweep and by the guard-text row (Session 320 review, N44)"
+ },
+ {
+  "name": "A15 ATX_CLOSING: the guard also refuses an underscore or a star before the run",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const ATX_CLOSING = /(?:^|(?<![ \\t])[ \\t]+)#+[ \\t]*$/;",
+  "to": "export const ATX_CLOSING = /(?:^|(?<![ \\t_*])[ \\t]+)#+[ \\t]*$/;",
+  "expect": "killed",
+  "why": "kind (d): `a_ #` and `a* #` lose their closing runs; killed by the sweep and by the guard-text row (Session 320 review, N45)"
+ },
+ {
+  "name": "K07 knitrDocumentDefaults: the echo / include strip's blank class adds a form feed",
+  "file": "src/core/qmd/model.ts",
+  "from": "KNITR_YAML_FALSE.test(cutHashComment(m[2], \" \\t\").trim())",
+  "to": "KNITR_YAML_FALSE.test(cutHashComment(m[2], \" \\t\\f\").trim())",
+  "expect": "killed",
+  "why": "kind (d): `echo: false<FF># hide` reads as `false` and the chunk stays silent; the four `loud:` rows of qmd-model.test.ts (Session 320 review, N80)"
+ },
+ {
+  "name": "K08 knitrDocumentDefaults: the key strip's blank class adds a form feed",
+  "file": "src/core/qmd/model.ts",
+  "from": "const value = cutHashComment(rest.slice(key.length + 1), \" \\t\").trim();",
+  "to": "const value = cutHashComment(rest.slice(key.length + 1), \" \\t\\f\").trim();",
+  "expect": "killed",
+  "why": "kind (d): `execute:<FF># c` reads as a block mapping; the `loud:` rows (Session 320 review, N81)"
+ },
+ {
+  "name": "K09 knitrDocumentDefaults: the echo / include strip's blank class adds a no-break space",
+  "file": "src/core/qmd/model.ts",
+  "from": "KNITR_YAML_FALSE.test(cutHashComment(m[2], \" \\t\").trim())",
+  "to": "KNITR_YAML_FALSE.test(cutHashComment(m[2], \" \\t\\u00a0\").trim())",
+  "expect": "killed",
+  "why": "kind (d): the same with U+00A0 (Session 320 review, N82)"
+ },
+ {
+  "name": "K10 knitrDocumentDefaults: the key strip's blank class adds a no-break space",
+  "file": "src/core/qmd/model.ts",
+  "from": "const value = cutHashComment(rest.slice(key.length + 1), \" \\t\").trim();",
+  "to": "const value = cutHashComment(rest.slice(key.length + 1), \" \\t\\u00a0\").trim();",
+  "expect": "killed",
+  "why": "kind (d): the same with U+00A0 (Session 320 review, N83)"
+ },
+ {
+  "name": "R19 OUTPUT_CREATED_LINE: a next-line character ends the line",
+  "file": "src/core/render-args.ts",
+  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)(.*)/g;",
+  "to": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\r\\u0085\\u2028\\u2029]*)/g;",
+  "expect": "killed",
+  "why": "kind (d): `.` matches U+0085 and no token of the enumerations holds one; `Output created: a<NEL>b` (Session 320 review, N60)"
+ },
+ {
+  "name": "R20 OUTPUT_CREATED_LINE: a vertical tab ends the line",
+  "file": "src/core/render-args.ts",
+  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)(.*)/g;",
+  "to": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\r\\v\\u2028\\u2029]*)/g;",
+  "expect": "killed",
+  "why": "kind (d): `Output created: a<VT>b` (Session 320 review, N61)"
+ },
+ {
+  "name": "R21 OUTPUT_CREATED_LINE: the blanks after the colon include a vertical tab",
+  "file": "src/core/render-args.ts",
+  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)(.*)/g;",
+  "to": "const OUTPUT_CREATED_LINE = /Output created:([ \\t\\v]*)(.*)/g;",
+  "expect": "killed",
+  "why": "kind (d): `Output created:<VT>a` answers `a` instead of `<VT>a` (Session 320 review, N63)"
+ },
+ {
+  "name": "R22 OUTPUT_CREATED_LINE: the blanks after the colon capped at 4,096",
+  "file": "src/core/render-args.ts",
+  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)(.*)/g;",
+  "to": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]{0,4096})(.*)/g;",
+  "expect": "killed",
+  "why": "kind (b): 5,000 blanks and a path, and a blank-only line of 50,000 blanks, are compared by no enumeration (Session 320 review, N65)"
+ },
+ {
+  "name": "R23 OUTPUT_CREATED_LINE: the marker is case-insensitive",
+  "file": "src/core/render-args.ts",
+  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)(.*)/g;",
+  "to": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)(.*)/gi;",
+  "expect": "killed",
+  "why": "`output created: a.html` is no marker; the marker is ONE token in the enumerations, so no sequence spells it in another case (Session 320 review, N67)"
+ },
+ {
+  "name": "R24 OUTPUT_CREATED_LINE: the colon is optional",
+  "file": "src/core/render-args.ts",
+  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)(.*)/g;",
+  "to": "const OUTPUT_CREATED_LINE = /Output created:?([ \\t]*)(.*)/g;",
+  "expect": "killed",
+  "why": "`Output created a.html` is no marker (Session 320 review, N68)"
+ },
+ {
+  "name": "R25 parseOutputPath: the trailing trim also cuts a vertical tab",
+  "file": "src/core/render-args.ts",
+  "from": "while (rest[end - 1] === \" \" || rest[end - 1] === \"\\t\") {",
+  "to": "while (rest[end - 1] === \" \" || rest[end - 1] === \"\\t\" || rest[end - 1] === \"\\v\") {",
+  "expect": "killed",
+  "why": "kind (d): `Output created: a<VT>` keeps its vertical tab (Session 320 review, N70)"
+ },
+ {
+  "name": "R26 parseOutputPath: a blank-only line of more than 4,096 blanks answers the empty string",
+  "file": "src/core/render-args.ts",
+  "from": "last = blanks[blanks.length - 1];",
+  "to": "last = blanks.length > 4096 ? \"\" : blanks[blanks.length - 1];",
+  "expect": "killed",
+  "why": "kind (b): no long blank-only answer was compared before the review (Session 320 review, N73)"
+ },
+ {
+  "name": "R27 parseOutputPath: the whole output is cut at 1,000,000 characters before the search",
+  "file": "src/core/render-args.ts",
+  "from": "const clean = output.replace(ANSI_PATTERN, \"\");",
+  "to": "const clean = output.replace(ANSI_PATTERN, \"\").slice(0, 1_000_000);",
+  "expect": "killed",
+  "why": "kind (b): a marker after 1,100,000 characters is read (Session 320 review, N75)"
  }
 ]

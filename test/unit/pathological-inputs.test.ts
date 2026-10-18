@@ -936,14 +936,15 @@ describe("Session 320 — a long run of blanks in a rule row or a closing run", 
   const CLOCK_MS = 1000;
   const headings = (text: string): string[] => findHeadings(text).map((h) => h.text);
   const knitrHeadings = (text: string): string[] => findHeadings(text, "knitr").map((h) => h.text);
-  type Row = { site: string; run?: string; build: (blanks: string) => string; read: (text: string) => unknown; answer: (blanks: string) => unknown };
+  /** `needs`: the terminator a row's cost depends on (the one-hash row takes 5 ms on the parent without its U+2028 and 644 ms with it at 32,000 blanks), so the row asserts that its text holds it. */
+  type Row = { site: string; run?: string; needs?: string; build: (blanks: string) => string; read: (text: string) => unknown; answer: (blanks: string) => unknown };
 
   const ROWS: Row[] = [
     { site: "TABLE_RULE_ROW, the pipe body (`-`, blanks, a letter)", build: (blanks) => `Intro of the pipe rule row.\n\n-${blanks}x\n\n# H\n`, read: headings, answer: () => ["H"] },
-    { site: "TABLE_RULE_ROW, the pipe body (`-`, blanks, a lone CR and a letter)", build: (blanks) => `Intro of the pipe rule row and a CR.\n\n-${blanks}\rx\n\n# H\n`, read: headings, answer: () => ["H"] },
+    { site: "TABLE_RULE_ROW, the pipe body (`-`, blanks, a lone CR and a letter)", needs: "\r", build: (blanks) => `Intro of the pipe rule row and a CR.\n\n-${blanks}\rx\n\n# H\n`, read: headings, answer: () => ["H"] },
     { site: "TABLE_RULE_ROW, the pipe body (`-:`, blanks, a letter)", build: (blanks) => `Intro of the pipe rule row and a colon.\n\n-:${blanks}x\n\n# H\n`, read: headings, answer: () => ["H"] },
     { site: "TABLE_RULE_ROW, the grid body (`+`, blanks, a letter)", build: (blanks) => `Intro of the grid rule row.\n\n+${blanks}x\n\n# H\n`, read: headings, answer: () => ["H"] },
-    { site: "TABLE_RULE_ROW, the grid body (`+`, blanks, a lone CR and a letter)", build: (blanks) => `Intro of the grid rule row and a CR.\n\n+${blanks}\rx\n\n# H\n`, read: headings, answer: () => ["H"] },
+    { site: "TABLE_RULE_ROW, the grid body (`+`, blanks, a lone CR and a letter)", needs: "\r", build: (blanks) => `Intro of the grid rule row and a CR.\n\n+${blanks}\rx\n\n# H\n`, read: headings, answer: () => ["H"] },
     // ATX_CLOSING is the closing run of the CommonMark-family readers (`from: gfm`, `commonmark`, `commonmark_x`): an UNANCHORED search that begins with `[ \t]+`, so it was retried from every blank of
     // a run inside the heading text. 100,000 blanks in a heading took 6 s on the parent. The pandoc readers use another spelling (`markdown` is the control row: linear before and after).
     ...(["gfm", "commonmark", "commonmark_x"] as const).map((from): Row => ({
@@ -962,11 +963,11 @@ describe("Session 320 — a long run of blanks in a rule row or a closing run", 
     { site: "knitr default `echo: false` under execute: followed by a long blank run and a letter", build: (blanks) => `---\nexecute:\n  echo: false${blanks}x\n---\n\nIntro of the nested echo strip.\n\n# H\n`, read: knitrHeadings, answer: () => ["H"] },
     { site: "the key `execute:` followed by a long blank run and a letter", build: (blanks) => `---\nexecute: ${blanks}x\n---\n\nIntro of the execute key strip.\n\n# H\n`, read: knitrHeadings, answer: () => ["H"] },
     { site: "the key `format:` followed by a long blank run and a letter", build: (blanks) => `---\nformat: ${blanks}x\n---\n\nIntro of the format key strip.\n\n# H\n`, read: knitrHeadings, answer: () => ["H"] },
-    { site: "the key `execute:` followed by ` #` pairs and U+2028", run: "` #` pairs", build: (blanks) => `---\nexecute:${" #".repeat(blanks.length)}${LS}\n---\n\nIntro of the execute key pairs.\n\n# H\n`, read: knitrHeadings, answer: () => ["H"] },
+    { site: "the key `execute:` followed by ` #` pairs and U+2028", run: "` #` pairs", needs: LS, build: (blanks) => `---\nexecute:${" #".repeat(blanks.length)}${LS}\n---\n\nIntro of the execute key pairs.\n\n# H\n`, read: knitrHeadings, answer: () => ["H"] },
     // Trailing blanks and nothing else are the input a paste produces (no letter, no hash), and a blank run with ONE hash and a terminator needs no pairs: both were quadratic too (Session 320's research agents).
     { site: "knitr default `echo: false` followed by a long blank run and nothing else", build: (blanks) => `---\necho: false${blanks}\n---\n\nIntro of the trailing echo strip.\n\n# H\n`, read: knitrHeadings, answer: () => ["H"] },
     { site: "the key `execute:` followed by a long blank run and nothing else", build: (blanks) => `---\nexecute:${blanks}\n---\n\nIntro of the trailing execute key strip.\n\n# H\n`, read: knitrHeadings, answer: () => ["H"] },
-    { site: "the key `execute:` followed by a long blank run, one hash and U+2028", build: (blanks) => `---\nexecute:${blanks}#${LS}\n---\n\nIntro of the execute key and one hash.\n\n# H\n`, read: knitrHeadings, answer: () => ["H"] },
+    { site: "the key `execute:` followed by a long blank run, one hash and U+2028", needs: LS, build: (blanks) => `---\nexecute:${blanks}#${LS}\n---\n\nIntro of the execute key and one hash.\n\n# H\n`, read: knitrHeadings, answer: () => ["H"] },
     // `parseOutputPath` reads the whole output of a successful `quarto render` (stdout and stderr, which holds whatever the document's own code printed). Its lazy `(.+?)[ \t]*$` re-read the rest of a
     // blank run at every character: `Output created: a`, 32,000 blanks, `b` took 2.1 s in one `exec` (8,000 / 16,000 / 32,000: 132 / 524 / 2,132 ms).
     { site: "parseOutputPath (an `Output created:` line with a long blank run inside the path)", build: (blanks) => `Output created: a${blanks}b`, read: parseOutputPath, answer: (blanks) => `a${blanks}b` },
@@ -977,6 +978,7 @@ describe("Session 320 — a long run of blanks in a rule row or a closing run", 
     expect(shorter).toEqual(row.answer(" ".repeat(SHORTER_RUN)));
     const longText = row.build(" ".repeat(BLANK_RUN));
     expect(longText.length).toBeGreaterThanOrEqual(BLANK_RUN);
+    if (row.needs !== undefined) expect(longText.includes(row.needs)).toBe(true);
     const { result, ms } = timed(() => row.read(longText));
     expect(result).toEqual(row.answer(" ".repeat(BLANK_RUN)));
     expect(ms).toBeLessThan(CLOCK_MS);
