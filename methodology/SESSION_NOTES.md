@@ -8,40 +8,39 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 321 closed out.** g02's fifth session is done: B89 part (3) is closed. `indexLabels` reads the gap before a cell option key with `trailingBlanks` (a scan back from the end), not an unanchored search (`git
-diff c956feb5 HEAD -- src`).
-The old spelling is the oracle (`cell-option-gap-equivalence.test.ts`, 58 tests); 6 of the 7 new document rows fail on the parent (about 6 s each). 14 + 34 mutants: 31 killed, 17 argued equivalent on purpose.
-The four-lens review found no defect in the code, five test gaps (17 mutants survived, now killed) and wrong text in comments and records: all fixed except two stated notes. `BACKLOG.md` "Active" is empty: present candidates via
-AskUserQuestion at Phase 0, ranked by the plan, each saying which rule placed it.
+**Task:** **NONE -- Session 322 closed out.** g02's sixth session is done: B89 part (8) is closed. `htmlCommentOpenAt` keeps how far it has read and whether a comment was open there (`git diff 05936de HEAD -- src`);
+8,000 blocks cost `findHeadings` 2.9 s before and 0.2 s after, about 2x per doubling to 128,000. The old rescan is the oracle (`html-comment-open-equivalence.test.ts`, 56 tests); 11 of 12 new document rows fail on the parent (2.7 to 5.0 s).
+31 mutants: 29 killed, 2 argued equivalent. The five-lens review found no defect in the code, 7 test gaps (11 mutants added, 8 survived the old rows) and 12 wrong statements in text (fixed), and one item was filed.
+`BACKLOG.md` "Active" is empty: present candidates via AskUserQuestion at Phase 0, ranked by the plan, each saying which rule placed it.
 **What's next (derived from the plan, not a promise):** g02 is still in flight. Candidates (the picker shows four and a catch-all):
-(a) B89 part (8): `insideHtmlComment` rescans every line from the top for each mid-document `---` block (finishing a feature: the plan's done criterion names it; re-measure first); (b) B89 part (6a): YAML nesting depth, close to cubic,
-cure not tried;
-(c) the S317 item's part (1), the exponential `ATTR_ATOM_RUN` (the one hang; time it COLD, the BACKLOG figures are warm); (d) the S318 item's part (9), a long paragraph under `from: gfm`; (e) the S319 item's part (1), consecutive
-container-column lines. Decisions as the plan says: D2, D3 before g03.
+(a) B89 part (6a): YAML nesting depth, close to cubic, cure not tried (finishing a feature: it is the last part of B89 and the plan's done criterion names it; re-measure first);
+(b) the S317 item's part (1), the exponential `ATTR_ATOM_RUN` (the one hang; time it COLD); (c) the S318 item's part (9), a long paragraph under `from: gfm` (a mid-document `from: gfm` triggers it too: the S322 item);
+(d) the S319 item's part (1), consecutive container-column lines; (e) the S322 item's part (1), `inQuartoYamlRegion` asked per cell option line (cells x regions). Decisions as the plan says: D2, D3 before g03.
 **⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in a close-out commit).
-(2) The runner tests the COMMITTED tree and SKIPS a mutant whose `from` no longer occurs once; `mutation-lists-apply.test.ts` reds for it, and also for a COMMENT that writes a quoted constant's whole line (it caught mine; Learning
-800). My lists: `mutants/b89-cell-option-gap.json` (14), `-review.json` (34: 17 R killed, 17 E survive on purpose).
-(3) Three mechanisms make a blank run quadratic: a lookahead after it cures a retried `(.*)$` (Learning 779); touching runs need a restructure (784); an UNANCHORED search that begins with a class needs a lookbehind guard (790), or a
-scan back from the end when the run is wanted at the END of the text (Session 321).
-(4) Quote a timing only from a quiet machine (load under about 6) with the load beside it; check two timings of one site against 4x per doubling (Learning 797). `run.py` cuts a failing title at 160 characters: use `--titles` and read
-the end of the title in the log.
-(5) Behaviour rows through `indexLabels` use `lst-` labels: a `fig-` or `tbl-` label on a cell with no code is dropped by the no-target rule (Session 304) unless the rule abstains. Every test file with a clock limit, sizes or alphabets
-needs a sentinel row (Learning 798).
-(6) The Write and Edit tools turn a backslash-u escape for U+2028 into the raw character, in files AND in commit messages (Learning 792). `src/` is gated; check a message with `git log -1 --format=%B`. Prefer `.` to an explicit class.
-(7) Count new rows and rows failing on the parent from `vitest list` titles and a run of HEAD's tests against the parent's source (add only `export`), not from a title filter (Learning 794).
-(8) `ATX_CLOSING_PANDOC` is still quadratic on a long `#` run or a backslash run (BACKLOG, the S318 item, part (2)); `TABLE_RULE_ROW` still overflows the regex stack at 1,525,196 cells (unchanged, S317 item part (4)).
-(9) Clock rows flake under load: three `qmd-model.test.ts` rows failed at load 97 in this session's baseline and once more in a full run. Name it, re-run the file alone, never loosen.
-(10) The Session 314 vitest worker (pid 84774) is STILL spinning at about 100% CPU: not mine; ask before killing it. The foreign worktree `.claude/worktrees/wf_f559ba89-653-5` is not mine either.
-(11) `test:integration` NOT run for eleven sessions (takes the screen: ask first). Baseline `npm test` at HEAD: 11,844 tests in 91 files, clean.
-(12) Real-document score: `REALDOC_DATA=scratchpad/s265 REALDOC_ORDINALS=scratchpad/s251/realfiles.txt tools/realdoc-score/run.sh head` prints 2423 of 2438 (99.38%), 15 divergent; unchanged by this session.
-(13) The plan: update its status column and "Current position" at each close-out; its key count command (`sed -n '/^## Where each key went/,$p' ... | grep -o 'B[0-9]\+' | sort -u | wc -l`) prints 221 (filed items carry no key).
-`BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices. macOS `sed` rejects `|` as a delimiter. After answering a direct question, STOP and wait (memory).
+(2) The runner tests the COMMITTED tree and SKIPS a mutant whose `from` no longer occurs once; `mutation-lists-apply.test.ts` reds for it (and adds one test per list). `mutants/b89-html-comment-open.json` (31: 29 killed, W02 and W04 survive on purpose):
+run it with `--timeout 60`, H08 never ends and the default costs 10 minutes. A kill row for a mutant is shown RED by running the new mutants against the OLD tests first.
+(3) Quote a timing only from a quiet machine (load under about 6) with the load beside it, and recompute a rate from the table's neighbouring cells (Learnings 797, 805). `scanRegions` memoizes the last two texts: every timed row needs a text of its own.
+(4) A function that keeps a position needs rows that ask FAR, read LONG lines and put blanks and tabs beside the token (Learning 802); a differential through the public entries cannot see a branch the caller never takes (803).
+(5) The Write and Edit tools turn a backslash-u escape for U+2028 into the raw character, in files AND in commit messages (Learning 792). `src/` is gated; check a message with `git log -1 --format=%B`. Prefer `.` to an explicit class.
+(6) Count new rows and rows failing on the parent from `vitest list` titles and a run of HEAD's tests against the parent's source (add only `export`), not from a title filter (Learning 794).
+(7) `ATX_CLOSING_PANDOC` is still quadratic on a long `#` run or a backslash run (BACKLOG, the S318 item, part (2)); `TABLE_RULE_ROW` still overflows the regex stack at 1,525,196 cells (unchanged, S317 item part (4)).
+(8) Clock rows flake under load: the `qmd-model.test.ts` Session 308 `;` row read 2,047.7 ms against 2,000 at load 30 in this session. Name it, re-run the file alone, never loosen.
+(9) The Session 314 vitest worker (pid 84774) is STILL spinning at 70 to 100% CPU: not mine; ask before killing it. The foreign worktree `.claude/worktrees/wf_f559ba89-653-5` is not mine either.
+(10) `test:integration` NOT run for twelve sessions (takes the screen: ask first). Baseline `npm test` at HEAD: 11,915 tests in 92 files, clean.
+(11) Real-document score: `REALDOC_DATA=scratchpad/s265 REALDOC_ORDINALS=scratchpad/s251/realfiles.txt tools/realdoc-score/run.sh head` prints 2423 of 2438 (99.38%), 15 divergent; unchanged by this session.
+(12) The plan: update its status column and "Current position" at each close-out; its key count command (`sed -n '/^## Where each key went/,$p' ... | grep -o 'B[0-9]\+' | sort -u | wc -l`) prints 221 (filed items carry no key).
+(13) A sweep lens with a wide brief (148 shapes) ran about 1 h 15 min at load up to 196 and ended only when asked to wrap up (`SendMessage`);
+its shell script kept launching runs after its report (killed): bound a sweep lens by shapes and minutes, and check `ps` for its scripts.
+(14) `governingMetadataContent` (so `midDocumentMetadataBlocks` and `quartoYamlRegions`) runs 2 to 3 times per scan: about 12% of `findHeadings` at 64,000 blocks, no asymptotic cost; left alone (CHANGELOG), not filed.
+`BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices. macOS `sed` rejects `|` as a delimiter and `sed -i` needs `''`. After answering a direct question, STOP and wait (memory).
 
 ### What Session 322 Did
-**Deliverable:** g02 of the backlog ordering plan, sixth session: B89 part (8), `insideHtmlComment` rescans every line from the top for each mid-document `---` YAML block, so every region-scanning entry is quadratic in the block count (IN PROGRESS)
+**Deliverable:** g02 of the backlog ordering plan, sixth session: B89 part (8), `insideHtmlComment` rescans every line from the top for each mid-document `---` YAML block, so every region-scanning entry is quadratic in the block count -- DONE; claim `05936de`
 **Started:** 2026-10-18
-**Status:** Session claimed. Work beginning. Strict TDD: re-measure the site firsthand at doubling block counts (cold and warm, at a quiet load) before reading code, a RED doubling row, then a respelling proved identical to the old one (the old spelling is the oracle).
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Status:** Closed out. One site respelled (`b63fafc`: `htmlCommentOpenAt`, a reader that keeps its place), 11 of 12 new document rows RED on the parent (2.7 to 5.0 s against 1 s) and proved against the old spelling (`03173a7`, `ac4f555`: 56 tests in all),
+31 mutants (29 killed, 2 argued equivalent), and a five-lens review round (`wf_4a85c4da-db1`) whose fixes landed in `36e07fe`, `a154e41` and `db6d090`. One item filed (BACKLOG, the Session 322 sweep). `npm test` 11,915 passing in 92 files;
+`npm run package` 44 files; real-document score unchanged.
+**Ledger:** `CHANGELOG.md` 2026-10-18 -- one entry per action (the claim entry replaced), recorded in the close-out commit.
 
 ### What Session 321 Did
 **Deliverable:** g02 of the backlog ordering plan, fifth session: B89 part (3), `refs.ts`'s unanchored `/[ \t]*$/.exec(...)` over the gap between `#|` and a cell option key -- DONE; claim `c956feb5`
@@ -62,7 +61,8 @@ and a five-lens review round whose fixes landed in `36216472`, `e2bc6bea`, `a202
 ### What Session 319 Did
 **Deliverable:** g02 of the backlog ordering plan, third session: B89 parts (5)+(9), the CR / U+2028 family, a blank run followed by a tail a CR stops -- DONE; claim `6ea0db00`
 **Started:** 2026-10-16
-**Status:** Closed out. Fifteen patterns and a ` #` strip respelled in nine commits (`ff31f31a` to `280cc912`), each slice RED first (55 document rows fail on the parent), proved against their old spellings (17 table entries, a 730,000-document differential with 0 differences),
+**Status:** Closed out. Fifteen patterns and a ` #` strip respelled in nine commits (`ff31f31a` to `280cc912`), each slice RED first (55 document rows fail on the parent), proved against their old spellings (17 table entries, a
+730,000-document differential with 0 differences),
 51 + 77 mutants, and a four-lens review round whose fixes landed in `33ec9bc8`, `30dc71fa`, `76ed336c` and `4ad1228e`.
 One new item filed (BACKLOG line 92). `npm test` 11,657 passing in 89 files; `npm run package` 44 files; real-document score unchanged.
 **Ledger:** `CHANGELOG.md` 2026-10-17 -- one entry per action (the claim entry replaced), recorded in the close-out commit.
@@ -80,6 +80,44 @@ One new item filed (eight regexes and a paragraph reader). `npm test` 11,403 pas
 **Status:** Closed out. Five patterns respelled (`4627675d`), exhaustive proof plus near-miss and gap-grid rows, 51 + 4 mutants (49 + 3 killed, 3 argued equivalent), a five-lens review round that closed three test gaps.
 Nine more families filed. `npm test` 11,347 passing plus one load-flake clock row (11,348 in 85 files); `npm run package` 44 files; real-document score unchanged.
 **Ledger:** `CHANGELOG.md` 2026-10-16 -- one entry per action (the claim entry replaced), recorded in the close-out commit.
+
+## Session 321 Handoff Evaluation (by Session 322)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers at HEAD (`b58ce5dd`, gap 0), no `pending` receipt, the ratchet citation (2/2, results `bba236856bad`), the plan's key count (221), the real-document
+score (2423 of 2438, unchanged by this session) and the baseline (11,844 in 91 files; 11,915 in 92 after my 71) all held, and the picker the plan ranked was accurate: it offered B89 part (8) first, as finishing a feature.
+**Helped:** candidate (a) said "re-measure first": 2,892 ms for `findHeadings` at 8,000 blocks against the item's 2.9 s, and the doubling (87 / 235 / 742 / 2,892 / 10,511 ms) before any code was read; gotcha 2 (the runner tests the COMMITTED tree, the list gate reds)
+made me commit before each mutant run and the gate kept my list honest; gotcha 6 (count rows from `vitest list` titles, parent failures by running HEAD's tests against the parent's source) is how I showed 11 of 12 document rows RED (2.7 to 5.0 s); gotcha 4
+(a timing is a fact about a load, Learning 797) put every quoted figure at load about 5; gotcha 9 (clock rows flake under load: name it, re-run alone) covered the `;` row at 2,047.7 ms against 2,000; gotchas 10 and 11 (the worker, the worktree, `test:integration`) held.
+**Missing:** (a) that a mutant that never ends costs the runner's 10-minute default: H08 needs `--timeout 60`, which only the README of an older list mentioned; (b) that `scanRegions` memoizes the last two texts, so every timed row
+needs a text of its own: it is in the S318 item,
+not in the gotchas, and I met it only because I read the item; (c) that the Learning 798 sentinel sentence ("a letter put in an alphabet in place of a character moves neither count") is not true: I copied it into my file, and it was
+false there (a letter for `!` takes the answered count to 0).
+**Wrong:** (a) the item's "`model.ts` near `:3560`" was at 3576 to 3603 once the file moved (a position at a commit, as Sessions 320 and 321 said); (b) nothing else I could find. **ROI: high.**
+
+## Session 322 Self-Assessment
+
+**Score: 7/10.**
+**Went right.** I timed the site firsthand before reading code (87 / 235 / 742 / 2,892 / 10,511 ms at 1,000 to 16,000 blocks, the item's 2.9 s held), so the RED rows had a real shape: 11 of 12 document rows fail on the parent at 2.7 to
+5.0 s against 1 s and the control passes. The old spelling is the oracle
+(three enumerations of 488,281 / 349,525 / 55,987 documents, counts of the old answers also taken with Python; 100,000 seeded documents; three asking orders, shared and fresh closures), an 800,000-document parent-versus-fix differential of mine and the review's
+540,000 documents and 5.7 million enumerated ones found no difference, and the cost is linear (199 ms at 8,000 blocks, 2.2 s at 128,000). The review round (5 lenses) was held to firsthand checking: I ran the 11 mutants it invented
+through the project's runner against the OLD
+tests (8 survive RED, all killed GREEN), re-ran W05 and W06 with a row filter to see which named row kills which, re-counted the alphabet swap with Python (0 for `!`, 8,836 for `>`), and timed the sweep's three shapes in fresh
+processes (load 7 to 8.6, slopes 3.3 to 4x) before filing them.
+**Went wrong.** (1) My pins were incomplete for the EIGHTH set in a row (Learnings 773, 776, 780, 788, 793, 798): no row asked a line far from the last answer, read a line longer than a cap, put a blank or a tab beside a marker, or put
+the comment question to an unterminated block; 8 mutants survived,
+and three edits were guarded by one assertion each (Learning 802). (2) Text I wrote was wrong in 12 places: a rate ("3.7 to 3.9 per doubling" from a table whose ratios are 2.7, 3.2, 3.9, 3.6: Learning 805), "the first steps are mostly
+the process starting" with no evidence, sentences copied from the Session 321 file that
+are false here, a comment that swapped which row kills W05 and which W06, a docstring paragraph that re-dated Session 211's sentences (806), three `why` lines, a missing README row, and a status line to the operator that gave W04's
+reason wrongly (it is asked before the first-content test, over blank lines). The `b63fafc` and `ac4f555` messages stay wrong.
+(3) I set the sweep lens too wide (148 shapes, no minute limit): it ran about 1 h 15 min at load up to 196 and I had to ask it to stop. (4) Disclosed: the helper-level equivalence rows passed on arrival (their RED is a surviving mutant), as
+did the 13 `findHeadings` rows (answers from the parent).
+**Known residuals (filed or stated):** the clock rows' use sites (a limit multiplied by 1,000 or a loop of 20 asks in the repeat row) are not pinned; `htmlCommentOpenAt(NaN)` after a read answers the stale state (unreachable);
+`governingMetadataContent` runs 2 to 3 times per scan (12% at 64,000 blocks, not filed);
+the S322 sweep item (BACKLOG); `test:integration` NOT run.
+**TDD:** RED before GREEN for the 11 document rows (fail on the parent for the right reason, time) and for the review's kill rows (8 of 11 mutants shown SURVIVING with the runner before the rows, killed after; H17, H22 and H23 already
+died on one assertion each and now have named rows).
+**Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** 5 agents in 1 workflow (the review: 345 tool calls, about 2 hours of wall time), about 100 mutant runs of mine, 0 quarto renders.
 
 ## Session 320 Handoff Evaluation (by Session 321)
 
@@ -123,7 +161,8 @@ scripts were gone and I wrote them again; gotcha 4 (the lookahead idiom is exact
 and re-ran the file alone.
 **Missing:** (a) that a new site's seed is its POSITION in the table: "a new site is one entry plus five pinned counts" is true only at the end, and a mid-table entry failed five unrelated seeded rows (Learning 791); (b) that part (4) was a sample again:
 `TABLE_RULE_ROW` had a second quadratic (the grid body) beside the one the
-item named, and the knitr strips were quadratic on shapes the item did not name; (c) the gotcha about the Write and Edit tools turning an escape into a raw U+2028 was given and I hit it twice anyway (once in `src/`, once in a commit message): a gate was the answer, not a note.
+item named, and the knitr strips were quadratic on shapes the item did not name; (c) the gotcha about the Write and Edit tools turning an escape into a raw U+2028 was given and I hit it twice anyway (once in `src/`, once in a commit
+message): a gate was the answer, not a note.
 **Wrong:** (a) "`ATX_CLOSING` and `render-args.ts:78` need a profile" was right, but the whole of `render-args.ts:78` was reachable only through the output of a render, a fact the item did not say; (b) `key_files` line numbers had drifted by the time I read them
 (they are positions at a commit, not addresses). **ROI: high.**
 
@@ -161,7 +200,8 @@ gotcha 5 named the load-flaky clock rows, and three of them flaked at load 61, s
 **Missing:** (a) that the B89 list was a sample: four of its named shapes were linear or unreachable, two mechanisms were not named (touching runs, a key with no terminator), and the `echo`/`include` reader was filed twice (B89 and the Session 318 item (8));
 (b) that Session 318's own respelling retired 15 of its mutants (`DIV_FENCE`) and 11 of Session 316's (`INDENTED_CELL_FENCE_OPEN`): the runner SKIPS them, the README rows said 'all killed', and nothing noticed for two sessions;
 (c) that the sweep's harnesses are untracked, so the table's generator had to be written afresh (plan rule P5 was named and followed).
-**Wrong:** (a) README rows 'about 2 minutes ... 32 killed and 4 survives' were no longer true after the respelling; (b) 'one-line cure' for `DIV_FENCE`'s blank tail was right for that site and read as a family rule, which Learning 779 itself says it is not. **ROI: high.**
+**Wrong:** (a) README rows 'about 2 minutes ... 32 killed and 4 survives' were no longer true after the respelling; (b) 'one-line cure' for `DIV_FENCE`'s blank tail was right for that site and read as a family rule, which Learning 779
+itself says it is not. **ROI: high.**
 
 ## Session 319 Self-Assessment
 
