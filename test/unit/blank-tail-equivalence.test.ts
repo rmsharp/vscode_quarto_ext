@@ -105,8 +105,9 @@ const SITES: Record<string, Site> = {
     acceptedTails: ["", "|", "|-", " | - |", " |:-|"], // a cell straight after the blanks is no cell: the pipe between cells is what the pattern asks for
     tails: ["", "-", "|", " | - ", ":-:", "x", "\r", LS, PS, " \r", "-\r", "-|\r", "|-", "-x"],
     foils: ["*", "=", "+"],
-    // A long run AFTER a pipe and then a wrong character (`-|` and blanks and a letter), which none of the head-and-run shapes build, and long cells and cell counts the pattern accepts.
-    extraLines: (n) => [`-|${" ".repeat(n)}x`, `|-|${" ".repeat(n)}x`, `-|${" ".repeat(n)}-`, `|:-:|${" ".repeat(n)}-|${" ".repeat(n)}x`, `|${"- ".repeat(Math.floor(n / 2))}x`],
+    // A long run AFTER a pipe and then a wrong character (`-|` and blanks and a letter), which none of the head-and-run shapes build, and long cells and cell counts the pattern accepts. The dash run of a
+    // LATER cell is one of them (`-|`, dashes, a letter): a respelling that splits that run in two is the same language and quadratic, and only this line times it (Session 320 review).
+    extraLines: (n) => [`-|${" ".repeat(n)}x`, `|-|${" ".repeat(n)}x`, `-|${" ".repeat(n)}-`, `|:-:|${" ".repeat(n)}-|${" ".repeat(n)}x`, `|${"- ".repeat(Math.floor(n / 2))}x`, `-|${"-".repeat(n)}x`, `|-|${"-".repeat(n)}x`],
     acceptedLines: (n) => ["-".repeat(n), `|${" ".repeat(n)}-`, `|-|${" ".repeat(n)}-`, `-${" ".repeat(n)}|${" ".repeat(n)}-`, `${"-|".repeat(Math.floor(n / 2))}-`, `|${"-|".repeat(Math.floor(n / 2))}`, `   |${" ".repeat(n)}:-:${" ".repeat(n)}|`],
   },
   // `\s` takes a CR, U+2028 and U+2029 as blanks, so a terminator RIGHT after the run is part of it; the slow line has the terminator after a word (`near-miss` shapes 3 and 5).
@@ -164,7 +165,7 @@ const SITES: Record<string, Site> = {
     indents: [" ", "  ", "   ", "    "],
     shortLength: 6,
     longIndent: false,
-    acceptedTails: [""], // a letter, a pipe or a colon straight after the blanks ends neither body (the grid body takes no pipe; a cell after blanks needs its pipe)
+    acceptedTails: [""], // a letter, a colon or a dash straight after the blanks ends both bodies (a cell after blanks needs its pipe); a PIPE after the blanks is accepted by the pipe body, and `acceptedLines` has it
     tails: ["", "-", "|", " | - ", ":-:", "x", "\r", LS, PS, " \r", "-\r", "-|\r", "|-", "-x", "+", " +", "=", "\f", NBSP],
     extraLines: (n) => [
       `-:${" ".repeat(n)}x`,
@@ -173,6 +174,9 @@ const SITES: Record<string, Site> = {
       `-|${" ".repeat(n)}x`,
       `-|${" ".repeat(n)}-`,
       `|:-:|${" ".repeat(n)}-|${" ".repeat(n)}x`,
+      // The dash run of a LATER cell, then a letter: only these two time a respelling that splits that run in two (the same language, 8 s at 32,000 dashes; Session 320 review).
+      `-|${"-".repeat(n)}x`,
+      `|-|${"-".repeat(n)}x`,
       `+${" ".repeat(n)}-${" ".repeat(n)}x`,
       `+-${" ".repeat(n)}-${" ".repeat(n)}\rx`,
       `+${"- ".repeat(Math.floor(n / 2))}x`,
@@ -409,6 +413,28 @@ describe("Session 319 — the blank-run patterns answer what their unguarded spe
     }
   });
 
+  // The sizes above are pinned as values; whether each LEG is built at all is not. A site whose `extraLines`, `acceptedLines` or shorter-beginnings loop was quietly dropped keeps every pin and loses the lines
+  // that catch a cap or a respelling (Session 320 review: each leg was a single point of failure). The counts are what each leg builds at 1,000 characters.
+  it.each([
+    ["PIPE_DELIMITER_ROW", { nearMiss: 429, extra: 7, accepted: 141, acceptedLines: 7 }],
+    ["TABLE_RULE_ROW", { nearMiss: 831, extra: 15, accepted: 114, acceptedLines: 22 }],
+    ["ATX_CLOSING", { nearMiss: 682, extra: 10, accepted: 198, acceptedLines: 10 }],
+  ])("%s builds every leg it was given", (name, legs) => {
+    const site = SITES[name];
+    expect({
+      nearMiss: nearMissLines(site, 1_000).length,
+      extra: site.extraLines?.(1_000).length,
+      accepted: [...longAcceptedLines(site)].length,
+      acceptedLines: site.acceptedLines?.(1_000).length,
+    }).toEqual(legs);
+  });
+
+  // A clock row that cannot fail is no row. The OLD spelling is quadratic on the same lines, so the function the real row calls must say "slow" about it (20,000 characters: the old table pattern takes
+  // 240 ms on the first slow line, and `slowestExec` stops there).
+  it.each(["TABLE_RULE_ROW", "ATX_CLOSING"])("the clock row can fail: %s's old spelling is slow on its own near-miss lines", (name) => {
+    expect(slowestExec(SITES[name].old, nearMissLines(SITES[name], 20_000), CLOCK_LIMIT_MS).slow).toBe(true);
+  }, 120_000);
+
   it("pins an accepted count for every site", () => {
     expect(Object.keys(ACCEPTED).sort()).toEqual([...names].sort());
   });
@@ -447,6 +473,27 @@ describe("Session 319 — the blank-run patterns answer what their unguarded spe
     expect(disagreements).toEqual([]);
     expect(compared).toBe(countStrings(alphabet.length, 5));
     expect(accepted).toBe(ACCEPTED[name]?.exotic);
+  }, 120_000);
+
+  // The enumerations hold the alphabets a site's author thought of. A class edited to ADMIT a character no alphabet holds (`_` in a rule row's dash class, a zero-width space in its tail, a star in a closing run)
+  // changes no answer anywhere they look. So every UTF-16 code unit is put into each head at every position, and in place of each character of it, and the two spellings must answer alike (Session 320 review: eight
+  // source mutants of the two new sites survived until this row; the pinned count is the number of strings, which a row that quietly swept fewer would not reach).
+  it.each(names)("%s answers like the old spelling when any one code unit is put into a head, or in place of one of its characters", (name) => {
+    const site = SITES[name];
+    const edited = function* (): Generator<string> {
+      for (const head of site.heads) {
+        for (let at = 0; at <= head.length; at++) {
+          for (let unit = 0; unit < 0x10000; unit++) {
+            const ch = String.fromCharCode(unit);
+            yield head.slice(0, at) + ch + head.slice(at);
+            if (at < head.length) yield head.slice(0, at) + ch + head.slice(at + 1);
+          }
+        }
+      }
+    };
+    const { compared, disagreements } = compare(site.old, site.now, edited());
+    expect(disagreements).toEqual([]);
+    expect(compared).toBe(site.heads.reduce((sum, head) => sum + (2 * head.length + 1) * 0x10000, 0));
   }, 120_000);
 
   it.each(names)("%s agrees, groups included, on 100,000 seeded lines", (name) => {
@@ -529,6 +576,20 @@ describe("Session 319 — cutHashComment answers what the unanchored replace ans
     }
     return { compared, changed, disagreements };
   }
+
+  // The oracle is the regex `replace` and not the function under test: a later tidy-up that wrote `cutHashComment` into a strip's `old` would turn every comparison below into the new function against
+  // itself, and the pinned `changed` counts (counts of strings the oracle changes) would not notice (Learning 780; Session 320 review).
+  it.each(names)("%s: the oracle is a regex replace and not cutHashComment", (name) => {
+    expect(STRIPS[name].old.toString()).toContain(".replace(/");
+    expect(STRIPS[name].old.toString()).not.toContain("cutHashComment");
+  });
+
+  // The comparer is a helper like any other: given a strip that answers wrongly it must say so, and count what it compared and what the oracle changed.
+  it("compareStrips counts the texts, the texts the oracle changes, and records a disagreement", () => {
+    const wrong: Strip = { old: (text) => text.replace("a", ""), now: (text) => `${text}!`, changed: { a: 0, b: 0, c: 0 } };
+    expect(compareStrips(wrong, ["a", "b"])).toEqual({ compared: 2, changed: 1, disagreements: ['"a"', '"b"'] });
+    expect(compareStrips({ ...wrong, now: wrong.old }, ["a", "b"])).toEqual({ compared: 2, changed: 1, disagreements: [] });
+  });
 
   const ALPHABET_A = [" ", "\t", "#", "x", "\r", "\n", LS, PS];
   const ALPHABET_B = [" ", "#", LS, "x"];
