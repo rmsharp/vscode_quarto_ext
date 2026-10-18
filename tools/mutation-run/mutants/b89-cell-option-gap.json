@@ -45,7 +45,7 @@
   "from": "return text.slice(trimEndBlanks(text).length);",
   "to": "return trimEndBlanks(text);",
   "expect": "killed",
-  "why": "inverted: every row"
+  "why": "inverted: the fixed rows with a run, the enumerations and the behaviour rows with a gap (40 of the 58 rows of the file at Session 321's review round; the empty text and the rows that need no run still pass)"
  },
  {
   "name": "C07 trailingBlanks: the first run of blanks anywhere, not the one that ends the text",

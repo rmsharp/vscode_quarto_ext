@@ -994,8 +994,10 @@ describe("Session 321 — a long run of blanks between `#` and `|` on a cell opt
   // The BACKLOG item "Other regexes still quadratic on a long run of blanks, CR or U+2028", part (3). `indexLabels` reads the blanks between a cell option line's pipe and its key with
   // an UNANCHORED search for the blanks that END the text before the key. The search is retried from every position, so a blank run that is NOT at the end of that text (the one between the `#` and the
   // `|`) is scanned to its end from each of its blanks and then refused. A run just before the key (`#|` then blanks then the key) is the match itself and costs nothing: that is the control row.
-  // Bare `indexLabels`, 8,000 / 16,000 / 32,000 blanks (Session 321, fresh process, minimum of 5, load average about 60): 87 / 497 / 1,638 ms for the item's shape.
-  // Named apart from the Session 319 and 320 describes' constants on purpose: their mutation lists match those names, and the same text twice makes a `from` ambiguous (Learning 796).
+  // Bare `indexLabels` on the item's shape, one fresh process each (Session 321, load average about 5): 42 / 156 / 614 ms at 8,000 / 16,000 / 32,000 blanks, 5.98 s at 100,000.
+  // Named apart from the Session 319 and 320 describes' constants on purpose: a mutation list quotes a constant's whole line (Session 319's quotes its RUN and its LIMIT_MS lines), and the same text twice in the file
+  // makes that `from` ambiguous (Learning 796): do not write such a line out in a comment either.
+  // The labels are `lst-a`, not `fig-a`, on the cells with no code: a `fig-` or `tbl-` label on such a cell is dropped by the no-target rule (Session 304) as soon as that rule can read the option lines, and these rows are about the gap.
   const GAP_BLANKS = 100_000;
   const GAP_SHORTER = 2_000;
   const GAP_LIMIT_MS = 1000;
@@ -1003,17 +1005,17 @@ describe("Session 321 — a long run of blanks between `#` and `|` on a cell opt
   type GapRow = { site: string; engine: "jupyter" | "knitr"; build: (blanks: string) => string; answer: (blanks: string) => string[] };
 
   const GAP_ROWS: GapRow[] = [
-    { site: "the option line `#`, blanks, `| label: fig-a` in a python cell (the item's shape)", engine: "jupyter", build: (blanks) => `\`\`\`{python}\n#${blanks}| label: fig-a\n\`\`\`\n`, answer: (blanks) => [`fig-a@1:${blanks.length + 10}`] },
-    { site: "the same with TABS between the `#` and the `|`", engine: "jupyter", build: (blanks) => `\`\`\`{python}\n#${"\t".repeat(blanks.length)}| label: fig-a\n\`\`\`\n`, answer: (blanks) => [`fig-a@1:${blanks.length + 10}`] },
-    { site: "the same with a run of alternating blanks and tabs", engine: "jupyter", build: (blanks) => `\`\`\`{python}\n#${" \t".repeat(blanks.length / 2)}| label: fig-a\n\`\`\`\n`, answer: (blanks) => [`fig-a@1:${blanks.length + 10}`] },
+    { site: "the option line `#`, blanks, `| label: lst-a` in a python cell (the item's shape)", engine: "jupyter", build: (blanks) => `\`\`\`{python}\n#${blanks}| label: lst-a\n\`\`\`\n`, answer: (blanks) => [`lst-a@1:${blanks.length + 10}`] },
+    { site: "the same with TABS between the `#` and the `|`", engine: "jupyter", build: (blanks) => `\`\`\`{python}\n#${"\t".repeat(blanks.length)}| label: lst-a\n\`\`\`\n`, answer: (blanks) => [`lst-a@1:${blanks.length + 10}`] },
+    { site: "the same with a run of alternating blanks and tabs", engine: "jupyter", build: (blanks) => `\`\`\`{python}\n#${" \t".repeat(blanks.length / 2)}| label: lst-a\n\`\`\`\n`, answer: (blanks) => [`lst-a@1:${blanks.length + 10}`] },
     { site: "a knitr cell with a plot (the label is kept)", engine: "knitr", build: (blanks) => `\`\`\`{r}\n#${blanks}| label: fig-a\nplot(1)\n\`\`\`\n`, answer: (blanks) => [`fig-a@1:${blanks.length + 10}`] },
-    { site: "the run on the SECOND option line, after a label", engine: "jupyter", build: (blanks) => `\`\`\`{python}\n#| label: fig-a\n#${blanks}| fig-cap: x\n\`\`\`\n`, answer: () => ["fig-a@1:10"] },
-    { site: "a cell inside a list item (its indent is stripped first)", engine: "jupyter", build: (blanks) => `- item\n\n  \`\`\`{python}\n  #${blanks}| label: fig-a\n  \`\`\`\n`, answer: (blanks) => [`fig-a@3:${blanks.length + 12}`] },
+    { site: "the run on the SECOND option line, after a label", engine: "jupyter", build: (blanks) => `\`\`\`{python}\n#| label: lst-a\n#${blanks}| fig-cap: x\n\`\`\`\n`, answer: () => ["lst-a@1:10"] },
+    { site: "a cell inside a list item (its indent is stripped first)", engine: "jupyter", build: (blanks) => `- item\n\n  \`\`\`{python}\n  #${blanks}| label: lst-a\n  \`\`\`\n`, answer: (blanks) => [`lst-a@3:${blanks.length + 12}`] },
     // Control: the long run IS the gap (`#|`, blanks, the key). The search matches it at its first blank, so this was linear before and must stay so.
-    { site: "control: `#|`, blanks, then the key (the run is the gap itself)", engine: "jupyter", build: (blanks) => `\`\`\`{python}\n#|${blanks}label: fig-a\n\`\`\`\n`, answer: (blanks) => [`fig-a@1:${blanks.length + 9}`] },
+    { site: "control: `#|`, blanks, then the key (the run is the gap itself)", engine: "jupyter", build: (blanks) => `\`\`\`{python}\n#|${blanks}label: lst-a\n\`\`\`\n`, answer: (blanks) => [`lst-a@1:${blanks.length + 9}`] },
   ];
 
-  it.each(GAP_ROWS.map((row) => [row.site, row] as const))("%s: 100,000 blanks are read in linear time, and the answer is the same as the short run's", (_site, row) => {
+  it.each(GAP_ROWS.map((row) => [row.site, row] as const))("%s: 100,000 blanks are read in linear time, and the answer is the stated one at 2,000 blanks and at 100,000", (_site, row) => {
     const shortBlanks = " ".repeat(GAP_SHORTER);
     expect(labelsOf(row.build(shortBlanks), row.engine)).toEqual(row.answer(shortBlanks));
     const blanks = " ".repeat(GAP_BLANKS);

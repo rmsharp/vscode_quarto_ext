@@ -1,0 +1,274 @@
+[
+ {
+  "name": "R01 fold: a gap that CONTAINS a space, not one that starts with it",
+  "file": "src/core/refs.ts",
+  "from": "const foldedIndent = gap.startsWith(\" \") ? gap.length - 1 : gap.length;",
+  "to": "const foldedIndent = gap.includes(\" \") ? gap.length - 1 : gap.length;",
+  "expect": "killed",
+  "why": "a tab then a blank is two deep (the fold takes a blank off only a gap that STARTS with one): the behaviour row `#|<tab><blank>fig-cap` then `#|<blank><blank>label`"
+ },
+ {
+  "name": "R02 fold: the folded indent capped at 2",
+  "file": "src/core/refs.ts",
+  "from": "const foldedIndent = gap.startsWith(\" \") ? gap.length - 1 : gap.length;",
+  "to": "const foldedIndent = Math.min(gap.startsWith(\" \") ? gap.length - 1 : gap.length, 2);",
+  "expect": "killed",
+  "why": "gaps of 4 and 5 blanks are 3 and 4 deep, not both 2: the behaviour row with those gaps"
+ },
+ {
+  "name": "R03 fold: a tab counts as 8 columns",
+  "file": "src/core/refs.ts",
+  "from": "const foldedIndent = gap.startsWith(\" \") ? gap.length - 1 : gap.length;",
+  "to": "const foldedIndent = (gap.startsWith(\" \") ? gap.length - 1 : gap.length) + 7 * (gap.match(/\\t/g)?.length ?? 0);",
+  "expect": "killed",
+  "why": "a tab and two blanks are both one deep: the behaviour row `#|<tab>fig-cap` then `#|<blank><blank>label`"
+ },
+ {
+  "name": "R04 compare: only a depth that differs by exactly 1 is skipped",
+  "file": "src/core/refs.ts",
+  "from": "if (foldedIndent !== baseIndent) {",
+  "to": "if (Math.abs(foldedIndent - baseIndent) === 1) {",
+  "expect": "killed",
+  "why": "a key two columns deeper is skipped: the behaviour row `#| fig-cap` then `#|<3 blanks>label`"
+ },
+ {
+  "name": "R05 compare: depths of the same parity are the same depth",
+  "file": "src/core/refs.ts",
+  "from": "if (foldedIndent !== baseIndent) {",
+  "to": "if ((foldedIndent - baseIndent) % 2 !== 0) {",
+  "expect": "killed",
+  "why": "the same behaviour row: a depth that differs by 2 is a different depth"
+ },
+ {
+  "name": "R06 call site: the prefix capped at its last 4,096 characters",
+  "file": "src/core/refs.ts",
+  "from": "const gap = trailingBlanks(lineText.slice(0, keySlot.startCol));",
+  "to": "const gap = trailingBlanks(lineText.slice(0, keySlot.startCol).slice(-4096));",
+  "expect": "killed",
+  "why": "a different cure for the quadratic that changes the answer for gaps over 4,096: the behaviour rows with gaps of 5,000 and 6,000 blanks on two option lines (different depths, so no label) and of 5,000 and 5,000 (equal, so the label)"
+ },
+ {
+  "name": "R07 trailingBlanks: the old search below 40,000 characters, the scan above",
+  "file": "src/core/refs.ts",
+  "from": "return text.slice(trimEndBlanks(text).length);",
+  "to": "return text.length < 40_000 ? (/[ \\t]*$/.exec(text)?.[0] ?? \"\") : text.slice(trimEndBlanks(text).length);",
+  "expect": "killed",
+  "why": "answers identically but costs 1 s at 39,990 blanks; the near-miss rows now time a run of 20,000 as well (the old search takes 240 ms there, the limit is 100)"
+ },
+ {
+  "name": "R08 trailingBlanks: a hand-rolled scan that also takes U+2003 (EM SPACE)",
+  "file": "src/core/refs.ts",
+  "from": "return text.slice(trimEndBlanks(text).length);",
+  "to": "let end = text.length;\n  while (end > 0 && [0x20, 0x09, 0x2003].includes(text.charCodeAt(end - 1))) end--;\n  return text.slice(end);",
+  "expect": "killed",
+  "why": "the code-unit row: every UTF-16 code unit as the last character, after a blank, before a blank"
+ },
+ {
+  "name": "R09 trailingBlanks: a hand-rolled scan that also takes U+200B (ZERO WIDTH SPACE)",
+  "file": "src/core/refs.ts",
+  "from": "return text.slice(trimEndBlanks(text).length);",
+  "to": "let end = text.length;\n  while (end > 0 && [0x20, 0x09, 0x200b].includes(text.charCodeAt(end - 1))) end--;\n  return text.slice(end);",
+  "expect": "killed",
+  "why": "the code-unit row"
+ },
+ {
+  "name": "R10 trailingBlanks: a hand-rolled scan that also takes U+1680 (OGHAM SPACE MARK)",
+  "file": "src/core/refs.ts",
+  "from": "return text.slice(trimEndBlanks(text).length);",
+  "to": "let end = text.length;\n  while (end > 0 && [0x20, 0x09, 0x1680].includes(text.charCodeAt(end - 1))) end--;\n  return text.slice(end);",
+  "expect": "killed",
+  "why": "the code-unit row"
+ },
+ {
+  "name": "R11 trimEndBlanks: a space, a tab or U+2003 trimmed",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (end > 0 && (value.charCodeAt(end - 1) === 0x20 || value.charCodeAt(end - 1) === 0x09)) {",
+  "to": "while (end > 0 && (value.charCodeAt(end - 1) === 0x20 || value.charCodeAt(end - 1) === 0x09 || value.charCodeAt(end - 1) === 0x2003)) {",
+  "expect": "killed",
+  "why": "killed by trim-end-blanks.test.ts before; the code-unit row now kills it through trailingBlanks as well"
+ },
+ {
+  "name": "R12 equivalence file: the near-miss clock limit is 100,000 ms",
+  "file": "test/unit/cell-option-gap-equivalence.test.ts",
+  "from": "const NEAR_MISS_LIMIT_MS = 100;",
+  "to": "const NEAR_MISS_LIMIT_MS = 100_000;",
+  "expect": "killed",
+  "why": "with a limit of 100 s the old search (1.5 s at 50,000 blanks) passes the near-miss rows, so R-C01 is visible only in the other file: the sentinel row pins the limit"
+ },
+ {
+  "name": "R13 equivalence file: the million-blank size never runs",
+  "file": "test/unit/cell-option-gap-equivalence.test.ts",
+  "from": "const NEAR_MISS_SIZES = [20_000, 50_000, 1_000_000];",
+  "to": "const NEAR_MISS_SIZES = [20_000, 50_000];",
+  "expect": "killed",
+  "why": "a cap at 999,999 survives without the million: the sentinel row pins the sizes"
+ },
+ {
+  "name": "R14 equivalence file: the near-miss sizes are small",
+  "file": "test/unit/cell-option-gap-equivalence.test.ts",
+  "from": "const NEAR_MISS_SIZES = [20_000, 50_000, 1_000_000];",
+  "to": "const NEAR_MISS_SIZES = [500, 1_000];",
+  "expect": "killed",
+  "why": "at 1,000 blanks the old search is fast: the sentinel row pins the sizes"
+ },
+ {
+  "name": "R15 equivalence file: the trailing run is 2,000 blanks",
+  "file": "test/unit/cell-option-gap-equivalence.test.ts",
+  "from": "const TRAILING_RUN = 200_000;",
+  "to": "const TRAILING_RUN = 2_000;",
+  "expect": "killed",
+  "why": "the sentinel row pins the length"
+ },
+ {
+  "name": "R16 equivalence file: U+2029 replaced by a letter in the second alphabet",
+  "file": "test/unit/cell-option-gap-equivalence.test.ts",
+  "from": "const ALPHABET_B = [\" \", \"\\t\", \"\\r\", \"\\n\", LS, PS, NBSP];",
+  "to": "const ALPHABET_B = [\" \", \"\\t\", \"\\r\", \"\\n\", LS, \"a\", NBSP];",
+  "expect": "killed",
+  "why": "a letter in place of a character moves neither the string count nor the answered count: the sentinel row pins the alphabets by code point"
+ },
+ {
+  "name": "R17 equivalence file: the vertical tab replaced by a letter in the third alphabet",
+  "file": "test/unit/cell-option-gap-equivalence.test.ts",
+  "from": "const ALPHABET_C = [\" \", \"\\t\", \"\\v\", \"\\f\", NEL, IDEOGRAPHIC, BOM, \"x\"];",
+  "to": "const ALPHABET_C = [\" \", \"\\t\", \"a\", \"\\f\", NEL, IDEOGRAPHIC, BOM, \"x\"];",
+  "expect": "killed",
+  "why": "the sentinel row pins the alphabets by code point"
+ },
+ {
+  "name": "E01 helper: substring instead of slice",
+  "file": "src/core/refs.ts",
+  "from": "return text.slice(trimEndBlanks(text).length);",
+  "to": "return text.substring(trimEndBlanks(text).length);",
+  "expect": "survives",
+  "why": "substring(i) and slice(i) agree for 0 <= i <= length: equivalent"
+ },
+ {
+  "name": "E02 helper: || undefined",
+  "file": "src/core/refs.ts",
+  "from": "return text.slice(trimEndBlanks(text).length);",
+  "to": "return text.slice(trimEndBlanks(text).length || undefined);",
+  "expect": "survives",
+  "why": "slice(undefined) is slice(0): equivalent"
+ },
+ {
+  "name": "E03 helper: lookbehind-anchored search (a linear regex cure)",
+  "file": "src/core/refs.ts",
+  "from": "return text.slice(trimEndBlanks(text).length);",
+  "to": "return /(?<![ \\t])[ \\t]*$/.exec(text)?.[0] ?? \"\";",
+  "expect": "survives",
+  "why": "a lookbehind-anchored regular expression is another LINEAR spelling with identical answers: compared on 2,046,952 strings over three alphabets with none different (the helper at 1,000,000 blanks: 4.7 ms)"
+ },
+ {
+  "name": "E04 helper: guard for a text that ends in a space or a tab",
+  "file": "src/core/refs.ts",
+  "from": "return text.slice(trimEndBlanks(text).length);",
+  "to": "return text.endsWith(\" \") || text.endsWith(\"\\t\") ? text.slice(trimEndBlanks(text).length) : \"\";",
+  "expect": "survives",
+  "why": "the run is empty exactly when the text ends in neither a space nor a tab: equivalent"
+ },
+ {
+  "name": "E05 helper: guard for the empty text",
+  "file": "src/core/refs.ts",
+  "from": "return text.slice(trimEndBlanks(text).length);",
+  "to": "if (text.length === 0) {\n    return \"\";\n  }\n  return text.slice(trimEndBlanks(text).length);",
+  "expect": "survives",
+  "why": "the empty text has an empty run: equivalent"
+ },
+ {
+  "name": "E06 helper: guard when nothing was trimmed",
+  "file": "src/core/refs.ts",
+  "from": "return text.slice(trimEndBlanks(text).length);",
+  "to": "const kept = trimEndBlanks(text).length;\n  return kept === text.length ? \"\" : text.slice(kept);",
+  "expect": "survives",
+  "why": "nothing trimmed means an empty run: equivalent"
+ },
+ {
+  "name": "E07 helper: the run capped at 1,000,000 (the longest the tests build)",
+  "file": "src/core/refs.ts",
+  "from": "return text.slice(trimEndBlanks(text).length);",
+  "to": "return text.slice(trimEndBlanks(text).length).slice(0, 1_000_000);",
+  "expect": "survives",
+  "why": "the run capped at 1,000,000: the boundary of the longest run any row builds, so no finite row kills it (a cap at 999,999 is killed, by the run-is-the-gap row)"
+ },
+ {
+  "name": "E08 fold: replace(/^ /) length",
+  "file": "src/core/refs.ts",
+  "from": "const foldedIndent = gap.startsWith(\" \") ? gap.length - 1 : gap.length;",
+  "to": "const foldedIndent = gap.replace(/^ /, \"\").length;",
+  "expect": "survives",
+  "why": "replace(/^ /, '').length is the same fold: equivalent (8,191 gaps compared)"
+ },
+ {
+  "name": "E09 fold: Math.max(gap.length - 1, 0)",
+  "file": "src/core/refs.ts",
+  "from": "const foldedIndent = gap.startsWith(\" \") ? gap.length - 1 : gap.length;",
+  "to": "const foldedIndent = gap.startsWith(\" \") ? Math.max(gap.length - 1, 0) : gap.length;",
+  "expect": "survives",
+  "why": "a gap that starts with a space has length >= 1, so Math.max(.., 0) changes nothing: equivalent"
+ },
+ {
+  "name": "E10 base: also set on the first option line",
+  "file": "src/core/refs.ts",
+  "from": "if (baseIndent === null) {",
+  "to": "if (baseIndent === null || isFirstOptionLine) {",
+  "expect": "survives",
+  "why": "the first option line that reaches the fold is the first real key, where baseIndent is still null: equivalent"
+ },
+ {
+  "name": "E11 site: the prefix cut one character in at the start",
+  "file": "src/core/refs.ts",
+  "from": "const gap = trailingBlanks(lineText.slice(0, keySlot.startCol));",
+  "to": "const gap = trailingBlanks(lineText.slice(1, keySlot.startCol));",
+  "expect": "survives",
+  "why": "the prefix is the opener, [ \\t]*, a pipe and the gap, and no opener holds a blank, so a prefix cut one character in still ends in the same run: equivalent (599,186 real option lines compared)"
+ },
+ {
+  "name": "E12 site: the end taken from the key's end column and length",
+  "file": "src/core/refs.ts",
+  "from": "const gap = trailingBlanks(lineText.slice(0, keySlot.startCol));",
+  "to": "const gap = trailingBlanks(lineText.slice(0, keySlot.endCol - keyToken.length));",
+  "expect": "survives",
+  "why": "keyToken is lineText.slice(startCol, endCol): equivalent"
+ },
+ {
+  "name": "E13 site: raw line sliced from the removed indent",
+  "file": "src/core/refs.ts",
+  "from": "const gap = trailingBlanks(lineText.slice(0, keySlot.startCol));",
+  "to": "const gap = trailingBlanks(rawLine.slice(removed, removed + keySlot.startCol));",
+  "expect": "survives",
+  "why": "lineText is rawLine.slice(removed): equivalent"
+ },
+ {
+  "name": "E14 site: the inline form (slice from trimEndBlanks)",
+  "file": "src/core/refs.ts",
+  "from": "const gap = trailingBlanks(lineText.slice(0, keySlot.startCol));",
+  "to": "const gap = lineText.slice(trimEndBlanks(lineText.slice(0, keySlot.startCol)).length, keySlot.startCol);",
+  "expect": "survives",
+  "why": "the helper written inline: equivalent"
+ },
+ {
+  "name": "E15 site: the line before the key's first character, minus the comment run",
+  "file": "src/core/refs.ts",
+  "from": "const gap = trailingBlanks(lineText.slice(0, keySlot.startCol));",
+  "to": "const gap = trailingBlanks(lineText.slice(0, keySlot.startCol).replace(/^#+/, \"\"));",
+  "expect": "survives",
+  "why": "the strip touches only leading hashes and the run is trailing: equivalent"
+ },
+ {
+  "name": "E16 site: trimEnd() where the call site reads the prefix",
+  "file": "src/core/refs.ts",
+  "from": "const gap = trailingBlanks(lineText.slice(0, keySlot.startCol));",
+  "to": "const prefix = lineText.slice(0, keySlot.startCol);\n      const gap = prefix.slice(prefix.trimEnd().length);",
+  "expect": "survives",
+  "why": "the prefix is comment characters, [ \\t]*, a pipe and [ \\t]*, so it ends in blanks and trimEnd() strips the same run: equivalent"
+ },
+ {
+  "name": "E17 trimEndBlanks: end >= 0 (reads charCodeAt(-1) = NaN)",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (end > 0 && (value.charCodeAt(end - 1) === 0x20 || value.charCodeAt(end - 1) === 0x09)) {",
+  "to": "while (end >= 0 && (value.charCodeAt(end - 1) === 0x20 || value.charCodeAt(end - 1) === 0x09)) {",
+  "expect": "survives",
+  "why": "trimEndBlanks reading charCodeAt(-1), which is NaN and equals neither blank: equivalent"
+ }
+]
