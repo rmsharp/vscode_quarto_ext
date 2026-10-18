@@ -298,15 +298,15 @@
  {
   "name": "R01 OUTPUT_CREATED_LINE: the blanks after the colon are spaces only",
   "file": "src/core/render-args.ts",
-  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\r\\u2028\\u2029]*)/g;",
-  "to": "const OUTPUT_CREATED_LINE = /Output created:([ ]*)([^\\n\\r\\u2028\\u2029]*)/g;",
+  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)(.*)/g;",
+  "to": "const OUTPUT_CREATED_LINE = /Output created:([ ]*)(.*)/g;",
   "expect": "killed",
   "why": "a path after a tab keeps the tab: the readable rows and the enumerations"
  },
  {
   "name": "R02 OUTPUT_CREATED_LINE: a CR does not end the line",
   "file": "src/core/render-args.ts",
-  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\r\\u2028\\u2029]*)/g;",
+  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)(.*)/g;",
   "to": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\u2028\\u2029]*)/g;",
   "expect": "killed",
   "why": "`Output created: a<CR>b` answers `a\\rb`: the enumeration"
@@ -314,7 +314,7 @@
  {
   "name": "R03 OUTPUT_CREATED_LINE: U+2028 does not end the line",
   "file": "src/core/render-args.ts",
-  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\r\\u2028\\u2029]*)/g;",
+  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)(.*)/g;",
   "to": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\r\\u2029]*)/g;",
   "expect": "killed",
   "why": "`Output created: a<U+2028>b` answers `a<U+2028>b`: the enumeration and the readable row"
@@ -322,7 +322,7 @@
  {
   "name": "R04 OUTPUT_CREATED_LINE: U+2029 does not end the line",
   "file": "src/core/render-args.ts",
-  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\r\\u2028\\u2029]*)/g;",
+  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)(.*)/g;",
   "to": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\r\\u2028]*)/g;",
   "expect": "killed",
   "why": "the second token set holds U+2029: the enumeration"
@@ -330,7 +330,7 @@
  {
   "name": "R05 OUTPUT_CREATED_LINE: a LF does not end the line",
   "file": "src/core/render-args.ts",
-  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\r\\u2028\\u2029]*)/g;",
+  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)(.*)/g;",
   "to": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\r\\u2028\\u2029]*)/g;",
   "expect": "killed",
   "why": "the line runs on into the next line: the readable rows"
@@ -338,16 +338,16 @@
  {
   "name": "R06 OUTPUT_CREATED_LINE: the rest of the line needs a character",
   "file": "src/core/render-args.ts",
-  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\r\\u2028\\u2029]*)/g;",
-  "to": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\r\\u2028\\u2029]+)/g;",
+  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)(.*)/g;",
+  "to": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)(.+)/g;",
   "expect": "killed",
   "why": "a line of blanks after the colon gives back a blank to the rest and answers an empty string: the readable rows"
  },
  {
   "name": "R07 OUTPUT_CREATED_LINE: not global",
   "file": "src/core/render-args.ts",
-  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\r\\u2028\\u2029]*)/g;",
-  "to": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)([^\\n\\r\\u2028\\u2029]*)/;",
+  "from": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)(.*)/g;",
+  "to": "const OUTPUT_CREATED_LINE = /Output created:([ \\t]*)(.*)/;",
   "expect": "killed",
   "why": "matchAll refuses a non-global pattern: every row"
  },

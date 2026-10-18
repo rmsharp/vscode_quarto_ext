@@ -62,11 +62,11 @@ export function buildCacheRefreshArgs(file: string): string[] {
 const ANSI_PATTERN = /\x1b\[[0-9;]*m/g;
 
 /**
- * The marker, the blanks after it, and the rest of the line (up to a `\n`, `\r`, U+2028 or
- * U+2029, which is where `.` and a multiline `$` stop). Nothing here can backtrack: the path's
- * trailing blanks are cut by `parseOutputPath` itself.
+ * The marker, the blanks after it, and the rest of the line (`.` stops at a line terminator,
+ * which is where a multiline `$` stops too). Nothing here can backtrack: the path's trailing
+ * blanks are cut by `parseOutputPath` itself.
  */
-const OUTPUT_CREATED_LINE = /Output created:([ \t]*)([^\n\r\u2028\u2029]*)/g;
+const OUTPUT_CREATED_LINE = /Output created:([ \t]*)(.*)/g;
 
 /**
  * Extract the output path from a successful `quarto render` run.

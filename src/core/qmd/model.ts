@@ -276,7 +276,7 @@ const COMMONMARK_LIST_MARKER = /^[ \t]*(?:[-+*]|\d{1,9}[.)])(?:[ \t]|$)/;
  * ⚠ **A search starts only at the beginning of a run of blanks (Session 320).** This is an unanchored search that used to begin with `[ \t]+`, so a heading with n blanks inside it was tried from
  * every one of them and each try read the rest of the run (`x`, 32,000 blanks, `y`: 620 ms in one `exec`; no hash needed). The match that `text.replace` removes is the leftmost one, and a match from
  * the middle of a run always implies one from its first blank, which is further left, so `(?<![ \t])` loses no match and moves none: the index and the match are the same on every string
- * (`blank-tail-equivalence.test.ts` holds the old spelling as the oracle). `ATX_CLOSING_PANDOC` has its own quadratic, on a long `#` run, filed apart.
+ * (`blank-tail-equivalence.test.ts` holds the old spelling as the oracle).
  */
 export const ATX_CLOSING = /(?:^|(?<![ \t])[ \t]+)#+[ \t]*$/;
 /**
@@ -308,6 +308,9 @@ export const ATX_CLOSING = /(?:^|(?<![ \t])[ \t]+)#+[ \t]*$/;
  *
  * ⚠ The surviving backslashes stay in the text — this constant only decides WHERE the run is.
  * `decodeHeadingEscapes` then halves them, which is why `d_md_run2` ends as one backslash.
+ *
+ * ⚠ **Quadratic on a long `#` run inside the heading text** (1,273 ms for 20,000 hashes through `findHeadings`) **and, at about half the cost, on a long backslash run.** Open work: BACKLOG, the Session 318
+ * item, part (2).
  */
 const ATX_CLOSING_PANDOC = /(?<=(?:^|[^\\])(?:\\\\)*)#+[ \t]*$/;
 /**
@@ -4973,11 +4976,11 @@ const LINE_BLOCK_CONTINUATION = /^[ \t]+/;
  * never matched, and a pipe delimiter whose trailing whitespace is a FORM FEED. Each armed the
  * line-block rule on a table body row and invented the heading below it.
  *
- * ⚠ **No two blank runs touch (Session 320).** The pipe body gave every cell its own trailing `[ \t]*` and then allowed `\|?` and the shared `\s*`, and the grid body's `[-+=: ]*` shares the
- * space with `\s*`: with nothing further, two runs sat side by side, so for n blanks and ANY character that ended the match (not only a terminator) the engine tried all n+1 ways to split them
- * and each split re-read the second run (`-`, 32,000 blanks, a letter: 617 ms in one `exec`; a document costs twice that, every body line is tested twice). Each blank run now sits in front of the
- * pipe it belongs to, as in `PIPE_DELIMITER_ROW`, and the grid body ends in a character that is not a space or in nothing, so the blanks after it belong to `\s*` alone. The strings accepted are
- * the same (`blank-tail-equivalence.test.ts` holds the old spelling as the oracle); callers read `.test` only.
+ * ⚠ **No two blank runs touch (Session 320).** The pipe body takes `PIPE_DELIMITER_ROW`'s spelling (each blank run sits in front of the pipe it belongs to; its docstring has the argument), and the grid
+ * body's `[-+=: ]*` shared its space with the `\s*` after it in the same way, so it now ends in a character that is not a space, or in nothing, and the blanks after it belong to `\s*` alone. For n
+ * blanks and ANY character that ended the match (not only a terminator) the old spelling tried all n+1 ways to split them and each split re-read the second run (`-`, 32,000 blanks, a letter: 617 ms in
+ * one `exec`; a document costs twice that, every body line is tested twice). The strings accepted are the same (`blank-tail-equivalence.test.ts` holds the old spelling as the oracle); callers read
+ * `.test` only.
  */
 export const TABLE_RULE_ROW =
   /^ {0,3}(?:\|?[ \t]*:?-+:?(?:[ \t]*\|[ \t]*:?-+:?)*(?:[ \t]*\|)?|\+(?:[-+=: ]*[-+=:])?)\s*$/;
@@ -7280,6 +7283,7 @@ function knitrDocumentDefaults(lines: readonly string[]): KnitrDocDefaults {
     if (!rest.startsWith(`${key}:`)) {
       return null;
     }
+    // The same strip as in `readMapping` above (Session 320).
     const value = cutHashComment(rest.slice(key.length + 1), " \t").trim();
     return value === "" ? "block" : value.startsWith("{") ? "flow" : null;
   };
