@@ -29,6 +29,10 @@ g02's fifth session (operator chose it at the Phase 0 picker; claim `c956feb5`).
 - **Left, in BACKLOG:** B89 parts (6a) nesting depth and (8) `insideHtmlComment`, `ATX_CLOSING_PANDOC`, `TABLE_RULE_ROW`'s group per cell, the Session 317, 318 and 319 items; `test:integration` NOT run (eleven sessions).
 - **Model:** Claude Sonnet 5.5.
 
+### 2026-10-18 · [ad hoc] Session 321: cite the quality-gate run in the receipt and the ledger (2/2 pass at 5e4870fe)
+
+`quality_ratchet.py --run` after the ledger commit `5e4870fe` (the first run, at the trim commit, read ledger-lag 1 and failed until the trim had its entry): 2/2 pass, 0 fail, 0 unmeasured, results bba236856bad, manifest 334939914945, head 5e4870fe (ledger-lag 0; release-gate is `npm run check-package`, 0). The `HANDOFFS.md` receipt's `quality_ratchet` line now carries the citation (`methodology/.quality-gates-results.json` is not tracked: the run is read from the file on disk).
+
 ### 2026-10-18 · [BL-Other regexes still quadratic on a long run of blanks, CR or U+2028 after Session 312: a sweep's list, the code-cell header tail first] Session 321: the review round (`wf_43a50d7c-b48`) -- four lenses, what they found, what changed, and the commit message that stays wrong
 
 Four read-only lenses on a pinned copy (973,248 subagent tokens, 352 tool calls, about 1.7 hours); every finding reproduced firsthand before acting. **Equivalence:** no difference in about 108 million strings and 3.1 million document and engine pairs (edited copies of the helper as controls). **Performance:** no new superlinear site in 817 shapes and 554 regex sources, every one it re-found already in BACKLOG. **Mutation:** 190 mutants invented, 5 test gaps. **Records:** 9 findings.
