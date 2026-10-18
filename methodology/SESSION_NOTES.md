@@ -30,7 +30,8 @@ run it with `--timeout 60`, H08 never ends and the default costs 10 minutes. A k
 (11) Real-document score: `REALDOC_DATA=scratchpad/s265 REALDOC_ORDINALS=scratchpad/s251/realfiles.txt tools/realdoc-score/run.sh head` prints 2423 of 2438 (99.38%), 15 divergent; unchanged by this session.
 (12) The plan: update its status column and "Current position" at each close-out; its key count command (`sed -n '/^## Where each key went/,$p' ... | grep -o 'B[0-9]\+' | sort -u | wc -l`) prints 221 (filed items carry no key).
 (13) A sweep lens with a wide brief (148 shapes) ran about 1 h 15 min at load up to 196 and ended only when asked to wrap up (`SendMessage`);
-its shell script kept launching runs after its report (killed): bound a sweep lens by shapes and minutes, and check `ps` for its scripts.
+its detached scripts (`passE2.sh` to `passG.sh`) kept launching runs for an hour after its report, and the records lens left two vitest pools spinning:
+bound a sweep lens by shapes and minutes, and check `ps` (and `lsof -d cwd` for a vitest parent) for what a review round left behind before closing out.
 (14) `governingMetadataContent` (so `midDocumentMetadataBlocks` and `quartoYamlRegions`) runs 2 to 3 times per scan: about 12% of `findHeadings` at 64,000 blocks, no asymptotic cost; left alone (CHANGELOG), not filed.
 `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices. macOS `sed` rejects `|` as a delimiter and `sed -i` needs `''`. After answering a direct question, STOP and wait (memory).
 
