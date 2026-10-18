@@ -29,6 +29,10 @@ g02's fourth session (operator chose it at the Phase 0 picker; claim `9d0ffbcb`)
 - **Left, in BACKLOG:** `ATX_CLOSING_PANDOC` on a `#` run or a backslash run (S318 item, part (2)); `TABLE_RULE_ROW`'s group per cell (S317 item, part (4)); B89 part (3) is the next session; `test:integration` NOT run (ten sessions).
 - **Model:** Claude Sonnet 5.5.
 
+### 2026-10-17 · [ad hoc] Session 320: cite the quality-gate run in the receipt and the ledger (2/2 pass at 139fb8e3)
+
+`quality_ratchet.py --run` after the ledger commit `139fb8e3`: 2/2 pass, 0 fail, 0 unmeasured, results bba236856bad, manifest 334939914945, head 139fb8e3 (ledger-lag 0; release-gate is `npm run check-package`, 0). The `HANDOFFS.md` receipt's `quality_ratchet` line now carries the citation (`methodology/.quality-gates-results.json` is not tracked: the run is read from the file on disk).
+
 ### 2026-10-17 · [BL-Other regexes still quadratic on a long run of blanks, CR or U+2028 after Session 312: a sweep's list, the code-cell header tail first] Session 320: the review round (`wf_90077d8c-979`) -- five lenses, what they found, what changed, and the commit messages that stay wrong
 
 Five read-only lenses on pinned worktrees (1,454,540 subagent tokens, 507 tool calls, about 2.2 hours); every finding reproduced firsthand before acting. **Equivalence:** no difference in about 1.52 billion strings and 472,000 documents (25 control mutants; `TABLE_RULE_ROW` also proven equal by a product-automaton search). **Performance:** no new quadratic input; the stack-overflow threshold is unchanged. **Mutation:** 124 new mutants; 19 real source survivors and 28 of 38 test-file mutants. **Records:** 14 findings. **Simplify:** 13 notes.
