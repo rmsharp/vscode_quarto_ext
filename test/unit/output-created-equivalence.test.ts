@@ -30,7 +30,7 @@ const TOKENS_B = [PREFIX, " ", "x", "\t", PS, "\f", NBSP, "\x1b[0m", "\r\n"] as 
 /** How many sequences of each enumeration the OLD function answers (not null), counted from the old function alone, so a comparison cannot pass by both sides answering nothing (the two enumerated counts were also taken with Python's `re`, `.` and `$` spelled out). */
 const ANSWERED = { a: 167_190, b: 197_610, seeded: 41_371 };
 
-function compareOutputs(outputs: Iterable<string>): { compared: number; answered: number; disagreements: string[] } {
+function compareOutputs(outputs: Iterable<string>, now: (output: string) => string | null = parseOutputPath): { compared: number; answered: number; disagreements: string[] } {
   let compared = 0;
   let answered = 0;
   const disagreements: string[] = [];
@@ -38,7 +38,7 @@ function compareOutputs(outputs: Iterable<string>): { compared: number; answered
     const expected = oldParseOutputPath(output);
     compared++;
     if (expected !== null) answered++;
-    if (parseOutputPath(output) !== expected && disagreements.length < 5) disagreements.push(JSON.stringify(output));
+    if (now(output) !== expected && disagreements.length < 5) disagreements.push(JSON.stringify(output));
   }
   return { compared, answered, disagreements };
 }
@@ -66,6 +66,37 @@ describe("Session 320 — parseOutputPath answers what the lazy pattern answered
   ])("%s", (_name, output, expected) => {
     expect(oldParseOutputPath(output)).toBe(expected);
     expect(parseOutputPath(output)).toBe(expected);
+  });
+
+  // Session 320 review: shapes the token alphabets cannot spell (the marker is ONE token, so no sequence holds a marker in the wrong case or without its colon), characters outside every alphabet (a next-line
+  // character and a vertical tab are neither a blank nor a terminator of the lazy pattern), and runs and outputs longer than a sampled string. Each source mutant of these (a case-insensitive marker, an
+  // optional colon, a class that also takes U+0085 or a vertical tab, a cap of 4,096 on the blank run, a cap on the whole output) answered the rows above as before.
+  it.each([
+    ["a blank-only line of 50,000 blanks answers its last blank", `${PREFIX}${" ".repeat(50_000)}`, " "],
+    ["5,000 blanks and then a path", `${PREFIX}${" ".repeat(5_000)}a`, "a"],
+    ["a marker after 1,100,000 characters", `${"x".repeat(1_100_000)}\n${PREFIX} a`, "a"],
+    ["a lower-case marker is no marker", "output created: a.html", null],
+    ["a marker without its colon is no marker", "Output created a.html", null],
+    ["a next-line character is part of the path", "Output created: a\u0085b", "a\u0085b"],
+    ["a vertical tab is part of the path", "Output created: a\vb", "a\vb"],
+    ["a vertical tab is not a blank in front of the path", "Output created:\va", "\va"],
+    ["a vertical tab is not a trailing blank", "Output created: a\v", "a\v"],
+  ])("%s", (_name, output, expected) => {
+    expect(oldParseOutputPath(output)).toBe(expected);
+    expect(parseOutputPath(output)).toBe(expected);
+  });
+
+  // The oracle is kept as written: a later tidy-up that replaced its body with a call to the function under test would turn every comparison in this file into the new function against itself, and the
+  // pinned counts would not notice (they count what the oracle answers, which is the same). The substring test is the row that does (Learning 780).
+  it("keeps the oracle the lazy pattern and not the function under test", () => {
+    expect(oldParseOutputPath.toString()).toContain("(.+?)");
+    expect(oldParseOutputPath.toString()).not.toContain("parseOutputPath(");
+  });
+
+  // The comparer is a helper like any other: given a function that answers wrongly it must say so, and count what it compared and what the oracle answered.
+  it("compareOutputs counts the outputs and the answers, and records a disagreement", () => {
+    expect(compareOutputs(["Output created: a", "x"], () => "b")).toEqual({ compared: 2, answered: 1, disagreements: ['"Output created: a"', '"x"'] });
+    expect(compareOutputs(["Output created: a", "x"], oldParseOutputPath)).toEqual({ compared: 2, answered: 1, disagreements: [] });
   });
 
   // The answer of the old function on a line that holds a long run is checked at 1,000 characters (a millisecond for it); the new function is TIMED on the same shapes at 50,000 (the old one takes seconds a line there).
