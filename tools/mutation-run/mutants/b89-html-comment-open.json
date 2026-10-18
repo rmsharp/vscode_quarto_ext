@@ -1,0 +1,162 @@
+[
+ {
+  "name": "H01 htmlCommentOpenAt: never reads again from the top",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (line < scanned) {",
+  "to": "if (false) {",
+  "expect": "killed",
+  "why": "a line before the one last asked answers the state of the later one: the named re-read row and the descending and zigzag orders of every enumeration"
+ },
+ {
+  "name": "H02 htmlCommentOpenAt: reads again from the top when the same line is asked twice",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (line < scanned) {",
+  "to": "if (line <= scanned) {",
+  "expect": "killed",
+  "why": "no answer changes, so cost tells it: the production caller never asks one line twice, and the repeated-ask clock row (2,000 asks of the last line of 20,000) fails when a line equal to the last one reads again from the top"
+ },
+ {
+  "name": "H03 htmlCommentOpenAt: the re-read keeps the comment state",
+  "file": "src/core/qmd/model.ts",
+  "from": "      scanned = 0;\n      open = false;\n    }",
+  "to": "      scanned = 0;\n    }",
+  "expect": "killed",
+  "why": "an earlier line asked after a later one inherits the later state: the descending and zigzag orders of every enumeration and the named re-read row"
+ },
+ {
+  "name": "H04 htmlCommentOpenAt: the re-read keeps its place",
+  "file": "src/core/qmd/model.ts",
+  "from": "      scanned = 0;\n      open = false;\n    }",
+  "to": "      open = false;\n    }",
+  "expect": "killed",
+  "why": "the earlier line is never read again, so its answer is false whatever it holds: the named re-read row and the descending order"
+ },
+ {
+  "name": "H05 htmlCommentOpenAt: a line past the end is read as far as asked",
+  "file": "src/core/qmd/model.ts",
+  "from": "Math.min(line, lines.length)",
+  "to": "line",
+  "expect": "killed",
+  "why": "lines[scanned] is undefined past the end and its length is read: the past-the-end rows and the enumerations' last two lines"
+ },
+ {
+  "name": "H06 htmlCommentOpenAt: reads the line asked about as well",
+  "file": "src/core/qmd/model.ts",
+  "from": "scanned < end; scanned++",
+  "to": "scanned <= end; scanned++",
+  "expect": "killed",
+  "why": "a comment opened or closed ON the line asked is counted: the closing-line row and the enumerations"
+ },
+ {
+  "name": "H07 htmlCommentOpenAt: skips every second line",
+  "file": "src/core/qmd/model.ts",
+  "from": "scanned < end; scanned++",
+  "to": "scanned < end; scanned += 2",
+  "expect": "killed",
+  "why": "the enumerations and the multi-line rows"
+ },
+ {
+  "name": "H08 htmlCommentOpenAt: the closer is searched from the line's start",
+  "file": "src/core/qmd/model.ts",
+  "from": "lines[scanned].indexOf(\"-->\", at)",
+  "to": "lines[scanned].indexOf(\"-->\")",
+  "expect": "killed",
+  "why": "a closer before the opener on one line closes it, and the loop never ends on `--><!--`: killed by timeout (run this list with --timeout 60, not the default 600)"
+ },
+ {
+  "name": "H09 htmlCommentOpenAt: steps over four after a closer and three after an opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "at = next + (open ? 3 : 4);",
+  "to": "at = next + (open ? 4 : 3);",
+  "expect": "killed",
+  "why": "`<!-->` and `--><!--` read differently: the named rows and the enumerations"
+ },
+ {
+  "name": "H10 htmlCommentOpenAt: steps over four after a closer too",
+  "file": "src/core/qmd/model.ts",
+  "from": "at = next + (open ? 3 : 4);",
+  "to": "at = next + 4;",
+  "expect": "killed",
+  "why": "a closer's last-but-one character can start an opener (`--><!--`): the line shape and the token enumeration"
+ },
+ {
+  "name": "H11 htmlCommentOpenAt: steps over three after an opener too",
+  "file": "src/core/qmd/model.ts",
+  "from": "at = next + (open ? 3 : 4);",
+  "to": "at = next + 3;",
+  "expect": "killed",
+  "why": "`<!--->` closes at once: the named row and the character enumeration"
+ },
+ {
+  "name": "H12 htmlCommentOpenAt: every marker opens",
+  "file": "src/core/qmd/model.ts",
+  "from": "        open = !open;\n",
+  "to": "        open = true;\n",
+  "expect": "killed",
+  "why": "a closer never closes: the closed-comment rows and the enumerations"
+ },
+ {
+  "name": "H13 htmlCommentOpenAt: starts with a comment open",
+  "file": "src/core/qmd/model.ts",
+  "from": "let open = false;\n  return (line) => {",
+  "to": "let open = true;\n  return (line) => {",
+  "expect": "killed",
+  "why": "line 0 answers open: the named row and every enumeration"
+ },
+ {
+  "name": "H14 htmlCommentOpenAt: starts reading at the second line",
+  "file": "src/core/qmd/model.ts",
+  "from": "let scanned = 0;\n  let open = false;\n  return (line) => {",
+  "to": "let scanned = 1;\n  let open = false;\n  return (line) => {",
+  "expect": "killed",
+  "why": "a comment opened on the first line is never seen: the named rows and the enumerations"
+ },
+ {
+  "name": "W01 midDocumentMetadataBlocks: a new reader for every block",
+  "file": "src/core/qmd/model.ts",
+  "from": "|| commentOpenAt(region.startLine)) {",
+  "to": "|| htmlCommentOpenAt(lines)(region.startLine)) {",
+  "expect": "killed",
+  "why": "no answer changes, so cost tells it: each block reads from the top again, the quadratic spelling put back: the document rows at 8,000 blocks"
+ },
+ {
+  "name": "W02 midDocumentMetadataBlocks: asks about the line after the block's opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "|| commentOpenAt(region.startLine)) {",
+  "to": "|| commentOpenAt(region.startLine + 1)) {",
+  "expect": "survives",
+  "why": "equivalent: the line asked about is the block's own `---` (three dashes and blanks, nothing else), which holds no marker, so reading one more line adds nothing"
+ },
+ {
+  "name": "W03 midDocumentMetadataBlocks: a block outside the front matter is skipped only inside a comment",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (region.startLine <= firstContent || commentOpenAt(region.startLine)) {",
+  "to": "if (region.startLine <= firstContent && commentOpenAt(region.startLine)) {",
+  "expect": "killed",
+  "why": "the front matter block is read as a mid-document block and a block in a comment is read: the existing qmd-model rows"
+ },
+ {
+  "name": "W04 midDocumentMetadataBlocks: asks the comment question first",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (region.startLine <= firstContent || commentOpenAt(region.startLine)) {",
+  "to": "if (commentOpenAt(region.startLine) || region.startLine <= firstContent) {",
+  "expect": "survives",
+  "why": "equivalent: a block that opens the document starts before or on the first content line, and every line above that is blank, so no marker is read and the cursor only moves on a little earlier"
+ },
+ {
+  "name": "W05 midDocumentMetadataBlocks: the reader sees the lines from the first content line",
+  "file": "src/core/qmd/model.ts",
+  "from": "const commentOpenAt = htmlCommentOpenAt(lines);",
+  "to": "const commentOpenAt = htmlCommentOpenAt(lines.slice(firstContent));",
+  "expect": "killed",
+  "why": "a document that starts with blank lines and has a `<!--` in the block's own line: the cursor is handed lines shifted by the blank lines, reads the marker and refuses the block (the two- and three-blank-line rows)"
+ },
+ {
+  "name": "W06 midDocumentMetadataBlocks: the reader sees the lines from the second line",
+  "file": "src/core/qmd/model.ts",
+  "from": "const commentOpenAt = htmlCommentOpenAt(lines);",
+  "to": "const commentOpenAt = htmlCommentOpenAt(lines.slice(1));",
+  "expect": "killed",
+  "why": "every line number is one out: a comment opened on line 0 is never seen (the line-0 comment row)"
+ }
+]

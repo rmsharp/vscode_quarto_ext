@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { htmlCommentOpenAt } from "../../src/core/qmd/model";
+import { findHeadings, htmlCommentOpenAt } from "../../src/core/qmd/model";
 import { quartoYamlRegions } from "../../src/core/qmd/quarto-yaml-regions";
 import { countStrings, everyString, seededRandom } from "./support/regex-equivalence";
 
@@ -28,6 +28,9 @@ const CHARACTER_LIMIT = 8;
 const SEEDED_DOCUMENTS = 100_000;
 const LINEAR_LINES = 200_000;
 const LINEAR_LIMIT_MS = 500;
+const REPEAT_LINES = 20_000;
+const REPEAT_ASKS = 2_000;
+const REPEAT_LIMIT_MS = 100;
 
 /**
  * How many (document, line asked) pairs the OLD spelling answers `true` for, in ascending order: a comparison cannot pass by both answering `false` everywhere. The first three are counted again by a separate
@@ -194,11 +197,60 @@ describe("Session 322 — htmlCommentOpenAt answers what the rescan from the top
     expect(took).toBeLessThan(LINEAR_LIMIT_MS);
   });
 
+  // A caller that asks one line twice must not read again. No answer tells the two apart (a closure that starts over whenever the line is not later than the last one answers the same), so the clock does:
+  // 2,000 asks of the last line of a 20,000-line document are 40 million line reads that way and none this way.
+  it("answers the same far line 2,000 times without reading again", () => {
+    const lines: string[] = [];
+    for (let i = 0; i < REPEAT_LINES; i++) lines.push(i % 2 === 0 ? "a <!-- b" : "c --> d");
+    const openAt = htmlCommentOpenAt(lines);
+    const started = performance.now();
+    let opens = 0;
+    for (let ask = 0; ask < REPEAT_ASKS; ask++) {
+      if (openAt(REPEAT_LINES)) opens++;
+    }
+    const took = performance.now() - started;
+    expect(opens).toBe(0);
+    expect(took).toBeLessThan(REPEAT_LIMIT_MS);
+  });
+
   // A limit of 100 s, or 2,000 lines, would pass the rescan too, and a letter put in an alphabet in place of a character moves neither its string count nor its answered count.
   it("keeps the limits, the sizes and the alphabets the rows above are built on", () => {
     expect([LINE_LIST_LIMIT, TOKEN_LIST_LIMIT, CHARACTER_LIMIT, SEEDED_DOCUMENTS, LINEAR_LINES, LINEAR_LIMIT_MS]).toEqual([6, 9, 8, 100_000, 200_000, 500]);
+    expect([REPEAT_LINES, REPEAT_ASKS, REPEAT_LIMIT_MS]).toEqual([20_000, 2_000, 100]);
     expect(CHARACTER_ALPHABET).toEqual(["<", "!", "-", ">", "\n"]);
     expect(TOKEN_ALPHABET).toEqual(["<!--", "-->", "x", "\n"]);
     expect(LINE_SHAPES).toEqual(["", "x", "<!--", "-->", "<!-- -->", "--><!--"]);
+  });
+});
+
+// The rows above test the helper. These test the place that asks it, through the public `findHeadings`: a `from: gfm` in a metadata block that is READ lets the pressed heading (an ATX heading on the line after
+// a prose line) count, and in a block that is REFUSED it does not, so the pressed heading in `BODY` says which happened. Every answer is the parent build's (the rescan from the top), taken from a built copy of it.
+describe("Session 322 — through findHeadings, a metadata block is read or refused where the rescan read or refused it", () => {
+  const doc = (...lines: string[]): string => lines.join("\n") + "\n";
+  const names = (text: string): string[] => findHeadings(text).map((heading) => `h${heading.level}:${heading.text}`);
+  const BODY = ["", "Lead prose line.", "# Pressed Heading", "", "## Control Heading"];
+  const FM = ["---", "title: Doc", "---"];
+  const READ = ["h2:from: gfm", "h1:Pressed Heading", "h2:Control Heading"];
+  const REFUSED = ["h2:Control Heading"];
+
+  it.each([
+    ["a block below the front matter is read", doc(...FM, "", "Prose one.", "", "---", "from: gfm", "---", ...BODY), READ],
+    // The comment opens on line 0, so a reader that starts at the second line, or at the first content line, never sees it.
+    ["a comment that opens on line 0 holds the block", doc("<!--", "Prose one.", "", "---", "from: gfm", "---", "", "-->", ...BODY), REFUSED],
+    ["control: the same document without the comment is read", doc("Prose one.", "", "---", "from: gfm", "---", ...BODY), READ],
+    // The marker is in the block's OWN line, below its opener: it opens nothing above the block. Three blank lines above the front matter would move a reader that is handed the lines from the first content line.
+    ["a `<!--` in the block's own line does not hold it, after three blank lines", doc("", "", "", ...FM, "", "Prose one.", "", "---", "from: gfm # <!-- note", "---", ...BODY), ["h2:from: gfm # <!-- note", "h1:Pressed Heading", "h2:Control Heading"]],
+    ["a `<!--` in the block's own line does not hold it, after two blank lines", doc("", "", ...FM, "", "Prose one.", "", "---", "from: gfm # <!-- note", "---", ...BODY), ["h2:from: gfm # <!-- note", "h1:Pressed Heading", "h2:Control Heading"]],
+    ["a comment opened on the line right after the front matter holds the block", doc(...FM, "<!-- c", "", "---", "from: gfm", "---", "-->", ...BODY), REFUSED],
+    // The state carries from one block to the next.
+    ["a block in a comment, then a block after it closed: the second is read", doc(...FM, "", "Prose one.", "", "<!--", "---", "from: markdown", "---", "-->", "", "---", "from: gfm", "---", ...BODY), READ],
+    ["a block read, then a block in a comment: the first still governs", doc(...FM, "", "Prose one.", "", "---", "from: gfm", "---", "", "<!--", "---", "from: markdown", "---", "-->", ...BODY), READ],
+    ["three blocks, the middle one (gfm) in a comment: it is refused and the first (markdown) governs", doc(...FM, "", "Prose one.", "", "---", "from: markdown", "---", "", "<!--", "---", "from: gfm", "---", "-->", "", "---", "note: x", "---", ...BODY), ["h2:from: markdown", "h2:note: x", "h2:Control Heading"]],
+    ["a comment closed and another opened on one line above the block holds it", doc(...FM, "", "Prose one.", "", "<!-- a --> b <!-- c", "---", "from: gfm", "---", "-->", ...BODY), ["h2:<!-- a --> b <!-- c", "h2:from: gfm", "h2:Control Heading"]],
+    ["a closer with no opener above is ignored: the block is read", doc(...FM, "", "Prose one.", "", "x --> y", "", "---", "from: gfm", "---", ...BODY), READ],
+    ["two closed comments above: the block is read", doc(...FM, "", "<!-- a -->", "", "<!-- b -->", "", "---", "from: gfm", "---", ...BODY), READ],
+    ["`<!---->` right above the block opens and closes: the block is read", doc(...FM, "", "Prose one.", "", "<!---->", "---", "from: gfm", "---", ...BODY), READ],
+  ] as const)("%s", (_what, text, expected) => {
+    expect(names(text)).toEqual(expected);
   });
 });
