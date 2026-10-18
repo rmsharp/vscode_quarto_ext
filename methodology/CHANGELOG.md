@@ -39,6 +39,10 @@ Four read-only lenses on a pinned copy (973,248 subagent tokens, 352 tool calls,
 - **Commit message that stays wrong** (history is not rewritten): `c38230fb` says the two CRLF rows pin C13; the three list-item rows do and the CRLF rows are regression pins that kill no mutant alone.
 - **Learnings 797 to 801** (a timing is a fact about a load; a helper's pins reach the lines that consume its answer and its own constants; a code-unit sweep and a differential's blind spot; a comment that writes out a quoted line; a row that depends on a rule that abstains).
 
+### 2026-10-18 · [ad hoc] Session 321: trim SESSION_NOTES to three close-out pairs (`3ba701de`)
+
+`methodology/SESSION_NOTES.md` dropped the Session 317 evaluation and the Session 318 self-assessment (34 deleted lines, 0 added), in a commit that holds no other edit to that file (recoverable with `git show 884bd5d4:methodology/SESSION_NOTES.md`); the file is 26,211 B and 183 lines after Session 321's own pair, under the 120,000 B and 400-line ceilings.
+
 ### 2026-10-18 · [ad hoc] Session 321: the close-out edits and the read-only workflow
 
 Non-commit part of the close-out (the edits ride the close-out commit): `SESSION_NOTES.md` (ACTIVE TASK, 'What Session 321 Did', the Session 320 evaluation, the Session 321 self-assessment), the `HANDOFFS.md` receipt, Learnings 797 to 801, BACKLOG part (3) closed in place, the plan's Current position, order table and fifth-session paragraph, and the dashboard and context-budget history lines. One read-only workflow ran against a pinned worktree under the scratchpad and wrote nothing to the repository (the review round of four lenses); the worktree was removed afterwards. The stray Session 314 vitest worker (pid 84774) and the foreign worktree `wf_f559ba89-653-5` were left alone.
