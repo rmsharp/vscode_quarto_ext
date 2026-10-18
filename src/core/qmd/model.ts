@@ -3576,7 +3576,11 @@ const YAML_DOCUMENT_END = /^\.\.\.[ \t]*$/;
 const FENCE_ANYWHERE_IN_BLOCK = /^\s*(?:```|~~~)/;
 /**
  * Whether an HTML comment is still OPEN at 0-based `line` — a mid-document metadata block
- * inside one resolves nothing (Session 211).
+ * inside one resolves nothing (Session 211). Asked of `lines` through the returned function, which
+ * keeps how far it has read and whether a comment was open there, so that a document's blocks, asked
+ * in the order they come, read each line once between them (Session 322: the first spelling scanned
+ * from the top of the document for each block, and cost blocks x lines — 2.9 s for 8,000 small blocks).
+ * A line before the one last asked starts the reading again from the top.
  *
  * ⚠ Found by this session's ADVERSARIAL pass, and it is the one finding the designed corpora
  * structurally could not produce: not one of them wraps a block in anything.
@@ -3596,19 +3600,26 @@ const FENCE_ANYWHERE_IN_BLOCK = /^\s*(?:```|~~~)/;
  * `a8_html_comment_ctl`, and the CLOSED-comment-above row pinned in the tests, are what keep this
  * from degenerating into "any document containing a comment".
  */
-function insideHtmlComment(lines: readonly string[], line: number): boolean {
+export function htmlCommentOpenAt(lines: readonly string[]): (line: number) => boolean {
+  let scanned = 0;
   let open = false;
-  for (let i = 0; i < line && i < lines.length; i++) {
-    for (let at = 0; at < lines[i].length; ) {
-      const next = open ? lines[i].indexOf("-->", at) : lines[i].indexOf("<!--", at);
-      if (next < 0) {
-        break;
-      }
-      at = next + (open ? 3 : 4);
-      open = !open;
+  return (line) => {
+    if (line < scanned) {
+      scanned = 0;
+      open = false;
     }
-  }
-  return open;
+    for (const end = Math.min(line, lines.length); scanned < end; scanned++) {
+      for (let at = 0; at < lines[scanned].length; ) {
+        const next = open ? lines[scanned].indexOf("-->", at) : lines[scanned].indexOf("<!--", at);
+        if (next < 0) {
+          break;
+        }
+        at = next + (open ? 3 : 4);
+        open = !open;
+      }
+    }
+    return open;
+  };
 }
 /**
  * The CONTENT lines of every YAML metadata block BELOW the document's opening block, in
@@ -3679,10 +3690,11 @@ function midDocumentMetadataBlocks(lines: readonly string[]): string[][] {
     return [];
   }
   const blocks: string[][] = [];
+  const commentOpenAt = htmlCommentOpenAt(lines);
   for (const region of quartoYamlRegions(lines.join("\n"))) {
     // ⚠ **THE FIRST-CONTENT FILTER IS ABOUT FRONT MATTER.** A block that OPENS the document is
     // front matter, which quarto VALIDATES and this scanner resolves elsewhere — hence the skip.
-    if (region.startLine <= firstContent || insideHtmlComment(lines, region.startLine)) {
+    if (region.startLine <= firstContent || commentOpenAt(region.startLine)) {
       continue;
     }
     const body = lines.slice(

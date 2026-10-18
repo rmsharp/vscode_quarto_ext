@@ -1031,3 +1031,60 @@ describe("Session 321 — a long run of blanks between `#` and `|` on a cell opt
     expect([GAP_BLANKS, GAP_SHORTER, GAP_LIMIT_MS]).toEqual([100_000, 2_000, 1000]);
   });
 });
+
+describe("Session 322 — many metadata blocks in the body of one document", () => {
+  // The BACKLOG item "Other regexes still quadratic on a long run of blanks, CR or U+2028", part (8). Every entry that scans regions reads the YAML blocks below the front matter to learn the reader, and for each of them
+  // it asked whether an HTML comment is still open at the block's first line by scanning every line from the top of the document: the cost was blocks x lines. The shape is the item's: 6 lines a block
+  // (`---`, `format:`, `  html:`, `    k: v`, `---`, `text`). Bare entries, one fresh process each (Session 322, load average about 5): `findHeadings` 87 / 235 / 742 / 2,892 / 10,511 ms at 1,000 / 2,000 / 4,000 / 8,000 / 16,000 blocks
+  // (3.7 to 3.9 times per doubling), `indexLabels` 4.1 s and `resolveDocumentEngine` 2.8 s at 8,000; `findAllCells`, `collectValueSources` and `valueFlags` 2.8 s each.
+  // Every row builds a text no other row builds: `scanRegions` memoizes the last two texts, so a second row on the same text would read in 0 ms whatever the code does.
+  const MANY_BLOCKS = 8_000;
+  const FEW_BLOCKS = 200;
+  const MANY_BLOCKS_LIMIT_MS = 1000;
+  const ITEM_BLOCK = "---\nformat:\n  html:\n    k: v\n---\ntext\n";
+  const SPACED_BLOCK = "---\nformat:\n  html:\n    k: v\n---\n\ntext\n\n";
+  const cellWith = (label: string): string => `\n\`\`\`{python}\n#| label: ${label}\nx = 1\n\`\`\`\n`;
+  const blockHeadings = (text: string): Array<[number, string]> => findHeadings(text).map((heading): [number, string] => [heading.line, heading.text]);
+  const blockLabels = (text: string): string[] => indexLabels(text).map((label) => `${label.id}@${label.line}:${label.column}`);
+  const blockSources = (text: string): { lines: number; cellLines: number; nested: number } => {
+    const sources = collectValueSources(text);
+    return { lines: sources.lines.length, cellLines: sources.cellLines.length, nested: sources.nestedLines.length };
+  };
+  type BlockRow = { site: string; build: (blocks: number) => string; read: (text: string) => unknown; answer: (blocks: number) => unknown };
+
+  const BLOCK_ROWS: BlockRow[] = [
+    { site: "findHeadings, the item's shape and a heading at the end", build: (n) => `${ITEM_BLOCK.repeat(n)}\n# H\n`, read: blockHeadings, answer: (n) => [[5, "text"], [6 * n + 1, "H"]] },
+    { site: "findHeadings, blocks with a blank line round their text", build: (n) => `${SPACED_BLOCK.repeat(n)}# H\n`, read: blockHeadings, answer: (n) => [[8 * n, "H"]] },
+    // Every block is inside the one open comment, so none of them is read: the scan still has to pass each line once.
+    { site: "findHeadings, every block inside one open comment", build: (n) => `<!--\n${ITEM_BLOCK.repeat(n)}-->\n\n# H\n`, read: blockHeadings, answer: (n) => [[6 * n + 3, "H"]] },
+    // A comment that closes on its own line before every block: the state is `closed` at every block, and the scan must carry it.
+    { site: "findHeadings, a closed comment line before every block", build: (n) => `${`<!-- c -->\n${SPACED_BLOCK}`.repeat(n)}# H\n`, read: blockHeadings, answer: (n) => [[9 * n, "H"]] },
+    { site: "indexLabels, a section id on the heading at the end", build: (n) => `${ITEM_BLOCK.repeat(n)}\n# H {#sec-a}\n`, read: blockLabels, answer: (n) => [`sec-a@${6 * n + 1}:6`] },
+    { site: "indexLabels, a cell label at the end", build: (n) => `${ITEM_BLOCK.repeat(n)}${cellWith("lst-a")}`, read: blockLabels, answer: (n) => [`lst-a@${6 * n + 2}:10`] },
+    { site: "resolveDocumentEngine, a python cell at the end", build: (n) => `${ITEM_BLOCK.repeat(n)}${cellWith("lst-b")}`, read: (text) => resolveDocumentEngine("a.qmd", text), answer: () => "jupyter" },
+    { site: "resolveDocumentEngine, no cell at all", build: (n) => ITEM_BLOCK.repeat(n), read: (text) => resolveDocumentEngine("a.qmd", text), answer: () => "markdown" },
+    { site: "findAllCells, a python cell at the end", build: (n) => `${ITEM_BLOCK.repeat(n)}${cellWith("lst-c")}`, read: (text) => findAllCells(text).length, answer: () => 1 },
+    { site: "collectValueSources, a python cell at the end", build: (n) => `${ITEM_BLOCK.repeat(n)}${cellWith("lst-d")}`, read: blockSources, answer: (n) => ({ lines: 6 * n + 6, cellLines: 1, nested: 1 }) },
+    { site: "valueFlags over those sources", build: (n) => `${ITEM_BLOCK.repeat(n)}${cellWith("lst-e")}`, read: (text) => valueFlags(collectValueSources(text), "a.qmd", CURATED_SCHEMA_INDEX), answer: () => ({ cell: [], frontMatter: [], nested: [] }) },
+    // Control: a thematic break with a blank line on each side opens no region, so the comment question is never asked. Linear before and after.
+    { site: "control: thematic breaks with a blank line on each side", build: (n) => `${"text\n\nmore\n\n---\n\n".repeat(n)}# H\n`, read: blockHeadings, answer: (n) => [[6 * n, "H"]] },
+  ];
+
+  it.each(BLOCK_ROWS.map((row) => [row.site, row] as const))("%s: 8,000 blocks are read in linear time, and the answer is the stated one at 200 blocks and at 8,000", (_site, row) => {
+    expect(row.read(row.build(FEW_BLOCKS))).toEqual(row.answer(FEW_BLOCKS));
+    const longText = row.build(MANY_BLOCKS);
+    const { result, ms } = timed(() => row.read(longText));
+    expect(result).toEqual(row.answer(MANY_BLOCKS));
+    expect(ms).toBeLessThan(MANY_BLOCKS_LIMIT_MS);
+  });
+
+  it("builds a different text for every row", () => {
+    const texts = BLOCK_ROWS.map((row) => row.build(FEW_BLOCKS));
+    expect(new Set(texts).size).toBe(BLOCK_ROWS.length);
+  });
+
+  // A row run at 200 blocks, or allowed 100 s, would pass on the parent too.
+  it("keeps the block counts and the limit the Session 322 rows are built on", () => {
+    expect([MANY_BLOCKS, FEW_BLOCKS, MANY_BLOCKS_LIMIT_MS]).toEqual([8_000, 200, 1000]);
+  });
+});
