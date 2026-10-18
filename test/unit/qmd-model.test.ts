@@ -21570,6 +21570,17 @@ describe("R6 residual (b) — a DOCUMENT-level echo/include default silences a c
     expect(findHeadings(stray(fm, r), "knitr").map((h) => h.text)).toEqual(both);
   });
 
+  // Session 320 review: the blank a comment may follow is a space or a TAB and nothing else, so a form feed or a no-break space in front of the `#` leaves the whole text, which is no `false`, and the chunk
+  // stays loud. The four rows above cannot see the class widened (`cutHashComment(text, " \t\f")`); these do, for the echo value and for the `execute:` key.
+  it.each([
+    ["a form feed before the hash is no comment", ["execute:", "  echo: false\f# hide"]],
+    ["a no-break space before the hash is no comment", ["execute:", "  echo: false\u00a0# hide"]],
+    ["a form feed after the `execute:` key is no comment", ["execute:\f# outputs", "  echo: false"]],
+    ["a no-break space after the `execute:` key is no comment", ["execute:\u00a0# outputs", "  echo: false"]],
+  ])("loud: %s", (_n, fm) => {
+    expect(findHeadings(stray(fm, r), "knitr").map((h) => h.text)).toEqual(loud);
+  });
+
   // ENGINES, rendered per engine x placement x mode (`scratchpad/s287/e/`, 144 probes). A DOCUMENT-level
   // `echo: false` silences only these engines in BOTH modes; for bash, sh, zsh, perl and ruby it is silent
   // under `--no-execute` and LOUD when the chunk executes, so the two modes disagree and silence is not
