@@ -13700,6 +13700,7 @@ function endsHtmlBlock(line: string, beganFresh: boolean, againstParagraph: bool
   if (lt < 0 || line.slice(0, lt).trim() !== "") {
     return false;
   }
+  // One question of a fresh `HeadingLine`, so its table of quote-aware `>` is built for nothing (see the class): the cost is the length of the line, where reading to the first `>` cost the distance to it.
   const first = headingAngleEnd(new HeadingLine(line), lt);
   if (first.name === null) {
     return false;
@@ -14469,39 +14470,49 @@ function buildTagCloses(text: string): Int32Array {
 }
 /**
  * The questions the heading scan asks of the text AFTER a position — where the closer of the opener
- * it has just met is — each answered from a table built at most once per line (Session 325).
+ * it has just met is — each answered from a table built at most once per line (the backtick runs,
+ * the group ends of each bracket kind, the quote-aware `>` of a tag) or from the last search for the
+ * same marker or tag name (Session 325).
  *
  * ⚠ **THE TABLES EXIST BECAUSE AN OPENER WITH NO CLOSER USED TO COST THE REST OF THE LINE.** Each
  * question was answered by reading on from the opener, and where no closer came it answered "one
  * character on" after reading to the end, so the NEXT opener of the same kind read the same tail
- * again: a line of 64,000 unclosed backticks took 5 s, and a pasted blob can be such a line. The
+ * again: a line of 64,000 unclosed backticks took 5 to 8 s, and a pasted blob can be such a line. The
  * answer to every question here is a function of the text and the position alone, so it is the
  * same whenever it is asked, which is what lets a table built in one pass stand in for the reading.
  * The old spellings are the oracle (`test/unit/heading-scan-equivalence.test.ts`).
+ *
+ * ⚠ **A TABLE IS BUILT AT THE FIRST QUESTION, WHICH IS NOT FREE FOR A SHORT LINE.** A heading that
+ * holds a link costs about 1 µs more than the old reading did, and `endsHtmlBlock` builds a table
+ * for its one question per call (1.6 to 1.8 times the old cost on a long HTML line above an indented
+ * cell opener). Answering the first question by reading and building the table at the second
+ * removes both and keeps the scan linear; it is filed in `BACKLOG.md`, not done here.
  */
 class HeadingLine {
   private backtickRuns: Map<number, number[]> | null = null;
-  private groupEnds = new Map<string, Int32Array>();
-  private markerReads = new Map<string, { from: number; at: number }>();
+  private groupEnds: Map<string, Int32Array> | null = null;
+  private markersNoneFrom: Map<string, number> | null = null;
   private nameRead: { from: number; at: number } | null = null;
   private tagCloses: Int32Array | null = null;
 
   constructor(readonly text: string) {}
 
   /**
-   * `text.indexOf(marker, from)`, answered from the last read for the same marker where that read
-   * settles it. A read that began at `a` and found its marker at `b` shows there is none in `a`..`b`,
-   * so every `from` between them finds the same one; a read that found none shows there is none from
-   * `a` on, so every later `from` finds none. The scan only moves forward, so the reads for one marker
-   * cover stretches of the line that do not overlap.
+   * `text.indexOf(marker, from)`, except that a search which found nothing is not repeated: there is
+   * none from the place it began at on, so every later search for the same marker finds none either.
+   * The scan only moves forward and resumes past the closer it finds, so the searches that DO find
+   * something never overlap, and the one that finds nothing is the last to read the line: one pass
+   * over it in all, for each marker.
    */
   indexOfMarker(marker: string, from: number): number {
-    const read = this.markerReads.get(marker);
-    if (read !== undefined && read.from <= from && (read.at === -1 || read.at >= from)) {
-      return read.at;
+    const none = this.markersNoneFrom?.get(marker);
+    if (none !== undefined && none <= from) {
+      return -1;
     }
     const at = this.text.indexOf(marker, from);
-    this.markerReads.set(marker, { from, at });
+    if (at === -1) {
+      (this.markersNoneFrom ??= new Map()).set(marker, from);
+    }
     return at;
   }
 
@@ -14532,13 +14543,18 @@ class HeadingLine {
     return this.tagCloses[from];
   }
 
-  /** The index of the `close` that balances the `open` at `i` (a character that IS that `open`), or -1 where the group never closes. */
+  /**
+   * The index of the `close` that balances the `open` at `i`, or -1 where the group never closes.
+   * `i` must hold that `open`: the table has an entry for every position, and the entry of any other
+   * is -1 or the end of some group, not an answer (all six callers ask at an opener they have just read).
+   */
   groupEnd(i: number, open: string, close: string): number {
     const key = open + close;
-    let ends = this.groupEnds.get(key);
+    const tables = (this.groupEnds ??= new Map());
+    let ends = tables.get(key);
     if (ends === undefined) {
       ends = buildGroupEnds(this.text, open, close);
-      this.groupEnds.set(key, ends);
+      tables.set(key, ends);
     }
     return ends[i];
   }
