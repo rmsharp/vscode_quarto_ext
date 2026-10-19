@@ -208,36 +208,3 @@ the S322 sweep item (BACKLOG); `test:integration` NOT run.
 **TDD:** RED before GREEN for the 11 document rows (fail on the parent for the right reason, time) and for the review's kill rows (8 of 11 mutants shown SURVIVING with the runner before the rows, killed after; H17, H22 and H23 already
 died on one assertion each and now have named rows).
 **Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** 5 agents in 1 workflow (the review: 345 tool calls, about 2 hours of wall time), about 100 mutant runs of mine, 0 quarto renders.
-
-## Session 320 Handoff Evaluation (by Session 321)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers at HEAD (`34d6c00c`, gap 0), no `pending` receipt, the ratchet citation (2/2, results `bba236856bad`), the baseline
-(11,776 in 90 files), the real-document score (2423 of 2438) and the plan's key count (221) all held at Phase 0, and the picker the plan ranked was accurate.
-**Helped:** gotcha 7 (clock rows flake under load): three `qmd-model.test.ts` rows failed at load 97 in the baseline, I named it and re-ran the file alone; gotcha 8 (the worker and the worktree are not mine): untouched; gotcha 3 (the
-runner tests the COMMITTED tree, the list gate reds): it caught a comment of mine that quoted a constant's line; gotcha 6 (count rows from `vitest list` titles, parent failures by running HEAD's tests against the parent's source) is
-how I counted the rows and the 68 new tests; gotcha 4 (three mechanisms) named this one at once.
-**Missing:** (a) the candidate list left out B89's own remaining parts (6a) and (8), which the plan's done criterion names: the next picker must offer them; (b) the item said "profile first, its numbers are one session's": they held
-(43 / 161 / 628 ms against my 42 / 156 / 614) and what broke was my own load-60 figures, which the handoff could not know, but it did not say to time at a quiet load; (c) that a `fig-` or `tbl-` label on a cell with no code is dropped
-by the no-target rule, so behaviour rows need `lst-`: I met it as an empty answer.
-**Wrong:** (a) gotcha 2 (the SITES table, "append a new site last") did not apply: one site with its own file was cheaper and needed no seed order; (b) `refs.ts:502` was at line 512 once my import and helper sat above it (a position at
-a commit, not an address, as Session 320's own evaluation said). **ROI: high.**
-
-## Session 321 Self-Assessment
-
-**Score: 7/10.**
-**Went right.** I timed the site firsthand before reading code (42 / 156 / 614 ms at 8,000 / 16,000 / 32,000 blanks, 3.9x per doubling, 5.98 s at 100,000), so the RED rows were built on a real shape: 6 of the 7 new document rows fail
-on the parent at 6.0 to 6.8 s against a 1 s limit and the control passes. The old spelling is the oracle (three enumerations of 488,281 / 137,257 / 299,593 strings, counts also taken with Python's `re`; 100,000 seeded texts; every
-UTF-16 code unit), an 800,000-document parent-versus-fix differential found no difference with its controls visible, and the 14 mutants were all killed. I read my own mutant C13 as a survivor by reasoning before the runner could, and
-added the list-item rows. The review round (4 lenses, 973,248 subagent tokens) was held to firsthand checking: I re-timed the numbers it questioned (mine were load-60 figures), ran its mutants through the project's runner (17 survive
-RED, 17 killed GREEN), re-measured the cost it reported (4 times the old search on a trailing run) and the cold-start fact before writing either down. The list gate caught my one comment that quoted a line.
-**Went wrong.** (1) My pins were incomplete for the SEVENTH set in a row (Learnings 773, 776, 780, 788, 793): the consumer lines (the fold and the compare) and the new file's own constants and alphabets had no row, 17 mutants survived,
-and the sentinel row that three earlier describes carry was missing from the new file (Learning 798). (2) Text I wrote was wrong in five places: a load-60 timing and an impossible pair (1.6 s at 32,000 and 6 s at 100,000) in two
-comments, `trimEnd()` said to strip U+0085, a title that said the long answer equals the short one, the C06 and C14 descriptions; and the `c38230fb` message says the CRLF rows pin C13 (they do not; history is not rewritten, the ledger
-says so). (3) My first behaviour rows used `fig-` labels, which the no-target rule drops, and the first document rows were green only because that rule abstains on a spaced pipe. (4) The comment that corrected a note wrote two
-constants' lines out and reddened `mutation-lists-apply` at once. (5) Disclosed: the helper-level equivalence rows could only be RED as a missing export, not for the right reason.
-**Known residuals (filed or stated):** the document rows' limit is pinned by a sentinel, not by its use (a row weakened tenfold survives, only vitest's 5 s timeout would fail it); `run.py` cuts a failing title at 160 characters;
-`ATX_CLOSING_PANDOC` and `TABLE_RULE_ROW`'s stack overflow (unchanged); `test:integration` NOT run.
-**TDD:** RED before GREEN for the 6 document rows and the 5 near-miss clock rows (fail on the parent for the right reason: 5,986 ms against 1,000). Passed on arrival, disclosed: the 14 fixed rows, the enumerations, the seeded sample
-and the 31 behaviour rows compare the old spelling with itself or pin what must not change (their RED is a surviving mutant; the helper-level ones were RED only as a missing export). The review's additions: 17 of 17 mutants shown
-SURVIVING with the runner before the rows, killed after.
-**Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** 4 agents in 1 workflow (the review: 973,248 subagent tokens, 352 tool calls, about 1.7 hours), about 90 mutant runs of mine, 0 quarto renders.
