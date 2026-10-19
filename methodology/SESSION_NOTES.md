@@ -8,37 +8,36 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 323 closed out.** g02's seventh session is done: B89 part (6a) is closed. `nestedParentPath` builds each container's chain once and keeps it in `index.chains` (`git diff 236624d HEAD -- src`);
-3,200 levels cost 10.5 s before and 0.5 s after (load 8 to 10), linear in the text. The old climb is the oracle (`container-chain-equivalence.test.ts`, 50 tests) and the work is pinned as lines READ (400, against 160,400 on the parent).
-45 mutants: 41 killed, 4 argued equivalent. The six-agent review found no wrong answer, 15 source edits the pins let through (all killed now) and 12 wrong statements in text (fixed in files).
+**Task:** **NONE -- Session 324 closed out.** g02's eighth session is done: the S317 item's part (1), the exponential `ATTR_ATOM_RUN`, is closed. It is the atom grammar factored (dashes, one class, then ids): `git diff d9be8ec HEAD -- src`.
+The parent took 7.4 s warm at 30 classes and 12.3 s for 100,000 dashes after an id; now 3 ms and 10 ms. The old alternation is the oracle (`attr-atom-run-equivalence.test.ts`, 85 tests; 3.04 million strings, counts from `tools/attr-atom-count/`).
+50 mutants: 46 killed, 4 argued equivalent. The five-lens review found no wrong answer, four mutants every row let through (all killed now) and wrong statements in text (fixed in files).
 `BACKLOG.md` "Active" is empty: present candidates via AskUserQuestion at Phase 0, ranked by the plan, each saying which rule placed it.
 **What's next (derived from the plan, not a promise):** g02 is still in flight; its items are taken in the plan's table order. Candidates (the picker shows four and a catch-all):
-(a) the S317 item's part (1), the exponential `ATTR_ATOM_RUN` (the one hang; time it COLD; first in table order); (b) the S318 item's part (9), a long paragraph under `from: gfm` (a mid-document `from: gfm` triggers it too);
-(c) the S319 item's part (1), consecutive container-column lines (a long definition list: likely in a real document); (d) the S322 item's part (1), `inQuartoYamlRegion` asked per cell option line (cells x regions).
+(a) the S317 item's part (2): a long `# ` heading of backticks, `[`, `{` or a backslash is quadratic in `headingContentRefused` (first in table order; profile first, Learning 739); (b) the same item's part (3), the native-div check in `indexLabels` (profile first);
+(c) the S318 item's part (9), a long paragraph under `from: gfm`; (d) the S319 item's part (1), consecutive container-column lines (a long definition list); the S322 item's part (1) and the S317 stack overflows (4) to (9) follow.
 After those, the terminal bounded session files ONE RESIDUAL record and stops the sweep (the plan's done criterion). Decisions as the plan says: D2, D3 before g03.
 **⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in a close-out commit).
-(2) The runner tests the COMMITTED tree, copies `--tests` files from the working tree ONCE at its start, and SKIPS a mutant whose `from` no longer occurs once (`mutation-lists-apply.test.ts` reds). `mutants/b89-container-chain.json`:
-45, 41 killed, C03 C07 C08 C19 survive on purpose, about 11 minutes with the four test files named in its README row. A kill row is shown RED by running the new mutants against the OLD tests first.
-(3) Quote a timing only with its load: the machine sat at load 10 to 50 for days and a set moved by 25% (the parent at 3,200 levels: 8.3 s at load 40, 10.5 s at load 8). Quote ranges, name the load, recompute a rate from the table (Learnings 797, 805).
-(4) Pins: the NINTH set was incomplete (807). Rows that carry strings need long, mixed-case, quoted, empty and no-break-space-ended text and a size past every cap; a comparison loop needs a wrong-oracle row and its `asked` count (809);
-a read bound needs the exact count, derived and then checked by the run (810); a clock limit goes between the two measurements (811); a cache passed in is pinned by counting calls, in a file of its own (808).
-(5) `index.chains` is a snapshot of the `lines` it was built from (812): a caller that edits lines in place must build a new index. The one caller builds a fresh index per call. The completion path (`nestedKeyContextAt`) has no index and keeps the old climb.
-(6) Unchanged residuals: every emitted entry owns a full-depth path array (an 800-level trunk with 64,000 siblings needs a 512 MB old space; caching keys on the chain link would share them); `ATX_CLOSING_PANDOC`'s `#` runs and `TABLE_RULE_ROW`'s stack overflow (BACKLOG).
-(7) Clock rows flake under load, more of them than one: a full run read 2,045 ms against 2,000 (`qmd-model.test.ts`, Session 308), and the last full run on HEAD failed 4 (Sessions 307, 308 x2, 322) that passed alone twice.
-Name them, re-run the files alone, never loosen. The nine Session 323 rows allow 2,500 ms and passed every full run.
-(8) The Session 314 vitest worker (pid 84774, cwd a `wt314` scratch worktree) is STILL spinning at 99% CPU after 3 days 10 hours: not mine; ask before killing it. The foreign worktree `.claude/worktrees/wf_f559ba89-653-5` is not mine either.
-(9) `test:integration` NOT run for thirteen sessions (takes the screen: ask first). Baseline `npm test` at HEAD: 11,981 tests in 94 files, clean apart from the load flakes in (7).
-(10) Real-document score: `REALDOC_DATA=scratchpad/s265 REALDOC_ORDINALS=scratchpad/s251/realfiles.txt tools/realdoc-score/run.sh head` prints 2423 of 2438 (99.38%), 15 divergent; unchanged by this session.
-(11) The plan: update its status column and "Current position" at each close-out; its key count command (`sed -n '/^## Where each key went/,$p' ... | grep -o 'B[0-9]\+' | sort -u | wc -l`) prints 221 (filed items carry no key).
-(12) A review round is not bounded by its brief: six agents briefed at about 30 minutes a lens took 6.0 hours at load 4 to 52 (1,561,995 tokens). Send a wrap-up message at the limit and check `ps` and `lsof -d cwd` after; this time nothing was left.
-(13) The Write and Edit tools turn a backslash-u escape for U+2028 into the raw character, in files AND in commit messages (Learning 792). `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices.
+(2) The runner tests the COMMITTED tree, copies `--tests` once, and SKIPS a mutant whose `from` no longer occurs once. `mutants/s317-attr-atom-run.json`: 50, 46 killed, E01 to E04 survive on purpose; about 25 minutes (nine timeouts); command in its README row.
+(3) Quote a timing with its load AND its state: cold (the first run of a pattern in a process, interpreted) is about 10x slower than warm (4,326 ms against 455 ms at 26 classes). Size a RED row from the WARM figure, controls first (Learning 816).
+(4) Pins: the TENTH set was incomplete (815): for each loop of a linear cure, a row that repeats the body ending in each character its tail already holds. Compare a mutant that claims to keep the language with the base on an enumeration FIRST.
+(5) Give a review lens a number of TOOL CALLS and a `ps` check, not minutes (819): five lenses took 27 minutes and 200 calls. Run an agent's claim about a mutant before building a row on it (818).
+(6) Unchanged residuals: the ids are still a group, so about 3.36 million ids (`#a`, 6.7 MB) throw `RangeError` (S319 item part (5), boundary bisected); `ATX_CLOSING_PANDOC`, `HEADING_ATTRIBUTE`, `braceGroups` quadratics (filed); nested-value entries own full-depth paths.
+(7) Plan rule P5 (a tracked sweep generator under `tools/` from the first session on the filed items) was NOT met: only seeded samples in the equivalence test and the counting script. Ask the operator who owns the sweep's unrun 68%: the next session or the terminal one.
+(8) Clock rows flake under load, more than one: `qmd-model.test.ts` Session 307 and 308 rows (2,045 ms against 2,000; one failed in a lens's run at load 20 to 37). Name them, re-run the files alone, never loosen. This session's full runs (load 19 and 26) passed.
+(9) The Session 314 vitest worker group (pid 84774, cwd a `wt314` scratch worktree) is STILL spinning at 100% CPU after 3 days 21 hours: not mine; ask before killing it. The foreign worktree `.claude/worktrees/wf_f559ba89-653-5` is not mine either.
+(10) `test:integration` NOT run for fourteen sessions (takes the screen: ask first). Baseline `npm test` at HEAD: 12,088 tests in 95 files, clean.
+(11) Real-document score: `REALDOC_DATA=scratchpad/s265 REALDOC_ORDINALS=scratchpad/s251/realfiles.txt tools/realdoc-score/run.sh head` prints 2423 of 2438 (99.38%), 15 divergent; unchanged by this session.
+(12) The plan: update its status column and "Current position" at each close-out; its key count command (`sed -n '/^## Where each key went/,$p' ... | grep -o 'B[0-9]\+' | sort -u | wc -l`) prints 221 (filed items carry no key).
+(13) The Write and Edit tools turn a backslash-u escape for U+2028 into the raw character (Learning 792). `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices, edit with a Python script.
 macOS `sed` rejects `|` as a delimiter and `sed -i` needs `''`. After answering a direct question, STOP and wait (memory).
 
 ### What Session 324 Did
-**Deliverable:** g02 of the backlog ordering plan, eighth session: the Session 317 item's part (1), `ATTR_ATOM_RUN` backtracks exponentially on a heading attribute block with an invalid tail (IN PROGRESS)
+**Deliverable:** g02 of the backlog ordering plan, eighth session: the Session 317 item's part (1), `ATTR_ATOM_RUN` backtracks exponentially (and quadratically for a dash run) on a heading, fence, image, span or div attribute block with a refused tail -- DONE; claim `d9be8ec`
 **Started:** 2026-10-19
-**Status:** Session claimed. Work beginning. Strict TDD: time the site firsthand COLD (a fresh process per measurement; the item's figures are warm) and quote every timing with its load, a RED row whose clock limit is set from the cold figure, then an unambiguous atom grammar proved identical to the old pattern (the old spelling is the oracle).
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Status:** Closed out. One pattern respelled (`8432555`: dashes, at most one class, then ids), 12 of 19 document rows RED on the parent first (`047b5fa`: 3.7 to 12.3 s against 1,000 ms), the old alternation kept as the oracle (`15a8a04`; 85 tests at the end),
+50 mutants (`2d717b2`, `8b57d78`: 46 killed, 4 argued equivalent), a tracked counting script (`51a8b8f`), and a five-lens review round (`wf_f4782c7f-c93`) whose fixes landed in `8b57d78` and `9677869`. Nothing new filed. `npm test` 12,088 passing in 95 files; `npm run
+package` 44 files; real-document score unchanged.
+**Ledger:** `CHANGELOG.md` 2026-10-19 -- one entry per action (the claim entry replaced), recorded in the close-out commits.
 
 ### What Session 323 Did
 **Deliverable:** g02 of the backlog ordering plan, seventh session: B89 part (6a), YAML nesting depth is superlinear (close to cubic in depth) in the front-matter nested-value enumerator and its ancestor walk -- DONE; claim `236624d`
@@ -94,6 +93,42 @@ One new item filed (eight regexes and a paragraph reader). `npm test` 11,403 pas
 **Status:** Closed out. Five patterns respelled (`4627675d`), exhaustive proof plus near-miss and gap-grid rows, 51 + 4 mutants (49 + 3 killed, 3 argued equivalent), a five-lens review round that closed three test gaps.
 Nine more families filed. `npm test` 11,347 passing plus one load-flake clock row (11,348 in 85 files); `npm run package` 44 files; real-document score unchanged.
 **Ledger:** `CHANGELOG.md` 2026-10-16 -- one entry per action (the claim entry replaced), recorded in the close-out commit.
+
+## Session 323 Handoff Evaluation (by Session 324)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers at HEAD (`5f628c7`, gap 0), no `pending` receipt, the ratchet citation (2/2, results `bba236856bad`), the real-document score (2423 of 2438), the plan's
+key count (221) and the baseline (11,981 in 94 files; 12,002 after my 21 rows) all held, and the picker the plan ranked was accurate: it offered the S317 item's part (1) first, as finishing a feature.
+**Helped:** candidate (a) said "time it COLD" and that the BACKLOG figures are warm: my cold figures (276 / 1,094 / 4,326 ms at 22 / 24 / 26 classes) matched the item's cold ones (285 / 1,138 / 4.5 s) before any code was read; gotcha 2 (the runner tests the COMMITTED
+tree, skips a stale `from`) made me commit
+before each mutant run; gotcha 3 (a timing is a fact about a load) put a load beside every figure; gotcha 12 (a review round is not bounded by its brief; check `ps`) is why this round was briefed a tool-call budget and took 27 minutes against 6.0 hours; gotchas 1 and 13
+(exact paths; the U+2028 trap) held; gotcha 9 (the worker and the worktree are not mine) held.
+**Missing:** (a) that the item's part (1) is wider than it names: an id before the classes costs twice as much, a dash after each class has three splits a boundary, and a run of dashes after an id or a class is QUADRATIC (12.3 s at 100,000), on seven routes; I found it by
+measuring, the item said only the class shape;
+(b) "set a test's clock limit from the cold figure" points the wrong way for a row in a file of many (a pattern warmed by an earlier row runs about 10 times faster: Learning 816); (c) that the plan's rule P5 makes the first session on a filed item commit a tracked sweep
+generator under `tools/`: the handoff offered the item without saying so, and I met the rule only in part.
+**Wrong:** the item's "74-byte line" is not the shape the rows time (68 bytes): the item's figure, not the handoff's, but I copied it into four places before the records lens corrected it. Nothing else I could find in the claims I checked. **ROI: high.**
+
+## Session 324 Self-Assessment
+
+**Score: 7/10.**
+**Went right.** I timed the site firsthand before reading code, cold and warm and by doubling (276 / 1,094 / 4,326 / 17,230 ms; 455 ms warm at 26), and the timing found what the item had not named (an id first, three splits a boundary, a quadratic dash run, seven routes).
+The 12 refused-shape rows were run on the unmodified tree and failed on the clock alone
+(3.7 to 12.3 s against 1,000 ms, answers equal, 7 controls passing) in a commit of their own BEFORE the cure. I derived the language as its shape and proved it three ways that share nothing: enumerations counted by a recogniser with no regex (now tracked), the review's
+product walk of two automata with 58 million of its own strings, and 120,000 documents end to end.
+The review round was held to a tool-call budget and every claim I acted on was checked firsthand: I reproduced M01 with the runner (A39 to A42 SURVIVE), refuted the design lens's claim about a bare `(?:-)*` by running it (a capture `(-)*` and a lookahead are what throw at
+9,000,000 dashes), bisected the stack boundary (3,340,000 answers, 3,360,000 throws; `.A#a` shifts by one),
+showed that the `#a.A` row alone kills A43, and re-checked each records finding against the files.
+**Went wrong.** (1) The TENTH set of pins was incomplete (Learnings 773, 776, 780, 788, 793, 798, 802, 807; 815): four language-preserving mutants of the id loop survived every row after 43 mutants of my own, and the mutation lens found them, though the handoff's gotcha 4
+said to expect it. (2) Text I wrote was wrong in several places: "74-byte" in four places (the item's figure, never re-run), a "by luck" example that is false,
+"the first five rows" for six, a row title that read backwards, "about 8 s" for 7.4 to 7.6, and "55 hand-stated tokens" for 56 in the `15a8a04` message (stays). (3) My first draft of the replacement mutants A40 to A43 dropped the `+`, so four changed the language and were
+killed for the wrong reason; the runner's table showed it. (4) TDD deviations, disclosed: the equivalence file landed after the cure and passes on arrival
+(its RED is a mutant: A00 and A07 hang), the 9,000,000-dash row passed on arrival (A44 is also killed by the group comparison of the older rows; A45 was NOT shown surviving before the row), and the document rows were sized from my own warm figure, not the item's cold one.
+(5) Plan rule P5 was not met: no sweep generator under `tools/`, only seeded samples and the counting script (stated; the operator decides who owns the unrun 68% of the sweep).
+**Known residuals (filed or stated):** the ids are a group, so about 3.36 million of them throw `RangeError` (S319 item part (5)); `headingAttributeTokens` builds a token a character at a time (115 bytes resident a character, the lens's figure); the commonmark arm of
+`atoms` is unobservable (B03); the call-site mutants were not run (the design lens showed 3 call-site kills); `test:integration` NOT run.
+**TDD:** RED before GREEN for the 12 refused-shape document rows (`047b5fa` before `8432555`); for the review's additions, 4 of 4 id-loop mutants shown SURVIVING with the runner before the five rows and killed after (A43 was already killed by the `#a.A` row). Passed on
+arrival, disclosed: the equivalence file, the 9,000,000-dash row, the 7 controls.
+**Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** 5 agents in 1 workflow (923,678 subagent tokens, 200 tool calls, about 27 minutes), about 115 mutant runs of mine, 0 quarto renders.
 
 ## Session 322 Handoff Evaluation (by Session 323)
 
