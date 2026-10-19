@@ -106,8 +106,8 @@
   {
     "name": "C14 containerChain: a line with no shallower line is not kept",
     "file": "src/core/yaml-context.ts",
-    "from": "    if (above < 0) {\n      chain = chains[at] = null;",
-    "to": "    if (above < 0) {\n      chain = null;",
+    "from": "    if (up < 0) {\n      chain = chains[at] = null;",
+    "to": "    if (up < 0) {\n      chain = null;",
     "expect": "killed",
     "why": "the line stays unanswered and every child reads it again: the `keeps an indented container with nothing shallower above it as null` row (its chain slot, and one read for 1,000 children). It SURVIVED the first rows (found by the first run of this list) and the row was added after"
   },
@@ -130,7 +130,7 @@
   {
     "name": "C17 containerChain: the climb goes to the line above, not the shallower line",
     "file": "src/core/yaml-context.ts",
-    "from": "    waitingKeys.push(key);\n    at = above;",
+    "from": "    waitingKeys.push(key);\n    at = up;",
     "to": "    waitingKeys.push(key);\n    at = at - 1;",
     "expect": "killed",
     "why": "a sibling or a deeper line between the container and its child becomes the ancestor: the enumerations with scalars and siblings"
@@ -138,8 +138,8 @@
   {
     "name": "C18 containerChain: line 0 is not a shallower line",
     "file": "src/core/yaml-context.ts",
-    "from": "    if (above < 0) {\n      chain = chains[at] = null;",
-    "to": "    if (above <= 0) {\n      chain = chains[at] = null;",
+    "from": "    if (up < 0) {\n      chain = chains[at] = null;",
+    "to": "    if (up <= 0) {\n      chain = chains[at] = null;",
     "expect": "killed",
     "why": "the root on the first line of the block is never reached: every document that starts with its root"
   },
@@ -189,7 +189,7 @@
     "from": "    const key = waitingKeys.pop() as string;",
     "to": "    const key = waitingKeys.shift() as string;",
     "expect": "killed",
-    "why": "a chain of three or more waiting lines gets its keys in the wrong order: the four-level rows and the enumerations"
+    "why": "a chain of two or more waiting lines (a path of three keys or more) gets its keys in the wrong order: the four-level rows and the enumerations"
   },
   {
     "name": "C25 containerChain: the lines are unwound from the bottom",
@@ -238,5 +238,125 @@
     "to": "    waiting.push(at);\n    waitingKeys.push(\"\");",
     "expect": "killed",
     "why": "every key above the first level is empty"
+  },
+  {
+    "name": "C31 nestedParentPath: the format root is matched by prefix",
+    "file": "src/core/yaml-context.ts",
+    "from": ": chain.root === \"format\" ? containerKeys(chain) : null;",
+    "to": ": chain.root.startsWith(\"format\") ? containerKeys(chain) : null;",
+    "expect": "killed",
+    "why": "a root named `formats:` is read as `format:`: the `a root named formats is not format` row, which asks both spellings (the unindexed one is C35's). Review round, mutation lens: the earlier rows named no near-miss root"
+  },
+  {
+    "name": "C32 nestedParentPath: the format root is matched case-insensitively",
+    "file": "src/core/yaml-context.ts",
+    "from": ": chain.root === \"format\" ? containerKeys(chain) : null;",
+    "to": ": chain.root.toLowerCase() === \"format\" ? containerKeys(chain) : null;",
+    "expect": "killed",
+    "why": "a root `Format:` is read as `format:`: the `a root named Format` row"
+  },
+  {
+    "name": "C33 nestedParentPath: the one-level gate is matched case-insensitively",
+    "file": "src/core/yaml-context.ts",
+    "from": "? NESTED_CONTAINERS.has(chain.key) ? [chain.key] : null",
+    "to": "? NESTED_CONTAINERS.has(chain.key.toLowerCase()) ? [chain.key] : null",
+    "expect": "killed",
+    "why": "a column-0 `Execute:` passes the one-level gate: the `a capital Execute` row"
+  },
+  {
+    "name": "C34 containerChain: the root key is stored lowercased",
+    "file": "src/core/yaml-context.ts",
+    "from": "{ key, above: null, depth: 1, root: key }",
+    "to": "{ key, above: null, depth: 1, root: key.toLowerCase() }",
+    "expect": "killed",
+    "why": "the root key kept lowercased: a root `Format:` would pass the root test (the `Format` row)"
+  },
+  {
+    "name": "C35 nestedParentPath: the unindexed climb matches the format root by prefix",
+    "file": "src/core/yaml-context.ts",
+    "from": "return key === \"format\" ? path : null;",
+    "to": "return key.startsWith(\"format\") ? path : null;",
+    "expect": "killed",
+    "why": "the unindexed climb (the completion path) reads a root `formats:` as `format:`: the `formats` row asks without an index"
+  },
+  {
+    "name": "C36 nestedParentPath: the path is cut at 1,000 keys",
+    "file": "src/core/yaml-context.ts",
+    "from": "containerKeys(chain) : null;",
+    "to": "containerKeys(chain).slice(0, 1000) : null;",
+    "expect": "killed",
+    "why": "a path deeper than 1,000 keys is cut: the 4,200-level row (and the clock rows, which are the only other place a path that long is made)"
+  },
+  {
+    "name": "C37 nestedParentPath: the path is cut at 4,096 keys",
+    "file": "src/core/yaml-context.ts",
+    "from": "containerKeys(chain) : null;",
+    "to": "containerKeys(chain).slice(0, 4096) : null;",
+    "expect": "killed",
+    "why": "a path deeper than 4,096 keys is cut: only the 4,200-level row sees it, the deepest path anywhere else is 3,201 keys"
+  },
+  {
+    "name": "C38 containerChain: an empty key is no container",
+    "file": "src/core/yaml-context.ts",
+    "from": "const key = mappingContainerKey(lines[at] ?? \"\");\n    if (key === null) {",
+    "to": "const key = mappingContainerKey(lines[at] ?? \"\");\n    if (!key) {",
+    "expect": "killed",
+    "why": "a container whose key is the empty string (a line `  :`) is not a container: the old climb took it, and the row for the empty key says so"
+  },
+  {
+    "name": "C39 containerChain: an interior key is lowercased",
+    "file": "src/core/yaml-context.ts",
+    "from": "waitingKeys.push(key);",
+    "to": "waitingKeys.push(key.toLowerCase());",
+    "expect": "killed",
+    "why": "an interior key lowercased: the rows before this one named their interior keys in lowercase"
+  },
+  {
+    "name": "C40 containerChain: an interior key is cut to 8 characters",
+    "file": "src/core/yaml-context.ts",
+    "from": "waitingKeys.push(key);",
+    "to": "waitingKeys.push(key.slice(0, 8));",
+    "expect": "killed",
+    "why": "an interior key cut to 8 characters: the rows before this one named their interior keys with fewer"
+  },
+  {
+    "name": "C41 containerChain: an interior key is trimmed",
+    "file": "src/core/yaml-context.ts",
+    "from": "waitingKeys.push(key);",
+    "to": "waitingKeys.push(key.trim());",
+    "expect": "killed",
+    "why": "an interior key trimmed in the chain: no interior key before this one ended in a no-break space"
+  },
+  {
+    "name": "C42 containerChain: an interior key is unquoted",
+    "file": "src/core/yaml-context.ts",
+    "from": "waitingKeys.push(key);",
+    "to": "waitingKeys.push(key.replace(/^\"(.*)\"$/, \"$1\"));",
+    "expect": "killed",
+    "why": "an interior key unquoted in the chain: no interior key before this one was quoted"
+  },
+  {
+    "name": "C43 containerKeys: the keys are trimmed",
+    "file": "src/core/yaml-context.ts",
+    "from": "keys[i] = link.key;",
+    "to": "keys[i] = link.key.trim();",
+    "expect": "killed",
+    "why": "the keys trimmed on the way out of `containerKeys`: the no-break space rows"
+  },
+  {
+    "name": "C44 containerKeys: the keys are lowercased",
+    "file": "src/core/yaml-context.ts",
+    "from": "keys[i] = link.key;",
+    "to": "keys[i] = link.key.toLowerCase();",
+    "expect": "killed",
+    "why": "the keys lowercased on the way out of `containerKeys`: the `Opt-Name` row"
+  },
+  {
+    "name": "C45 findNestedFrontMatterValueLines: the index is built but not passed",
+    "file": "src/core/yaml-frontmatter-nested-values.ts",
+    "from": "nestedParentPath(contentLines, i, indent, indents)",
+    "to": "nestedParentPath(contentLines, i, indent)",
+    "expect": "killed",
+    "why": "the enumerator builds the index and does not pass it: every answer is the same and the old climb runs on every line; the earlier rows saw it only on the clock, by hanging. `nested-values-index-call.test.ts` counts the calls"
   }
 ]

@@ -276,9 +276,10 @@ function nestedKeyContextAt(
  * it each call scans upward past every same-indent sibling, so n sibling keys cost time
  * proportional to n squared (Session 314). The answer is the same either way.
  *
- * The same loop reads the climb from the index too: each line's chain of containers is built ONCE from the chain of the line above it, so a
- * line `d` levels down costs one step and a copy of its path, not `d` steps that each read an ancestor's whole indent (cubic in the depth
- * while the text grows with its square: 3,200 levels took 8.3 s; Session 323).
+ * The same loop reads the climb from the index too: each line's chain of containers is built ONCE from the chain of its nearest shallower line (the container it sits
+ * in), so a line `d` levels down costs one step and a copy of its path, not `d` steps that each read an ancestor's whole indent (cubic in the depth while the text grows
+ * with its square: 3,200 levels took 8.3 s; Session 323). The index, its chains included, is a snapshot of the `lines` it was built from: after an edit of `lines`,
+ * build a new one (a chain keeps a key that the edit has since renamed). The one caller builds a fresh index for each call.
  */
 export function nestedParentPath(
   lines: string[],
@@ -379,8 +380,9 @@ export function leadingWsLen(text: string): number {
  * the caller walk a second level up from the parent's own line.
  *
  * With an `index` of `lines` and a `line` that is a content line indented exactly `indent`
- * (every call of a forward loop, and every step of the ancestor climb), the answer is read
- * from the index instead of scanned for. Any other call falls back to the scan.
+ * (every call of a forward loop), the answer is read from the index instead of scanned for.
+ * Any other call falls back to the scan, and so does every step of the climb in
+ * {@link nestedParentPath} when it is given no index.
  */
 function nearestShallowerLine(
   lines: string[],
@@ -413,17 +415,17 @@ function nearestShallowerLine(
  * no-break spaces counts as blank here, as it does in the scan) nor a comment (`#` after its spaces and tabs).
  */
 export interface LineIndentIndex {
-  /** The leading spaces and tabs of a content line; `-1` for a blank or comment line, which the index does not answer for. */
+  /** The leading spaces and tabs of a content line; `-1` for a blank or comment line, which the index does not answer for (a chain is only ever built for a content line, so it never meets the `-1`). */
   readonly indent: Int32Array;
   /** For a content line, the index of the nearest content line above it indented strictly LESS; `-1` when there is none. */
   readonly shallower: Int32Array;
-  /** What {@link containerChain} has answered so far, by line: `undefined` before it is asked, `null` when the climb from the line fails. Filled by {@link nestedParentPath}. */
+  /** What {@link containerChain} has answered so far, by line: `undefined` until the line is asked about or a line below it is, `null` when the climb from the line fails. Filled by {@link nestedParentPath}. */
   readonly chains: Array<ContainerChain | null | undefined>;
 }
 
 /**
- * The containers from a column-0 line down to one line, each a pure mapping (`key:` and nothing else): this line's key, the chain of the line above
- * it (`null` at the column-0 line), how many keys that is, and the column-0 line's key. One link per line, so the chains of a document share their tails.
+ * The containers from a column-0 line down to one line, each a pure mapping (`key:` with an empty value or only a comment): this line's key, the chain of the nearest
+ * shallower line above it (`null` at the column-0 line), how many keys that is, and the column-0 line's key. One link per line, so the chains of a document share their tails.
  */
 interface ContainerChain {
   readonly key: string;
@@ -487,14 +489,14 @@ function containerChain(lines: string[], index: LineIndentIndex, from: number): 
       chain = chains[at] = { key, above: null, depth: 1, root: key };
       break;
     }
-    const above = shallower[at];
-    if (above < 0) {
+    const up = shallower[at];
+    if (up < 0) {
       chain = chains[at] = null;
       break;
     }
     waiting.push(at);
     waitingKeys.push(key);
-    at = above;
+    at = up;
   }
   while (waiting.length > 0) {
     const line = waiting.pop() as number;

@@ -6,7 +6,7 @@ import { seededRandom } from "./support/regex-equivalence";
 // Session 323 — the BACKLOG item "Other regexes still quadratic on a long run of blanks, CR or U+2028", part (6a). The ancestor walk of `nestedParentPath` climbed every ancestor of the line asked, reading each one's
 // whole indent twice and prepending its key, so a line `d` levels down cost `d` hops of `d` characters (cubic in the depth, while the text grows with its square: 3,200 levels took 8.3 s;
 // `pathological-inputs.test.ts` has the document rows). Given an index, it now builds each line's chain of containers from the chain of the line above it and keeps the answer in `index.chains`. The old
-// function is kept here, verbatim, as the oracle (Learning 738): the new one must answer what it answered for every document and every line asked, in any order, through one index and through a fresh one.
+// function is kept here as the oracle (Learning 738), but for the gate lookup, the scan and the names: the new one must answer what it answered for every document and every line asked, in any order, through one index and through a fresh one.
 
 /** Whether the shipped one-level gate (`NESTED_CONTAINERS`, not exported) lets a column-0 container through, read off the shipped function with a two-line document. */
 const gateAnswers = new Map<string, boolean>();
@@ -19,7 +19,7 @@ const inGate = (container: string): boolean => {
   return answer;
 };
 
-/** The old `nearestShallowerLine`, verbatim (the scan; the old function was never given an index). */
+/** The old `nearestShallowerLine`, verbatim (the scan: what the function did before Session 314 and still does when it is given no index; the parent enumerator did pass one). */
 function oldNearestShallowerLine(lines: string[], line: number, indent: number): number {
   for (let i = line - 1; i >= 0; i--) {
     const t = lines[i] ?? "";
@@ -80,6 +80,9 @@ const STAIRCASE_DEPTH = 12;
 const WORK_DEPTH = 400;
 const WORK_SIBLINGS = 1_000;
 const SAME_LINE_ASKS = 1_000;
+const PATH_DEPTH = 4_200;
+// Read off the first run, as `answered` was: nine questions a line over the lines of the 4,000 walked documents (the random walk is seeded).
+const SEEDED_ASKED = 866_853; // = 9 * 96,317 lines
 
 /**
  * Counts of what the comparisons covered, so that one that answers `null` everywhere cannot pass: documents, (line, indent) pairs asked, pairs the old function answered with a path (counted in ascending order, own
@@ -107,14 +110,14 @@ const show = (path: string[] | null): string => JSON.stringify(path);
  * Ask every line of one document, at its own indent (the index answers) and, unless `wide` is false, at two others (it does not, and the scan runs), in three orders, through one index kept for the order and through a fresh index for each
  * question and through no index, and compare each answer with the old function's. Adds to `tally`.
  */
-function compareAsks(lines: string[], tally: Tally, wide = true): void {
+function compareAsks(lines: string[], tally: Tally, wide = true, oracle: typeof oldNestedParentPath = oldNestedParentPath): void {
   const orders = askingOrders(lines.length);
   orders.forEach((order, which) => {
     const shared = indexLineIndents(lines);
     for (const line of order) {
       const own = leadingWsLen(lines[line]);
       for (const indent of wide ? [own, own + 2, 0] : [own]) {
-        const expected = oldNestedParentPath(lines, line, indent);
+        const expected = oracle(lines, line, indent);
         tally.asked++;
         if (which === 0 && indent === own && expected !== null) {
           tally.answered++;
@@ -149,7 +152,7 @@ const NBSP = String.fromCharCode(0xa0);
 
 // The lines of the exhaustive rows: the two roots that decide the path (`format` and one that is not), containers at four deeper indents (so that a five-line document can be a four-level staircase), a scalar and a comment.
 const STAIRCASE_KINDS = ["format:", "execute:", "  a:", "    b:", "      c:", "        d:", "    v: 1", "  # c"];
-// The six-line rows use fewer kinds, chosen so that a whole six-level staircase is among the documents.
+// The six-line rows use fewer kinds, chosen so that a whole five-level staircase under its root is among the documents.
 const SIX_LINE_KINDS = ["format:", "  a:", "    b:", "      c:", "        d:", "          e:", "  s: v"];
 const ROOTS = ["format:", "execute:", "website:", "crossref:", '"format":', "format :", "format: # c", "format: x", "format: |", "- format:", NBSP + "format:", "\tformat:"];
 
@@ -215,6 +218,16 @@ describe("Session 323 — nestedParentPath with an index answers what the old cl
     ["the root key is quoted: it is not format", ['"format":', "  html:", "    k: v"], 2, 4, null],
     ["a space before the root's colon: the key is still format", ["format :", "  html:", "    k: v"], 2, 4, ["format", "html"]],
     ["a comment after a container's colon: it is still a container", ["format: # c", "  html: # d", "    k: v"], 2, 4, ["format", "html"]],
+    // The text of a key, and the names that decide the path, are compared whole and exactly.
+    ["a root named formats is not format", ["formats:", "  html:", "    k: v"], 2, 4, null],
+    ["a root named Format is not format", ["Format:", "  html:", "    k: v"], 2, 4, null],
+    ["a root named xformat is not format", ["xformat:", "  html:", "    k: v"], 2, 4, null],
+    ["a capital Execute is not a column-0 container the gate lets through", ["Execute:", "  k: v"], 1, 2, null],
+    ["a container whose key is empty (`  :`) is still a container, and its path has the empty key", ["format:", "  :", "    k: v"], 2, 4, ["format", ""]],
+    ["interior keys keep their case and their length", ["format:", "  fig-format-long:", "    Opt-Name :", "      k: v"], 3, 6, ["format", "fig-format-long", "Opt-Name"]],
+    ["an interior key keeps a trailing no-break space", ["format:", `  z${NBSP}:`, "    k: v"], 2, 4, ["format", `z${NBSP}`]],
+    ["a deep interior key keeps a trailing no-break space", ["format:", "  a:", `    z${NBSP}:`, "      k: v"], 3, 6, ["format", "a", `z${NBSP}`]],
+    ["a quoted interior key keeps its quotes", ["format:", '  "html":', "    k: v"], 2, 4, ["format", '"html"']],
   ] as const)("%s", (_what, lines, line, indent, expected) => {
     const copy = [...lines];
     expect(oldNestedParentPath(copy, line, indent)).toEqual(expected);
@@ -228,10 +241,10 @@ describe("Session 323 — nestedParentPath with an index answers what the old cl
       compareAsks(lines, tally);
     }
     expect(tally.disagreements).toEqual([]);
-    expect(tally).toMatchObject({ documents: 37_448, answered: 47_381, longest: 4 });
+    expect(tally).toMatchObject({ documents: 37_448, asked: 1_637_064, answered: 47_381, longest: 4 }); // asked: nine questions a line (three orders, three indents): 9 * (1 * 8 + 2 * 64 + 3 * 512 + 4 * 4096 + 5 * 32768)
   }, 120000);
 
-  it("agrees on every document of six lines over seven kinds of line (SIX_LINE_KINDS: a six-level staircase is among them)", () => {
+  it("agrees on every document of six lines over seven kinds of line (SIX_LINE_KINDS: a five-level staircase under its root is among them)", () => {
     const tally = newTally();
     for (const lines of everyDocument(SIX_LINE_KINDS, SIX_LINE_LENGTH)) {
       if (lines.length === SIX_LINE_LENGTH) {
@@ -239,7 +252,7 @@ describe("Session 323 — nestedParentPath with an index answers what the old cl
       }
     }
     expect(tally.disagreements).toEqual([]);
-    expect(tally).toMatchObject({ documents: 117_649, answered: 161_390, longest: 5 });
+    expect(tally).toMatchObject({ documents: 117_649, asked: 2_117_682, answered: 161_390, longest: 5 }); // asked: 117,649 * 6 lines * three orders, the own indent only
   }, 120000);
 
   it("agrees on 4,000 seeded documents of 8 to 40 lines grown by a random walk on the indent", () => {
@@ -249,7 +262,7 @@ describe("Session 323 — nestedParentPath with an index answers what the old cl
       compareAsks(walkedDocument(next), tally);
     }
     expect(tally.disagreements).toEqual([]);
-    expect(tally).toMatchObject({ documents: SEEDED_DOCUMENTS, answered: 12_435, longest: 11 });
+    expect(tally).toMatchObject({ documents: SEEDED_DOCUMENTS, asked: SEEDED_ASKED, answered: 12_435, longest: 11 });
   }, 120000);
 
   // A staircase of every depth up to twelve under each root, with each breaker put in at each position (or none), every line asked: the chain is long, and exactly one line on it is not a container.
@@ -267,8 +280,26 @@ describe("Session 323 — nestedParentPath with an index answers what the old cl
       }
     }
     expect(tally.disagreements).toEqual([]);
-    expect(tally).toMatchObject({ documents: 12_024, answered: 25_248, longest: 13 });
+    expect(tally).toMatchObject({ documents: 12_024, asked: 1_088_424, answered: 25_248, longest: 13 }); // asked: 9 * 12 roots * the sum over depths of (d + 1) + 11 * (d + 1) * (d + 2)
   }, 120000);
+
+  // The rows above fail only through `tally.disagreements`, so each of these shows that the comparison can fail, and what it asks.
+  it("reports a disagreement when the oracle answers otherwise: asked of a wrong oracle, compareAsks fills `disagreements`, and it names the document and the question", () => {
+    const tally = newTally();
+    const lines = ["format:", "  html:", "    k: v"];
+    compareAsks(lines, tally, true, () => ["wrong"]);
+    expect(tally.disagreements.length).toBeGreaterThan(0);
+    expect(tally.disagreements.length).toBeLessThanOrEqual(5);
+    expect(tally.disagreements[0]).toContain(JSON.stringify(lines));
+    expect(tally.disagreements[0]).toContain('old ["wrong"]');
+    expect(tally).toMatchObject({ documents: 1, asked: 27 });
+  });
+
+  it("asks the lines of a document in three orders: down, up, and from the two ends towards the middle", () => {
+    expect(askingOrders(5)).toEqual([[0, 1, 2, 3, 4], [4, 3, 2, 1, 0], [4, 0, 3, 1, 2]]);
+    expect(askingOrders(4)).toEqual([[0, 1, 2, 3], [3, 2, 1, 0], [3, 0, 2, 1]]);
+    expect(askingOrders(0)).toEqual([[], [], []]);
+  });
 });
 
 /** `lines` with every read of a line by index counted. An index is built from the plain array first, so only the questions asked of the watched one are counted. */
@@ -288,21 +319,23 @@ function watched(lines: string[]): { lines: string[]; reads: () => number } {
 const downFrom = (count: number): number[] => Array.from({ length: count }, (_, i) => i);
 const upFrom = (count: number): number[] => downFrom(count).reverse();
 
-// The cost, counted as lines read instead of milliseconds: it does not move with the load of the machine. The old climb read the line of every ancestor of every line asked (400 levels asked once each: about 80,000 reads),
-// the index reads a line when its chain is first built and never again.
-describe("Session 323 — the ancestor climb reads each line of the document at most once", () => {
+// The cost, counted as lines read instead of milliseconds: it does not move with the load of the machine. The old climb read the line of every ancestor of every line asked, twice (400 levels asked once each: 160,400 reads,
+// two for each of the 80,200 ancestor visits); the index reads a line when its chain is first built and never again, so a document is read once for each line that is some line's container, and the counts below are exact.
+describe("Session 323 — the ancestor climb reads each container line of the document once, and no other line", () => {
   const deepest = (depth: number): string[] => ["format", ...Array.from({ length: depth - 1 }, (_, j) => `k${j + 1}`)];
   const withSiblings = (depth: number, siblings: number): string[] => [...staircase(depth, "format:"), ...Array.from({ length: siblings }, (_, i) => `${" ".repeat(depth + 1)}o${i}: v`)];
 
+  // `reads`: the lines some line is nested in, each once, however many are nested in it and in whatever order they are asked. The bottom line of a staircase is only ever asked about, so 400 of its 401 lines are read; the same
+  // holds with the siblings at the bottom of a trunk (401 of 1,401: the trunk's bottom line, which is their container) and where a chain fails at the first level (the lines below it stop there, and line 1 still reads the root).
   it.each([
-    ["a 400-level staircase under format, every line asked from the bottom up", staircase(WORK_DEPTH, "format:"), true],
-    ["the same, asked from the top down", staircase(WORK_DEPTH, "format:"), false],
-    ["a 400-level staircase under execute, a root that is not format: the climb ends there for every line", staircase(WORK_DEPTH, "execute:"), true],
-    ["a 400-level staircase under a root that holds a scalar: no line has a path, and none is read again", staircase(WORK_DEPTH, "format: x"), true],
-    ["a 400-level staircase with a block scalar on the first level: the chain fails at the top for every line below", [...staircase(WORK_DEPTH, "format:").slice(0, 1), " k1: |", ...staircase(WORK_DEPTH, "format:").slice(2)], true],
-    ["a 400-level trunk and 1,000 sibling scalars at its bottom, asked from the bottom up", withSiblings(WORK_DEPTH, WORK_SIBLINGS), true],
-    ["the same, asked from the top down", withSiblings(WORK_DEPTH, WORK_SIBLINGS), false],
-  ] as const)("%s", (_what, lines, bottomUp) => {
+    ["a 400-level staircase under format, every line asked from the bottom up", staircase(WORK_DEPTH, "format:"), true, 400],
+    ["the same, asked from the top down", staircase(WORK_DEPTH, "format:"), false, 400],
+    ["a 400-level staircase under execute, a root that is not format: the climb ends there for every line", staircase(WORK_DEPTH, "execute:"), true, 400],
+    ["a 400-level staircase under a root that holds a scalar: no line has a path, and none is read again", staircase(WORK_DEPTH, "format: x"), true, 400],
+    ["a 400-level staircase with a block scalar on the first level: the chain fails at the top for every line below", [...staircase(WORK_DEPTH, "format:").slice(0, 1), " k1: |", ...staircase(WORK_DEPTH, "format:").slice(2)], true, 400],
+    ["a 400-level trunk and 1,000 sibling scalars at its bottom, asked from the bottom up", withSiblings(WORK_DEPTH, WORK_SIBLINGS), true, 401],
+    ["the same, asked from the top down", withSiblings(WORK_DEPTH, WORK_SIBLINGS), false, 401],
+  ] as const)("%s", (_what, lines, bottomUp, reads) => {
     const index = indexLineIndents(lines as string[]);
     const watch = watched(lines as string[]);
     const order = bottomUp ? upFrom(lines.length) : downFrom(lines.length);
@@ -310,7 +343,7 @@ describe("Session 323 — the ancestor climb reads each line of the document at 
     for (const line of order) {
       answers.set(line, nestedParentPath(watch.lines, line, leadingWsLen(lines[line]), index));
     }
-    expect(watch.reads()).toBeLessThanOrEqual(lines.length);
+    expect(watch.reads()).toBe(reads);
     // The answers are the old function's: the pin is on the work, not instead of the answer.
     for (const line of [1, Math.floor(lines.length / 2), lines.length - 1]) {
       expect(answers.get(line)).toEqual(oldNestedParentPath(lines as string[], line, leadingWsLen(lines[line])));
@@ -323,6 +356,13 @@ describe("Session 323 — the ancestor climb reads each line of the document at 
     const watch = watched(lines);
     oldNestedParentPath(watch.lines, lines.length - 1, WORK_DEPTH);
     expect(watch.reads()).toBeGreaterThan(WORK_DEPTH); // the old climb reads one line per hop (and the lines between): the bound above is not one it meets for free
+  });
+
+  it("returns the whole path of a container 4,200 levels down: nothing cuts the path short", () => {
+    const lines = staircase(PATH_DEPTH, "format:");
+    const path = nestedParentPath(lines, lines.length - 1, PATH_DEPTH, indexLineIndents(lines));
+    expect(path).toHaveLength(PATH_DEPTH);
+    expect(path).toEqual(deepest(PATH_DEPTH));
   });
 
   it("asking the same line again reads nothing: the second answer comes from the chain kept in the index", () => {
@@ -426,6 +466,6 @@ describe("Session 323 — the paths findNestedFrontMatterValueLines returns", ()
 // A row run with a smaller staircase, or allowed more reads, would pass on the parent too.
 describe("Session 323 — the sizes the container chain rows are built on", () => {
   it("keeps the sizes the Session 323 rows are built on", () => {
-    expect([EXHAUSTIVE_LENGTH, SIX_LINE_LENGTH, SEEDED_DOCUMENTS, STAIRCASE_DEPTH, WORK_DEPTH, WORK_SIBLINGS, SAME_LINE_ASKS]).toEqual([5, 6, 4_000, 12, 400, 1_000, 1_000]);
+    expect([EXHAUSTIVE_LENGTH, SIX_LINE_LENGTH, SEEDED_DOCUMENTS, STAIRCASE_DEPTH, WORK_DEPTH, WORK_SIBLINGS, SAME_LINE_ASKS, PATH_DEPTH]).toEqual([5, 6, 4_000, 12, 400, 1_000, 1_000, 4_200]);
   });
 });

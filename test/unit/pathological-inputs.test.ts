@@ -1096,13 +1096,15 @@ describe("Session 323 — a front matter container nested thousands of levels de
   // so the cost is cubic in the depth while the text grows with its square (one key per level, each indented one more than the last). Bare `findNestedFrontMatterValueLines`, one fresh process each (Session 323, load
   // average about 40, none of it mine): 22 / 48 / 202 / 1,203 ms at depth 200 / 400 / 800 / 1,600 (1.29 MB) and 8,262 ms at 3,200 (5.1 MB); `resolveDocumentEngine` and `collectValueSources` take the same time, because they
   // call it; 800 levels with 8,000 sibling scalars at the bottom (6.8 MB) took 5.2 s, since every sibling climbs the whole trunk. A CPU profile at depth 1,600: 36% in `^[ \t]*`, 36% in `^[ \t]+`, 9% in `nestedParentPath`.
-  // Every row builds a text no other row builds (its own site is in the body).
+  // The cure (a chain of containers kept for each line) took the same rows to 0.28 to 0.72 s each, text building included (load average 11 to 23, one run each; 0.27 to 0.53 s alone), against 5.4 s for the two trunk rows, 8.2 to 8.4 s for the
+  // chain rows and 16.5 s for `valueFlags` on the parent. The limit is set between the two at 2,500 ms, not 1,000: the slowest new row took 70% of 1,000 with the machine busy, and the work is also pinned as lines read (`container-chain-equivalence.test.ts`),
+  // which does not move with the load. Every row builds a text no other row builds (its own site is in the body).
   const DEEP = 3_200;
   const SHALLOW = 40;
   const TRUNK = 800;
   const LEAVES = 8_000;
   const FEW_LEAVES = 10;
-  const DEEP_LIMIT_MS = 1000;
+  const DEEP_LIMIT_MS = 2500;
   const levels = (depth: number): string => Array.from({ length: depth }, (_, j) => `${" ".repeat(j + 1)}k${j + 1}:`).join("\n");
   /** `depth` containers, one more indent each, under `root`, and one scalar at the bottom. */
   const chain = (depth: number, root: string, body: string): string => `---\n${root}\n${levels(depth)}\n${" ".repeat(depth + 1)}echo: true\n---\n\n${body}\n`;
@@ -1162,7 +1164,7 @@ describe("Session 323 — a front matter container nested thousands of levels de
 
   // A row run at depth 40, or allowed 100 s, would pass on the parent too.
   it("keeps the sizes and the limit the Session 323 rows are built on", () => {
-    expect([DEEP, SHALLOW, TRUNK, LEAVES, FEW_LEAVES, DEEP_LIMIT_MS]).toEqual([3_200, 40, 800, 8_000, 10, 1000]);
+    expect([DEEP, SHALLOW, TRUNK, LEAVES, FEW_LEAVES, DEEP_LIMIT_MS]).toEqual([3_200, 40, 800, 8_000, 10, 2500]);
     expect(trunkLines({ depth: SHALLOW, leaves: FEW_LEAVES })).toBe(57);
   });
 });
