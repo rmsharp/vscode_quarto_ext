@@ -312,6 +312,62 @@
     "why": "U+0301 alone, after a hash: only the sweep of every code unit holds one (no alphabet does)"
   },
   {
+    "name": "A39 ids that each end in an optional dash (the same language, a split a boundary again)",
+    "file": "src/core/qmd/model.ts",
+    "from": "export const ATTR_ATOM_RUN = /^(?!$)-*(?:\\.\\p{L}[\\p{L}\\p{N}_:.-]*)?(?:#[\\p{L}\\p{N}_:.-]+)*$/u;",
+    "to": "export const ATTR_ATOM_RUN = /^(?!$)-*(?:\\.\\p{L}[\\p{L}\\p{N}_:.-]*)?(?:#[\\p{L}\\p{N}_:.-]+-?)*$/u;",
+    "expect": "killed",
+    "why": "no answer changes, so cost tells it: an id's tail already takes a dash, so `#a-` is one id or an id and the optional dash, and a star of them is exponential when the last character is refused (the review round's P21: 1.9 / 7.7 / 30.8 s at 24 / 26 / 28 ids, cold); only a near-miss row that repeats an id ending in a dash sees it"
+  },
+  {
+    "name": "A40 ids that each end in an optional dot",
+    "file": "src/core/qmd/model.ts",
+    "from": "export const ATTR_ATOM_RUN = /^(?!$)-*(?:\\.\\p{L}[\\p{L}\\p{N}_:.-]*)?(?:#[\\p{L}\\p{N}_:.-]+)*$/u;",
+    "to": "export const ATTR_ATOM_RUN = /^(?!$)-*(?:\\.\\p{L}[\\p{L}\\p{N}_:.-]*)?(?:#[\\p{L}\\p{N}_:.-]+\\.?)*$/u;",
+    "expect": "killed",
+    "why": "as A39 with a dot (P22)"
+  },
+  {
+    "name": "A41 ids that each end in an optional number",
+    "file": "src/core/qmd/model.ts",
+    "from": "export const ATTR_ATOM_RUN = /^(?!$)-*(?:\\.\\p{L}[\\p{L}\\p{N}_:.-]*)?(?:#[\\p{L}\\p{N}_:.-]+)*$/u;",
+    "to": "export const ATTR_ATOM_RUN = /^(?!$)-*(?:\\.\\p{L}[\\p{L}\\p{N}_:.-]*)?(?:#[\\p{L}\\p{N}_:.-]+\\p{N}?)*$/u;",
+    "expect": "killed",
+    "why": "as A39 with a digit (P23): a row whose id ends in a digit"
+  },
+  {
+    "name": "A42 ids that each end in an optional underscore or colon",
+    "file": "src/core/qmd/model.ts",
+    "from": "export const ATTR_ATOM_RUN = /^(?!$)-*(?:\\.\\p{L}[\\p{L}\\p{N}_:.-]*)?(?:#[\\p{L}\\p{N}_:.-]+)*$/u;",
+    "to": "export const ATTR_ATOM_RUN = /^(?!$)-*(?:\\.\\p{L}[\\p{L}\\p{N}_:.-]*)?(?:#[\\p{L}\\p{N}_:.-]+[_:]?)*$/u;",
+    "expect": "killed",
+    "why": "as A39 with `_` or `:` (P24)"
+  },
+  {
+    "name": "A43 ids that each end in an optional letter",
+    "file": "src/core/qmd/model.ts",
+    "from": "export const ATTR_ATOM_RUN = /^(?!$)-*(?:\\.\\p{L}[\\p{L}\\p{N}_:.-]*)?(?:#[\\p{L}\\p{N}_:.-]+)*$/u;",
+    "to": "export const ATTR_ATOM_RUN = /^(?!$)-*(?:\\.\\p{L}[\\p{L}\\p{N}_:.-]*)?(?:#[\\p{L}\\p{N}_:.-]+\\p{L}?)*$/u;",
+    "expect": "killed",
+    "why": "as A39 with a letter: the row of ids that each hold a class ends every id in a letter"
+  },
+  {
+    "name": "A44 a capture per dash (the same language, a stack entry a dash)",
+    "file": "src/core/qmd/model.ts",
+    "from": "export const ATTR_ATOM_RUN = /^(?!$)-*(?:\\.\\p{L}[\\p{L}\\p{N}_:.-]*)?(?:#[\\p{L}\\p{N}_:.-]+)*$/u;",
+    "to": "export const ATTR_ATOM_RUN = /^(?!$)(-)*(?:\\.\\p{L}[\\p{L}\\p{N}_:.-]*)?(?:#[\\p{L}\\p{N}_:.-]+)*$/u;",
+    "expect": "killed",
+    "why": "no answer changes up to 1,000,000 dashes, so only the 9,000,000-dash row sees it: a capture group in a star costs the regex stack an entry an iteration, and the old alternation threw from about 9,000,000 dashes the same way"
+  },
+  {
+    "name": "A45 a lookahead inside the dash group (the same language, a stack entry a dash)",
+    "file": "src/core/qmd/model.ts",
+    "from": "export const ATTR_ATOM_RUN = /^(?!$)-*(?:\\.\\p{L}[\\p{L}\\p{N}_:.-]*)?(?:#[\\p{L}\\p{N}_:.-]+)*$/u;",
+    "to": "export const ATTR_ATOM_RUN = /^(?!$)(?:-(?!\\n))*(?:\\.\\p{L}[\\p{L}\\p{N}_:.-]*)?(?:#[\\p{L}\\p{N}_:.-]+)*$/u;",
+    "expect": "killed",
+    "why": "as A44: `(?!\\n)` after a dash holds nothing that the rest of the pattern would not refuse, and the group is not a simple loop"
+  },
+  {
     "name": "E01 the guard spelled as a lookahead for any character",
     "file": "src/core/qmd/model.ts",
     "from": "export const ATTR_ATOM_RUN = /^(?!$)-*(?:\\.\\p{L}[\\p{L}\\p{N}_:.-]*)?(?:#[\\p{L}\\p{N}_:.-]+)*$/u;",

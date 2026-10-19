@@ -4,7 +4,7 @@ import { compare, countStrings, everyString, seededRandom } from "./support/rege
 
 // Session 324 — the BACKLOG item "Nine more single-line overflow and slow-input families, none of them in Session 317's diff", part (1). `ATTR_ATOM_RUN` judges one token of a heading, fence, image, span or div attribute block
 // as a run of `-`, `#id` and `.class` atoms. It was an alternation of the three atoms under a `+`, and an id's tail and a class's tail both hold `.` and `-`, so `.A.A.A` was one class or three and a token
-// whose LAST character is wrong was tried under every split before it was refused (exponential in the classes: 30 of them, a 74-byte line, took 7 s; quadratic in a run of dashes after an id or a class: 100,000 took
+// whose LAST character is wrong was tried under every split before it was refused (exponential in the classes: 30 of them, a 68-byte line, took 7.4 s warm; quadratic in a run of dashes after an id or a class: 100,000 took
 // 12 s; `pathological-inputs.test.ts` has the document rows). The cure is the same language spelled as its plain shape: dashes, at most ONE class, then ids. It is only sound if the new pattern accepts exactly what the
 // old one accepted on EVERY string, so the old spelling is kept here, verbatim, as the oracle (Learning 738).
 const OLD_ATTR_ATOM_RUN = /^(?:-|#[\p{L}\p{N}_:.-]+|\.\p{L}[\p{L}\p{N}_:.-]*)+$/u;
@@ -19,8 +19,8 @@ const SEEDED_STRINGS = 100_000;
 const NEAR_MISS_LIMIT_MS = 100;
 const NEAR_MISS_SIZES = [20_000, 50_000, 1_000_000];
 
-// The three alphabets of the exhaustive rows, named so that one row can pin what is in them (a letter put in place of `#` would move neither the string count nor, by luck, the accepted count).
-// A: the structural characters and one of each kind of identifier character (a digit, `_`, `:`) and one character no atom holds (`!`). B: the five that make a run ambiguous, to nine characters.
+// The three alphabets of the exhaustive rows, named so that one row can pin what is in them (a character put in place of another never moves the string count, and moves the accepted count unless the two play the same part in the grammar, as one letter for another does).
+// A: the structural characters and one of each kind of identifier character (a digit, `_`, `:`) and one character no atom holds (`!`). B: the three that make a run ambiguous (a dot, a letter, a dash), the hash that ends an id and the bang that refuses a token, to nine characters.
 // C: the Unicode kinds (a lowercase letter, a letter and a non-letter of two code units, a number that is no digit, a digit that is not ASCII).
 const ALPHABET_A = ["-", "#", ".", "A", "1", "_", ":", "!"];
 const ALPHABET_B = [".", "A", "-", "#", "!"];
@@ -40,7 +40,7 @@ describe("Session 324 — ATTR_ATOM_RUN accepts what the alternation of atoms ac
     ["a dot is an identifier character: one class", ".A.B", true],
     ["a class tail holds letters, digits, underscore, colon, dot and dash", ".a1_b:c.d-e", true],
     ["a dash, then a class", "-.A", true],
-    ["a dash ends a class tail", ".A-", true],
+    ["a dash may end a class tail", ".A-", true],
     ["a dash, then an id", "-#a", true],
     ["a class, then an id", ".A#a", true],
     ["an id whose tail looks like a class", "#a.A", true],
@@ -149,8 +149,8 @@ describe("Session 324 — ATTR_ATOM_RUN accepts what the alternation of atoms ac
     expect(result.disagreements.length).toBeGreaterThan(0);
   });
 
-  // The old alternation takes seconds to years on the first five of these (a class, an id then classes, a dash after each class, an id then dashes, a class then dashes) and is linear on the rest, so each answer is
-  // stated, not taken from it. The limit is wide on purpose (a linear pass takes milliseconds even at a million characters); 20,000 is in the sizes so that a pattern which keeps the old way for short tokens
+  // The old alternation is EXPONENTIAL on the rows that repeat a class, or an id that holds one (classes then a bang, an id then classes, a dash after each class, ids that each hold a class, classes then a hash,
+  // an id then classes then a second id and a bang), QUADRATIC on an id or a class then dashes, and linear on dashes alone, ids alone and the accepted rows, so each answer is stated, not taken from it. The limit is wide on purpose (a linear pass takes milliseconds even at a million characters); 20,000 is in the sizes so that a pattern which keeps the old way for short tokens
   // cannot hide below the larger ones.
   it.each([
     ["classes then a bang", (n: number) => `${".A".repeat(n / 2)}!`, false],
@@ -161,6 +161,12 @@ describe("Session 324 — ATTR_ATOM_RUN accepts what the alternation of atoms ac
     ["dashes then a bang", (n: number) => `${"-".repeat(n)}!`, false],
     ["ids then a bang", (n: number) => `${"#a".repeat(n / 2)}!`, false],
     ["ids that each hold a class, then a bang", (n: number) => `${"#a.A".repeat(n / 4)}!`, false],
+    // An id's tail already holds each of these, so an optional trailing piece on the id loop (`-?`, `\.?`, a digit, `[_:]?`) is the same language and splits every id two ways again: only a row whose ids END in that character sees it.
+    ["ids that each end in a dash, then a bang", (n: number) => `${"#a-".repeat(n / 3)}!`, false],
+    ["ids that each end in a dot, then a bang", (n: number) => `${"#a.".repeat(n / 3)}!`, false],
+    ["ids that each end in a digit, then a bang", (n: number) => `${"#a1".repeat(n / 3)}!`, false],
+    ["ids that each end in an underscore, then a bang", (n: number) => `${"#a_".repeat(n / 3)}!`, false],
+    ["ids that each end in a colon, then a bang", (n: number) => `${"#a:".repeat(n / 3)}!`, false],
     ["classes then a hash with nothing after it", (n: number) => `${".A".repeat(n / 2)}#`, false],
     ["an id, classes, a second id, then a bang", (n: number) => `#a${".A".repeat(n / 2)}#b!`, false],
     ["classes (accepted)", (n: number) => ".A".repeat(n / 2), true],
@@ -181,7 +187,13 @@ describe("Session 324 — ATTR_ATOM_RUN accepts what the alternation of atoms ac
     }
   });
 
-  // A size of 1,000 characters, or a limit of 100 s, would pass on the old alternation too, and a letter put in an alphabet in place of a character moves neither its string count nor (by luck) its accepted count.
+  // The old alternation kept a stack entry per dash and threw RangeError from about 9,000,000 dashes (it answered 8,000,000: Node 22.23, Session 324). `-*` is a character-class loop and keeps none, so this answers. A spelling that costs a stack entry
+  // a dash (a capture or a lookahead in the group: the same language, answered up to 1,000,000 dashes) fails here and nowhere else; a group of the bare dash is not caught, V8 loops it without a stack entry.
+  it("accepts a token of 9,000,000 dashes, which the old alternation could not (RangeError)", () => {
+    expect(ATTR_ATOM_RUN.test("-".repeat(9_000_000))).toBe(true);
+  });
+
+  // A size of 40 characters, or a limit of 100 s on the two dash rows, would pass on the old alternation too, and one letter put in an alphabet in place of another moves neither its string count nor its accepted count, so the code points are pinned below.
   it("keeps the limit, the sizes and the alphabets the rows above are built on", () => {
     expect([NEAR_MISS_LIMIT_MS, NEAR_MISS_SIZES, SEEDED_STRINGS]).toEqual([100, [20_000, 50_000, 1_000_000], 100_000]);
     const codes = (alphabet: readonly string[]): number[] => alphabet.map((c) => c.codePointAt(0) as number);
