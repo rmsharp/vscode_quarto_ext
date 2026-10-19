@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-19 · [ad hoc] SESSION_NOTES trim (Session 325): the Session 321 handoff evaluation and the Session 322 self-assessment dropped, the three newest pairs kept
+
+The retention rule of Session 256 (the live file holds at most three close-out pairs), applied at Phase 3D in `8d58d42` after the close-out commit `82aadbf`; the trim commit holds no other edit to the file. The dropped pair is one command away: `git show 82aadbf:methodology/SESSION_NOTES.md`. The file reads 228 lines and every line is within the 280-byte ceiling (`context_budget.py`: ok for it; the three historical ledgers still read over, as before this session).
+
 ### 2026-10-19 · [BL-Nine more single-line overflow and slow-input families, none of them in Session 317's diff] Session 325: part (2) closed, with the Session 319 item's part (3) -- `headingContentRefused` is linear: each opener asks a per-line `HeadingLine` where its closer is, not the rest of the line
 
 g02's ninth session (operator chose part (2) at the Phase 0 picker and decided that the unrun 68% of the sweep, plan rule P5, belongs to the terminal session; claim `6c02220`, 2026-10-19). Scope, stated: the item named a backtick, `[`, `{` and a backslash in `headingContentRefused`. A self-time table per shape (16,000 units) put a bare `{` run in `HEADING_ATTRIBUTE` (75%) and a bare backslash run in the closing-hash and attribute regexes (38% each): those are the Session 318 item's parts (2) and (3), still open. And it found the scan itself quadratic on shapes the item did not name (`\a[`, `\a{`, `{{<`, `<a`, `<a "`, `<!--`, `<?`, `<![CDATA[`). The Session 319 item's part (3) is the same function, and the operator's standing directive of Session 315 (finish a feature before the next) put both in this session. One cause: an opener with no closer read to the end of the line and answered "one character on", so each later opener of its kind read the same tail.
