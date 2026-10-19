@@ -12,10 +12,11 @@ import { countStrings, everyString, seededRandom } from "./support/regex-equival
 // Session 325 — the BACKLOG item "Nine more single-line overflow and slow-input families, none of them in Session 317's diff", part (2) (and part (3) of the Session 319 item, the same function).
 // `headingContentRefused` scans a heading's text for a block token that pandoc's inline parser refuses, skipping what a code span, a bracketed group, a macro argument, a comment, a CDATA section, a processing
 // instruction, a tag's quoted attribute or a shortcode swallows. It asked each opener where its closer was by reading on, and where none came it moved one character on, so each opener reread the line.
-// It now asks a `HeadingLine` (per-line tables built once). That is only sound if the answer is the SAME on EVERY text, so the old functions are kept below, copied from the parent `4172926` by a script and
-// renamed `old...` (the bodies are the parent's, character for character), as the oracle (Learning 738).
-// `escapable` and the two flags are inputs, so each string is tried under a rotation of nine variants: three escapable sets (the default pandoc reader's, CommonMark's, and one that lets a backslash escape only a
-// backslash, which is how a bracket comes to stand right after a backslash and still open) and three flag pairs (both gates, HTML only, TeX only).
+// It now asks a `HeadingLine` (per-line tables built once). That is only sound if the answer is the SAME on EVERY text, so the old functions are kept below, copied from the parent `4172926` (Session 324's source
+// plus the `export` keywords) by a script and renamed `old...` (the bodies are the parent's, character for character), as the oracle (Learning 738).
+// `escapable` and the two flags are inputs, so each string is tried under a mixed rotation of twelve variants: four escapable sets (every symbol and punctuation mark, which is what a document with no `from:` uses; Markdown.pl's
+// set plus `>`, which `markdown_strict` and `markdown_phpextra` use; CommonMark's; and one that lets a backslash escape only a backslash, which is how a bracket comes to stand right after a backslash and still open) and
+// three flag pairs (both gates, HTML only, TeX only).
 
 // ---- The OLD scan, copied from the parent `4172926` (Session 324's HEAD) by a script; only the names changed (old...) and the tables are imported. ----
 interface OldAngle {
@@ -248,8 +249,9 @@ function oldHeadingContentRefused(
 }
 
 
-const ESCAPABLE_LEGACY = /[!#()*+\-.>[\\\]_`{}]/;
-const ESCAPABLE_ASCII_PUNCTUATION = /[!-/:-@[-`{-~]/;
+const ESCAPABLE_LEGACY = /[!#()*+\-.>[\\\]_`{}]/; // Markdown.pl's set plus `>`: markdown_strict, markdown_phpextra
+const ESCAPABLE_ASCII_PUNCTUATION = /[!-/:-@[-`{-~]/; // CommonMark's
+const ESCAPABLE_ALL_SYMBOLS = /[\p{P}\p{S}]/u; // pandoc's all_symbols_escapable: what a document with no `from:` uses
 const ESCAPABLE_BACKSLASH_ONLY = /[\\]/;
 interface Variant {
   readonly escapable: RegExp;
@@ -257,11 +259,14 @@ interface Variant {
   readonly blockTex: boolean;
 }
 const VARIANTS: Variant[] = [];
-for (const escapable of [ESCAPABLE_LEGACY, ESCAPABLE_ASCII_PUNCTUATION, ESCAPABLE_BACKSLASH_ONLY]) {
+for (const escapable of [ESCAPABLE_ALL_SYMBOLS, ESCAPABLE_LEGACY, ESCAPABLE_ASCII_PUNCTUATION, ESCAPABLE_BACKSLASH_ONLY]) {
   for (const [blockHtml, blockTex] of [[true, true], [true, false], [false, true]] as const) {
     VARIANTS.push({ escapable, blockHtml, blockTex });
   }
 }
+
+/** The variant a string of the enumeration is tried under: a hash of its place, because the place alone (index modulo the count) made the variant a function of the LAST token for an alphabet of nine, and a third of those strings could not disagree. */
+const variantAt = (index: number): Variant => VARIANTS[(Math.imul(index, 0x9e3779b1) >>> 0) % VARIANTS.length];
 
 /** Both scans on every string, each under the next variant in the rotation (or under every variant): how many were compared, how many the OLD scan refuses, and the first few disagreements. */
 function compareScans(
@@ -274,7 +279,7 @@ function compareScans(
   const disagreements: string[] = [];
   let index = 0;
   for (const text of strings) {
-    for (const variant of underEveryVariant ? VARIANTS : [VARIANTS[index % VARIANTS.length]]) {
+    for (const variant of underEveryVariant ? VARIANTS : [variantAt(index)]) {
       const expected = oldHeadingContentRefused(text, variant.blockHtml, variant.blockTex, variant.escapable);
       compared++;
       if (expected) {
@@ -289,21 +294,31 @@ function compareScans(
   return { compared, refused, disagreements };
 }
 
-// The alphabets are TOKENS, not characters: a token is what the scan reacts to. Every alphabet holds a block tag (`<section>`, or the front of one) so that a skip which goes wrong shows as a flipped answer.
+// The alphabets are TOKENS, not characters: a token is what the scan reacts to. Every alphabet holds something the scan refuses (a block tag, or the front of one, or a block macro) so that a skip which goes wrong shows as a flipped answer.
 // CODE: backtick runs of one and two, a plain letter, a backslash (it escapes a backtick, which puts the scan in the MIDDLE of a run) and a block tag.
 // GROUPS: every bracket of the three kinds, a backslash, a letter and a block tag. MACROS: the three macro classes (`\a` is none, `\par` is bare, `\section` takes a braced argument), a blank, and the two bracket kinds a macro takes.
 // MARKERS: every opener and closer of a comment, a CDATA section, a processing instruction and a shortcode, with the single characters that make a marker overlap itself. TAGS: an opener, a lone `<`, a `>`, both quotes,
-// a blank, a slash, the front of a block tag and the front of a closing `</script`, the one closing tag that refuses nothing.
+// a blank, a slash, the front of a block tag and the front of a closing `</script`, the one closing tag that refuses nothing (so it is a near miss, not a block tag).
 const ALPHABET_CODE = ["`", "``", "a", "\\", "<section>"];
 const ALPHABET_GROUPS = ["[", "]", "(", ")", "{", "}", "\\", "a", "<section>"];
 const ALPHABET_MACROS = ["\\a", "\\par", "\\section", " ", "[", "]", "{", "}"];
 const ALPHABET_MARKERS = ["<!--", "-->", "<![CDATA[", "]]>", "<?", "?>", "{{<", ">}}", "<section>", "a", "-", "]", ">"];
 const ALPHABET_TAGS = ["<a", "<", ">", '"', "'", " ", "/", "<section", "</script"];
-const SEEDED_TOKENS = [...new Set([...ALPHABET_CODE, ...ALPHABET_GROUPS, ...ALPHABET_MACROS, ...ALPHABET_MARKERS, ...ALPHABET_TAGS, "$", "$$", "</div", "<div", "\t", "=", "x", "\\texttt", "<b>"])];
+// The extra tokens are the near misses the review round found unpinned (Session 325): half-openers of a comment and a CDATA section, an upper-case letter, a digit, a star, a form feed, a no-break space, an upper-case tag, a macro name
+// with a capital, a digit or a star, a macro of the ANY class.
+const SEEDED_TOKENS = [
+  ...new Set([
+    ...ALPHABET_CODE, ...ALPHABET_GROUPS, ...ALPHABET_MACROS, ...ALPHABET_MARKERS, ...ALPHABET_TAGS,
+    "$", "$$", "</div", "<div", "\t", "=", "x", "\\texttt", "<b>",
+    "!", "<!-", "<![", "<![CDATA", "A", "1", "*", "\f", "\u00a0", "<SECTION>", "</SCRIPT>", "\\Foo", "\\parX", "\\par1", "\\section*", "\\caption*", "\\maketitle",
+  ]),
+];
+// One token of each family, for the strings that are tried under EVERY variant.
+const ALPHABET_EVERY_VARIANT = ["`", "\\", "[", "]", "(", ")", "{", "}", "\\par", "<section>", "<!--", "-->", "<a", ">", '"', "{{<"];
 const SEEDED_STRINGS = 500_000;
 
 /** How many strings of each enumeration the OLD scan refuses, so a comparison cannot pass by both scans refusing nothing. */
-const REFUSED = { code: 1_101_806, groups: 204_522, macros: 106_370, markers: 82_203, tags: 20_725, seeded: 101_074, everyVariant: 110_202 };
+const REFUSED = { code: 1_086_263, groups: 186_847, macros: 106_354, markers: 82_203, tags: 19_132, seeded: 161_443, everyVariant: 219_146 };
 
 describe("Session 325 — the heading scan refuses what the scan that reread the line refused", () => {
   it.each([
@@ -336,6 +351,25 @@ describe("Session 325 — the heading scan refuses what the scan that reread the
     ["a tag whose quote never closes is no tag", '<div title="a>', false],
     ["a block tag closes at the first unquoted `>`", "<div title=a>b>", true],
     ["a closing script tag refuses nothing", "</script>", false],
+    // The rows below are what the review round found unpinned (Session 325): each is the shortest text on which a mutant of the new code answers differently from the parent.
+    ["a macro argument group may follow a blank", "\\a[x] {\\par}", false],
+    ["two optional groups still leave the braced argument", "\\section[a][b]{x}", true],
+    ["one follower is consumed after a label, not two", "[a](b){<section>}", true],
+    ["an empty label and an empty destination, then a brace group", "[](){<section>}", true],
+    ["a comment opener needs both dashes", "<!-x <section> -->", true],
+    ["a CDATA opener needs its second bracket", "<![CDATAx ] <section> ]]>", true],
+    ["a CDATA opener needs its CDATA", "<![x ] <section> ]]>", true],
+    ["a macro name is letters only: a capital ends no name", "\\parX", false],
+    ["a macro name may start with a capital", "\\Foo{<section>}", false],
+    ["a star macro of the argument class takes its argument", "\\section*{x}", true],
+    ["a star on a bare macro makes it another name", "\\par*", false],
+    ["a star on an unknown macro with an argument", "\\caption*{x}", false],
+    ["a closing script tag is matched without regard to case", "</SCRIPT>", false],
+    ["a tag name starts with a letter, so a quote after a digit hides nothing", '<1 title="<section>">', true],
+    ["a macro name ends at a digit", "\\par1", true],
+    ["a form feed does not end a tag name", "<section\f>", false],
+    ["a no-break space does not end a tag name", "<section\u00a0>", false],
+    ["a macro of the any class refuses", "\\maketitle", true],
   ])("%s: %j", (_what, text, refused) => {
     expect(oldHeadingContentRefused(text, true, true, ESCAPABLE_LEGACY)).toBe(refused);
     expect(headingContentRefused(text, true, true, ESCAPABLE_LEGACY)).toBe(refused);
@@ -357,7 +391,7 @@ describe("Session 325 — the heading scan refuses what the scan that reread the
     ["every string of up to six tokens over the three bracket kinds, a backslash, a letter and a block tag", ALPHABET_GROUPS, 6, "groups"],
     ["every string of up to six tokens over the macro classes, a blank and two bracket kinds", ALPHABET_MACROS, 6, "macros"],
     ["every string of up to five tokens over the openers and closers of comments, CDATA, instructions and shortcodes", ALPHABET_MARKERS, 5, "markers"],
-    ["every string of up to six tokens over tag openers, quotes, a blank, a slash and the fronts of two block tags", ALPHABET_TAGS, 6, "tags"],
+    ["every string of up to six tokens over tag openers, quotes, a blank, a slash, the front of a block tag and the front of a closing script tag", ALPHABET_TAGS, 6, "tags"],
   ] as const)("agrees with the old scan on %s", (_name, alphabet, maxLength, key) => {
     const result = compareScans(everyString(alphabet, maxLength), false);
     expect(result.disagreements).toEqual([]);
@@ -365,8 +399,8 @@ describe("Session 325 — the heading scan refuses what the scan that reread the
     expect(result.refused).toBe(REFUSED[key]);
   });
 
-  it("agrees with the old scan under EVERY variant on every string of up to four tokens over the union of the alphabets", () => {
-    const alphabet = SEEDED_TOKENS.slice(0, 14);
+  it("agrees with the old scan under EVERY variant on every string of up to four tokens over one token of each family", () => {
+    const alphabet = ALPHABET_EVERY_VARIANT;
     const result = compareScans(everyString(alphabet, 4), true);
     expect(result.disagreements).toEqual([]);
     expect(result.compared).toBe(countStrings(alphabet.length, 4) * VARIANTS.length);

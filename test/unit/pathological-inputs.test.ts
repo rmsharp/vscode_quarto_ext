@@ -1256,10 +1256,13 @@ describe("Session 325 — a heading line holding many openers whose closers neve
   // x 8,000 / 16,000 / 32,000 / 64,000: 86 / 355 / 1,416 / 5,587 ms (ratios 4.1, 4.0, 3.9); `[` the same; `\a[` x 8,000 / 16,000 / 32,000: 406 / 1,557 / 4,798 ms; `\a{` x 32,000 / 40,000: 2,452 / 3,943 ms; `<a` x 8,000
   // to 64,000: 167 / 605 / 1,869 / 8,330 ms; `<a " ` x 8,000 / 16,000 / 32,000: 542 / 2,057 / 6,653 ms; `<!--` x 8,000 to 32,000: 556 / 2,206 / 8,777 ms; `<?` x 32,000: 4,467 ms; `<![CDATA[` x 4,000 / 8,000 / 12,000:
   // 493 / 1,845 / 4,486 ms; `{{<` x 160,000 / 320,000: 850 / 3,447 ms. Bare `{` and a bare backslash are NOT this function's: their time is in `HEADING_ATTRIBUTE` and the closing-hash strip (the Session 318 item's parts (2)
-  // and (3)), so there is no row for them here. Every size puts the parent at 2.4 to 6 s against a limit the cure meets in milliseconds, and the closed-construct controls come first.
+  // and (3)), so there is no row for them here. At the row sizes the parent takes 3.4 to 6.3 s in the runs of Session 325 (4.2 to 8.0 s in the review round's, which ran at a higher load) against a limit the cure meets in
+  // milliseconds, and the closed-construct controls come first. The review round added the rows for the call sites the first rows did not reach: the class-ARG macro reader (`\section[`, `\section{`: 5.1 and 5.7 s on the parent
+  // at 24,000), the followers of a closed label (`[a](`, `[a]{`, `[a][`), a line that mixes the three markers (a one-slot memo passes every single-marker row), the `'` quote and the closing tags, runs of backticks that
+  // all differ in length, and, as guards that are linear on the parent too, a group that CLOSES after 100,000 openers and 40,000 closed labels past index 65,535 (a table of 16-bit entries answers wrongly or never ends).
   const OPEN_LIMIT_MS = 1000;
   const OPEN_FEW = 3;
-  const OPEN_ESCAPABLE = /[!#()*+\-.>[\\\]_`{}]/; // the default pandoc reader's escapable set (`ESCAPABLE_LEGACY`)
+  const OPEN_ESCAPABLE = /[\p{P}\p{S}]/u; // what a document with no `from:` uses (`ESCAPABLE_ALL_SYMBOLS`); every character the rows use is the same under all three sets
   const openHeadings = (text: string): Array<[number, string, string | undefined]> => findHeadings(text).map((heading): [number, string, string | undefined] => [heading.line, heading.text, heading.id]);
   const openScan = (text: string): boolean => headingContentRefused(text, true, true, OPEN_ESCAPABLE);
   type OpenRow = { site: string; unit: string; many: number; build: (run: string) => string; read: (text: string) => unknown; answer: (run: string) => unknown };
@@ -1273,6 +1276,10 @@ describe("Session 325 — a heading line holding many openers whose closers neve
     { site: "control: 16,000 closed comments", unit: "<!--a--> ", many: 16_000, build: (run) => `# ${run}z\n`, read: openHeadings, answer: (run) => kept(`${run}z`) },
     { site: "control: 16,000 closed inline tags", unit: "<b>a</b> ", many: 16_000, build: (run) => `# ${run}z\n`, read: openHeadings, answer: (run) => kept(`${run}z`) },
     { site: "control: 16,000 closed shortcodes, scanned apart from the strips", unit: "{{< a >}} ", many: 16_000, build: (run) => `${run}z`, read: openScan, answer: () => false },
+    // Guards: linear on the parent too, so they cannot be RED there; they hold the cure to it. A group that CLOSES pops its stack entry at once (a search for the entry would be quadratic), and the tables hold indices past 65,535.
+    { site: "guard: 100,000 `[` closed by 100,000 `]`, scanned apart from the strips", unit: "[", many: 100_000, build: (run) => `${run}${"]".repeat(run.length)}`, read: openScan, answer: () => false },
+    { site: "guard: 40,000 closed labels that each hide a block tag, then a plain letter", unit: "[<section>](u) ", many: 40_000, build: (run) => `# ${run}z\n`, read: openHeadings, answer: (run) => kept(`${run}z`) },
+    { site: "guard: 40,000 closed labels that each hide a block tag, then a block tag that refuses", unit: "[<section>](u) ", many: 40_000, build: (run) => `# ${run}<section>\n`, read: openHeadings, answer: () => [] },
 
     // The refused shapes: the RED rows. Each holds only openers of one kind, so the whole line is read for each.
     { site: "heading: 64,000 backticks, none closed", unit: "`", many: 64_000, build: (run) => `# ${run}\n`, read: openHeadings, answer: kept },
@@ -1290,6 +1297,18 @@ describe("Session 325 — a heading line holding many openers whose closers neve
     // The shapes the strips of `buildHeading` would otherwise hide (a `{` run is the filed `HEADING_ATTRIBUTE` item): the scan alone.
     { site: "scan: 320,000 shortcode openers, none closed", unit: "{{<", many: 320_000, build: (run) => run, read: openScan, answer: () => false },
     { site: "scan: 40,000 macros each opening a `{` that never closes", unit: "\\a{", many: 40_000, build: (run) => run, read: openScan, answer: () => false },
+    // The call sites and shapes the review round found unpinned (a removed cache at each of them passed every row above).
+    { site: "scan: 16,000 argument-class macros each opening a `[` that never closes", unit: "\\section[", many: 16_000, build: (run) => run, read: openScan, answer: () => false },
+    { site: "scan: 20,000 argument-class macros each opening a `{` that never closes", unit: "\\section{", many: 20_000, build: (run) => run, read: openScan, answer: () => false },
+    { site: "heading: 24,000 closed labels each followed by a `(` that never closes", unit: "[a](", many: 24_000, build: (run) => `# ${run}\n`, read: openHeadings, answer: kept },
+    { site: "scan: 24,000 closed labels each followed by a `{` that never closes", unit: "[a]{", many: 24_000, build: (run) => run, read: openScan, answer: () => false },
+    { site: "scan: 16,000 closed labels each followed by a `[` that never closes", unit: "[a][", many: 16_000, build: (run) => run, read: openScan, answer: () => false },
+    { site: "heading: 8,000 of a comment, an instruction and a CDATA opener in turn, none closed", unit: "<!--<?<![CDATA[", many: 8_000, build: (run) => `# ${run}\n`, read: openHeadings, answer: kept },
+    { site: "scan: 200,000 CDATA openers, none closed", unit: "<![CDATA[", many: 200_000, build: (run) => run, read: openScan, answer: () => false },
+    { site: "heading: 24,000 tag openers each opening a single quote that never lets a `>` out", unit: "<a ' ", many: 24_000, build: (run) => `# ${run}\n`, read: openHeadings, answer: kept },
+    { site: "heading: 24,000 closing tags with a slash and no `>`", unit: "</a/", many: 24_000, build: (run) => `# ${run}\n`, read: openHeadings, answer: kept },
+    // Runs of backticks that all differ in length: no run closes another, and each is tried against every later length.
+    { site: "scan: 400 runs of backticks of lengths 2 to 401, none closed", unit: "x", many: 400, build: (run) => Array.from({ length: run.length }, (_, k) => ` ${"`".repeat(k + 2)}`).join(""), read: openScan, answer: () => false },
   ];
 
   it.each(OPEN_ROWS.map((row) => [row.site, row] as const))("%s: is read in linear time, and the answer is the stated one with 3 units and with the long run", (_site, row) => {
@@ -1315,8 +1334,10 @@ describe("Session 325 — a heading line holding many openers whose closers neve
     expect([OPEN_FEW, OPEN_LIMIT_MS]).toEqual([3, 1000]);
     expect(OPEN_ROWS.map((row) => `${row.unit}x${row.many}`)).toEqual([
       "`a` x64000", "[a](b) x20000", "\\a[x]{y} x16000", "<!--a--> x16000", "<b>a</b> x16000", "{{< a >}} x16000",
+      "[x100000", "[<section>](u) x40000", "[<section>](u) x40000",
       "`x64000", "[x64000", "\\a[x32000", "<!--x24000", "<?x32000", "<![CDATA[x12000", "<ax48000", '<a " x24000', "`x64000",
       "`x64000", "[x64000", "{{<x320000", "\\a{x40000",
+      "\\section[x16000", "\\section{x20000", "[a](x24000", "[a]{x24000", "[a][x16000", "<!--<?<![CDATA[x8000", "<![CDATA[x200000", "<a ' x24000", "</a/x24000", "xx400",
     ]);
   });
 });
