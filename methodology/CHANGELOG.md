@@ -43,6 +43,10 @@ Five read-only lenses and a critic on a pinned copy of `3880377` (1,561,995 suba
 - **Changed, `d436802`:** 9 table rows, a row at 4,200 levels, a wrong-oracle sentinel and the orders as lists, `asked` in the tallies (1,637,064, 2,117,682 and 1,088,424 derived by arithmetic first and matching, 866,853 read off the run), exact read counts (400, 400, 400, 400, 400, 401, 401: I had derived 399 for the block-scalar row and the run said 400, line 1 asks about the root), `nested-values-index-call.test.ts` (3 tests), mutants C31 to C45, the limit, the comments in `yaml-context.ts`. 41 of 45 killed (the run on the committed tree), 4 argued.
 - **Learnings 807 to 813** (a memo that holds text needs long, odd and deep rows; a call site that passes a memo is pinned by counting calls; a differential's only way to fail is its tally; an exact read count, derived and checked by the run; a clock limit between the two measurements; a memo widens the index's staleness; a range or tally in a commit message recomputed from the output).
 
+### 2026-10-19 · [ad hoc] Session 323: trim SESSION_NOTES to three close-out pairs (`702b9d7`)
+
+`methodology/SESSION_NOTES.md` dropped the Session 319 evaluation and the Session 320 self-assessment (39 deleted lines, 0 added), in a commit that holds no other edit to that file (recoverable with `git show ca79c1f:methodology/SESSION_NOTES.md`); the file is 28,864 B and 201 lines, under the 120,000 B and 400-line ceilings.
+
 ### 2026-10-19 · [ad hoc] Session 323: the close-out edits and the read-only workflow
 
 Non-commit part of the close-out (the edits ride the close-out commit): `SESSION_NOTES.md` (ACTIVE TASK, 'What Session 323 Did', the Session 322 evaluation, the Session 323 self-assessment), the `HANDOFFS.md` receipt, Learnings 807 to 813, BACKLOG part (6a) closed in place, the plan's Current position, order row, g02 item row and an outcome paragraph, the mutation README row, and the dashboard and context-budget history lines. The read-only workflow `wf_7b847a93-d5c` (6 agents) is the previous entry's.
