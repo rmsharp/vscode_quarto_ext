@@ -1168,3 +1168,81 @@ describe("Session 323 — a front matter container nested thousands of levels de
     expect(trunkLines({ depth: SHALLOW, leaves: FEW_LEAVES })).toBe(57);
   });
 });
+
+describe("Session 324 — an attribute block whose atoms can be split many ways and whose last character is refused", () => {
+  // The BACKLOG item "Nine more single-line overflow and slow-input families, none of them in Session 317's diff", part (1). `ATTR_ATOM_RUN` judges one whitespace-separated token of an attribute block as a run of `-`, `#id`
+  // and `.class` atoms, and the tail of an id or of a class holds a `.` and a `-` itself, so `.A.A.A` is one class or three, and the engine tries every split before it refuses a token whose last character is wrong
+  // (`!`): exponential in the number of atoms, on a 74-byte line. A valid block matches at once, so the cost needs an INVALID tail, such as a heading mid-edit. Every route that judges an attribute block reaches the
+  // pattern: a heading, a fence's info string, and the inline, span and div blocks of the cross-reference index. The same pattern is QUADRATIC when an id or a class is followed by a long run of dashes (the end of the id
+  // can fall at any of them).
+  // Bare `findHeadings`, one fresh process each, COLD (Session 324, load average about 5): 276 / 1,094 / 4,326 / 17,230 ms at 22 / 24 / 26 / 28 classes (4 times per two); WARM, a second call in the process: 30 / 115 / 455 ms
+  // at 22 / 24 / 26, because the first run of a pattern in a process is interpreted and about 10 times slower. An id before the classes costs about twice as much (26 classes: 8.6 s cold), a dash after each class has
+  // THREE splits a boundary (16 repeats: 2.8 s cold), and an id or a class then dashes cost 82 / 317 / 1,259 ms at 8,000 / 16,000 / 32,000 dashes (4 times per doubling).
+  // The sizes come from the WARM figures, since the rows before them warm the pattern: 30 classes is about 8 s on the parent warm, against a limit that the cure meets in milliseconds. The controls come first, so that
+  // the pattern is warm for every refused row. Every row builds a text no other row builds.
+  const SPLIT_CLASSES = 30;
+  const SPLIT_AFTER_ID = 28;
+  const SPLIT_DASHED = 19;
+  const SPLIT_DASHES = 100_000;
+  const SPLIT_FEW = 3;
+  const SPLIT_LIMIT_MS = 1000;
+  const splitHeadings = (text: string): Array<[number, string, string | undefined]> => findHeadings(text).map((heading): [number, string, string | undefined] => [heading.line, heading.text, heading.id]);
+  const splitLabels = (text: string): string[] => indexLabels(text).map((label) => `${label.id}@${label.line}:${label.column}`);
+  /** A refused block keeps its braces in the heading text and defines no id. */
+  const refusedHeading = (inner: string): Array<[number, string, string | undefined]> => [[0, `H {${inner}}`, undefined]];
+  const NO_ID_HEADING: Array<[number, string, string | undefined]> = [[0, "H", undefined]];
+  type SplitRow = { site: string; unit: string; many: number; build: (run: string) => string; read: (text: string) => unknown; answer: (run: string) => unknown };
+
+  const SPLIT_ROWS: SplitRow[] = [
+    // Controls first: a VALID block matches at once (and warms the pattern); the refused ones below it are the RED rows.
+    { site: "control: a heading block of 30 valid classes", unit: ".A", many: SPLIT_CLASSES, build: (run) => `# H {${run}}\n`, read: splitHeadings, answer: () => NO_ID_HEADING },
+    { site: "control: an id that takes 30 dotted classes into its own name", unit: ".A", many: SPLIT_CLASSES, build: (run) => `# H {#sec-x${run}}\n`, read: splitHeadings, answer: (run) => [[0, "H", `sec-x${run}`]] },
+    { site: "control: an id token and then 100,000 valid classes", unit: ".A", many: SPLIT_DASHES, build: (run) => `# H {#sec-x ${run}}\n`, read: splitHeadings, answer: () => [[0, "H", "sec-x"]] },
+    { site: "control: a fence whose valid block of 30 classes opens a region", unit: ".A", many: SPLIT_CLASSES, build: (run) => `\`\`\` {${run}}\n\n# In\n\n\`\`\`\n\n# After\n`, read: splitHeadings, answer: () => [[6, "After", undefined]] },
+    { site: "control: an image block, an id and 30 valid classes", unit: ".A", many: SPLIT_CLASSES, build: (run) => `![Cap](a.png){#fig-a ${run}}\n`, read: splitLabels, answer: () => ["fig-a@0:15"] },
+    // Each dash is an atom of its own, so a run of dashes alone has one parse: linear before and after.
+    { site: "control: 100,000 dashes then `!` (a dash is an atom of its own)", unit: "-", many: SPLIT_DASHES, build: (run) => `# H {${run}!}\n`, read: splitHeadings, answer: (run) => refusedHeading(`${run}!`) },
+    // commonmark_x reads ONE atom a token (`ATTR_ATOM_COMMONMARK`), so the same refused text is linear there: the reader split is not the pattern's.
+    { site: "control: 30 classes then `!` under commonmark_x", unit: ".A", many: SPLIT_CLASSES, build: (run) => `---\nfrom: commonmark_x\n---\n\n# H {${run}!}\n`, read: splitHeadings, answer: (run) => [[4, `H {${run}!}`, undefined]] },
+
+    { site: "heading: 30 classes then `!` (the item's shape)", unit: ".A", many: SPLIT_CLASSES, build: (run) => `# H {${run}!}\n`, read: splitHeadings, answer: (run) => refusedHeading(`${run}!`) },
+    { site: "heading: an id, 28 classes, then `!`", unit: ".A", many: SPLIT_AFTER_ID, build: (run) => `# H {#a${run}!}\n`, read: splitHeadings, answer: (run) => refusedHeading(`#a${run}!`) },
+    { site: "heading: 19 classes, each followed by a dash, then `!`", unit: ".A-", many: SPLIT_DASHED, build: (run) => `# H {${run}!}\n`, read: splitHeadings, answer: (run) => refusedHeading(`${run}!`) },
+    { site: "heading: a valid id token, then a second token of 30 classes and `!`", unit: ".A", many: SPLIT_CLASSES, build: (run) => `# H {#sec-x ${run}!}\n`, read: splitHeadings, answer: (run) => refusedHeading(`#sec-x ${run}!`) },
+    { site: "heading: an id, 100,000 dashes, then `!`", unit: "-", many: SPLIT_DASHES, build: (run) => `# H {#a${run}!}\n`, read: splitHeadings, answer: (run) => refusedHeading(`#a${run}!`) },
+    { site: "heading: a class, 100,000 dashes, then `!`", unit: "-", many: SPLIT_DASHES, build: (run) => `# H {.A${run}!}\n`, read: splitHeadings, answer: (run) => refusedHeading(`.A${run}!`) },
+    { site: "backtick fence: 30 classes then `!` refuse the fence", unit: ".A", many: SPLIT_CLASSES, build: (run) => `\`\`\` {${run}!}\n\n# In\n\n\`\`\`\n\n# After\n`, read: splitHeadings, answer: () => [[2, "In", undefined], [6, "After", undefined]] },
+    { site: "tilde fence: 30 classes then `!` refuse the fence", unit: ".A", many: SPLIT_CLASSES, build: (run) => `~~~ {${run}!}\n\n# In\n\n~~~\n\n# After\n`, read: splitHeadings, answer: () => [[2, "In", undefined], [6, "After", undefined]] },
+    { site: "image block: an id, 30 classes, then `!`", unit: ".A", many: SPLIT_CLASSES, build: (run) => `![Cap](a.png){#fig-a ${run}!}\n`, read: splitLabels, answer: () => [] },
+    { site: "image block: 30 classes then `!`, no id before them", unit: ".A", many: SPLIT_CLASSES, build: (run) => `![Cap](a.png){${run}!}\n`, read: splitLabels, answer: () => [] },
+    { site: "span block: an id, 30 classes, then `!`", unit: ".A", many: SPLIT_CLASSES, build: (run) => `[text]{#fig-a ${run}!}\n`, read: splitLabels, answer: () => [] },
+    { site: "div block: an id, 30 classes, then `!`", unit: ".A", many: SPLIT_CLASSES, build: (run) => `::: {#fig-a ${run}!}\n![Cap](a.png)\n:::\n`, read: splitLabels, answer: () => [] },
+  ];
+
+  it.each(SPLIT_ROWS.map((row) => [row.site, row] as const))("%s: is read in linear time, and the answer is the stated one with 3 units and with the long run", (_site, row) => {
+    const shortRun = row.unit.repeat(SPLIT_FEW);
+    expect(row.read(row.build(shortRun))).toEqual(row.answer(shortRun));
+    const run = row.unit.repeat(row.many);
+    const longText = row.build(run);
+    expect(longText.length).toBeGreaterThan(run.length); // the timed text holds the whole run
+    const { result, ms } = timed(() => row.read(longText));
+    expect(result).toEqual(row.answer(run));
+    expect(ms).toBeLessThan(SPLIT_LIMIT_MS);
+  });
+
+  it("builds a different text for every row", () => {
+    const shortTexts = SPLIT_ROWS.map((row) => row.build(row.unit.repeat(SPLIT_FEW)));
+    expect(new Set(shortTexts).size).toBe(SPLIT_ROWS.length);
+    const longTexts = SPLIT_ROWS.map((row) => row.build(row.unit.repeat(row.many)));
+    expect(new Set(longTexts).size).toBe(SPLIT_ROWS.length);
+  });
+
+  // A run of 8 classes, or a limit of 100 s, would pass on the parent too.
+  it("keeps the sizes, the limit and the units the Session 324 rows are built on", () => {
+    expect([SPLIT_CLASSES, SPLIT_AFTER_ID, SPLIT_DASHED, SPLIT_DASHES, SPLIT_FEW, SPLIT_LIMIT_MS]).toEqual([30, 28, 19, 100_000, 3, 1000]);
+    expect(SPLIT_ROWS.map((row) => `${row.unit}x${row.many}`)).toEqual([
+      ".Ax30", ".Ax30", ".Ax100000", ".Ax30", ".Ax30", "-x100000", ".Ax30",
+      ".Ax30", ".Ax28", ".A-x19", ".Ax30", "-x100000", "-x100000", ".Ax30", ".Ax30", ".Ax30", ".Ax30", ".Ax30", ".Ax30",
+    ]);
+  });
+});
