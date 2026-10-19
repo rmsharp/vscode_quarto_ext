@@ -1,0 +1,178 @@
+[
+ {
+  "name": "R-M11 macro args take no square group",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (open !== \"[\" && open !== \"{\") {",
+  "to": "if (open !== \"{\") {",
+  "expect": "killed",
+  "why": "Session 325 review round. `\\a[x] {\\par}`: the macro takes `[x]`, a blank, then `{\\par}`; the mutant reads `[x]` as a label and leaves `{\\par}` in the open (parent false, mutant true). Needs 7 tokens, so no enumeration reached it: a fixed row of the oracle file."
+ },
+ {
+  "name": "R-M16 optional groups looped once only",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (text[k] !== \"[\") {\n      break;\n    }\n    const end = line.groupEnd(k, \"[\", \"]\");\n    if (end === -1) {\n      return false;\n    }\n    k = end + 1;\n  }",
+  "to": "if (text[k] !== \"[\") {\n      break;\n    }\n    const end = line.groupEnd(k, \"[\", \"]\");\n    if (end === -1) {\n      return false;\n    }\n    k = end + 1;\n    break;\n  }",
+  "expect": "killed",
+  "why": "`\\section[a][b]{x}` (parent true, mutant false): only one optional group is read. A fixed row of the oracle file."
+ },
+ {
+  "name": "R-A10 comment prefix shortened to <!-",
+  "file": "src/core/qmd/model.ts",
+  "from": "text.startsWith(\"<!--\", i)",
+  "to": "text.startsWith(\"<!-\", i)",
+  "expect": "killed",
+  "why": "`<!-x <section> -->` (parent true, mutant false). The oracle gained the token `<!-` and a fixed row."
+ },
+ {
+  "name": "R-A12 CDATA prefix drops the bracket",
+  "file": "src/core/qmd/model.ts",
+  "from": "text.startsWith(\"<![CDATA[\", i)",
+  "to": "text.startsWith(\"<![CDATA\", i)",
+  "expect": "killed",
+  "why": "`<![CDATAx ] <section> ]]>` (true, mutant false). The oracle gained the token `<![CDATA` and a fixed row."
+ },
+ {
+  "name": "R-A13 CDATA prefix shortened to <![",
+  "file": "src/core/qmd/model.ts",
+  "from": "text.startsWith(\"<![CDATA[\", i)",
+  "to": "text.startsWith(\"<![\", i)",
+  "expect": "killed",
+  "why": "`<![x ] <section> ]]>` (true, mutant false). The oracle gained the token `<![` and a fixed row."
+ },
+ {
+  "name": "R-K09 macro-name letters lower case only",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (end < text.length && /[a-zA-Z]/.test(text[end])) {",
+  "to": "while (end < text.length && /[a-z]/.test(text[end])) {",
+  "expect": "killed",
+  "why": "`\\parX` (parent false, mutant true): a capital ends a macro name. The oracle gained `A`, `\\parX` and a fixed row."
+ },
+ {
+  "name": "R-K10 macro-name start lower case only",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (next !== undefined && /[a-zA-Z]/.test(next)) {",
+  "to": "if (next !== undefined && /[a-z]/.test(next)) {",
+  "expect": "killed",
+  "why": "`\\Foo{<section>}` (false, mutant true): a macro name may start with a capital."
+ },
+ {
+  "name": "R-K11 star macros not recognised",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (text[end] === \"*\") {\n          name += \"*\";\n          end++;\n        }",
+  "to": "",
+  "expect": "killed",
+  "why": "`\\section*{x}` (true, mutant false): a star macro of the argument class takes its argument."
+ },
+ {
+  "name": "R-K12 star kept in the name but not skipped",
+  "file": "src/core/qmd/model.ts",
+  "from": "name += \"*\";\n          end++;",
+  "to": "name += \"*\";",
+  "expect": "killed",
+  "why": "`\\section*{x}` (true, mutant false): the star is kept in the name but not skipped."
+ },
+ {
+  "name": "R-K13 star skipped but not in the name",
+  "file": "src/core/qmd/model.ts",
+  "from": "name += \"*\";\n          end++;",
+  "to": "end++;",
+  "expect": "killed",
+  "why": "`\\par*` and `\\caption*{x}` (false, mutant true): the star is skipped but not in the name."
+ },
+ {
+  "name": "R-K15 script closer case-sensitive",
+  "file": "src/core/qmd/model.ts",
+  "from": "angle.name.toLowerCase() !== \"script\"",
+  "to": "angle.name !== \"script\"",
+  "expect": "killed",
+  "why": "`</SCRIPT>` (false, mutant true): the closing script tag is matched without regard to case."
+ },
+ {
+  "name": "R-A31 tag name may start with a digit",
+  "file": "src/core/qmd/model.ts",
+  "from": "!/[a-zA-Z]/.test(text[j])",
+  "to": "!/[a-zA-Z0-9]/.test(text[j])",
+  "expect": "killed",
+  "why": "`<1 title=\"<section>\">` (true, mutant false): a tag name starts with a letter."
+ },
+ {
+  "name": "R-K22 macro name runs on over digits",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (end < text.length && /[a-zA-Z]/.test(text[end])) {",
+  "to": "while (end < text.length && /[a-zA-Z0-9]/.test(text[end])) {",
+  "expect": "killed",
+  "why": "`\\par1` (true, mutant false): a macro name ends at a digit."
+ },
+ {
+  "name": "R-H31 a form feed ends a tag name",
+  "file": "src/core/qmd/model.ts",
+  "from": "text[at] !== \"/\" && text[at] !== \">\") {\n      at++;",
+  "to": "text[at] !== \"/\" && text[at] !== \">\" && text[at] !== \"\\f\") {\n      at++;",
+  "expect": "killed",
+  "why": "`<section\\f>` (false, mutant true): a form feed does not end a tag name."
+ },
+ {
+  "name": "R-H32 a no-break space ends a tag name",
+  "file": "src/core/qmd/model.ts",
+  "from": "text[at] !== \"/\" && text[at] !== \">\") {\n      at++;",
+  "to": "text[at] !== \"/\" && text[at] !== \">\" && text[at] !== \"\\u00a0\") {\n      at++;",
+  "expect": "killed",
+  "why": "`<section\\u00a0>` (false, mutant true): a no-break space does not end a tag name."
+ },
+ {
+  "name": "R-B07 a second brace follower is consumed",
+  "file": "src/core/qmd/model.ts",
+  "from": "return close + 1;",
+  "to": "const more = line.text[close + 1];\n      if (more === \"{\") {\n        const again = line.groupEnd(close + 1, \"{\", \"}\");\n        if (again !== -1) {\n          return again + 1;\n        }\n      }\n      return close + 1;",
+  "expect": "killed",
+  "why": "`[a](b){<section>}` and `[](){<section>}` (true, mutant false): one follower is consumed after a label, not two. Needs 7 tokens: a fixed row."
+ },
+ {
+  "name": "R-PM2 the table of a [ or { follower is rebuilt",
+  "file": "src/core/qmd/model.ts",
+  "from": "line.groupEnd(end + 1, next, next === \"(\" ? \")\" : next === \"[\" ? \"]\" : \"}\")",
+  "to": "(next === \"(\" ? line.groupEnd(end + 1, next, \")\") : buildGroupEnds(line.text, next, next === \"[\" ? \"]\" : \"}\")[end + 1])",
+  "expect": "killed",
+  "why": "The table of the `[` or `{` follower of a label is rebuilt at every ask: same answers, quadratic. `[a]{` x 20,000 took 5.7 s and `[a][` x 20,000 7.1 s under it (HEAD 6 ms). Clock rows `[a]{` and `[a][` (scanned apart from the strips)."
+ },
+ {
+  "name": "R-PM3 the braced-arity check rebuilds the [ table",
+  "file": "src/core/qmd/model.ts",
+  "from": "const end = line.groupEnd(k, \"[\", \"]\");\n    if (end === -1) {\n      return false;",
+  "to": "const end = buildGroupEnds(text, \"[\", \"]\")[k];\n    if (end === -1) {\n      return false;",
+  "expect": "killed",
+  "why": "The braced-arity check rebuilds the `[` table: `\\section[` x 20,000 took 10.9 s under it. Clock row `\\section[`."
+ },
+ {
+  "name": "R-PM4 the braced-arity check rebuilds the { table",
+  "file": "src/core/qmd/model.ts",
+  "from": "return text[k] === \"{\" && line.groupEnd(k, \"{\", \"}\") !== -1;",
+  "to": "return text[k] === \"{\" && buildGroupEnds(text, \"{\", \"}\")[k] !== -1;",
+  "expect": "killed",
+  "why": "The braced-arity check rebuilds the `{` table: `\\section{` x 20,000 took 10.9 s under it. Clock row `\\section{`."
+ },
+ {
+  "name": "R-PM8 only the CDATA closer is read from the text",
+  "file": "src/core/qmd/model.ts",
+  "from": "const close = line.indexOfMarker(marker, from);",
+  "to": "const close = marker === \"]]>\" ? line.text.indexOf(marker, from) : line.indexOfMarker(marker, from);",
+  "expect": "killed",
+  "why": "Only the CDATA closer is read from the text, not through `indexOfMarker`: `<![CDATA[` x 200,000 scanned apart from the strips took 3.9 s under it (HEAD 24 ms); at the 12,000 of the document row it costs 20 ms. Clock row of 200,000 CDATA openers."
+ },
+ {
+  "name": "R-A25 letter test lower case only",
+  "file": "src/core/qmd/model.ts",
+  "from": "!/[a-zA-Z]/.test(text[j])",
+  "to": "!/[a-z]/.test(text[j])",
+  "expect": "killed",
+  "why": "`<SECTION>`: the letter test of a tag name is lower case only. Killed by the OLDER Session 269 rows before the review round; the oracle gained the token `<SECTION>`."
+ },
+ {
+  "name": "R-K14 any-class macros dropped",
+  "file": "src/core/qmd/model.ts",
+  "from": "(HEADING_BLOCK_MACRO_ANY.test(name) ||\n            HEADING_BLOCK_MACRO_BARE.test(name) ||",
+  "to": "(HEADING_BLOCK_MACRO_BARE.test(name) ||",
+  "expect": "killed",
+  "why": "`\\maketitle` (true; mutant false): the any-class macros are dropped. Killed by the OLDER Session 269 rows before the review round; the oracle gained the token and a fixed row."
+ }
+]

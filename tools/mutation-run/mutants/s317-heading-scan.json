@@ -122,7 +122,7 @@
  {
   "name": "G16 the table is not kept: every ask rebuilds it",
   "file": "src/core/qmd/model.ts",
-  "from": "this.groupEnds.set(key, ends);",
+  "from": "tables.set(key, ends);",
   "to": "",
   "expect": "killed",
   "why": "same answers, quadratic: only the clock rows see it"
@@ -216,44 +216,44 @@
   "why": "the table is read from a tag name end, which is at least 2 (a `<`, a letter, and the name goes on from the letter), so entry 0 is never read. Checked against the parent on 900,000 random strings (three seeds, up to 20 tokens, five escapable sets): 0 differences."
  },
  {
-  "name": "E03 a marker read is reused without checking that it began before",
+  "name": "E03 a search that found nothing is reused for any later search, wherever it stands",
   "file": "src/core/qmd/model.ts",
-  "from": "if (read !== undefined && read.from <= from && (read.at === -1 || read.at >= from)) {",
-  "to": "if (read !== undefined && (read.at === -1 || read.at >= from)) {",
+  "from": "if (none !== undefined && none <= from) {",
+  "to": "if (none !== undefined) {",
   "expect": "survives",
-  "why": "the scan only moves forward, so every ask for a marker comes at or after the last: `read.from <= from` always holds; the class is not exported to ask backwards. Checked against the parent on 900,000 random strings (three seeds, up to 20 tokens, five escapable sets): 0 differences."
+  "why": "the scan only moves forward, so every later search for a marker begins at or after the one that found nothing; the class is not exported to ask backwards. Checked against the parent on 900,000 random strings (three seeds, up to 20 tokens, five escapable sets): 0 differences."
  },
  {
-  "name": "E04 a marker found AT the start is read again",
+  "name": "E04 a search that found nothing is remembered one place late",
   "file": "src/core/qmd/model.ts",
-  "from": "read.at === -1 || read.at >= from)",
-  "to": "read.at === -1 || read.at > from)",
+  "from": ".set(marker, from);",
+  "to": ".set(marker, from + 1);",
   "expect": "survives",
-  "why": "reading again from `from` finds the same marker at `from`: the answer is the same, only one read dearer. Checked against the parent on 900,000 random strings (three seeds, up to 20 tokens, five escapable sets): 0 differences."
+  "why": "a search is never asked twice from the same place: after a failed opener the scan resumes at least one character on, and every marker is searched from a fixed offset of the opener. Checked against the parent on 900,000 random strings (three seeds, up to 20 tokens, five escapable sets): 0 differences."
  },
  {
-  "name": "H01 a marker read is reused whatever it found",
+  "name": "H01 a search that found something is remembered too",
   "file": "src/core/qmd/model.ts",
-  "from": "read.at === -1 || read.at >= from)",
-  "to": "read.at === -1 || read.at >= 0)",
+  "from": "if (at === -1) {\n      (this.markersNoneFrom ??= new Map()).set(marker, from);\n    }",
+  "to": "(this.markersNoneFrom ??= new Map()).set(marker, from);",
   "expect": "killed",
-  "why": "a marker found BEFORE `from` would be returned"
+  "why": "a later search would answer -1 past a closer that is there"
  },
  {
-  "name": "H02 a read that found nothing is not reused",
+  "name": "H02 a search that found nothing is not remembered",
   "file": "src/core/qmd/model.ts",
-  "from": "read.at === -1 || read.at >= from)",
-  "to": "read.at >= from)",
-  "expect": "killed",
-  "why": "same answers, quadratic: the clock rows"
- },
- {
-  "name": "H03 a marker read is never kept",
-  "file": "src/core/qmd/model.ts",
-  "from": "this.markerReads.set(marker, { from, at });",
+  "from": "(this.markersNoneFrom ??= new Map()).set(marker, from);",
   "to": "",
   "expect": "killed",
   "why": "same answers, quadratic: the clock rows"
+ },
+ {
+  "name": "H03 a search that found nothing is reused only from the place after it",
+  "file": "src/core/qmd/model.ts",
+  "from": "none <= from",
+  "to": "none < from",
+  "expect": "survives",
+  "why": "from is never the place the failed search began at again (see E04). Checked against the parent on 900,000 random strings (three seeds, up to 20 tokens, five escapable sets): 0 differences."
  },
  {
   "name": "H04 a tag name read is reused whatever it found",
