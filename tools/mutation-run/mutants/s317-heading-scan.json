@@ -1,0 +1,610 @@
+[
+ {
+  "name": "G01 parity inverted: an even run of backslashes escapes",
+  "file": "src/core/qmd/model.ts",
+  "from": "const counted = backslashes % 2 === 0;",
+  "to": "const counted = backslashes % 2 === 1;",
+  "expect": "killed",
+  "why": "an unescaped bracket would not count and an escaped one would"
+ },
+ {
+  "name": "G02 any backslash escapes, a pair of them included",
+  "file": "src/core/qmd/model.ts",
+  "from": "const counted = backslashes % 2 === 0;",
+  "to": "const counted = backslashes === 0;",
+  "expect": "killed",
+  "why": "`\\\\]` is a counted close"
+ },
+ {
+  "name": "G03 the backslash run is never reset",
+  "file": "src/core/qmd/model.ts",
+  "from": "const counted = backslashes % 2 === 0;\n    backslashes = 0;",
+  "to": "const counted = backslashes % 2 === 0;",
+  "expect": "killed",
+  "why": "a run carries over to the next bracket"
+ },
+ {
+  "name": "G04 an escaped open still adds to the depth",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (counted) {\n        level++;\n      }",
+  "to": "level++;",
+  "expect": "killed",
+  "why": "`\\[` would open a level it does not"
+ },
+ {
+  "name": "G05 an escaped close still ends groups",
+  "file": "src/core/qmd/model.ts",
+  "from": "} else if (c === close && counted) {",
+  "to": "} else if (c === close) {",
+  "expect": "killed",
+  "why": "`\\]` would close a group"
+ },
+ {
+  "name": "G06 an escaped open starts no group",
+  "file": "src/core/qmd/model.ts",
+  "from": "waitingAt.push(j);\n      waitingLevel.push(level);",
+  "to": "if (counted) {\n        waitingAt.push(j);\n        waitingLevel.push(level);\n      }",
+  "expect": "killed",
+  "why": "the forced start of an opener after a backslash that escapes nothing is lost"
+ },
+ {
+  "name": "G07 a waiting group is filed one level too high",
+  "file": "src/core/qmd/model.ts",
+  "from": "waitingLevel.push(level);",
+  "to": "waitingLevel.push(level + 1);",
+  "expect": "killed",
+  "why": "its close would be found one close late or never"
+ },
+ {
+  "name": "G08 a close ends groups at its own level too",
+  "file": "src/core/qmd/model.ts",
+  "from": "waitingLevel[waitingLevel.length - 1] > level",
+  "to": "waitingLevel[waitingLevel.length - 1] >= level",
+  "expect": "killed",
+  "why": "a close would end the group opened at the same level"
+ },
+ {
+  "name": "G09 a close ends groups one level lower only",
+  "file": "src/core/qmd/model.ts",
+  "from": "waitingLevel[waitingLevel.length - 1] > level",
+  "to": "waitingLevel[waitingLevel.length - 1] > level + 1",
+  "expect": "killed",
+  "why": "a close would leave the innermost group open"
+ },
+ {
+  "name": "G10 a close ends one group, not every group it passes",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (waitingLevel.length > 0 && waitingLevel[waitingLevel.length - 1] > level) {",
+  "to": "if (waitingLevel.length > 0 && waitingLevel[waitingLevel.length - 1] > level) {",
+  "expect": "killed",
+  "why": "an escaped opener and a counted one wait at the same level and one close ends both"
+ },
+ {
+  "name": "G11 an unclosed group answers 0, not -1",
+  "file": "src/core/qmd/model.ts",
+  "from": ".fill(-1);\n  const waitingAt",
+  "to": ".fill(0);\n  const waitingAt",
+  "expect": "killed",
+  "why": "every caller tests for -1"
+ },
+ {
+  "name": "G12 a group ends one character late",
+  "file": "src/core/qmd/model.ts",
+  "from": "ends[waitingAt.pop() as number] = j;",
+  "to": "ends[waitingAt.pop() as number] = j + 1;",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "G13 a close does not lower the depth",
+  "file": "src/core/qmd/model.ts",
+  "from": "      level--;\n      while (waitingLevel.length",
+  "to": "      while (waitingLevel.length",
+  "expect": "killed",
+  "why": "no group would ever end"
+ },
+ {
+  "name": "G14 a backslash counts for two",
+  "file": "src/core/qmd/model.ts",
+  "from": "backslashes++;",
+  "to": "backslashes += 2;",
+  "expect": "killed",
+  "why": "a single backslash would pair with itself"
+ },
+ {
+  "name": "G15 a backslash is also read as an ordinary character",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (c === \"\\\\\") {\n      backslashes++;\n      continue;\n    }",
+  "to": "if (c === \"\\\\\") {\n      backslashes++;\n    }",
+  "expect": "killed",
+  "why": "the run resets at the backslash itself"
+ },
+ {
+  "name": "G16 the table is not kept: every ask rebuilds it",
+  "file": "src/core/qmd/model.ts",
+  "from": "this.groupEnds.set(key, ends);",
+  "to": "",
+  "expect": "killed",
+  "why": "same answers, quadratic: only the clock rows see it"
+ },
+ {
+  "name": "E01 the table is keyed by the opener alone",
+  "file": "src/core/qmd/model.ts",
+  "from": "const key = open + close;",
+  "to": "const key = open;",
+  "expect": "survives",
+  "why": "every caller pairs an opener with ONE closer (`[` with `]`, `(` with `)`, `{` with `}`), so the key names the same table. Checked against the parent on 900,000 random strings (three seeds, up to 20 tokens, five escapable sets): 0 differences."
+ },
+ {
+  "name": "T01 nothing past the end of the text is -1",
+  "file": "src/core/qmd/model.ts",
+  "from": "closes[text.length] = -1;",
+  "to": "closes[text.length] = 0;",
+  "expect": "killed",
+  "why": "a tag with no `>` would close at 0"
+ },
+ {
+  "name": "T02 a quote resumes outside AT the closing quote, not after it",
+  "file": "src/core/qmd/model.ts",
+  "from": "closes[p] = nextDouble === -1 ? -1 : closes[nextDouble + 1];",
+  "to": "closes[p] = nextDouble === -1 ? -1 : closes[nextDouble];",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "T03 a double quote resumes after the next single quote",
+  "file": "src/core/qmd/model.ts",
+  "from": "closes[p] = nextDouble === -1 ? -1 : closes[nextDouble + 1];",
+  "to": "closes[p] = nextDouble === -1 ? -1 : closes[nextSingle + 1];",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "T04 a double quote is never remembered",
+  "file": "src/core/qmd/model.ts",
+  "from": "nextDouble = p;\n    } else if",
+  "to": "    } else if",
+  "expect": "killed",
+  "why": "no double quote ever closes"
+ },
+ {
+  "name": "T05 the close is one past the `>`",
+  "file": "src/core/qmd/model.ts",
+  "from": "closes[p] = p;",
+  "to": "closes[p] = p + 1;",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "T06 a plain character answers its own (unset) slot",
+  "file": "src/core/qmd/model.ts",
+  "from": "closes[p] = closes[p + 1];\n    }",
+  "to": "closes[p] = closes[p];\n    }",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "T07 a single quote is never remembered",
+  "file": "src/core/qmd/model.ts",
+  "from": "nextSingle = p;\n    } else if",
+  "to": "    } else if",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "T08 a double quote that never closes is ignored",
+  "file": "src/core/qmd/model.ts",
+  "from": "closes[p] = nextDouble === -1 ? -1 : closes[nextDouble + 1];",
+  "to": "closes[p] = nextDouble === -1 ? closes[p + 1] : closes[nextDouble + 1];",
+  "expect": "killed",
+  "why": "`<div title=\"a>` would be a tag"
+ },
+ {
+  "name": "T09 a single quote that never closes is ignored",
+  "file": "src/core/qmd/model.ts",
+  "from": "closes[p] = nextSingle === -1 ? -1 : closes[nextSingle + 1];",
+  "to": "closes[p] = nextSingle === -1 ? closes[p + 1] : closes[nextSingle + 1];",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "E02 the first character is not filled",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let p = text.length - 1; p >= 0; p--) {",
+  "to": "for (let p = text.length - 1; p >= 1; p--) {",
+  "expect": "survives",
+  "why": "the table is read from a tag name end, which is at least 2 (a `<`, a letter, and the name goes on from the letter), so entry 0 is never read. Checked against the parent on 900,000 random strings (three seeds, up to 20 tokens, five escapable sets): 0 differences."
+ },
+ {
+  "name": "E03 a marker read is reused without checking that it began before",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (read !== undefined && read.from <= from && (read.at === -1 || read.at >= from)) {",
+  "to": "if (read !== undefined && (read.at === -1 || read.at >= from)) {",
+  "expect": "survives",
+  "why": "the scan only moves forward, so every ask for a marker comes at or after the last: `read.from <= from` always holds; the class is not exported to ask backwards. Checked against the parent on 900,000 random strings (three seeds, up to 20 tokens, five escapable sets): 0 differences."
+ },
+ {
+  "name": "E04 a marker found AT the start is read again",
+  "file": "src/core/qmd/model.ts",
+  "from": "read.at === -1 || read.at >= from)",
+  "to": "read.at === -1 || read.at > from)",
+  "expect": "survives",
+  "why": "reading again from `from` finds the same marker at `from`: the answer is the same, only one read dearer. Checked against the parent on 900,000 random strings (three seeds, up to 20 tokens, five escapable sets): 0 differences."
+ },
+ {
+  "name": "H01 a marker read is reused whatever it found",
+  "file": "src/core/qmd/model.ts",
+  "from": "read.at === -1 || read.at >= from)",
+  "to": "read.at === -1 || read.at >= 0)",
+  "expect": "killed",
+  "why": "a marker found BEFORE `from` would be returned"
+ },
+ {
+  "name": "H02 a read that found nothing is not reused",
+  "file": "src/core/qmd/model.ts",
+  "from": "read.at === -1 || read.at >= from)",
+  "to": "read.at >= from)",
+  "expect": "killed",
+  "why": "same answers, quadratic: the clock rows"
+ },
+ {
+  "name": "H03 a marker read is never kept",
+  "file": "src/core/qmd/model.ts",
+  "from": "this.markerReads.set(marker, { from, at });",
+  "to": "",
+  "expect": "killed",
+  "why": "same answers, quadratic: the clock rows"
+ },
+ {
+  "name": "H04 a tag name read is reused whatever it found",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (read !== null && read.from <= from && from <= read.at) {",
+  "to": "if (read !== null && read.from <= from) {",
+  "expect": "killed",
+  "why": "a name read that stopped BEFORE `from` would be returned"
+ },
+ {
+  "name": "E05 a tag name read that stopped AT the start is read again",
+  "file": "src/core/qmd/model.ts",
+  "from": "from <= read.at) {",
+  "to": "from < read.at) {",
+  "expect": "survives",
+  "why": "reading again from `from` stops at `from` too. Checked against the parent on 900,000 random strings (three seeds, up to 20 tokens, five escapable sets): 0 differences."
+ },
+ {
+  "name": "H05 a tag name does not end at a blank",
+  "file": "src/core/qmd/model.ts",
+  "from": "text[at] !== \" \" && text[at] !== \"\\t\"",
+  "to": "text[at] !== \"\\t\"",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "H06 a tag name does not end at a tab",
+  "file": "src/core/qmd/model.ts",
+  "from": "text[at] !== \"\\t\" && text[at] !== \"/\"",
+  "to": "text[at] !== \"/\"",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "H07 a tag name does not end at a slash",
+  "file": "src/core/qmd/model.ts",
+  "from": "text[at] !== \"/\" && text[at] !== \">\"",
+  "to": "text[at] !== \">\"",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "H08 a tag name does not end at a `>`",
+  "file": "src/core/qmd/model.ts",
+  "from": "text[at] !== \"/\" && text[at] !== \">\") {",
+  "to": "text[at] !== \"/\") {",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "H09 a tag name read is never kept",
+  "file": "src/core/qmd/model.ts",
+  "from": "this.nameRead = { from, at };",
+  "to": "",
+  "expect": "killed",
+  "why": "same answers, quadratic: the clock rows"
+ },
+ {
+  "name": "H10 the close is read one entry late",
+  "file": "src/core/qmd/model.ts",
+  "from": "return this.tagCloses[from];",
+  "to": "return this.tagCloses[from + 1];",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "H11 the close table is rebuilt for every ask",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (this.tagCloses === null) {\n      this.tagCloses = buildTagCloses(this.text);",
+  "to": "if (true) {\n      this.tagCloses = buildTagCloses(this.text);",
+  "expect": "killed",
+  "why": "same answers, quadratic: the clock rows"
+ },
+ {
+  "name": "H12 a group end is read one entry late",
+  "file": "src/core/qmd/model.ts",
+  "from": "return ends[i];",
+  "to": "return ends[i + 1];",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "H13 a run closes one character late",
+  "file": "src/core/qmd/model.ts",
+  "from": "return low < starts.length ? starts[low] + length : -1;",
+  "to": "return low < starts.length ? starts[low] + length + 1 : -1;",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "H14 a run closes where it starts",
+  "file": "src/core/qmd/model.ts",
+  "from": "return low < starts.length ? starts[low] + length : -1;",
+  "to": "return low < starts.length ? starts[low] : -1;",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "H15 a run past the last start is not refused",
+  "file": "src/core/qmd/model.ts",
+  "from": "return low < starts.length ? starts[low] + length : -1;",
+  "to": "return starts[low] + length;",
+  "expect": "killed",
+  "why": "NaN where none starts at or after `from`"
+ },
+ {
+  "name": "E06 a run that starts AT the start is skipped",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (starts[middle] < from) {",
+  "to": "if (starts[middle] <= from) {",
+  "expect": "survives",
+  "why": "`from` is the end of a backtick run, so the character there is no backtick and no run starts at `from`. Checked against the parent on 900,000 random strings (three seeds, up to 20 tokens, five escapable sets): 0 differences."
+ },
+ {
+  "name": "H16 the search moves right without passing the middle",
+  "file": "src/core/qmd/model.ts",
+  "from": "low = middle + 1;",
+  "to": "low = middle;",
+  "expect": "killed",
+  "why": "the search never ends: a timeout"
+ },
+ {
+  "name": "H17 the search drops the middle going left",
+  "file": "src/core/qmd/model.ts",
+  "from": "high = middle;",
+  "to": "high = middle - 1;",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "H18 the starts of one length are filed newest first",
+  "file": "src/core/qmd/model.ts",
+  "from": "starts.push(start);",
+  "to": "starts.unshift(start);",
+  "expect": "killed",
+  "why": "the search needs them in text order"
+ },
+ {
+  "name": "H19 a run is filed under a length one too long",
+  "file": "src/core/qmd/model.ts",
+  "from": "const starts = runs.get(j - start);\n        if (starts === undefined) {\n          runs.set(j - start, [start]);",
+  "to": "const starts = runs.get(j - start);\n        if (starts === undefined) {\n          runs.set(j - start + 1, [start]);",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "H20 the runs are rebuilt for every ask",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (this.backtickRuns === null) {",
+  "to": "if (true) {",
+  "expect": "killed",
+  "why": "same answers, quadratic: the clock rows"
+ },
+ {
+  "name": "H21 a length with no run is not refused",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (starts === undefined) {\n      return -1;\n    }\n    let low",
+  "to": "let low",
+  "expect": "killed",
+  "why": "a TypeError"
+ },
+ {
+  "name": "C01 a single backtick of a run is never tried",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let length = runEnd - i; length >= 1; length--) {",
+  "to": "for (let length = runEnd - i; length > 1; length--) {",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "C02 the whole run is never tried",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let length = runEnd - i; length >= 1; length--) {",
+  "to": "for (let length = runEnd - i - 1; length >= 1; length--) {",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "C03 the closer is searched from the start of the run",
+  "file": "src/core/qmd/model.ts",
+  "from": "const closer = line.backtickRunEnd(length, runEnd);",
+  "to": "const closer = line.backtickRunEnd(length, i);",
+  "expect": "killed",
+  "why": "the run would close itself"
+ },
+ {
+  "name": "C04 a run that closes nothing is left one backtick at a time",
+  "file": "src/core/qmd/model.ts",
+  "from": "return runEnd;\n}\n/** Just past a `$",
+  "to": "return i + 1;\n}\n/** Just past a `$",
+  "expect": "killed",
+  "why": "same answers, quadratic: the clock rows"
+ },
+ {
+  "name": "C05 a closer ends one character late",
+  "file": "src/core/qmd/model.ts",
+  "from": "return closer;\n    }\n  }\n  return runEnd;",
+  "to": "return closer + 1;\n    }\n  }\n  return runEnd;",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "C06 lengths are tried two at a time",
+  "file": "src/core/qmd/model.ts",
+  "from": "length >= 1; length--) {\n    const closer",
+  "to": "length >= 1; length -= 2) {\n    const closer",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "B01 a label with no destination ends on its last bracket",
+  "file": "src/core/qmd/model.ts",
+  "from": "return end + 1;\n}\n/**\n * The tag NAMES",
+  "to": "return end;\n}\n/**\n * The tag NAMES",
+  "expect": "survives",
+  "why": "the scan resumes ON the closing `]` instead of after it, and the scan reads a `]` as plain text and steps over it: the same state one character later. Not reachable from the other caller (`headingBracketedEnd` is only called by the scan). Checked against the parent on 900,000 random strings (three seeds, up to 20 tokens, five escapable sets): 0 differences."
+ },
+ {
+  "name": "B02 a label with a destination ends on its last bracket",
+  "file": "src/core/qmd/model.ts",
+  "from": "return close + 1;",
+  "to": "return close;",
+  "expect": "survives",
+  "why": "the scan resumes ON the closing `)`, `]` or `}` instead of after it; the scan reads each of them as plain text and steps over it. Checked against the parent on 900,000 random strings (three seeds, up to 20 tokens, five escapable sets): 0 differences."
+ },
+ {
+  "name": "B03 a `{` follower is closed by a `]`",
+  "file": "src/core/qmd/model.ts",
+  "from": "next === \"(\" ? \")\" : next === \"[\" ? \"]\" : \"}\"",
+  "to": "next === \"(\" ? \")\" : \"]\"",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "B04 an unclosed label advances by two",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (end === -1) {\n    return i + 1;\n  }\n  const next",
+  "to": "if (end === -1) {\n    return i + 2;\n  }\n  const next",
+  "expect": "killed",
+  "why": "the next bracket could be skipped"
+ },
+ {
+  "name": "B05 the follower is read at the closing bracket",
+  "file": "src/core/qmd/model.ts",
+  "from": "const next = line.text[end + 1];",
+  "to": "const next = line.text[end];",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "B06 a `{` follower is not a follower",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (next === \"(\" || next === \"[\" || next === \"{\") {",
+  "to": "if (next === \"(\" || next === \"[\") {",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "M01 a macro argument is always closed by a `]`",
+  "file": "src/core/qmd/model.ts",
+  "from": "line.groupEnd(k, open, open === \"[\" ? \"]\" : \"}\")",
+  "to": "line.groupEnd(k, open, \"]\")",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "M02 a macro argument group leaves its last bracket unread",
+  "file": "src/core/qmd/model.ts",
+  "from": "j = end + 1;",
+  "to": "j = end;",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "M03 a macro argument that never closes is skipped over",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (end === -1) {\n      return j;\n    }",
+  "to": "if (end === -1) {\n      return k;\n    }",
+  "expect": "survives",
+  "why": "on a group that never closes the reader returns where the blanks before it END instead of where they begin; the scan steps over blanks one at a time, so it reaches the same place. Checked against the parent on 900,000 random strings (three seeds, up to 20 tokens, five escapable sets): 0 differences."
+ },
+ {
+  "name": "M04 a braced argument needs no closing brace",
+  "file": "src/core/qmd/model.ts",
+  "from": "return text[k] === \"{\" && line.groupEnd(k, \"{\", \"}\") !== -1;",
+  "to": "return text[k] === \"{\";",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "M05 the optional group is read as a braced one",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (text[k] !== \"[\") {\n      break;",
+  "to": "if (text[k] !== \"{\") {\n      break;",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "M06 an optional group leaves its last bracket unread",
+  "file": "src/core/qmd/model.ts",
+  "from": "k = end + 1;\n  }\n  return text[k] === \"{\"",
+  "to": "k = end;\n  }\n  return text[k] === \"{\"",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "A02 a tag name runs to the `>`",
+  "file": "src/core/qmd/model.ts",
+  "from": "name: text.slice(nameStart, j), closing }",
+  "to": "name: text.slice(nameStart, close), closing }",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "A03 a tag name is not looked for",
+  "file": "src/core/qmd/model.ts",
+  "from": "j = line.tagNameEnd(j);\n  const close",
+  "to": "const close",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "A04 the quote reading starts one character late",
+  "file": "src/core/qmd/model.ts",
+  "from": "const close = line.tagClose(j);",
+  "to": "const close = line.tagClose(j + 1);",
+  "expect": "killed",
+  "why": ""
+ },
+ {
+  "name": "A05 a comment closer is read from the text",
+  "file": "src/core/qmd/model.ts",
+  "from": "const close = line.indexOfMarker(marker, from);",
+  "to": "const close = line.text.indexOf(marker, from);",
+  "expect": "killed",
+  "why": "same answers, quadratic: the clock rows"
+ },
+ {
+  "name": "A06 a shortcode closer is read from the text",
+  "file": "src/core/qmd/model.ts",
+  "from": "const close = line.indexOfMarker(\">}}\", i);",
+  "to": "const close = text.indexOf(\">}}\", i);",
+  "expect": "killed",
+  "why": "same answers, quadratic: the clock row"
+ },
+ {
+  "name": "A07 an unterminated tag advances by two",
+  "file": "src/core/qmd/model.ts",
+  "from": "return close === -1 ? none(i + 1) :",
+  "to": "return close === -1 ? none(i + 2) :",
+  "expect": "survives",
+  "why": "an unterminated tag leaves the scan on the character after the `<` (or after `</`), which is a letter or the `/`; both are plain text to the scan, so skipping one more changes nothing. The other caller (`endsHtmlBlock`) ignores `next` when there is no name. Checked against the parent on 900,000 random strings (three seeds, up to 20 tokens, five escapable sets): 0 differences."
+ }
+]

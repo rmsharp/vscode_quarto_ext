@@ -1,0 +1,10 @@
+[
+ {
+  "name": "A01 a tag ends on its `>`",
+  "file": "src/core/qmd/model.ts",
+  "from": "{ next: close + 1, name: text.slice(nameStart, j), closing }",
+  "to": "{ next: close, name: text.slice(nameStart, j), closing }",
+  "expect": "killed",
+  "why": "Killed only by the OLDER Session 295 rows of `qmd-model.test.ts` (four of them, among them \"MUTATION KILLER: an upper-case lone <DIV>\"): the other caller of `headingAngleEnd`, `endsHtmlBlock`, tests `line.slice(first.next).trim() === \"\"` to find a lone opening `<div>`, so a `next` on the `>` itself is read as text after the tag. The heading scan steps over a `>`, so the Session 325 rows cannot see it."
+ }
+]
