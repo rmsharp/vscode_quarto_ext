@@ -1,0 +1,242 @@
+[
+  {
+    "name": "C01 nestedParentPath: the chains are never used",
+    "file": "src/core/yaml-context.ts",
+    "from": "  if (index !== undefined) {\n    const chain = containerChain(",
+    "to": "  if (false as boolean) {\n    const chain = containerChain(",
+    "expect": "killed",
+    "why": "the old climb runs with the index: every answer is the same and the work pins (160,400 reads against 401) and the clock rows are what see it"
+  },
+  {
+    "name": "C02 nestedParentPath: a failed chain is read as if it were undefined",
+    "file": "src/core/yaml-context.ts",
+    "from": "    if (chain === null) {\n      return null; // a scalar",
+    "to": "    if (chain === undefined) {\n      return null; // a scalar",
+    "expect": "killed",
+    "why": "a null chain is dereferenced: every document with a failing climb throws"
+  },
+  {
+    "name": "C03 nestedParentPath: the one-level test reads at most 0",
+    "file": "src/core/yaml-context.ts",
+    "from": "index.indent[parentLine] === 0\n      ? NESTED",
+    "to": "index.indent[parentLine] <= 0\n      ? NESTED",
+    "expect": "survives",
+    "why": "the parent is a content line, whose indent is never negative: `<= 0` and `=== 0` agree on every line the function can be asked about"
+  },
+  {
+    "name": "C04 nestedParentPath: the one-level gate is dropped",
+    "file": "src/core/yaml-context.ts",
+    "from": "? NESTED_CONTAINERS.has(chain.key) ? [chain.key] : null",
+    "to": "? [chain.key]",
+    "expect": "killed",
+    "why": "a column-0 container the gate does not let through (`website`) is answered: the one-level rows and the enumerations"
+  },
+  {
+    "name": "C05 nestedParentPath: the format-root test is dropped",
+    "file": "src/core/yaml-context.ts",
+    "from": "      : chain.root === \"format\" ? containerKeys(chain) : null;",
+    "to": "      : containerKeys(chain);",
+    "expect": "killed",
+    "why": "a chain under `execute:` or `website:` is answered with a path: the two-level rows and the enumerations"
+  },
+  {
+    "name": "C06 nestedParentPath: the root test reads the line's own key",
+    "file": "src/core/yaml-context.ts",
+    "from": "chain.root === \"format\" ? containerKeys(chain)",
+    "to": "chain.key === \"format\" ? containerKeys(chain)",
+    "expect": "killed",
+    "why": "only a container literally named `format` below the root passes: every format-rooted path of two levels or more is lost"
+  },
+  {
+    "name": "C07 nestedParentPath: the one-level gate reads the root",
+    "file": "src/core/yaml-context.ts",
+    "from": "NESTED_CONTAINERS.has(chain.key) ? [chain.key]",
+    "to": "NESTED_CONTAINERS.has(chain.root) ? [chain.key]",
+    "expect": "survives",
+    "why": "the chain of a column-0 line is its own root, so the key and the root are the same string there"
+  },
+  {
+    "name": "C08 nestedParentPath: the one-level answer is the chain's keys",
+    "file": "src/core/yaml-context.ts",
+    "from": "? [chain.key] : null\n      : chain.root",
+    "to": "? containerKeys(chain) : null\n      : chain.root",
+    "expect": "survives",
+    "why": "the chain of a column-0 line has one key, so its keys are `[chain.key]`"
+  },
+  {
+    "name": "C09 indexLineIndents: one slot too many in the chains",
+    "file": "src/core/yaml-context.ts",
+    "from": "chains: new Array<ContainerChain | null | undefined>(lines.length)",
+    "to": "chains: new Array<ContainerChain | null | undefined>(lines.length + 1)",
+    "expect": "killed",
+    "why": "the `one slot a line` row (the length)"
+  },
+  {
+    "name": "C10 indexLineIndents: no slots reserved",
+    "file": "src/core/yaml-context.ts",
+    "from": "chains: new Array<ContainerChain | null | undefined>(lines.length)",
+    "to": "chains: new Array<ContainerChain | null | undefined>(0)",
+    "expect": "killed",
+    "why": "an array grows when it is assigned, so every answer is the same: the `one slot a line` row sees the length"
+  },
+  {
+    "name": "C11 containerChain: an answered line is climbed again",
+    "file": "src/core/yaml-context.ts",
+    "from": "    if (known !== undefined) {\n      chain = known;",
+    "to": "    if (false as boolean) {\n      chain = known as ContainerChain | null;",
+    "expect": "killed",
+    "why": "every ask climbs to the root and the answers are the same: the work pins (reads) and the clock rows"
+  },
+  {
+    "name": "C12 containerChain: a null answer is not an answer",
+    "file": "src/core/yaml-context.ts",
+    "from": "    if (known !== undefined) {\n      chain = known;",
+    "to": "    if (known) {\n      chain = known;",
+    "expect": "killed",
+    "why": "a failed climb is climbed again by every line below it: the root-holds-a-scalar and block-scalar work pins"
+  },
+  {
+    "name": "C13 containerChain: a line that is not a container is not kept",
+    "file": "src/core/yaml-context.ts",
+    "from": "    if (key === null) {\n      chain = chains[at] = null;",
+    "to": "    if (key === null) {\n      chain = null;",
+    "expect": "killed",
+    "why": "the line itself stays unanswered (the ones below it are kept by the unwinding): the `failed climb is kept as null for every line it passed` row"
+  },
+  {
+    "name": "C14 containerChain: a line with no shallower line is not kept",
+    "file": "src/core/yaml-context.ts",
+    "from": "    if (above < 0) {\n      chain = chains[at] = null;",
+    "to": "    if (above < 0) {\n      chain = null;",
+    "expect": "killed",
+    "why": "the line stays unanswered and every child reads it again: the `keeps an indented container with nothing shallower above it as null` row (its chain slot, and one read for 1,000 children). It SURVIVED the first rows (found by the first run of this list) and the row was added after"
+  },
+  {
+    "name": "C15 containerChain: a column-0 link says its root is format",
+    "file": "src/core/yaml-context.ts",
+    "from": "chain = chains[at] = { key, above: null, depth: 1, root: key };",
+    "to": "chain = chains[at] = { key, above: null, depth: 1, root: \"format\" };",
+    "expect": "killed",
+    "why": "a chain under `execute:` or `website:` of two levels or more is answered: the enumerations over the roots"
+  },
+  {
+    "name": "C16 containerChain: a column-0 link counts no key",
+    "file": "src/core/yaml-context.ts",
+    "from": "{ key, above: null, depth: 1, root: key }",
+    "to": "{ key, above: null, depth: 0, root: key }",
+    "expect": "killed",
+    "why": "the path of a chain is one short at the top: every format-rooted answer of two levels or more"
+  },
+  {
+    "name": "C17 containerChain: the climb goes to the line above, not the shallower line",
+    "file": "src/core/yaml-context.ts",
+    "from": "    waitingKeys.push(key);\n    at = above;",
+    "to": "    waitingKeys.push(key);\n    at = at - 1;",
+    "expect": "killed",
+    "why": "a sibling or a deeper line between the container and its child becomes the ancestor: the enumerations with scalars and siblings"
+  },
+  {
+    "name": "C18 containerChain: line 0 is not a shallower line",
+    "file": "src/core/yaml-context.ts",
+    "from": "    if (above < 0) {\n      chain = chains[at] = null;",
+    "to": "    if (above <= 0) {\n      chain = chains[at] = null;",
+    "expect": "killed",
+    "why": "the root on the first line of the block is never reached: every document that starts with its root"
+  },
+  {
+    "name": "C19 containerChain: the column-0 test reads at most 0",
+    "file": "src/core/yaml-context.ts",
+    "from": "    if (indent[at] === 0) {\n      chain = chains[at] = {",
+    "to": "    if (indent[at] <= 0) {\n      chain = chains[at] = {",
+    "expect": "survives",
+    "why": "`at` is a content line, whose indent is never negative"
+  },
+  {
+    "name": "C20 containerChain: the unwinding does not test for a failed chain",
+    "file": "src/core/yaml-context.ts",
+    "from": "chain = chains[line] = chain === null ? null : { key, above: chain, depth: chain.depth + 1, root: chain.root };",
+    "to": "chain = chains[line] = { key, above: chain as ContainerChain, depth: (chain as ContainerChain).depth + 1, root: (chain as ContainerChain).root };",
+    "expect": "killed",
+    "why": "a failed climb throws as the lines above it are unwound"
+  },
+  {
+    "name": "C21 containerChain: a link does not add its key to the depth",
+    "file": "src/core/yaml-context.ts",
+    "from": "depth: chain.depth + 1, root: chain.root }",
+    "to": "depth: chain.depth, root: chain.root }",
+    "expect": "killed",
+    "why": "the array of keys is too short and its first slots are overwritten: every path of two levels or more"
+  },
+  {
+    "name": "C22 containerChain: a link's root is its own key",
+    "file": "src/core/yaml-context.ts",
+    "from": "depth: chain.depth + 1, root: chain.root }",
+    "to": "depth: chain.depth + 1, root: key }",
+    "expect": "killed",
+    "why": "the format-root test fails below the first level: every deeper format-rooted path"
+  },
+  {
+    "name": "C23 containerChain: a link does not point at the chain above",
+    "file": "src/core/yaml-context.ts",
+    "from": "chain = chains[line] = chain === null ? null : { key, above: chain,",
+    "to": "chain = chains[line] = chain === null ? null : { key, above: null,",
+    "expect": "killed",
+    "why": "the keys of a chain are only its last: every path of two levels or more"
+  },
+  {
+    "name": "C24 containerChain: the keys are taken oldest first",
+    "file": "src/core/yaml-context.ts",
+    "from": "    const key = waitingKeys.pop() as string;",
+    "to": "    const key = waitingKeys.shift() as string;",
+    "expect": "killed",
+    "why": "a chain of three or more waiting lines gets its keys in the wrong order: the four-level rows and the enumerations"
+  },
+  {
+    "name": "C25 containerChain: the lines are unwound from the bottom",
+    "file": "src/core/yaml-context.ts",
+    "from": "    const line = waiting.pop() as number;",
+    "to": "    const line = waiting.shift() as number;",
+    "expect": "killed",
+    "why": "the chain of a line is built before the chain of the line above it: the wrong chain is stored"
+  },
+  {
+    "name": "C26 containerChain: the last waiting line is never unwound",
+    "file": "src/core/yaml-context.ts",
+    "from": "  while (waiting.length > 0) {",
+    "to": "  while (waiting.length > 1) {",
+    "expect": "killed",
+    "why": "the line asked about gets the chain of its parent: every path comes out one level short"
+  },
+  {
+    "name": "C27 containerKeys: one slot too many",
+    "file": "src/core/yaml-context.ts",
+    "from": "const keys = new Array<string>(chain.depth);",
+    "to": "const keys = new Array<string>(chain.depth + 1);",
+    "expect": "killed",
+    "why": "a trailing empty slot in every path"
+  },
+  {
+    "name": "C28 containerKeys: written from one slot too far",
+    "file": "src/core/yaml-context.ts",
+    "from": "for (let i = chain.depth - 1; link !== null; i--) {",
+    "to": "for (let i = chain.depth; link !== null; i--) {",
+    "expect": "killed",
+    "why": "every key is one slot late"
+  },
+  {
+    "name": "C29 containerKeys: only the last key",
+    "file": "src/core/yaml-context.ts",
+    "from": "    link = link.above;\n  }\n  return keys;",
+    "to": "    link = null;\n  }\n  return keys;",
+    "expect": "killed",
+    "why": "the path is its last key alone"
+  },
+  {
+    "name": "C30 containerChain: the keys are not kept apart from the lines",
+    "file": "src/core/yaml-context.ts",
+    "from": "    waiting.push(at);\n    waitingKeys.push(key);",
+    "to": "    waiting.push(at);\n    waitingKeys.push(\"\");",
+    "expect": "killed",
+    "why": "every key above the first level is empty"
+  }
+]

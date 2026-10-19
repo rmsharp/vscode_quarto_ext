@@ -374,6 +374,20 @@ describe("Session 323 — what the index keeps of the chains", () => {
     expect(index.chains[3]).toBeUndefined();
   });
 
+  it("keeps an indented container with nothing shallower above it as null, and reads its line once for any number of children", () => {
+    const lines = ["  a:", "    k: v"];
+    const index = indexLineIndents(lines);
+    expect(nestedParentPath(lines, 1, 4, index)).toBeNull();
+    expect(index.chains[0]).toBeNull();
+    const children = ["  a:", ...Array.from({ length: WORK_SIBLINGS }, (_, i) => `    o${i}: v`)];
+    const watch = watched(children);
+    const childIndex = indexLineIndents(children);
+    for (let line = 1; line < children.length; line++) {
+      expect(nestedParentPath(watch.lines, line, 4, childIndex)).toBeNull();
+    }
+    expect(watch.reads()).toBe(1);
+  });
+
   it("shares the chain of a container among its children: one object, not a copy for each", () => {
     const lines = ["format:", "  html:", "    a: v", "    b: v"];
     const index = indexLineIndents(lines);
