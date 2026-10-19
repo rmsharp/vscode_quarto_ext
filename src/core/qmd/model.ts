@@ -14345,9 +14345,9 @@ function sectionEndOf(headings: Heading[], k: number, lastLine: number): number 
  * unbalanced `\end{other}` before the matching closer defeats the match, so no line-local rule can
  * answer it (`scratchpad/s269/probes/d_context_refute/t03`).
  */
-const HEADING_BLOCK_MACRO_ANY = new RegExp("^(?:" + PANDOC_BLOCK_MACROS_ANY + ")$");
-const HEADING_BLOCK_MACRO_ARG = new RegExp("^(?:" + PANDOC_BLOCK_MACROS_ARG + ")$");
-const HEADING_BLOCK_MACRO_BARE = new RegExp("^(?:" + PANDOC_BLOCK_MACROS_BARE + ")$");
+export const HEADING_BLOCK_MACRO_ANY = new RegExp("^(?:" + PANDOC_BLOCK_MACROS_ANY + ")$");
+export const HEADING_BLOCK_MACRO_ARG = new RegExp("^(?:" + PANDOC_BLOCK_MACROS_ARG + ")$");
+export const HEADING_BLOCK_MACRO_BARE = new RegExp("^(?:" + PANDOC_BLOCK_MACROS_BARE + ")$");
 /**
  * The index of `close` that balances the `open` at `i`, or -1 where the group never closes. A
  * backslash escapes the next character, so `\{` is not a group delimiter.
@@ -14491,8 +14491,8 @@ function headingBracketedEnd(text: string, i: number): number {
  *     For a probe whose heading line opens a swallowing element, read the raw HTML for an `<hN>`
  *     element; the extractor answers a different question.
  */
-const HEADING_BLOCK_TAG_OPEN = new RegExp("^(?:" + PANDOC_BLOCK_CLOSE_TAGS + ")$", "i");
-const HEADING_BLOCK_TAG_CLOSE = new RegExp("^(?:" + PANDOC_BLOCK_CLOSE_TAGS + ")$", "i");
+export const HEADING_BLOCK_TAG_OPEN = new RegExp("^(?:" + PANDOC_BLOCK_CLOSE_TAGS + ")$", "i");
+export const HEADING_BLOCK_TAG_CLOSE = new RegExp("^(?:" + PANDOC_BLOCK_CLOSE_TAGS + ")$", "i");
 /** What `headingAngleEnd` found at a `<`: where to resume, and the tag's name when it is one. */
 interface HeadingAngle {
   readonly next: number;
@@ -14587,8 +14587,12 @@ function headingAngleEnd(text: string, i: number): HeadingAngle {
  * real `h3` (`d_context_refute/k04`). Before: the decode turns `\<section>` into `<section>`, and
  * the model's own emitted text for that REAL heading is then byte-identical to a refused one, so a
  * predicate run on the decoded text cannot tell them apart (`verify/v23`).
+ *
+ * Exported (with the five tables above) so that a test can time the scan itself, apart from the
+ * attribute and closing-hash strips that run before it, and can hold it against an older spelling
+ * of itself (Session 325).
  */
-function headingContentRefused(
+export function headingContentRefused(
   text: string,
   blockHtml: boolean,
   blockTex: boolean,
