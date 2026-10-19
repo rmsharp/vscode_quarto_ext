@@ -14349,27 +14349,49 @@ export const HEADING_BLOCK_MACRO_ANY = new RegExp("^(?:" + PANDOC_BLOCK_MACROS_A
 export const HEADING_BLOCK_MACRO_ARG = new RegExp("^(?:" + PANDOC_BLOCK_MACROS_ARG + ")$");
 export const HEADING_BLOCK_MACRO_BARE = new RegExp("^(?:" + PANDOC_BLOCK_MACROS_BARE + ")$");
 /**
- * The index of `close` that balances the `open` at `i`, or -1 where the group never closes. A
- * backslash escapes the next character, so `\{` is not a group delimiter.
+ * For every `open` in `text`, the index of the `close` that balances it, or -1 where the group never
+ * closes. A backslash escapes the next character, so `\{` is not a group delimiter.
+ *
+ * Read from the `open` at `i`, the depth is 1 at `i` and moves by one at each COUNTED bracket after
+ * it, and the group ends at the first counted `close` that brings it back to 0. A bracket counts
+ * unless an ODD run of backslashes sits just before it: a run pairs up from its first backslash, and
+ * the character before that one is no backslash, so the parity of the run alone decides — which is
+ * also why one pass over the whole text can answer for every `i`. The `open` at `i` itself is
+ * counted whether or not it is escaped, because the scan asks about it by position.
+ * With `level` the number of counted brackets still open at the present character, the group opened
+ * at `i` ends at the first counted `close` that takes `level` below its value at `i`; the groups not
+ * yet ended wait on a stack whose levels never fall as it grows, so a `close` ends exactly the ones
+ * on top whose level it passes.
  */
-function headingGroupEnd(text: string, i: number, open: string, close: string): number {
-  let depth = 0;
-  for (let j = i; j < text.length; j++) {
+function buildGroupEnds(text: string, open: string, close: string): Int32Array {
+  const ends = new Int32Array(text.length).fill(-1);
+  const waitingAt: number[] = [];
+  const waitingLevel: number[] = [];
+  let level = 0;
+  let backslashes = 0;
+  for (let j = 0; j < text.length; j++) {
     const c = text[j];
     if (c === "\\") {
-      j++;
+      backslashes++;
       continue;
     }
+    const counted = backslashes % 2 === 0;
+    backslashes = 0;
     if (c === open) {
-      depth++;
-    } else if (c === close) {
-      depth--;
-      if (depth === 0) {
-        return j;
+      if (counted) {
+        level++;
+      }
+      waitingAt.push(j);
+      waitingLevel.push(level);
+    } else if (c === close && counted) {
+      level--;
+      while (waitingLevel.length > 0 && waitingLevel[waitingLevel.length - 1] > level) {
+        waitingLevel.pop();
+        ends[waitingAt.pop() as number] = j;
       }
     }
   }
-  return -1;
+  return ends;
 }
 /**
  * Just past a macro's own argument groups, starting at `i` (the first character after the name
@@ -14378,7 +14400,8 @@ function headingGroupEnd(text: string, i: number, open: string, close: string): 
  * is scanned as prose — while `\texttt{<section>}` consumes the whole group, which is why a block
  * tag inside a class-C macro's argument never reaches the tag scan (measured, `verify/v04`).
  */
-function headingMacroArgumentsEnd(text: string, i: number): number {
+function headingMacroArgumentsEnd(line: HeadingLine, i: number): number {
+  const { text } = line;
   let j = i;
   for (;;) {
     let k = j;
@@ -14389,7 +14412,7 @@ function headingMacroArgumentsEnd(text: string, i: number): number {
     if (open !== "[" && open !== "{") {
       return j;
     }
-    const end = headingGroupEnd(text, k, open, open === "[" ? "]" : "}");
+    const end = line.groupEnd(k, open, open === "[" ? "]" : "}");
     if (end === -1) {
       return j;
     }
@@ -14397,7 +14420,8 @@ function headingMacroArgumentsEnd(text: string, i: number): number {
   }
 }
 /** Whether an ARG-class macro's arity is satisfied at `i` — a BRACED group, after any `[…]`. */
-function headingMacroHasBracedArgument(text: string, i: number): boolean {
+function headingMacroHasBracedArgument(line: HeadingLine, i: number): boolean {
+  const { text } = line;
   let k = i;
   for (;;) {
     while (k < text.length && (text[k] === " " || text[k] === "\t")) {
@@ -14406,13 +14430,13 @@ function headingMacroHasBracedArgument(text: string, i: number): boolean {
     if (text[k] !== "[") {
       break;
     }
-    const end = headingGroupEnd(text, k, "[", "]");
+    const end = line.groupEnd(k, "[", "]");
     if (end === -1) {
       return false;
     }
     k = end + 1;
   }
-  return text[k] === "{" && headingGroupEnd(text, k, "{", "}") !== -1;
+  return text[k] === "{" && line.groupEnd(k, "{", "}") !== -1;
 }
 /**
  * The questions the heading scan asks of the text AFTER a position — where the closer of the opener
@@ -14428,8 +14452,20 @@ function headingMacroHasBracedArgument(text: string, i: number): boolean {
  */
 class HeadingLine {
   private backtickRuns: Map<number, number[]> | null = null;
+  private groupEnds = new Map<string, Int32Array>();
 
   constructor(readonly text: string) {}
+
+  /** The index of the `close` that balances the `open` at `i` (a character that IS that `open`), or -1 where the group never closes. */
+  groupEnd(i: number, open: string, close: string): number {
+    const key = open + close;
+    let ends = this.groupEnds.get(key);
+    if (ends === undefined) {
+      ends = buildGroupEnds(this.text, open, close);
+      this.groupEnds.set(key, ends);
+    }
+    return ends[i];
+  }
 
   /** The end of the first run of EXACTLY `length` backticks that starts at or after `from`, or -1. */
   backtickRunEnd(length: number, from: number): number {
@@ -14514,14 +14550,14 @@ function headingMathEnd(text: string, i: number): number {
  * (`verify/v10`, `v18`, `v19`, `b_html_form/b33`-`b36`), so this is deliberately wider than
  * "a resolved link". Over-skipping costs a phantom; under-skipping deletes a real heading.
  */
-function headingBracketedEnd(text: string, i: number): number {
-  const end = headingGroupEnd(text, i, "[", "]");
+function headingBracketedEnd(line: HeadingLine, i: number): number {
+  const end = line.groupEnd(i, "[", "]");
   if (end === -1) {
     return i + 1;
   }
-  const next = text[end + 1];
+  const next = line.text[end + 1];
   if (next === "(" || next === "[" || next === "{") {
-    const close = headingGroupEnd(text, end + 1, next, next === "(" ? ")" : next === "[" ? "]" : "}");
+    const close = line.groupEnd(end + 1, next, next === "(" ? ")" : next === "[" ? "]" : "}");
     if (close !== -1) {
       return close + 1;
     }
@@ -14678,7 +14714,7 @@ export function headingContentRefused(
       continue;
     }
     if (c === "[") {
-      i = headingBracketedEnd(text, i);
+      i = headingBracketedEnd(line, i);
       continue;
     }
     if (c === "{" && text.startsWith("{{<", i)) {
@@ -14720,11 +14756,11 @@ export function headingContentRefused(
           blockTex &&
           (HEADING_BLOCK_MACRO_ANY.test(name) ||
             HEADING_BLOCK_MACRO_BARE.test(name) ||
-            (HEADING_BLOCK_MACRO_ARG.test(name) && headingMacroHasBracedArgument(text, end)))
+            (HEADING_BLOCK_MACRO_ARG.test(name) && headingMacroHasBracedArgument(line, end)))
         ) {
           return true;
         }
-        i = headingMacroArgumentsEnd(text, end);
+        i = headingMacroArgumentsEnd(line, end);
         continue;
       }
       i += 1;
