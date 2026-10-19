@@ -612,8 +612,20 @@ const ATTR_KEY_VALUE = /^[A-Za-z][^\s}#\\=]*=(?:"[^"]*"|'[^']*'|(?:\\ |[^\s}])*)
  * ⚠ The letters are UNICODE letters, not `[A-Za-z]`: `{#sec-café}` is stripped (`*_x11uniid`)
  * and so is `{.クラス}` (`*_x12unicls`), which the first draft of this rule kept — a regression
  * its own adversarial pass caught.
+ *
+ * ⚠ **THE PATTERN IS THE ATOM GRAMMAR FACTORED, NOT TRANSCRIBED (Session 324).** It used to be an alternation of
+ * the three atoms under a `+`, and an id's tail and a class's tail both hold `.` and `-`: `.A.A.A` was one class or
+ * three, `#a-` an id or an id and a dash, so a token whose LAST character is wrong (`!`) was tried under every split
+ * before it was refused (exponential in the classes: a 74-byte heading took 7 s, and quadratic in a run of dashes after
+ * an id or a class). The same language has a plain shape. Before the first `#` only dashes and at most ONE class can
+ * stand: a class's tail takes every identifier character after it, so a second class, a dash or a dot-and-letter there
+ * adds no string. From the first `#` on, each `#` opens an id that takes every identifier character up to the next
+ * `#`, so the rest is `#` and one or more identifier characters, repeated. The parts begin on `-`, `.` and `#`, and
+ * the identifier set holds none of the `#`, so no character is read two ways at an edge and a refusal costs one pass.
+ * The lookahead keeps the empty token refused (a run is one or more atoms). The old spelling is the oracle in
+ * `test/unit/attr-atom-run-equivalence.test.ts`.
  */
-const ATTR_ATOM_RUN = /^(?:-|#[\p{L}\p{N}_:.-]+|\.\p{L}[\p{L}\p{N}_:.-]*)+$/u;
+export const ATTR_ATOM_RUN = /^(?!$)-*(?:\.\p{L}[\p{L}\p{N}_:.-]*)?(?:#[\p{L}\p{N}_:.-]+)*$/u;
 /**
  * `commonmark_x`'s spelling of the two token forms above — **ONE atom per token, no `-`, and a
  * class that may start with anything but may not contain a `.`** (Session 218).
