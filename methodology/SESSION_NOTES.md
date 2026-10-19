@@ -34,6 +34,12 @@ Name them, re-run the files alone, never loosen. The nine Session 323 rows allow
 (13) The Write and Edit tools turn a backslash-u escape for U+2028 into the raw character, in files AND in commit messages (Learning 792). `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices.
 macOS `sed` rejects `|` as a delimiter and `sed -i` needs `''`. After answering a direct question, STOP and wait (memory).
 
+### What Session 324 Did
+**Deliverable:** g02 of the backlog ordering plan, eighth session: the Session 317 item's part (1), `ATTR_ATOM_RUN` backtracks exponentially on a heading attribute block with an invalid tail (IN PROGRESS)
+**Started:** 2026-10-19
+**Status:** Session claimed. Work beginning. Strict TDD: time the site firsthand COLD (a fresh process per measurement; the item's figures are warm) and quote every timing with its load, a RED row whose clock limit is set from the cold figure, then an unambiguous atom grammar proved identical to the old pattern (the old spelling is the oracle).
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
 ### What Session 323 Did
 **Deliverable:** g02 of the backlog ordering plan, seventh session: B89 part (6a), YAML nesting depth is superlinear (close to cubic in depth) in the front-matter nested-value enumerator and its ancestor walk -- DONE; claim `236624d`
 **Started:** 2026-10-18
