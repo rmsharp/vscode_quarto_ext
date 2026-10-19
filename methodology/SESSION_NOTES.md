@@ -8,38 +8,38 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 322 closed out.** g02's sixth session is done: B89 part (8) is closed. `htmlCommentOpenAt` keeps how far it has read and whether a comment was open there (`git diff 05936de HEAD -- src`);
-8,000 blocks cost `findHeadings` 2.9 s before and 0.2 s after, about 2x per doubling to 128,000. The old rescan is the oracle (`html-comment-open-equivalence.test.ts`, 56 tests); 11 of 12 new document rows fail on the parent (2.7 to 5.0 s).
-31 mutants: 29 killed, 2 argued equivalent. The five-lens review found no defect in the code, 7 test gaps (11 mutants added, 8 survived the old rows) and 12 wrong statements in text (fixed), and one item was filed.
+**Task:** **NONE -- Session 323 closed out.** g02's seventh session is done: B89 part (6a) is closed. `nestedParentPath` builds each container's chain once and keeps it in `index.chains` (`git diff 236624d HEAD -- src`);
+3,200 levels cost 10.5 s before and 0.5 s after (load 8 to 10), linear in the text. The old climb is the oracle (`container-chain-equivalence.test.ts`, 50 tests) and the work is pinned as lines READ (400, against 160,400 on the parent).
+45 mutants: 41 killed, 4 argued equivalent. The six-agent review found no wrong answer, 15 source edits the pins let through (all killed now) and 12 wrong statements in text (fixed in files).
 `BACKLOG.md` "Active" is empty: present candidates via AskUserQuestion at Phase 0, ranked by the plan, each saying which rule placed it.
-**What's next (derived from the plan, not a promise):** g02 is still in flight. Candidates (the picker shows four and a catch-all):
-(a) B89 part (6a): YAML nesting depth, close to cubic, cure not tried (finishing a feature: it is the last part of B89 and the plan's done criterion names it; re-measure first);
-(b) the S317 item's part (1), the exponential `ATTR_ATOM_RUN` (the one hang; time it COLD); (c) the S318 item's part (9), a long paragraph under `from: gfm` (a mid-document `from: gfm` triggers it too: the S322 item);
-(d) the S319 item's part (1), consecutive container-column lines; (e) the S322 item's part (1), `inQuartoYamlRegion` asked per cell option line (cells x regions). Decisions as the plan says: D2, D3 before g03.
+**What's next (derived from the plan, not a promise):** g02 is still in flight; its items are taken in the plan's table order. Candidates (the picker shows four and a catch-all):
+(a) the S317 item's part (1), the exponential `ATTR_ATOM_RUN` (the one hang; time it COLD; first in table order); (b) the S318 item's part (9), a long paragraph under `from: gfm` (a mid-document `from: gfm` triggers it too);
+(c) the S319 item's part (1), consecutive container-column lines (a long definition list: likely in a real document); (d) the S322 item's part (1), `inQuartoYamlRegion` asked per cell option line (cells x regions).
+After those, the terminal bounded session files ONE RESIDUAL record and stops the sweep (the plan's done criterion). Decisions as the plan says: D2, D3 before g03.
 **⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in a close-out commit).
-(2) The runner tests the COMMITTED tree and SKIPS a mutant whose `from` no longer occurs once; `mutation-lists-apply.test.ts` reds for it (and adds one test per list). `mutants/b89-html-comment-open.json` (31: 29 killed, W02 and W04 survive on purpose):
-run it with `--timeout 60`, H08 never ends and the default costs 10 minutes. A kill row for a mutant is shown RED by running the new mutants against the OLD tests first.
-(3) Quote a timing only from a quiet machine (load under about 6) with the load beside it, and recompute a rate from the table's neighbouring cells (Learnings 797, 805). `scanRegions` memoizes the last two texts: every timed row needs a text of its own.
-(4) A function that keeps a position needs rows that ask FAR, read LONG lines and put blanks and tabs beside the token (Learning 802); a differential through the public entries cannot see a branch the caller never takes (803).
-(5) The Write and Edit tools turn a backslash-u escape for U+2028 into the raw character, in files AND in commit messages (Learning 792). `src/` is gated; check a message with `git log -1 --format=%B`. Prefer `.` to an explicit class.
-(6) Count new rows and rows failing on the parent from `vitest list` titles and a run of HEAD's tests against the parent's source (add only `export`), not from a title filter (Learning 794).
-(7) `ATX_CLOSING_PANDOC` is still quadratic on a long `#` run or a backslash run (BACKLOG, the S318 item, part (2)); `TABLE_RULE_ROW` still overflows the regex stack at 1,525,196 cells (unchanged, S317 item part (4)).
-(8) Clock rows flake under load: the `qmd-model.test.ts` Session 308 `;` row read 2,047.7 ms against 2,000 at load 30 in this session. Name it, re-run the file alone, never loosen.
-(9) The Session 314 vitest worker (pid 84774) is STILL spinning at 70 to 100% CPU: not mine; ask before killing it. The foreign worktree `.claude/worktrees/wf_f559ba89-653-5` is not mine either.
-(10) `test:integration` NOT run for twelve sessions (takes the screen: ask first). Baseline `npm test` at HEAD: 11,915 tests in 92 files, clean.
-(11) Real-document score: `REALDOC_DATA=scratchpad/s265 REALDOC_ORDINALS=scratchpad/s251/realfiles.txt tools/realdoc-score/run.sh head` prints 2423 of 2438 (99.38%), 15 divergent; unchanged by this session.
-(12) The plan: update its status column and "Current position" at each close-out; its key count command (`sed -n '/^## Where each key went/,$p' ... | grep -o 'B[0-9]\+' | sort -u | wc -l`) prints 221 (filed items carry no key).
-(13) A sweep lens with a wide brief (148 shapes) ran about 1 h 15 min at load up to 196 and ended only when asked to wrap up (`SendMessage`);
-its detached scripts (`passE2.sh` to `passG.sh`) kept launching runs for an hour after its report, and the records lens left two vitest pools spinning:
-bound a sweep lens by shapes and minutes, and check `ps` (and `lsof -d cwd` for a vitest parent) for what a review round left behind before closing out.
-(14) `governingMetadataContent` (so `midDocumentMetadataBlocks` and `quartoYamlRegions`) runs 2 to 3 times per scan: about 12% of `findHeadings` at 64,000 blocks, no asymptotic cost; left alone (CHANGELOG), not filed.
-`BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices. macOS `sed` rejects `|` as a delimiter and `sed -i` needs `''`. After answering a direct question, STOP and wait (memory).
+(2) The runner tests the COMMITTED tree, copies `--tests` files from the working tree ONCE at its start, and SKIPS a mutant whose `from` no longer occurs once (`mutation-lists-apply.test.ts` reds). `mutants/b89-container-chain.json`:
+45, 41 killed, C03 C07 C08 C19 survive on purpose, about 11 minutes with the four test files named in its README row. A kill row is shown RED by running the new mutants against the OLD tests first.
+(3) Quote a timing only with its load: the machine sat at load 10 to 50 for days and a set moved by 25% (the parent at 3,200 levels: 8.3 s at load 40, 10.5 s at load 8). Quote ranges, name the load, recompute a rate from the table (Learnings 797, 805).
+(4) Pins: the NINTH set was incomplete (807). Rows that carry strings need long, mixed-case, quoted, empty and no-break-space-ended text and a size past every cap; a comparison loop needs a wrong-oracle row and its `asked` count (809);
+a read bound needs the exact count, derived and then checked by the run (810); a clock limit goes between the two measurements (811); a cache passed in is pinned by counting calls, in a file of its own (808).
+(5) `index.chains` is a snapshot of the `lines` it was built from (812): a caller that edits lines in place must build a new index. The one caller builds a fresh index per call. The completion path (`nestedKeyContextAt`) has no index and keeps the old climb.
+(6) Unchanged residuals: every emitted entry owns a full-depth path array (an 800-level trunk with 64,000 siblings needs a 512 MB old space; caching keys on the chain link would share them); `ATX_CLOSING_PANDOC`'s `#` runs and `TABLE_RULE_ROW`'s stack overflow (BACKLOG).
+(7) Clock rows flake under load: the `qmd-model.test.ts` Session 308 row read 2,045 ms against 2,000 in a full run here and passed alone. Name it, re-run the file alone, never loosen. The nine Session 323 rows allow 2,500 ms.
+(8) The Session 314 vitest worker (pid 84774, cwd a `wt314` scratch worktree) is STILL spinning at 99% CPU after 3 days 10 hours: not mine; ask before killing it. The foreign worktree `.claude/worktrees/wf_f559ba89-653-5` is not mine either.
+(9) `test:integration` NOT run for thirteen sessions (takes the screen: ask first). Baseline `npm test` at HEAD: 11,981 tests in 94 files, clean apart from the one load flake above.
+(10) Real-document score: `REALDOC_DATA=scratchpad/s265 REALDOC_ORDINALS=scratchpad/s251/realfiles.txt tools/realdoc-score/run.sh head` prints 2423 of 2438 (99.38%), 15 divergent; unchanged by this session.
+(11) The plan: update its status column and "Current position" at each close-out; its key count command (`sed -n '/^## Where each key went/,$p' ... | grep -o 'B[0-9]\+' | sort -u | wc -l`) prints 221 (filed items carry no key).
+(12) A review round is not bounded by its brief: six agents briefed at about 30 minutes a lens took 6.0 hours at load 4 to 52 (1,561,995 tokens). Send a wrap-up message at the limit and check `ps` and `lsof -d cwd` after; this time nothing was left.
+(13) The Write and Edit tools turn a backslash-u escape for U+2028 into the raw character, in files AND in commit messages (Learning 792). `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices.
+macOS `sed` rejects `|` as a delimiter and `sed -i` needs `''`. After answering a direct question, STOP and wait (memory).
 
 ### What Session 323 Did
-**Deliverable:** g02 of the backlog ordering plan, seventh session: B89 part (6a), YAML nesting depth is superlinear (close to cubic in depth) in the front-matter nested-value enumerator and its ancestor walk (IN PROGRESS)
+**Deliverable:** g02 of the backlog ordering plan, seventh session: B89 part (6a), YAML nesting depth is superlinear (close to cubic in depth) in the front-matter nested-value enumerator and its ancestor walk -- DONE; claim `236624d`
 **Started:** 2026-10-18
-**Status:** Session claimed. Work beginning. Strict TDD: re-measure the site firsthand at doubling depths (cold and warm; the machine is at load 23 with a foreign spinning vitest worker, so quote no timing without its load) before reading code, a RED doubling row, then the cure (a memo of the rooted key path per content line) proved identical to the old answers (the old spelling is the oracle).
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Status:** Closed out. One function respelled (`fce6996`: `containerChain`, a chain of containers per line kept in `index.chains`), 9 clock rows RED on the unmodified tree (5.3 to 16.4 s against 1 s) and the old climb kept as the oracle with the work
+pinned as lines read (`b512ccd`: 50 tests, 14 fail on the parent), 45 mutants (`3880377`, `d436802`: 41 killed, 4 argued equivalent), and a six-agent review round (`wf_7b847a93-d5c`) whose fixes landed in `d436802`. Nothing new filed.
+`npm test` 11,981 passing in 94 files; `npm run package` 44 files; real-document score unchanged.
+**Ledger:** `CHANGELOG.md` 2026-10-19 -- one entry per action (the claim entry replaced), recorded in the close-out commit.
 
 ### What Session 322 Did
 **Deliverable:** g02 of the backlog ordering plan, sixth session: B89 part (8), `insideHtmlComment` rescans every line from the top for each mid-document `---` YAML block, so every region-scanning entry is quadratic in the block count -- DONE; claim `05936de`
@@ -87,6 +87,47 @@ One new item filed (eight regexes and a paragraph reader). `npm test` 11,403 pas
 **Status:** Closed out. Five patterns respelled (`4627675d`), exhaustive proof plus near-miss and gap-grid rows, 51 + 4 mutants (49 + 3 killed, 3 argued equivalent), a five-lens review round that closed three test gaps.
 Nine more families filed. `npm test` 11,347 passing plus one load-flake clock row (11,348 in 85 files); `npm run package` 44 files; real-document score unchanged.
 **Ledger:** `CHANGELOG.md` 2026-10-16 -- one entry per action (the claim entry replaced), recorded in the close-out commit.
+
+## Session 322 Handoff Evaluation (by Session 323)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers at HEAD (`0aa0593`, gap 0), no `pending` receipt, the ratchet citation (2/2, results
+`bba236856bad`), the real-document score (2423 of 2438, unchanged by this session), the plan's key count (221) and its gotcha 8 (the `qmd-model.test.ts` Session 308 row flakes under load: it read 2,045 ms
+against 2,000 in a full run here) all held, and the picker the plan ranked was accurate: it offered B89 part (6a) first, as finishing a feature.
+**Helped:** candidate (a) said "re-measure first": 1,203 ms at 1,600 and 8,262 ms at 3,200 levels (load 40) against the item's 1.2 s and 8.5 s, before any code was read, and a profile that gave 36 / 36 /
+9% against the item's 71% in two regexes; gotcha 2 (the runner tests the COMMITTED tree; the list gate reds on a stale `from`) is why I grepped the list before renaming `above` to `up` and fixed three
+texts in the same commit; gotcha 3 (quote a timing with its load, recompute a rate from the table, Learnings 797, 805) put a load beside every figure; gotcha 6 (count rows from titles, parent failures by
+running HEAD's tests against the parent's source) is how I counted the 14 failing rows on the parent; gotcha 8 (the worker and the worktree are not mine) held and the worker is still there.
+**Missing:** (a) that "a memo of the rooted key path per content line" is the wrong shape if it is read as an array per line: the simplify lens measured it at about 12 times the text in heap and 10 times
+slower on a deep staircase, and a linked chain was the cure, so the handoff's one hint about the cure pointed at the costlier spelling; (b) that the nested-value path has a second, unindexed caller (the
+completion path), which a cure must leave alone and a test must still cover; (c) that bounding a lens by minutes in the brief does not bound it: gotcha 13 says to check `ps` after, and six agents briefed
+at about 30 minutes a lens took 6.0 hours.
+**Wrong:** nothing I could find in the claims I checked; the BACKLOG item's "6.3 s in the reader" for the trunk shape read 5.2 to 7.0 s here (load moves it; I wrote the range). **ROI: high.**
+
+## Session 323 Self-Assessment
+
+**Score: 7/10.**
+**Went right.** I timed the site firsthand before reading code (22 / 48 / 202 / 1,203 / 8,262 ms at 200 to 3,200 levels, load 40: the item's numbers held), profiled it (36 / 36 / 9%), and wrote the nine
+clock rows and ran them on the unmodified tree before the cure: 9 failed at 5.3 to 16.4 s with the control passing (transcript 2026-10-18 19:06 to 19:08, the cure's commit is 19:13). The cure is linear
+(3,200 levels 10.5 s to 0.5 s at load 8; the last doubling costs 3.5 times for a text that grows 4.0 times). The old climb is the oracle (three enumerations and a seeded set; the enumerations' counts taken
+again with a Python port, the seeded one with the real parent function) and the cost is pinned as lines READ (400 against 160,400). The review round (6 agents, 1,561,995 tokens) was held to firsthand
+checking: I ran its 15 source gaps through the runner against the OLD tests (0 killed) and the new rows (15 killed), re-ran its test-file and call-site edits (11 of 19 killed, 8 left as harness edits with
+no consequence), derived three `asked` counts by arithmetic before the run, re-timed the nine rows at load before moving a limit (276 to 717 ms), confirmed the TDD order in the transcript, ran the new
+tests against the parent source in a throwaway worktree (14 fail) before writing the count, and declined the simplify lens's merge of the two branches and its cast-free loop, with reasons.
+**Went wrong.** (1) My pins were incomplete for the NINTH set in a row (Learnings 773, 776, 780, 788, 793, 798, 802, 807): 15 source edits survived (key text, near-miss root names, the empty key, a path
+past 4,096, the dropped index) after 30 mutants of my own, and `compareAsks` could not fail. (2) Text I wrote was wrong in 12 places in files and messages ('about 80,000 reads', '8.2 to 16.4 s', '25
+killed, 4 argued', 'a six-level staircase', 'the line above', the pure-mapping definition, 'never given an index', C24's `why`, a comment on `nearestShallowerLine`, a README row missing), and in one
+derivation of mine (a read count of 399; the run said 400). The `fce6996`, `b512ccd` and `3880377` messages stay wrong. (3) The clock rows' 1,000 ms limit left 1.4 to 1.9 times of headroom for the slowest
+row: I picked a round number above the fix instead of measuring both sides (the critic found it; 2,500 ms now). (4) TDD: the nine clock rows were RED on the unmodified tree but landed in ONE commit with
+the cure, so the commit order does not show it, and the oracle and read-count rows (`b512ccd`) were written after the cure (their RED is the parent run: 14 of 50 fail; the enumerations pass on the parent
+by construction): a deviation to flag, not hide. (5) A review round briefed at about 30 minutes a lens took 6.0 hours of wall time at load up to 52 and 1.56 million tokens, and I did not cap it with a
+message as Session 322 did.
+**Known residuals (filed or stated):** the completion path keeps the old climb; per-entry path arrays (512 MB old space for 64,000 siblings under an 800-level trunk); `index.chains` staleness (stated,
+unreachable); the unindexed branch is a copy of the climb (simplify S1, declined); eight harness-edit survivors (T08 to T10, T16, T20, T24, T26, T27); the clock rows' use sites (a limit multiplied, a loop
+shortened) are not pinned; `test:integration` NOT run.
+**TDD:** RED before GREEN for the 9 clock rows (shown on the unmodified tree); for the review's additions 15 of 15 mutants shown SURVIVING with the runner before the rows and killed after. Passed on
+arrival, disclosed: the exact read counts and the sentinel rows were written against the correct code (their RED is a mutant: T05, T07, T22, T25 and the call-site edits die on them).
+**Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** 6 agents in 1 workflow (the review: 1,561,995 subagent tokens, 324 tool calls, 6.0 hours), about 125 mutant runs of mine, 0
+quarto renders.
 
 ## Session 321 Handoff Evaluation (by Session 322)
 
