@@ -14414,28 +14414,92 @@ function headingMacroHasBracedArgument(text: string, i: number): boolean {
   }
   return text[k] === "{" && headingGroupEnd(text, k, "{", "}") !== -1;
 }
-/** Just past an inline code span opening at `i`, or `i + 1` where its run never closes. */
-function headingCodeSpanEnd(text: string, i: number): number {
-  let run = 0;
-  while (i + run < text.length && text[i + run] === "`") {
-    run++;
+/**
+ * The questions the heading scan asks of the text AFTER a position — where the closer of the opener
+ * it has just met is — each answered from a table built at most once per line (Session 325).
+ *
+ * ⚠ **THE TABLES EXIST BECAUSE AN OPENER WITH NO CLOSER USED TO COST THE REST OF THE LINE.** Each
+ * question was answered by reading on from the opener, and where no closer came it answered "one
+ * character on" after reading to the end, so the NEXT opener of the same kind read the same tail
+ * again: a line of 64,000 unclosed backticks took 5 s, and a pasted blob can be such a line. The
+ * answer to every question here is a function of the text and the position alone, so it is the
+ * same whenever it is asked, which is what lets a table built in one pass stand in for the reading.
+ * The old spellings are the oracle (`test/unit/heading-scan-equivalence.test.ts`).
+ */
+class HeadingLine {
+  private backtickRuns: Map<number, number[]> | null = null;
+
+  constructor(readonly text: string) {}
+
+  /** The end of the first run of EXACTLY `length` backticks that starts at or after `from`, or -1. */
+  backtickRunEnd(length: number, from: number): number {
+    const starts = this.runsOfBackticks().get(length);
+    if (starts === undefined) {
+      return -1;
+    }
+    let low = 0;
+    let high = starts.length;
+    while (low < high) {
+      const middle = (low + high) >>> 1;
+      if (starts[middle] < from) {
+        low = middle + 1;
+      } else {
+        high = middle;
+      }
+    }
+    return low < starts.length ? starts[low] + length : -1;
   }
-  let j = i + run;
-  while (j < text.length) {
-    if (text[j] !== "`") {
-      j++;
-      continue;
+
+  /** The start of every maximal run of backticks, filed under the run's length and in text order. */
+  private runsOfBackticks(): Map<number, number[]> {
+    if (this.backtickRuns === null) {
+      const runs = new Map<number, number[]>();
+      const { text } = this;
+      let j = 0;
+      while (j < text.length) {
+        if (text[j] !== "`") {
+          j++;
+          continue;
+        }
+        const start = j;
+        while (j < text.length && text[j] === "`") {
+          j++;
+        }
+        const starts = runs.get(j - start);
+        if (starts === undefined) {
+          runs.set(j - start, [start]);
+        } else {
+          starts.push(start);
+        }
+      }
+      this.backtickRuns = runs;
     }
-    let k = j;
-    while (k < text.length && text[k] === "`") {
-      k++;
-    }
-    if (k - j === run) {
-      return k;
-    }
-    j = k;
+    return this.backtickRuns;
   }
-  return i + 1;
+}
+/**
+ * Where the scan resumes after the backtick run that holds `i`: just past the inline code span that
+ * run opens, or past the run itself where nothing closes it.
+ *
+ * A run of `n` backticks opens a span closed by the first LATER run of exactly `n`. Where none is
+ * there, the backtick at `i` is plain and the next one — the same run, one backtick shorter — is
+ * tried, so the lengths from `n` down to 1 are tried in turn, all against the same later runs. That
+ * is what the scan used to do one character at a time, rereading the line for each; here the lengths
+ * are tried in one call and the whole run is left behind when none of them closes.
+ */
+function headingCodeSpanEnd(line: HeadingLine, i: number): number {
+  const { text } = line;
+  let runEnd = i;
+  while (runEnd < text.length && text[runEnd] === "`") {
+    runEnd++;
+  }
+  for (let length = runEnd - i; length >= 1; length--) {
+    const closer = line.backtickRunEnd(length, runEnd);
+    if (closer !== -1) {
+      return closer;
+    }
+  }
+  return runEnd;
 }
 /** Just past a `$…$` or `$$…$$` math span at `i`, or `i + 1` where the delimiter never closes. */
 function headingMathEnd(text: string, i: number): number {
@@ -14601,11 +14665,12 @@ export function headingContentRefused(
   if (!blockHtml && !blockTex) {
     return false;
   }
+  const line = new HeadingLine(text);
   let i = 0;
   while (i < text.length) {
     const c = text[i];
     if (c === "`") {
-      i = headingCodeSpanEnd(text, i);
+      i = headingCodeSpanEnd(line, i);
       continue;
     }
     if (c === "$") {
