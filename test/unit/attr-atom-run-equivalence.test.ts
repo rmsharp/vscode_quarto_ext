@@ -27,7 +27,8 @@ const ALPHABET_B = [".", "A", "-", "#", "!"];
 const ALPHABET_C = ["-", "#", ".", E_ACUTE, ASTRAL_LETTER, SUPERSCRIPT_TWO, ARABIC_THREE, EMOJI];
 
 /** How many strings of each enumeration the OLD spelling accepts. Counted by a recogniser that uses no regular expression (a memoised parse of the three atoms over every start position, Python 3's `unicodedata` for the
- * letter and number kinds), so a comparison cannot pass by both patterns accepting nothing, and the numbers do not come from the code under test. The seeded one is counted the same way from a port of the generator. */
+ * letter and number kinds), so a comparison cannot pass by both patterns accepting nothing, and the numbers do not come from the code under test. The seeded one is counted the same way from a port of the generator.
+ * `python3 -I tools/attr-atom-count/count_accepted.py` prints all four (about 10 seconds); change its alphabets with these. */
 const ACCEPTED = { a: 18_983, b: 68_741, c: 21_694, seeded: 25_927 };
 
 describe("Session 324 — ATTR_ATOM_RUN accepts what the alternation of atoms accepted", () => {
