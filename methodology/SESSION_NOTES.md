@@ -35,6 +35,12 @@ bound a sweep lens by shapes and minutes, and check `ps` (and `lsof -d cwd` for 
 (14) `governingMetadataContent` (so `midDocumentMetadataBlocks` and `quartoYamlRegions`) runs 2 to 3 times per scan: about 12% of `findHeadings` at 64,000 blocks, no asymptotic cost; left alone (CHANGELOG), not filed.
 `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices. macOS `sed` rejects `|` as a delimiter and `sed -i` needs `''`. After answering a direct question, STOP and wait (memory).
 
+### What Session 323 Did
+**Deliverable:** g02 of the backlog ordering plan, seventh session: B89 part (6a), YAML nesting depth is superlinear (close to cubic in depth) in the front-matter nested-value enumerator and its ancestor walk (IN PROGRESS)
+**Started:** 2026-10-18
+**Status:** Session claimed. Work beginning. Strict TDD: re-measure the site firsthand at doubling depths (cold and warm; the machine is at load 23 with a foreign spinning vitest worker, so quote no timing without its load) before reading code, a RED doubling row, then the cure (a memo of the rooted key path per content line) proved identical to the old answers (the old spelling is the oracle).
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
 ### What Session 322 Did
 **Deliverable:** g02 of the backlog ordering plan, sixth session: B89 part (8), `insideHtmlComment` rescans every line from the top for each mid-document `---` YAML block, so every region-scanning entry is quadratic in the block count -- DONE; claim `05936de`
 **Started:** 2026-10-18
