@@ -31,6 +31,12 @@ After those, the terminal bounded session files ONE RESIDUAL record and stops th
 (13) The Write and Edit tools turn a backslash-u escape for U+2028 into the raw character (Learning 792). `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices, edit with a Python script.
 macOS `sed` rejects `|` as a delimiter and `sed -i` needs `''`. After answering a direct question, STOP and wait (memory).
 
+### What Session 325 Did
+**Deliverable:** g02 of the backlog ordering plan, ninth session: the Session 317 item's part (2), a long `# ` heading or setext text line of backticks, `[`, `{` or a backslash is quadratic in `headingContentRefused` (IN PROGRESS)
+**Started:** 2026-10-19
+**Status:** Session claimed. Work beginning. Strict TDD: profile first (Learning 739; the item's figures are an agent's, not re-profiled), time each shape in a fresh process with its load beside it, size RED rows from the WARM figure with the controls first (816), then a linear spelling proved against the old one (the old spelling is the oracle). Operator decisions at the Phase 0 picker: the item's part (2); the unrun 68% of the sweep (plan rule P5) belongs to the terminal bounded session, not this one.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
 ### What Session 324 Did
 **Deliverable:** g02 of the backlog ordering plan, eighth session: the Session 317 item's part (1), `ATTR_ATOM_RUN` backtracks exponentially (and quadratically for a dash run) on a heading, fence, image, span or div attribute block with a refused tail -- DONE; claim `d9be8ec`
 **Started:** 2026-10-19
