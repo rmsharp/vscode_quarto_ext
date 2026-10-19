@@ -14439,6 +14439,35 @@ function headingMacroHasBracedArgument(line: HeadingLine, i: number): boolean {
   return text[k] === "{" && line.groupEnd(k, "{", "}") !== -1;
 }
 /**
+ * For every position, the index of the first `>` that no quote encloses when the text is read on from
+ * there outside any quote, or -1; the table has one more entry than the text has characters, for the
+ * position just past the end. A quote opened by `"` or `'` ends at the next quote of the SAME kind and
+ * hides every `>` in between, and the three states of that reading (outside, inside `"`, inside `'`)
+ * depend on the character at hand alone, so the table is filled from the end of the text backwards:
+ * a quote opened at `p` resumes outside at the position after the next quote of its kind.
+ */
+function buildTagCloses(text: string): Int32Array {
+  const closes = new Int32Array(text.length + 1);
+  closes[text.length] = -1;
+  let nextDouble = -1;
+  let nextSingle = -1;
+  for (let p = text.length - 1; p >= 0; p--) {
+    const c = text[p];
+    if (c === '"') {
+      closes[p] = nextDouble === -1 ? -1 : closes[nextDouble + 1];
+      nextDouble = p;
+    } else if (c === "'") {
+      closes[p] = nextSingle === -1 ? -1 : closes[nextSingle + 1];
+      nextSingle = p;
+    } else if (c === ">") {
+      closes[p] = p;
+    } else {
+      closes[p] = closes[p + 1];
+    }
+  }
+  return closes;
+}
+/**
  * The questions the heading scan asks of the text AFTER a position — where the closer of the opener
  * it has just met is — each answered from a table built at most once per line (Session 325).
  *
@@ -14454,6 +14483,8 @@ class HeadingLine {
   private backtickRuns: Map<number, number[]> | null = null;
   private groupEnds = new Map<string, Int32Array>();
   private markerReads = new Map<string, { from: number; at: number }>();
+  private nameRead: { from: number; at: number } | null = null;
+  private tagCloses: Int32Array | null = null;
 
   constructor(readonly text: string) {}
 
@@ -14472,6 +14503,33 @@ class HeadingLine {
     const at = this.text.indexOf(marker, from);
     this.markerReads.set(marker, { from, at });
     return at;
+  }
+
+  /**
+   * Where a tag's name ends: the first space, tab, `/` or `>` at or after `from`, or the length of
+   * the text where none comes. Answered from the last read like `indexOfMarker`: a read from `a` that
+   * stopped at `b` settles every `from` from `a` to `b`.
+   */
+  tagNameEnd(from: number): number {
+    const read = this.nameRead;
+    if (read !== null && read.from <= from && from <= read.at) {
+      return read.at;
+    }
+    const { text } = this;
+    let at = from;
+    while (at < text.length && text[at] !== " " && text[at] !== "\t" && text[at] !== "/" && text[at] !== ">") {
+      at++;
+    }
+    this.nameRead = { from, at };
+    return at;
+  }
+
+  /** The index of the first `>` at or after `from` that no quote encloses, reading on from `from` outside any quote, or -1. */
+  tagClose(from: number): number {
+    if (this.tagCloses === null) {
+      this.tagCloses = buildTagCloses(this.text);
+    }
+    return this.tagCloses[from];
   }
 
   /** The index of the `close` that balances the `open` at `i` (a character that IS that `open`), or -1 where the group never closes. */
@@ -14670,24 +14728,9 @@ function headingAngleEnd(line: HeadingLine, i: number): HeadingAngle {
     return none(i + 1);
   }
   const nameStart = j;
-  while (j < text.length && text[j] !== " " && text[j] !== "\t" && text[j] !== "/" && text[j] !== ">") {
-    j++;
-  }
-  const name = text.slice(nameStart, j);
-  let quote: string | null = null;
-  for (; j < text.length; j++) {
-    const c = text[j];
-    if (quote !== null) {
-      if (c === quote) {
-        quote = null;
-      }
-    } else if (c === '"' || c === "'") {
-      quote = c;
-    } else if (c === ">") {
-      return { next: j + 1, name, closing };
-    }
-  }
-  return none(i + 1);
+  j = line.tagNameEnd(j);
+  const close = line.tagClose(j);
+  return close === -1 ? none(i + 1) : { next: close + 1, name: text.slice(nameStart, j), closing };
 }
 /**
  * Whether the heading's RAW content holds a token pandoc's INLINE parser refuses, so the whole
