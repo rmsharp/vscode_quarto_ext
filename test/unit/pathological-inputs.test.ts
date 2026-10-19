@@ -1089,3 +1089,80 @@ describe("Session 322 — many metadata blocks in the body of one document", () 
     expect([MANY_BLOCKS, FEW_BLOCKS, MANY_BLOCKS_LIMIT_MS]).toEqual([8_000, 200, 1000]);
   });
 });
+
+describe("Session 323 — a front matter container nested thousands of levels deep", () => {
+  // The BACKLOG item "Other regexes still quadratic on a long run of blanks, CR or U+2028", part (6a). `findNestedFrontMatterValueLines` asks `nestedParentPath` for the container of every nested line, and the walk
+  // climbs every ancestor of that line, reading each one's whole indent twice (`leadingWsLen` and `mappingContainerKey`, anchored regexes) and prepending its key: a line `d` levels down costs `d` hops of `d` characters,
+  // so the cost is cubic in the depth while the text grows with its square (one key per level, each indented one more than the last). Bare `findNestedFrontMatterValueLines`, one fresh process each (Session 323, load
+  // average about 40, none of it mine): 22 / 48 / 202 / 1,203 ms at depth 200 / 400 / 800 / 1,600 (1.29 MB) and 8,262 ms at 3,200 (5.1 MB); `resolveDocumentEngine` and `collectValueSources` take the same time, because they
+  // call it; 800 levels with 8,000 sibling scalars at the bottom (6.8 MB) took 5.2 s, since every sibling climbs the whole trunk. A CPU profile at depth 1,600: 36% in `^[ \t]*`, 36% in `^[ \t]+`, 9% in `nestedParentPath`.
+  // Every row builds a text no other row builds (its own site is in the body).
+  const DEEP = 3_200;
+  const SHALLOW = 40;
+  const TRUNK = 800;
+  const LEAVES = 8_000;
+  const FEW_LEAVES = 10;
+  const DEEP_LIMIT_MS = 1000;
+  const levels = (depth: number): string => Array.from({ length: depth }, (_, j) => `${" ".repeat(j + 1)}k${j + 1}:`).join("\n");
+  /** `depth` containers, one more indent each, under `root`, and one scalar at the bottom. */
+  const chain = (depth: number, root: string, body: string): string => `---\n${root}\n${levels(depth)}\n${" ".repeat(depth + 1)}echo: true\n---\n\n${body}\n`;
+  /** `depth` containers under `format:`, and `leaves` sibling scalars at the bottom. */
+  const trunk = (depth: number, leaves: number, body: string): string =>
+    `---\nformat:\n${levels(depth)}\n${Array.from({ length: leaves }, (_, i) => `${" ".repeat(depth + 1)}o${i}: v`).join("\n")}\n---\n\n${body}\n`;
+  const pathOf = (depth: number): string[] => ["format", ...Array.from({ length: depth }, (_, j) => `k${j + 1}`)];
+  const bottom = (depth: number): unknown => [{ line: depth + 2, parentPath: pathOf(depth), key: "echo", valueRange: { startCol: depth + 7, endCol: depth + 11 }, rawToken: "true" }];
+  const sourceCounts = (text: string): { lines: number; cellLines: number; nested: number } => {
+    const sources = collectValueSources(text);
+    return { lines: sources.lines.length, cellLines: sources.cellLines.length, nested: sources.nestedLines.length };
+  };
+  const NO_FLAGS = { cell: [], frontMatter: [], nested: [] };
+  const trunkLines = (size: Size): number => size.depth + size.leaves + 7;
+  type Size = { depth: number; leaves: number };
+  type DeepRow = { site: string; many: Size; few: Size; build: (size: Size, site: string) => string; read: (text: string) => unknown; answer: (size: Size) => unknown };
+  const CHAIN: Pick<DeepRow, "many" | "few"> = { many: { depth: DEEP, leaves: 0 }, few: { depth: SHALLOW, leaves: 0 } };
+  const TRUNK_AND_LEAVES: Pick<DeepRow, "many" | "few"> = { many: { depth: TRUNK, leaves: LEAVES }, few: { depth: SHALLOW, leaves: FEW_LEAVES } };
+
+  const DEEP_ROWS: DeepRow[] = [
+    { site: "findNestedFrontMatterValueLines, a scalar at the bottom of a format-rooted chain", ...CHAIN, build: (s, site) => chain(s.depth, "format:", site), read: findNestedFrontMatterValueLines, answer: (s) => bottom(s.depth) },
+    { site: "resolveDocumentEngine, the same front matter", ...CHAIN, build: (s, site) => chain(s.depth, "format:", site), read: (text) => resolveDocumentEngine("a.qmd", text), answer: () => "markdown" },
+    { site: "collectValueSources, the same front matter", ...CHAIN, build: (s, site) => chain(s.depth, "format:", site), read: sourceCounts, answer: (s) => ({ lines: s.depth + 7, cellLines: 0, nested: 1 }) },
+    { site: "valueFlags over those sources", ...CHAIN, build: (s, site) => chain(s.depth, "format:", site), read: (text) => valueFlags(collectValueSources(text), "a.qmd", CURATED_SCHEMA_INDEX), answer: () => NO_FLAGS },
+    // The walk climbs to the root before it learns the root is not `format`, so these cost what the first row costs and answer nothing.
+    { site: "findNestedFrontMatterValueLines, a chain under execute (the root is not format)", ...CHAIN, build: (s, site) => chain(s.depth, "execute:", site), read: findNestedFrontMatterValueLines, answer: () => [] },
+    { site: "findNestedFrontMatterValueLines, a chain under website (the root is not format)", ...CHAIN, build: (s, site) => chain(s.depth, "website:", site), read: findNestedFrontMatterValueLines, answer: () => [] },
+    { site: "findNestedFrontMatterValueLines, a chain whose column-0 root holds a scalar", ...CHAIN, build: (s, site) => chain(s.depth, "format: x", site), read: findNestedFrontMatterValueLines, answer: () => [] },
+    {
+      site: "findNestedFrontMatterValueLines, 8,000 sibling scalars at the bottom of an 800-level trunk",
+      ...TRUNK_AND_LEAVES,
+      build: (s, site) => trunk(s.depth, s.leaves, site),
+      read: (text) => {
+        const found = findNestedFrontMatterValueLines(text);
+        return { count: found.length, firstKey: found[0]?.key, lastKey: found[found.length - 1]?.key, lastLine: found[found.length - 1]?.line, depths: new Set(found.map((entry) => entry.parentPath.length)) };
+      },
+      answer: (s) => ({ count: s.leaves, firstKey: "o0", lastKey: `o${s.leaves - 1}`, lastLine: s.depth + s.leaves + 1, depths: new Set([s.depth + 1]) }),
+    },
+    { site: "resolveDocumentEngine, the same trunk and its 8,000 siblings", ...TRUNK_AND_LEAVES, build: (s, site) => trunk(s.depth, s.leaves, site), read: (text) => resolveDocumentEngine("a.qmd", text), answer: () => "markdown" },
+    // Control: the same number of lines at one indent has nothing to climb. Linear before and after.
+    { site: "control: 3,200 sibling scalars under format / html", ...CHAIN, build: (s, site) => `---\nformat:\n  html:\n${Array.from({ length: s.depth }, (_, i) => `    s${i}: v`).join("\n")}\n---\n\n${site}\n`, read: (text) => findNestedFrontMatterValueLines(text).length, answer: (s) => s.depth },
+  ];
+
+  it.each(DEEP_ROWS.map((row) => [row.site, row] as const))("%s: the deep text is read in linear time, and the answer is the stated one at the small and the large size", (_site, row) => {
+    expect(row.read(row.build(row.few, `${row.site} (small)`))).toEqual(row.answer(row.few));
+    const longText = row.build(row.many, `${row.site} (large)`);
+    expect(longText.split("\n").length).toBeGreaterThan(row.many.depth); // the timed text is the long one
+    const { result, ms } = timed(() => row.read(longText));
+    expect(result).toEqual(row.answer(row.many));
+    expect(ms).toBeLessThan(DEEP_LIMIT_MS);
+  });
+
+  it("builds a different text for every row", () => {
+    const texts = DEEP_ROWS.map((row) => row.build(row.few, row.site));
+    expect(new Set(texts).size).toBe(DEEP_ROWS.length);
+  });
+
+  // A row run at depth 40, or allowed 100 s, would pass on the parent too.
+  it("keeps the sizes and the limit the Session 323 rows are built on", () => {
+    expect([DEEP, SHALLOW, TRUNK, LEAVES, FEW_LEAVES, DEEP_LIMIT_MS]).toEqual([3_200, 40, 800, 8_000, 10, 1000]);
+    expect(trunkLines({ depth: SHALLOW, leaves: FEW_LEAVES })).toBe(57);
+  });
+});

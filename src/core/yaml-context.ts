@@ -275,6 +275,10 @@ function nestedKeyContextAt(
  * A forward loop over every line passes `index` (`indexLineIndents(lines)`, built once): without
  * it each call scans upward past every same-indent sibling, so n sibling keys cost time
  * proportional to n squared (Session 314). The answer is the same either way.
+ *
+ * The same loop reads the climb from the index too: each line's chain of containers is built ONCE from the chain of the line above it, so a
+ * line `d` levels down costs one step and a copy of its path, not `d` steps that each read an ancestor's whole indent (cubic in the depth
+ * while the text grows with its square: 3,200 levels took 8.3 s; Session 323).
  */
 export function nestedParentPath(
   lines: string[],
@@ -285,6 +289,16 @@ export function nestedParentPath(
   const parentLine = nearestShallowerLine(lines, line, indent, index);
   if (parentLine < 0) {
     return null;
+  }
+  if (index !== undefined) {
+    const chain = containerChain(lines, index, parentLine);
+    if (chain === null) {
+      return null; // a scalar / flow / block-scalar / sequence line, or no column-0 line, on the way up
+    }
+    // One level: a column-0 allow-listed container; deeper: the path only when the column-0 root is `format`.
+    return index.indent[parentLine] === 0
+      ? NESTED_CONTAINERS.has(chain.key) ? [chain.key] : null
+      : chain.root === "format" ? containerKeys(chain) : null;
   }
   const container = mappingContainerKey(lines[parentLine] ?? "");
   if (container === null) {
@@ -403,6 +417,19 @@ export interface LineIndentIndex {
   readonly indent: Int32Array;
   /** For a content line, the index of the nearest content line above it indented strictly LESS; `-1` when there is none. */
   readonly shallower: Int32Array;
+  /** What {@link containerChain} has answered so far, by line: `undefined` before it is asked, `null` when the climb from the line fails. Filled by {@link nestedParentPath}. */
+  readonly chains: Array<ContainerChain | null | undefined>;
+}
+
+/**
+ * The containers from a column-0 line down to one line, each a pure mapping (`key:` and nothing else): this line's key, the chain of the line above
+ * it (`null` at the column-0 line), how many keys that is, and the column-0 line's key. One link per line, so the chains of a document share their tails.
+ */
+interface ContainerChain {
+  readonly key: string;
+  readonly above: ContainerChain | null;
+  readonly depth: number;
+  readonly root: string;
 }
 
 /**
@@ -431,7 +458,61 @@ export function indexLineIndents(lines: string[]): LineIndentIndex {
     shallower[i] = stack.length > 0 ? stack[stack.length - 1] : -1;
     stack.push(i);
   }
-  return { indent, shallower };
+  return { indent, shallower, chains: new Array<ContainerChain | null | undefined>(lines.length) };
+}
+
+/**
+ * The chain of containers that ends at content line `from`, or `null` when a line on the way up is not a pure mapping container
+ * ({@link mappingContainerKey}) or no column-0 line is there to end it. Each answer is kept in `index.chains`, so a line is read once however many
+ * lines are asked below it, and a climb stops at the first line already answered. Nothing recurses: the lines still waiting are a list.
+ */
+function containerChain(lines: string[], index: LineIndentIndex, from: number): ContainerChain | null {
+  const { chains, indent, shallower } = index;
+  const waiting: number[] = [];
+  const waitingKeys: string[] = [];
+  let chain: ContainerChain | null;
+  let at = from;
+  for (;;) {
+    const known = chains[at];
+    if (known !== undefined) {
+      chain = known;
+      break;
+    }
+    const key = mappingContainerKey(lines[at] ?? "");
+    if (key === null) {
+      chain = chains[at] = null;
+      break;
+    }
+    if (indent[at] === 0) {
+      chain = chains[at] = { key, above: null, depth: 1, root: key };
+      break;
+    }
+    const above = shallower[at];
+    if (above < 0) {
+      chain = chains[at] = null;
+      break;
+    }
+    waiting.push(at);
+    waitingKeys.push(key);
+    at = above;
+  }
+  while (waiting.length > 0) {
+    const line = waiting.pop() as number;
+    const key = waitingKeys.pop() as string;
+    chain = chains[line] = chain === null ? null : { key, above: chain, depth: chain.depth + 1, root: chain.root };
+  }
+  return chain;
+}
+
+/** The keys of a chain, top to bottom: a fresh array each time, because callers keep it. */
+function containerKeys(chain: ContainerChain): string[] {
+  const keys = new Array<string>(chain.depth);
+  let link: ContainerChain | null = chain;
+  for (let i = chain.depth - 1; link !== null; i--) {
+    keys[i] = link.key;
+    link = link.above;
+  }
+  return keys;
 }
 
 /**
