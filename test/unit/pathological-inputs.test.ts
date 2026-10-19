@@ -1172,13 +1172,13 @@ describe("Session 323 — a front matter container nested thousands of levels de
 describe("Session 324 — an attribute block whose atoms can be split many ways and whose last character is refused", () => {
   // The BACKLOG item "Nine more single-line overflow and slow-input families, none of them in Session 317's diff", part (1). `ATTR_ATOM_RUN` judges one whitespace-separated token of an attribute block as a run of `-`, `#id`
   // and `.class` atoms, and the tail of an id or of a class holds a `.` and a `-` itself, so `.A.A.A` is one class or three, and the engine tries every split before it refuses a token whose last character is wrong
-  // (`!`): exponential in the number of atoms, on a 74-byte line. A valid block matches at once, so the cost needs an INVALID tail, such as a heading mid-edit. Every route that judges an attribute block reaches the
+  // (`!`): exponential in the number of atoms, on a 68-byte line. A valid block matches at once, so the cost needs an INVALID tail, such as a heading mid-edit. Every route that judges an attribute block reaches the
   // pattern: a heading, a fence's info string, and the inline, span and div blocks of the cross-reference index. The same pattern is QUADRATIC when an id or a class is followed by a long run of dashes (the end of the id
   // can fall at any of them).
   // Bare `findHeadings`, one fresh process each, COLD (Session 324, load average about 5): 276 / 1,094 / 4,326 / 17,230 ms at 22 / 24 / 26 / 28 classes (4 times per two); WARM, a second call in the process: 30 / 115 / 455 ms
   // at 22 / 24 / 26, because the first run of a pattern in a process is interpreted and about 10 times slower. An id before the classes costs about twice as much (26 classes: 8.6 s cold), a dash after each class has
   // THREE splits a boundary (16 repeats: 2.8 s cold), and an id or a class then dashes cost 82 / 317 / 1,259 ms at 8,000 / 16,000 / 32,000 dashes (4 times per doubling).
-  // The sizes come from the WARM figures, since the rows before them warm the pattern: 30 classes is about 8 s on the parent warm, against a limit that the cure meets in milliseconds. The controls come first, so that
+  // The sizes come from the WARM figures, since the rows before them warm the pattern: 30 classes is about 7.5 s on the parent warm, against a limit that the cure meets in milliseconds. The controls come first, so that
   // the pattern is warm for every refused row. Every row builds a text no other row builds.
   const SPLIT_CLASSES = 30;
   const SPLIT_AFTER_ID = 28;

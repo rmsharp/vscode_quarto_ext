@@ -616,7 +616,7 @@ const ATTR_KEY_VALUE = /^[A-Za-z][^\s}#\\=]*=(?:"[^"]*"|'[^']*'|(?:\\ |[^\s}])*)
  * ⚠ **THE PATTERN IS THE ATOM GRAMMAR FACTORED, NOT TRANSCRIBED (Session 324).** It used to be an alternation of
  * the three atoms under a `+`, and an id's tail and a class's tail both hold `.` and `-`: `.A.A.A` was one class or
  * three, `#a-` an id or an id and a dash, so a token whose LAST character is wrong (`!`) was tried under every split
- * before it was refused (exponential in the classes: a 74-byte heading took 7 s, and quadratic in a run of dashes after
+ * before it was refused (exponential in the classes: a 68-byte heading of 30 of them took 7.4 s warm, and quadratic in a run of dashes after
  * an id or a class). The same language has a plain shape. Before the first `#` only dashes and at most ONE class can
  * stand: a class's tail takes every identifier character after it, so a second class, a dash or a dot-and-letter there
  * adds no string. From the first `#` on, each `#` opens an id that takes every identifier character up to the next
@@ -624,6 +624,12 @@ const ATTR_KEY_VALUE = /^[A-Za-z][^\s}#\\=]*=(?:"[^"]*"|'[^']*'|(?:\\ |[^\s}])*)
  * the identifier set holds none of the `#`, so no character is read two ways at an edge and a refusal costs one pass.
  * The lookahead keeps the empty token refused (a run is one or more atoms). The old spelling is the oracle in
  * `test/unit/attr-atom-run-equivalence.test.ts`.
+ *
+ * ⚠ **"LINEAR" IS NOT "SAFE AT ANY LENGTH": THE IDS ARE STILL A QUANTIFIED GROUP.** A token of about 3.36 million ids (`#a`
+ * repeated, 6.7 million characters) throws `RangeError` out of the regex stack, as the old spelling did at the same length
+ * (BACKLOG, the item that lists the regex-stack overflows); dashes, one class and one long id are not groups and answer at
+ * tens of millions of characters (the old alternation threw from 9 million dashes).
+ * ⚠ Do not respell it as the alternation of the three atoms: every answer stays the same and only the clock rows go red.
  */
 export const ATTR_ATOM_RUN = /^(?!$)-*(?:\.\p{L}[\p{L}\p{N}_:.-]*)?(?:#[\p{L}\p{N}_:.-]+)*$/u;
 /**
