@@ -3,7 +3,7 @@ import { resolveDocumentEngine } from "../../src/core/document-engine-resolve";
 import { bibliographyPaths } from "../../src/core/frontmatter";
 import { parseDeclaredFormats } from "../../src/core/preview-format";
 import { parseOutputPath } from "../../src/core/render-args";
-import { findAllCells, findCellOptionLines, findCodeFenceOpeners, findHeadings, knitrChunkHeaderLabel, maskInlineCode, plainFrontMatter } from "../../src/core/qmd/model";
+import { findAllCells, findCellOptionLines, findCodeFenceOpeners, findHeadings, headingContentRefused, knitrChunkHeaderLabel, maskInlineCode, plainFrontMatter } from "../../src/core/qmd/model";
 import { jupyterKernelLanguage } from "../../src/core/qmd/jupyter-kernel";
 import { quartoYamlRegions } from "../../src/core/qmd/quarto-yaml-regions";
 import { findLabel, indexLabels } from "../../src/core/refs";
@@ -1243,6 +1243,80 @@ describe("Session 324 — an attribute block whose atoms can be split many ways 
     expect(SPLIT_ROWS.map((row) => `${row.unit}x${row.many}`)).toEqual([
       ".Ax30", ".Ax30", ".Ax100000", ".Ax30", ".Ax30", "-x100000", ".Ax30",
       ".Ax30", ".Ax28", ".A-x19", ".Ax30", "-x100000", "-x100000", ".Ax30", ".Ax30", ".Ax30", ".Ax30", ".Ax30", ".Ax30",
+    ]);
+  });
+});
+
+describe("Session 325 — a heading line holding many openers whose closers never come", () => {
+  // The BACKLOG item "Nine more single-line overflow and slow-input families, none of them in Session 317's diff", part (2) (and part (3) of the Session 319 item, the same function). `headingContentRefused` scans
+  // a heading's text for a token pandoc's inline parser refuses, skipping what a code span, a bracketed group, a macro argument, a comment, a CDATA section, a processing instruction, a tag's quoted attribute or
+  // a shortcode swallows. Each skip asks the text AFTER the opener where its closer is, and an opener with NO closer answered "one character on" after reading to the end of the line, so the next opener of the same
+  // kind read the same tail again: quadratic in the openers, on a line a pasted blob can be.
+  // Bare `findHeadings` (document rows) and bare `headingContentRefused` (function rows, which the filed `HEADING_ATTRIBUTE` regex cannot hide), a warm call after warm-up calls, load average 3.4 to 6 (Session 325): `
+  // x 8,000 / 16,000 / 32,000 / 64,000: 86 / 355 / 1,416 / 5,587 ms (ratios 4.1, 4.0, 3.9); `[` the same; `\a[` x 8,000 / 16,000 / 32,000: 406 / 1,557 / 4,798 ms; `\a{` x 32,000 / 40,000: 2,452 / 3,943 ms; `<a` x 8,000
+  // to 64,000: 167 / 605 / 1,869 / 8,330 ms; `<a " ` x 8,000 / 16,000 / 32,000: 542 / 2,057 / 6,653 ms; `<!--` x 8,000 to 32,000: 556 / 2,206 / 8,777 ms; `<?` x 32,000: 4,467 ms; `<![CDATA[` x 4,000 / 8,000 / 12,000:
+  // 493 / 1,845 / 4,486 ms; `{{<` x 160,000 / 320,000: 850 / 3,447 ms. Bare `{` and a bare backslash are NOT this function's: their time is in `HEADING_ATTRIBUTE` and the closing-hash strip (the Session 318 item's parts (2)
+  // and (3)), so there is no row for them here. Every size puts the parent at 2.4 to 6 s against a limit the cure meets in milliseconds, and the closed-construct controls come first.
+  const OPEN_LIMIT_MS = 1000;
+  const OPEN_FEW = 3;
+  const OPEN_ESCAPABLE = /[!#()*+\-.>[\\\]_`{}]/; // the default pandoc reader's escapable set (`ESCAPABLE_LEGACY`)
+  const openHeadings = (text: string): Array<[number, string, string | undefined]> => findHeadings(text).map((heading): [number, string, string | undefined] => [heading.line, heading.text, heading.id]);
+  const openScan = (text: string): boolean => headingContentRefused(text, true, true, OPEN_ESCAPABLE);
+  type OpenRow = { site: string; unit: string; many: number; build: (run: string) => string; read: (text: string) => unknown; answer: (run: string) => unknown };
+  const kept = (run: string): Array<[number, string, string | undefined]> => [[0, run.trim(), undefined]];
+
+  const OPEN_ROWS: OpenRow[] = [
+    // Controls first: every opener CLOSES, so the answer is at hand and the cost is linear before and after.
+    { site: "control: 64,000 closed code spans", unit: "`a` ", many: 64_000, build: (run) => `# ${run}z\n`, read: openHeadings, answer: (run) => kept(`${run}z`) },
+    { site: "control: 20,000 closed links", unit: "[a](b) ", many: 20_000, build: (run) => `# ${run}z\n`, read: openHeadings, answer: (run) => kept(`${run}z`) },
+    { site: "control: 16,000 closed macro argument groups", unit: "\\a[x]{y} ", many: 16_000, build: (run) => `# ${run}z\n`, read: openHeadings, answer: (run) => kept(`${run}z`) },
+    { site: "control: 16,000 closed comments", unit: "<!--a--> ", many: 16_000, build: (run) => `# ${run}z\n`, read: openHeadings, answer: (run) => kept(`${run}z`) },
+    { site: "control: 16,000 closed inline tags", unit: "<b>a</b> ", many: 16_000, build: (run) => `# ${run}z\n`, read: openHeadings, answer: (run) => kept(`${run}z`) },
+    { site: "control: 16,000 closed shortcodes, scanned apart from the strips", unit: "{{< a >}} ", many: 16_000, build: (run) => `${run}z`, read: openScan, answer: () => false },
+
+    // The refused shapes: the RED rows. Each holds only openers of one kind, so the whole line is read for each.
+    { site: "heading: 64,000 backticks, none closed", unit: "`", many: 64_000, build: (run) => `# ${run}\n`, read: openHeadings, answer: kept },
+    { site: "heading: 64,000 `[`, none closed", unit: "[", many: 64_000, build: (run) => `# ${run}\n`, read: openHeadings, answer: kept },
+    { site: "heading: 32,000 macros each opening a `[` that never closes", unit: "\\a[", many: 32_000, build: (run) => `# ${run}\n`, read: openHeadings, answer: kept },
+    { site: "heading: 24,000 comment openers, none closed", unit: "<!--", many: 24_000, build: (run) => `# ${run}\n`, read: openHeadings, answer: kept },
+    { site: "heading: 32,000 processing instruction openers, none closed", unit: "<?", many: 32_000, build: (run) => `# ${run}\n`, read: openHeadings, answer: kept },
+    { site: "heading: 12,000 CDATA openers, none closed", unit: "<![CDATA[", many: 12_000, build: (run) => `# ${run}\n`, read: openHeadings, answer: kept },
+    { site: "heading: 48,000 tag openers with no `>`", unit: "<a", many: 48_000, build: (run) => `# ${run}\n`, read: openHeadings, answer: kept },
+    { site: "heading: 24,000 tag openers each opening a quote that never lets a `>` out", unit: '<a " ', many: 24_000, build: (run) => `# ${run}\n`, read: openHeadings, answer: kept },
+    { site: "setext: 64,000 backticks, none closed", unit: "`", many: 64_000, build: (run) => `${run}\n===\n`, read: openHeadings, answer: kept },
+    // What an unclosed opener hides is NOTHING: the block tag after the run still refuses the heading, so no heading is read.
+    { site: "heading: 64,000 backticks, none closed, then a block tag that still refuses", unit: "`", many: 64_000, build: (run) => `# ${run}<section>\n`, read: openHeadings, answer: () => [] },
+    { site: "heading: 64,000 `[`, none closed, then a block tag that still refuses", unit: "[", many: 64_000, build: (run) => `# ${run}<section>\n`, read: openHeadings, answer: () => [] },
+    // The shapes the strips of `buildHeading` would otherwise hide (a `{` run is the filed `HEADING_ATTRIBUTE` item): the scan alone.
+    { site: "scan: 320,000 shortcode openers, none closed", unit: "{{<", many: 320_000, build: (run) => run, read: openScan, answer: () => false },
+    { site: "scan: 40,000 macros each opening a `{` that never closes", unit: "\\a{", many: 40_000, build: (run) => run, read: openScan, answer: () => false },
+  ];
+
+  it.each(OPEN_ROWS.map((row) => [row.site, row] as const))("%s: is read in linear time, and the answer is the stated one with 3 units and with the long run", (_site, row) => {
+    const shortRun = row.unit.repeat(OPEN_FEW);
+    expect(row.read(row.build(shortRun))).toEqual(row.answer(shortRun));
+    const run = row.unit.repeat(row.many);
+    const longText = row.build(run);
+    expect(longText.length).toBeGreaterThan(run.length - 1); // the timed text holds the whole run
+    const { result, ms } = timed(() => row.read(longText));
+    expect(result).toEqual(row.answer(run));
+    expect(ms).toBeLessThan(OPEN_LIMIT_MS);
+  });
+
+  it("builds a different text for every row", () => {
+    const shortTexts = OPEN_ROWS.map((row) => row.build(row.unit.repeat(OPEN_FEW)));
+    expect(new Set(shortTexts).size).toBe(OPEN_ROWS.length);
+    const longTexts = OPEN_ROWS.map((row) => row.build(row.unit.repeat(row.many)));
+    expect(new Set(longTexts).size).toBe(OPEN_ROWS.length);
+  });
+
+  // A run of 3,000 openers, or a limit of 100 s, would pass on the parent too.
+  it("keeps the sizes, the limit and the units the Session 325 rows are built on", () => {
+    expect([OPEN_FEW, OPEN_LIMIT_MS]).toEqual([3, 1000]);
+    expect(OPEN_ROWS.map((row) => `${row.unit}x${row.many}`)).toEqual([
+      "`a` x64000", "[a](b) x20000", "\\a[x]{y} x16000", "<!--a--> x16000", "<b>a</b> x16000", "{{< a >}} x16000",
+      "`x64000", "[x64000", "\\a[x32000", "<!--x24000", "<?x32000", "<![CDATA[x12000", "<ax48000", '<a " x24000', "`x64000",
+      "`x64000", "[x64000", "{{<x320000", "\\a{x40000",
     ]);
   });
 });
