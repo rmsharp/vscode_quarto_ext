@@ -13700,7 +13700,7 @@ function endsHtmlBlock(line: string, beganFresh: boolean, againstParagraph: bool
   if (lt < 0 || line.slice(0, lt).trim() !== "") {
     return false;
   }
-  const first = headingAngleEnd(line, lt);
+  const first = headingAngleEnd(new HeadingLine(line), lt);
   if (first.name === null) {
     return false;
   }
@@ -14453,8 +14453,26 @@ function headingMacroHasBracedArgument(line: HeadingLine, i: number): boolean {
 class HeadingLine {
   private backtickRuns: Map<number, number[]> | null = null;
   private groupEnds = new Map<string, Int32Array>();
+  private markerReads = new Map<string, { from: number; at: number }>();
 
   constructor(readonly text: string) {}
+
+  /**
+   * `text.indexOf(marker, from)`, answered from the last read for the same marker where that read
+   * settles it. A read that began at `a` and found its marker at `b` shows there is none in `a`..`b`,
+   * so every `from` between them finds the same one; a read that found none shows there is none from
+   * `a` on, so every later `from` finds none. The scan only moves forward, so the reads for one marker
+   * cover stretches of the line that do not overlap.
+   */
+  indexOfMarker(marker: string, from: number): number {
+    const read = this.markerReads.get(marker);
+    if (read !== undefined && read.from <= from && (read.at === -1 || read.at >= from)) {
+      return read.at;
+    }
+    const at = this.text.indexOf(marker, from);
+    this.markerReads.set(marker, { from, at });
+    return at;
+  }
 
   /** The index of the `close` that balances the `open` at `i` (a character that IS that `open`), or -1 where the group never closes. */
   groupEnd(i: number, open: string, close: string): number {
@@ -14627,10 +14645,11 @@ interface HeadingAngle {
  * same scan is what stops a block tag inside another tag's quoted value from being a token of its
  * own — `<span title="<div>">ok</span>` is a real heading (`verify/v05`).
  */
-function headingAngleEnd(text: string, i: number): HeadingAngle {
+function headingAngleEnd(line: HeadingLine, i: number): HeadingAngle {
+  const { text } = line;
   const none = (next: number): HeadingAngle => ({ next, name: null, closing: false });
   const skipTo = (marker: string, from: number): HeadingAngle => {
-    const close = text.indexOf(marker, from);
+    const close = line.indexOfMarker(marker, from);
     return none(close === -1 ? i + 1 : close + marker.length);
   };
   if (text.startsWith("<!--", i)) {
@@ -14718,12 +14737,12 @@ export function headingContentRefused(
       continue;
     }
     if (c === "{" && text.startsWith("{{<", i)) {
-      const close = text.indexOf(">}}", i);
+      const close = line.indexOfMarker(">}}", i);
       i = close === -1 ? i + 1 : close + 3;
       continue;
     }
     if (c === "<") {
-      const angle = headingAngleEnd(text, i);
+      const angle = headingAngleEnd(line, i);
       if (
         blockHtml &&
         angle.name !== null &&
