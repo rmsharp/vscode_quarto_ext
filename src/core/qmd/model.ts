@@ -467,37 +467,79 @@ export interface BraceGroup {
  * block as `#fig-w12 key="a`, judges it invalid, and drops an id quarto really defines. This
  * is the same quote awareness `headingAttributeTokens` carries, for the same reason, and it is
  * the other side of the still-open heading item where `[^}]*` loses to that byte.
+ *
+ * ⚠ **A `{` THAT NEVER CLOSES COSTS ONE PASS OVER THE REST OF THE LINE, NOT ONE PER LATER `{` (Session 326).** The read from
+ * each `{` ran on to the END of the line when nothing closed it, so a line of N unclosed `{` (a pasted blob; `{` x 64,000 took
+ * 6.2 s) was N reads of the same tail, and `indexLabels` asks this of every body line and the region scanner of every fence
+ * info string. The first `{` is still read straight on. When it finds no closer, the closer of every LATER `{` is worked out in
+ * one pass from the end of the line (`braceClosers`) and looked up, which is exact rather than a shortcut: a read is a walk over
+ * three states (outside a quote, inside a `"`, inside a `'`), a quote mark swaps two of them and no character merges two, so
+ * where a read stops depends only on its position and its state, and a pass from the right fills that in.
  */
 export function braceGroups(lineText: string): BraceGroup[] {
   const groups: BraceGroup[] = [];
-  let i = 0;
-  while (i < lineText.length) {
-    if (lineText[i] !== "{") {
-      i++;
+  let closers: Int32Array | null = null;
+  let base = 0;
+  let i = lineText.indexOf("{");
+  while (i !== -1) {
+    const j = closers === null ? braceCloser(lineText, i + 1) : closers[i - base];
+    if (j !== -1) {
+      groups.push({ start: i, end: j, content: lineText.slice(i + 1, j) });
+      i = lineText.indexOf("{", j + 1);
       continue;
     }
-    let quote: string | null = null;
-    let j = i + 1;
-    for (; j < lineText.length; j++) {
-      const ch = lineText[j];
-      if (quote !== null) {
-        if (ch === quote) {
-          quote = null;
-        }
-      } else if (ch === '"' || ch === "'") {
-        quote = ch;
-      } else if (ch === "}") {
-        break;
-      }
+    const next = lineText.indexOf("{", i + 1);
+    if (next !== -1 && closers === null) {
+      base = next;
+      closers = braceClosers(lineText, next);
     }
-    if (j >= lineText.length) {
-      i++;
-      continue;
-    }
-    groups.push({ start: i, end: j, content: lineText.slice(i + 1, j) });
-    i = j + 1;
+    i = next;
   }
   return groups;
+}
+
+/** The index of the `}` that closes a `{` whose content starts at `from`, found quote-aware (see `braceGroups`), or -1 when none does. */
+function braceCloser(lineText: string, from: number): number {
+  let quote: string | null = null;
+  for (let j = from; j < lineText.length; j++) {
+    const ch = lineText[j];
+    if (quote !== null) {
+      if (ch === quote) {
+        quote = null;
+      }
+    } else if (ch === '"' || ch === "'") {
+      quote = ch;
+    } else if (ch === "}") {
+      return j;
+    }
+  }
+  return -1;
+}
+
+/**
+ * For each `{` of `lineText` at or after `from`, the answer `braceCloser` gives it, at `closers[index - from]` (the other entries
+ * are 0 and never read). One pass from the right: `plain`, `inDouble` and `inSingle` hold where a read that starts at the
+ * position just passed would stop, if it starts outside a quote, inside a `"` and inside a `'`. A `"` swaps the first two, a `'` the first
+ * and the third, a `}` is where an unquoted read stops, and any other character changes nothing.
+ */
+function braceClosers(lineText: string, from: number): Int32Array {
+  const closers = new Int32Array(lineText.length - from);
+  let plain = -1;
+  let inDouble = -1;
+  let inSingle = -1;
+  for (let p = lineText.length - 1; p >= from; p--) {
+    const ch = lineText[p];
+    if (ch === "{") {
+      closers[p - from] = plain;
+    } else if (ch === '"') {
+      [plain, inDouble] = [inDouble, plain];
+    } else if (ch === "'") {
+      [plain, inSingle] = [inSingle, plain];
+    } else if (ch === "}") {
+      plain = p;
+    }
+  }
+  return closers;
 }
 
 /**
