@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-19 · [BL-Nine more single-line overflow and slow-input families, none of them in Session 317's diff] Session 326 (in progress): claim -- g02 tenth session, part (3), the native-div one-line check in `indexLabels` is quadratic (`<div` + `{` x N)
+
+Session claimed. Phase 0 found both ledger frontiers at HEAD (`db0bb3b`, gap 0), no pending receipt (the one grep hit is prose inside a gotcha, `HANDOFFS.md` line 1064), no merges, the ratchet 2/2 (results bba236856bad, the S325 receipt's citation holds), the dashboard at 76/100 "critical" with 21 vulnerabilities (unchanged in the last six snapshots; Session 325 recorded them as dev-toolchain only, `npm audit --omit=dev` finding 0, not re-run here), and the Session 314 vitest worker (pid 84774) still at 100% CPU: `ps` reads 4 days 4 h 54 min elapsed where the handoff said 4 days 19 hours; it is not mine. The operator chose part (3) at the Phase 0 picker, the option marked recommended (plan rule: finishing a feature, next in g02's table order). Strict TDD; profile first (Learning 739).
+
 ### 2026-10-19 · [ad hoc] SESSION_NOTES trim (Session 325): the Session 321 handoff evaluation and the Session 322 self-assessment dropped, the three newest pairs kept
 
 The retention rule of Session 256 (the live file holds at most three close-out pairs), applied at Phase 3D in `8d58d42` after the close-out commit `82aadbf`; the trim commit holds no other edit to the file. The dropped pair is one command away: `git show 82aadbf:methodology/SESSION_NOTES.md`. The file reads 228 lines and every line is within the 280-byte ceiling (`context_budget.py`: ok for it; the three historical ledgers still read over, as before this session).
