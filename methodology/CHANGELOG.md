@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-26 · [ad hoc] SESSION_NOTES trim (Session 326): the Session 322 handoff evaluation and the Session 323 self-assessment dropped, the three newest pairs kept
+
+The retention rule of Session 256 (the live file holds at most three close-out pairs), applied at Phase 3D in `c18c633` after the close-out commit `4a9e305`; the trim commit holds no other edit to the file. The dropped pair is one command away: `git show 4a9e305:methodology/SESSION_NOTES.md`. The file reads 242 lines (`context_budget.py`: ok for it, 39,683 B of 120,000 before the trim; the three historical ledgers still read over, as before this session).
+
 ### 2026-10-26 · [BL-Nine more single-line overflow and slow-input families, none of them in Session 317's diff] Session 326: part (3) closed, with the `{` half of the Session 311 item's part (6) -- `braceGroups` reads an unclosed `{` once, not once per later `{`
 
 g02's tenth session (the operator chose part (3) at the Phase 0 picker; claim `ada8bfb`, 2026-10-19; resumed and closed on 2026-10-26 after the machine rebooted, with the first context's commits and its untracked mutant list re-verified by running them before anything was built on them). Scope, stated: the item guessed the cause (`HTML_ELEMENT_COMPLETES` and a quote group); a `--cpu-prof` of 40,000 `{` put 98% of the time in `braceGroups`, and the `<div` and `></div>` change nothing. The Session 311 item's part (6) names the same function (its `{` half), so one cure closes both; its `$` half, `findMathRegions`, is untouched and still quadratic. One cause: a `{` with no unquoted `}` after it read to the end of the line and the next `{` read the same tail.
