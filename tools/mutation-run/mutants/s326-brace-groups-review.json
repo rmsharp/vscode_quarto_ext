@@ -1,0 +1,202 @@
+[
+ {
+  "name": "R01 the first read stops 1,024 characters after its opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let j = from; j < lineText.length; j++) {\n    const ch = lineText[j];",
+  "to": "for (let j = from; j < Math.min(lineText.length, from + 1024); j++) {\n    const ch = lineText[j];",
+  "expect": "killed",
+  "why": "the first read has no reach limit: a group of 70,000 or 200,000 characters closes (the 100,000-opener guard cannot see where its group starts)"
+ },
+ {
+  "name": "R02 the first read stops 4,096 characters after its opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let j = from; j < lineText.length; j++) {\n    const ch = lineText[j];",
+  "to": "for (let j = from; j < Math.min(lineText.length, from + 4096); j++) {\n    const ch = lineText[j];",
+  "expect": "killed",
+  "why": "as R01"
+ },
+ {
+  "name": "R03 the first read stops 65,536 characters after its opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let j = from; j < lineText.length; j++) {\n    const ch = lineText[j];",
+  "to": "for (let j = from; j < Math.min(lineText.length, from + 65536); j++) {\n    const ch = lineText[j];",
+  "expect": "killed",
+  "why": "as R01"
+ },
+ {
+  "name": "R04 the first read stops at column 65,536",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let j = from; j < lineText.length; j++) {\n    const ch = lineText[j];",
+  "to": "for (let j = from; j < Math.min(lineText.length, 65536); j++) {\n    const ch = lineText[j];",
+  "expect": "killed",
+  "why": "as R01, counted from the start of the line"
+ },
+ {
+  "name": "R05 the table is capped at 65,536 entries",
+  "file": "src/core/qmd/model.ts",
+  "from": "new Int32Array(lineText.length - from);",
+  "to": "new Int32Array(Math.min(lineText.length - from, 65536));",
+  "expect": "killed",
+  "why": "a lookup 70,000 columns into the table: the cap sends the loop round for ever, so the kill is a worker crash or the timeout, not an assertion"
+ },
+ {
+  "name": "R06 the table lookup index is masked to 16 bits",
+  "file": "src/core/qmd/model.ts",
+  "from": "closers[i - base];",
+  "to": "closers[(i - base) & 0xffff];",
+  "expect": "killed",
+  "why": "as R05: the masked index lands on an entry that sends the loop back"
+ },
+ {
+  "name": "R07 the right-to-left pass starts at column 131,071",
+  "file": "src/core/qmd/model.ts",
+  "from": "let p = lineText.length - 1; p >= from; p--) {",
+  "to": "let p = Math.min(lineText.length, 131072) - 1; p >= from; p--) {",
+  "expect": "killed",
+  "why": "as R05, for a line longer than 131,072 characters: the entries past the start are never filled"
+ },
+ {
+  "name": "R08 the table holds 16-bit signed entries",
+  "file": "src/core/qmd/model.ts",
+  "from": "new Int32Array(lineText.length - from);",
+  "to": "new Int16Array(lineText.length - from);",
+  "expect": "killed",
+  "why": "a closer past 32,767 wraps to a negative index: the loop never ends, so the kill is the timeout or a crash"
+ },
+ {
+  "name": "R09 the table holds 16-bit unsigned entries",
+  "file": "src/core/qmd/model.ts",
+  "from": "new Int32Array(lineText.length - from);",
+  "to": "new Uint16Array(lineText.length - from);",
+  "expect": "killed",
+  "why": "a closer past 65,535 wraps: the 70,000-character guard and the deep-lookup rows loop for ever (or until the worker runs out of heap), so the kill is the timeout or a crash, not an assertion"
+ },
+ {
+  "name": "R10 the table is built only for a failing opener in the first 4,096 characters",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (next !== -1 && closers === null) {",
+  "to": "if (next !== -1 && next < 4096 && closers === null) {",
+  "expect": "killed",
+  "why": "every clock row used to start its run within 7 characters: a run that follows 100,000 characters of text is quadratic again under this edit"
+ },
+ {
+  "name": "R11 the table is built only for a failing opener at column 0",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (next !== -1 && closers === null) {",
+  "to": "if (next !== -1 && i === 0 && closers === null) {",
+  "expect": "killed",
+  "why": "killed before the review round too: the native-div and the gfm fence rows start their run later"
+ },
+ {
+  "name": "R12 a backtick opens a quote in the first read",
+  "file": "src/core/qmd/model.ts",
+  "from": "    } else if (ch === '\"' || ch === \"'\") {\n      quote = ch;\n    } else if (ch === \"}\") {\n      return j;",
+  "to": "    } else if (ch === '\"' || ch === \"'\" || ch === \"`\") {\n      quote = ch;\n    } else if (ch === \"}\") {\n      return j;",
+  "expect": "killed",
+  "why": "no alphabet of the oracle held a backtick: the seeded row over a wider alphabet and the stated rows kill it"
+ },
+ {
+  "name": "R13 a closing parenthesis closes in the table pass only",
+  "file": "src/core/qmd/model.ts",
+  "from": "    } else if (ch === \"}\") {\n      plain = p;",
+  "to": "    } else if (ch === \"}\" || ch === \")\") {\n      plain = p;",
+  "expect": "killed",
+  "why": "the table path on a character outside the oracle alphabets: the wider seeded row and the stated rows kill it"
+ },
+ {
+  "name": "R14 the fence rows under from: gfm say from: pandoc",
+  "file": "test/unit/pathological-inputs.test.ts",
+  "from": "const GFM = \"---\\nfrom: gfm\\n---\\n\\n\";",
+  "to": "const GFM = \"---\\nfrom: pandoc\\n---\\n\\n\";",
+  "expect": "killed",
+  "why": "the GFM prefix is pinned by the invariants row: with it edited, the two gfm fence rows stop reaching fenceAttributeId, and with fenceAttributeId quadratic again (R17) the suite used to stay green"
+ },
+ {
+  "name": "R15 the clock limit is multiplied at its use",
+  "file": "test/unit/pathological-inputs.test.ts",
+  "from": "const withinLimit = (ms: number): boolean => ms < BRACE_LIMIT_MS;",
+  "to": "const withinLimit = (ms: number): boolean => ms < BRACE_LIMIT_MS * 10;",
+  "expect": "killed",
+  "why": "the limit is read through a helper whose boundary is pinned (BRACE_LIMIT_MS - 1 is within, BRACE_LIMIT_MS is not)"
+ },
+ {
+  "name": "R16 refs.ts Source 3 (every body line) reads with the old function",
+  "file": "src/core/refs.ts",
+  "from": "for (const group of braceGroups(lineText)) {",
+  "to": "for (const group of ((t: string): any[] => { const g: any[] = []; let a = 0; while (a < t.length) { if (t[a] !== \"{\") { a++; continue; } let q: string | null = null; let b = a + 1; for (; b < t.length; b++) { const c = t[b]; if (q !== null) { if (c === q) { q = null; } } else if (c === '\"' || c === \"'\") { q = c; } else if (c === \"}\") { break; } } if (b >= t.length) { a++; continue; } g.push({ start: a, end: b, content: t.slice(a + 1, b) }); a = b + 1; } return g; })(lineText)) {",
+  "expect": "killed",
+  "why": "killed by the body-line rows (the call site is quadratic again)"
+ },
+ {
+  "name": "R17 refs.ts fenceAttributeId reads with the old function",
+  "file": "src/core/refs.ts",
+  "from": "const groups = braceGroups(scan);",
+  "to": "const groups = ((t: string): any[] => { const g: any[] = []; let a = 0; while (a < t.length) { if (t[a] !== \"{\") { a++; continue; } let q: string | null = null; let b = a + 1; for (; b < t.length; b++) { const c = t[b]; if (q !== null) { if (c === q) { q = null; } } else if (c === '\"' || c === \"'\") { q = c; } else if (c === \"}\") { break; } } if (b >= t.length) { a++; continue; } g.push({ start: a, end: b, content: t.slice(a + 1, b) }); a = b + 1; } return g; })(scan);",
+  "expect": "killed",
+  "why": "killed by the two gfm fence rows and the tilde row"
+ },
+ {
+  "name": "R18 model.ts fenceInfoOpensBlock reads with the old function",
+  "file": "src/core/qmd/model.ts",
+  "from": "const groups = braceGroups(info);",
+  "to": "const groups = ((t: string): any[] => { const g: any[] = []; let a = 0; while (a < t.length) { if (t[a] !== \"{\") { a++; continue; } let q: string | null = null; let b = a + 1; for (; b < t.length; b++) { const c = t[b]; if (q !== null) { if (c === q) { q = null; } } else if (c === '\"' || c === \"'\") { q = c; } else if (c === \"}\") { break; } } if (b >= t.length) { a++; continue; } g.push({ start: a, end: b, content: t.slice(a + 1, b) }); a = b + 1; } return g; })(info);",
+  "expect": "killed",
+  "why": "killed by the two pandoc fence rows and the tilde row"
+ },
+ {
+  "name": "R19 the double-quote swap through a temporary",
+  "file": "src/core/qmd/model.ts",
+  "from": "[plain, inDouble] = [inDouble, plain];",
+  "to": "{ const t = plain; plain = inDouble; inDouble = t; }",
+  "expect": "survives",
+  "why": "EQUIVALENT: the same swap spelled without an array; 4,000,000 seeded strings against the parent, 0 differences (Session 326)"
+ },
+ {
+  "name": "R20 the table is dropped after a group it answered",
+  "file": "src/core/qmd/model.ts",
+  "from": "i = lineText.indexOf(\"{\", j + 1);",
+  "to": "i = lineText.indexOf(\"{\", j + 1);\n      closers = null;",
+  "expect": "survives",
+  "why": "EQUIVALENT in the answer (4,000,000 strings against the parent, 0 differences); cost: at most 4 table builds a line over 7,092,404 strings (every string of up to 11 characters over `{}\"'` and 1.5 million random ones up to 120), so no quadratic comes back (Session 326)"
+ },
+ {
+  "name": "R21 the table starts one place after the failed opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "base = next;\n      closers = braceClosers(lineText, next);",
+  "to": "base = i + 1;\n      closers = braceClosers(lineText, i + 1);",
+  "expect": "survives",
+  "why": "EQUIVALENT: the failed opener itself is never asked again; 4,000,000 seeded strings against the parent, 0 differences (Session 326)"
+ },
+ {
+  "name": "R22 the table covers the whole line",
+  "file": "src/core/qmd/model.ts",
+  "from": "base = next;\n      closers = braceClosers(lineText, next);",
+  "to": "base = 0;\n      closers = braceClosers(lineText, 0);",
+  "expect": "survives",
+  "why": "EQUIVALENT in the answer: the entries before the failed opener are never read; 4,000,000 seeded strings against the parent, 0 differences (Session 326)"
+ },
+ {
+  "name": "R23 the seeded length factor is 399",
+  "file": "test/unit/brace-groups-equivalence.test.ts",
+  "from": "Math.floor(random() * random() * 400)",
+  "to": "Math.floor(random() * random() * 399)",
+  "expect": "killed",
+  "why": "a shorter longest string: only COUNTS can see it"
+ },
+ {
+  "name": "R24 the seeded generator draws once more per string",
+  "file": "test/unit/brace-groups-equivalence.test.ts",
+  "from": "const length = Math.floor(random() * random() * 400);",
+  "to": "const length = Math.floor(random() * random() * 400);\n        random();",
+  "expect": "killed",
+  "why": "the seeded set shifts: only COUNTS can see it"
+ },
+ {
+  "name": "R25 the runs test stops at 11 trailing openers",
+  "file": "test/unit/brace-groups-equivalence.test.ts",
+  "from": "for (let c = 0; c <= 12; c++) {",
+  "to": "for (let c = 0; c <= 11; c++) {",
+  "expect": "killed",
+  "why": "the runs set shrinks: COUNTS.runs sees it"
+ }
+]

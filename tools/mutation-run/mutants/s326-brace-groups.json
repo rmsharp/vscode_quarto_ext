@@ -285,7 +285,7 @@
   "from": "p >= from; p--) {",
   "to": "p >= from - 1; p--) {",
   "expect": "survives",
-  "why": "EQUIVALENT: a character before the first opener the table answers for is read after every entry is written, and entries are written only for openers at or after `from`"
+  "why": "EQUIVALENT: the character before the first opener the table answers for is read, and when it is a `{` (two adjacent openers) it writes closers[-1], which an Int32Array silently ignores; every other character changes the states only after every entry for an opener at or after `from` has been written"
  },
  {
   "name": "D09 an entry from the double-quote state",
