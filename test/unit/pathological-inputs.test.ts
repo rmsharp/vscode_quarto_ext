@@ -1347,13 +1347,16 @@ describe("Session 326 — a line holding many `{` whose `}` never comes", () => 
   // item left open, and the `{` half of part (6) of the item "What is still quadratic or deep enough to overflow after Session 311". The profile (Session 326, `--cpu-prof`, 40,000 `{`): 98% of the time is in `braceGroups`, neither of the two
   // regexes the item named, and the `<div` and the `></div>` change nothing: a bare run of `{` costs the same. `braceGroups` finds the `}` that closes each `{` of a line by reading on from it with a quote state, and a `{` with NO unquoted `}`
   // after it read to the END of the line and the next `{` read the same tail again: quadratic in the openers, on a line a pasted blob can be. Three callers read it: Source 3 of `indexLabels` on every body line, `fenceInfoOpensBlock` on a fence
-  // opener's info string under pandoc's reader (every `findHeadings`, `findAllCells` and `buildOutline`), and `fenceAttributeId` (Source 4 of `indexLabels`) under a CommonMark-family reader, which accepts the opener without asking the first.
+  // opener's info string under pandoc's reader (so every reader built on the region scan: `findHeadings`, `findAllCells`, `findBodyLines`, `findMathRegions`, `buildOutline`), and `fenceAttributeId` (Source 4 of `indexLabels`) under a
+  // CommonMark-family reader, which accepts the opener without asking the first.
   // Warm calls, load average 3 to 5 (Session 326): `{` x 8,000 / 16,000 / 32,000 / 64,000 through `indexLabels`: 106 / 389 / 1,553 / 6,229 ms (4x per doubling); `{` x 64,000 + `"}` 6,182 ms; `{"` x 8,000 / 16,000 / 32,000 / 64,000: 246 / 944 /
-  // 3,789 / 15,167 ms and `{'` the same; the item's own shape at 40,000 `{`: 2,467 ms; a fence opener of `{` x 64,000 under pandoc through `findHeadings` 6,320 ms and under `from: gfm` through `indexLabels` 6,210 ms. A closed group costs nothing
-  // either way, so the controls come first, and a run that CLOSES after 100,000 openers is one scan. A `{` inside a cell body is never asked (15 to 56 ms at 64,000), and a closed brace-led fence tag is rewritten to a bare word before the scan
-  // (so ``` + `{` x N + `"{}` is not a shape).
+  // 3,789 / 15,167 ms and `{'` the same; the bare native div `<div` + `{` x 40,000: 2,467 ms (2,964 ms in the Session 326 review, load 4 to 8), and the item's LITERAL shape, `<div` + `'{'` x 40,000, 8,476 ms; a fence opener of `{` x 64,000 under pandoc through `findHeadings` 6,320 ms and under `from: gfm` through `indexLabels` 6,210 ms. A closed group costs nothing
+  // either way, so the controls come first, and a run that CLOSES after 100,000 openers is one scan. A `{` inside a cell body is never asked (1.3 to 1.5 ms at 64,000, parent and cure alike; a python cell), and a closed brace-led BACKTICK fence tag
+  // is rewritten to a bare word before the scan (so ``` + `{` x N + `"{}` is not a shape): the rows that read a group out of the table on a fence opener use a TILDE fence, which is never rewritten. The Session 326 review round added the rows
+  // below it: the item's literal quoted div, a run behind 100,000 characters of text (the table is built wherever the first failing opener is), and the table READ at scale on all three callers.
   const BRACE_LIMIT_MS = 1000;
   const BRACE_FEW = 3;
+  const withinLimit = (ms: number): boolean => ms < BRACE_LIMIT_MS;
   const braceLabels = (text: string): Array<[string, string, number, number]> => indexLabels(text).map((label): [string, string, number, number] => [label.id, label.kind, label.line, label.column]);
   const braceHeadings = (text: string): Array<[number, string, string | undefined]> => findHeadings(text).map((heading): [number, string, string | undefined] => [heading.line, heading.text, heading.id]);
   const GFM = "---\nfrom: gfm\n---\n\n";
@@ -1366,7 +1369,7 @@ describe("Session 326 — a line holding many `{` whose `}` never comes", () => 
     { site: "control: 64,000 closed groups that hold a quoted `}` on a body line", unit: '{"}"} ', many: 64_000, build: (run) => `${run}z\n`, read: braceLabels, answer: none },
     { site: "control: 16,000 images each followed by a closed id block, one line", unit: "![c](a.png){#fig-a} ", many: 16_000, build: (run) => `${run}z\n`, read: braceLabels, answer: () => [["fig-a", "fig", 0, 13]] },
     // Guards: linear on the parent too, so they cannot be RED there; they hold the cure to it. One `{` that CLOSES after 100,000 openers is a single scan; one long failing scan followed by a closing group past index 65,535
-    // (a table of 16-bit entries answers wrongly or never ends).
+    // (a table of 16-bit entries never ends: the worker runs out of heap).
     { site: "guard: 100,000 `{` closed by one `}` on a body line", unit: "{", many: 100_000, build: (run) => `${run}}\n`, read: braceLabels, answer: none },
     { site: "guard: one `{` with 70,000 characters and a quote after it, then a closed id block past index 65,535", unit: "x", many: 70_000, build: (run) => `{${run}"{#fig-z}\n`, read: braceLabels, answer: (run) => [["fig-z", "fig", 0, run.length + 4]] },
 
@@ -1375,15 +1378,22 @@ describe("Session 326 — a line holding many `{` whose `}` never comes", () => 
     { site: "body line: 64,000 `{` and then a quote that hides the only `}`", unit: "{", many: 64_000, build: (run) => `${run}"}\n`, read: braceLabels, answer: none },
     { site: "body line: 32,000 of `{` then a double quote, none closed", unit: '{"', many: 32_000, build: (run) => `${run}\n`, read: braceLabels, answer: none },
     { site: "body line: 32,000 of `{` then a single quote, none closed", unit: "{'", many: 32_000, build: (run) => `${run}\n`, read: braceLabels, answer: none },
-    { site: "body line: the item's native div, `<div` + 40,000 `{` + `></div>`", unit: "{", many: 40_000, build: (run) => `<div${run}></div>\n`, read: braceLabels, answer: none },
+    { site: "body line: a native div with a bare run, `<div` + 64,000 `{` + `></div>`", unit: "{", many: 64_000, build: (run) => `<div${run}></div>\n`, read: braceLabels, answer: none },
+    { site: "body line: the item's literal native div, `<div` + 40,000 of `'{'` + `></div>`", unit: "'{'", many: 40_000, build: (run) => `<div${run}></div>\n`, read: braceLabels, answer: none },
+    // The table is built wherever the first failing opener is: a run that follows 100,000 characters of text.
+    { site: "body line: 100,000 characters of text, then 64,000 `{`, none closed", unit: "{", many: 64_000, build: (run) => `${"x".repeat(100_000)}${run}\n`, read: braceLabels, answer: none },
     // What an unclosed run hides is NOTHING: a real label on the next line is still found.
     { site: "body line: 64,000 `{` and a quote, then a real label on the next line", unit: "{", many: 64_000, build: (run) => `${run}"}\n\n![c](a.png){#fig-z}\n`, read: braceLabels, answer: () => [["fig-z", "fig", 2, 13]] },
+    // The table READ at scale: a closed group after the unclosed run, on the SAME line (the answer comes out of the table).
+    { site: "body line: 64,000 `{` and a quote, then a closed id block on the same line (the table is built and read)", unit: "{", many: 64_000, build: (run) => `${run}"{#fig-z}\n`, read: braceLabels, answer: (run) => [["fig-z", "fig", 0, run.length + 3]] },
     // `fenceInfoOpensBlock`, under pandoc's reader: the fence is refused, and the heading under it is still a heading.
     { site: "fence info under pandoc: 64,000 `{`, none closed, then a heading", unit: "{", many: 64_000, build: (run) => `\`\`\`${run}\n\n# T\n`, read: braceHeadings, answer: () => [[2, "T", undefined]] },
     { site: "fence info under pandoc: 32,000 of `{` then a double quote, then a heading", unit: '{"', many: 32_000, build: (run) => `\`\`\`${run}\n\n# T\n`, read: braceHeadings, answer: () => [[2, "T", undefined]] },
+    { site: "fence info under pandoc, a TILDE fence (never rewritten): 64,000 `{`, a quote, then a closed block; the fence opens, so only the heading after its closer is a heading", unit: "{", many: 64_000, build: (run) => `~~~${run}"{#lst-z}\n\n# T\n~~~\n\n# U\n`, read: braceHeadings, answer: () => [[5, "U", undefined]] },
     // `fenceAttributeId`, under a CommonMark-family reader, which opens the fence without asking `fenceInfoOpensBlock`.
     { site: "fence opener under from: gfm: 64,000 `{`, none closed", unit: "{", many: 64_000, build: (run) => `${GFM}\`\`\`${run}\n\`\`\`\n`, read: braceLabels, answer: none },
     { site: "fence opener under from: gfm: 32,000 of `{` then a single quote, none closed", unit: "{'", many: 32_000, build: (run) => `${GFM}\`\`\`${run}\n\`\`\`\n`, read: braceLabels, answer: none },
+    { site: "fence opener under from: gfm, a TILDE fence (never rewritten): 64,000 `{`, a quote, then a closed id block", unit: "{", many: 64_000, build: (run) => `${GFM}~~~${run}"{#lst-z}\n~~~\n`, read: braceLabels, answer: (run) => [["lst-z", "lst", 4, run.length + 6]] },
   ];
 
   it.each(BRACE_ROWS.map((row) => [row.site, row] as const))("%s: is read in linear time, and the answer is the stated one with 3 units and with the long run", (_site, row) => {
@@ -1394,7 +1404,7 @@ describe("Session 326 — a line holding many `{` whose `}` never comes", () => 
     expect(longText.length).toBeGreaterThan(run.length - 1); // the timed text holds the whole run
     const { result, ms } = timed(() => row.read(longText));
     expect(result).toEqual(row.answer(run));
-    expect(ms).toBeLessThan(BRACE_LIMIT_MS);
+    expect({ ms, within: withinLimit(ms) }).toMatchObject({ within: true });
   });
 
   it("builds a different text for every row", () => {
@@ -1404,15 +1414,18 @@ describe("Session 326 — a line holding many `{` whose `}` never comes", () => 
     expect(new Set(longTexts).size).toBe(BRACE_ROWS.length);
   });
 
-  // A run of 3,000 openers, or a limit of 100 s, would pass on the parent too.
+  // A run of 3,000 openers, or a limit of 100 s, would pass on the parent too; a front matter that says `from: pandoc` would stop the two gfm rows reaching `fenceAttributeId`; and a limit read as ten times its constant would pass
+  // everything but the slowest rows, so the boundary of `withinLimit` is pinned as well.
   it("keeps the sizes, the limit and the units the Session 326 rows are built on", () => {
     expect([BRACE_FEW, BRACE_LIMIT_MS]).toEqual([3, 1000]);
+    expect([withinLimit(BRACE_LIMIT_MS - 1), withinLimit(BRACE_LIMIT_MS)]).toEqual([true, false]);
+    expect(GFM).toBe("---\nfrom: gfm\n---\n\n");
     expect(BRACE_ROWS.map((row) => `${row.unit}x${row.many}`)).toEqual([
       "{a} x64000", '{"}"} x64000', "![c](a.png){#fig-a} x16000",
       "{x100000", "xx70000",
-      "{x64000", "{x64000", '{"x32000', "{'x32000", "{x40000", "{x64000",
-      "{x64000", '{"x32000',
-      "{x64000", "{'x32000",
+      "{x64000", "{x64000", '{"x32000', "{'x32000", "{x64000", "'{'x40000", "{x64000", "{x64000", "{x64000",
+      "{x64000", '{"x32000', "{x64000",
+      "{x64000", "{'x32000", "{x64000",
     ]);
   });
 });
