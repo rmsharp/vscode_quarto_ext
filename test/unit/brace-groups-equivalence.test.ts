@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { braceGroups, type BraceGroup } from "../../src/core/qmd/model";
 import { countStrings, everyString, seededRandom } from "./support/regex-equivalence";
 
-// Session 326 -- the BACKLOG item "Nine more single-line overflow and slow-input families, none of them in Session 317's diff", part (3), and the `{` half of part (6) of the item "What is still quadratic or deep enough to overflow
+// Session 326 — the BACKLOG item "Nine more single-line overflow and slow-input families, none of them in Session 317's diff", part (3), and the `{` half of part (6) of the item "What is still quadratic or deep enough to overflow
 // after Session 311". `braceGroups` read on from each `{` to its closer and, where none came, to the END of the line, so a line of N unclosed `{` was N reads of the same tail. It now reads the first `{` straight on and, when that
 // finds no closer, fills in the closer of every later `{` in one pass from the end of the line over three quote states (outside, inside a `"`, inside a `'`). That is only sound if the answer is the SAME on EVERY line, so the old
 // function is kept below, copied from the parent `7210ef6` (Session 325's source, before the cure) by a script, renamed `oldBraceGroups` (the body is the parent's, character for character), as the oracle (Learning 738).
@@ -40,6 +40,12 @@ function oldBraceGroups(lineText: string): BraceGroup[] {
   return groups;
 }
 
+const timed = <T>(run: () => T): { result: T; ms: number } => {
+  const started = Date.now();
+  const result = run();
+  return { result, ms: Date.now() - started };
+};
+
 const GROUP_KEYS = (groups: BraceGroup[]): string => groups.map((group) => `${group.start}:${group.end}:${group.content}`).join("|");
 
 /**
@@ -67,8 +73,11 @@ function laterGroupAfterAnUnclosedBrace(text: string): boolean {
   return false;
 }
 
-/** Both functions on every string: how many were compared, on how many the OLD one finds a group, on how many the table is built and read, and the first few disagreements. */
-function compareGroups(strings: Iterable<string>): { compared: number; grouped: number; tableRead: number; disagreements: string[] } {
+/**
+ * Both functions on every string: how many were compared, on how many the OLD one finds a group, on how many the table is built and read, and the first few disagreements.
+ * `candidate` is the function under test; the self-test below hands it a wrong one to show that the comparator can report a disagreement.
+ */
+function compareGroups(strings: Iterable<string>, candidate: (text: string) => BraceGroup[] = braceGroups): { compared: number; grouped: number; tableRead: number; disagreements: string[] } {
   let compared = 0;
   let grouped = 0;
   let tableRead = 0;
@@ -82,7 +91,7 @@ function compareGroups(strings: Iterable<string>): { compared: number; grouped: 
         tableRead++;
       }
     }
-    if (GROUP_KEYS(braceGroups(text)) !== GROUP_KEYS(expected) && disagreements.length < 5) {
+    if (GROUP_KEYS(candidate(text)) !== GROUP_KEYS(expected) && disagreements.length < 5) {
       disagreements.push(JSON.stringify(text));
     }
   }
@@ -93,10 +102,15 @@ function compareGroups(strings: Iterable<string>): { compared: number; grouped: 
 const ALPHABET_FIVE = ["{", "}", '"', "'", "a"];
 const ALPHABET_FOUR = ["{", "}", '"', "'"];
 const SEEDED_STRINGS = 300_000;
+/** The characters the read must IGNORE as well (a backslash, a backtick, brackets, a space, an accented letter, an astral one): a rule that reacts to one of them in one of the two encodings only is invisible over the two alphabets above. */
+const ALPHABET_WIDE = ["{", "{", "}", '"', "'", "\\", "`", ")", "(", "[", "]", " ", "a", "é", "\u{1F600}"];
+const WIDE_STRINGS = 200_000;
+/** The heavy rows take 3 to 4 s warm: vitest's default of 5 s would let a loaded machine, or a mutant that is merely slow, fail them by the clock instead of by an answer. */
+const HEAVY_ROW_MS = 30_000;
 /** How many strings of each set the OLD function finds a group on, and on how many of those a later `{` closes after an earlier one found no closer (the new function builds its table and reads it), so a comparison cannot pass by both finding nothing. */
-const COUNTS = { five: { grouped: 962_036, tableRead: 152_288 }, four: { grouped: 3_437_937, tableRead: 820_688 }, seeded: { grouped: 200_847, tableRead: 78_763 }, runs: { grouped: 14_664, tableRead: 7_488 } };
+const COUNTS = { five: { grouped: 962_036, tableRead: 152_288 }, four: { grouped: 3_437_937, tableRead: 820_688 }, seeded: { grouped: 200_847, tableRead: 78_763 }, runs: { grouped: 14_664, tableRead: 7_488 }, wide: { grouped: 56_591, tableRead: 14_576 } };
 
-describe("Session 326 -- braceGroups answers what the function that reread the line for each unclosed brace answered", () => {
+describe("Session 326 — braceGroups answers what the function that reread the line for each unclosed brace answered", () => {
   it.each([
     ["nothing", "", []],
     ["a lone opener", "{", []],
@@ -133,14 +147,14 @@ describe("Session 326 -- braceGroups answers what the function that reread the l
     expect(result.disagreements).toEqual([]);
     expect(result.compared).toBe(countStrings(5, 9));
     expect({ grouped: result.grouped, tableRead: result.tableRead }).toEqual(COUNTS.five);
-  });
+  }, HEAVY_ROW_MS);
 
   it("answers the same on every string of up to 11 characters over `{`, `}` and both quotes", () => {
     const result = compareGroups(everyString(ALPHABET_FOUR, 11));
     expect(result.disagreements).toEqual([]);
     expect(result.compared).toBe(countStrings(4, 11));
     expect({ grouped: result.grouped, tableRead: result.tableRead }).toEqual(COUNTS.four);
-  });
+  }, HEAVY_ROW_MS);
 
   it("answers the same on runs of openers split by one quote mark and a closer in every place (a, b and c openers)", () => {
     const strings: string[] = [];
@@ -185,10 +199,87 @@ describe("Session 326 -- braceGroups answers what the function that reread the l
     expect(result.disagreements).toEqual([]);
     expect(result.compared).toBe(SEEDED_STRINGS);
     expect({ grouped: result.grouped, tableRead: result.tableRead }).toEqual(COUNTS.seeded);
+  }, HEAVY_ROW_MS);
+
+  // Far from the start of the line. The 100,000-opener guard of pathological-inputs.test.ts sees neither where a group starts nor how far a read reaches, so a cap on the first read (1,024, 4,096 or 65,536 characters) or a 16-bit table
+  // (a cap on its length, a masked index, a pass that starts at column 131,071, a 16-bit element) is a second "cure" that every row above passes. These two put a closer 70,000 and 200,000 characters after its opener, and a
+  // lookup 70,000 and 200,000 columns into the table.
+  it.each([70_000, 200_000])("closes a group whose closer is %i characters after its opener (the first read has no reach limit)", (far) => {
+    const text = `{${"a".repeat(far)}}`;
+    expect(braceGroups(text)).toEqual([{ start: 0, end: far + 1, content: "a".repeat(far) }]);
   });
 
-  it("is told apart from a function that ignores the quote state: `{\"}` is NOT a group (a naive scan to the first closer finds one)", () => {
-    expect(braceGroups('{"}')).toEqual([]);
-    expect(braceGroups('{"{}')).toEqual([{ start: 2, end: 3, content: "" }]);
+  it.each([70_000, 200_000])("looks up the closer of a `{` that is %i columns into the table (no 16-bit index, no cap on the table or on the pass)", (far) => {
+    const text = `{{"${"a".repeat(far)}{}`;
+    expect(braceGroups(text)).toEqual([{ start: far + 3, end: far + 4, content: "" }]);
   });
+
+  // The characters the read must ignore. A backslash does not escape a closer, a backtick is not a quote and a parenthesis does not close: these are the answers of the parent, stated.
+  it.each([
+    ["a backtick is plain text, so the first closer closes", "{`}`}", [[0, 2, "`"]]],
+    ["a backslash does not escape the closer", "{\\}", [[0, 2, "\\"]]],
+    ["a closing parenthesis is plain text on the table path", '{"{a)}', [[2, 5, "a)"]]],
+    ["a square bracket is plain text on the table path", '{"{a]}', [[2, 5, "a]"]]],
+  ] as Array<[string, string, Array<[number, number, string]>]>)("%s", (_title, text, groups) => {
+    const expected = groups.map(([start, end, content]) => `${start}:${end}:${content}`).join("|");
+    expect(GROUP_KEYS(oldBraceGroups(text))).toBe(expected);
+    expect(GROUP_KEYS(braceGroups(text))).toBe(expected);
+  });
+
+  it("answers the same on 200,000 seeded strings over an alphabet that holds characters the read must ignore", () => {
+    const random = seededRandom(3260);
+    const strings = (function* (): Generator<string> {
+      for (let n = 0; n < WIDE_STRINGS; n++) {
+        const length = Math.floor(random() * random() * 60);
+        let text = "";
+        for (let k = 0; k < length; k++) {
+          text += ALPHABET_WIDE[Math.floor(random() * ALPHABET_WIDE.length)];
+        }
+        yield text;
+      }
+    })();
+    const result = compareGroups(strings);
+    expect(result.disagreements).toEqual([]);
+    expect(result.compared).toBe(WIDE_STRINGS);
+    expect({ grouped: result.grouped, tableRead: result.tableRead }).toEqual(COUNTS.wide);
+  }, HEAVY_ROW_MS);
+
+  // A comparison that cannot report a disagreement is no comparison: `expect(result.disagreements).toEqual([])` passes just as well if `compareGroups` never fills the list.
+  it("reports a disagreement against a wrong function, and counts every string it was given", () => {
+    // A scan to the first `}` that ignores both quote marks: the function a quote-blind cure would be.
+    const quoteBlind = (text: string): BraceGroup[] => {
+      const groups: BraceGroup[] = [];
+      let i = 0;
+      while (i < text.length) {
+        const j = text[i] === "{" ? text.indexOf("}", i + 1) : -1;
+        if (j === -1) {
+          i++;
+          continue;
+        }
+        groups.push({ start: i, end: j, content: text.slice(i + 1, j) });
+        i = j + 1;
+      }
+      return groups;
+    };
+    const result = compareGroups(everyString(ALPHABET_FOUR, 5), quoteBlind);
+    expect(result.compared).toBe(countStrings(4, 5));
+    expect(result.disagreements).toHaveLength(5);
+    expect(result.disagreements.every((text) => /["']/.test(JSON.parse(text) as string))).toBe(true);
+    expect(compareGroups(everyString(ALPHABET_FOUR, 5)).disagreements).toEqual([]);
+  });
+
+  // A clock row that cannot fail is no row (blank-tail-equivalence.test.ts): the OLD function must say "slow" on the very lines the Session 326 clock rows of pathological-inputs.test.ts time. 16,000 units take it
+  // 0.5 to 1.2 s (warm, load 5), the new function 1 to 3 ms.
+  it.each([
+    [16_000, "{"],
+    [16_000, '{"'],
+    [16_000, "{'"],
+  ] as Array<[number, string]>)("the clock rows can fail: the old function reads %i x %s far more slowly than the new one", (many, unit) => {
+    const text = unit.repeat(many);
+    const slow = timed(() => oldBraceGroups(text));
+    const fast = timed(() => braceGroups(text));
+    expect(slow.result).toEqual([]);
+    expect(fast.result).toEqual([]);
+    expect(slow.ms).toBeGreaterThan(fast.ms * 20 + 50);
+  }, HEAVY_ROW_MS);
 });
