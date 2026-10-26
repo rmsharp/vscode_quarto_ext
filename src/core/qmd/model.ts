@@ -470,11 +470,13 @@ export interface BraceGroup {
  *
  * ⚠ **A `{` THAT NEVER CLOSES COSTS ONE PASS OVER THE REST OF THE LINE, NOT ONE PER LATER `{` (Session 326).** The read from
  * each `{` ran on to the END of the line when nothing closed it, so a line of N unclosed `{` (a pasted blob; `{` x 64,000 took
- * 6.2 s) was N reads of the same tail, and `indexLabels` asks this of every body line and the region scanner of every fence
- * info string. The first `{` is still read straight on. When it finds no closer, the closer of every LATER `{` is worked out in
- * one pass from the end of the line (`braceClosers`) and looked up, which is exact rather than a shortcut: a read is a walk over
- * three states (outside a quote, inside a `"`, inside a `'`), a quote mark swaps two of them and no character merges two, so
- * where a read stops depends only on its position and its state, and a pass from the right fills that in.
+ * 6 to 8 s, 6.2 s on the first measurement) was N reads of the same tail. Three callers ask this: `indexLabels` of every body line,
+ * `fenceAttributeId` of a fence opener under a CommonMark-family reader, and `fenceInfoOpensBlock` of the info string of a
+ * non-cell fence opener under a pandoc-family reader (so every reader built on the region scan reaches it). Each `{` is read
+ * straight on until one finds no closer; the closer of every `{` after THAT one is worked out in one pass from the end of the
+ * line (`braceClosers`) and looked up, which is exact rather than a shortcut: a read is a walk over three states (outside a
+ * quote, inside a `"`, inside a `'`), a quote mark swaps two of them and no character merges two, so where a read stops
+ * depends only on its position and its state, and a pass from the right fills that in.
  */
 export function braceGroups(lineText: string): BraceGroup[] {
   const groups: BraceGroup[] = [];
@@ -517,8 +519,9 @@ function braceCloser(lineText: string, from: number): number {
 }
 
 /**
- * For each `{` of `lineText` at or after `from`, the answer `braceCloser` gives it, at `closers[index - from]` (the other entries
- * are 0 and never read). One pass from the right: `plain`, `inDouble` and `inSingle` hold where a read that starts at the
+ * For each `{` of `lineText` at or after `from` (the column of that `{` itself; `braceCloser`'s `from` is the column after its
+ * opener), the answer `braceCloser` gives it, at `closers[index - from]` (the other entries are 0, which is NOT an answer, and
+ * are never read). One pass from the right: `plain`, `inDouble` and `inSingle` hold where a read that starts at the
  * position just passed would stop, if it starts outside a quote, inside a `"` and inside a `'`. A `"` swaps the first two, a `'` the first
  * and the third, a `}` is where an unquoted read stops, and any other character changes nothing.
  */
