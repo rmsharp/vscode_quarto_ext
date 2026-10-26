@@ -1,0 +1,378 @@
+[
+ {
+  "name": "B01 start at the last opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "let i = lineText.indexOf(\"{\");",
+  "to": "let i = lineText.lastIndexOf(\"{\");",
+  "expect": "killed",
+  "why": "only the last opener is asked"
+ },
+ {
+  "name": "B02 the first read starts at the opener itself",
+  "file": "src/core/qmd/model.ts",
+  "from": "braceCloser(lineText, i + 1) : closers[i - base]",
+  "to": "braceCloser(lineText, i) : closers[i - base]",
+  "expect": "survives",
+  "why": "EQUIVALENT: the opener is neither a quote mark nor a closer, so a read that starts on it stops where one that starts after it does"
+ },
+ {
+  "name": "B03 table lookup one place on",
+  "file": "src/core/qmd/model.ts",
+  "from": "closers[i - base];",
+  "to": "closers[i - base + 1];",
+  "expect": "killed",
+  "why": "the lookup reads the neighbour's entry"
+ },
+ {
+  "name": "B04 table lookup ignores the base",
+  "file": "src/core/qmd/model.ts",
+  "from": "closers[i - base];",
+  "to": "closers[i];",
+  "expect": "killed",
+  "why": "the table starts at the second opener, not at column 0"
+ },
+ {
+  "name": "B05 the table is never read",
+  "file": "src/core/qmd/model.ts",
+  "from": "const j = closers === null ? braceCloser(lineText, i + 1) : closers[i - base];",
+  "to": "const j = braceCloser(lineText, i + 1);",
+  "expect": "killed",
+  "why": "the quadratic reading comes back (the clock rows)"
+ },
+ {
+  "name": "B06 a table entry above zero is a closer",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (j !== -1) {\n      groups.push",
+  "to": "    if (j > 0) {\n      groups.push",
+  "expect": "survives",
+  "why": "EQUIVALENT: a closer sits at index 1 or more (it follows its opener), so `> 0` and `!== -1` agree on every answer a read or the table can give; entries never read are 0"
+ },
+ {
+  "name": "B07 a table entry never forms a group",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (j !== -1) {\n      groups.push",
+  "to": "    if (j !== -1 && closers === null) {\n      groups.push",
+  "expect": "killed",
+  "why": "a group found by the table is dropped"
+ },
+ {
+  "name": "B08 content from the opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "content: lineText.slice(i + 1, j) });",
+  "to": "content: lineText.slice(i, j) });",
+  "expect": "killed",
+  "why": "the content holds the opener"
+ },
+ {
+  "name": "B09 end one past the closer",
+  "file": "src/core/qmd/model.ts",
+  "from": "end: j, content",
+  "to": "end: j + 1, content",
+  "expect": "killed",
+  "why": "the group ends one column late"
+ },
+ {
+  "name": "B10 resume at the closer",
+  "file": "src/core/qmd/model.ts",
+  "from": "i = lineText.indexOf(\"{\", j + 1);",
+  "to": "i = lineText.indexOf(\"{\", j);",
+  "expect": "survives",
+  "why": "EQUIVALENT: the character at j is the closer, not an opener, so the search from j finds what the search from j + 1 does"
+ },
+ {
+  "name": "B11 resume two on",
+  "file": "src/core/qmd/model.ts",
+  "from": "i = lineText.indexOf(\"{\", j + 1);",
+  "to": "i = lineText.indexOf(\"{\", j + 2);",
+  "expect": "killed",
+  "why": "an opener right after a group is skipped"
+ },
+ {
+  "name": "B12 the next opener is the same opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "const next = lineText.indexOf(\"{\", i + 1);",
+  "to": "const next = lineText.indexOf(\"{\", i);",
+  "expect": "killed",
+  "why": "the search finds the opener it started on and never moves (a hang)"
+ },
+ {
+  "name": "B13 the next opener skips one place",
+  "file": "src/core/qmd/model.ts",
+  "from": "const next = lineText.indexOf(\"{\", i + 1);",
+  "to": "const next = lineText.indexOf(\"{\", i + 2);",
+  "expect": "survives",
+  "why": "EQUIVALENT: an opener right after an unclosed one starts its read at the same place in the same state (an opener is neither a quote mark nor a closer), so it has no closer either and skipping it changes no answer; 4,000,000 seeded strings against the parent, 0 differences (Session 326)"
+ },
+ {
+  "name": "B14 the table is also built with no later opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (next !== -1 && closers === null) {",
+  "to": "if (closers === null) {",
+  "expect": "survives",
+  "why": "EQUIVALENT in the answer (COST only): with no later opener the table is built over the whole line for nothing and never read; the answers do not change"
+ },
+ {
+  "name": "B15 the table is built again at every failure",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (next !== -1 && closers === null) {",
+  "to": "if (next !== -1) {",
+  "expect": "killed",
+  "why": "a rebuild for each unclosed opener is quadratic again (the clock rows)"
+ },
+ {
+  "name": "B16 base is the failed opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "base = next;",
+  "to": "base = i;",
+  "expect": "killed",
+  "why": "the table lookups are shifted by the gap"
+ },
+ {
+  "name": "B17 the table starts at the failed opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "closers = braceClosers(lineText, next);",
+  "to": "closers = braceClosers(lineText, i);",
+  "expect": "killed",
+  "why": "the table and the base disagree"
+ },
+ {
+  "name": "B18 the table starts after the next opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "closers = braceClosers(lineText, next);",
+  "to": "closers = braceClosers(lineText, next + 1);",
+  "expect": "killed",
+  "why": "the next opener has no entry"
+ },
+ {
+  "name": "B19 skip the next opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "    i = next;\n  }\n  return groups;",
+  "to": "    i = next === -1 ? -1 : lineText.indexOf(\"{\", next + 1);\n  }\n  return groups;",
+  "expect": "killed",
+  "why": "the opener after a failure is never asked"
+ },
+ {
+  "name": "B20 the base before the table is -1",
+  "file": "src/core/qmd/model.ts",
+  "from": "let closers: Int32Array | null = null;\n  let base = 0;",
+  "to": "let closers: Int32Array | null = null;\n  let base = -1;",
+  "expect": "survives",
+  "why": "EQUIVALENT: base is read only through the table, and the table is built together with the assignment of base"
+ },
+ {
+  "name": "C01 the read starts one place on",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let j = from; j < lineText.length; j++) {\n    const ch = lineText[j];",
+  "to": "for (let j = from + 1; j < lineText.length; j++) {\n    const ch = lineText[j];",
+  "expect": "killed",
+  "why": "a closer right after the opener is missed"
+ },
+ {
+  "name": "C02 the read stops one place short",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let j = from; j < lineText.length; j++) {\n    const ch = lineText[j];",
+  "to": "for (let j = from; j < lineText.length - 1; j++) {\n    const ch = lineText[j];",
+  "expect": "killed",
+  "why": "a closer at the end of the line is missed"
+ },
+ {
+  "name": "C03 a quote is closed by a double quote only",
+  "file": "src/core/qmd/model.ts",
+  "from": "      if (ch === quote) {\n        quote = null;\n      }\n    } else if (ch === '\"' || ch === \"'\") {\n      quote = ch;\n    } else if (ch === \"}\") {\n      return j;",
+  "to": "      if (ch === '\"') {\n        quote = null;\n      }\n    } else if (ch === '\"' || ch === \"'\") {\n      quote = ch;\n    } else if (ch === \"}\") {\n      return j;",
+  "expect": "killed",
+  "why": "a single-quoted closer stays hidden"
+ },
+ {
+  "name": "C04 only a double quote opens one",
+  "file": "src/core/qmd/model.ts",
+  "from": "    } else if (ch === '\"' || ch === \"'\") {\n      quote = ch;\n    } else if (ch === \"}\") {\n      return j;",
+  "to": "    } else if (ch === '\"') {\n      quote = ch;\n    } else if (ch === \"}\") {\n      return j;",
+  "expect": "killed",
+  "why": "a single quote hides nothing"
+ },
+ {
+  "name": "C05 any quote opens a double quote",
+  "file": "src/core/qmd/model.ts",
+  "from": "      quote = ch;\n    } else if (ch === \"}\") {\n      return j;",
+  "to": "      quote = '\"';\n    } else if (ch === \"}\") {\n      return j;",
+  "expect": "killed",
+  "why": "a single quote is closed only by a double quote"
+ },
+ {
+  "name": "C06 the closer reported one place on",
+  "file": "src/core/qmd/model.ts",
+  "from": "    } else if (ch === \"}\") {\n      return j;",
+  "to": "    } else if (ch === \"}\") {\n      return j + 1;",
+  "expect": "killed",
+  "why": "the first read answers one column late"
+ },
+ {
+  "name": "C07 no closer answers the line length",
+  "file": "src/core/qmd/model.ts",
+  "from": "      return j;\n    }\n  }\n  return -1;\n}",
+  "to": "      return j;\n    }\n  }\n  return lineText.length;\n}",
+  "expect": "killed",
+  "why": "an unclosed opener becomes a group"
+ },
+ {
+  "name": "C08 a quote is never closed",
+  "file": "src/core/qmd/model.ts",
+  "from": "      if (ch === quote) {\n        quote = null;\n      }\n    } else if (ch === '\"' || ch === \"'\") {\n      quote = ch;\n    } else if (ch === \"}\") {\n      return j;",
+  "to": "      if (ch === quote) {\n        quote = quote;\n      }\n    } else if (ch === '\"' || ch === \"'\") {\n      quote = ch;\n    } else if (ch === \"}\") {\n      return j;",
+  "expect": "killed",
+  "why": "everything after a quote is hidden"
+ },
+ {
+  "name": "D01 one entry too few",
+  "file": "src/core/qmd/model.ts",
+  "from": "new Int32Array(lineText.length - from);",
+  "to": "new Int32Array(lineText.length - from - 1);",
+  "expect": "killed",
+  "why": "an opener at the end of the line has no entry"
+ },
+ {
+  "name": "D02 one entry too many",
+  "file": "src/core/qmd/model.ts",
+  "from": "new Int32Array(lineText.length - from);",
+  "to": "new Int32Array(lineText.length - from + 1);",
+  "expect": "survives",
+  "why": "EQUIVALENT in the answer (memory only): the extra entry is never written or read"
+ },
+ {
+  "name": "D03 no closer is 0 outside a quote",
+  "file": "src/core/qmd/model.ts",
+  "from": "let plain = -1;",
+  "to": "let plain = 0;",
+  "expect": "killed",
+  "why": "an opener with no closer answers column 0"
+ },
+ {
+  "name": "D04 no closer is 0 inside a double quote",
+  "file": "src/core/qmd/model.ts",
+  "from": "let inDouble = -1;",
+  "to": "let inDouble = 0;",
+  "expect": "killed",
+  "why": "a read that ends inside a double quote answers column 0"
+ },
+ {
+  "name": "D05 no closer is 0 inside a single quote",
+  "file": "src/core/qmd/model.ts",
+  "from": "let inSingle = -1;",
+  "to": "let inSingle = 0;",
+  "expect": "killed",
+  "why": "a read that ends inside a single quote answers column 0"
+ },
+ {
+  "name": "D06 the pass stops before the first opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "p >= from; p--) {",
+  "to": "p > from; p--) {",
+  "expect": "killed",
+  "why": "the opener the table starts at has no entry"
+ },
+ {
+  "name": "D07 the pass starts one place early",
+  "file": "src/core/qmd/model.ts",
+  "from": "let p = lineText.length - 1; p >= from; p--) {",
+  "to": "let p = lineText.length - 2; p >= from; p--) {",
+  "expect": "killed",
+  "why": "the last character of the line is not read"
+ },
+ {
+  "name": "D08 the pass reads one place before the table",
+  "file": "src/core/qmd/model.ts",
+  "from": "p >= from; p--) {",
+  "to": "p >= from - 1; p--) {",
+  "expect": "survives",
+  "why": "EQUIVALENT: a character before the first opener the table answers for is read after every entry is written, and entries are written only for openers at or after `from`"
+ },
+ {
+  "name": "D09 an entry from the double-quote state",
+  "file": "src/core/qmd/model.ts",
+  "from": "closers[p - from] = plain;",
+  "to": "closers[p - from] = inDouble;",
+  "expect": "killed",
+  "why": "the entry is the answer of a read inside a quote"
+ },
+ {
+  "name": "D10 an entry one place on",
+  "file": "src/core/qmd/model.ts",
+  "from": "closers[p - from] = plain;",
+  "to": "closers[p - from] = plain === -1 ? -1 : plain + 1;",
+  "expect": "killed",
+  "why": "the closer is one column late"
+ },
+ {
+  "name": "D11 a double quote only moves the state",
+  "file": "src/core/qmd/model.ts",
+  "from": "[plain, inDouble] = [inDouble, plain];",
+  "to": "plain = inDouble;",
+  "expect": "killed",
+  "why": "the state a double quote closes is lost (not a swap)"
+ },
+ {
+  "name": "D12 a double quote shares the single-quote state",
+  "file": "src/core/qmd/model.ts",
+  "from": "[plain, inDouble] = [inDouble, plain];",
+  "to": "[plain, inSingle] = [inSingle, plain];",
+  "expect": "killed",
+  "why": "both quote marks open the same state"
+ },
+ {
+  "name": "D13 a single quote shares the double-quote state",
+  "file": "src/core/qmd/model.ts",
+  "from": "[plain, inSingle] = [inSingle, plain];",
+  "to": "[plain, inDouble] = [inDouble, plain];",
+  "expect": "killed",
+  "why": "both quote marks open the same state"
+ },
+ {
+  "name": "D14 a single quote only moves the state",
+  "file": "src/core/qmd/model.ts",
+  "from": "[plain, inSingle] = [inSingle, plain];",
+  "to": "plain = inSingle;",
+  "expect": "killed",
+  "why": "the state a single quote closes is lost (not a swap)"
+ },
+ {
+  "name": "D15 a closer also ends a read inside a double quote",
+  "file": "src/core/qmd/model.ts",
+  "from": "    } else if (ch === \"}\") {\n      plain = p;",
+  "to": "    } else if (ch === \"}\") {\n      plain = p;\n      inDouble = p;",
+  "expect": "killed",
+  "why": "a quoted closer closes"
+ },
+ {
+  "name": "D16 a closer also ends a read inside a single quote",
+  "file": "src/core/qmd/model.ts",
+  "from": "    } else if (ch === \"}\") {\n      plain = p;",
+  "to": "    } else if (ch === \"}\") {\n      plain = p;\n      inSingle = p;",
+  "expect": "killed",
+  "why": "a quoted closer closes"
+ },
+ {
+  "name": "D17 the farthest closer is kept",
+  "file": "src/core/qmd/model.ts",
+  "from": "    } else if (ch === \"}\") {\n      plain = p;",
+  "to": "    } else if (ch === \"}\") {\n      plain = plain === -1 ? p : plain;",
+  "expect": "killed",
+  "why": "the read stops at the last closer, not the first"
+ },
+ {
+  "name": "D18 a closer is one column early",
+  "file": "src/core/qmd/model.ts",
+  "from": "    } else if (ch === \"}\") {\n      plain = p;",
+  "to": "    } else if (ch === \"}\") {\n      plain = p - 1;",
+  "expect": "killed",
+  "why": "the closer is one column early"
+ },
+ {
+  "name": "D19 an opener changes the state",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (ch === \"{\") {\n      closers[p - from] = plain;",
+  "to": "    if (ch === \"{\") {\n      closers[p - from] = plain;\n      plain = -1;",
+  "expect": "killed",
+  "why": "an opener hides the closers after it"
+ }
+]
