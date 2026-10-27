@@ -2,10 +2,10 @@
 # that test/unit/consumed-closer-equivalence.test.ts pins: [questions asked, answers that found a closer]. Nothing here imports the TypeScript.
 #
 #   python3 -I tools/consumed-closer-count/count.py <row> [histories]
-#   rows: singlesA singlesB pairsA3 pairsB3 sweepsA sweepsB seeded     (seeded takes the number of histories, 300000 in the test)
+#   rows: singlesA singlesB pairsA3 pairsB3 sweepsA sweepsB triplesA3 triplesB2 seeded     (seeded takes the number of histories, 300000 in the test)
 #
 # JS `\s` and `String.prototype.trim()` strip one set (WhiteSpace and LineTerminator); Python's `\s` and `str.strip()` do not match it, so the set is spelled out (WS).
-# singlesA takes about a minute and seeded a few, at a load of 10 or more.
+# singlesA takes about 5 s and seeded about 7 s (measured by the Session 328 review at a load near 80); pairsB3 enumerates 9.1 million questions one by one.
 import itertools, re, sys
 
 # JS \s and String.prototype.trim() strip the same set (WhiteSpace + LineTerminator); Python's \s and str.strip() do not match it exactly.
@@ -74,23 +74,44 @@ def singles(tokens, max_lines):
     return asked, found
 
 def pairs(tokens, max_lines):
+    # every ordered pair of questions, enumerated one by one
     asked = found = 0
     for lines in docs(tokens, max_lines):
         qs = [(frm, kind) for frm in range(len(lines) + 2) for kind in KINDS]
-        ans = {q: old(lines, q[0], q[1], cache) for q in qs}
-        n_found = sum(1 for q in qs if ans[q] >= 0)
-        # every ordered pair (first, second): each is asked, so each question is counted once as a first and once as a second
-        asked += 2 * len(qs) * len(qs)
-        found += 2 * n_found * len(qs)   # each question is the first of len(qs) pairs and the second of len(qs) pairs
+        hit = {q: old(lines, q[0], q[1], cache) >= 0 for q in qs}
+        for first in qs:
+            for second in qs:
+                asked += 2
+                found += hit[first] + hit[second]
     return asked, found
 
 def sweeps(tokens, max_lines):
+    # three histories per document: every kind ascending, every kind descending, all kinds interleaved at each position
     asked = found = 0
     for lines in docs(tokens, max_lines):
-        qs = [(frm, kind) for frm in range(len(lines) + 2) for kind in KINDS]
-        n_found = sum(1 for q in qs if old(lines, q[0], q[1], cache) >= 0)
-        asked += 3 * len(qs)       # ascending, descending, interleaved: the same questions in three orders
-        found += 3 * n_found
+        n = len(lines)
+        hit = {(frm, ki): old(lines, frm, KINDS[ki], cache) >= 0 for frm in range(n + 2) for ki in range(len(KINDS))}
+        for ki in range(len(KINDS)):
+            for frm in range(n + 2):
+                asked += 1; found += hit[(frm, ki)]
+        for ki in range(len(KINDS)):
+            for frm in reversed(range(n + 2)):
+                asked += 1; found += hit[(frm, ki)]
+        for frm in range(n + 2):
+            for ki in range(len(KINDS)):
+                asked += 1; found += hit[(frm, ki)]
+    return asked, found
+
+def triples(tokens, max_lines):
+    # every ordered triple of questions of ONE kind
+    asked = found = 0
+    for lines in docs(tokens, max_lines):
+        n = len(lines)
+        for kind in KINDS:
+            hit = [old(lines, frm, kind, cache) >= 0 for frm in range(n + 2)]
+            for a, b, c in itertools.product(range(n + 2), repeat=3):
+                asked += 3
+                found += hit[a] + hit[b] + hit[c]
     return asked, found
 
 def mulberry(seed):
@@ -135,4 +156,6 @@ elif which == 'pairsA3': print(pairs(LINES_A, 3))
 elif which == 'pairsB3': print(pairs(LINES_B, 3))
 elif which == 'sweepsA': print(sweeps(LINES_A, 5))
 elif which == 'sweepsB': print(sweeps(LINES_B, 4))
+elif which == 'triplesA3': print(triples(LINES_A, 3))
+elif which == 'triplesB2': print(triples(LINES_B, 2))
 elif which == 'seeded': print(seeded(int(sys.argv[2]) if len(sys.argv) > 2 else 300000))

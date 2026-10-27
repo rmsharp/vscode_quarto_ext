@@ -4,8 +4,9 @@ import { BOM, EM_SPACE, IDEOGRAPHIC, LS, NBSP, NEL, PS, countStrings, everyStrin
 
 const HEAVY_ROW_MS = 120_000;
 const SEEDED_HISTORIES = 300_000;
-// What each row compared, `[questions, answers that found a closer]`. The first number is arithmetic (the sum over the documents of the questions each asks: for the first set and six lines, 10 x the sum of 7^n x (n + 2) = 10,751,810); both numbers were re-derived by a Python port of the old function, of `isCloser`, of the documents and of the seeded generator
-// (`tools/consumed-closer-count/count.py`), which shares no code with this file. A row that reached fewer questions, or a different alphabet or kind, fails here.
+// What each row compared, `[questions, answers that found a closer]`. The first number is arithmetic (the sum over the documents of the questions each asks: for the first set and six lines, 10 x the sum of 7^n x (n + 2) = 10,751,810); both numbers were re-derived by a Python port of the old function, of `isCloser`, of the documents, of the
+// histories each row asks (enumerated one by one, not multiplied) and of the seeded generator (`tools/consumed-closer-count/count.py`), which shares no code with this file. A row that reached fewer questions, or a different alphabet, fails here. A KIND of the full space that no seeded line tells from its neighbour is NOT pinned by a count (the
+// Session 328 review changed `[0, 3, 6]` to `[0, 3, 7]` and a run length of 5 to 6 in `ALL_KINDS` with no failure): the fields of a kind are pinned by the rows that name them ("each field of a kind separates two kinds" below).
 const COUNTS = {
   singlesA: [10_751_810, 3_580_150] as [number, number],
   singlesB: [1_336_700, 73_694] as [number, number],
@@ -14,10 +15,12 @@ const COUNTS = {
   sweepsA: [4_019_670, 1_210_782] as [number, number],
   sweepsB: [4_010_100, 221_082] as [number, number],
   seeded: [1_350_257, 60_085] as [number, number],
+  triplesA3: [1_386_240, 300_204] as [number, number],
+  triplesB2: [286_440, 10_680] as [number, number],
 };
 
 // Session 328 — part (3) of the BACKLOG item "What is still quadratic or deep enough to overflow after Session 311". A refused fence opener asks `consumedCloserLine` for the closer it has swallowed, and the scan walked every non-blank line below the opener
-// to a blank line or a closer, so N refused openers in one run with no blank line between them were N x N tests of `isCloser`. `makeConsumedCloserLine(lines)` now keeps, per kind of opener, the span of its last scan and answers an opener that starts inside the span
+// to a blank line or a closer, so N refused openers in one run with no blank line between them were N(N + 1)/2 tests of `isCloser` between them. `makeConsumedCloserLine(lines)` now keeps, per kind of opener, the span of its last scan and answers an opener that starts inside the span
 // from it. That is only sound if the answer is the SAME for EVERY document, every kind of opener and every ORDER of questions (the answer of the reader depends on what it was asked before, which no function of one question can show), so the function it replaced is kept below,
 // copied from the parent `fdd1f66` (the tree before the cure) as the oracle (Learning 738). `isCloser` is the model's own and is shared, not copied: this file proves the walk, and `isCloser` has not changed (its only edits are `export` and a narrower type for its parameter).
 
@@ -65,7 +68,7 @@ for (const isCell of [false, true]) {
 }
 
 // The lines the exhaustive rows build documents from, one letter each. The first set holds the closers (three and four of each character, at indent 0, 2 and 4), a blank line and a word; the second holds the blanks the scan must stop at (a tab, a no-break space, a form feed, U+2028, a byte order mark, an ideographic space:
-// every one of them is a blank to `trim()`) and the closers only a CELL accepts (a form feed or a no-break space before or after the run: `\s`, where a plain fence takes `[ \t]`).
+// every one of them is a blank to `trim()`; the whole class is stated, one row each, below) and the closers only a CELL accepts (a form feed or a no-break space before or after the run: `\s`, where a plain fence takes `[ \t]`).
 const LINES_A: Record<string, string> = { a: "", b: "```", c: "````", d: "~~~", e: "  ```", f: "    ```", g: "word" };
 const LINES_B: Record<string, string> = { a: "", b: NBSP, c: "\f", d: LS, e: BOM, f: IDEOGRAPHIC, g: "```", h: `\f\`\`\``, i: `\`\`\`${NBSP}`, j: "\t```", k: "```x", l: "> ```" };
 const documentOf = (codes: string, lines: Record<string, string>): string[] => [...codes].map((code) => lines[code]);
@@ -133,6 +136,23 @@ function comparePairs(documents: Iterable<string[]>, kinds: readonly CloserShape
   return tally;
 }
 
+/** Every ordered triple of questions of ONE kind (low, high, middle among them): a span replaced, a span kept, a question in the gap between two spans. Pairs, per-kind sweeps and a uniform draw never ask three questions of a kind in the order low, high, middle. */
+function compareTriples(documents: Iterable<string[]>, kinds: readonly CloserShape[], make?: MakeReader): Tally {
+  const tally = newTally();
+  for (const lines of documents) {
+    for (let which = 0; which < kinds.length; which++) {
+      for (let a = 0; a <= lines.length + 1; a++) {
+        for (let b = 0; b <= lines.length + 1; b++) {
+          for (let c = 0; c <= lines.length + 1; c++) {
+            checkHistory(lines, kinds, [[a, which], [b, which], [c, which]], tally, make);
+          }
+        }
+      }
+    }
+  }
+  return tally;
+}
+
 /** The orders a scan can ask in: every kind's positions ascending (the way `computeRegions` asks), descending, and all kinds interleaved at each position. One reader serves a whole sweep. */
 function compareSweeps(documents: Iterable<string[]>, kinds: readonly CloserShape[], make?: MakeReader): Tally {
   const tally = newTally();
@@ -188,7 +208,7 @@ describe("consumedCloserLine: one reader per document answers as the old functio
     expect(countsOf(tally)).toEqual(COUNTS.singlesB);
   }, HEAVY_ROW_MS);
 
-  it("answers the same to every PAIR of questions on every document of up to four lines over the first set (a hit on the first's span, a miss beyond or before it, another kind)", () => {
+  it("answers the same to every PAIR of questions on every document of up to three lines over the first set (a hit on the first's span, a miss beyond or before it, another kind)", () => {
     const tally = comparePairs(everyDocument(LINES_A, 3), KINDS);
     expect(tally.disagreements).toEqual([]);
     expect(countsOf(tally)).toEqual(COUNTS.pairsA3);
@@ -198,6 +218,18 @@ describe("consumedCloserLine: one reader per document answers as the old functio
     const tally = comparePairs(everyDocument(LINES_B, 3), KINDS);
     expect(tally.disagreements).toEqual([]);
     expect(countsOf(tally)).toEqual(COUNTS.pairsB3);
+  }, HEAVY_ROW_MS);
+
+  it("answers the same to every ordered TRIPLE of questions of one kind on every document of up to three lines over the first set (a span replaced, kept, a question in the gap between two spans)", () => {
+    const tally = compareTriples(everyDocument(LINES_A, 3), KINDS);
+    expect(tally.disagreements).toEqual([]);
+    expect(countsOf(tally)).toEqual(COUNTS.triplesA3);
+  }, HEAVY_ROW_MS);
+
+  it("answers the same to every ordered triple of questions of one kind on every document of up to two lines over the second set", () => {
+    const tally = compareTriples(everyDocument(LINES_B, 2), KINDS);
+    expect(tally.disagreements).toEqual([]);
+    expect(countsOf(tally)).toEqual(COUNTS.triplesB2);
   }, HEAVY_ROW_MS);
 
   it("answers the same to a whole sweep (every kind ascending, descending, interleaved) on every document of up to five lines over the first set", () => {
@@ -212,7 +244,7 @@ describe("consumedCloserLine: one reader per document answers as the old functio
     expect(countsOf(tally)).toEqual(COUNTS.sweepsB);
   }, HEAVY_ROW_MS);
 
-  it("answers the same to 300,000 seeded histories of 1 to 8 questions on seeded documents of up to 40 lines, over all 192 kinds", () => {
+  it("answers the same to 300,000 seeded histories of 1 to 8 questions on seeded documents of up to 39 lines, over all 192 kinds", () => {
     const random = seededRandom(328);
     const pool = [LINES_A, LINES_B].map((set) => Object.values(set));
     const tally = newTally();
@@ -279,13 +311,18 @@ describe("consumedCloserLine: stated answers", () => {
     expect(makeConsumedCloserLine(lines)(from, open)).toBe(expected);
   });
 
-  // The blank test is `trim() === ""`: the classes it separates, one row each (Learning 831). `trim()` strips every WhiteSpace and LineTerminator code point, so a vertical tab, a carriage return, U+1680, the spaces of U+2000 to U+200A, U+202F, U+205F and the paragraph separator are
+  // The blank test is `trim() === ""`: the classes it separates, one row each (Learning 831). `trim()` strips every WhiteSpace and LineTerminator code point, so a vertical tab, a carriage return, U+1680, the spaces of U+2000 to U+200A (all eleven, one row each: a hand-made class missing U+2005 survived the first rows), U+202F, U+205F and the paragraph separator are
   // blanks as much as a space is, and U+0085, a zero-width space, the Mongolian vowel separator, a word joiner and a NUL are NOT: a hand-made set of blanks that leaves one out (or takes one in) answers differently on the line that follows.
   const BLANKS: Array<[string, string]> = [
-    ["a space", " "], ["a tab", "\t"], ["a vertical tab", "\v"], ["a form feed", "\f"], ["a carriage return", "\r"], ["a no-break space", NBSP], ["U+1680", String.fromCharCode(0x1680)], ["an en quad", String.fromCharCode(0x2000)],
-    ["an em space", EM_SPACE], ["a hair space", String.fromCharCode(0x200a)], ["U+2028", LS], ["U+2029", PS], ["a narrow no-break space", String.fromCharCode(0x202f)], ["a medium mathematical space", String.fromCharCode(0x205f)],
+    ["a space", " "], ["a tab", "\t"], ["a vertical tab", "\v"], ["a form feed", "\f"], ["a carriage return", "\r"], ["a no-break space", NBSP], ["U+1680", String.fromCharCode(0x1680)],
+    ...Array.from({ length: 11 }, (_, k): [string, string] => [`U+${(0x2000 + k).toString(16).toUpperCase()}`, String.fromCharCode(0x2000 + k)]),
+    ["U+2028", LS], ["U+2029", PS], ["a narrow no-break space", String.fromCharCode(0x202f)], ["a medium mathematical space", String.fromCharCode(0x205f)],
     ["an ideographic space", IDEOGRAPHIC], ["a byte order mark", BOM], ["three of them", " \t\u00a0"],
   ];
+  it("states every one of the eleven spaces of U+2000 to U+200A and the em space is one of them", () => {
+    expect(BLANKS.filter(([title]) => /^U\+200[0-9A]$/.test(title)).map(([, text]) => text.charCodeAt(0))).toEqual(Array.from({ length: 11 }, (_, k) => 0x2000 + k));
+    expect(BLANKS.some(([, text]) => text === EM_SPACE)).toBe(true);
+  });
   const NOT_BLANKS: Array<[string, string]> = [
     ["U+0085", NEL], ["a zero-width space", String.fromCharCode(0x200b)], ["a Mongolian vowel separator", String.fromCharCode(0x180e)], ["a word joiner", String.fromCharCode(0x2060)], ["a NUL", "\0"], ["a soft hyphen", String.fromCharCode(0xad)],
   ];
@@ -357,21 +394,62 @@ describe("consumedCloserLine: stated answers", () => {
   });
 });
 
-// The wiring in `computeRegions`: it asks for the closer BELOW the refused opener (`i + 1`). Asked from the opener's own line, a bare fence refused under a paragraph (it is closer-shaped itself) swallows its own line and leaves the real closer to open a fence that hides the
-// heading after it. These are the answers of the parent `fdd1f66` (run on these four documents), which the cure shares, and NOT measured against `quarto render`. They were found by shrinking the documents on which a mutant that asks from `i` differs from the cure (64 of 600,000 random documents of up to ten lines): that mutant finds the heading (`H`, `H`, `T`) on the first three.
-describe("consumedCloserLine: the call in computeRegions asks below the opener", () => {
+// The wiring in `computeRegions`: `consumedCloserLine(i + 1, candidate)` asks for the closer BELOW the refused opener, in the kind the opener has. Asked from the opener's own line, a bare fence refused under a paragraph (it is closer-shaped itself) is its own closer: the real closer is
+// then NOT swallowed, and the heading after it is shown where the parent hides it. These are the answers of the parent `fdd1f66`, which the cure shares (checked on each document), and NOT measured against `quarto render`. The first four were found by shrinking the documents on which a mutant that
+// asks from `i` differs from the cure (64 of 600,000 random documents of up to ten lines): that mutant shows the heading (`H`, `H`, `T`) on the first three. The next six are the Session 328 review's: each is a document on which forcing ONE argument of the call changes the headings, the
+// argument being the container columns (W02: `[0]`), the run length (W03: 3), the cell indent (W05: an empty one), whether the opener is a cell (W06) and a run length held in a byte or capped (M05: 259 backticks, M06: 7 and 6).
+describe("consumedCloserLine: the call in computeRegions asks below the opener, in the opener's own kind", () => {
   const headings = (lines: string[]): unknown => findHeadings(`${lines.join("\n")}\n`).map((heading) => [heading.level, heading.text, heading.line]);
+  const ticks = (count: number): string => "`".repeat(count);
   it.each([
     ["a paragraph, a bare tilde fence, a list item, two more", ["x", "~~~", "- a", "~~~", "~~~", "# H"], []],
     ["the same with the first fence indented", ["p", "  ~~~", "- a", "~~~", "~~~", "# H"], []],
     ["the same with a longer last fence and a level-two heading", ["p", "~~~", "- a", "~~~", "~~~~", "## T"], []],
     ["a blank line before the heading frees it", ["x", "~~~", "- a", "~~~", "~~~", "", "# H"], [[1, "H", 6]]],
+    ["W02: columns of the opener (a list item): a closer at indent five is not code to it", ["  - b", "", "     ```text i", "     ```", "```", "```", "# H"], [[1, "H", 6]]],
+    ["W03: the run length of the opener: three backticks do not close four", ["````text i", "```", "  ```", "## T"], [[2, "T", 3]]],
+    ["W05: the indent of the opener is none (null), not an empty one to match: an indented closer closes", ["> ```text i", "  ```", "      ```", "  # H", "````"], [[1, "H", 3]]],
+    ["W06: the opener is not a cell: a longer closer closes it", ["  ```text i", "````", "````", "# H"], []],
+    ["M05: an opener of 259 backticks is not one of 3", [`${ticks(259)}text i`, "```text i", "```", "", "# H", "", "```"], [[1, "H", 4]]],
+    ["M06: openers of 7 and 6 backticks are not one kind", [`${ticks(7)}text i`, `${ticks(6)}text i`, ticks(6), "", "# H", "", ticks(6)], [[1, "H", 4]]],
   ] as Array<[string, string[], unknown]>)("%s", (_title, lines, expected) => {
     expect(headings(lines)).toEqual(expected);
   });
 });
 
+// Each field of a kind has to separate two kinds, and the exhaustive rows cannot show it: their documents have indents 0, 2 and 4 only, columns `[0]` and `[0, 4]`, and runs of 3 to 5, so a key that merges `[0, 2]` with `[0, 4]`, joins the digits of `[0, 12]` and `[0, 1, 2]` into one
+// string, keeps only the last column, holds a run length in a byte or caps it, or keys an indent by its length, answers every one of those documents alike (the Session 328 review: M01 to M07 all survived). Each row is a document whose old answers differ for the two kinds; ONE reader is asked both, in both orders.
+describe("consumedCloserLine: each field of a kind separates two kinds", () => {
+  const rows: Array<[string, string[], CloserShape, CloserShape]> = [
+    ["columns [0, 2] against [0, 4] (a closer at indent six: code to one, not to the other)", ["w", "      ```"], kind(false, "`", 3, null, [0, 2]), kind(false, "`", 3, null, [0, 4])],
+    ["columns [0, 12] against [0, 1, 2] (indent four; the digits join to the same string)", ["w", "    ```"], kind(false, "`", 3, null, [0, 12]), kind(false, "`", 3, null, [0, 1, 2])],
+    ["columns [0, 6] against [0, 3, 6] (indent four; the same last column)", ["w", "    ```"], kind(false, "`", 3, null, [0, 6]), kind(false, "`", 3, null, [0, 3, 6])],
+    ["columns [0, 4] against [0, 3, 6] (indent eight; both are nested)", ["w", "        ```"], kind(false, "`", 3, null, [0, 4]), kind(false, "`", 3, null, [0, 3, 6])],
+    ["run length 259 against 3 (a byte holds both as 3)", ["w", "```"], kind(false, "`", 259, null, [0]), kind(false, "`", 3, null, [0])],
+    ["run length 7 against 6 (a cap at 5 holds both as 5)", ["w", "``````"], kind(false, "`", 7, null, [0]), kind(false, "`", 6, null, [0])],
+    ["cell run length 6 against 5 (a cell closes on the exact length)", ["w", "`````"], kind(true, "`", 6, null, [0]), kind(true, "`", 5, null, [0])],
+    ["cell indent a tab against one space (the same length)", ["w", " ```"], kind(true, "`", 3, "\t", [0]), kind(true, "`", 3, " ", [0])],
+    ["plain indent a tab against one space (the same length)", ["w", " ```"], kind(false, "`", 3, "\t", [0]), kind(false, "`", 3, " ", [0])],
+    ["no indent against an empty one (null against \"\")", ["w", "  ```"], kind(false, "`", 3, null, [0]), kind(false, "`", 3, "", [0])],
+    ["a cell against a plain fence (a longer run closes the plain one only)", ["w", "````"], kind(true, "`", 3, null, [0]), kind(false, "`", 3, null, [0])],
+    ["a tilde against a backtick", ["w", "~~~"], kind(false, "~", 3, null, [0]), kind(false, "`", 3, null, [0])],
+  ];
+
+  it.each(rows)("%s", (_title, lines, a, b) => {
+    const expectedA = oldConsumedCloserLine(lines, 0, a);
+    const expectedB = oldConsumedCloserLine(lines, 0, b);
+    expect(expectedA).not.toBe(expectedB); // the document tells the two kinds apart
+    const ab = makeConsumedCloserLine(lines);
+    expect([ab(0, a), ab(0, b), ab(1, a), ab(1, b)]).toEqual([expectedA, expectedB, oldConsumedCloserLine(lines, 1, a), oldConsumedCloserLine(lines, 1, b)]);
+    const ba = makeConsumedCloserLine(lines);
+    expect([ba(0, b), ba(0, a), ba(1, b), ba(1, a)]).toEqual([expectedB, expectedA, oldConsumedCloserLine(lines, 1, b), oldConsumedCloserLine(lines, 1, a)]);
+  });
+});
+
 // The cost, pinned as lines READ, which does not move with the load. A counted array gives `lines[k]` reads to the function without changing what it sees.
+//
+// The pins are RELATIVE (the Session 328 review): what a whole sequence of questions costs is compared with what the FIRST question of each scan costs on a fresh reader, so they say "no line is read again", not "two reads a line". The first draft pinned `2 * (n - 1)`, and an edit that
+// reads `lines[k]` once into a local, or tests the closer before the blank line, reddened them with the same answers. `LINEAR` is the second guard, a bound with room (no line read more than six times), and `scanReads` must be more than nothing, so a counter that counts nothing cannot pass.
 function counted(lines: readonly string[]): { lines: readonly string[]; reads: () => number } {
   let reads = 0;
   const proxy = new Proxy(lines as string[], {
@@ -392,34 +470,47 @@ function askAll(lines: readonly string[], openers: ReadonlyArray<readonly [numbe
 }
 const oldMaker: MakeReader = (lines) => (from, open) => oldConsumedCloserLine(lines, from, open);
 
+/** The reads of ONE scan: the first question of a fresh reader, for the opener on line `at`. */
+function scanReads(lines: readonly string[], at: number, open: CloserShape): number {
+  const counting = counted(lines);
+  makeConsumedCloserLine(counting.lines)(at + 1, open);
+  return counting.reads();
+}
+const LINEAR = (lines: number): number => 6 * lines;
+
 describe("consumedCloserLine: the cost, as lines read", () => {
   const PLAIN = KINDS[0];
+  const openersOf = (lines: readonly string[], text: string, open: CloserShape = PLAIN): Array<readonly [number, CloserShape]> => lines.flatMap((line, at) => (line === text ? [[at, open] as const] : []));
 
-  it("reads the helper's counter correctly: the old function reads n(n-1) times for n refused openers in one run with no closer (two reads a line)", () => {
+  it("counts the old function's reads: n(n-1) for n refused openers in one run with no closer (two reads a line)", () => {
     const n = 100;
     const lines = Array.from({ length: n }, () => "```text i");
-    const openers = lines.map((_, at) => [at, PLAIN] as const);
     const old = counted(lines);
-    askAll(old.lines, openers, oldMaker);
+    askAll(old.lines, openersOf(lines, "```text i"), oldMaker);
     // The opener at index k scans lines k+1 .. n-1: n - 1 - k lines, and each line is read twice (`trim()`, then `isCloser`). Sum over k = 0..n-1 is n(n-1)/2 lines, n(n-1) reads.
     expect(old.reads()).toBe(n * (n - 1));
   });
 
   it.each([100, 1_000, 3_000])("reads a run of %i refused openers once, not once per opener", (n) => {
     const lines = Array.from({ length: n }, () => "```text i");
-    const openers = lines.map((_, at) => [at, PLAIN] as const);
+    const openers = openersOf(lines, "```text i");
     const fresh = counted(lines);
     expect(askAll(fresh.lines, openers, makeConsumedCloserLine)).toEqual(askAll(lines, openers, oldMaker));
-    expect(fresh.reads()).toBe(2 * (n - 1)); // the first opener reads the n - 1 lines below it, twice each; every other opener (and the one at the end) takes its answer
+    const oneScan = scanReads(lines, 0, PLAIN);
+    expect(oneScan).toBeGreaterThanOrEqual(n - 1); // the scan does read the run
+    expect(fresh.reads()).toBe(oneScan); // and every other opener reads nothing
+    expect(fresh.reads()).toBeLessThanOrEqual(LINEAR(n));
   });
 
   it("reads a run with a closer at its end once: the first opener walks to the closer, the rest take its answer", () => {
     const n = 1_000;
     const lines = [...Array.from({ length: n }, () => "```text i"), "```"];
-    const openers = Array.from({ length: n }, (_, at) => [at, PLAIN] as const);
+    const openers = openersOf(lines, "```text i");
     const fresh = counted(lines);
     expect(askAll(fresh.lines, openers, makeConsumedCloserLine)).toEqual(new Array<number>(n).fill(n));
-    expect(fresh.reads()).toBe(2 * n); // the first opener reads lines 1 .. n, twice each
+    expect(fresh.reads()).toBe(scanReads(lines, 0, PLAIN));
+    expect(fresh.reads()).toBeGreaterThanOrEqual(n);
+    expect(fresh.reads()).toBeLessThanOrEqual(LINEAR(n));
   });
 
   it("reads a run once per kind when the kinds are interleaved: three kinds, three reads of the run", () => {
@@ -429,8 +520,21 @@ describe("consumedCloserLine: the cost, as lines read", () => {
     const openers = lines.map((_, at) => [at, kinds[at % 3]] as const);
     const fresh = counted(lines);
     expect(askAll(fresh.lines, openers, makeConsumedCloserLine)).toEqual(askAll(lines, openers, oldMaker));
-    // Each kind's first question scans from the line below its first opener (line 0, 1, 2) to the end: (n - 1) + (n - 2) + (n - 3) lines, twice each.
-    expect(fresh.reads()).toBe(2 * ((n - 1) + (n - 2) + (n - 3)));
+    // Each kind's first question is at the first line of that kind (0, 1, 2); the rest take their kind's span.
+    expect(fresh.reads()).toBe(scanReads(lines, 0, kinds[0]) + scanReads(lines, 1, kinds[1]) + scanReads(lines, 2, kinds[2]));
+    expect(fresh.reads()).toBeLessThanOrEqual(LINEAR(3 * n));
+  });
+
+  // A cap on the kinds kept (the review's M15: at most eight, then cleared) answers right and reads each kind's run again once nine kinds take turns.
+  it("reads a run once per kind when nine kinds are interleaved (no cap on the kinds kept)", () => {
+    const n = 1_800;
+    const kinds = KINDS.slice(0, 9);
+    const lines = Array.from({ length: n }, () => "```text i");
+    const openers = lines.map((_, at) => [at, kinds[at % 9]] as const);
+    const fresh = counted(lines);
+    expect(askAll(fresh.lines, openers, makeConsumedCloserLine)).toEqual(askAll(lines, openers, oldMaker));
+    expect(fresh.reads()).toBe(kinds.reduce((sum, open, j) => sum + scanReads(lines, j, open), 0));
+    expect(fresh.reads()).toBeLessThanOrEqual(LINEAR(9 * n));
   });
 
   it("reads each run between blank lines once: the span of one run is not the next run's", () => {
@@ -440,26 +544,26 @@ describe("consumedCloserLine: the cost, as lines read", () => {
     for (let r = 0; r < runs; r++) {
       lines.push(...Array.from({ length: per }, () => "```text i"), r % 2 === 0 ? "```" : "word", "");
     }
-    const openers: Array<readonly [number, CloserShape]> = [];
-    lines.forEach((line, at) => {
-      if (line === "```text i") {
-        openers.push([at, PLAIN]);
-      }
-    });
+    const openers = openersOf(lines, "```text i");
     const fresh = counted(lines);
     expect(askAll(fresh.lines, openers, makeConsumedCloserLine)).toEqual(askAll(lines, openers, oldMaker));
-    // A run with a closer reads the per - 1 openers below the first and then the closer: per lines, twice each. A run without one reads the same per lines (the last is a word) and then the blank line, whose `trim()` is one read more.
-    expect(fresh.reads()).toBe(runs * 2 * per + runs / 2);
+    // One scan per run, for the first opener of the run (every run holds `per` openers, a closer or a word, and a blank line).
+    let expected = 0;
+    for (let r = 0; r < runs; r++) {
+      expected += scanReads(lines, r * (per + 2), PLAIN);
+    }
+    expect(fresh.reads()).toBe(expected);
+    expect(fresh.reads()).toBeLessThanOrEqual(LINEAR(lines.length));
   });
 
-  // The ends of a span. A boundary read as one line too few or too many gives the same ANSWER (the scan it triggers finds what the span already held, or the span reaches a line it should not) in most places, so these count the reads.
+  // The ends of a span. A boundary read as one line too few or too many gives the same ANSWER (the scan it triggers finds what the span already held, or the span reaches a line it should not) in most places, so these count the reads: after the first scan, nothing is read.
   it("answers a question asked again, and a question on the closer's own line, without reading a line", () => {
     const lines = ["word", "word", "```", "word"];
     const counting = counted(lines);
     const read = makeConsumedCloserLine(counting.lines);
     expect(read(1, PLAIN)).toBe(2);
     const afterFirst = counting.reads();
-    expect(afterFirst).toBe(4); // lines 1 and 2, twice each
+    expect(afterFirst).toBeGreaterThan(0);
     expect(read(1, PLAIN)).toBe(2); // the same question again
     expect(read(2, PLAIN)).toBe(2); // the closer's own line is the end of the span
     expect(counting.reads()).toBe(afterFirst);
@@ -470,7 +574,7 @@ describe("consumedCloserLine: the cost, as lines read", () => {
     const readStopped = makeConsumedCloserLine(stopped.lines);
     expect(readStopped(0, PLAIN)).toBe(-1);
     const afterStop = stopped.reads();
-    expect(afterStop).toBe(5); // lines 0 and 1 twice each, and the blank line's trim()
+    expect(afterStop).toBeGreaterThan(0);
     expect(readStopped(0, PLAIN)).toBe(-1);
     expect(readStopped(2, PLAIN)).toBe(-1); // the blank line itself is the end of the span
     expect(stopped.reads()).toBe(afterStop);
@@ -479,26 +583,59 @@ describe("consumedCloserLine: the cost, as lines read", () => {
     const readRan = makeConsumedCloserLine(ran.lines);
     expect(readRan(0, PLAIN)).toBe(-1);
     const afterRun = ran.reads();
-    expect(afterRun).toBe(4);
+    expect(afterRun).toBeGreaterThan(0);
     expect(readRan(1, PLAIN)).toBe(-1);
     expect(readRan(2, PLAIN)).toBe(-1); // lines.length is the end of the span
     expect(ran.reads()).toBe(afterRun);
   });
 
+  // A scan of ONE line is a span too (the review's M10: a scan that read a single line was not kept, so the same question asked again read it again).
+  it("keeps a scan of a single line: the same question asked 1,000 times reads that line once", () => {
+    const lines = ["word", "```", "word"];
+    const counting = counted(lines);
+    const read = makeConsumedCloserLine(counting.lines);
+    expect(read(1, PLAIN)).toBe(1);
+    const afterFirst = counting.reads();
+    for (let k = 0; k < 1_000; k++) {
+      expect(read(1, PLAIN)).toBe(1);
+    }
+    expect(counting.reads()).toBe(afterFirst);
+  });
+
+  // A span is not narrowed by the questions it answers (the review's M12: a hit narrowed the span to the question, so a question back toward the start of the span read the run again).
+  it("keeps the whole span through questions that jump about inside it", () => {
+    const n = 1_000;
+    const lines = Array.from({ length: n }, () => "```text i");
+    const counting = counted(lines);
+    const read = makeConsumedCloserLine(counting.lines);
+    expect(read(1, PLAIN)).toBe(-1);
+    const afterFirst = counting.reads();
+    for (const from of [500, 2, 700, 3, 900, 4, 800, 1, 999, 2, 1_000]) {
+      expect(read(from, PLAIN)).toBe(-1);
+    }
+    expect(counting.reads()).toBe(afterFirst);
+  });
+
+  // The key is the five fields, not the opener (the review's M08 and M09: the key was the object itself, or the whole opener with its line number; both gave the same partition on the unit rows, whose openers are one shared object, and only the 16,000-opener clock rows killed them).
+  it("shares a span between openers that are different objects with the same five fields and other fields besides", () => {
+    const n = 1_000;
+    const lines = Array.from({ length: n }, () => "```text i");
+    const extras = (at: number): object => ({ startLine: at, quoted: false, lang: "", contentStart: 0, boundColumn: null });
+    const openers: Array<readonly [number, CloserShape]> = lines.map((_, at) => [at, { ...PLAIN, columns: [...PLAIN.columns], ...extras(at) }] as const);
+    const fresh = counted(lines);
+    expect(askAll(fresh.lines, openers, makeConsumedCloserLine)).toEqual(new Array<number>(n).fill(-1));
+    expect(fresh.reads()).toBe(scanReads(lines, 0, PLAIN));
+  });
+
   it("scans afresh when asked beyond the closer it found, and the new scan starts where it was asked", () => {
     const n = 500;
     const lines = [...Array.from({ length: n }, () => "```text i"), "```", ...Array.from({ length: n }, () => "```text i"), "```"];
-    const openers: Array<readonly [number, CloserShape]> = [];
-    lines.forEach((line, at) => {
-      if (line === "```text i") {
-        openers.push([at, PLAIN]);
-      }
-    });
+    const openers = openersOf(lines, "```text i");
     const fresh = counted(lines);
     const got = askAll(fresh.lines, openers, makeConsumedCloserLine);
     expect(got).toEqual(askAll(lines, openers, oldMaker));
-    // Each run is scanned once, from the line below its first opener to its closer: n lines, twice each, two runs. The question at the end of the first run (the line of its closer) is inside the first span.
-    expect(fresh.reads()).toBe(2 * (2 * n));
+    // Two scans, for the first opener of each run; the question at the end of the first run (the line of its closer) is inside the first span.
+    expect(fresh.reads()).toBe(scanReads(lines, 0, PLAIN) + scanReads(lines, n + 1, PLAIN));
   });
 });
 
@@ -509,16 +646,19 @@ describe("consumedCloserLine: the reach of the span", () => {
     const lines = [...Array.from({ length: n }, () => "```text i"), "```", "word", ""];
     const counting = counted(lines);
     const read = makeConsumedCloserLine(counting.lines);
-    // The first opener reads lines 1 .. n (the closer is line n) twice each; every other opener and the closer's own line take the span's answer; the word below the closer is outside the span and is scanned afresh.
+    // The first opener reads lines 1 .. n (the closer is line n); every other opener and the closer's own line take the span's answer; the word below the closer is outside the span and is scanned afresh.
     expect(read(1, PLAIN)).toBe(n);
-    expect(counting.reads()).toBe(2 * n);
+    const oneScan = counting.reads();
+    expect(oneScan).toBeGreaterThanOrEqual(n);
+    expect(oneScan).toBeLessThanOrEqual(LINEAR(n));
     expect(read(n / 2, PLAIN)).toBe(n);
     expect(read(n, PLAIN)).toBe(n); // the closer's own line is the end of the span
-    expect(counting.reads()).toBe(2 * n);
-    expect(read(n + 1, PLAIN)).toBe(-1); // past it: scanned afresh, a word and then the blank line (3 reads: the word twice, the blank once)
-    expect(counting.reads()).toBe(2 * n + 3);
+    expect(counting.reads()).toBe(oneScan);
+    expect(read(n + 1, PLAIN)).toBe(-1); // past it: scanned afresh (a word, then the blank line)
+    const afterTail = counting.reads();
+    expect(afterTail).toBe(oneScan + scanReads(lines, n, PLAIN));
     expect(read(n + 1, PLAIN)).toBe(-1); // and kept
-    expect(counting.reads()).toBe(2 * n + 3);
+    expect(counting.reads()).toBe(afterTail);
   });
 });
 
@@ -573,7 +713,6 @@ describe("consumedCloserLine: the comparison can fail", () => {
       expect(compareSweeps(everyDocument(LINES_A, 4), KINDS, defective(which)).disagreements.length).toBeGreaterThan(0);
     }
   });
-
 });
 
 // A clock row that cannot fail is no row (blank-tail-equivalence.test.ts): the OLD function must say "slow" on the very shape the Session 328 clock rows of pathological-inputs.test.ts time, asked the way `computeRegions` asks.
@@ -584,7 +723,7 @@ describe("consumedCloserLine: the clock rows can fail", () => {
     return { result, ms: performance.now() - started };
   };
 
-  it("the old function takes far longer than the reader on 4,000 refused openers in one run (about 0.4 s against under 5 ms, warm, load 3 to 6)", () => {
+  it("the old function takes far longer than the reader on 4,000 refused openers in one run (about 0.24 s against about 1 ms, warm, the review at load near 90; 0.4 s against under 5 ms at load 3 to 6)", () => {
     const lines = Array.from({ length: 4_000 }, () => "```text i");
     const openers = lines.map((_, at) => [at, KINDS[0]] as const);
     const slow = timed(() => askAll(lines, openers, oldMaker));

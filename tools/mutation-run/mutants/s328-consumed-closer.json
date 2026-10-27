@@ -176,7 +176,7 @@
   "why": "a later question inside a span that found a closer is told there is none"
  },
  {
-  "name": "K23 one map for the process, not the document",
+  "name": "K23 the map is made again for every question",
   "file": "src/core/qmd/model.ts",
   "from": "const lastScan = new Map<string, { from: number; found: number; end: number }>();\n  return (from, open) => {",
   "to": "return (from, open) => {\n    const lastScan = new Map<string, { from: number; found: number; end: number }>();",

@@ -1528,10 +1528,10 @@ describe("Session 327 — a line holding many `$` whose closing `$` never comes"
 
 describe("Session 328 — refused fence openers with no blank line between them", () => {
   // Part (3) of the BACKLOG item "What is still quadratic or deep enough to overflow after Session 311". An opener whose info string pandoc refuses (`text i`, a bare `{r`, a tilde fence under an open paragraph) is read as text, and its closer is swallowed into an inline code span; to find the closer the
-  // scan walks every non-blank line below the opener until a blank line or a closer (`consumedCloserLine`, Session 224). N such openers in one run with no blank line between them are N walks of the same run: N x N tests of `isCloser`. The cure
+  // scan walks every non-blank line below the opener until a blank line or a closer (`consumedCloserLine`, Session 224). N such openers in one run with no blank line between them are N walks of the same run: N(N + 1)/2 tests of `isCloser` between them. The cure
   // (`makeConsumedCloserLine`, one reader per document) keeps the span of the last scan of each KIND of opener (the character, the run length, the container columns, the cell indent) and answers an opener that starts inside it from it; the old
-  // function is the oracle in test/unit/consumed-closer-equivalence.test.ts. A reader with ONE slot instead of one per kind would be linear on every row but the three that interleave kinds, which is why those are here.
-  // The profile (Session 328, `--cpu-prof`, `findHeadings`, 12,000 lines of `` ```text i ``, 2,304 ms in all): the closer regex `FENCE_CLOSE` 48.9%, `consumedCloserLine` 29.0%, `fenceMatchAt` 16.3%, `computeRegions` itself 2.0%; `{r` and `~~~r` at 8,000 lines are 48 / 27 / 16 the same way.
+  // function is the oracle in test/unit/consumed-closer-equivalence.test.ts. A reader with ONE slot instead of one per kind would be linear on every row but the two that interleave kinds (the third of that group, a line of text under each opener, holds one kind and is linear on a one-slot reader too, as the review found), which is why those two are here.
+  // The profile (Session 328, `--cpu-prof`, `findHeadings`, 12,000 lines of `` ```text i ``, 2,304 ms in all): the closer regex `FENCE_CLOSE` 48.9%, `consumedCloserLine` 29.0%, `fenceMatchAt` 16.3%, `computeRegions` itself 2.0%; `{r` and `~~~r` at 8,000 lines are 48 / 27 / 16 and 47 / 26 / 18 in the same profile; the review's, at a load near 100, read 50 / 27 / 18 for the first shape, 49.7 / 20.6 / 15.6 with `computeRegions` at 7.1% for `{r`, and 48.6 / 26.9 / 15.9 for `~~~r`: the split moves by a few points between runs.
   // Fresh process per shape, cold (Session 328, load average 2.7 to 4.1): `` ```text i `` x 3,000 / 6,000 / 12,000 through `findHeadings`: 162 / 576 / 2,243 ms (4x per doubling; the item's 0.56 s and 2.2 s held), through `findAllCells` 160 / 564 / 2,173 ms; at 16,000 lines `findHeadings` 3,795 ms,
   // `findAllCells` 3,828, `buildOutline` 3,807, `indexLabels` 3,891; distinct info strings 3,977; `` ```{r `` 3,873; `~~~{r a}` 3,706; `~~~r` 3,755; a closer at the END of the run 3,863 (every opener walks to it); `> ` quoted openers 703 / 2,728 ms at 8,000 / 16,000; openers inside a list item 1,368 / 5,398 ms;
   // two such runs of 8,000 / 16,000 openers with a closer between them 1,924 / 7,737 ms. A valid info string (`` ```r ``: declined, not refused) is linear (175 ms at 64,000), and so is a blank line after each opener, a closer under each opener, and many short runs, so the controls come first.
@@ -1605,7 +1605,7 @@ describe("Session 328 — refused fence openers with no blank line between them"
     expect(interleaved.map((row) => row.build(4))).toEqual(["```text i\n~~~{r a}\n```text i\n~~~{r a}\n", "```text i\n````text i\n~~~r\n```text i\n"]);
   });
 
-  // A run of 3,000 openers, or a limit of 100 s, would pass on the parent too (it takes 3.7 to 7.7 s on the RED rows), so the boundary of `withinFenceLimit` is pinned, and the sizes the rows are built on.
+  // A run of 3,000 openers, or a limit of 100 s, would pass on the parent too (the RED rows take 3.2 to 4.5 s on the parent, measured by the review at load near 126; the cure takes 23 to 63 ms), so the boundary of `withinFenceLimit` is pinned, and the sizes the rows are built on.
   it("keeps the sizes, the limit and the shapes the Session 328 rows are built on", () => {
     expect([FENCE_FEW, FENCE_LIMIT_MS]).toEqual([3, 1000]);
     expect([withinFenceLimit(FENCE_LIMIT_MS - 1), withinFenceLimit(FENCE_LIMIT_MS)]).toEqual([true, false]);
