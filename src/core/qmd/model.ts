@@ -270,7 +270,7 @@ const COMMONMARK_LIST_MARKER = /^[ \t]*(?:[-+*]|\d{1,9}[.)])(?:[ \t]|$)/;
  * ⚠ **This is now the CommonMark-dialect spelling only, and the sentence that used to follow —
  * that a `#` which is part of a word (`C#`) is preserved — was MEASURED FALSE for the pandoc
  * markdown family** (Session 215; the docstring's own claim is what `BACKLOG` filed). See
- * `ATX_CLOSING_PANDOC` below for the six readers that do not require the space, and
+ * `atxClosingPandocStart` below for the six readers that do not require the space, and
  * `atxClosingRun` for the gate between them.
  *
  * ⚠ **A search starts only at the beginning of a run of blanks (Session 320).** This is an unanchored search that used to begin with `[ \t]+`, so a heading with n blanks inside it was tried from
@@ -280,7 +280,23 @@ const COMMONMARK_LIST_MARKER = /^[ \t]*(?:[-+*]|\d{1,9}[.)])(?:[ \t]|$)/;
  */
 export const ATX_CLOSING = /(?:^|(?<![ \t])[ \t]+)#+[ \t]*$/;
 /**
- * The same closing sequence for the pandoc `markdown*` family, which does **not** require a space
+ * Whether the run of backslashes that ends just before `index` has an EVEN length, none at all included. A character is escaped exactly when an ODD run precedes it, so a
+ * construct is real exactly when this holds. It is the lookbehind `(?<=(?:^|[^\\])(?:\\\\)*)` that `ATX_CLOSING_PANDOC` and `HEADING_ATTRIBUTE` opened with until Session 330;
+ * `atxClosingPandocStart` has the measured cases.
+ *
+ * ⚠ **A function and not a lookbehind, because a pattern that OPENS with a lookbehind runs it at every index** (Session 330). The walk back over a run of backslashes is as long as the
+ * run, so n backslashes cost n(n + 1) / 2 steps before the pattern's first real character was looked at (2.7 s for 100,000 through `findHeadings`, with no `#` and no `{` on the line).
+ * This reads the run once, from the one index it is asked about.
+ */
+function evenBackslashesBefore(text: string, index: number): boolean {
+  let from = index;
+  while (from > 0 && text.charCodeAt(from - 1) === 0x5c) {
+    from--;
+  }
+  return (index - from) % 2 === 0;
+}
+/**
+ * Where the closing-hash run of the pandoc `markdown*` family begins in a heading's text, or -1 where there is none. The run does **not** require a space
  * before it: `# Cal Learning C#` renders `<h1>Cal Learning C</h1>` (Session 215).
  *
  * ⚠ **The reader split is MEASURED over nine readers, one matched set each, and it is 6–3 —
@@ -306,21 +322,41 @@ export const ATX_CLOSING = /(?:^|(?<![ \t])[ \t]+)#+[ \t]*$/;
  * the `#` after it IS a closing run. `(?<!\\)` sees one character and gets the second row wrong;
  * the full ladder is `scratchpad/s217/cal4`'s `d_*_run0`–`run3`, three readers.
  *
- * ⚠ The surviving backslashes stay in the text — this constant only decides WHERE the run is.
+ * ⚠ The surviving backslashes stay in the text — this function only decides WHERE the run is.
  * `decodeHeadingEscapes` then halves them, which is why `d_md_run2` ends as one backslash.
  *
- * ⚠ **Quadratic on a long `#` run inside the heading text** (1,273 ms for 20,000 hashes through `findHeadings`) **and, at about half the cost, on a long backslash run.** Open work: BACKLOG, the Session 318
- * item, part (2).
+ * ⚠ **Until Session 330 this was the regex `ATX_CLOSING_PANDOC`, `(?<=(?:^|[^\\])(?:\\\\)*)#+[ \t]*$`, and it was quadratic** on a long `#` run INSIDE the heading text (1,273 ms for 20,000 hashes through
+ * `findHeadings`: each `#` of the run was a start and read the rest of the run) and, at about half the cost, on a long backslash run (the lookbehind, see `evenBackslashesBefore`). It matched at the
+ * leftmost index `i` with `#` there, an even backslash run before it, and nothing but `#` then blanks after it, and the text after `i` is all it matched. So the only candidates are the first
+ * two `#` of the FINAL run of `#` (blanks may follow it, nothing else): the first when its backslash run is even, otherwise the second when there is one. This finds that run by a scan back from
+ * the end and answers the same index on every string (`test/unit/heading-tail-equivalence.test.ts` keeps the regex as the oracle).
  */
-const ATX_CLOSING_PANDOC = /(?<=(?:^|[^\\])(?:\\\\)*)#+[ \t]*$/;
+export function atxClosingPandocStart(text: string): number {
+  const end = trimEndBlanks(text).length;
+  let start = end;
+  while (start > 0 && text.charCodeAt(start - 1) === 0x23) {
+    start--;
+  }
+  if (start === end) {
+    return -1;
+  }
+  if (evenBackslashesBefore(text, start)) {
+    return start;
+  }
+  return end - start >= 2 ? start + 1 : -1;
+}
+/** Where the closing-hash run of the CommonMark spelling (`ATX_CLOSING`) begins in `text`, or -1: the leftmost match runs to the end of the text. */
+function atxClosingCommonmarkStart(text: string): number {
+  return text.search(ATX_CLOSING);
+}
 /**
- * The closing-sequence spelling this document's reader uses, or `null` where the construct does
+ * The closing-sequence spelling this document's reader uses, as the index where the run begins in a heading's text (-1 where there is none), or `null` where the construct does
  * not exist at all. Setext headings pass `null`: quarto keeps a trailing hash run there under
  * BOTH spellings (`cal2/b_setext` → `h1:Cal Romeo Set#`, `b_setextsp` → `h1:Cal Sierra Set #`),
  * which is what `parseSetextHeadingLine` has always produced.
  */
-function atxClosingRun(commonmarkDialect: boolean): RegExp {
-  return commonmarkDialect ? ATX_CLOSING : ATX_CLOSING_PANDOC;
+function atxClosingRun(commonmarkDialect: boolean): (text: string) => number {
+  return commonmarkDialect ? atxClosingCommonmarkStart : atxClosingPandocStart;
 }
 /**
  * A trailing Pandoc/Quarto heading attribute block — `{#sec-id .class key=val}`.
@@ -335,8 +371,8 @@ function atxClosingRun(commonmarkDialect: boolean): RegExp {
  * The old `(?:^|[ \t]+)` is the same one-line shape Session 215 removed from `ATX_CLOSING` one
  * constant over.
  *
- * ⚠ **The lookbehind counts BACKSLASH PARITY; it is not `(?<!\\)`** (Session 217, and see
- * `ATX_CLOSING_PANDOC` for the same change one constant over). `# Cal Esc \{#sec-esc}` renders
+ * ⚠ **The parity test counts BACKSLASHES; it is not `(?<!\\)`** (Session 217, and see
+ * `atxClosingPandocStart` for the same change one function over). `# Cal Esc \{#sec-esc}` renders
  * `<h1>Cal Esc {#sec-esc}</h1>` — `\{` is an escaped brace, so there is no block at all — while
  * `# Adv Esc Backslash \\{#sec-advesb}` renders `<h1>Adv Esc Backslash \</h1>` **and defines
  * `id="sec-advesb"`**, because `\\` is an escaped backslash and the block after it is real.
@@ -349,16 +385,34 @@ function atxClosingRun(commonmarkDialect: boolean): RegExp {
  * `d_*_attr0`–`attr3`, three readers, plus `pin/p3_twoslash`.
  *
  * ⚠ **Whether the block is HONOURED is a separate question, and it is `headerAttributesDialect`'s**
- * — see `fromHonoursHeaderAttributes`. This constant only says where a block would be.
+ * — see `fromHonoursHeaderAttributes`. This function only says where a block would be.
  *
  * ⚠ Three measured boundaries this deliberately does NOT match, each with a rendered witness in
  * `scratchpad/s216/cal2`: a block with text after it (`b_after`, quarto keeps the braces), a
- * NESTED brace group (`b_nested`, likewise — `[^}]*` cannot cross a `}`, which is correct here
+ * NESTED brace group (`b_nested`, likewise — no `}` may lie between the braces, which is correct here
  * rather than lucky), and a closing hash run AFTER the block (`b_attrrun`, where the `#` is the
  * closing sequence and the braces are ordinary text). Only the LAST block on a line is a block:
  * `# Cal Two {#a}{#b}` renders `Cal Two {#a}` (`b_two_md`).
+ *
+ * ⚠ **Until Session 330 this was the regex `HEADING_ATTRIBUTE`, `(?<=(?:^|[^\\])(?:\\\\)*)\{[^}]*\}[ \t]*$`, and it was quadratic** on a long run of `{` with no `}` after it (190 ms for 20,000 through
+ * `findHeadings`: each `{` was a start and read to the end of the line) and on a long backslash run (the lookbehind, see `evenBackslashesBefore`). The regex matched at the leftmost index `i`
+ * with `{` there, an even backslash run before it, no `}` after it until a last `}` that only blanks follow, and the text after `i` is all it matched. So the closing brace is the LAST
+ * non-blank character, the block opens at a `{` after the `}` before it, and the first such `{` whose backslash run is even is the answer: every one of them reads the same tail, so one that fails
+ * to match would fail them all, and the scan stops at the first. This answers the same index on every string (`test/unit/heading-tail-equivalence.test.ts` keeps the regex as the oracle).
  */
-const HEADING_ATTRIBUTE = /(?<=(?:^|[^\\])(?:\\\\)*)\{[^}]*\}[ \t]*$/;
+export function headingAttributeStart(text: string): number {
+  const close = trimEndBlanks(text).length - 1;
+  if (close < 1 || text.charCodeAt(close) !== 0x7d) {
+    return -1;
+  }
+  // Nothing before the last `}` may lie between the braces: the block opens after the `}` before it.
+  for (let open = text.indexOf("{", text.lastIndexOf("}", close - 1) + 1); open !== -1; open = text.indexOf("{", open + 1)) {
+    if (evenBackslashesBefore(text, open)) {
+      return open;
+    }
+  }
+  return -1;
+}
 /**
  * Every `#identifier` ATOM in a heading attribute block, in source order (Session 219).
  *
@@ -777,7 +831,7 @@ function headingAttributeTokens(content: string, escapedSpaceJoins: boolean): st
  * `*_p14idcolon` — the same id without the backslash — as the agreeing control).
  *
  * ⚠ **Rejecting is the RISKIER direction and the predicate is written to reject only what is
- * measured.** `HEADING_ATTRIBUTE` is the only source of `Heading.id`, so a block wrongly called
+ * measured.** `headingAttributeStart` is the only source of `Heading.id`, so a block wrongly called
  * invalid deletes a `sec-` target the user has a working cross-reference to today; a block
  * wrongly called valid merely reproduces the pre-Session-218 answer. Every rejection below
  * therefore stands on a rendered row.
@@ -2825,7 +2879,7 @@ function fromRequiresSpaceInAtxHeader(line: string): boolean {
  *        (`pin/p4_tightesc_{strict,mmd,php}`).
  *
  * ⚠ **The removal is what made the parity widening SAFE, and the order matters.** Making
- * `HEADING_ATTRIBUTE` even-parity newly matches `#Cal Tg2 Attr \\{#sec-tg2}`, which under
+ * `headingAttributeStart` even-parity newly matches `#Cal Tg2 Attr \\{#sec-tg2}`, which under
  * `markdown_phpextra` would have made this function DECLINE a heading quarto renders — a
  * heading-DELETING regression, and the identical shape that cost Session 216 three commits on
  * this very function. It was found here BEFORE the widening landed, by rendering the call site's
@@ -14952,7 +15006,7 @@ function buildHeading(
   level: number,
   rawText: string,
   line: number,
-  closing: RegExp | null,
+  closing: ((text: string) => number) | null,
   honoursAttributes: boolean,
   escapable: RegExp,
   pandocEscapes: boolean,
@@ -14960,9 +15014,11 @@ function buildHeading(
   blockHtmlRefuses: boolean,
   blockTexRefuses: boolean,
 ): Heading | null {
-  const brace = honoursAttributes ? HEADING_ATTRIBUTE.exec(rawText) : null;
+  // Both strips below run to the end of the text, so removing one is a cut at the index its locator answers.
+  const braceAt = honoursAttributes ? headingAttributeStart(rawText) : -1;
+  const brace = braceAt === -1 ? null : rawText.slice(braceAt);
   // ⚠ **A brace group at the end of a heading is not an attribute block just because it is
-  // there** (Session 218). `HEADING_ATTRIBUTE` says only WHERE a block would be; whether the
+  // there** (Session 218). `headingAttributeStart` says only WHERE a block would be; whether the
   // content IS one is `headingAttributesValid`'s question, and getting it wrong deletes either
   // text the reader sees or a `sec-` target the document defines. The content is read RAW, before
   // `decodeHeadingEscapes` — a predicate run on decoded text would see `{#sec-a:x}` where the
@@ -14970,7 +15026,7 @@ function buildHeading(
   const attribute =
     brace &&
     headingAttributesValid(
-      brace[0].replace(/^\{/, "").replace(/\}[ \t]*$/, ""),
+      brace.replace(/^\{/, "").replace(/\}[ \t]*$/, ""),
       commonmarkDialect,
       pandocEscapes,
     )
@@ -14978,14 +15034,17 @@ function buildHeading(
       : null;
   const id = attribute
     ? headingAttributeId(
-        attribute[0].replace(/^\{/, "").replace(/\}[ \t]*$/, ""),
+        attribute.replace(/^\{/, "").replace(/\}[ \t]*$/, ""),
         commonmarkDialect,
         pandocEscapes,
       )
     : undefined;
-  let text = attribute ? rawText.replace(HEADING_ATTRIBUTE, "") : rawText;
+  let text = attribute ? rawText.slice(0, braceAt) : rawText;
   if (closing !== null) {
-    text = text.replace(closing, "");
+    const closingAt = closing(text);
+    if (closingAt !== -1) {
+      text = text.slice(0, closingAt);
+    }
   }
   // ⚠ **AFTER both strips, and the order is a measured constraint rather than a preference**
   // (Session 217). Decoding first turns `\{#sec-esc}` into `{#sec-esc}`, which the attribute
@@ -15013,7 +15072,7 @@ function buildHeading(
  *
  * ⚠ `commonmarkDialect` decides WHICH closing-hash spelling applies — the run needs a space
  * before it under `gfm`/`commonmark`/`commonmark_x` and does not under the pandoc `markdown*`
- * family. See `ATX_CLOSING_PANDOC` for the nine-reader table.
+ * family. See `atxClosingPandocStart` for the nine-reader table.
  *
  * ⚠ **`honoursAttributes` is a SEPARATE reader question and the two answers do not line up** —
  * `commonmark_x` is a CommonMark dialect that DOES honour the attribute block, while
