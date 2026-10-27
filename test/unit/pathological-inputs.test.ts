@@ -1808,3 +1808,133 @@ describe("Session 330 — a heading line holding a long run of `#`, backslashes 
     ]);
   });
 });
+
+describe("Session 331 — consecutive lines that each open a container column nothing closes", () => {
+  // Part (1) of the BACKLOG item "More quadratic and stack-overflow shapes found by Session 319's sweep and review". `computeRegions` keeps a stack of container content columns (`contentColumns`, with a kind and a CommonMark flag per entry) and pushes
+  // one for every line that opens a container: a definition marker (`: a`, `~ a`, `[^1]: a`, at any indent, in a quote) and the list markers the model over-accepts (`A. a`, `I. a`, `aa. a`). A line pops only when the line above it is blank
+  // or when it is a marker that closes a LIST item, and none of these does, so N such lines leave a stack of N entries and each of the dozen readers a line asks (`columnKinds.includes`, `.some`, `.every`, `indentedCodeLine`, the `[0, ...contentColumns]`
+  // spreads, `blockQuoteContentStart`) reads all N: N(N + 1)/2 steps between them. Under `from: commonmark_x` a `~ a` line is also a paragraph line and the setext-title test scans the paragraph so far, spreading the stack for each of its lines:
+  // cubic.
+  // Profile (Session 331, `node --cpu-prof`, load 7 to 8): `: a` x 16,000 `computeRegions` itself 40.7%, `scanRegions` 27.9% (callees inlined), the `.every` and `.some` callbacks 10.6%, `indentedCodeLine` 5.1%, `blockQuoteContentStart` 4.0%;
+  // `~ a` x 2,000 under `commonmark_x` 53% in the paragraph-interrupt callback and 37% in `computeRegions`.
+  // Fresh process per size, cold, `findHeadings`, load 6 to 8 (Session 331): `: a` x 2,000 / 4,000 / 8,000 / 16,000 135 / 319 / 990 / 3,927 ms (4x per doubling), `~ a` 131 / 342 / 1,073 / 3,933, `  : a` 3,909, `> : a` 3,956, `[^1]: a` 3,940,
+  // `A. a` 4,130, `I. a` 4,140, `aa. a` 4,120; alternating `: a` and `A. a` 4,262 ms at 16,000 lines; `: a` and `  : a` alternating 4,046; every other reader of the regions pays the same (`findAllCells`, `indexLabels`, `buildOutline` 1.1 s at 8,000);
+  // a blank line after each line 92 ms at 16,000; `- a` (a bullet pops its predecessor) 76 ms. Under `commonmark_x`: `~ a` x 250 / 500 / 1,000 / 2,000 52 / 232 / 1,556 / 11,864 ms (8x per doubling), `: a` (not a paragraph line there) linear.
+  // The TAIL of a row is what makes its answer depend on the stack: `# After` after a blank line is a heading whatever the stack held; an indented `# H` is a heading only while the container's column is still known (`: a`, `~ a`, `[^1]: a`, `aa. a`:
+  // yes, column 4 or 3; `A. a`, `I. a`: no), and for a stack that had lost its column it would be indented code.
+  // The paragraph factor of that cubic is the BACKLOG item "Eight more regexes and one paragraph reader" part (9): plain `a` lines under `commonmark_x` take 373 / 1,382 / 5,406 / 20,967 ms at 2,000 / 4,000 / 8,000 / 16,000 with an EMPTY stack, so the
+  // `commonmark_x` row below is relative to that floor and not an absolute limit.
+  const COLUMN_LIMIT_MS = 1000;
+  const COLUMN_FEW = 3;
+  const withinColumnLimit = (ms: number): boolean => ms < COLUMN_LIMIT_MS;
+  type ColumnEntry = "headings" | "cells" | "labels";
+  type ColumnRow = { site: string; entry: ColumnEntry; many: number; build: (count: number) => string; answer: (count: number) => unknown };
+  const columnHeadings = (text: string): Array<[number, string, number]> => findHeadings(text).map((heading): [number, string, number] => [heading.level, heading.text, heading.line]);
+  const readColumns = (entry: ColumnEntry, text: string): unknown => (entry === "headings" ? columnHeadings(text) : entry === "cells" ? findAllCells(text).map((cell) => [cell.lang, cell.startLine, cell.endLine]) : indexLabels(text).map((label) => [label.id, label.line]));
+  const AFTER = "\n# After\n";
+  const INDENTED = "\n    # H\n";
+  const CELL = "\n```{r}\n1\n```\n";
+  const LABEL = "\n# H {#sec-h}\n";
+  const none = (): unknown => [];
+  const afterLine = (count: number): unknown => [[1, "After", count + 1]];
+  const indentedLine = (count: number): unknown => [[1, "H", count + 1]];
+  const lines = (count: number, at: (i: number) => string): string => Array.from({ length: count }, (_, i) => `${at(i)}\n`).join("");
+
+  const COLUMN_ROWS: ColumnRow[] = [
+    // Controls: linear on the parent too (the blank line, or the bullet, closes what the line above opened), so they cannot be RED there; they hold the cure to the same answers at the same size.
+    { site: "control: 14,000 `: a`, a blank line after each (the blank line closes the column)", entry: "headings", many: 14_000, build: (count) => ": a\n\n".repeat(count), answer: none },
+    { site: "control: 64,000 `- a` (each bullet closes the item above it)", entry: "headings", many: 64_000, build: (count) => "- a\n".repeat(count), answer: none },
+    { site: "control: 14,000 `A. a`, a blank line after each", entry: "headings", many: 14_000, build: (count) => "A. a\n\n".repeat(count), answer: none },
+    { site: "control: 5,000 definition lists of three `: a` and a blank line", entry: "headings", many: 5_000, build: (count) => ": a\n: a\n: a\n\n".repeat(count), answer: none },
+
+    // The eight shapes of the item, one per line, no blank line between them, a heading after a blank line at the end.
+    { site: "run: 14,000 `: a` (a definition marker)", entry: "headings", many: 14_000, build: (count) => ": a\n".repeat(count) + AFTER, answer: afterLine },
+    { site: "run: 14,000 `~ a` (the tilde marker)", entry: "headings", many: 14_000, build: (count) => "~ a\n".repeat(count) + AFTER, answer: afterLine },
+    { site: "run: 14,000 `  : a` (indented two columns)", entry: "headings", many: 14_000, build: (count) => "  : a\n".repeat(count) + AFTER, answer: afterLine },
+    { site: "run: 14,000 `> : a` (inside a block quote)", entry: "headings", many: 14_000, build: (count) => "> : a\n".repeat(count) + AFTER, answer: afterLine },
+    { site: "run: 14,000 `[^1]: a` (a footnote definition)", entry: "headings", many: 14_000, build: (count) => "[^1]: a\n".repeat(count) + AFTER, answer: afterLine },
+    { site: "run: 14,000 `A. a` (a letter marker pandoc takes for an initial)", entry: "headings", many: 14_000, build: (count) => "A. a\n".repeat(count) + AFTER, answer: afterLine },
+    { site: "run: 14,000 `I. a` (a roman numeral)", entry: "headings", many: 14_000, build: (count) => "I. a\n".repeat(count) + AFTER, answer: afterLine },
+    { site: "run: 14,000 `aa. a` (a two-letter marker)", entry: "headings", many: 14_000, build: (count) => "aa. a\n".repeat(count) + AFTER, answer: afterLine },
+
+    // The tail an indented heading: its answer depends on the container column the stack holds.
+    { site: "run: 14,000 `: a`, then an indented heading (a heading: the column 4 is known)", entry: "headings", many: 14_000, build: (count) => ": a\n".repeat(count) + INDENTED, answer: indentedLine },
+    { site: "run: 14,000 `~ a`, then an indented heading", entry: "headings", many: 14_000, build: (count) => "~ a\n".repeat(count) + INDENTED, answer: indentedLine },
+    { site: "run: 14,000 `[^1]: a`, then an indented heading", entry: "headings", many: 14_000, build: (count) => "[^1]: a\n".repeat(count) + INDENTED, answer: indentedLine },
+    { site: "run: 14,000 `aa. a`, then an indented heading", entry: "headings", many: 14_000, build: (count) => "aa. a\n".repeat(count) + INDENTED, answer: indentedLine },
+    { site: "run: 14,000 `A. a`, then an indented heading (not a heading: column 3 plus code depth)", entry: "headings", many: 14_000, build: (count) => "A. a\n".repeat(count) + INDENTED, answer: none },
+
+    // Mixed kinds and columns: a stack that does not repeat one entry, so an encoding of runs would not help.
+    { site: "run: 14,000 lines alternating `: a` and `A. a` (a definition column and a list column)", entry: "headings", many: 14_000, build: (count) => lines(count, (i) => (i % 2 === 0 ? ": a" : "A. a")) + AFTER, answer: afterLine },
+    { site: "run: 14,000 lines alternating `: a` and `  : a` (two columns)", entry: "headings", many: 14_000, build: (count) => lines(count, (i) => (i % 2 === 0 ? ": a" : "  : a")) + AFTER, answer: afterLine },
+    { site: "run: 14,000 lines cycling `: a`, `A. a` and `[^1]: a` (three kinds)", entry: "headings", many: 14_000, build: (count) => lines(count, (i) => [": a", "A. a", "[^1]: a"][i % 3]) + AFTER, answer: afterLine },
+    { site: "run: 14,000 lines cycling a definition marker at three indents", entry: "headings", many: 14_000, build: (count) => lines(count, (i) => ["    : a", ": a", "  : a"][i % 3]) + AFTER, answer: afterLine },
+
+    // The same scan serves every reader of the regions.
+    { site: "entry findAllCells: 12,000 `: a`, then a cell", entry: "cells", many: 12_000, build: (count) => ": a\n".repeat(count) + CELL, answer: (count) => [["r", count + 1, count + 3]] },
+    { site: "entry indexLabels: 12,000 `~ a`, then a labelled heading", entry: "labels", many: 12_000, build: (count) => "~ a\n".repeat(count) + LABEL, answer: (count) => [["sec-h", count + 1]] },
+  ];
+
+  it.each(COLUMN_ROWS.map((row) => [row.site, row] as const))("%s: is read in linear time, and the answer is the stated one with 3 units and with the long run", (_site, row) => {
+    expect(readColumns(row.entry, row.build(COLUMN_FEW))).toEqual(row.answer(COLUMN_FEW));
+    const longText = row.build(row.many);
+    const { result, ms } = timed(() => readColumns(row.entry, longText));
+    expect(result).toEqual(row.answer(row.many));
+    expect({ ms, within: withinColumnLimit(ms) }).toMatchObject({ within: true });
+  });
+
+  // `~ a` under `from: commonmark_x` is a paragraph line, and the setext-title test scans the paragraph so far for each of its lines (part (9) of the other item), spreading the stack for each: cubic on the parent (5.2 s at 1,500 against 0.22 s for 1,500 plain
+  // lines, ratio 23, load 10). The floor is the plain paragraph, so the row is relative: it holds on any machine, and it keeps holding once part (9) makes the floor linear (the 200 ms is the slack for a clock that reads a few milliseconds).
+  it("`~ a` x 1,500 under from: commonmark_x costs no more than three times the same number of plain lines, which is the paragraph scan's own floor", () => {
+    const head = "---\nfrom: commonmark_x\n---\n\n";
+    const plain = timed(() => columnHeadings(`${head}${"a\n".repeat(1_500)}${AFTER}`));
+    const tilde = timed(() => columnHeadings(`${head}${"~ a\n".repeat(1_500)}${AFTER}`));
+    expect(tilde.result).toEqual([[1, "After", 1_500 + 5]]);
+    expect(plain.result).toEqual([[1, "After", 1_500 + 5]]);
+    expect({ tilde: tilde.ms, plain: plain.ms, within: tilde.ms <= 3 * plain.ms + 200 }).toMatchObject({ within: true });
+  }, 60_000);
+
+  it("builds a different text for every row", () => {
+    const small = COLUMN_ROWS.map((row) => row.build(COLUMN_FEW));
+    // The TEXT alone, not the entry with it: `scanRegions` keeps the last two scans by text (`regionsCache`), so a row whose text another row read just before it is served from the cache and cannot be RED.
+    const long = COLUMN_ROWS.map((row) => row.build(row.many));
+    expect(new Set(long).size).toBe(COLUMN_ROWS.length);
+    // Two rows may share a small text only if they differ in size or entry.
+    const bySmall = new Map<string, string[]>();
+    COLUMN_ROWS.forEach((row, k) => bySmall.set(small[k], [...(bySmall.get(small[k]) ?? []), `${row.entry}:${row.many}`]));
+    for (const sizes of bySmall.values()) {
+      expect(new Set(sizes).size).toBe(sizes.length);
+    }
+  });
+
+  // A run of 3,000 lines, or a limit of 100 s, would pass on the parent too (the RED rows take 2.7 to 4.3 s on the parent at a load near 8), so the boundary of `withinColumnLimit` is pinned, and the sizes the rows are built on.
+  it("keeps the sizes, the limit and the shapes the Session 331 rows are built on", () => {
+    expect([COLUMN_FEW, COLUMN_LIMIT_MS]).toEqual([3, 1000]);
+    expect([withinColumnLimit(COLUMN_LIMIT_MS - 1), withinColumnLimit(COLUMN_LIMIT_MS)]).toEqual([true, false]);
+    expect(COLUMN_ROWS.map((row) => `${row.entry} ${row.many} ${JSON.stringify(row.build(2))}`)).toEqual([
+      'headings 14000 ": a\\n\\n: a\\n\\n"',
+      'headings 64000 "- a\\n- a\\n"',
+      'headings 14000 "A. a\\n\\nA. a\\n\\n"',
+      'headings 5000 ": a\\n: a\\n: a\\n\\n: a\\n: a\\n: a\\n\\n"',
+      'headings 14000 ": a\\n: a\\n\\n# After\\n"',
+      'headings 14000 "~ a\\n~ a\\n\\n# After\\n"',
+      'headings 14000 "  : a\\n  : a\\n\\n# After\\n"',
+      'headings 14000 "> : a\\n> : a\\n\\n# After\\n"',
+      'headings 14000 "[^1]: a\\n[^1]: a\\n\\n# After\\n"',
+      'headings 14000 "A. a\\nA. a\\n\\n# After\\n"',
+      'headings 14000 "I. a\\nI. a\\n\\n# After\\n"',
+      'headings 14000 "aa. a\\naa. a\\n\\n# After\\n"',
+      'headings 14000 ": a\\n: a\\n\\n    # H\\n"',
+      'headings 14000 "~ a\\n~ a\\n\\n    # H\\n"',
+      'headings 14000 "[^1]: a\\n[^1]: a\\n\\n    # H\\n"',
+      'headings 14000 "aa. a\\naa. a\\n\\n    # H\\n"',
+      'headings 14000 "A. a\\nA. a\\n\\n    # H\\n"',
+      'headings 14000 ": a\\nA. a\\n\\n# After\\n"',
+      'headings 14000 ": a\\n  : a\\n\\n# After\\n"',
+      'headings 14000 ": a\\nA. a\\n\\n# After\\n"',
+      'headings 14000 "    : a\\n: a\\n\\n# After\\n"',
+      'cells 12000 ": a\\n: a\\n\\n```{r}\\n1\\n```\\n"',
+      'labels 12000 "~ a\\n~ a\\n\\n# H {#sec-h}\\n"',
+    ]);
+  });
+});
