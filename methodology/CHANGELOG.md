@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-27 · [ad hoc] SESSION_NOTES trim (Session 329): the Session 325 handoff evaluation and the Session 326 self-assessment dropped, the three newest pairs kept
+
+The retention rule of Session 256 (the live file holds at most three close-out pairs), applied at Phase 3D in `fc6a707` after the close-out commit `4cebebb`; the trim commit holds no other edit to the file (a pure deletion of 33 lines at its end). The dropped pair is one command away: `git show 4cebebb:methodology/SESSION_NOTES.md`. The file reads 273 lines (`context_budget.py`: ok for it, 35,629 B of 120,000 after the trim, 41,189 B before, and no line over 280 B; the historical ledgers still read over, as before this session).
+
 ### 2026-10-27 · [BL-What is still quadratic or deep enough to overflow after Session 311, every shape re-measured on the final tree (`066cfcc1`) and none of it in that session's diff] Session 329: part (5) found already closed -- the front matter block scalar by `778ea19` (Session 314), the `---` groups by `b63fafc` (Session 322); pinned, nothing cured
 
 g02's thirteenth session (the operator chose part (5) at the Phase 0 picker, the option marked recommended, placed by finishing a feature: Sessions 326 to 328 closed parts (3) and (6) of the same item; claim `66eba23`, 2026-10-27). The item said a `description: |` block scalar of 10,000 indented lines takes 2.1 s in `resolveDocumentEngine` and 33,000 four-line groups of `---` / `from: gfm` / `---` / `text` take 22 s in `findHeadings`. Timed first, in a fresh process on HEAD, neither is slow. The session pinned the two documents, found which commits closed them and corrected the item. No line of `src/` changed (`git diff af3d653 HEAD -- src` is empty).
