@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-27 · [BL-What is still quadratic or deep enough to overflow after Session 311, every shape re-measured on the final tree (`066cfcc1`) and none of it in that session's diff] Session 328 (in progress): claim -- g02 twelfth session, part (3), unclosed fence-like lines with no blank line between them are quadratic
+
+Session claimed. Phase 0 found both ledger frontiers at HEAD (`b029af9`, gap 0), no pending receipt (the one grep hit is prose inside a gotcha), no merges, the ratchet 2/2 (results bba236856bad, the S327 receipt's citation holds), the dashboard at 76/100 "critical" with 18 vulnerabilities (all dev toolchain: `npm audit --omit=dev` finds 0, re-run here; the dashboard copy is v2.22.0 against canonical v2.23.0, not synced), and the working tree clean apart from the dashboard's history line. The operator chose part (3) at the Phase 0 picker, the option marked recommended (placed by finishing a feature: Session 327 closed part (6) of the same item; the plan's candidate row does not list this item, so the operator's pick settles it). Phase 3F replaces this entry with the outcome.
+
 ### 2026-10-27 · [ad hoc] Session 327: the quality-gate run cited in the receipt -- 2/2 pass at 946abd9
 
 `quality_ratchet.py --run`, after the ledger commits (Learning 683): ledger-lag 0 and release-gate 0 (`npm run check-package`), 2 pass, 0 fail, 0 unmeasured, results `bba236856bad`, manifest `334939914945`. The `HANDOFFS.md` receipt's `quality_ratchet:` line says the same.

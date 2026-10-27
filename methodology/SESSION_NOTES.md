@@ -37,6 +37,12 @@ return, U+3000, non-ASCII digits) and each table its width (lines 300 and 70,000
 macOS `sed` rejects `|` as a delimiter and `sed -i` needs `''`; zsh rejects a bare `=====` argument to echo. A foreground `sleep` is blocked: use a background run or the Monitor tool. After answering a direct question, STOP and wait (memory).
 (13) This session crossed midnight (started 2026-10-26, closed 2026-10-27); its ledger entries are dated by the close.
 
+### What Session 328 Did
+**Deliverable:** g02 of the backlog ordering plan, twelfth session: the Session 311 item's part (3), unclosed fence-like lines with no blank line between them are quadratic (`` ```text i `` x N), the reviewer's attribution is `consumedCloserLine` (IN PROGRESS)
+**Started:** 2026-10-27
+**Status:** Session claimed. Work beginning. Strict TDD: time the shape firsthand in a fresh process with its load beside it, cold and warm and by doubling, including the item's note that the lines need NOT be distinct (`` ```{r `` repeated, 0.98 s at 8,000); profile BEFORE reading the cure (Learning 739; the item says "not re-profiled"); size RED rows from the WARM figure with the controls first (816); then a linear spelling proved against the old one (the old function is the oracle). Operator decision at the Phase 0 picker: part (3), the option marked recommended (placed by finishing a feature; the plan's candidate row does not list this item).
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
 ### What Session 327 Did
 **Deliverable:** g02 of the backlog ordering plan, eleventh session: the `$` half of the Session 311 item's part (6), `findMathRegions` on an unclosed `$` run (`$a ` repeated) is quadratic -- DONE; claim `9d16619`
 **Started:** 2026-10-26 (closed 2026-10-27)
