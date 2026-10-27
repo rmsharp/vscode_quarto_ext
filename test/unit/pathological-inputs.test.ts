@@ -1433,8 +1433,8 @@ describe("Session 326 — a line holding many `{` whose `}` never comes", () => 
 
 describe("Session 327 — a line holding many `$` whose closing `$` never comes", () => {
   // The `$` half of part (6) of the BACKLOG item "What is still quadratic or deep enough to overflow after Session 311". `findMathRegions` asks, for every `$` that may open inline math (a `$` whose right neighbour is not a blank), where its
-  // closer is, and a line with NO closer after it was read to the end for each opener: a line of N unclosed `$` was N reads of the same tail. The profile (Session 327, `--cpu-prof`, 10,667 of `$a `): `scan` and its inlined closer loop 52%,
-  // `isSpace` and the `\s` regex it tests 37%, `findInlineClose` 14%; the model's own `findBodyLines` takes 6 ms on the same text. A closer is a `$` that is not escaped, has a non-blank on its left and no digit on its right: a test of ONE
+  // closer is, and a line with NO closer after it was read to the end for each opener: a line of N unclosed `$` was N reads of the same tail. The profile (Session 327, `--cpu-prof`, 10,667 of `$a `): `scan` 39%,
+  // `findInlineClose` 14%, `isSpace` and the `\s` regex it tests 37% (self time, 1,463 ms in all); the model's own `findBodyLines` takes 6 ms on the same text. A closer is a `$` that is not escaped, has a non-blank on its left and no digit on its right: a test of ONE
   // position, never of the opener, and that is why three different reasons to refuse a closer cost the same.
   // Fresh process per shape, cold (a warm call was within 5%), load average 6 to 8 (Session 327): `$a ` x 2,667 / 5,334 / 10,667 / 21,334 (8,001 to 64,002 characters): 107 / 374 / 1,407 / 5,441 ms (4x per doubling); `$a$1 ` (the closer
   // is followed by a digit) x 3,200 / 6,400 / 12,800 / 25,600: 506 / 1,887 / 7,525 / 30,064 ms; `$a \$ ` (the closer is escaped) x 2,000 / 4,000 / 8,000 / 16,000: 95 / 339 / 1,339 / 5,381 ms. A line whose closers all CLOSE (`$a$ `), a `$` followed by
