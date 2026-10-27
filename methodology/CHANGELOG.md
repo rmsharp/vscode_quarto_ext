@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-27 · [ad hoc] SESSION_NOTES trim (Session 327): the Session 323 handoff evaluation and the Session 324 self-assessment dropped, the three newest pairs kept
+
+The retention rule of Session 256 (the live file holds at most three close-out pairs), applied at Phase 3D in `6189a8a` after the close-out commit `60c16e7`; the trim commit holds no other edit to the file (a pure deletion of 36 lines at its end). The dropped pair is one command away: `git show 60c16e7:methodology/SESSION_NOTES.md`. The file reads 244 lines (`context_budget.py`: ok for it, 34,389 B of 120,000 after the trim, 40,028 B before; the three historical ledgers still read over, as before this session).
+
 ### 2026-10-27 · [BL-What is still quadratic or deep enough to overflow after Session 311, every shape re-measured on the final tree (`066cfcc1`) and none of it in that session's diff] Session 327: part (6) `$` half closed -- `findMathRegions` reads an unclosed `$` once, not once per later `$`
 
 g02's eleventh session (the operator chose the `$` half at the Phase 0 picker; claim `9d16619`, 2026-10-26; closed 2026-10-27, after midnight). Scope, stated: the item's `$a ` shape is one of THREE with one cause. `findMathRegions` asked, for every `$` that may open inline math, where its closer is, and read to the end of the line when there was none. A closer is a test of the `$` alone (not escaped, a non-blank to its left, no digit to its right), so a digit to its right (`$a$1 `) and a backslash before it (`$a \$ `) cost what no closer at all costs.
