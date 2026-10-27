@@ -201,10 +201,13 @@ describe("Session 331 — ColumnStack hands out the distinct columns as a snapsh
 
   it("does nothing when asked to pop an empty stack, as popping an empty array did", () => {
     const stack = new ColumnStack();
+    const beforeEmptyPop = stack.columns();
     stack.pop();
     stack.popAbove(0);
     expect(stack.length).toBe(0);
     expect(stack.columns()).toEqual([]);
+    // nothing changed, so the array handed out before is still the one handed out
+    expect(stack.columns()).toBe(beforeEmptyPop);
     stack.push(4, "list", true);
     stack.pop();
     stack.pop();

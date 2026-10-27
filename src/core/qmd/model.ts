@@ -1404,8 +1404,8 @@ const ORDERED_MARKER_HERE = new RegExp("^" + ORDERED_MARKER_SRC);
  * strips at EVERY underline column: `1.  alpha` / `2.  bravo` / `---` renders `ol>h2` and
  * `h2:bravo` where this row keeps `2.`. Answering it needs the KIND and DELIMITER of the open
  * list — `-   alpha` / `1.  bravo` / `---` and `1.  alpha` / `1)  bravo` / `---` both start a NEW
- * list and both KEEP the marker (`r2/a_kind_ul_ol`, `a_kind_dot_par`) — and `columnKinds` carries
- * only `list`/`definition`, so it is a container-state change with its own measurement. Seven
+ * list and both KEEP the marker (`r2/a_kind_ul_ol`, `a_kind_dot_par`) — and the column stack's kind
+ * (`ColumnStack`, Session 331; `columnKinds` before it) carries only `list`/`definition`, so it is a container-state change with its own measurement. Seven
  * rendered witnesses, pinned as R1; no heading is gained or lost by leaving it, since every one of
  * those rows already reported the marker before this session.
  *
@@ -10418,7 +10418,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
     // siblings and absorb a following marker like any other line — `:   term body` /
     // `-   bravo` / `    ---` renders a bare `<p>` and the footnote twin renders nothing at all
     // (`r3/p_defthen`, `p_fn`) — which is the same asymmetry Session 198 measured for the pop
-    // rule directly above, read off the same `columnKinds` array. Guarded at G7.
+    // rule directly above, read off the same kinds the column stack keeps. Guarded at G7.
     let siblingListItemOpensHere = false;
     // ⚠ **AND WHETHER A LIST ITEM OPENS HERE AT ALL, sibling or not (Session 248).** The two flags
     // beside this one both carry `listOpenAboveThisLine`, so neither can answer for the FIRST
@@ -10754,7 +10754,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
     // ⚠ Inside or after a QUOTE the `[0]` stays (Session 296, the product grid `scratchpad/s296/prod`): this model's quote extent counts an unmarked `## In` as a lazy
     // line where the CommonMark readers end the quote at it, so a widened window made a quoted opener swallow the heading below the quote's real end.
     // ⚠ Only a column opened by a marker CommonMark HAS counts under a CommonMark reader (Session 296): `a.`, `A)`, `i.`, `#.` and `J. Smith` are paragraphs there, though this
-    // model keeps a pandoc fancy-list column for them (`columnIsCommonmark` says which).
+    // model keeps a pandoc fancy-list column for them (the column stack's CommonMark flag says which).
     // `commonmark_x` has pandoc's fancy lists (unless `-fancy_lists`), so every column is real there.
     const cmColumns = commonmarkDialect && !fancyListsReader ? columnStack.commonmarkColumns() : columnStack.columns();
     const fenceColumns = paragraphOpen && (!commonmarkDialect || stripQuote || quoteOpen) ? [0] : [0, ...cmColumns];

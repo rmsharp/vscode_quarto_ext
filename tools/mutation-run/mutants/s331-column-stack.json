@@ -1,0 +1,562 @@
+[
+  {
+    "name": "C01 deepest definition column: the comparison flipped",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "column > definitionBelow ? column : definitionBelow",
+    "to": "column < definitionBelow ? column : definitionBelow",
+    "expect": "killed"
+  },
+  {
+    "name": "C02 deepest definition column taken for list entries",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "kind === \"definition\" && column > definitionBelow",
+    "to": "kind === \"list\" && column > definitionBelow",
+    "expect": "killed"
+  },
+  {
+    "name": "C03 latest commonmark entry: the flag inverted",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "this.lastCommonmark.push(commonmark ? at :",
+    "to": "this.lastCommonmark.push(!commonmark ? at :",
+    "expect": "killed"
+  },
+  {
+    "name": "C04 latest commonmark entry: nothing carried up from below",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "at === 0 ? -1 : this.lastCommonmark[at - 1]);",
+    "to": "-1);",
+    "expect": "killed"
+  },
+  {
+    "name": "C05 list parent at push: always the page edge",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "const parent = at === 0 ? 0 : this.cols[at - 1];\n      this.listParents.set(",
+    "to": "const parent = 0;\n      this.listParents.set(",
+    "expect": "killed"
+  },
+  {
+    "name": "C06 list parent at pop: always the page edge",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "const parent = at === 0 ? 0 : this.cols[at - 1];\n      this.release(this.listParents, parent);",
+    "to": "const parent = 0;\n      this.release(this.listParents, parent);",
+    "expect": "killed"
+  },
+  {
+    "name": "C07 pop forgets a list entry",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "      this.lists--;\n",
+    "to": "",
+    "expect": "killed"
+  },
+  {
+    "name": "C08 push forgets a list entry",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "      this.lists++;\n",
+    "to": "",
+    "expect": "killed"
+  },
+  {
+    "name": "C09 the column count never drops a key",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "    if (before > 1) {",
+    "to": "    if (before > 0) {",
+    "expect": "killed"
+  },
+  {
+    "name": "C10 pop does not release the column",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "    if (this.release(this.held, column)) {\n      this.distinct = null;\n    }\n    if (commonmark === true",
+    "to": "    if (false) {\n      this.distinct = null;\n    }\n    if (commonmark === true",
+    "expect": "killed"
+  },
+  {
+    "name": "C11 pop does not release the commonmark column",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "if (commonmark === true && this.release(this.heldCommonmark, column)) {",
+    "to": "if (false && this.release(this.heldCommonmark, column)) {",
+    "expect": "killed"
+  },
+  {
+    "name": "C12 push holds every column as commonmark",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "if (commonmark && this.hold(this.heldCommonmark, column)) {",
+    "to": "if (this.hold(this.heldCommonmark, column)) {",
+    "expect": "killed"
+  },
+  {
+    "name": "C13 the count at or below leaves out the column itself",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "if (held <= column) {",
+    "to": "if (held < column) {",
+    "expect": "killed"
+  },
+  {
+    "name": "C14 the count at or below counts a column once",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "        count += times;",
+    "to": "        count += 1;",
+    "expect": "killed"
+  },
+  {
+    "name": "C15 the innermost commonmark column is not clamped to the depth",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "const among = Math.min(entries, this.cols.length);",
+    "to": "const among = entries;",
+    "expect": "killed"
+  },
+  {
+    "name": "C16 the innermost commonmark column of no entries is read",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "if (among <= 0) {",
+    "to": "if (among < 0) {",
+    "expect": "survives"
+  },
+  {
+    "name": "C17 the top entry is a list when it is not",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "return this.kinds[this.kinds.length - 1] === \"list\";",
+    "to": "return this.kinds[this.kinds.length - 1] !== \"list\";",
+    "expect": "killed"
+  },
+  {
+    "name": "C18 popAbove also pops the entry AT the column",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "this.cols[this.cols.length - 1] > column) {\n      this.pop();",
+    "to": "this.cols[this.cols.length - 1] >= column) {\n      this.pop();",
+    "expect": "killed"
+  },
+  {
+    "name": "C19 deeperAreAllLists of an empty stack reads past the bottom",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "return this.cols.length === 0 || this.definitionMax",
+    "to": "return this.definitionMax",
+    "expect": "killed"
+  },
+  {
+    "name": "C20 a sibling is looked for with the wrong comparison",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "return (this.listParents.get(column) ?? 0) > 0;",
+    "to": "return (this.listParents.get(column) ?? 0) >= 0;",
+    "expect": "killed"
+  },
+  {
+    "name": "C21 the distinct columns are rebuilt on every call",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "this.distinct ??= Array.from(this.held.keys());",
+    "to": "this.distinct = Array.from(this.held.keys());",
+    "expect": "killed"
+  },
+  {
+    "name": "C22 the commonmark columns are the columns of every entry",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "this.distinctCommonmark ??= Array.from(this.heldCommonmark.keys());",
+    "to": "this.distinctCommonmark ??= Array.from(this.held.keys());",
+    "expect": "killed"
+  },
+  {
+    "name": "C23 the top column is the bottom one",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "return this.cols.length > 0 ? this.cols[this.cols.length - 1] : 0;",
+    "to": "return this.cols.length > 0 ? this.cols[0] : 0;",
+    "expect": "killed"
+  },
+  {
+    "name": "C24 the columns at or below leave out the column itself",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "return this.columns().filter((c) => c <= column);",
+    "to": "return this.columns().filter((c) => c < column);",
+    "expect": "killed"
+  },
+  {
+    "name": "C25 a column is held again only when the set is unchanged",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "return before === undefined;",
+    "to": "return before !== undefined;",
+    "expect": "killed"
+  },
+  {
+    "name": "C26 pop of an empty stack is not guarded",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "    if (at < 0) {\n      return;\n    }\n",
+    "to": "",
+    "expect": "killed"
+  },
+  {
+    "name": "C27 a popped entry leaves its definition aggregate behind",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "    this.definitionMax.pop();\n",
+    "to": "",
+    "expect": "killed"
+  },
+  {
+    "name": "C28 a popped entry leaves its commonmark aggregate behind",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "    this.lastCommonmark.pop();\n",
+    "to": "",
+    "expect": "killed"
+  },
+  {
+    "name": "W01 the marker columns are read when the line starts and not when they are used",
+    "file": "src/core/qmd/model.ts",
+    "from": "const rawMarkerColumns = (): readonly number[] => rawMarkerStash ?? columnStack.columns();",
+    "to": "const rawMarkerSnap: readonly number[] = rawMarkerStash ?? columnStack.columns();\n    const rawMarkerColumns = (): readonly number[] => rawMarkerSnap;",
+    "expect": "survives"
+  },
+  {
+    "name": "W02 the marker columns ignore the stashed ones",
+    "file": "src/core/qmd/model.ts",
+    "from": "rawMarkerStash ?? columnStack.columns()",
+    "to": "columnStack.columns()",
+    "expect": "killed"
+  },
+  {
+    "name": "W03 the stash keeps every column, not those the entry line leaves open",
+    "file": "src/core/qmd/model.ts",
+    "from": "rawColumns: columnStack.columnsAtOrBelow(indentColumn(raw)),",
+    "to": "rawColumns: columnStack.columns(),",
+    "expect": "killed"
+  },
+  {
+    "name": "W04 a quote entry empties the stack it stashed",
+    "file": "src/core/qmd/model.ts",
+    "from": "        columnStack = new ColumnStack();\n      }\n      inQuote = true;",
+    "to": "        columnStack.popAbove(-1);\n      }\n      inQuote = true;",
+    "expect": "killed"
+  },
+  {
+    "name": "W05 the blank line that ends a quote does not put the outer stack back",
+    "file": "src/core/qmd/model.ts",
+    "from": "if (inQuote && outerColumns !== null) {\n        columnStack = outerColumns.stack;\n      }",
+    "to": "if (inQuote && outerColumns !== null) {\n      }",
+    "expect": "killed"
+  },
+  {
+    "name": "W06 a lazy underline that ends the quote does not put the outer stack back",
+    "file": "src/core/qmd/model.ts",
+    "from": "        columnStack = outerColumns.stack;\n        outerColumns = null;\n        inQuote = false;\n      }\n      quoteOpen = stripQuote || lazyQuotedUnderline;",
+    "to": "        outerColumns = null;\n        inQuote = false;\n      }\n      quoteOpen = stripQuote || lazyQuotedUnderline;",
+    "expect": "killed"
+  },
+  {
+    "name": "W07 no list is ever open above the line",
+    "file": "src/core/qmd/model.ts",
+    "from": "const listOpenAboveThisLine = columnStack.hasList();",
+    "to": "const listOpenAboveThisLine = false;",
+    "expect": "killed"
+  },
+  {
+    "name": "W08 no sibling marker column is ever open above the line",
+    "file": "src/core/qmd/model.ts",
+    "from": "const siblingMarkerColumnAbove = columnStack.hasListSiblingAt(indentWidth);",
+    "to": "const siblingMarkerColumnAbove = false;",
+    "expect": "killed"
+  },
+  {
+    "name": "W09 the sibling marker column is one too far",
+    "file": "src/core/qmd/model.ts",
+    "from": "columnStack.hasListSiblingAt(indentWidth);",
+    "to": "columnStack.hasListSiblingAt(indentWidth + 1);",
+    "expect": "killed"
+  },
+  {
+    "name": "W10 everything deeper is always a list",
+    "file": "src/core/qmd/model.ts",
+    "from": "const deeperColumnsAreAllLists = columnStack.deeperAreAllLists(indentWidth);",
+    "to": "const deeperColumnsAreAllLists = true;",
+    "expect": "killed"
+  },
+  {
+    "name": "W11 everything deeper is asked of one column further",
+    "file": "src/core/qmd/model.ts",
+    "from": "columnStack.deeperAreAllLists(indentWidth);",
+    "to": "columnStack.deeperAreAllLists(indentWidth + 1);",
+    "expect": "killed"
+  },
+  {
+    "name": "W12 a CommonMark block start ends no item",
+    "file": "src/core/qmd/model.ts",
+    "from": "cmBlockStartEndsItems(line, columnStack.columns(), indentWidth)",
+    "to": "cmBlockStartEndsItems(line, [], indentWidth)",
+    "expect": "killed"
+  },
+  {
+    "name": "W13 the container pop stops one column early",
+    "file": "src/core/qmd/model.ts",
+    "from": "        columnStack.popAbove(indentWidth);\n",
+    "to": "        columnStack.popAbove(indentWidth - 1);\n",
+    "expect": "killed"
+  },
+  {
+    "name": "W14 the pop pops at the next column",
+    "file": "src/core/qmd/model.ts",
+    "from": "        columnStack.popAbove(indentWidth);\n",
+    "to": "        columnStack.popAbove(indentWidth + 1);\n",
+    "expect": "killed"
+  },
+  {
+    "name": "W15 the depth above the line is never read",
+    "file": "src/core/qmd/model.ts",
+    "from": "columnsAboveThisLine = columnStack.length;",
+    "to": "columnsAboveThisLine = 0;",
+    "expect": "killed"
+  },
+  {
+    "name": "W16 indented code is judged against no columns",
+    "file": "src/core/qmd/model.ts",
+    "from": "if (!indentedCodeLine(line, columnStack.columns())) {",
+    "to": "if (!indentedCodeLine(line, [])) {",
+    "expect": "killed"
+  },
+  {
+    "name": "W17 a list marker opens a definition column",
+    "file": "src/core/qmd/model.ts",
+    "from": "columnStack.push(opened, \"list\", COMMONMARK_LIST_MARKER.test(line));",
+    "to": "columnStack.push(opened, \"definition\", COMMONMARK_LIST_MARKER.test(line));",
+    "expect": "killed"
+  },
+  {
+    "name": "W18 every list column counts as CommonMark",
+    "file": "src/core/qmd/model.ts",
+    "from": "columnStack.push(opened, \"list\", COMMONMARK_LIST_MARKER.test(line));",
+    "to": "columnStack.push(opened, \"list\", true);",
+    "expect": "killed"
+  },
+  {
+    "name": "W19 a bullet-spelled break is a table dash column when more than one column is open",
+    "file": "src/core/qmd/model.ts",
+    "from": "tableDashColumns = columnStack.length === 1 &&",
+    "to": "tableDashColumns = columnStack.length >= 1 &&",
+    "expect": "killed"
+  },
+  {
+    "name": "W20 a definition column is one short",
+    "file": "src/core/qmd/model.ts",
+    "from": "columnStack.push(indentWidth + 4, \"definition\", true);",
+    "to": "columnStack.push(indentWidth + 3, \"definition\", true);",
+    "expect": "killed"
+  },
+  {
+    "name": "W21 a definition column does not count as CommonMark",
+    "file": "src/core/qmd/model.ts",
+    "from": "columnStack.push(indentWidth + 4, \"definition\", true);",
+    "to": "columnStack.push(indentWidth + 4, \"definition\", false);",
+    "expect": "killed"
+  },
+  {
+    "name": "W22 a definition column is a list column",
+    "file": "src/core/qmd/model.ts",
+    "from": "columnStack.push(indentWidth + 4, \"definition\", true);",
+    "to": "columnStack.push(indentWidth + 4, \"list\", true);",
+    "expect": "killed"
+  },
+  {
+    "name": "W23 the fence columns of a CommonMark reader are all the columns",
+    "file": "src/core/qmd/model.ts",
+    "from": "columnStack.commonmarkColumns() : columnStack.columns();",
+    "to": "columnStack.columns() : columnStack.columns();",
+    "expect": "killed"
+  },
+  {
+    "name": "W24 the paragraph interrupt of a fence is judged against no columns",
+    "file": "src/core/qmd/model.ts",
+    "from": "          columnStack.columns(),\n          !dialectOverride || markdownFamilyDialect,",
+    "to": "          [],\n          !dialectOverride || markdownFamilyDialect,",
+    "expect": "killed"
+  },
+  {
+    "name": "W25 the table dash column is popped whatever it was opened by",
+    "file": "src/core/qmd/model.ts",
+    "from": "columnStack.length === tableDashColumns && columnStack.topIsList()",
+    "to": "columnStack.length === tableDashColumns",
+    "expect": "killed"
+  },
+  {
+    "name": "W26 the table dash column is popped when the stack is deeper",
+    "file": "src/core/qmd/model.ts",
+    "from": "columnStack.length === tableDashColumns && columnStack.topIsList()",
+    "to": "columnStack.length >= tableDashColumns && columnStack.topIsList()",
+    "expect": "survives"
+  },
+  {
+    "name": "W27 the table and underline rows are judged against no columns",
+    "file": "src/core/qmd/model.ts",
+    "from": "outerColumns !== null ? outerColumns.rawColumns : columnStack.columns();\n",
+    "to": "outerColumns !== null ? outerColumns.rawColumns : [];\n",
+    "expect": "killed"
+  },
+  {
+    "name": "W28 the innermost CommonMark column is read from the whole stack",
+    "file": "src/core/qmd/model.ts",
+    "from": "columnStack.innermostCommonmarkAmong(columnsAboveThisLine)",
+    "to": "columnStack.innermostCommonmarkAmong(columnStack.length)",
+    "expect": "killed"
+  },
+  {
+    "name": "W29 the paragraph interrupt of a setext title is judged against column 0 only",
+    "file": "src/core/qmd/model.ts",
+    "from": "commonmarkParagraphInterrupt(l.text, [0, ...columnStack.columns()])",
+    "to": "commonmarkParagraphInterrupt(l.text, [0])",
+    "expect": "killed"
+  },
+  {
+    "name": "W30 a lazily quoted underline leaves the open columns out",
+    "file": "src/core/qmd/model.ts",
+    "from": "? [0, ...columnStack.columns(), indentColumn(line)]",
+    "to": "? [0, indentColumn(line)]",
+    "expect": "survives"
+  },
+  {
+    "name": "W31 the title marker test is judged against column 0 only",
+    "file": "src/core/qmd/model.ts",
+    "from": "setextTitleText(titleAsWritten, [0, ...columnStack.columns()], inQuote",
+    "to": "setextTitleText(titleAsWritten, [0], inQuote",
+    "expect": "killed"
+  },
+  {
+    "name": "W32 the heading text is built against column 0 only",
+    "file": "src/core/qmd/model.ts",
+    "from": "            [0, ...columnStack.columns()],\n            inQuote && !stripQuote ? null : indentColumn(line),",
+    "to": "            [0],\n            inQuote && !stripQuote ? null : indentColumn(line),",
+    "expect": "killed"
+  },
+  {
+    "name": "W33 raw TeX and indented code are judged against column 0 only",
+    "file": "src/core/qmd/model.ts",
+    "from": "      : [0, ...columnStack.columns()];",
+    "to": "      : [0];",
+    "expect": "killed"
+  },
+  {
+    "name": "W34 an empty sibling item is never found on the next line",
+    "file": "src/core/qmd/model.ts",
+    "from": "columnStack.hasListSiblingAt(indentColumn(lines[i + 1]));",
+    "to": "false;",
+    "expect": "killed"
+  },
+  {
+    "name": "W35 an underline that would swallow an ATX line is judged against column 0 only",
+    "file": "src/core/qmd/model.ts",
+    "from": "        [0, ...columnStack.columns()],\n        commonmarkDialect,",
+    "to": "        [0],\n        commonmarkDialect,",
+    "expect": "killed"
+  },
+  {
+    "name": "W36 an ATX heading under a CommonMark reader is judged against the heading columns only",
+    "file": "src/core/qmd/model.ts",
+    "from": "? [...COMMONMARK_HEADING_COLUMNS, ...columnStack.columns()]",
+    "to": "? [...COMMONMARK_HEADING_COLUMNS]",
+    "expect": "killed"
+  },
+  {
+    "name": "W37 an ATX heading is judged against column 0 only",
+    "file": "src/core/qmd/model.ts",
+    "from": ": [0, ...columnStack.columns()],\n            tightAtxDialect",
+    "to": ": [0],\n            tightAtxDialect",
+    "expect": "killed"
+  },
+  {
+    "name": "W38 a tight ATX heading is judged against column 0 only",
+    "file": "src/core/qmd/model.ts",
+    "from": "tightAtxWouldWorsen(lines[i + 1], [0, ...columnStack.columns()])",
+    "to": "tightAtxWouldWorsen(lines[i + 1], [0])",
+    "expect": "killed"
+  },
+  {
+    "name": "W39 the entries still open at an ATX heading are counted by distinct column",
+    "file": "src/core/qmd/model.ts",
+    "from": "const columnsStillOpen = columnStack.countAtOrBelow(indentColumn(line));",
+    "to": "const columnsStillOpen = columnStack.columnsAtOrBelow(indentColumn(line)).length;",
+    "expect": "killed"
+  },
+  {
+    "name": "W40 a div fence is placed against column 0 only",
+    "file": "src/core/qmd/model.ts",
+    "from": "const divFenceColumns = [0, ...columnStack.columns()];",
+    "to": "const divFenceColumns = [0];",
+    "expect": "killed"
+  },
+  {
+    "name": "W41 a div records the number of distinct columns as its container depth",
+    "file": "src/core/qmd/model.ts",
+    "from": "containerDepth: columnStack.length,",
+    "to": "containerDepth: columnStack.columns().length,",
+    "expect": "killed"
+  },
+  {
+    "name": "W42 a div host column is the deepest of all the columns",
+    "file": "src/core/qmd/model.ts",
+    "from": "hostColumn: columnStack.columnsAtOrBelow(divFence!.column).reduce(",
+    "to": "hostColumn: columnStack.columns().reduce(",
+    "expect": "survives"
+  },
+  {
+    "name": "W43 the host column of a quote is 0",
+    "file": "src/core/qmd/model.ts",
+    "from": "outerColumns !== null ? outerColumns.stack.topColumn() : 0;",
+    "to": "outerColumns !== null ? 0 : 0;",
+    "expect": "killed"
+  },
+  {
+    "name": "W44 a div is judged closed by the number of distinct columns",
+    "file": "src/core/qmd/model.ts",
+    "from": "columnStack.length !== div.containerDepth",
+    "to": "columnStack.columns().length !== div.containerDepth",
+    "expect": "killed"
+  },
+  {
+    "name": "W45 an auto-closed div is judged by the number of distinct columns",
+    "file": "src/core/qmd/model.ts",
+    "from": "divColumns[divColumns.length - 1].containerDepth > columnStack.length",
+    "to": "divColumns[divColumns.length - 1].containerDepth > columnStack.columns().length",
+    "expect": "killed"
+  },
+  {
+    "name": "W46 no container is ever open before a line",
+    "file": "src/core/qmd/model.ts",
+    "from": "boundaries.containerBefore[i] = columnStack.length > 0;",
+    "to": "boundaries.containerBefore[i] = false;",
+    "expect": "killed"
+  },
+  {
+    "name": "W47 a bullet-spelled break at top level is judged with a container open",
+    "file": "src/core/qmd/model.ts",
+    "from": "columnStack.length === 0 && !stripQuote && BULLET_THEMATIC_BREAK.test(line)",
+    "to": "columnStack.length >= 0 && !stripQuote && BULLET_THEMATIC_BREAK.test(line)",
+    "expect": "killed"
+  },
+  {
+    "name": "W48 a raw block ends with the container whether or not one is open",
+    "file": "src/core/qmd/model.ts",
+    "from": "(!(columnStack.length > 0 || stripQuote)",
+    "to": "(!(columnStack.length >= 0 || stripQuote)",
+    "expect": "killed"
+  },
+  {
+    "name": "W49 a comment is judged without regard to an open container",
+    "file": "src/core/qmd/model.ts",
+    "from": "columnStack.length === 0 &&\n      !stripQuote &&\n      /^ {0,3}<!--/.test(line) &&",
+    "to": "columnStack.length >= 0 &&\n      !stripQuote &&\n      /^ {0,3}<!--/.test(line) &&",
+    "expect": "killed"
+  },
+  {
+    "name": "W50 an indented cell is judged without regard to an open container",
+    "file": "src/core/qmd/model.ts",
+    "from": "(firstExampleMarker < 0 || firstExampleMarker >= i) &&\n              columnStack.length === 0 &&",
+    "to": "(firstExampleMarker < 0 || firstExampleMarker >= i) &&\n              columnStack.length >= 0 &&",
+    "expect": "killed"
+  },
+  {
+    "name": "W51 a line block is judged without regard to an open container",
+    "file": "src/core/qmd/model.ts",
+    "from": "          lineBlocksDialect,\n          columnStack.length === 0,",
+    "to": "          lineBlocksDialect,\n          columnStack.length >= 0,",
+    "expect": "killed"
+  },
+  {
+    "name": "W52 a knitr opener is judged without regard to an open container",
+    "file": "src/core/qmd/model.ts",
+    "from": "!knitrSilentOpeners.has(i) &&\n        columnStack.length === 0 &&",
+    "to": "!knitrSilentOpeners.has(i) &&\n        columnStack.length >= 0 &&",
+    "expect": "killed"
+  }
+]
