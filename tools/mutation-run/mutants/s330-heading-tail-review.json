@@ -1,0 +1,74 @@
+[
+ {
+  "name": "R01 evenBackslashesBefore: the walk capped at 1,048,576 characters",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (from > 0 && text.charCodeAt(from - 1) === 0x5c) {",
+  "to": "while (from > 0 && index - from < 1048576 && text.charCodeAt(from - 1) === 0x5c) {",
+  "expect": "killed",
+  "why": "a run of 1,048,577 backslashes reads as even; the committed long-run rows stopped at 1,000,001 and the first tests let this through. Killed by the 1,048,575 to 1,048,577 rows"
+ },
+ {
+  "name": "R02 atxClosingPandocStart: the hash walk capped at 262,144 characters",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (start > 0 && text.charCodeAt(start - 1) === 0x23) {",
+  "to": "while (start > 0 && end - start < 262144 && text.charCodeAt(start - 1) === 0x23) {",
+  "expect": "killed",
+  "why": "a run of a million `#` is cut short and answers the wrong index; no first-round row walked more than 200,000 `#` (the million-character near-miss rows end in `b`, so the walk is never entered). Killed by the 1,000,000-hash row"
+ },
+ {
+  "name": "R03 atxClosingPandocStart: an odd-parity run of a million or more hashes refused",
+  "file": "src/core/qmd/model.ts",
+  "from": "return end - start >= 2 ? start + 1 : -1;",
+  "to": "return end - start >= 2 && end - start < 1000000 ? start + 1 : -1;",
+  "expect": "killed",
+  "why": "`a \\` and a million `#` answers -1 instead of 4. Killed by the same 1,000,000-hash row"
+ },
+ {
+  "name": "R04 headingAttributeStart: the loop gives up after 150,000 failed braces",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let open = text.indexOf(\"{\", text.lastIndexOf(\"}\", close - 1) + 1); open !== -1; open = text.indexOf(\"{\", open + 1)) {",
+  "to": "for (let open = text.indexOf(\"{\", text.lastIndexOf(\"}\", close - 1) + 1), tries = 0; open !== -1 && tries++ < 150000; open = text.indexOf(\"{\", open + 1)) {",
+  "expect": "killed",
+  "why": "250,000 escaped braces and then the real one answers -1; the only first-round row that ran the loop long had the real brace LAST, after 100,000. Killed by the 250,000-and-0 row"
+ },
+ {
+  "name": "R05 headingAttributeStart: after 1,000 failed braces the loop jumps to the last brace",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let open = text.indexOf(\"{\", text.lastIndexOf(\"}\", close - 1) + 1); open !== -1; open = text.indexOf(\"{\", open + 1)) {",
+  "to": "for (let open = text.indexOf(\"{\", text.lastIndexOf(\"}\", close - 1) + 1), tries = 0; open !== -1; open = tries++ === 1000 ? text.lastIndexOf(\"{\") : text.indexOf(\"{\", open + 1)) {",
+  "expect": "killed",
+  "why": "right only when the real brace is the last one; 1,500 escaped braces, the real one, then 1,500 more answers a different index. Killed by the 1,500-and-1,500 row"
+ },
+ {
+  "name": "R06 headingAttributeStart: the trailing blanks trimmed again for every brace",
+  "file": "src/core/qmd/model.ts",
+  "from": "open = text.indexOf(\"{\", open + 1)) {",
+  "to": "open = trimEndBlanks(text).length > 0 ? text.indexOf(\"{\", open + 1) : -1) {",
+  "expect": "killed",
+  "why": "every answer is the same; 50,000 failing braces and 100,000 trailing blanks cost 5e9 steps (23 s here at a load of 10; 82 s in the review at a load of 100 to 130). No first-round row held both a long run of failing braces and a long run of trailing blanks (each held one or the other). Killed by the clock row on the pair"
+ },
+ {
+  "name": "R07 headingAttributeStart: the previous closing brace searched for within 300,000 characters only",
+  "file": "src/core/qmd/model.ts",
+  "from": "text.lastIndexOf(\"}\", close - 1) + 1)",
+  "to": "Math.max(text.lastIndexOf(\"}\", close - 1), close - 300001) + 1)",
+  "expect": "killed",
+  "why": "a block with a body of 1,000,000 characters answers -1 instead of 2: the search for the `{` starts too late. Killed by the million-character block row"
+ },
+ {
+  "name": "R08 buildHeading: the closing run located in the text with every Unicode space trimmed",
+  "file": "src/core/qmd/model.ts",
+  "from": "const closingAt = closing(text);",
+  "to": "const closingAt = closing(text.trimEnd());",
+  "expect": "killed",
+  "why": "`trimEnd()` also removes a no-break space, a form feed and a byte-order mark, which `[ \\t]*$` does not call blank: `# C#` and a no-break space loses its `#`. The enumerations call the functions directly and the first wiring rows held no trailing Unicode space. Killed by the five no-break-space wiring rows"
+ },
+ {
+  "name": "R09 headingAttributeStart: an escaped brace past index 3,000,000 accepted",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (evenBackslashesBefore(text, open)) {\n      return open;",
+  "to": "if (evenBackslashesBefore(text, open) || open > 3000000) {\n      return open;",
+  "expect": "survives",
+  "why": "SURVIVES ON PURPOSE: a cap family has no closable end. Every row stops at some largest size (here a million characters of block or of backslashes, and 250,000 escaped braces), so a cap set one size above it is never seen; R01 to R07 are the caps that sat just above the first round's sizes and the new rows close them"
+ }
+]

@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { atxClosingPandocStart, findHeadings, headingAttributeStart } from "../../src/core/qmd/model";
 import { LS, NBSP, countStrings, everyString, seededRandom, slowestExec } from "./support/regex-equivalence";
 
+// The enumerations take 2 to 23 s on a loaded machine; the sibling equivalence files give their heavy rows the same ceiling.
+const HEAVY_ROW_MS = 120_000;
+
 // Session 330 — the BACKLOG item "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", parts (2) and (3).
 // `buildHeading` cut a heading's closing-hash run (the pandoc `markdown*` readers) and its trailing attribute block by two regexes, `ATX_CLOSING_PANDOC` and `HEADING_ATTRIBUTE`, each opening with a
 // backslash-parity lookbehind and each failing only at the end of the line. They are now `atxClosingPandocStart` and `headingAttributeStart`, which scan back from the end and answer the INDEX the
@@ -128,21 +131,21 @@ describe("Session 330 — the heading's closing-hash run and attribute block: th
     expect(result.disagreements).toEqual([]);
     expect(result.compared).toBe(countStrings(e.alphabet.length, e.maxLength));
     expect(result.matched).toBe(e.matched);
-  });
+  }, HEAVY_ROW_MS);
 
   it.each(SEEDED.map((s) => [`${s.site.name}, ${SEEDED_COUNT.toLocaleString("en-US")} seeded texts (seed ${s.seed})`, s] as const))("%s", (_label, s) => {
     const result = compareSite(s.site, seededTexts(s.seed, s.pieces, SEEDED_COUNT));
     expect(result.disagreements).toEqual([]);
     expect(result.compared).toBe(SEEDED_COUNT);
     expect(result.matched).toBe(s.matched);
-  });
+  }, HEAVY_ROW_MS);
 
   it.each(GRIDS.map((g) => [`${g.site.name}, the run-length grid`, g] as const))("%s", (_label, g) => {
     const result = compareSite(g.site, g.texts());
     expect(result.disagreements).toEqual([]);
     expect(result.compared).toBe(g.compared);
     expect(result.matched).toBe(g.matched);
-  });
+  }, HEAVY_ROW_MS);
 
   // Answers stated by hand from the two definitions (not read off the oracle), each checked against BOTH the old pattern and the new function.
   const CLOSING_ANSWERS: Array<[string, number]> = [
@@ -169,8 +172,8 @@ describe("Session 330 — the heading's closing-hash run and attribute block: th
   });
 
   // Long runs of backslashes of both parities, where the old patterns are far too slow to be the oracle (a walk back over the run at every index): the answer is the one the parity rule states. A cap on the walk
-  // (at 64, 4,096 or 65,536 characters) turns an odd run into an even one and is seen only here and at the grid's 101.
-  it.each([4095, 4096, 4097, 65_535, 65_536, 65_537, 1_000_000, 1_000_001])("a run of %i backslashes: the parity decides, exactly", (run) => {
+  // (at 64, 4,096, 65,536 or 1,048,576 characters) turns an odd run into an even one and is seen only here and at the grid's 101. A cap can always be set above the largest row, so 1,048,577 is where these rows stop.
+  it.each([4095, 4096, 4097, 65_535, 65_536, 65_537, 1_000_000, 1_000_001, 1_048_575, 1_048_576, 1_048_577])("a run of %i backslashes: the parity decides, exactly", (run) => {
     const slashes = "\\".repeat(run);
     const even = run % 2 === 0;
     expect(atxClosingPandocStart(`a${slashes}#`)).toBe(even ? run + 1 : -1);
@@ -178,6 +181,40 @@ describe("Session 330 — the heading's closing-hash run and attribute block: th
     expect(atxClosingPandocStart(`${slashes}#  `)).toBe(even ? run : -1);
     expect(headingAttributeStart(`a${slashes}{x}`)).toBe(even ? run + 1 : -1);
     expect(headingAttributeStart(`${slashes}{{x} `)).toBe(even ? run : run + 1);
+  });
+
+  // The scans have no cap and no shortcut. These rows are for the sizes and shapes the rows above never reach: a run of `#` of a million (a cap at 262,144 or 1,000,000), a block body of a million characters (a
+  // window on the search for the previous `}`), a real `{` among escaped ones with the real one FIRST, in the MIDDLE or LAST (a give-up after 150,000 braces, a jump to the last brace after 1,000), and many failing
+  // braces with a long run of trailing blanks (a trim for every brace). The mutants A11, C17, C18, H16 to H19 and W08 are the edits these rows kill; H20, a cap at index 3,000,000, survives them on purpose.
+  it("a run of 1,000,000 `#` is walked whole, whatever the parity", () => {
+    const hashes = "#".repeat(1_000_000);
+    expect(atxClosingPandocStart(hashes)).toBe(0);
+    expect(atxClosingPandocStart(`a ${hashes}  `)).toBe(2);
+    expect(atxClosingPandocStart(`a \\${hashes}`)).toBe(4); // an odd run of backslashes escapes the first hash: the second one starts the closing run
+  });
+
+  it.each([
+    [1_500, 1_500],
+    [250_000, 0],
+    [100_000, 100_000],
+  ])("%i escaped braces, a real `{`, then %i escaped braces and `x}`: the real one is the answer", (before, after) => {
+    const text = `a ${"\\{".repeat(before)}{${"\\{".repeat(after)}x}`;
+    expect(headingAttributeStart(text)).toBe(2 + 2 * before);
+    if (before + after <= 3_000) {
+      expect(oldIndex(OLD_HEADING_ATTRIBUTE, text)).toBe(2 + 2 * before); // small enough for the old pattern to answer too
+    }
+  });
+
+  it("a block whose body is 1,000,000 characters long, and one that follows 200,000 escaped braces", () => {
+    expect(headingAttributeStart(`a {${"x".repeat(1_000_000)}}`)).toBe(2);
+    expect(headingAttributeStart(`}{${"\\{".repeat(200_000)}x}`)).toBe(1);
+  });
+
+  it("50,000 escaped braces and 100,000 trailing blanks are read in linear time", () => {
+    const text = `a ${"\\{".repeat(50_000)}x}${" ".repeat(100_000)}`;
+    const started = Date.now();
+    expect(headingAttributeStart(text)).toBe(-1); // every brace is escaped, so the block opens nowhere
+    expect(Date.now() - started).toBeLessThan(1_000);
   });
 
   // The wiring through `buildHeading`: the answers the PARENT `c0647be` gave for these headings (read off its build, not off the new functions), which the cure keeps. They are the rows for the changes of the call site: the cut
@@ -209,13 +246,19 @@ describe("Session 330 — the heading's closing-hash run and attribute block: th
     ["commonmark_x", "# a ## {#x}", [[1, "a", "x"]]],
     [null, "T {{#a}\n===", [[1, "T {{#a}", undefined]]], // a setext heading honours the block and has no closing run
     [null, "T {#a}\n===", [[1, "T", "a"]]],
+    // A no-break space after the run or the block is no blank to `[ \t]*$`: the closing run is looked for in the text as the heading holds it, and the text is trimmed afterwards.
+    [null, "# C#" + NBSP, [[1, "C#", undefined]]],
+    [null, "# a ##" + NBSP, [[1, "a ##", undefined]]],
+    ["gfm", "# a #" + NBSP, [[1, "a #", undefined]]],
+    ["commonmark_x", "# a #" + NBSP, [[1, "a #", undefined]]],
+    [null, "# T {#a}" + NBSP, [[1, "T {#a}", undefined]]],
   ];
   it.each(WIRING.map((row) => [`${row[0] ?? "no from:"}, ${JSON.stringify(row[1])}`, row] as const))("buildHeading keeps the parent's answer: %s", (_label, [from, source, expected]) => {
     const document = `${from === null ? "" : `---\nfrom: ${from}\n---\n\n`}${source}\n`;
     expect(findHeadings(document).map((heading): [number, string, string | undefined] => [heading.level, heading.text, heading.id])).toEqual(expected);
   });
 
-  // The comparison can fail: the single-character lookbehind `(?<!\\)` (the shortcut an agent proposed for part (2); it changes `a\##`) disagrees with the old pattern, and the old pattern agrees with itself.
+  // The comparison can fail: the single-character lookbehind `(?<!\\)` (parity-blind: it changes `a\\#`; the agent's shortcut for part (2) was `(?<!#)`, which changes `a\##`) disagrees with the old pattern, and the old pattern agrees with itself.
   it("a comparison that is not exact reports it, and an exact one reports nothing", () => {
     const closing = compareSite({ ...CLOSING, now: (text) => text.search(/(?<!\\)#+[ \t]*$/) }, everyString(NARROW_CLOSING, 6));
     expect(closing.disagreements.length).toBe(5);
@@ -248,7 +291,7 @@ describe("Session 330 — the heading's closing-hash run and attribute block: th
   ];
   it.each(NEAR_MISS.map((row) => [`${row.site.name}, ${row.label}`, row] as const))("%s: the old pattern is slow on it", (_label, row) => {
     expect(slowestExec(row.site.old, [row.build(row.oldSize)], 100).slow).toBe(true);
-  });
+  }, HEAVY_ROW_MS);
   it.each(NEAR_MISS.map((row) => [`${row.site.name}, ${row.label}`, row] as const))("%s: the new function reads 1,000,000 characters of it in linear time", (_label, row) => {
     const text = row.build(1_000_000);
     const started = Date.now();

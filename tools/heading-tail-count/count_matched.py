@@ -8,7 +8,7 @@ code under test, or a comparison could pass by both being wrong the same way. Th
                                                                  one or more `#`, blanks, the end
     HEADING_ATTRIBUTE    (?<=(?:^|[^\\\\])(?:\\\\\\\\)*)\\{[^}]*\\}[ \\t]*$    a `{`, the same lookbehind, characters up to the first `}`, that `}`, blanks, the end
 
-    python3 -I tools/heading-tail-count/count_matched.py            # all ten counts, a few minutes
+    python3 -I tools/heading-tail-count/count_matched.py            # all ten counts, about 35 s of CPU (a minute or two under load)
     python3 -I tools/heading-tail-count/count_matched.py "ATX_CLOSING_PANDOC 8 chars up to 7"   # one of them
 
 The seeded counts reproduce the test's generator: Mulberry32 from `test/unit/support/regex-equivalence.ts` with the seeds and piece lists of the test. If the test's alphabets, pieces, runs or

@@ -274,7 +274,7 @@ const COMMONMARK_LIST_MARKER = /^[ \t]*(?:[-+*]|\d{1,9}[.)])(?:[ \t]|$)/;
  * `atxClosingRun` for the gate between them.
  *
  * ⚠ **A search starts only at the beginning of a run of blanks (Session 320).** This is an unanchored search that used to begin with `[ \t]+`, so a heading with n blanks inside it was tried from
- * every one of them and each try read the rest of the run (`x`, 32,000 blanks, `y`: 620 ms in one `exec`; no hash needed). The match that `text.replace` removes is the leftmost one, and a match from
+ * every one of them and each try read the rest of the run (`x`, 32,000 blanks, `y`: 620 ms in one `exec`; no hash needed). The match that `buildHeading` cuts at is the leftmost one, and a match from
  * the middle of a run always implies one from its first blank, which is further left, so `(?<![ \t])` loses no match and moves none: the index and the match are the same on every string
  * (`blank-tail-equivalence.test.ts` holds the old spelling as the oracle).
  */
@@ -285,8 +285,8 @@ export const ATX_CLOSING = /(?:^|(?<![ \t])[ \t]+)#+[ \t]*$/;
  * `atxClosingPandocStart` has the measured cases.
  *
  * ⚠ **A function and not a lookbehind, because a pattern that OPENS with a lookbehind runs it at every index** (Session 330). The walk back over a run of backslashes is as long as the
- * run, so n backslashes cost n(n + 1) / 2 steps before the pattern's first real character was looked at (2.7 s for 100,000 through `findHeadings`, with no `#` and no `{` on the line).
- * This reads the run once, from the one index it is asked about.
+ * run, so n backslashes cost n(n + 1) / 2 steps before the pattern's first real character was looked at (100,000 of them, with no `#` and no `{` on the line, took 2.7 s through `findHeadings`
+ * under a reader that runs one of the two patterns and 5.4 s under the default reader, which runs both). This reads the run once, from the one index it is asked about.
  */
 function evenBackslashesBefore(text: string, index: number): boolean {
   let from = index;
@@ -314,7 +314,7 @@ function evenBackslashesBefore(text: string, index: number): boolean {
  * though pandoc documents the former as a deprecated synonym for the latter — a table reasoned
  * from the base name puts that row on the wrong side (Learnings #348 / #352, a fourth time).
  *
- * ⚠ **The lookbehind counts BACKSLASH PARITY; it is not `(?<!\\)`, and the difference is
+ * ⚠ **The test counts BACKSLASH PARITY (`evenBackslashesBefore`, a lookbehind until Session 330); it is not `(?<!\\)`, and the difference is
  * measured** (Session 217). An escape needs an ODD run of backslashes before it, so a construct
  * is real exactly when an EVEN run (including none) precedes it — `(?<=(?:^|[^\\])(?:\\\\)*)`.
  * `# Cal Echo Esc\#` renders `<h1>Cal Echo Esc#</h1>` (the hash is escaped, no closing run) while
@@ -350,8 +350,8 @@ function atxClosingCommonmarkStart(text: string): number {
   return text.search(ATX_CLOSING);
 }
 /**
- * The closing-sequence spelling this document's reader uses, as the index where the run begins in a heading's text (-1 where there is none), or `null` where the construct does
- * not exist at all. Setext headings pass `null`: quarto keeps a trailing hash run there under
+ * The closing-sequence spelling this document's reader uses, as a function that answers the index where the run begins in a heading's text (-1 where there is none). `buildHeading` takes
+ * `null` instead where the construct does not exist at all. Setext headings pass `null`: quarto keeps a trailing hash run there under
  * BOTH spellings (`cal2/b_setext` → `h1:Cal Romeo Set#`, `b_setextsp` → `h1:Cal Sierra Set #`),
  * which is what `parseSetextHeadingLine` has always produced.
  */
@@ -397,15 +397,16 @@ function atxClosingRun(commonmarkDialect: boolean): (text: string) => number {
  * ⚠ **Until Session 330 this was the regex `HEADING_ATTRIBUTE`, `(?<=(?:^|[^\\])(?:\\\\)*)\{[^}]*\}[ \t]*$`, and it was quadratic** on a long run of `{` with no `}` after it (190 ms for 20,000 through
  * `findHeadings`: each `{` was a start and read to the end of the line) and on a long backslash run (the lookbehind, see `evenBackslashesBefore`). The regex matched at the leftmost index `i`
  * with `{` there, an even backslash run before it, no `}` after it until a last `}` that only blanks follow, and the text after `i` is all it matched. So the closing brace is the LAST
- * non-blank character, the block opens at a `{` after the `}` before it, and the first such `{` whose backslash run is even is the answer: every one of them reads the same tail, so one that fails
- * to match would fail them all, and the scan stops at the first. This answers the same index on every string (`test/unit/heading-tail-equivalence.test.ts` keeps the regex as the oracle).
+ * non-blank character, the block opens at a `{` after the `}` before it, and the first such `{` whose backslash run is even is the answer: every one of them reads the same tail, so only the
+ * backslash parity of the `{` decides; the scan skips a `{` with an odd run and returns the first with an even one. This answers the same index on every string
+ * (`test/unit/heading-tail-equivalence.test.ts` keeps the regex as the oracle).
  */
 export function headingAttributeStart(text: string): number {
   const close = trimEndBlanks(text).length - 1;
   if (close < 1 || text.charCodeAt(close) !== 0x7d) {
     return -1;
   }
-  // Nothing before the last `}` may lie between the braces: the block opens after the `}` before it.
+  // No `}` may lie between the braces, so the block opens after the `}` that precedes the last one.
   for (let open = text.indexOf("{", text.lastIndexOf("}", close - 1) + 1); open !== -1; open = text.indexOf("{", open + 1)) {
     if (evenBackslashesBefore(text, open)) {
       return open;

@@ -468,7 +468,7 @@ describe("Quarto: Cross-reference completion + definition", () => {
 
   it("a reader without `header_attributes` defines no sec- label (Session 216)", async () => {
     // ⚠ THIS IS THE CONSUMER SESSION 215's CHANGE COULD NOT REACH AND THIS ONE CAN.
-    // `HEADING_ATTRIBUTE` is the ONLY source of `Heading.id`, which `src/core/refs.ts` turns
+    // `headingAttributeStart` is the ONLY source of `Heading.id`, which `src/core/refs.ts` turns
     // into the `sec-` cross-reference index. Five of the nine measured readers render the block
     // as ordinary TEXT (`scratchpad/s216/cal`, 63 documents), so before this session a `gfm`
     // document offered a completion for a section identifier the rendered output never defines —
@@ -548,7 +548,7 @@ describe("Quarto: Cross-reference completion + definition", () => {
     );
   });
   it("an escape inside the block defines no sec- label (Session 218)", async () => {
-    // ⚠ THE CONSUMER THIS ITEM EXISTS FOR. `HEADING_ATTRIBUTE` is the ONLY source of
+    // ⚠ THE CONSUMER THIS ITEM EXISTS FOR. `headingAttributeStart` is the ONLY source of
     // `Heading.id`, and it said only WHERE a block would be — so `{#sec-meth\:ods}`, which
     // quarto renders as ordinary TEXT while defining NO id at all (`scratchpad/s218/cal`,
     // `*_p13idesc`, with `*_p14idcolon` as the agreeing control), was stripped here and entered
