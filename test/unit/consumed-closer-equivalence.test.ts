@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isCloser, makeConsumedCloserLine, type CloserShape } from "../../src/core/qmd/model";
-import { BOM, IDEOGRAPHIC, LS, NBSP, countStrings, everyString, seededRandom } from "./support/regex-equivalence";
+import { BOM, EM_SPACE, IDEOGRAPHIC, LS, NBSP, NEL, PS, countStrings, everyString, seededRandom } from "./support/regex-equivalence";
 
 const HEAVY_ROW_MS = 120_000;
 const SEEDED_HISTORIES = 300_000;
@@ -276,6 +276,29 @@ describe("consumedCloserLine: stated answers", () => {
     expect(makeConsumedCloserLine(lines)(from, open)).toBe(expected);
   });
 
+  // The blank test is `trim() === ""`: the classes it separates, one row each (Learning 831). `trim()` strips every WhiteSpace and LineTerminator code point, so a vertical tab, a carriage return, U+1680, the spaces of U+2000 to U+200A, U+202F, U+205F and the paragraph separator are
+  // blanks as much as a space is, and U+0085, a zero-width space, the Mongolian vowel separator, a word joiner and a NUL are NOT: a hand-made set of blanks that leaves one out (or takes one in) answers differently on the line that follows.
+  const BLANKS: Array<[string, string]> = [
+    ["a space", " "], ["a tab", "\t"], ["a vertical tab", "\v"], ["a form feed", "\f"], ["a carriage return", "\r"], ["a no-break space", NBSP], ["U+1680", String.fromCharCode(0x1680)], ["an en quad", String.fromCharCode(0x2000)],
+    ["an em space", EM_SPACE], ["a hair space", String.fromCharCode(0x200a)], ["U+2028", LS], ["U+2029", PS], ["a narrow no-break space", String.fromCharCode(0x202f)], ["a medium mathematical space", String.fromCharCode(0x205f)],
+    ["an ideographic space", IDEOGRAPHIC], ["a byte order mark", BOM], ["three of them", " \t\u00a0"],
+  ];
+  const NOT_BLANKS: Array<[string, string]> = [
+    ["U+0085", NEL], ["a zero-width space", String.fromCharCode(0x200b)], ["a Mongolian vowel separator", String.fromCharCode(0x180e)], ["a word joiner", String.fromCharCode(0x2060)], ["a NUL", "\0"], ["a soft hyphen", String.fromCharCode(0xad)],
+  ];
+  it.each(BLANKS)("a line of %s is blank to the scan: it stops there, though a closer follows", (_title, blank) => {
+    const lines = ["word", blank, "```"];
+    expect(oldConsumedCloserLine(lines, 0, KINDS[0])).toBe(-1);
+    expect(makeConsumedCloserLine(lines)(0, KINDS[0])).toBe(-1);
+    expect(makeConsumedCloserLine(lines)(1, KINDS[0])).toBe(-1); // asked on the blank line itself
+  });
+
+  it.each(NOT_BLANKS)("a line of %s is not blank to the scan: it goes on to the closer below", (_title, text) => {
+    const lines = ["word", text, "```"];
+    expect(oldConsumedCloserLine(lines, 0, KINDS[0])).toBe(2);
+    expect(makeConsumedCloserLine(lines)(0, KINDS[0])).toBe(2);
+  });
+
   // What the reader keeps, stated by what it answers when the lines it was shown are no longer the lines. A document's lines do not change; a test may change them, and the answer then shows whether the reader read them again. This is a way to SEE the span, not a rule the model relies on.
   it("answers a later opener inside the first scan's span from the first scan, and scans afresh outside it", () => {
     const lines = ["word", "word", "word", "```", "word"];
@@ -459,6 +482,26 @@ describe("consumedCloserLine: the cost, as lines read", () => {
     expect(got).toEqual(askAll(lines, openers, oldMaker));
     // Each run is scanned once, from the line below its first opener to its closer: n lines, twice each, two runs. The question at the end of the first run (the line of its closer) is inside the first span.
     expect(fresh.reads()).toBe(2 * (2 * n));
+  });
+});
+
+// A position kept in 16 bits, or a span ended at 2^20, answers right on every row above, whose documents are a few thousand lines at most.
+describe("consumedCloserLine: the reach of the span", () => {
+  const PLAIN = KINDS[0];
+  it.each([70_000, 1_100_000])("reads a run of %i refused openers once, and finds the closer on the line below the last", (n) => {
+    const lines = [...Array.from({ length: n }, () => "```text i"), "```", "word", ""];
+    const counting = counted(lines);
+    const read = makeConsumedCloserLine(counting.lines);
+    // The first opener reads lines 1 .. n (the closer is line n) twice each; every other opener and the closer's own line take the span's answer; the word below the closer is outside the span and is scanned afresh.
+    expect(read(1, PLAIN)).toBe(n);
+    expect(counting.reads()).toBe(2 * n);
+    expect(read(n / 2, PLAIN)).toBe(n);
+    expect(read(n, PLAIN)).toBe(n); // the closer's own line is the end of the span
+    expect(counting.reads()).toBe(2 * n);
+    expect(read(n + 1, PLAIN)).toBe(-1); // past it: scanned afresh, a word and then the blank line (3 reads: the word twice, the blank once)
+    expect(counting.reads()).toBe(2 * n + 3);
+    expect(read(n + 1, PLAIN)).toBe(-1); // and kept
+    expect(counting.reads()).toBe(2 * n + 3);
   });
 });
 
