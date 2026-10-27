@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { resolveDocumentEngine } from "../../src/core/document-engine-resolve";
 import { bibliographyPaths } from "../../src/core/frontmatter";
+import { findMathRegions } from "../../src/core/math-regions";
 import { parseDeclaredFormats } from "../../src/core/preview-format";
 import { parseOutputPath } from "../../src/core/render-args";
 import { findAllCells, findCellOptionLines, findCodeFenceOpeners, findHeadings, headingContentRefused, knitrChunkHeaderLabel, maskInlineCode, plainFrontMatter } from "../../src/core/qmd/model";
@@ -1426,6 +1427,76 @@ describe("Session 326 — a line holding many `{` whose `}` never comes", () => 
       "{x64000", "{x64000", '{"x32000', "{'x32000", "{x64000", "'{'x40000", "{x64000", "{x64000", "{x64000",
       "{x64000", '{"x32000', "{x64000",
       "{x64000", "{'x32000", "{x64000",
+    ]);
+  });
+});
+
+describe("Session 327 — a line holding many `$` whose closing `$` never comes", () => {
+  // The `$` half of part (6) of the BACKLOG item "What is still quadratic or deep enough to overflow after Session 311". `findMathRegions` asks, for every `$` that may open inline math (a `$` whose right neighbour is not a blank), where its
+  // closer is, and a line with NO closer after it was read to the end for each opener: a line of N unclosed `$` was N reads of the same tail. The profile (Session 327, `--cpu-prof`, 10,667 of `$a `): `scan` and its inlined closer loop 52%,
+  // `isSpace` and the `\s` regex it tests 37%, `findInlineClose` 14%; the model's own `findBodyLines` takes 6 ms on the same text. A closer is a `$` that is not escaped, has a non-blank on its left and no digit on its right: a test of ONE
+  // position, never of the opener, and that is why three different reasons to refuse a closer cost the same.
+  // Fresh process per shape, cold (a warm call was within 5%), load average 6 to 8 (Session 327): `$a ` x 2,667 / 5,334 / 10,667 / 21,334 (8,001 to 64,002 characters): 107 / 374 / 1,407 / 5,441 ms (4x per doubling); `$a$1 ` (the closer
+  // is followed by a digit) x 3,200 / 6,400 / 12,800 / 25,600: 506 / 1,887 / 7,525 / 30,064 ms; `$a \$ ` (the closer is escaped) x 2,000 / 4,000 / 8,000 / 16,000: 95 / 339 / 1,339 / 5,381 ms. A line whose closers all CLOSE (`$a$ `), a `$` followed by
+  // a blank (`$ `), a text with no `$`, and many SHORT lines (the search stops at the end of the line) are linear, so the controls come first. A closer on the NEXT line must not close an opener (inline math does not span lines), and a closed
+  // region after the unclosed run is still found: the rows that say so are the ones a cursor that forgot the line, or lost its place, would fail.
+  const MATH_LIMIT_MS = 1000;
+  const MATH_FEW = 3;
+  const withinLimit = (ms: number): boolean => ms < MATH_LIMIT_MS;
+  const mathKeys = (text: string): Array<[string, string, number, number]> => findMathRegions(text).map((region): [string, string, number, number] => [region.type, region.content, region.startLine, region.endLine]);
+  type MathRow = { site: string; unit: string; many: number; build: (run: string) => string; answer: (run: string) => unknown };
+  const noMath = (): unknown => [];
+
+  const MATH_ROWS: MathRow[] = [
+    // Controls: every `$` that can open also CLOSES, or cannot open, or the line is short, so the cost is linear before and after.
+    { site: "control: 16,000 closed inline regions on one line", unit: "$a$ ", many: 16_000, build: (run) => `${run}z\n`, answer: (run) => Array.from({ length: run.length / 4 }, () => ["inline", "a", 0, 0]) },
+    { site: "control: 64,000 `$` each followed by a blank on one line", unit: "$ ", many: 64_000, build: (run) => `${run}\n`, answer: noMath },
+    { site: "control: 20,000 short lines, each holding three unclosed `$`", unit: "$a $a $a\n", many: 20_000, build: (run) => run, answer: noMath },
+    // Guards: linear on the parent too, so they cannot be RED there; they hold the cure to it. The first opener of a long unclosed run takes a closer at the END of the line (the answer is a position a long way from the start), and one opener
+    // takes a closer past index 65,535 (a cursor of 16-bit entries, or a window, would lose it).
+    { site: "guard: 21,334 unclosed openers and then a closer at the end of the same line (the first opener takes it)", unit: "$a ", many: 21_334, build: (run) => `${run}b$\n`, answer: (run) => [["inline", `${run.slice(1)}b`, 0, 0]] },
+    { site: "guard: one opener, 70,000 characters, then its closer past index 65,535", unit: "x", many: 70_000, build: (run) => `$a${run}b$\n`, answer: (run) => [["inline", `a${run}b`, 0, 0]] },
+
+    // The refused shapes: the RED rows. Each holds only `$` that never close on their own line, so the whole line is read for each.
+    { site: "body line: 21,334 of `$a `, none closes (the item's shape)", unit: "$a ", many: 21_334, build: (run) => `${run}\n`, answer: noMath },
+    { site: "body line: 9,600 of `$a$1 `, the closer is followed by a digit", unit: "$a$1 ", many: 9_600, build: (run) => `${run}\n`, answer: noMath },
+    { site: "body line: 16,000 of `$a \\$ `, the closer is escaped", unit: "$a \\$ ", many: 16_000, build: (run) => `${run}\n`, answer: noMath },
+    // The table of what a cursor knows is kept across lines and across skip regions: a closer on the NEXT line closes nothing before it, a closed region there is still found, and a comment between is a hard boundary.
+    { site: "body line: 21,334 of `$a ` and a closer on the next line (inline math does not span lines)", unit: "$a ", many: 21_334, build: (run) => `${run}\nb$\n`, answer: noMath },
+    { site: "body line: 21,334 of `$a ` and a closed region on the next line (it is still found)", unit: "$a ", many: 21_334, build: (run) => `${run}\n$b$\n`, answer: () => [["inline", "b", 1, 1]] },
+    { site: "body line: 21,334 of `$a `, a comment line, then a closed region (the comment is a boundary, the region is found)", unit: "$a ", many: 21_334, build: (run) => `${run}\n<!-- c -->\n$b$\n`, answer: () => [["inline", "b", 2, 2]] },
+    // The search starts wherever the first opener is: a run that follows 100,000 characters of text.
+    { site: "body line: 100,000 characters of text, then 21,334 of `$a `, none closes", unit: "$a ", many: 21_334, build: (run) => `${"x".repeat(100_000)}${run}\n`, answer: noMath },
+  ];
+
+  it.each(MATH_ROWS.map((row) => [row.site, row] as const))("%s: is read in linear time, and the answer is the stated one with 3 units and with the long run", (_site, row) => {
+    const shortRun = row.unit.repeat(MATH_FEW);
+    expect(mathKeys(row.build(shortRun))).toEqual(row.answer(shortRun));
+    const run = row.unit.repeat(row.many);
+    const longText = row.build(run);
+    expect(longText.length).toBeGreaterThan(run.length - 1); // the timed text holds the whole run
+    const { result, ms } = timed(() => mathKeys(longText));
+    expect(result).toEqual(row.answer(run));
+    expect({ ms, within: withinLimit(ms) }).toMatchObject({ within: true });
+  });
+
+  it("builds a different text for every row", () => {
+    const shortTexts = MATH_ROWS.map((row) => row.build(row.unit.repeat(MATH_FEW)));
+    expect(new Set(shortTexts).size).toBe(MATH_ROWS.length);
+    const longTexts = MATH_ROWS.map((row) => row.build(row.unit.repeat(row.many)));
+    expect(new Set(longTexts).size).toBe(MATH_ROWS.length);
+  });
+
+  // A run of 3,000 openers, or a limit of 100 s, would pass on the parent too, and a limit read as ten times its constant would pass everything but the slowest rows, so the boundary of `withinLimit` is pinned as well.
+  it("keeps the sizes, the limit and the units the Session 327 rows are built on", () => {
+    expect([MATH_FEW, MATH_LIMIT_MS]).toEqual([3, 1000]);
+    expect([withinLimit(MATH_LIMIT_MS - 1), withinLimit(MATH_LIMIT_MS)]).toEqual([true, false]);
+    expect(MATH_ROWS.map((row) => `${row.unit}x${row.many}`)).toEqual([
+      "$a$ x16000", "$ x64000", "$a $a $a\nx20000",
+      "$a x21334", "xx70000",
+      "$a x21334", "$a$1 x9600", "$a \\$ x16000",
+      "$a x21334", "$a x21334", "$a x21334",
+      "$a x21334",
     ]);
   });
 });
