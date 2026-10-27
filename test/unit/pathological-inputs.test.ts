@@ -1733,3 +1733,78 @@ describe("Session 329 — the two documents of the Session 311 item's part (5), 
     expect([SCALAR_LINES, GROUPS, SCALAR_LINES_LARGE, GROUPS_LARGE, FEW, PART5_LIMIT_MS]).toEqual([20_000, 12_000, 100_000, 24_000, 200, 1000]);
   });
 });
+
+describe("Session 330 — a heading line holding a long run of `#`, backslashes or `{`", () => {
+  // The BACKLOG item "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", parts (2) and (3). `buildHeading` strips a trailing attribute block and the reader's closing-hash run from
+  // every heading, each by an unanchored regex that opens with a backslash-parity lookbehind: `ATX_CLOSING_PANDOC` (`(?<=(?:^|[^\\])(?:\\\\)*)#+[ \t]*$`, the pandoc `markdown*` readers) and `HEADING_ATTRIBUTE`
+  // (`(?<=(?:^|[^\\])(?:\\\\)*)\{[^}]*\}[ \t]*$`, the readers that honour an attribute block). Both can fail only at the END of the line, so every start that cannot match still reads on: each `#` of a run inside the text reads the rest
+  // of the run, each `{` of a run with no closing `}` reads to the end of the line, and, because the lookbehind comes first and is tried at EVERY index, a run of backslashes costs a walk back over the run per index (no `#` or `{`
+  // needed). Profile (Session 330, `node --cpu-prof`, load 3 to 5): `# a ` + `#` x 30,000: 98.5% in the closing regex; `# a ` + `{` x 40,000: 94.1% in the attribute regex; `# ` + a backslash x 40,000: 47.5% and 47.3%.
+  // The reader isolates the regex: `markdown_github` strips an unspaced closing run and renders a trailing `{...}` as text (closing regex only), `commonmark_x` is the reverse (attribute regex only), `gfm` uses neither, and no
+  // `from:` uses both. Bare `findHeadings`, a warm call after a warm-up call, load average 4 to 6 (Session 330), against a limit of 1,000 ms: `#` x 40,000 inside the text 5,135 ms (default) and 5,155 (`markdown_github`); 100,000
+  // backslashes 5,385 (default), 2,763 (`markdown_github`), 2,683 (`commonmark_x`); `{` x 100,000 4,703 (default), 4,728 (`commonmark_x`), and as a setext heading 4,710; the controls below take 1 to 9 ms. The rows are sized for
+  // about 3.5 to 4.5 s on the parent, under vitest's 5 s default so that the failure is the clock assertion and not a timeout, and the controls come first so the patterns are warm (Learning 816).
+  const TAIL_LIMIT_MS = 1000;
+  const TAIL_FEW = 4;
+  const tailHeadings = (text: string): Array<[number, string, string | undefined]> => findHeadings(text).map((heading): [number, string, string | undefined] => [heading.line, heading.text, heading.id]);
+  const frontMatter = (from: string | null): string => (from === null ? "" : `---\nfrom: ${from}\n---\n\n`);
+  type TailRow = { site: string; from: string | null; unit: string; many: number; build: (run: string) => string; text: (run: string) => string; id?: string };
+
+  const TAIL_ROWS: TailRow[] = [
+    // Controls: linear on the parent too (the first start matches, or no start passes the lookbehind), so they cannot be RED there; they hold the cure to the same answers at the same size.
+    { site: "control: a closing run of 100,000 `#` after a blank", from: null, unit: "#", many: 100_000, build: (run) => `# a ${run}\n`, text: () => "a" },
+    { site: "control: a closing run of 100,000 `#` after one backslash (odd parity: the second `#` starts the run)", from: null, unit: "#", many: 100_000, build: (run) => `# a \\${run}\n`, text: () => "a #" },
+    { site: "control: 50,000 escaped braces and a `}`", from: null, unit: "\\{", many: 50_000, build: (run) => `# a ${run}x}\n`, text: (run) => `a ${"{".repeat(run.length / 2)}x}` },
+    { site: "control: 100,000 `{` then a block that is not one", from: null, unit: "{", many: 100_000, build: (run) => `# a ${run}#sec-x}\n`, text: (run) => `a ${run}#sec-x}` },
+    { site: "control: 100,000 `{` and a `}` at the end", from: null, unit: "{", many: 100_000, build: (run) => `# a ${run}}\n`, text: (run) => `a ${run}}` },
+    { site: "control: a valid attribute block after 200,000 characters of text", from: null, unit: "x", many: 200_000, build: (run) => `# ${run} {#sec-a}\n`, text: (run) => run, id: "sec-a" },
+    { site: "control: 100,000 backslashes under from: gfm (neither regex is used)", from: "gfm", unit: "\\", many: 100_000, build: (run) => `# ${run}\n`, text: (run) => "\\".repeat(run.length / 2) },
+
+    // The closing-hash regex (`markdown*` readers): a run of `#` INSIDE the text, a backslash run, and an odd-parity run.
+    { site: "heading: 32,000 `#` inside the text, then a letter", from: null, unit: "#", many: 32_000, build: (run) => `# a ${run}b\n`, text: (run) => `a ${run}b` },
+    { site: "heading: 32,000 `#` inside the text, then a letter, under from: markdown_github (the closing regex alone)", from: "markdown_github", unit: "#", many: 32_000, build: (run) => `# a ${run}b\n`, text: (run) => `a ${run}b` },
+    { site: "heading: 32,000 `#` inside the text, a letter, then a real closing run", from: null, unit: "#", many: 32_000, build: (run) => `# a ${run}b ##\n`, text: (run) => `a ${run}b` },
+    { site: "heading: one backslash, 32,000 `#`, then a letter", from: null, unit: "#", many: 32_000, build: (run) => `# a \\${run}b\n`, text: (run) => `a ${run}b` },
+    { site: "heading: 80,000 backslashes", from: null, unit: "\\", many: 80_000, build: (run) => `# ${run}\n`, text: (run) => "\\".repeat(run.length / 2) },
+    { site: "heading: 120,000 backslashes under from: markdown_github (the closing regex alone)", from: "markdown_github", unit: "\\", many: 120_000, build: (run) => `# ${run}\n`, text: (run) => "\\".repeat(run.length / 2) },
+    { site: "heading: 80,000 backslashes and a `#` inside the text", from: null, unit: "\\", many: 80_000, build: (run) => `# ${run}#b\n`, text: (run) => `${"\\".repeat(run.length / 2)}#b` },
+
+    // The attribute regex (readers that honour a block): a `{` run with no `}`, with a `}` and text after it, an even-parity run, a setext heading, and a backslash run under the one reader that uses it alone.
+    { site: "heading: 90,000 `{`, none closed", from: null, unit: "{", many: 90_000, build: (run) => `# a ${run}\n`, text: (run) => `a ${run}` },
+    { site: "heading: 90,000 `{`, none closed, under from: commonmark_x (the attribute regex alone)", from: "commonmark_x", unit: "{", many: 90_000, build: (run) => `# a ${run}\n`, text: (run) => `a ${run}` },
+    { site: "setext: 90,000 `{`, none closed", from: null, unit: "{", many: 90_000, build: (run) => `${run}\n===\n`, text: (run) => run },
+    { site: "heading: 90,000 `{` and a `}` followed by text", from: null, unit: "{", many: 90_000, build: (run) => `# a ${run}} b\n`, text: (run) => `a ${run}} b` },
+    { site: "heading: 50,000 of an escaped backslash and a `{`, none closed", from: null, unit: "\\\\{", many: 50_000, build: (run) => `# a ${run}\n`, text: (run) => `a ${"\\{".repeat(run.length / 3)}` },
+    { site: "heading: 120,000 backslashes under from: commonmark_x (the attribute regex alone)", from: "commonmark_x", unit: "\\", many: 120_000, build: (run) => `# ${run}\n`, text: (run) => "\\".repeat(run.length / 2) },
+  ];
+
+  it.each(TAIL_ROWS.map((row) => [row.site, row] as const))("%s: is read in linear time, and the answer is the stated one with 4 units and with the long run", (_site, row) => {
+    const line = row.from === null ? 0 : 4;
+    const heading = (run: string): Array<[number, string, string | undefined]> => [[line, row.text(run), row.id]];
+    const shortRun = row.unit.repeat(TAIL_FEW);
+    expect(tailHeadings(frontMatter(row.from) + row.build(shortRun))).toEqual(heading(shortRun));
+    const run = row.unit.repeat(row.many);
+    const longText = frontMatter(row.from) + row.build(run);
+    expect(longText.length).toBeGreaterThan(run.length); // the timed text holds the whole run
+    const { result, ms } = timed(() => tailHeadings(longText));
+    expect(result).toEqual(heading(run));
+    expect(ms).toBeLessThan(TAIL_LIMIT_MS);
+  });
+
+  it("builds a different text for every row", () => {
+    const shortTexts = TAIL_ROWS.map((row) => frontMatter(row.from) + row.build(row.unit.repeat(TAIL_FEW)));
+    expect(new Set(shortTexts).size).toBe(TAIL_ROWS.length);
+    const longTexts = TAIL_ROWS.map((row) => frontMatter(row.from) + row.build(row.unit.repeat(row.many)));
+    expect(new Set(longTexts).size).toBe(TAIL_ROWS.length);
+  });
+
+  // A run of 3,000 characters, or a limit of 100 s, would pass on the parent too.
+  it("keeps the sizes, the limit and the units the Session 330 rows are built on", () => {
+    expect([TAIL_FEW, TAIL_LIMIT_MS]).toEqual([4, 1000]);
+    expect(TAIL_ROWS.map((row) => `${row.unit}x${row.many}`)).toEqual([
+      "#x100000", "#x100000", "\\{x50000", "{x100000", "{x100000", "xx200000", "\\x100000",
+      "#x32000", "#x32000", "#x32000", "#x32000", "\\x80000", "\\x120000", "\\x80000",
+      "{x90000", "{x90000", "{x90000", "{x90000", "\\\\{x50000", "\\x120000",
+    ]);
+  });
+});
