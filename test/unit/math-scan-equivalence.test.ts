@@ -433,6 +433,11 @@ describe("Session 327 — the math scan answers what the function that reread th
     ["an accented letter to the left of a closer allows it", "$aé$", [["inline", "aé", 0, 0]]],
     ["a digit to the left of a closer allows it", "$a1$", [["inline", "a1", 0, 0]]],
     ["a letter to the right of a closer allows it", "$a$b", [["inline", "a", 0, 0]]],
+    // The edges of "a digit": 0 and 9 refuse a closer, the characters just outside the range (a slash before 0, a colon after 9) do not.
+    ["a 0 to the right of a closer refuses it", "$a$0", []],
+    ["a 9 to the right of a closer refuses it", "$a$9", []],
+    ["a slash (one before 0) to the right of a closer allows it", "$a$/", [["inline", "a", 0, 0]]],
+    ["a colon (one after 9) to the right of a closer allows it", "$a$:", [["inline", "a", 0, 0]]],
   ] as Array<[string, string, Array<[string, string, number, number]>]>)("%s", (_title, text, regions) => {
     const expected = regions.map(([type, content, startLine, endLine]) => ({ type, content, startLine, endLine }));
     expect(oldFindMathRegions(text)).toEqual(expected);

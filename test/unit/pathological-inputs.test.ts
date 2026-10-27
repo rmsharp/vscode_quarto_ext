@@ -1456,6 +1456,11 @@ describe("Session 327 — a line holding many `$` whose closing `$` never comes"
     // takes a closer past index 65,535 (a cursor of 16-bit entries, or a window, would lose it).
     { site: "guard: 21,334 unclosed openers and then a closer at the end of the same line (the first opener takes it)", unit: "$a ", many: 21_334, build: (run) => `${run}b$\n`, answer: (run) => [["inline", `${run.slice(1)}b`, 0, 0]] },
     { site: "guard: one opener, 70,000 characters, then its closer past index 65,535", unit: "x", many: 70_000, build: (run) => `$a${run}b$\n`, answer: (run) => [["inline", `a${run}b`, 0, 0]] },
+    // A backslash is asked about only in front of a `$`: a test that asks it of every character reads a run of 64,000 once per character (quadratic), in the scan, in the closer search and in the display search. An even run does not escape the `$`
+    // after it, an odd one does, so the three-unit answer is "nothing" and the long one is a region.
+    { site: "guard: 64,000 backslashes and then a region (the scan asks about escapes in front of a `$` only)", unit: "\\", many: 64_000, build: (run) => `${run}$a$\n`, answer: (run) => (run.length % 2 === 0 ? [["inline", "a", 0, 0]] : []) },
+    { site: "guard: an opener, 64,000 backslashes and then its closer (the closer search asks about escapes in front of a `$` only)", unit: "\\", many: 64_000, build: (run) => `$a${run}$\n`, answer: (run) => (run.length % 2 === 0 ? [["inline", `a${run}`, 0, 0]] : []) },
+    { site: "guard: a display region whose body is 64,000 backslashes (the display search asks about escapes in front of a `$$` only)", unit: "\\", many: 64_000, build: (run) => `$$${run}$$\n`, answer: (run) => (run.length % 2 === 0 ? [["display", run, 0, 0]] : []) },
 
     // The refused shapes: the RED rows. Each holds only `$` that never close on their own line, so the whole line is read for each.
     { site: "body line: 21,334 of `$a `, none closes (the item's shape)", unit: "$a ", many: 21_334, build: (run) => `${run}\n`, answer: noMath },
@@ -1493,7 +1498,7 @@ describe("Session 327 — a line holding many `$` whose closing `$` never comes"
     expect([withinLimit(MATH_LIMIT_MS - 1), withinLimit(MATH_LIMIT_MS)]).toEqual([true, false]);
     expect(MATH_ROWS.map((row) => `${row.unit}x${row.many}`)).toEqual([
       "$a$ x16000", "$ x64000", "$a $a $a\nx20000",
-      "$a x21334", "xx70000",
+      "$a x21334", "xx70000", "\\x64000", "\\x64000", "\\x64000",
       "$a x21334", "$a$1 x9600", "$a \\$ x16000",
       "$a x21334", "$a x21334", "$a x21334",
       "$a x21334",

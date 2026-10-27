@@ -1,0 +1,650 @@
+[
+ {
+  "name": "C01 the kept position starts past every character",
+  "file": "src/core/math-regions.ts",
+  "from": "let closer = -1;",
+  "to": "let closer = s.length;",
+  "expect": "killed",
+  "why": "the search is never made, so no inline region is found"
+ },
+ {
+  "name": "C02 recompute when the kept position is the next character too",
+  "file": "src/core/math-regions.ts",
+  "from": "if (closer < p + 1) {",
+  "to": "if (closer <= p + 1) {",
+  "expect": "survives",
+  "why": "the next character after an opener is never a `$`, so the kept position is never p + 1; 2,000,000 strings against the head and 0 differences (Session 327: lengths up to 40 over five alphabets with all digits, a slash, a colon, a tab, a CR, a no-break space, U+2028 and a byte order mark; the harness differs on two real mutants, C13 in 27,467 strings and N14 in 254,752)"
+ },
+ {
+  "name": "C03 recompute only when the kept position is behind the opener itself",
+  "file": "src/core/math-regions.ts",
+  "from": "if (closer < p + 1) {",
+  "to": "if (closer < p) {",
+  "expect": "killed",
+  "why": "a closer-shaped `$` that is also the next opener is read as its own closer"
+ },
+ {
+  "name": "C04 the search starts at the opener",
+  "file": "src/core/math-regions.ts",
+  "from": "closer = nextInlineCloser(s, p + 1);",
+  "to": "closer = nextInlineCloser(s, p);",
+  "expect": "killed",
+  "why": "the opener itself is asked: `a$b$` closes at its own opener"
+ },
+ {
+  "name": "C05 the search starts two places on",
+  "file": "src/core/math-regions.ts",
+  "from": "closer = nextInlineCloser(s, p + 1);",
+  "to": "closer = nextInlineCloser(s, p + 2);",
+  "expect": "survives",
+  "why": "the character after an opener is never a `$` (a `$$` opens display math), so nothing at p + 1 is lost; 2,000,000 strings against the head and 0 differences (Session 327: lengths up to 40 over five alphabets with all digits, a slash, a colon, a tab, a CR, a no-break space, U+2028 and a byte order mark; the harness differs on two real mutants, C13 in 27,467 strings and N14 in 254,752)"
+ },
+ {
+  "name": "C06 no check for \"no closer\"",
+  "file": "src/core/math-regions.ts",
+  "from": "if (closer < s.length && charLine[closer] === charLine[p]) {",
+  "to": "if (charLine[closer] === charLine[p]) {",
+  "expect": "killed",
+  "why": "the end entry of charLine is on the last line, so an opener on the last line closes at the end of the text"
+ },
+ {
+  "name": "C07 the line is not checked",
+  "file": "src/core/math-regions.ts",
+  "from": "if (closer < s.length && charLine[closer] === charLine[p]) {",
+  "to": "if (closer < s.length) {",
+  "expect": "killed",
+  "why": "a closer on a later line closes the opener"
+ },
+ {
+  "name": "C08 the line check is turned round",
+  "file": "src/core/math-regions.ts",
+  "from": "if (closer < s.length && charLine[closer] === charLine[p]) {",
+  "to": "if (closer < s.length && charLine[closer] !== charLine[p]) {",
+  "expect": "killed",
+  "why": "only a closer on another line closes"
+ },
+ {
+  "name": "C09 the line of the character after the opener",
+  "file": "src/core/math-regions.ts",
+  "from": "if (closer < s.length && charLine[closer] === charLine[p]) {",
+  "to": "if (closer < s.length && charLine[closer] === charLine[p + 1]) {",
+  "expect": "survives",
+  "why": "p + 1 is a non-blank, so it is on the opener line; 2,000,000 strings against the head and 0 differences (Session 327: lengths up to 40 over five alphabets with all digits, a slash, a colon, a tab, a CR, a no-break space, U+2028 and a byte order mark; the harness differs on two real mutants, C13 in 27,467 strings and N14 in 254,752)"
+ },
+ {
+  "name": "C10 the line of the character before the closer",
+  "file": "src/core/math-regions.ts",
+  "from": "if (closer < s.length && charLine[closer] === charLine[p]) {",
+  "to": "if (closer < s.length && charLine[closer - 1] === charLine[p]) {",
+  "expect": "survives",
+  "why": "a closer has a non-blank on its left, so closer - 1 is on the closer line; 2,000,000 strings against the head and 0 differences (Session 327: lengths up to 40 over five alphabets with all digits, a slash, a colon, a tab, a CR, a no-break space, U+2028 and a byte order mark; the harness differs on two real mutants, C13 in 27,467 strings and N14 in 254,752)"
+ },
+ {
+  "name": "C11 the closer line may not be before the opener line",
+  "file": "src/core/math-regions.ts",
+  "from": "if (closer < s.length && charLine[closer] === charLine[p]) {",
+  "to": "if (closer < s.length && charLine[closer] <= charLine[p]) {",
+  "expect": "survives",
+  "why": "the closer is after the opener, so its line is never before: <= is the same as ===; 2,000,000 strings against the head and 0 differences (Session 327: lengths up to 40 over five alphabets with all digits, a slash, a colon, a tab, a CR, a no-break space, U+2028 and a byte order mark; the harness differs on two real mutants, C13 in 27,467 strings and N14 in 254,752)"
+ },
+ {
+  "name": "C12 resume at the closer",
+  "file": "src/core/math-regions.ts",
+  "from": "p = closer + 1;",
+  "to": "p = closer;",
+  "expect": "killed",
+  "why": "the closing `$` is read again as an opener"
+ },
+ {
+  "name": "C13 resume two places after the closer",
+  "file": "src/core/math-regions.ts",
+  "from": "p = closer + 1;",
+  "to": "p = closer + 2;",
+  "expect": "killed",
+  "why": "the character after a closer is skipped: `$a$$b$` loses its second region"
+ },
+ {
+  "name": "C14 the content includes the opener",
+  "file": "src/core/math-regions.ts",
+  "from": "content: source.slice(p + 1, closer),",
+  "to": "content: source.slice(p, closer),",
+  "expect": "killed",
+  "why": "the opening `$` is in the content"
+ },
+ {
+  "name": "C15 the content includes the closer",
+  "file": "src/core/math-regions.ts",
+  "from": "content: source.slice(p + 1, closer),",
+  "to": "content: source.slice(p + 1, closer + 1),",
+  "expect": "killed",
+  "why": "the closing `$` is in the content"
+ },
+ {
+  "name": "C16 the content is read from the masked text",
+  "file": "src/core/math-regions.ts",
+  "from": "content: source.slice(p + 1, closer),",
+  "to": "content: s.slice(p + 1, closer),",
+  "expect": "killed",
+  "why": "a code span in math content is blanked (the oracle swaps its letters)"
+ },
+ {
+  "name": "C17 an inline region is typed display",
+  "file": "src/core/math-regions.ts",
+  "from": "type: \"inline\",",
+  "to": "type: \"display\",",
+  "expect": "killed",
+  "why": "the type is wrong"
+ },
+ {
+  "name": "C18 the inline end line is the closer line",
+  "file": "src/core/math-regions.ts",
+  "from": "endLine: charLine[p],",
+  "to": "endLine: charLine[closer],",
+  "expect": "survives",
+  "why": "the closer is on the opener line, by the check above it; 2,000,000 strings against the head and 0 differences (Session 327: lengths up to 40 over five alphabets with all digits, a slash, a colon, a tab, a CR, a no-break space, U+2028 and a byte order mark; the harness differs on two real mutants, C13 in 27,467 strings and N14 in 254,752)"
+ },
+ {
+  "name": "C19 the inline end line is one on",
+  "file": "src/core/math-regions.ts",
+  "from": "endLine: charLine[p],",
+  "to": "endLine: charLine[p] + 1,",
+  "expect": "killed",
+  "why": "the end line is wrong"
+ },
+ {
+  "name": "N01 the search starts one place on",
+  "file": "src/core/math-regions.ts",
+  "from": "for (let k = from; k < s.length; k++) {",
+  "to": "for (let k = from + 1; k < s.length; k++) {",
+  "expect": "survives",
+  "why": "from is the opener right neighbour, never a `$`; 2,000,000 strings against the head and 0 differences (Session 327: lengths up to 40 over five alphabets with all digits, a slash, a colon, a tab, a CR, a no-break space, U+2028 and a byte order mark; the harness differs on two real mutants, C13 in 27,467 strings and N14 in 254,752)"
+ },
+ {
+  "name": "N02 the search starts at the opener",
+  "file": "src/core/math-regions.ts",
+  "from": "for (let k = from; k < s.length; k++) {",
+  "to": "for (let k = from - 1; k < s.length; k++) {",
+  "expect": "killed",
+  "why": "the opener itself is asked"
+ },
+ {
+  "name": "N03 the search runs one place past the end",
+  "file": "src/core/math-regions.ts",
+  "from": "for (let k = from; k < s.length; k++) {",
+  "to": "for (let k = from; k <= s.length; k++) {",
+  "expect": "survives",
+  "why": "s[s.length] is undefined, so nothing is found there; 2,000,000 strings against the head and 0 differences (Session 327: lengths up to 40 over five alphabets with all digits, a slash, a colon, a tab, a CR, a no-break space, U+2028 and a byte order mark; the harness differs on two real mutants, C13 in 27,467 strings and N14 in 254,752)"
+ },
+ {
+  "name": "N04 an escaped closer closes",
+  "file": "src/core/math-regions.ts",
+  "from": "if (s[k] !== \"$\" || isEscaped(s, k)) {",
+  "to": "if (s[k] !== \"$\") {",
+  "expect": "killed",
+  "why": "a backslash-escaped `$` closes"
+ },
+ {
+  "name": "N05 only an escaped closer closes",
+  "file": "src/core/math-regions.ts",
+  "from": "if (s[k] !== \"$\" || isEscaped(s, k)) {",
+  "to": "if (s[k] !== \"$\" || !isEscaped(s, k)) {",
+  "expect": "killed",
+  "why": "the escape test is turned round"
+ },
+ {
+  "name": "N06 the escape test before the character test",
+  "file": "src/core/math-regions.ts",
+  "from": "if (s[k] !== \"$\" || isEscaped(s, k)) {",
+  "to": "if (isEscaped(s, k) || s[k] !== \"$\") {",
+  "expect": "killed",
+  "why": "the same answers; isEscaped is asked of every character, and a long run of backslashes is read once per character after it (quadratic): the guard row of backslashes; SURVIVED the first rows (Session 327 run 1), killed by the backslash guard rows of pathological-inputs.test.ts"
+ },
+ {
+  "name": "N07 a blank before the closer is not asked",
+  "file": "src/core/math-regions.ts",
+  "from": "const precededByNonSpace = !isSpace(s[k - 1]);",
+  "to": "const precededByNonSpace = true;",
+  "expect": "killed",
+  "why": "a closer after a blank closes"
+ },
+ {
+  "name": "N08 the blank test reads the next character",
+  "file": "src/core/math-regions.ts",
+  "from": "const precededByNonSpace = !isSpace(s[k - 1]);",
+  "to": "const precededByNonSpace = !isSpace(s[k + 1]);",
+  "expect": "killed",
+  "why": "the wrong neighbour is tested"
+ },
+ {
+  "name": "N09 the blank test reads two places back",
+  "file": "src/core/math-regions.ts",
+  "from": "const precededByNonSpace = !isSpace(s[k - 1]);",
+  "to": "const precededByNonSpace = !isSpace(s[k - 2]);",
+  "expect": "killed",
+  "why": "the wrong neighbour is tested"
+ },
+ {
+  "name": "N10 the blank test is turned round",
+  "file": "src/core/math-regions.ts",
+  "from": "const precededByNonSpace = !isSpace(s[k - 1]);",
+  "to": "const precededByNonSpace = isSpace(s[k - 1]);",
+  "expect": "killed",
+  "why": "only a closer after a blank closes"
+ },
+ {
+  "name": "N11 a digit after the closer is not asked",
+  "file": "src/core/math-regions.ts",
+  "from": "const followedByDigit = k + 1 < s.length && isDigit(s[k + 1]);",
+  "to": "const followedByDigit = false;",
+  "expect": "killed",
+  "why": "a closer followed by a digit closes"
+ },
+ {
+  "name": "N12 the digit test reads the closer itself",
+  "file": "src/core/math-regions.ts",
+  "from": "const followedByDigit = k + 1 < s.length && isDigit(s[k + 1]);",
+  "to": "const followedByDigit = k + 1 < s.length && isDigit(s[k]);",
+  "expect": "killed",
+  "why": "the closer is a `$`, never a digit"
+ },
+ {
+  "name": "N13 the digit test reads one place past the end",
+  "file": "src/core/math-regions.ts",
+  "from": "const followedByDigit = k + 1 < s.length && isDigit(s[k + 1]);",
+  "to": "const followedByDigit = k + 1 <= s.length && isDigit(s[k + 1]);",
+  "expect": "survives",
+  "why": "isDigit(undefined) is false; 2,000,000 strings against the head and 0 differences (Session 327: lengths up to 40 over five alphabets with all digits, a slash, a colon, a tab, a CR, a no-break space, U+2028 and a byte order mark; the harness differs on two real mutants, C13 in 27,467 strings and N14 in 254,752)"
+ },
+ {
+  "name": "N14 the digit test is `||`",
+  "file": "src/core/math-regions.ts",
+  "from": "const followedByDigit = k + 1 < s.length && isDigit(s[k + 1]);",
+  "to": "const followedByDigit = k + 1 < s.length || isDigit(s[k + 1]);",
+  "expect": "killed",
+  "why": "every closer not at the end is followed by a digit"
+ },
+ {
+  "name": "N15 the digit test is turned round",
+  "file": "src/core/math-regions.ts",
+  "from": "const followedByDigit = k + 1 < s.length && isDigit(s[k + 1]);",
+  "to": "const followedByDigit = k + 1 < s.length && !isDigit(s[k + 1]);",
+  "expect": "killed",
+  "why": "only a closer followed by a non-digit is refused"
+ },
+ {
+  "name": "N16 either rule is enough to close",
+  "file": "src/core/math-regions.ts",
+  "from": "if (precededByNonSpace && !followedByDigit) {",
+  "to": "if (precededByNonSpace || !followedByDigit) {",
+  "expect": "killed",
+  "why": "a closer after a blank, or before a digit, closes"
+ },
+ {
+  "name": "N17 the closer is one place on",
+  "file": "src/core/math-regions.ts",
+  "from": "if (precededByNonSpace && !followedByDigit) {\n      return k;",
+  "to": "if (precededByNonSpace && !followedByDigit) {\n      return k + 1;",
+  "expect": "killed",
+  "why": "the position returned is wrong"
+ },
+ {
+  "name": "N18 \"none\" is one past the end",
+  "file": "src/core/math-regions.ts",
+  "from": "return s.length;",
+  "to": "return s.length + 1;",
+  "expect": "survives",
+  "why": "closer < s.length is false for both; 2,000,000 strings against the head and 0 differences (Session 327: lengths up to 40 over five alphabets with all digits, a slash, a colon, a tab, a CR, a no-break space, U+2028 and a byte order mark; the harness differs on two real mutants, C13 in 27,467 strings and N14 in 254,752)"
+ },
+ {
+  "name": "N19 \"none\" is -1",
+  "file": "src/core/math-regions.ts",
+  "from": "return s.length;",
+  "to": "return -1;",
+  "expect": "killed",
+  "why": "the same answers (charLine[-1] is undefined), but -1 is behind every opener, so every opener searches again: quadratic"
+ },
+ {
+  "name": "D01 an escaped opener opens",
+  "file": "src/core/math-regions.ts",
+  "from": "if (s[p] === \"$\" && !isEscaped(s, p)) {",
+  "to": "if (s[p] === \"$\") {",
+  "expect": "killed",
+  "why": "a backslash-escaped `$` opens math"
+ },
+ {
+  "name": "D02 the escape test before the character test",
+  "file": "src/core/math-regions.ts",
+  "from": "if (s[p] === \"$\" && !isEscaped(s, p)) {",
+  "to": "if (!isEscaped(s, p) && s[p] === \"$\") {",
+  "expect": "killed",
+  "why": "the same answers; isEscaped is asked of every character (quadratic on a long run of backslashes): the guard row of backslashes; SURVIVED the first rows (Session 327 run 1), killed by the backslash guard rows of pathological-inputs.test.ts"
+ },
+ {
+  "name": "D03 a `$$` at the very end is not display",
+  "file": "src/core/math-regions.ts",
+  "from": "if (s[p + 1] === \"$\") {",
+  "to": "if (s[p + 1] === \"$\" && p + 2 < s.length) {",
+  "expect": "killed",
+  "why": "`$$` alone becomes an inline region of nothing"
+ },
+ {
+  "name": "D04 the display close is searched from the second `$`",
+  "file": "src/core/math-regions.ts",
+  "from": "const q = findDisplayClose(s, p + 2);",
+  "to": "const q = findDisplayClose(s, p + 1);",
+  "expect": "killed",
+  "why": "the opening pair can close itself in `$$$`"
+ },
+ {
+  "name": "D05 an unterminated display does not end the scan",
+  "file": "src/core/math-regions.ts",
+  "from": "break; // unterminated display — the rest is inside open math",
+  "to": "p++; continue; // unterminated display",
+  "expect": "killed",
+  "why": "math after an unterminated `$$` is found"
+ },
+ {
+  "name": "D06 the display content includes one `$` of its opener",
+  "file": "src/core/math-regions.ts",
+  "from": "content: source.slice(p + 2, q),",
+  "to": "content: source.slice(p + 1, q),",
+  "expect": "killed",
+  "why": "the content is wrong"
+ },
+ {
+  "name": "D07 the display end line is the opener line",
+  "file": "src/core/math-regions.ts",
+  "from": "endLine: charLine[q],",
+  "to": "endLine: charLine[p],",
+  "expect": "killed",
+  "why": "a display spanning lines ends on its first"
+ },
+ {
+  "name": "D08 resume one place after the display close",
+  "file": "src/core/math-regions.ts",
+  "from": "p = q + 2;",
+  "to": "p = q + 1;",
+  "expect": "killed",
+  "why": "the second `$` of the closing pair is read again"
+ },
+ {
+  "name": "D09 the display close search stops one place early",
+  "file": "src/core/math-regions.ts",
+  "from": "for (let k = from; k < s.length - 1; k++) {",
+  "to": "for (let k = from; k < s.length; k++) {",
+  "expect": "survives",
+  "why": "s[k + 1] is undefined at the end, so no pair is found there; 2,000,000 strings against the head and 0 differences (Session 327: lengths up to 40 over five alphabets with all digits, a slash, a colon, a tab, a CR, a no-break space, U+2028 and a byte order mark; the harness differs on two real mutants, C13 in 27,467 strings and N14 in 254,752)"
+ },
+ {
+  "name": "D10 an escaped display closer closes",
+  "file": "src/core/math-regions.ts",
+  "from": "if (s[k] === \"$\" && s[k + 1] === \"$\" && !isEscaped(s, k)) {",
+  "to": "if (s[k] === \"$\" && s[k + 1] === \"$\") {",
+  "expect": "killed",
+  "why": "a backslash-escaped `$$` closes display math"
+ },
+ {
+  "name": "D11 the escape test before the character tests (display)",
+  "file": "src/core/math-regions.ts",
+  "from": "if (s[k] === \"$\" && s[k + 1] === \"$\" && !isEscaped(s, k)) {",
+  "to": "if (!isEscaped(s, k) && s[k] === \"$\" && s[k + 1] === \"$\") {",
+  "expect": "killed",
+  "why": "the same answers; isEscaped is asked of every character (quadratic on a long run of backslashes): the guard row of a display; SURVIVED the first rows (Session 327 run 1), killed by the backslash guard rows of pathological-inputs.test.ts"
+ },
+ {
+  "name": "D12 any backslash escapes",
+  "file": "src/core/math-regions.ts",
+  "from": "return n % 2 === 1;",
+  "to": "return n > 0;",
+  "expect": "killed",
+  "why": "two backslashes escape: `\\\\$` is read as escaped"
+ },
+ {
+  "name": "D13 an even run escapes",
+  "file": "src/core/math-regions.ts",
+  "from": "return n % 2 === 1;",
+  "to": "return n % 2 === 0;",
+  "expect": "killed",
+  "why": "the parity is turned round"
+ },
+ {
+  "name": "D14 the first character is not read back",
+  "file": "src/core/math-regions.ts",
+  "from": "for (let k = i - 1; k >= 0 && s[k] === \"\\\\\"; k--) {",
+  "to": "for (let k = i - 1; k > 0 && s[k] === \"\\\\\"; k--) {",
+  "expect": "killed",
+  "why": "a backslash at index 0 is not counted"
+ },
+ {
+  "name": "D15 a line break is one line and a half",
+  "file": "src/core/math-regions.ts",
+  "from": "      line++;",
+  "to": "      line += 2;",
+  "expect": "killed",
+  "why": "every region after a line break is on the wrong line"
+ },
+ {
+  "name": "D16 the end entry of the line table",
+  "file": "src/core/math-regions.ts",
+  "from": "charLine[s.length] = line;",
+  "to": "charLine[s.length] = -1;",
+  "expect": "survives",
+  "why": "nothing reads the entry past the last character (a closer at s.length is guarded away); 2,000,000 strings against the head and 0 differences (Session 327: lengths up to 40 over five alphabets with all digits, a slash, a colon, a tab, a CR, a no-break space, U+2028 and a byte order mark; the harness differs on two real mutants, C13 in 27,467 strings and N14 in 254,752)"
+ },
+ {
+  "name": "D17 a blank is only a space",
+  "file": "src/core/math-regions.ts",
+  "from": "return /\\s/.test(ch);",
+  "to": "return ch === \" \";",
+  "expect": "killed",
+  "why": "a tab, a no-break space, U+2028, a byte order mark and a line break are blanks"
+ },
+ {
+  "name": "D18 a blank is a space or a tab",
+  "file": "src/core/math-regions.ts",
+  "from": "return /\\s/.test(ch);",
+  "to": "return /[ \\t]/.test(ch);",
+  "expect": "killed",
+  "why": "a no-break space, U+2028, a byte order mark and a line break are blanks"
+ },
+ {
+  "name": "D19 a line break is no blank",
+  "file": "src/core/math-regions.ts",
+  "from": "return /\\s/.test(ch);",
+  "to": "return /[^\\S\\n]/.test(ch);",
+  "expect": "survives",
+  "why": "a line break is a blank to the test, but a closer after one is on the next line and an opener before one has no closer on its line (argued equivalent; checked against the parent); 2,000,000 strings against the head and 0 differences (Session 327: lengths up to 40 over five alphabets with all digits, a slash, a colon, a tab, a CR, a no-break space, U+2028 and a byte order mark; the harness differs on two real mutants, C13 in 27,467 strings and N14 in 254,752)"
+ },
+ {
+  "name": "D20 the digit range starts after 0",
+  "file": "src/core/math-regions.ts",
+  "from": "return ch >= \"0\" && ch <= \"9\";",
+  "to": "return ch > \"0\" && ch <= \"9\";",
+  "expect": "killed",
+  "why": "a closer followed by 0 closes; SURVIVED the first rows (Session 327 run 1: no alphabet held 0, a slash or a colon), killed by the digit-edge rows of math-scan-equivalence.test.ts"
+ },
+ {
+  "name": "D21 the digit range ends before 9",
+  "file": "src/core/math-regions.ts",
+  "from": "return ch >= \"0\" && ch <= \"9\";",
+  "to": "return ch >= \"0\" && ch < \"9\";",
+  "expect": "killed",
+  "why": "a closer followed by 9 closes"
+ },
+ {
+  "name": "D22 the digit range starts one before 0",
+  "file": "src/core/math-regions.ts",
+  "from": "return ch >= \"0\" && ch <= \"9\";",
+  "to": "return ch >= \"/\" && ch <= \"9\";",
+  "expect": "killed",
+  "why": "a closer followed by `/` is refused; SURVIVED the first rows (Session 327 run 1: no alphabet held 0, a slash or a colon), killed by the digit-edge rows of math-scan-equivalence.test.ts"
+ },
+ {
+  "name": "D23 the digit range ends one after 9",
+  "file": "src/core/math-regions.ts",
+  "from": "return ch >= \"0\" && ch <= \"9\";",
+  "to": "return ch >= \"0\" && ch <= \":\";",
+  "expect": "killed",
+  "why": "a closer followed by `:` is refused; SURVIVED the first rows (Session 327 run 1: no alphabet held 0, a slash or a colon), killed by the digit-edge rows of math-scan-equivalence.test.ts"
+ },
+ {
+  "name": "W01 the first line of a run is 0",
+  "file": "src/core/math-regions.ts",
+  "from": "scanMathRegions(masked, source, run[0].line, out);",
+  "to": "scanMathRegions(masked, source, 0, out);",
+  "expect": "killed",
+  "why": "every run after the first reports lines from 0"
+ },
+ {
+  "name": "W02 the delimiters are found in the unmasked text",
+  "file": "src/core/math-regions.ts",
+  "from": "scanMathRegions(masked, source, run[0].line, out);",
+  "to": "scanMathRegions(source, source, run[0].line, out);",
+  "expect": "killed",
+  "why": "a `$x$` inside a code span is math"
+ },
+ {
+  "name": "W03 the content is read from the masked text",
+  "file": "src/core/math-regions.ts",
+  "from": "scanMathRegions(masked, source, run[0].line, out);",
+  "to": "scanMathRegions(masked, masked, run[0].line, out);",
+  "expect": "killed",
+  "why": "a code span in math content is blanked"
+ },
+ {
+  "name": "W04 the lines of a run are joined by a space",
+  "file": "src/core/math-regions.ts",
+  "from": "const masked = run.map((b) => maskInlineCode(b.text)).join(\"\\n\");",
+  "to": "const masked = run.map((b) => maskInlineCode(b.text)).join(\" \");",
+  "expect": "killed",
+  "why": "the lines run together: a closer on a later line closes"
+ },
+ {
+  "name": "W05 the source lines are joined by a space",
+  "file": "src/core/math-regions.ts",
+  "from": "const source = run.map((b) => b.text).join(\"\\n\");",
+  "to": "const source = run.map((b) => b.text).join(\" \");",
+  "expect": "killed",
+  "why": "a multi-line display keeps no line breaks in its content"
+ },
+ {
+  "name": "W06 a skip region is not a boundary",
+  "file": "src/core/math-regions.ts",
+  "from": "if (last && b.line === last[last.length - 1].line + 1) {",
+  "to": "if (last) {",
+  "expect": "killed",
+  "why": "display math spans a code cell"
+ },
+ {
+  "name": "W07 an opener needs no non-blank to its right",
+  "file": "src/core/math-regions.ts",
+  "from": "if (p + 1 < s.length && !isSpace(s[p + 1])) {",
+  "to": "if (p + 1 < s.length) {",
+  "expect": "killed",
+  "why": "a `$` followed by a blank opens math"
+ },
+ {
+  "name": "W08 the blank test reads the opener",
+  "file": "src/core/math-regions.ts",
+  "from": "if (p + 1 < s.length && !isSpace(s[p + 1])) {",
+  "to": "if (p + 1 < s.length && !isSpace(s[p])) {",
+  "expect": "killed",
+  "why": "the opener is a `$`, never a blank"
+ },
+ {
+  "name": "W09 the opener at the very end",
+  "file": "src/core/math-regions.ts",
+  "from": "if (p + 1 < s.length && !isSpace(s[p + 1])) {",
+  "to": "if (!isSpace(s[p + 1])) {",
+  "expect": "survives",
+  "why": "a `$` at the end searches from s.length and finds none; 2,000,000 strings against the head and 0 differences (Session 327: lengths up to 40 over five alphabets with all digits, a slash, a colon, a tab, a CR, a no-break space, U+2028 and a byte order mark; the harness differs on two real mutants, C13 in 27,467 strings and N14 in 254,752)"
+ },
+ {
+  "name": "W10 the line table starts at 0",
+  "file": "src/core/math-regions.ts",
+  "from": "const charLine = buildCharLine(s, baseLine);",
+  "to": "const charLine = buildCharLine(s, 0);",
+  "expect": "killed",
+  "why": "every run after the first reports lines from 0"
+ },
+ {
+  "name": "L01 the closer search reaches 1024 characters",
+  "file": "src/core/math-regions.ts",
+  "from": "for (let k = from; k < s.length; k++) {",
+  "to": "for (let k = from; k < Math.min(s.length, from + 1024); k++) {",
+  "expect": "killed",
+  "why": "a closer 1025 or more characters away is not found"
+ },
+ {
+  "name": "L02 the closer search reaches 4096 characters",
+  "file": "src/core/math-regions.ts",
+  "from": "for (let k = from; k < s.length; k++) {",
+  "to": "for (let k = from; k < Math.min(s.length, from + 4096); k++) {",
+  "expect": "killed",
+  "why": "a closer 4097 or more characters away is not found"
+ },
+ {
+  "name": "L03 the closer search reaches 65536 characters",
+  "file": "src/core/math-regions.ts",
+  "from": "for (let k = from; k < s.length; k++) {",
+  "to": "for (let k = from; k < Math.min(s.length, from + 65536); k++) {",
+  "expect": "killed",
+  "why": "a closer 65537 or more characters away is not found"
+ },
+ {
+  "name": "L04 the kept position is held in 16 bits",
+  "file": "src/core/math-regions.ts",
+  "from": "closer = nextInlineCloser(s, p + 1);",
+  "to": "closer = nextInlineCloser(s, p + 1) & 0xffff;",
+  "expect": "killed",
+  "why": "a position past 65,535 wraps; ends on --timeout (the loop never ends: p goes back), which is a kill and not an assertion"
+ },
+ {
+  "name": "L05 the kept position is capped at 65,535",
+  "file": "src/core/math-regions.ts",
+  "from": "closer = nextInlineCloser(s, p + 1);",
+  "to": "closer = Math.min(nextInlineCloser(s, p + 1), 65535);",
+  "expect": "killed",
+  "why": "a \"none\" past 65,535 reads as a closer; ends on --timeout (the loop never ends: p goes back), which is a kill and not an assertion"
+ },
+ {
+  "name": "T01 the search is made at every opener",
+  "file": "src/core/math-regions.ts",
+  "from": "if (closer < p + 1) {",
+  "to": "if (true) {",
+  "expect": "killed",
+  "why": "the same answers; every opener searches to the end of the line again (quadratic): the clock rows"
+ },
+ {
+  "name": "T02 the kept position is forgotten after each step",
+  "file": "src/core/math-regions.ts",
+  "from": "    p++;",
+  "to": "    p++;\n    closer = -1;",
+  "expect": "killed",
+  "why": "the same answers; every opener searches again (quadratic): the clock rows"
+ },
+ {
+  "name": "X01 the limit is read as ten times its constant",
+  "file": "test/unit/pathological-inputs.test.ts",
+  "from": "const withinLimit = (ms: number): boolean => ms < MATH_LIMIT_MS;",
+  "to": "const withinLimit = (ms: number): boolean => ms < MATH_LIMIT_MS * 10;",
+  "expect": "killed",
+  "why": "every refused-shape row but the slowest would pass on the parent"
+ },
+ {
+  "name": "X02 the item shape is 2,133 openers",
+  "file": "test/unit/pathological-inputs.test.ts",
+  "from": "unit: \"$a \", many: 21_334, build: (run) => `${run}\\n`, answer: noMath },\n    { site: \"body line: 9,600",
+  "to": "unit: \"$a \", many: 2_133, build: (run) => `${run}\\n`, answer: noMath },\n    { site: \"body line: 9,600",
+  "expect": "killed",
+  "why": "a run this short passes on the parent"
+ },
+ {
+  "name": "X03 the few-units answer check uses 1 unit",
+  "file": "test/unit/pathological-inputs.test.ts",
+  "from": "const MATH_FEW = 3;",
+  "to": "const MATH_FEW = 1;",
+  "expect": "killed",
+  "why": "the small answer is checked on one unit only"
+ }
+]
