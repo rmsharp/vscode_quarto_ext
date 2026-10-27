@@ -9407,6 +9407,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
   // Closing fence lines a REFUSED opener above has already swallowed into an inline code span,
   // so they may not open a region themselves — see `consumedCloserLine` (Session 224).
   const consumedFenceClosers = new Set<number>();
+  const consumedCloserLine = makeConsumedCloserLine(lines);
   let frontMatter: FrontMatterSpan | null = null;
   let inFrontmatter = false;
   let inComment = false;
@@ -10890,7 +10891,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
       // lines continue the PARAGRAPH, so the ATX below them is declined by `blank_before_header`
       // exactly as quarto declines it.
       if (refused && !lineBlockRefused) {
-        const consumed = consumedCloserLine(lines, i + 1, candidate);
+        const consumed = consumedCloserLine(i + 1, candidate);
         if (consumed >= 0) {
           consumedFenceClosers.add(consumed);
         }
@@ -13819,6 +13820,12 @@ function closesOnOwnIndent(engine: EngineHint, kernel: string | null, info: RegE
 }
 
 /**
+ * The five fields of an open fence that `isCloser` reads, and so everything the answer to "which line closes it" can depend on besides the lines (Session 328).
+ * `makeConsumedCloserLine` keeps one answer per distinct value of these, so a sixth field read by `isCloser` must be added here or the cache would serve one fence's answer to another.
+ */
+export type CloserShape = Pick<OpenCellFence, "isCell" | "char" | "len" | "indent" | "columns">;
+
+/**
  * True if `line` closes the given open fence (same char, and the right run LENGTH).
  *
  * A CELL uses quarto's unbounded-indent closer, a plain fence CommonMark's 0–3-space one
@@ -13832,7 +13839,7 @@ function closesOnOwnIndent(engine: EngineHint, kernel: string | null, info: RegE
  * plain fence keeps `>=` and only a CELL takes the exact rule. "Simplifying" the two back
  * into one comparison reintroduces one of the two measured cardinal false positives.
  */
-function isCloser(line: string, open: OpenCellFence): boolean {
+export function isCloser(line: string, open: CloserShape): boolean {
   const m = open.isCell
     ? CELL_FENCE_CLOSE.exec(line)
     : fenceMatchAt(FENCE_CLOSE, line, open.columns);
@@ -14083,25 +14090,45 @@ function blockQuoteEndIndex(lines: readonly string[]): number[] {
  * refused opener has already swallowed into an INLINE CODE SPAN, which therefore may not open
  * a region of its own (Session 224).
  *
- * ⚠ **Scanned rather than indexed, and the bound is why that is safe.** It runs only for an
- * opener whose info string was already refused AND which `hasCloserBelow` has already said is
- * closed, and it stops at the FIRST blank line or that closer, whichever comes first — so it
- * never walks to end of document the way the pre-Session-179 closer search did.
+ * ⚠ **Scanned rather than indexed, and one scan serves every opener of a kind below it (Session 328).** The scan stops at the FIRST blank line or the first closer, whichever comes
+ * first, but a run of lines with no blank line in it can be as long as the document, and every refused opener in that run started the same walk again: N refused openers with no
+ * blank line between them were N x N tests of `isCloser` (12,000 lines of `` ```text i `` took 2.2 s). What a scan found holds for a later opener of the same kind that starts
+ * inside it. If the scan from `from0` found the closer at `k`, the lines in `[from0, k)` are neither blank nor closers, so a scan from any `from` in `[from0, k]` finds `k`; if it
+ * stopped at a blank line (or at the end of the text) at `e`, none of `[from0, e)` is a blank line or a closer, so a scan from any `from` in `[from0, e]` finds nothing. A scan from beyond
+ * that span starts afresh and keeps its own answer, and the spans of one kind do not overlap when the openers are asked in order (as `computeRegions` asks them), so the lines of a
+ * run are tested once per kind rather than once per opener.
+ *
+ * ⚠ **THE KIND IS EVERYTHING `isCloser` READS OF THE OPENER (`CloserShape`), NOT THE OPENER'S LINE.** The info string is no part of it, so openers with distinct info strings
+ * share their answer, and openers that differ in the run length, the character, the container columns or the cell indent do not. It is a different scan each, and a document
+ * that holds S kinds of refused opener in one run costs S walks of that run. What tells two kinds apart is something the opener spells out (a longer run, the other character, a
+ * deeper or different container), so a document with many kinds in one run is a document with long lines or deep nesting; the cost of that case is not measured.
+ *
+ * The reader is made once per document (`computeRegions`) because its answers are the document's: a reader shared between documents would answer from the wrong lines.
  */
-function consumedCloserLine(
-  lines: readonly string[],
-  from: number,
-  open: OpenCellFence,
-): number {
-  for (let k = from; k < lines.length; k++) {
-    if (lines[k].trim() === "") {
-      return -1;
+export function makeConsumedCloserLine(lines: readonly string[]): (from: number, open: CloserShape) => number {
+  const lastScan = new Map<string, { from: number; found: number; end: number }>();
+  return (from, open) => {
+    // JSON, not a joined string: the key must tell two kinds apart for ANY value of the fields (an `indent` of "-" and a `null` one, a `len` of 12 after a `char` of "`1").
+    const kind = JSON.stringify([open.isCell, open.char, open.len, open.indent, open.columns]);
+    const known = lastScan.get(kind);
+    if (known !== undefined && known.from <= from && from <= known.end) {
+      return known.found;
     }
-    if (isCloser(lines[k], open)) {
-      return k;
+    let k = from;
+    let found = -1;
+    for (; k < lines.length; k++) {
+      if (lines[k].trim() === "") {
+        break;
+      }
+      if (isCloser(lines[k], open)) {
+        found = k;
+        break;
+      }
     }
-  }
-  return -1;
+    // `end` is the last line the scan looked at: the closer's, or the blank line's, or `lines.length`.
+    lastScan.set(kind, { from, found, end: k });
+    return found;
+  };
 }
 /**
  * Whether any line at or below `from` closes `open` — the lookahead every fence now needs,
