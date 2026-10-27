@@ -1633,3 +1633,89 @@ describe("Session 328 — refused fence openers with no blank line between them"
     ]);
   });
 });
+
+describe("Session 329 — the two documents of the Session 311 item's part (5), closed by other changes and pinned here", () => {
+  // The BACKLOG item "What is still quadratic or deep enough to overflow after Session 311", part (5), named two documents: a front matter block scalar (`description: |` and 10,000 indented lines, 2.1 s in
+  // `resolveDocumentEngine`) and many `---` groups (33,000 four-line groups of `---`, `from: gfm`, `---`, `text`, 22 s in `findHeadings`). Session 329 built `src/` at every commit that touched it since the item's tree
+  // (`066cfcc1`, which reproduced the item: 2,349 ms at 10,000 lines and 25,606 ms at 33,000 groups) and timed both in a fresh process. Neither had a row of its own, and each was closed by a commit aimed at another part:
+  //   the scalar by `778ea19` (Session 314: `nestedParentPath` reads the nearest shallower line from an index, and a scalar's lines are same-indent siblings of one another): 2,311 to 2,391 ms at 10,000 lines on every
+  //     commit before it, 38 to 44 ms from it on; at the 20,000 lines pinned here 8,659 ms on `414f19f` (its parent) against 58 ms at HEAD;
+  //   the groups by `b63fafc` (Session 322, B89 part (8): the HTML-comment state is read once for all of a document's metadata blocks): 6,148 to 6,523 ms at 16,000 groups on every commit before it (7.2 to 7.9 s at a load
+  //     of 26), 239 to 259 ms from it on; at the 12,000 groups pinned here 3,429 ms on `f36f663` (its parent) against 181 ms at HEAD (load 11 to 13).
+  // The scalar was only ever slow through the nested-value enumerator, so only the entries that call it are rows (on `414f19f`, `findHeadings`, `findAllCells` and `buildOutline` took 16 to 18 ms at 5,000 lines).
+  // Under `from: gfm` every `text` line followed by `---` is a setext heading, so a group document's answer is a list of headings, not an empty one; quarto 1.7.33 renders the three-group document (and a heading at the end)
+  // as h2 `text`, h2 `from: gfm`, h2 `text`, h2 `from: gfm`, h1 `H`, which is what the small answer below pins. Every row builds a text no other row builds: `scanRegions` memoizes the last two texts, so a second row on
+  // the same text would be answered from the memo whatever the code does. These rows pass on arrival (the code was already fixed); their RED is the revert of each closing change, in `s329-part5-pins.json`.
+  const SCALAR_LINES = 20_000;
+  const GROUPS = 12_000;
+  const FEW = 200;
+  const LIMIT_MS = 1000;
+  const KNITR_TAIL = "execute:\n  engine: knitr\n";
+  const scalarDocument = (lines: number, word: string, tail = ""): string => `---\ndescription: |\n${`  ${word} line of the block scalar\n`.repeat(lines)}${tail}---\n\n# H\n`;
+  const groupsDocument = (groups: number, tail: string): string => `${"---\nfrom: gfm\n---\ntext\n".repeat(groups)}${tail}`;
+  const pythonCell = (label: string): string => `\n\`\`\`{python}\n#| label: ${label}\nx = 1\n\`\`\`\n`;
+  const nestedEngine = (lines: number): unknown => ({ line: lines + 3, parentPath: ["execute"], key: "engine", valueRange: { startCol: 10, endCol: 15 }, rawToken: "knitr" });
+  /** Under `from: gfm`, group i's `text` (line 4i + 3) is underlined by the next group's `---`, and so is its `from: gfm` (line 4i + 5); the last `text` is not, and the heading at the end is line 4n. */
+  const groupHeadings = (groups: number): Array<[number, string]> => {
+    const out: Array<[number, string]> = [];
+    for (let i = 0; i < groups - 1; i++) out.push([4 * i + 3, "text"], [4 * i + 5, "from: gfm"]);
+    out.push([4 * groups, "H"]);
+    return out;
+  };
+  const valueSourceCounts = (text: string): unknown => {
+    const sources = collectValueSources(text);
+    return { lines: sources.lines.length, cellLines: sources.cellLines.length, nested: sources.nestedLines.length, flags: valueFlags(sources, "a.qmd", CURATED_SCHEMA_INDEX) };
+  };
+  type PartRow = { site: string; build: (n: number) => string; read: (text: string) => unknown; answer: (n: number) => unknown };
+
+  const SCALAR_ROWS: PartRow[] = [
+    { site: "resolveDocumentEngine, the item's document (a scalar, then the closing ---)", build: (n) => scalarDocument(n, "alpha"), read: (text) => resolveDocumentEngine("a.qmd", text), answer: () => "markdown" },
+    // A nested `engine: knitr` AFTER the scalar answers "knitr" only if the enumeration reaches the last line (nothing before it names an engine).
+    { site: "resolveDocumentEngine, then a nested engine after the scalar", build: (n) => scalarDocument(n, "beta", KNITR_TAIL), read: (text) => resolveDocumentEngine("a.qmd", text), answer: () => "knitr" },
+    { site: "findNestedFrontMatterValueLines, then a nested engine after the scalar", build: (n) => scalarDocument(n, "gamma", KNITR_TAIL), read: findNestedFrontMatterValueLines, answer: (n) => [nestedEngine(n)] },
+    { site: "collectValueSources and valueFlags, then a nested engine after the scalar", build: (n) => scalarDocument(n, "delta", KNITR_TAIL), read: valueSourceCounts, answer: (n) => ({ lines: n + 8, cellLines: 0, nested: 1, flags: { cell: [], frontMatter: [], nested: [] } }) },
+  ];
+  const GROUP_ROWS: PartRow[] = [
+    { site: "findHeadings, the item's text and a heading at the end", build: (n) => groupsDocument(n, "# H\n"), read: (text) => findHeadings(text).map((heading): [number, string] => [heading.line, heading.text]), answer: groupHeadings },
+    { site: "resolveDocumentEngine, a python cell at the end", build: (n) => groupsDocument(n, pythonCell("lst-b")), read: (text) => resolveDocumentEngine("a.qmd", text), answer: () => "jupyter" },
+    { site: "findAllCells, a python cell at the end", build: (n) => groupsDocument(n, pythonCell("lst-c")), read: (text) => findAllCells(text).length, answer: () => 1 },
+    { site: "indexLabels, a cell label at the end", build: (n) => groupsDocument(n, pythonCell("lst-a")), read: (text) => indexLabels(text).map((label) => `${label.id}@${label.line}:${label.column}`), answer: (n) => [`lst-a@${4 * n + 2}:10`] },
+  ];
+
+  it("pins the small answers first: three scalar lines, then three groups (the answer quarto renders)", () => {
+    expect(resolveDocumentEngine("a.qmd", scalarDocument(3, "small"))).toBe("markdown");
+    expect(resolveDocumentEngine("a.qmd", scalarDocument(3, "small-k", KNITR_TAIL))).toBe("knitr");
+    expect(findNestedFrontMatterValueLines(scalarDocument(3, "small-n"))).toEqual([]);
+    expect(findNestedFrontMatterValueLines(scalarDocument(3, "small-n", KNITR_TAIL))).toEqual([nestedEngine(3)]);
+    expect(groupHeadings(3)).toEqual([[3, "text"], [5, "from: gfm"], [7, "text"], [9, "from: gfm"], [12, "H"]]);
+    expect(findHeadings(groupsDocument(3, "# H\n")).map((heading) => [heading.level, heading.line, heading.text])).toEqual([[2, 3, "text"], [2, 5, "from: gfm"], [2, 7, "text"], [2, 9, "from: gfm"], [1, 12, "H"]]);
+  });
+
+  it.each(SCALAR_ROWS.map((row) => [row.site, row] as const))("%s: 20,000 lines are read in linear time, and the answer is the stated one at 200 lines and at 20,000", (_site, row) => {
+    expect(row.read(row.build(FEW))).toEqual(row.answer(FEW));
+    const longText = row.build(SCALAR_LINES);
+    expect(longText.split("\n").length).toBeGreaterThan(SCALAR_LINES); // the timed text is the long one
+    const { result, ms } = timed(() => row.read(longText));
+    expect(result).toEqual(row.answer(SCALAR_LINES));
+    expect(ms).toBeLessThan(LIMIT_MS);
+  });
+
+  it.each(GROUP_ROWS.map((row) => [row.site, row] as const))("%s: 12,000 groups are read in linear time, and the answer is the stated one at 200 groups and at 12,000", (_site, row) => {
+    expect(row.read(row.build(FEW))).toEqual(row.answer(FEW));
+    const longText = row.build(GROUPS);
+    expect(longText.split("\n").length).toBeGreaterThan(4 * GROUPS); // the timed text is the long one
+    const { result, ms } = timed(() => row.read(longText));
+    expect(result).toEqual(row.answer(GROUPS));
+    expect(ms).toBeLessThan(LIMIT_MS);
+  });
+
+  it("builds a different text for every row", () => {
+    const texts = [...SCALAR_ROWS, ...GROUP_ROWS].map((row) => row.build(FEW));
+    expect(new Set(texts).size).toBe(SCALAR_ROWS.length + GROUP_ROWS.length);
+  });
+
+  // A row run at 200 lines, or allowed 100 s, would pass on the parent too.
+  it("keeps the sizes and the limit the Session 329 rows are built on", () => {
+    expect([SCALAR_LINES, GROUPS, FEW, LIMIT_MS]).toEqual([20_000, 12_000, 200, 1000]);
+  });
+});

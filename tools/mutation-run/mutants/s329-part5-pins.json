@@ -1,0 +1,34 @@
+[
+ {
+  "name": "P01 findNestedFrontMatterValueLines: the index is built but not passed (Session 314's cure undone)",
+  "file": "src/core/yaml-frontmatter-nested-values.ts",
+  "from": "nestedParentPath(contentLines, i, indent, indents)",
+  "to": "nestedParentPath(contentLines, i, indent)",
+  "expect": "killed",
+  "why": "the scalar's lines are same-indent siblings and the container of each is found by the old scan past every sibling: no answer changes, the 20,000-line rows fail on the clock alone (the parent `414f19f` took 8,659 ms on the engine row)"
+ },
+ {
+  "name": "P02 findNestedFrontMatterValueLines: the index is rebuilt for every nested line",
+  "file": "src/core/yaml-frontmatter-nested-values.ts",
+  "from": "if (indents === undefined) {",
+  "to": "if (true as boolean) {",
+  "expect": "killed",
+  "why": "the lazy build (`5b237ef`) put back as an eager one per line: each of the 20,000 scalar lines builds an index of the whole block, so the cost is quadratic again and every answer is the same"
+ },
+ {
+  "name": "P03 midDocumentMetadataBlocks: a new comment reader for every block (Session 322's cure undone)",
+  "file": "src/core/qmd/model.ts",
+  "from": "|| commentOpenAt(region.startLine)) {",
+  "to": "|| htmlCommentOpenAt(lines)(region.startLine)) {",
+  "expect": "killed",
+  "why": "each of the 12,000 groups' blocks reads the comment state from the top of the document: no answer changes, the group rows fail on the clock alone (the parent `f36f663` took 3,429 ms on the findHeadings row)"
+ },
+ {
+  "name": "P04 htmlCommentOpenAt: every ask starts again from the top",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (line < scanned) {",
+  "to": "if (true as boolean) {",
+  "expect": "killed",
+  "why": "the reader keeps its place only in name: every question restarts at line 0, the quadratic spelling put back by another door than P03"
+ }
+]
