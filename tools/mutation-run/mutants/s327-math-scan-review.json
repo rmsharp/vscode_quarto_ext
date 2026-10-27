@@ -1,0 +1,106 @@
+[
+  {
+    "name": "R01 the kept closer is searched again when it is more than 2^20 ahead",
+    "file": "src/core/math-regions.ts",
+    "from": "if (closer < p + 1) {",
+    "to": "if (closer < p + 1 || closer - p > 1048576) {",
+    "expect": "killed",
+    "why": "same answers; quadratic on a line of more than a million characters (30 s against 32 ms at 1,060,200): needs a row with a line longer than 2^20"
+  },
+  {
+    "name": "R02 the kept closer is searched again at every opener from index 2^20",
+    "file": "src/core/math-regions.ts",
+    "from": "if (closer < p + 1) {",
+    "to": "if (closer < p + 1 || p >= 1048576) {",
+    "expect": "killed",
+    "why": "same answers; quadratic from index 2^20 on (29 s against 35 ms at 1,200,000): needs a row with a line longer than 2^20"
+  },
+  {
+    "name": "R03 the kept closer is forgotten after every display region",
+    "file": "src/core/math-regions.ts",
+    "from": "p = q + 2;",
+    "to": "p = q + 2;\n        closer = -1;",
+    "expect": "killed",
+    "why": "same answers; quadratic on unclosed openers with a display region between them ('$a $$1 b $$1 ' x 8,000: 3.7 s against 12 ms), and quadratic on the parent too, so the row is RED there"
+  },
+  {
+    "name": "R04 the same-line test is a backward search for the line break",
+    "file": "src/core/math-regions.ts",
+    "from": "charLine[closer] === charLine[p]",
+    "to": "s.lastIndexOf(\"\\n\", closer) === s.lastIndexOf(\"\\n\", p)",
+    "expect": "killed",
+    "why": "same answers; quadratic with a long line before the closer: 417 ms at the 21,334-opener next-line row (under the limit), 8.9 s at 300,004 characters"
+  },
+  {
+    "name": "R05 a blank is a hand-made set, not \\s",
+    "file": "src/core/math-regions.ts",
+    "from": "return /\\s/.test(ch);",
+    "to": "return /[ \\t\\n\\r\\f\\v\\u00a0\\u2028\\u2029\\ufeff]/.test(ch);",
+    "expect": "killed",
+    "why": "wrong answer on the blanks \\s holds that the set leaves out (U+3000, U+2003): no alphabet of the exhaustive or seeded sets holds one"
+  },
+  {
+    "name": "R06 a blank leaves out the carriage return",
+    "file": "src/core/math-regions.ts",
+    "from": "return /\\s/.test(ch);",
+    "to": "return /[^\\S\\r]/.test(ch);",
+    "expect": "killed",
+    "why": "wrong answer beside a carriage return ('$a\\r$ and $b$'): 51,649 of 2,000,000 diff.js strings differ, but no committed row puts a carriage return beside a dollar"
+  },
+  {
+    "name": "R07 a digit is any Unicode decimal digit",
+    "file": "src/core/math-regions.ts",
+    "from": "return ch >= \"0\" && ch <= \"9\";",
+    "to": "return /\\p{Nd}/u.test(ch);",
+    "expect": "killed",
+    "why": "wrong answer after a closer followed by an Arabic-Indic or a fullwidth digit: no alphabet holds one"
+  },
+  {
+    "name": "R08 the line table is one byte an entry",
+    "file": "src/core/math-regions.ts",
+    "from": "new Array<number>(s.length + 1)",
+    "to": "new Uint8Array(s.length + 1) as unknown as number[]",
+    "expect": "killed",
+    "why": "wrong line past 255 (line 300 reads as 44): no row asks for a region past line 255"
+  },
+  {
+    "name": "R09 the line table is two bytes an entry",
+    "file": "src/core/math-regions.ts",
+    "from": "new Array<number>(s.length + 1)",
+    "to": "new Uint16Array(s.length + 1) as unknown as number[]",
+    "expect": "killed",
+    "why": "wrong line past 65,535 (line 70,000 reads as 4,464): no row asks for a region past line 65,535"
+  },
+  {
+    "name": "R10 the kept closer is forgotten at every `$` that cannot open",
+    "file": "src/core/math-regions.ts",
+    "from": "if (p + 1 < s.length && !isSpace(s[p + 1])) {",
+    "to": "if (!(p + 1 < s.length && !isSpace(s[p + 1]))) {\n        closer = -1;\n      }\n      if (p + 1 < s.length && !isSpace(s[p + 1])) {",
+    "expect": "killed",
+    "why": "same answers; quadratic on '$a $ ' x 15,000 (5.2 s against 13 ms, 5.2 s on the parent too), where each '$ ' cannot open"
+  },
+  {
+    "name": "R11 the closer is searched again once per line when it stands on a later line",
+    "file": "src/core/math-regions.ts",
+    "from": "if (closer < p + 1) {",
+    "to": "if (closer < p + 1 || (closer < s.length && charLine[closer] !== charLine[p] && (scanMathRegions as unknown as { seen?: number }).seen !== charLine[p])) {\n          (scanMathRegions as unknown as { seen?: number }).seen = charLine[p];",
+    "expect": "killed",
+    "why": "same answers; quadratic on many short lines of openers followed by one closer ('$a $a $a\\n' x 10,000 and 'b$': 3.8 s against 49 ms); the parent is linear there, so this is a regression the cure could introduce"
+  },
+  {
+    "name": "R12 the escape test reads at most 1,024 backslashes",
+    "file": "src/core/math-regions.ts",
+    "from": "for (let k = i - 1; k >= 0 && s[k] === \"\\\\\"; k--) {",
+    "to": "for (let k = i - 1; k >= 0 && k >= i - 1024 && s[k] === \"\\\\\"; k--) {",
+    "expect": "killed",
+    "why": "wrong answer for an odd run of more than 1,024 backslashes (an escaped dollar reads as a closer): every row has an even long run or a run of 3"
+  },
+  {
+    "name": "R13 the escape test reads at most 64 backslashes",
+    "file": "src/core/math-regions.ts",
+    "from": "for (let k = i - 1; k >= 0 && s[k] === \"\\\\\"; k--) {",
+    "to": "for (let k = i - 1; k >= 0 && k >= i - 64 && s[k] === \"\\\\\"; k--) {",
+    "expect": "killed",
+    "why": "wrong answer for an odd run of 65 or more backslashes ('\\\\' x 65 then '$a$' reads as a region): every row has an even long run or a run of 3"
+  }
+]

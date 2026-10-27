@@ -1433,12 +1433,12 @@ describe("Session 326 — a line holding many `{` whose `}` never comes", () => 
 
 describe("Session 327 — a line holding many `$` whose closing `$` never comes", () => {
   // The `$` half of part (6) of the BACKLOG item "What is still quadratic or deep enough to overflow after Session 311". `findMathRegions` asks, for every `$` that may open inline math (a `$` whose right neighbour is not a blank), where its
-  // closer is, and a line with NO closer after it was read to the end for each opener: a line of N unclosed `$` was N reads of the same tail. The profile (Session 327, `--cpu-prof`, 10,667 of `$a `): `scan` 39%,
-  // `findInlineClose` 14%, `isSpace` and the `\s` regex it tests 37% (self time, 1,463 ms in all); the model's own `findBodyLines` takes 6 ms on the same text. A closer is a `$` that is not escaped, has a non-blank on its left and no digit on its right: a test of ONE
+  // closer is, and a line with NO closer after it was read to the end for each opener: a line of N unclosed `$` was N reads of the same tail. The profile (Session 327, `--cpu-prof`, 10,667 of `$a `): `scan` (now `scanMathRegions`) 39%,
+  // `findInlineClose` (now `nextInlineCloser`) 14%, `isSpace` and the `\s` regex it tests 37% (self time, 1,463 ms in all); the model's own `findBodyLines` takes 6 ms on the same text. A closer is a `$` that is not escaped, has a non-blank on its left and no digit on its right: a test of ONE
   // position, never of the opener, and that is why three different reasons to refuse a closer cost the same.
   // Fresh process per shape, cold (a warm call was within 5%), load average 6 to 8 (Session 327): `$a ` x 2,667 / 5,334 / 10,667 / 21,334 (8,001 to 64,002 characters): 107 / 374 / 1,407 / 5,441 ms (4x per doubling); `$a$1 ` (the closer
   // is followed by a digit) x 3,200 / 6,400 / 12,800 / 25,600: 506 / 1,887 / 7,525 / 30,064 ms; `$a \$ ` (the closer is escaped) x 2,000 / 4,000 / 8,000 / 16,000: 95 / 339 / 1,339 / 5,381 ms. A line whose closers all CLOSE (`$a$ `), a `$` followed by
-  // a blank (`$ `), a text with no `$`, and many SHORT lines (the search stops at the end of the line) are linear, so the controls come first. A closer on the NEXT line must not close an opener (inline math does not span lines), and a closed
+  // a blank (`$ `) and many SHORT lines are linear on the parent and on the cure (the parent stopped each search at the end of its line, the cure keeps one position), so the controls come first. A closer on the NEXT line must not close an opener (inline math does not span lines), and a closed
   // region after the unclosed run is still found: the rows that say so are the ones a cursor that forgot the line, or lost its place, would fail.
   const MATH_LIMIT_MS = 1000;
   const MATH_FEW = 3;
@@ -1446,6 +1446,7 @@ describe("Session 327 — a line holding many `$` whose closing `$` never comes"
   const mathKeys = (text: string): Array<[string, string, number, number]> => findMathRegions(text).map((region): [string, string, number, number] => [region.type, region.content, region.startLine, region.endLine]);
   type MathRow = { site: string; unit: string; many: number; build: (run: string) => string; answer: (run: string) => unknown };
   const noMath = (): unknown => [];
+  const DISPLAY_UNIT = "$a $$1 b $$1 "; // the opener never closes (no `$` of the unit can: a blank to the left, or a digit to the right), and `$$1 b $$` is a display region, whose content is `1 b `
 
   const MATH_ROWS: MathRow[] = [
     // Controls: every `$` that can open also CLOSES, or cannot open, or the line is short, so the cost is linear before and after.
@@ -1461,12 +1462,23 @@ describe("Session 327 — a line holding many `$` whose closing `$` never comes"
     { site: "guard: 64,000 backslashes and then a region (the scan asks about escapes in front of a `$` only)", unit: "\\", many: 64_000, build: (run) => `${run}$a$\n`, answer: (run) => (run.length % 2 === 0 ? [["inline", "a", 0, 0]] : []) },
     { site: "guard: an opener, 64,000 backslashes and then its closer (the closer search asks about escapes in front of a `$` only)", unit: "\\", many: 64_000, build: (run) => `$a${run}$\n`, answer: (run) => (run.length % 2 === 0 ? [["inline", `a${run}`, 0, 0]] : []) },
     { site: "guard: a display region whose body is 64,000 backslashes (the display search asks about escapes in front of a `$$` only)", unit: "\\", many: 64_000, build: (run) => `$$${run}$$\n`, answer: (run) => (run.length % 2 === 0 ? [["display", run, 0, 0]] : []) },
+    // What the cursor keeps is a closer on a LATER line here: 10,000 short lines of openers, one closer on the last. A cure that searched again once per line (it would find the same closer) reads the whole text for each line, and the parent does not (48 ms).
+    { site: "guard: 10,000 short lines of three unclosed `$` and one closer on the last line (a closer on a later line is kept, not searched for again)", unit: "$a $a $a\n", many: 10_000, build: (run) => `${run}b$\n`, answer: noMath },
+
+    // Reach: the search has no limit in length or in place. All three answers are "nothing", so only the clock sees a search that gives up and starts again. Each is the shape of a refused row below at a size that is quadratic on the parent too, but the
+    // parent is not run here: it took 54 s on the 210,000-character row (measured, Session 327, load 6), and extrapolated at 4x per doubling from 5.4 s at 64,002 characters it takes about two minutes at 300,004 and half an hour at 1,200,000 characters (not run). The cure reads each in 10 to 40 ms.
+    { site: "reach: 70,000 of `$a `, a line of 210,000 characters, none closes (a reach of 65,536 or 131,072 characters, or a restart there, is caught here)", unit: "$a ", many: 70_000, build: (run) => `${run}\n`, answer: noMath },
+    { site: "reach: 400,000 of `$a `, a line of 1.2 million characters, none closes (a reach or a restart at 2^20 characters is caught here)", unit: "$a ", many: 400_000, build: (run) => `${run}\n`, answer: noMath },
+    { site: "reach: 100,000 of `$a ` and a closer on the next line (the test that the closer is on another line costs nothing per opener)", unit: "$a ", many: 100_000, build: (run) => `${run}\nb$\n`, answer: noMath },
 
     // The refused shapes: the RED rows. Each holds only `$` that never close on their own line, so the whole line is read for each.
     { site: "body line: 21,334 of `$a `, none closes (the item's shape)", unit: "$a ", many: 21_334, build: (run) => `${run}\n`, answer: noMath },
     { site: "body line: 9,600 of `$a$1 `, the closer is followed by a digit", unit: "$a$1 ", many: 9_600, build: (run) => `${run}\n`, answer: noMath },
     { site: "body line: 16,000 of `$a \\$ `, the closer is escaped", unit: "$a \\$ ", many: 16_000, build: (run) => `${run}\n`, answer: noMath },
-    // The table of what a cursor knows is kept across lines and across skip regions: a closer on the NEXT line closes nothing before it, a closed region there is still found, and a comment between is a hard boundary.
+    // The same cause with a `$` between the unclosed openers that opens nothing (a blank to its right), and with a display region between them: a cure that forgot what it knew at either would be quadratic and answer the same.
+    { site: "body line: 15,000 of `$a $ `, the second `$` cannot open (a blank to its right)", unit: "$a $ ", many: 15_000, build: (run) => `${run}\n`, answer: noMath },
+    { site: "body line: 8,000 of `$a $$1 b $$1 `, an unclosed opener and then a display region whose `$` are followed by a digit", unit: DISPLAY_UNIT, many: 8_000, build: (run) => `${run}\n`, answer: (run) => Array.from({ length: run.length / DISPLAY_UNIT.length }, () => ["display", "1 b ", 0, 0]) },
+    // What the cursor knows is kept across the lines of one run, and a skip region starts a fresh scan (`closer` is a local of `scanMathRegions`, which `findMathRegions` calls once per run): a closer on the NEXT line closes nothing before it, a closed region there is still found, and a comment between is a hard boundary.
     { site: "body line: 21,334 of `$a ` and a closer on the next line (inline math does not span lines)", unit: "$a ", many: 21_334, build: (run) => `${run}\nb$\n`, answer: noMath },
     { site: "body line: 21,334 of `$a ` and a closed region on the next line (it is still found)", unit: "$a ", many: 21_334, build: (run) => `${run}\n$b$\n`, answer: () => [["inline", "b", 1, 1]] },
     { site: "body line: 21,334 of `$a `, a comment line, then a closed region (the comment is a boundary, the region is found)", unit: "$a ", many: 21_334, build: (run) => `${run}\n<!-- c -->\n$b$\n`, answer: () => [["inline", "b", 2, 2]] },
@@ -1486,20 +1498,28 @@ describe("Session 327 — a line holding many `$` whose closing `$` never comes"
   });
 
   it("builds a different text for every row", () => {
-    const shortTexts = MATH_ROWS.map((row) => row.build(row.unit.repeat(MATH_FEW)));
-    expect(new Set(shortTexts).size).toBe(MATH_ROWS.length);
+    // A row may be another row's shape at a larger size (the `reach` rows), so its 3-unit text is the same; two rows that share one must differ in size, or one of them is a copy.
+    const bySmallText = new Map<string, number[]>();
+    for (const row of MATH_ROWS) {
+      const small = row.build(row.unit.repeat(MATH_FEW));
+      bySmallText.set(small, [...(bySmallText.get(small) ?? []), row.many]);
+    }
+    for (const sizes of bySmallText.values()) {
+      expect(new Set(sizes).size).toBe(sizes.length);
+    }
     const longTexts = MATH_ROWS.map((row) => row.build(row.unit.repeat(row.many)));
     expect(new Set(longTexts).size).toBe(MATH_ROWS.length);
   });
 
-  // A run of 3,000 openers, or a limit of 100 s, would pass on the parent too, and a limit read as ten times its constant would pass everything but the slowest rows, so the boundary of `withinLimit` is pinned as well.
+  // A run of 3,000 openers, or a limit of 100 s, would pass on the parent too, and a limit read as ten times its constant would pass every refused row on the parent (the slowest takes 6 to 7 s), so the boundary of `withinLimit` is pinned as well.
   it("keeps the sizes, the limit and the units the Session 327 rows are built on", () => {
     expect([MATH_FEW, MATH_LIMIT_MS]).toEqual([3, 1000]);
     expect([withinLimit(MATH_LIMIT_MS - 1), withinLimit(MATH_LIMIT_MS)]).toEqual([true, false]);
     expect(MATH_ROWS.map((row) => `${row.unit}x${row.many}`)).toEqual([
       "$a$ x16000", "$ x64000", "$a $a $a\nx20000",
-      "$a x21334", "xx70000", "\\x64000", "\\x64000", "\\x64000",
-      "$a x21334", "$a$1 x9600", "$a \\$ x16000",
+      "$a x21334", "xx70000", "\\x64000", "\\x64000", "\\x64000", "$a $a $a\nx10000",
+      "$a x70000", "$a x400000", "$a x100000",
+      "$a x21334", "$a$1 x9600", "$a \\$ x16000", "$a $ x15000", `${DISPLAY_UNIT}x8000`,
       "$a x21334", "$a x21334", "$a x21334",
       "$a x21334",
     ]);

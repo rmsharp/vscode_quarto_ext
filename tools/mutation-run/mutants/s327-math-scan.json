@@ -629,7 +629,7 @@
   "from": "const withinLimit = (ms: number): boolean => ms < MATH_LIMIT_MS;",
   "to": "const withinLimit = (ms: number): boolean => ms < MATH_LIMIT_MS * 10;",
   "expect": "killed",
-  "why": "every refused-shape row but the slowest would pass on the parent"
+  "why": "every refused-shape row would pass on the parent at 10 s (the slowest takes 6 to 7 s); only the pin of the limit and of the boundary of withinLimit kills it, not the clock rows"
  },
  {
   "name": "X02 the item shape is 2,133 openers",

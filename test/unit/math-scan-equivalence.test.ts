@@ -5,7 +5,7 @@ import { BOM, LS, NBSP, countStrings, everyString, seededRandom } from "./suppor
 
 // Session 327 — the `$` half of part (6) of the BACKLOG item "What is still quadratic or deep enough to overflow after Session 311". `scan` found the closer of every inline opener by reading on from it to the end of the line, so a line of N
 // unclosed `$` was N reads of the same tail. It now keeps the first closer-shaped `$` at or after the last opener and asks again only once that `$` is behind the next opener. That is only sound if the answer is the SAME on EVERY text, so the
-// functions it replaced are kept below, copied from the parent `72d4a9c` (Session 326's source, before the cure) by a script, renamed with a prefix `old` (every body is the parent's, character for character), as the oracle (Learning 738).
+// functions it replaced are kept below, copied from the parent `72d4a9c` (Session 326's source, before the cure) by a script, renamed with a prefix `old` (every body is the parent's, character for character; the one `export` of `findMathRegions` is dropped), as the oracle (Learning 738).
 
 // ---- The OLD functions, copied from the parent `72d4a9c` by a script; only the names changed (a prefix `old`). ----
 /** Find every inline `$…$` and display `$$…$$` math region, in document order. */
@@ -279,11 +279,16 @@ function compareScans(strings: Iterable<string>, candidate: (text: string) => Ma
 const ALPHABET_SIX = ["$", "a", " ", "\\", "1", "\n"];
 const ALPHABET_FIVE = ["$", "a", " ", "\\", "1"];
 const ALPHABET_FOUR = ["$", "a", " ", "\n"];
+// Characters beyond the ones the alphabets above hold, named by code point so that no editor or tool rewrites them: blanks \s holds and a hand-made set leaves out, and digits that are not 0 to 9.
+const IDEOGRAPHIC_SPACE = String.fromCodePoint(0x3000);
+const EM_SPACE = String.fromCodePoint(0x2003);
+const ARABIC_INDIC_THREE = String.fromCodePoint(0x663);
+const FULLWIDTH_ZERO = String.fromCodePoint(0xff10);
 const SEEDED_STRINGS = 300_000;
 const SEEDED_DOCUMENTS = 20_000;
 /** The heavy rows take seconds warm: vitest's default of 5 s would let a loaded machine, or a mutant that is merely slow, fail them by the clock instead of by an answer. */
 const HEAVY_ROW_MS = 120_000;
-/** Per set: how many strings the OLD function finds an inline region on, a display region on, how many hold a closer search after a failed one (the new function answers from the position it kept), and how many hold a failed search whose closer is on a later line, so a comparison cannot pass by both finding nothing. */
+/** Per set: how many strings the OLD function finds an inline region on, a display region on, how many hold a closer search after an EARLIER failed one (the new function answers it from the position it kept, or searches again because that position is behind the opener), and how many hold a failed search whose closer is on a later line, so a comparison cannot pass by both finding nothing. */
 const COUNTS = {
   six: "inline 145760, display 13249, after a failed search 52525, closer on a later line 24049",
   five: "inline 414730, display 38350, after a failed search 106088, closer on a later line 0",
@@ -292,7 +297,7 @@ const COUNTS = {
   seeded: "inline 190661, display 150811, after a failed search 75888, closer on a later line 81474",
 };
 const countsOf = (result: Tally): string => `inline ${result.inline}, display ${result.display}, after a failed search ${result.afterFailure}, closer on a later line ${result.closerOnLaterLine}`;
-/** How many of the 20,000 seeded documents hold a region (the OLD pipeline's answer), so a comparison cannot pass by both finding nothing. */
+/** How many of the 20,000 seeded documents hold a region (the OLD pipeline's answer), so a comparison cannot pass by both finding nothing. The old pipeline calls the live `findBodyLines` and `maskInlineCode`, so a change to what the model counts as a body line moves this number: re-count it with the old pipeline, never to match the new one. */
 const DOCUMENT_REGIONS = 13721;
 
 describe("Session 327 — the math scan answers what the function that reread the line for each unclosed `$` answered", () => {
@@ -409,8 +414,9 @@ describe("Session 327 — the math scan answers what the function that reread th
     expect(withRegions).toBe(DOCUMENT_REGIONS);
   }, HEAVY_ROW_MS);
 
-  // Far from the start of the text. The pathological-inputs.test.ts rows see neither where a closer stands nor how far a search reaches beyond index 65,535, so a cap on the search, a window, or a position held in 16 bits is a second "cure" that
-  // every row above passes. These put a closer 70,000 and 200,000 characters after its opener, and an opener run, with its closer on the next line, 70,000 and 200,000 characters into the text.
+  // Far from the start of the text. The guard rows of pathological-inputs.test.ts fail a cap on the search too (mutants L01 to L03 of s327-math-scan.json: caps of 1,024 and 4,096 characters fail the 21,334-opener guard, a cap of 65,536 fails the 70,000-character guard), so these are a second line
+  // of defence for a cap or a window. A kept position held in 16 bits loops for ever and is recorded in the mutant list as ending on its timeout. These put a closer 70,000 and 200,000 characters after its opener, and an opener run, with its closer on
+  // the next line, 70,000 and 200,000 characters into the text.
   it.each([70_000, 200_000])("closes a region whose closer is %i characters after its opener (the search has no reach limit)", (far) => {
     const text = `$a${"x".repeat(far)}b$`;
     expect(newRegions(text)).toEqual([{ type: "inline", content: `b${"x".repeat(far)}b`, startLine: BASE_LINE, endLine: BASE_LINE }]);
@@ -438,10 +444,44 @@ describe("Session 327 — the math scan answers what the function that reread th
     ["a 9 to the right of a closer refuses it", "$a$9", []],
     ["a slash (one before 0) to the right of a closer allows it", "$a$/", [["inline", "a", 0, 0]]],
     ["a colon (one after 9) to the right of a closer allows it", "$a$:", [["inline", "a", 0, 0]]],
+    // Session 327 review: the alphabets above hold a tab, a no-break space, U+2028 and a byte order mark but no carriage return, no other blank of \s and no digit but 0 to 9, so a blank test that is a hand-made set, one that leaves out a carriage return, and a digit
+    // test that is any Unicode digit all passed. A carriage return is a blank, the ideographic and em spaces are blanks, and only 0 to 9 are digits.
+    ["a carriage return to the right of an opener refuses it", "$\ra$", []],
+    ["a carriage return to the left of a closer refuses it", "$a\r$", []],
+    ["an ideographic space to the right of an opener refuses it", `$${IDEOGRAPHIC_SPACE}a$`, []],
+    ["an em space to the left of a closer refuses it", `$a${EM_SPACE}$`, []],
+    ["an Arabic-Indic digit to the right of a closer allows it", `$a$${ARABIC_INDIC_THREE}`, [["inline", "a", 0, 0]]],
+    ["a fullwidth digit to the right of a closer allows it", `$a$${FULLWIDTH_ZERO}`, [["inline", "a", 0, 0]]],
   ] as Array<[string, string, Array<[string, string, number, number]>]>)("%s", (_title, text, regions) => {
     const expected = regions.map(([type, content, startLine, endLine]) => ({ type, content, startLine, endLine }));
     expect(oldFindMathRegions(text)).toEqual(expected);
     expect(findMathRegions(text)).toEqual(expected);
+  });
+
+  // The line of a region is read from a table with an entry for every character. A table of one or two bytes an entry reads line 300 as 44 and line 70,000 as 4,464; no other row asks for a region past line 255. The display region ends one line on.
+  it.each([300, 70_000])("reports the line of a region that starts %i lines into the text (the line table holds a whole number an entry)", (lines) => {
+    const inline = `${"x\n".repeat(lines)}$a$`;
+    const display = `${"x\n".repeat(lines)}$$a\nb$$`;
+    expect(findMathRegions(inline)).toEqual([{ type: "inline", content: "a", startLine: lines, endLine: lines }]);
+    expect(oldFindMathRegions(inline)).toEqual([{ type: "inline", content: "a", startLine: lines, endLine: lines }]);
+    expect(findMathRegions(display)).toEqual([{ type: "display", content: "a\nb", startLine: lines, endLine: lines + 1 }]);
+    expect(oldFindMathRegions(display)).toEqual([{ type: "display", content: "a\nb", startLine: lines, endLine: lines + 1 }]);
+  });
+
+  // A run of backslashes escapes the `$` after it when it is ODD. The rows of pathological-inputs.test.ts have a run of 3 or of 64,000 (even); a test that reads only the last 64 or 1,024 backslashes gives the same answer on both and a wrong one on 65, 1,025
+  // or 64,001. The parity is stated, not read off either function; the run is in front of an opener, of a closer and of the end of a display region.
+  it.each([63, 64, 65, 66, 1_025, 1_026, 64_001])("reads the whole run of %i backslashes in front of a dollar (an odd run escapes it, an even run does not)", (n) => {
+    const slashes = "\\".repeat(n);
+    const even = n % 2 === 0;
+    const cases: Array<[string, unknown]> = [
+      [`${slashes}$a$`, even ? [{ type: "inline", content: "a", startLine: 0, endLine: 0 }] : []],
+      [`$a${slashes}$`, even ? [{ type: "inline", content: `a${slashes}`, startLine: 0, endLine: 0 }] : []],
+      [`$$${slashes}$$`, even ? [{ type: "display", content: slashes, startLine: 0, endLine: 0 }] : []],
+    ];
+    for (const [text, expected] of cases) {
+      expect(findMathRegions(text)).toEqual(expected);
+      expect(oldFindMathRegions(text)).toEqual(expected);
+    }
   });
 
   // A comparison that cannot report a disagreement is no comparison: `expect(result.disagreements).toEqual([])` passes just as well if `compareScans` never fills the list.
@@ -493,8 +533,9 @@ describe("Session 327 — the math scan answers what the function that reread th
     const text = unit.repeat(many);
     const slow = timed(() => oldRegions(text));
     const fast = timed(() => newRegions(text));
+    const fastest = Math.min(fast.ms, timed(() => newRegions(text)).ms, timed(() => newRegions(text)).ms); // a pause that lands in one of the three runs must not fail the row
     expect(slow.result).toEqual([]);
     expect(fast.result).toEqual([]);
-    expect(slow.ms).toBeGreaterThan(fast.ms * 20 + 50);
+    expect(slow.ms).toBeGreaterThan(fastest * 20 + 50);
   }, HEAVY_ROW_MS);
 });
