@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isCloser, makeConsumedCloserLine, type CloserShape } from "../../src/core/qmd/model";
+import { findHeadings, isCloser, makeConsumedCloserLine, type CloserShape } from "../../src/core/qmd/model";
 import { BOM, EM_SPACE, IDEOGRAPHIC, LS, NBSP, NEL, PS, countStrings, everyString, seededRandom } from "./support/regex-equivalence";
 
 const HEAVY_ROW_MS = 120_000;
@@ -170,6 +170,9 @@ describe("consumedCloserLine: one reader per document answers as the old functio
     expect(new Set(KINDS.map((k) => JSON.stringify(k))).size).toBe(10);
     expect(new Set(ALL_KINDS.map((k) => JSON.stringify(k))).size).toBe(192);
     expect([Object.keys(LINES_A).length, Object.keys(LINES_B).length]).toEqual([7, 12]);
+    // The count pins cannot tell one blank line from another (both stop the scan: swapping the no-break space of the second set for an empty line moves no count), so the letters are stated.
+    expect(Object.values(LINES_A)).toEqual(["", "```", "````", "~~~", "  ```", "    ```", "word"]);
+    expect(Object.values(LINES_B)).toEqual(["", NBSP, "\f", LS, BOM, IDEOGRAPHIC, "```", "\f```", `\`\`\`${NBSP}`, "\t```", "```x", "> ```"]);
     expect([countStrings(7, 4), countStrings(12, 3)]).toEqual([2_801, 1_885]);
   });
 
@@ -351,6 +354,20 @@ describe("consumedCloserLine: stated answers", () => {
     expect(shared(0, KINDS[4])).toBe(2);
     expect(shared(0, kind(false, "`", 3, "null", [0]))).toBe(-1);
     expect(shared(0, KINDS[0])).toBe(1);
+  });
+});
+
+// The wiring in `computeRegions`: it asks for the closer BELOW the refused opener (`i + 1`). Asked from the opener's own line, a bare fence refused under a paragraph (it is closer-shaped itself) swallows its own line and leaves the real closer to open a fence that hides the
+// heading after it. These are the answers of the parent `fdd1f66` (run on these four documents), which the cure shares, and NOT measured against `quarto render`. They were found by shrinking the documents on which a mutant that asks from `i` differs from the cure (64 of 600,000 random documents of up to ten lines): that mutant finds the heading (`H`, `H`, `T`) on the first three.
+describe("consumedCloserLine: the call in computeRegions asks below the opener", () => {
+  const headings = (lines: string[]): unknown => findHeadings(`${lines.join("\n")}\n`).map((heading) => [heading.level, heading.text, heading.line]);
+  it.each([
+    ["a paragraph, a bare tilde fence, a list item, two more", ["x", "~~~", "- a", "~~~", "~~~", "# H"], []],
+    ["the same with the first fence indented", ["p", "  ~~~", "- a", "~~~", "~~~", "# H"], []],
+    ["the same with a longer last fence and a level-two heading", ["p", "~~~", "- a", "~~~", "~~~~", "## T"], []],
+    ["a blank line before the heading frees it", ["x", "~~~", "- a", "~~~", "~~~", "", "# H"], [[1, "H", 6]]],
+  ] as Array<[string, string[], unknown]>)("%s", (_title, lines, expected) => {
+    expect(headings(lines)).toEqual(expected);
   });
 });
 
