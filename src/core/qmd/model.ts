@@ -43,6 +43,7 @@ import type { DocumentEngine } from "../document-engine";
 import { cutHashComment } from "../hash-comment";
 import type { RenderMode } from "../render-mode";
 import { divOpenerVerdict } from "./attribute-block";
+import { ColumnStack } from "./column-stack";
 import { jupyterKernelLanguage } from "./jupyter-kernel";
 import { quartoYamlRegions } from "./quarto-yaml-regions";
 
@@ -9836,27 +9837,18 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
   // pushed that pandoc does not open merely re-admits an indent this file already admitted
   // before this session (a pre-existing phantom). A column missing that pandoc DOES open
   // deletes a real heading. Every rule below is written to fail in the first direction.
-  let contentColumns: number[] = [];
+  // ⚠ **THE STACK IS A `ColumnStack`, NOT THREE PARALLEL ARRAYS (Session 331).** `contentColumns` in the comments of this function, and as the parameter of the helpers it calls, is this stack. A line that opens a container column and
+  // pops nothing (a definition marker, a footnote definition, a list marker the model over-accepts) leaves one more entry, so N such lines left N entries and every reader a line asked scanned all N: N(N + 1)/2 steps (the BACKLOG item "More
+  // quadratic and stack-overflow shapes found by Session 319's sweep and review", part (1)). The entries are kept exactly, in order; the questions are answered from aggregates kept at push and pop, and a helper that reads the columns as a SET
+  // (every one does: `column-stack.ts` says how that was checked) is handed `columnStack.columns()`, each distinct column once. A quote swaps the whole object: see `outerColumns`.
+  let columnStack = new ColumnStack();
   // How many of those columns were open ABOVE the line being scanned, i.e. before this line
   // opened one of its own (Session 202). Read only by the setext row — see the assignment in
   // the container-maintenance block for why that row cannot use the post-push length.
   let columnsAboveThisLine = 0;
-  // Whether each of those columns was opened by a construct the CommonMark readers actually
-  // have, index for index with `contentColumns` (Session 202). A THIRD parallel array for the
-  // same reason `columnKinds` is a second one: the stack itself is handed to three consumers as
-  // a plain `readonly number[]`, and only this session's row asks this question.
-  const columnIsCommonmark: boolean[] = [];
-  // What OPENED each of those columns, index for index with `contentColumns` (Session 198).
-  // Only the container POP reads it, and only in its no-blank branch: a shallow LIST START
-  // closes a LIST ITEM container and does NOT close a FOOTNOTE or DEFINITION-LIST one, so a
-  // column alone cannot answer the question. Measured over 40 documents through the real
-  // `quarto render` path (`scratchpad/s198/reg`) — container kind x four shallow spellings:
-  // a definition container survives all four, a list item container survives prose only.
-  // ⚠ Kept as a PARALLEL array rather than folding the pair into one object: `contentColumns`
-  // is handed to `setextUnderlineLevel`, `indentedCodeLine` and `rawTexMacroLineIsBlock` as a
-  // plain `readonly number[]` (twice as `[0, ...contentColumns]`), and changing its element
-  // type would touch all three readers for a fact none of them uses.
-  const columnKinds: ("list" | "definition")[] = [];
+  // Whether each of those columns was opened by a construct the CommonMark readers actually have (Session 202), and what OPENED each one, a list marker or a definition marker (Session 198), are kept inside `columnStack`, entry for entry
+  // with its columns. Only the container POP reads the kind, and only in its no-blank branch: a shallow LIST START closes a LIST ITEM container and does NOT close a FOOTNOTE or DEFINITION-LIST one, so a column alone cannot answer the
+  // question. Measured over 40 documents through the real `quarto render` path (`scratchpad/s198/reg`) — container kind x four shallow spellings: a definition container survives all four, a list item container survives prose only.
   // Whether a BLOCK QUOTE may still be open, which suspends the column rule entirely — see
   // the assignment at the foot of the loop. Measured, and the single largest deletion trap in
   // this change: `> quoted` / `>` / `   \clearpage` / `   # ATX Below` renders the heading
@@ -9990,7 +9982,8 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
   // the stack turned an indented setext title into indented code and an indented ATX into no
   // heading at all.
   let outerColumns: {
-    columns: number[];
+    // The whole stack, set aside at quote entry and put back at quote end (Session 331: the object itself, so neither the entry nor the exit copies it).
+    stack: ColumnStack;
     // ⚠ **THE COLUMNS THE RAW LINE IS WRITTEN IN, WHICH ARE NOT ALWAYS THE STASHED ONES
     // (Session 241).** The stash is taken at the quote-entry line, BEFORE that line's own
     // container maintenance has run — so when the marker sits shallower than an open container,
@@ -9999,12 +9992,9 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
     // the list closed at the quote, so column 2 is not a container column and the underline is
     // lazy (`scratchpad/s241/r2/pop_e2`, `pop_d2`, `olpop_e3`, `mid_e2`, and the corpus row
     // `s192/adv/l06/a28` that Session 234 pinned as C6).
-    // ⚠ **`columns` IS LEFT ALONE ON PURPOSE.** It is what the quote-end block restores into
-    // `contentColumns`, a path Session 240 shipped and this session does not touch; the two
+    // ⚠ **`stack` IS LEFT ALONE ON PURPOSE.** It is what the quote-end block puts back as `columnStack`, a path Session 240 shipped and this session does not touch; the two
     // answer different questions about the same stash.
-    rawColumns: number[];
-    kinds: ("list" | "definition")[];
-    commonmark: boolean[];
+    rawColumns: readonly number[];
   } | null = null;
   let inQuote = false;
   // The `>` marker count of the most recent MARKED line, carried through unmarked lines of an open quote and reset to 0
@@ -10022,7 +10012,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
     boundaries.rawDepthBefore[i] = rawContentDepth;
     boundaries.divDepthBefore[i] = nativeDivDepth;
     boundaries.fdivOpenBefore[i] = liveDiv() !== null;
-    boundaries.containerBefore[i] = contentColumns.length > 0;
+    boundaries.containerBefore[i] = columnStack.length > 0;
     // ⚠ **THE BLOCK-QUOTE STRIP (Session 225).** Quarto strips a quote's markers and re-parses
     // what is left, so everything below this point classifies the quote's CONTENT rather than
     // the marker line. See `BLOCK_QUOTE_PREFIX` for the marker grammar and for why the strip
@@ -10070,9 +10060,11 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
     // column (`r12/e4_*`): the two spellings differ ONLY where the entry line was shallower than
     // its container. This is the field Session 241 added and read from `rawLineColumns` alone;
     // the marker question needs it too.
-    const rawMarkerColumns: readonly number[] =
-      outerColumns !== null ? outerColumns.rawColumns : contentColumns;
-    const quoteContentStart = blockQuoteContentStart(raw, rawMarkerColumns);
+    // ⚠ **A READER, NOT A COPY (Session 331).** With no quote stashed at the top of the line this was the live `contentColumns` array itself, so the setext rows further down read what the container block and a quote entry had done to it since;
+    // `columnStack` is replaced by a quote entry, so the live columns are read through the variable at each use.
+    const rawMarkerStash: readonly number[] | null = outerColumns !== null ? outerColumns.rawColumns : null;
+    const rawMarkerColumns = (): readonly number[] => rawMarkerStash ?? columnStack.columns();
+    const quoteContentStart = blockQuoteContentStart(raw, rawMarkerColumns());
     // ⚠ The explicit annotations on this constant and the two below are load-bearing, not
     // style — the same TS7022 round trip `lineBlockAbove` documents. `quoteOpen` is assigned
     // `stripQuote` on every region-boundary path and read back here through
@@ -10094,27 +10086,18 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
       // coordinate system the stripped line is no longer written in.
       if (!inQuote) {
         outerColumns = {
-          columns: [...contentColumns],
+          stack: columnStack,
           // The pop rule this line is about to apply, applied to the stash instead: a container
           // whose content column is strictly DEEPER than the marker's own column is closed by
           // this line (Session 241 — see the field's own note).
-          rawColumns: contentColumns.filter((c) => c <= indentColumn(raw)),
-          kinds: [...columnKinds],
-          commonmark: [...columnIsCommonmark],
+          rawColumns: columnStack.columnsAtOrBelow(indentColumn(raw)),
         };
-        contentColumns.length = 0;
-        columnKinds.length = 0;
-        columnIsCommonmark.length = 0;
+        columnStack = new ColumnStack();
       }
       inQuote = true;
     } else if (quoteContentStart === null && BLANK_LINE.test(raw)) {
       if (inQuote && outerColumns !== null) {
-        contentColumns.length = 0;
-        contentColumns.push(...outerColumns.columns);
-        columnKinds.length = 0;
-        columnKinds.push(...outerColumns.kinds);
-        columnIsCommonmark.length = 0;
-        columnIsCommonmark.push(...outerColumns.commonmark);
+        columnStack = outerColumns.stack;
       }
       // ⚠ **A FENCED DIV OPENED INSIDE A QUOTE IS CLOSED BY THE END OF THE QUOTE (Session 258).**
       // Pandoc cannot close it outside — the `:::` would be a different block — so an entry
@@ -10262,7 +10245,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
         // nested heading as the first tab; declining it here would list the real tabs below it (`quote/tb12_*`, 7 probes in the
         // first cut). The level is learned below, from the div's first content line, so `null` means "nothing learned yet".
         (div.tabLevel !== null && headingQuoteDepth > div.quoteDepth) ||
-        contentColumns.length !== div.containerDepth
+        columnStack.length !== div.containerDepth
       ) {
         return false;
       }
@@ -10490,14 +10473,10 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
       // it ends the outer item, opens content column 4, and quarto still renders the heading
       // (`r2/c_m0`), where the same marker at 1-5 opens a column the underline misses and
       // renders nothing (`c_m1`-`c_m5`, guarded at G4).
-      const listOpenAboveThisLine = columnKinds.includes("list");
+      const listOpenAboveThisLine = columnStack.hasList();
       // The columns at which an ALREADY-OPEN list would accept a sibling marker — read before the
       // pop for the same reason `listOpenAboveThisLine` is. See `siblingItemAtMarkerColumn`.
-      const siblingMarkerColumnAbove = contentColumns.some(
-        (_, idx) =>
-          columnKinds[idx] === "list" &&
-          (idx === 0 ? 0 : contentColumns[idx - 1]) === indentWidth,
-      );
+      const siblingMarkerColumnAbove = columnStack.hasListSiblingAt(indentWidth);
       // A non-blank line at a SHALLOWER column closes every container deeper than itself —
       // but ONLY where the line ABOVE IT IS BLANK, because a shallow line that directly
       // follows a non-blank one is absorbed LAZILY by the enclosing item and closes nothing.
@@ -10535,16 +10514,10 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
       // column below a list column, quarto keeps BOTH across a shallow marker
       // (`scratchpad/s198/nest`, `defthenlist`), so stopping at the first non-list from the top
       // would still delete the deeper heading.
-      const deeperColumnsAreAllLists = contentColumns.every(
-        (c, idx) => c <= indentWidth || columnKinds[idx] === "list",
-      );
-      if (prevLineBlank || boundEndedLine === i || (commonmarkDialect && cmBlockStartEndsItems(line, contentColumns, indentWidth)) ||
+      const deeperColumnsAreAllLists = columnStack.deeperAreAllLists(indentWidth);
+      if (prevLineBlank || boundEndedLine === i || (commonmarkDialect && cmBlockStartEndsItems(line, columnStack.columns(), indentWidth)) ||
         (deeperColumnsAreAllLists && popsEnclosingContainer(line, commonmarkDialect))) {
-        while (contentColumns.length > 0 && contentColumns[contentColumns.length - 1] > indentWidth) {
-          contentColumns.pop();
-          columnKinds.pop();
-          columnIsCommonmark.pop();
-        }
+        columnStack.popAbove(indentWidth);
         // ⚠ **A DIV IS AUTO-CLOSED BY THE CONTAINER THAT HOSTS IT (Session 229).** The columns
         // just popped ended their containers, and pandoc closes any div opened inside one at
         // that boundary — so the entry must leave `divColumns` here or a later `:::` matches a
@@ -10555,7 +10528,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
         while (
           divColumns.length > 0 &&
           divColumns[divColumns.length - 1].inQuote === inQuote &&
-          divColumns[divColumns.length - 1].containerDepth > contentColumns.length
+          divColumns[divColumns.length - 1].containerDepth > columnStack.length
         ) {
           divColumns.pop();
         }
@@ -10605,8 +10578,8 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
       // renders (`scratchpad/s202/adv/ws/ws_08`, found by a blind lens). The POP above is
       // deliberately still applied — `ax/pop_gfm_*` measures that a title closing an inner item
       // really does move the tolerance out to the surviving column.
-      columnsAboveThisLine = contentColumns.length;
-      if (!indentedCodeLine(line, contentColumns)) {
+      columnsAboveThisLine = columnStack.length;
+      if (!indentedCodeLine(line, columnStack.columns())) {
         // ⚠ **A BULLET-SPELLED THEMATIC BREAK OPENS NO LIST WHERE IT BEGINS A FRESH BLOCK AT TOP LEVEL (Session 295).** `- - -` and
         // `* * *` are one break to pandoc, and `LIST_ITEM_OPEN` took the first character for a marker, so a column was pushed that pandoc
         // never opens and an indent-4 `{bash}` opener below it, even after a BLANK line, was read as "inside an item" and paired (rendered,
@@ -10614,16 +10587,14 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
         // the line is paragraph text and keeps the over-accepting column (the safe direction, above), and inside any container or quote
         // nothing is claimed.
         const opened =
-          contentColumns.length === 0 && !stripQuote && BULLET_THEMATIC_BREAK.test(line) && !(dashLineHasHeaderAbove(boundaries, i) && !dashFooterBelow(lines, i)) && (startsAtBoundary(boundaries, i) || (i > 0 && !startsAtBoundary(boundaries, i - 1)))
+          columnStack.length === 0 && !stripQuote && BULLET_THEMATIC_BREAK.test(line) && !(dashLineHasHeaderAbove(boundaries, i) && !dashFooterBelow(lines, i)) && (startsAtBoundary(boundaries, i) || (i > 0 && !startsAtBoundary(boundaries, i - 1)))
             ? null
             : listItemContentColumn(line, commonmarkDialect);
         if (opened !== null) {
-          contentColumns.push(opened);
+          columnStack.push(opened, "list", COMMONMARK_LIST_MARKER.test(line));
           // A bullet-spelled break at top level opens no list to pandoc: where this model still pushes a column for it (a simple table's dash line, kept for the rows below it) the column ends at the
           // table's blank line, so an indent-4 opener after the table is not read as inside an item (rendered `review4/r4a_022`)
-          tableDashColumns = contentColumns.length === 1 && !stripQuote && BULLET_THEMATIC_BREAK.test(line) ? 1 : null;
-          columnKinds.push("list");
-          columnIsCommonmark.push(COMMONMARK_LIST_MARKER.test(line));
+          tableDashColumns = columnStack.length === 1 && !stripQuote && BULLET_THEMATIC_BREAK.test(line) ? 1 : null;
           // ⚠ Set HERE, inside the arm that has already decided this line opens a list item and
           // behind the `indentedCodeLine` guard above it, rather than re-asking the question at
           // the counter (Learning #14). A marker four columns past its container is code and
@@ -10659,14 +10630,12 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
           // `:     x`, `:\tx`, `[^1]:` and `[^averylonglabelhere]:` — against probe columns
           // 2, 4 and 6. All six open column 4 exactly and none opens 2 or 6, so spacing after
           // the marker and label length are both irrelevant and this arithmetic is untouched.
-          contentColumns.push(indentWidth + 4);
-          columnKinds.push("definition");
           // ⚠ BOTH spellings count as CommonMark here, and that used to be KNOWN WRONG for the
           // definition-list half under `gfm`/`commonmark`. It is now right by construction:
           // `definitionContainerOpens` refuses the `:`/`~` spelling under exactly the readers
           // that have no definition lists, so a definition column can only exist where the
           // declared reader really carries the construct.
-          columnIsCommonmark.push(true);
+          columnStack.push(indentWidth + 4, "definition", true);
         }
       }
       // ⚠ **THE FAIL-SAFE READS THE RAW LINE, NOT THE STRIPPED ONE (Session 225).** `quoteOpen`
@@ -10699,7 +10668,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
     if (
       COMMENT_OPEN.test(line) &&
       !(commonmarkProven &&
-      contentColumns.length === 0 &&
+      columnStack.length === 0 &&
       !stripQuote &&
       /^ {0,3}<!--/.test(line) &&
       rawContentDepth === 0 &&
@@ -10730,7 +10699,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
       const end = rawBlock === null ? null : rawBlock[1] !== undefined ? CM_RAW_END_PI : rawBlock[2] !== undefined ? CM_RAW_END_CDATA : CM_RAW_END_DECL;
       // Inside a list item or a quote an UNCLOSED block ends with the container, which this model cannot see (rendered, `scratchpad/s296/own6`): there the start requires its end marker on
       // a later line, so the worst case is the old phantom and never every heading below.
-      if (rawBlock !== null && end !== null && (!(contentColumns.length > 0 || stripQuote) || end.test(line.slice(rawBlock[0].length)) || endMarkerBelow(lines, i, end))) {
+      if (rawBlock !== null && end !== null && (!(columnStack.length > 0 || stripQuote) || end.test(line.slice(rawBlock[0].length)) || endMarkerBelow(lines, i, end))) {
         // A block that ends on its own line still ENDS the paragraph above it (it interrupts one): the line below starts a fresh block (`---` under it is a break, not an underline).
         if (!end.test(line.slice(rawBlock[0].length))) {
           inComment = true;
@@ -10787,7 +10756,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
     // ⚠ Only a column opened by a marker CommonMark HAS counts under a CommonMark reader (Session 296): `a.`, `A)`, `i.`, `#.` and `J. Smith` are paragraphs there, though this
     // model keeps a pandoc fancy-list column for them (`columnIsCommonmark` says which).
     // `commonmark_x` has pandoc's fancy lists (unless `-fancy_lists`), so every column is real there.
-    const cmColumns = commonmarkDialect && !fancyListsReader ? contentColumns.filter((_, k) => columnIsCommonmark[k]) : contentColumns;
+    const cmColumns = commonmarkDialect && !fancyListsReader ? columnStack.commonmarkColumns() : columnStack.columns();
     const fenceColumns = paragraphOpen && (!commonmarkDialect || stripQuote || quoteOpen) ? [0] : [0, ...cmColumns];
     const plainFence = fenceMatchAt(FENCE_OPEN, line, fenceColumns);
     // ⚠ **THE UNBOUNDED SECOND LOOK IS QUARTO'S EXECUTABLE-CELL GRAMMAR, AND IT IS SKIPPED WHERE THAT
@@ -10817,7 +10786,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
           (commonmarkDialect ||
             (!stripQuote &&
               (firstExampleMarker < 0 || firstExampleMarker >= i) &&
-              contentColumns.length === 0 &&
+              columnStack.length === 0 &&
               // Pandoc is between blocks before this line by the block-boundary answer (`BlockBoundaries`; Session 298 dropped the textual `endsBlock` term, which took an indented underline for a heading's): a boundary line, a thematic
               // break, a link definition or indented code that began fresh, a whole-line comment, a table or a line block (not under `markdown_strict`), a raw HTML element that completes,
               // the closer of a real kernel cell or a fresh comment region or a seven-hash line (the scanner's own report), the closing rule of a simple table.
@@ -10899,7 +10868,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
           fence,
           line,
           paragraphOpen,
-          contentColumns,
+          columnStack.columns(),
           !dialectOverride || markdownFamilyDialect,
           quoteOpen,
           stripQuote,
@@ -10920,7 +10889,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
           quoteDepth,
           quoteOpen,
           lineBlocksDialect,
-          contentColumns.length === 0,
+          columnStack.length === 0,
         );
       const refused =
         paragraphRefused ||
@@ -10958,7 +10927,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
       // into the headings below the silent chunk (measured, Session 275).
       const pastKnitr =
         !knitrSilentOpeners.has(i) &&
-        contentColumns.length === 0 &&
+        columnStack.length === 0 &&
         !stripQuote &&
         !(char === "`" && fence[3].includes("`"));
       if (
@@ -11094,10 +11063,8 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
       simpleTableRowsOpen = false;
       quoteOpen = stripQuote;
       if (tableDashColumns !== null) {
-        if (contentColumns.length === tableDashColumns && columnKinds[columnKinds.length - 1] === "list") {
-          contentColumns.pop();
-          columnKinds.pop();
-          columnIsCommonmark.pop();
+        if (columnStack.length === tableDashColumns && columnStack.topIsList()) {
+          columnStack.pop();
         }
         tableDashColumns = null;
       }
@@ -11187,7 +11154,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
     // ⚠ `rawColumns`, not `columns` (Session 241) — the stash keeps containers the quote's own
     // line closed, and this reader is the only one that can see the difference. See the field.
     const rawLineColumns: readonly number[] =
-      quoteOpen && !stripQuote && outerColumns !== null ? outerColumns.rawColumns : contentColumns;
+      quoteOpen && !stripQuote && outerColumns !== null ? outerColumns.rawColumns : columnStack.columns();
     // The columns above and THIS line are in different coordinate spaces, and no stash was taken
     // to reconcile them — `quoteColumnsUnknown`'s own condition, minus the stash. Both readers of
     // `simpleTableBodyRowAbsent` spell the container's depth as 0 here, which is the
@@ -11261,8 +11228,8 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
           // bytes the moment some other term makes the difference reachable. That is Session
           // 241's Learning #445 — the rows between two spellings of one predicate are answered by
           // neither — and it is exactly what this session had to repair elsewhere.
-          blockQuoteContentStart(lines[i - 1], rawMarkerColumns) !== null &&
-          blockQuoteContentStart(lines[i - 2], rawMarkerColumns) !== null,
+          blockQuoteContentStart(lines[i - 1], rawMarkerColumns()) !== null &&
+          blockQuoteContentStart(lines[i - 2], rawMarkerColumns()) !== null,
         // Whether an already-open list claimed the HEADER row — see `headerIsItemOfOpenList`.
         listItemAboveHeader,
         // The reader gate the pop predicate inside needs — see `popsEnclosingContainer`.
@@ -11297,13 +11264,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
     // paragraph — so the new decline agrees there, 20 rows of 20. The 3 residual phantoms in
     // that corpus are all `from: markdown` rows, unchanged by this change, and are Session
     // 180's already-filed `CLOSES_PARAGRAPH` entry.
-    let innermostColumn = 0;
-    for (let c = columnsAboveThisLine - 1; c >= 0; c--) {
-      if (columnIsCommonmark[c]) {
-        innermostColumn = contentColumns[c];
-        break;
-      }
-    }
+    const innermostColumn = columnStack.innermostCommonmarkAmong(columnsAboveThisLine);
     // HOW MANY body lines this underline may claim as its TITLE — 0 meaning "not a title here".
     // Quarto's default reader admits exactly ONE; a CommonMark reader admits the WHOLE open
     // paragraph (Session 203).
@@ -11319,7 +11280,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
       bodyLines
         .slice(-wholeParagraph)
         .slice(1)
-        .some((l) => commonmarkParagraphInterrupt(l.text, [0, ...contentColumns]))
+        .some((l) => commonmarkParagraphInterrupt(l.text, [0, ...columnStack.columns()]))
         ? defaultTitleLineCount
         : wholeParagraph;
     // ⚠ The HTML-block guard is needed at BOTH heading sites, and this is not the half Session
@@ -11362,17 +11323,17 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
     // introduced — the pre-session build declined every quoted underline outright — so the
     // comparison is part of the same change rather than a separate refinement.
     const underlineQuoteDepth = stripQuote
-      ? blockQuoteMarkerOffsets(raw, rawMarkerColumns).length
+      ? blockQuoteMarkerOffsets(raw, rawMarkerColumns()).length
       : 0;
     const setextTitleTooShallow =
       setextTitle !== undefined &&
       underlineQuoteDepth >
-        blockQuoteMarkerOffsets(lines[setextTitle.line] ?? "", rawMarkerColumns).length;
-    const setextTitleQuoted =
+        blockQuoteMarkerOffsets(lines[setextTitle.line] ?? "", rawMarkerColumns()).length;
+    const setextTitleQuoted: boolean =
       !stripQuote &&
       setextTitle !== undefined &&
       setextTitle.contentStart > 0 &&
-      blockQuoteContentStart(lines[setextTitle.line - 1] ?? "", rawMarkerColumns) !== null;
+      blockQuoteContentStart(lines[setextTitle.line - 1] ?? "", rawMarkerColumns()) !== null;
     // ⚠ **AN UNMARKED RUN AT CODE DEPTH INSIDE AN OPEN QUOTE IS THE QUOTE'S OWN LAZY
     // CONTINUATION, AND IT UNDERLINES (Session 232).** Rendered, `> quoted one` / `    ---`
     // renders `<blockquote><h2>quoted one</h2></blockquote>`: the underline carries no marker,
@@ -11585,7 +11546,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
             commonmarkDialect
               ? COMMONMARK_INDENT_OFFSETS.map((o) => innermostColumn + o)
               : lazyQuotedUnderline
-                ? [0, ...contentColumns, indentColumn(line)]
+                ? [0, ...columnStack.columns(), indentColumn(line)]
                 : // ⚠ `rawLineColumns`, not `contentColumns` — see its definition. This is the
                   // ONE reader of the widened set that can add a heading, and it can only ever
                   // add the marker-KEPT shape, because the lazy branch above already accepts
@@ -11618,9 +11579,9 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
         ? Math.min(
             Math.max(
               1,
-              blockQuoteMarkerOffsets(lines[setextTitle.line - 1] ?? "", rawMarkerColumns).length,
+              blockQuoteMarkerOffsets(lines[setextTitle.line - 1] ?? "", rawMarkerColumns()).length,
             ),
-            blockQuoteMarkerOffsets(lines[setextTitle.line] ?? "", rawMarkerColumns).length,
+            blockQuoteMarkerOffsets(lines[setextTitle.line] ?? "", rawMarkerColumns()).length,
           )
         : 0;
     // The text of a title line, with the quote markers the UNDERLINE also carries removed and
@@ -11630,12 +11591,12 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
         if (lazyStripDepth === 0) {
           return l.text;
         }
-        const lazyOffsets = blockQuoteMarkerOffsets(l.text, rawMarkerColumns);
+        const lazyOffsets = blockQuoteMarkerOffsets(l.text, rawMarkerColumns());
         return lazyOffsets.length === 0
           ? l.text
           : l.text.slice(lazyOffsets[Math.min(lazyStripDepth, lazyOffsets.length) - 1]);
       }
-      const offsets = blockQuoteMarkerOffsets(l.text, rawMarkerColumns);
+      const offsets = blockQuoteMarkerOffsets(l.text, rawMarkerColumns());
       return l.text.slice(
         underlineQuoteDepth > 0 && offsets.length >= underlineQuoteDepth
           ? offsets[underlineQuoteDepth - 1]
@@ -11653,7 +11614,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
       // columns, which a lookalike pushes anyway.
       const titleAsWritten = quotedTitleText(prev);
       const titleListMarkerStripped =
-        setextTitleText(titleAsWritten, [0, ...contentColumns], inQuote && !stripQuote ? null : indentColumn(line)) !==
+        setextTitleText(titleAsWritten, [0, ...columnStack.columns()], inQuote && !stripQuote ? null : indentColumn(line)) !==
         titleAsWritten;
       // A bullet marker on the title line is STRIPPED, not a reason to decline the heading
       // (Session 201) — see `setextTitleText`. `buildHeading` already drops a title with nothing
@@ -11690,7 +11651,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
           // `g_quote_u4`).
           setextTitleText(
             titleAsWritten,
-            [0, ...contentColumns],
+            [0, ...columnStack.columns()],
             inQuote && !stripQuote ? null : indentColumn(line),
           ),
           ...titleLines.slice(1).map((l) => quotedTitleText(l)),
@@ -11745,10 +11706,10 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
       // underline (`scratchpad/s291/adv_markers/r7a`: `d1_t2_*_u2` lifted, `d0_*_u1`..`u4` emitted), so there HEAD's answer stands.
       // ⚠ **"INDENTED" IS MEASURED FROM THE HOST CONTAINER'S CONTENT COLUMN** (the stashed outer list column while a quote is
       // open): an underline AT that column is relative column 0 and lifts (`scratchpad/s291/n4/a`, `d`).
-      const hostColumn = outerColumns !== null && outerColumns.columns.length > 0 ? outerColumns.columns[outerColumns.columns.length - 1] : 0;
+      const hostColumn = outerColumns !== null ? outerColumns.stack.topColumn() : 0;
       const underlineIndentedLazy =
         !stripQuote && indentColumn(line) > hostColumn && (liveDiv()?.quoteDepth ?? 0) === 0;
-      const titleQuoteDepth = underlineIndentedLazy ? blockQuoteMarkerOffsets(prev.text, rawMarkerColumns).length : quoteDepth;
+      const titleQuoteDepth = underlineIndentedLazy ? blockQuoteMarkerOffsets(prev.text, rawMarkerColumns()).length : quoteDepth;
       if (
         heading &&
         !calloutTitleTakes(prev.line, titleListMarkerStripped, titleQuoteDepth) &&
@@ -11792,19 +11753,11 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
       // it; the mutant that drops it (M13) is unkillable — 0 disagreements over 248,832
       // enumerated documents. It stays because the implication is one edit deep in a variable
       // three separate branches assign.
-      // ⚠ **AND THE THREE ARRAYS ARE RESTORED AS A UNIT.** Dropping the `contentColumns` restore
-      // is observable and pinned (M16 died); dropping either parallel array's restore is not
-      // (M17, M18, 0 disagreements) only because nothing downstream reads `columnKinds` or
-      // `columnIsCommonmark` after this path yet. They are index-for-index parallel with
-      // `contentColumns` — see its declaration — so restoring two of three would desynchronise
-      // them, which is a landmine rather than a saving.
+      // ⚠ **THE STACK COMES BACK WHOLE.** Dropping the restore of the columns is observable and pinned (Session 240's M16 died). Before Session 331 the columns and the two parallel arrays (the kinds and the CommonMark flags)
+      // were restored one by one, and dropping a parallel array's restore was not observable (M17, M18, 0 disagreements) only because nothing downstream read them after this path yet; one `ColumnStack` object is put back
+      // now, so the three can no longer drift apart.
       if (!lazyQuotedUnderline && !stripQuote && inQuote && outerColumns !== null) {
-        contentColumns.length = 0;
-        contentColumns.push(...outerColumns.columns);
-        columnKinds.length = 0;
-        columnKinds.push(...outerColumns.kinds);
-        columnIsCommonmark.length = 0;
-        columnIsCommonmark.push(...outerColumns.commonmark);
+        columnStack = outerColumns.stack;
         outerColumns = null;
         inQuote = false;
       }
@@ -11834,7 +11787,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
     const quoteColumnsUnknown: boolean = quoteOpen && !stripQuote;
     const rawTexColumns: readonly number[] | null = quoteColumnsUnknown
       ? null
-      : [0, ...contentColumns];
+      : [0, ...columnStack.columns()];
     const indented = indentedCodeLine(line, rawTexColumns);
     const insideIndentedCode = indented && prevIndentedCode;
     // Whether the body run RESTARTS at this line — one definition, read by the counter below and
@@ -11895,11 +11848,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
     const nextLineIsEmptySiblingItem =
       lines[i + 1] !== undefined &&
       LIST_ITEM_EMPTY.test(lines[i + 1]) &&
-      contentColumns.some(
-        (_, idx) =>
-          columnKinds[idx] === "list" &&
-          (idx === 0 ? 0 : contentColumns[idx - 1]) === indentColumn(lines[i + 1]),
-      );
+      columnStack.hasListSiblingAt(indentColumn(lines[i + 1]));
     // An ATX heading — but only where no paragraph is open above it, and never inside a raw
     // HTML block under a CommonMark reader, where the block swallows it (Session 204).
     const m =
@@ -11911,7 +11860,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
       inSimpleTable ||
       (setextUnderlineSwallowsAtx(
         lines[i + 1],
-        [0, ...contentColumns],
+        [0, ...columnStack.columns()],
         commonmarkDialect,
         // ⚠ **THE `freshBlockHere` ARM HERE IS UNOBSERVABLE TODAY AND IS KEPT ON PURPOSE
         // (Session 246, mutant N22): 0 disagreements over 300,000 enumerated documents on an
@@ -11943,11 +11892,11 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
             quoteColumnsUnknown
               ? null
               : dialectOverride && !markdownFamilyDialect
-                ? [...COMMONMARK_HEADING_COLUMNS, ...contentColumns]
-                : [0, ...contentColumns],
+                ? [...COMMONMARK_HEADING_COLUMNS, ...columnStack.columns()]
+                : [0, ...columnStack.columns()],
             tightAtxDialect &&
               literalHtmlLines?.has(i) !== true &&
-              !tightAtxWouldWorsen(lines[i + 1], [0, ...contentColumns]),
+              !tightAtxWouldWorsen(lines[i + 1], [0, ...columnStack.columns()]),
           );
     if (m) {
       const heading = parseHeadingLine(
@@ -11977,7 +11926,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
         // ⚠ The `inQuote` test inside the loop mirrors the container pop's own (above) and is UNOBSERVABLE today (mutant S5b, 0 of
         // 185,508 documents differ); it is kept so the two pops cannot disagree about which quote a div belongs to.
         if (commonmarkDialect) {
-          const columnsStillOpen = contentColumns.filter((c) => c <= indentColumn(line)).length;
+          const columnsStillOpen = columnStack.countAtOrBelow(indentColumn(line));
           for (let k = divColumns.length - 1; k >= 0; k--) {
             if (divColumns[k].ended) {
               continue;
@@ -12153,11 +12102,11 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
         line,
         stripQuote ? columnAtOffset(raw, quoteContentStart as number) : 0,
       );
-      const divFence =
+      const divFence: ReturnType<typeof divFenceRole> =
         divFenceRaw !== null && columnIsCodeDepth(divFenceRaw.column, rawTexColumns)
           ? null
           : divFenceRaw;
-      const divRole = divFence?.role ?? null;
+      const divRole: NonNullable<ReturnType<typeof divFenceRole>>["role"] | null = divFence?.role ?? null;
       // ⚠ **A CLOSER MUST SIT AT ITS CONTAINER'S OWN CONTENT COLUMN, AND ` {0,3}` IS NOT THAT**
       // (Session 227). Rendered, `::: {.note}` / `body text` / `  :::` is ONE paragraph —
       // `<p>body text ::: # H k03</p>` — because pandoc's `divFenceEnd` reads the colon run
@@ -12211,7 +12160,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
       // column it keeps the pre-session ` {0,3}` width there — the code-depth filter above has
       // already dropped anything past column 3, since `rawTexColumns` is null under a quote.
       // Phantoms, never deletions.
-      const divFenceColumns = [0, ...contentColumns];
+      const divFenceColumns = [0, ...columnStack.columns()];
       const divAtColumn: boolean =
         divFence === null
           ? false
@@ -12300,13 +12249,13 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
       } else if (divRole === "open" && divAtColumn && !divOpenerInterrupts && !divRefused) {
         divColumns.push({
           column: divFence!.column,
-          containerDepth: contentColumns.length,
+          containerDepth: columnStack.length,
           inQuote,
           calloutTitleSlot: divCalloutTitleSlot(divFence!.attrs, divFence!.tail, { commonmarkDialect, pandocEscapes }),
           firstContentLine: null,
           firstBlockLine: null,
           ended: false,
-          hostColumn: contentColumns.filter((c) => c <= divFence!.column).reduce((a, c) => Math.max(a, c), 0),
+          hostColumn: columnStack.columnsAtOrBelow(divFence!.column).reduce((a, c) => Math.max(a, c), 0),
           isTabset: divPanelTabset(divFence!.attrs, divFence!.tail, { commonmarkDialect, pandocEscapes }),
           tabLevel: null,
           // ⚠ **A LAZY OPENER SITS AT THE DEPTH OF THE QUOTE IT CONTINUES (Session 291)** — an unmarked `:::` under a

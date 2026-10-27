@@ -579,7 +579,7 @@
   "name": "W06 knitrClaims skips fences inside a list item",
   "file": "src/core/qmd/model.ts",
   "from": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
-  "to": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        contentColumns.length === 0 &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
+  "to": "        engine === \"knitr\" &&\n        char === \"`\" &&\n        !stripQuote &&\n        columnStack.length === 0 &&\n        KNITR_CHUNK_INFO.test(fence[3].trim());",
   "expect": "killed",
   "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
  },

@@ -95,6 +95,11 @@ export class ColumnStack {
     return this.kinds[this.kinds.length - 1] === "list";
   }
 
+  /** The column of the top entry, or 0 for an empty stack. */
+  topColumn(): number {
+    return this.cols.length > 0 ? this.cols[this.cols.length - 1] : 0;
+  }
+
   /** Whether any entry was opened by a list marker. */
   hasList(): boolean {
     return this.lists > 0;

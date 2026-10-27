@@ -32,6 +32,10 @@ class Reference {
   topIsList(): boolean {
     return this.kinds[this.kinds.length - 1] === "list";
   }
+  // The quote stash's `hostColumn`: `outerColumns.columns.length > 0 ? outerColumns.columns[outerColumns.columns.length - 1] : 0`.
+  topColumn(): number {
+    return this.columnsList.length > 0 ? this.columnsList[this.columnsList.length - 1] : 0;
+  }
   hasList(): boolean {
     return this.kinds.includes("list");
   }
@@ -71,8 +75,8 @@ const MAX_COLUMN = 13;
 // Everything a line can ask, for every column a line can sit at. The set-valued answers are compared as sets: the reference holds every entry, the stack each distinct column once, and the readers of those answers (`indentedCodeLine`
 // and the other helpers) look only at which columns are there.
 const answers = (stack: ColumnStack, reference: Reference): { got: unknown; want: unknown } => {
-  const got: Record<string, unknown> = { length: stack.length };
-  const want: Record<string, unknown> = { length: reference.length };
+  const got: Record<string, unknown> = { length: stack.length, topColumn: stack.topColumn() };
+  const want: Record<string, unknown> = { length: reference.length, topColumn: reference.topColumn() };
   if (reference.length > 0) {
     got.topIsList = stack.topIsList();
     want.topIsList = reference.topIsList();
