@@ -13,7 +13,7 @@
   "from": "if (indents === undefined) {",
   "to": "if (true as boolean) {",
   "expect": "killed",
-  "why": "the lazy build (`5b237ef`) put back as an eager one per line: each of the 20,000 scalar lines builds an index of the whole block, so the cost is quadratic again and every answer is the same"
+  "why": "a per-line rebuild of the index: the lazy `if (indents === undefined)` guard of `5b237ef` made always true, so each of the 20,000 scalar lines builds an index of the whole block: the cost is quadratic again and every answer is the same"
  },
  {
   "name": "P03 midDocumentMetadataBlocks: a new comment reader for every block (Session 322's cure undone)",
@@ -21,7 +21,7 @@
   "from": "|| commentOpenAt(region.startLine)) {",
   "to": "|| htmlCommentOpenAt(lines)(region.startLine)) {",
   "expect": "killed",
-  "why": "each of the 12,000 groups' blocks reads the comment state from the top of the document: no answer changes, the group rows fail on the clock alone (the parent `f36f663` took 3,429 ms on the findHeadings row)"
+  "why": "each of the 12,000 groups' blocks reads the comment state from the top of the document: no answer changes, the group rows fail on the clock alone (the build just before the cure, `f36f663`, the last commit before `b63fafc` that touched `src/`, took 3,429 ms on the findHeadings row)"
  },
  {
   "name": "P04 htmlCommentOpenAt: every ask starts again from the top",

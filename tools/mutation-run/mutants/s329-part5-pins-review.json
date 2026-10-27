@@ -1,0 +1,114 @@
+[
+ {
+  "name": "R01 findNestedFrontMatterValueLines: the front matter is read again for every line",
+  "file": "src/core/yaml-frontmatter-nested-values.ts",
+  "from": "    const lineText = contentLines[i];",
+  "to": "    const lineText = (frontMatterContentLines(text) as string[])[i];",
+  "expect": "killed",
+  "why": "a re-read of the whole front matter per line: answers identical, cost lines x text; clock only"
+ },
+ {
+  "name": "R02 findNestedFrontMatterValueLines: the index is rebuilt every 256th line",
+  "file": "src/core/yaml-frontmatter-nested-values.ts",
+  "from": "if (indents === undefined) {",
+  "to": "if (indents === undefined || i % 256 === 0) {",
+  "expect": "killed",
+  "why": "the index rebuilt every 256th line: 136 ms at 20,000 lines (under the 1 s limit, so the 20,000-line rows pass), 1,435 ms at 80,000, 5,496 ms at 160,000 (HEAD 57 / 164 / 290): only the 100,000-line row sees it"
+ },
+ {
+  "name": "R03 findNestedFrontMatterValueLines: the enumeration stops after 10,000 lines",
+  "file": "src/core/yaml-frontmatter-nested-values.ts",
+  "from": "  for (let i = 0; i < contentLines.length; i++) {",
+  "to": "  for (let i = 0; i < Math.min(contentLines.length, 10000); i++) {",
+  "expect": "killed",
+  "why": "the fast wrong answer: a cap on the walk. Only the rows with a nested engine AFTER the scalar can see it (the item's own row, with no tail, answers markdown either way)"
+ },
+ {
+  "name": "R04 nearestShallowerLine: the index answers only for the first 1,024 lines",
+  "file": "src/core/yaml-context.ts",
+  "from": "line < index.indent.length &&",
+  "to": "line < Math.min(index.indent.length, 1024) &&",
+  "expect": "killed",
+  "why": "every line past 1,024 falls back to the scan past its siblings: same answers, clock only"
+ },
+ {
+  "name": "R05 nearestShallowerLine: the index answers only for the first 19,900 lines",
+  "file": "src/core/yaml-context.ts",
+  "from": "line < index.indent.length &&",
+  "to": "line < Math.min(index.indent.length, 19900) &&",
+  "expect": "killed",
+  "why": "a cap on the index at 19,900 lines (a cap C is seen only by a document of about 1.2 C lines: 4,101 ms at 24,000, 11,081 ms at 30,000): the 20,000-line rows pass, the 100,000-line row sees every cap up to about 80,000"
+ },
+ {
+  "name": "R06 indexLineIndents: the stack is never popped, the nearest shallower line is found by walking down it",
+  "file": "src/core/yaml-context.ts",
+  "from": "    while (stack.length > 0 && indent[stack[stack.length - 1]] >= lead) {\n      stack.pop();\n    }\n    indent[i] = lead;\n    shallower[i] = stack.length > 0 ? stack[stack.length - 1] : -1;\n    stack.push(i);",
+  "to": "    let top = stack.length - 1;\n    while (top >= 0 && indent[stack[top]] >= lead) {\n      top--;\n    }\n    indent[i] = lead;\n    shallower[i] = top >= 0 ? stack[top] : -1;\n    stack.push(i);",
+  "expect": "killed",
+  "why": "the index builder made quadratic with typed-array steps only (the stack is never popped, the nearest shallower line is found by walking down it): 211 ms at 20,000 lines (under the 1 s limit), 2,589 ms at 80,000, 10,121 ms at 160,000 (HEAD 57 / 164 / 290): only the 100,000-line row sees it"
+ },
+ {
+  "name": "R07 nestedParentPath: the first nearestShallowerLine call drops the index",
+  "file": "src/core/yaml-context.ts",
+  "from": "const parentLine = nearestShallowerLine(lines, line, indent, index);",
+  "to": "const parentLine = nearestShallowerLine(lines, line, indent);",
+  "expect": "killed",
+  "why": "P01 by another door: the container of every line is scanned for; the chains are still used"
+ },
+ {
+  "name": "R08 midDocumentMetadataBlocks: a stray question about line 0 before each real one",
+  "file": "src/core/qmd/model.ts",
+  "from": "|| commentOpenAt(region.startLine)) {",
+  "to": "|| commentOpenAt(0) || commentOpenAt(region.startLine)) {",
+  "expect": "killed",
+  "why": "line 0 is before the position read to: the reader starts again from the top and the real question reads to its line again; commentOpenAt(0) is always false, so no answer moves"
+ },
+ {
+  "name": "R09 midDocumentMetadataBlocks: the regions are walked last first",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (const region of quartoYamlRegions(lines.join(\"\\n\"))) {",
+  "to": "for (const region of quartoYamlRegions(lines.join(\"\\n\")).reverse()) {",
+  "expect": "killed",
+  "why": "every question is before the one last asked: a rescan each; the 12,000 blocks are the same text, so the answer is the same"
+ },
+ {
+  "name": "R10 midDocumentMetadataBlocks: the body is cut from a copy of the rest of the document",
+  "file": "src/core/qmd/model.ts",
+  "from": "    const body = lines.slice(\n      region.startLine + 1,\n      region.terminated ? region.endLine : lines.length,\n    );",
+  "to": "    const body = lines.slice(region.startLine + 1).slice(\n      0,\n      (region.terminated ? region.endLine : lines.length) - region.startLine - 1,\n    );",
+  "expect": "killed",
+  "why": "a copy of the rest of the document for each block: 663 ms at 12,000 groups in a fresh process at a load of 11 (HEAD 182 ms), so the 12,000-group rows kill it only on a loaded machine; 2,104 ms at 24,000 groups (HEAD 304 ms), so the 24,000-group row kills it on any"
+ },
+ {
+  "name": "R11 htmlCommentOpenAt: starts again unless the line asked is the line last read to",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (line < scanned) {",
+  "to": "if (line !== scanned) {",
+  "expect": "killed",
+  "why": "== for < : every forward question reads from the top; resetting is always safe so no answer moves"
+ },
+ {
+  "name": "R12 htmlCommentOpenAt: starts again after a jump of more than 3 lines",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (line < scanned) {",
+  "to": "if (line < scanned || line - scanned > 3) {",
+  "expect": "killed",
+  "why": "the groups' blocks are 4 lines apart"
+ },
+ {
+  "name": "R13 htmlCommentOpenAt: every question is read to the end of the document",
+  "file": "src/core/qmd/model.ts",
+  "from": "const end = Math.min(line, lines.length);",
+  "to": "const end = lines.length;",
+  "expect": "killed",
+  "why": "the first question reads everything; each later one is before that position and reads everything again; no comment in the rows so no answer moves"
+ },
+ {
+  "name": "R14 governingMetadataContent: a selecting block governs as an empty block",
+  "file": "src/core/qmd/model.ts",
+  "from": "return contentFromValueLine(blocks[i]) === null ? [] : blocks[i];",
+  "to": "return [];",
+  "expect": "killed",
+  "why": "the one path by which a mid-document block moves an answer: the reader unresolved, the group rows lose the gfm setext headings"
+ }
+]
