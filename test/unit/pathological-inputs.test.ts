@@ -1525,3 +1525,97 @@ describe("Session 327 — a line holding many `$` whose closing `$` never comes"
     ]);
   });
 });
+
+describe("Session 328 — refused fence openers with no blank line between them", () => {
+  // Part (3) of the BACKLOG item "What is still quadratic or deep enough to overflow after Session 311". An opener whose info string pandoc refuses (`text i`, a bare `{r`, a tilde fence under an open paragraph) is read as text, and its closer is swallowed into an inline code span; to find the closer the
+  // scan walks every non-blank line below the opener until a blank line or a closer (`consumedCloserLine`, Session 224). N such openers in one run with no blank line between them are N walks of the same run: N x N tests of `isCloser`.
+  // The profile (Session 328, `--cpu-prof`, `findHeadings`, 12,000 lines of `` ```text i ``, 2,304 ms in all): the closer regex `FENCE_CLOSE` 48.9%, `consumedCloserLine` 29.0%, `fenceMatchAt` 16.3%, `computeRegions` itself 2.0%; `{r` and `~~~r` at 8,000 lines are 48 / 27 / 16 the same way.
+  // Fresh process per shape, cold (Session 328, load average 2.7 to 4.1): `` ```text i `` x 3,000 / 6,000 / 12,000 through `findHeadings`: 162 / 576 / 2,243 ms (4x per doubling; the item's 0.56 s and 2.2 s held), through `findAllCells` 160 / 564 / 2,173 ms; at 16,000 lines `findHeadings` 3,795 ms,
+  // `findAllCells` 3,828, `buildOutline` 3,807, `indexLabels` 3,891; distinct info strings 3,977; `` ```{r `` 3,873; `~~~{r a}` 3,706; `~~~r` 3,755; a closer at the END of the run 3,863 (every opener walks to it); `> ` quoted openers 703 / 2,728 ms at 8,000 / 16,000; openers inside a list item 1,368 / 5,398 ms;
+  // two such runs of 8,000 / 16,000 openers with a closer between them 1,924 / 7,737 ms. A valid info string (`` ```r ``: declined, not refused) is linear (175 ms at 64,000), and so is a blank line after each opener, a closer under each opener, and many short runs, so the controls come first.
+  // The rows that matter for the answer are the ones with a closer: a refused opener swallows the closer below it, and a closer that is NOT swallowed opens a fence of its own and hides the headings after it. `FENCE_TAIL` is built to show it: the closer line, then a fence pair around `# In`. With the closer swallowed
+  // only `# After` is a heading; if the closer opened a fence, `# In` would show too.
+  const FENCE_LIMIT_MS = 1000;
+  const FENCE_FEW = 3;
+  const withinFenceLimit = (ms: number): boolean => ms < FENCE_LIMIT_MS;
+  const headingKeys = (text: string): Array<[number, string, number]> => findHeadings(text).map((heading): [number, string, number] => [heading.level, heading.text, heading.line]);
+  const FENCE_TAIL = "\n```\n\n# In\n\n```\n\n# After\n";
+  type FenceEntry = "headings" | "cells" | "labels";
+  type FenceRow = { site: string; entry: FenceEntry; many: number; build: (count: number) => string; answer: (count: number) => unknown };
+  const readFence = (entry: FenceEntry, text: string): unknown => (entry === "headings" ? headingKeys(text) : entry === "cells" ? findAllCells(text) : indexLabels(text));
+  const nothing = (): unknown => [];
+  const afterAt = (line: number): unknown => [[1, "After", line]];
+  const RUN3 = "```text i\n```text i\n```text i\n";
+
+  const FENCE_ROWS: FenceRow[] = [
+    // Controls: linear before and after.
+    { site: "control: 64,000 openers whose info string is valid (declined, not refused)", entry: "headings", many: 64_000, build: (count) => "```r\n".repeat(count), answer: nothing },
+    { site: "control: 16,000 refused openers, a blank line after each", entry: "headings", many: 16_000, build: (count) => "```text i\n\n".repeat(count), answer: nothing },
+    { site: "control: 16,000 refused openers, each closed by the line below it", entry: "headings", many: 16_000, build: (count) => "```text i\n```\n\n".repeat(count), answer: nothing },
+    { site: "control: 5,000 runs of three refused openers, a blank line after each run", entry: "headings", many: 5_000, build: (count) => `${RUN3}\n`.repeat(count), answer: nothing },
+    // Guards: linear on the parent too (the runs are short), so they cannot be RED there; they hold the cure to the answer. Every closer is swallowed by the run above it and every heading is found; a closer that was NOT swallowed would open a fence and hide the heading after it.
+    { site: "guard: 4,000 runs of three refused openers, a closer, a blank line and a heading (each closer is swallowed, each heading found)", entry: "headings", many: 4_000, build: (count) => `${RUN3}\`\`\`\n\n# H\n\n`.repeat(count), answer: (count) => Array.from({ length: count }, (_, k) => [1, "H", 7 * k + 5]) },
+    // A run with no closer must not hand its answer ("none") to the next run, which has one: 4,000 pairs of a run without and a run with a closer.
+    { site: "guard: 4,000 pairs of a run with no closer and a run with one (the answer of one run is not the next run's)", entry: "headings", many: 4_000, build: (count) => `${RUN3}\n# H\n\n${RUN3}\`\`\`\n\n# H\n\n`.repeat(count), answer: (count) => Array.from({ length: count }, (_, k) => [[1, "H", 13 * k + 4], [1, "H", 13 * k + 11]]).flat() },
+
+    // The refused shapes: the RED rows.
+    { site: "run: 16,000 of `` ```text i ``, none closes (the item's shape)", entry: "headings", many: 16_000, build: (count) => "```text i\n".repeat(count), answer: nothing },
+    { site: "run: 16,000 of `` ```text <i> `` with distinct i (the item: the lines need not be equal)", entry: "headings", many: 16_000, build: (count) => Array.from({ length: count }, (_, i) => `\`\`\`text ${i}\n`).join(""), answer: nothing },
+    { site: "run: 16,000 of `` ```{r `` (a bare brace, no closing brace)", entry: "headings", many: 16_000, build: (count) => "```{r\n".repeat(count), answer: nothing },
+    { site: "run: 16,000 of `~~~{r a}` (a tilde fence under an open paragraph)", entry: "headings", many: 16_000, build: (count) => "~~~{r a}\n".repeat(count), answer: nothing },
+    { site: "run: 16,000 of `~~~r` (a tilde fence under an open paragraph)", entry: "headings", many: 16_000, build: (count) => "~~~r\n".repeat(count), answer: nothing },
+    { site: "run: 16,000 of `` ```text i `` and a closer at the end of the run (every opener walks to it; only `# After` is a heading)", entry: "headings", many: 16_000, build: (count) => `${"```text i\n".repeat(count)}\`\`\`${FENCE_TAIL}`, answer: (count) => afterAt(count + 7) },
+    { site: "run: 10,000 + 10,000 of `` ```text i `` with a closer after each run", entry: "headings", many: 10_000, build: (count) => `${"```text i\n".repeat(count)}\`\`\`\n\n${"```text i\n".repeat(count)}\`\`\`${FENCE_TAIL}`, answer: (count) => afterAt(2 * count + 9) },
+    { site: "run: 20,000 quoted openers `> ```text i`", entry: "headings", many: 20_000, build: (count) => `${"> ```text i\n".repeat(count)}\n# After\n`, answer: (count) => afterAt(count + 1) },
+    { site: "run: 12,000 openers inside a list item", entry: "headings", many: 12_000, build: (count) => `- a\n${"  ```text i\n".repeat(count)}\n# After\n`, answer: (count) => afterAt(count + 2) },
+    // The same scan serves every reader of the regions, so the item's shape is also timed through two other entries.
+    { site: "entry findAllCells: 15,000 of `` ```text i ``", entry: "cells", many: 15_000, build: (count) => "```text i\n".repeat(count), answer: nothing },
+    { site: "entry indexLabels: 14,000 of `` ```text i ``", entry: "labels", many: 14_000, build: (count) => "```text i\n".repeat(count), answer: nothing },
+  ];
+
+  it.each(FENCE_ROWS.map((row) => [row.site, row] as const))("%s: is read in linear time, and the answer is the stated one with 3 units and with the long run", (_site, row) => {
+    expect(readFence(row.entry, row.build(FENCE_FEW))).toEqual(row.answer(FENCE_FEW));
+    const longText = row.build(row.many);
+    const { result, ms } = timed(() => readFence(row.entry, longText));
+    expect(result).toEqual(row.answer(row.many));
+    expect({ ms, within: withinFenceLimit(ms) }).toMatchObject({ within: true });
+  });
+
+  it("builds a different text for every row", () => {
+    const small = FENCE_ROWS.map((row) => row.build(FENCE_FEW));
+    // The TEXT alone, not the entry with it: `scanRegions` keeps the last two scans by text (`regionsCache`), so a row whose text another row read just before it is served from the cache and cannot be RED (the first draft's `indexLabels` row passed on the parent for that reason).
+    const long = FENCE_ROWS.map((row) => row.build(row.many));
+    expect(new Set(long).size).toBe(FENCE_ROWS.length);
+    // Two rows may share a small text only if they differ in size or entry (a larger copy of a shape, or the same shape through another reader).
+    const bySmall = new Map<string, string[]>();
+    FENCE_ROWS.forEach((row, k) => bySmall.set(small[k], [...(bySmall.get(small[k]) ?? []), `${row.entry}:${row.many}`]));
+    for (const sizes of bySmall.values()) {
+      expect(new Set(sizes).size).toBe(sizes.length);
+    }
+  });
+
+  // A run of 3,000 openers, or a limit of 100 s, would pass on the parent too (it takes 3.7 to 7.7 s on the RED rows), so the boundary of `withinFenceLimit` is pinned, and the sizes the rows are built on.
+  it("keeps the sizes, the limit and the shapes the Session 328 rows are built on", () => {
+    expect([FENCE_FEW, FENCE_LIMIT_MS]).toEqual([3, 1000]);
+    expect([withinFenceLimit(FENCE_LIMIT_MS - 1), withinFenceLimit(FENCE_LIMIT_MS)]).toEqual([true, false]);
+    expect(FENCE_ROWS.map((row) => `${row.entry} ${row.many} ${JSON.stringify(row.build(1))}`)).toEqual([
+      'headings 64000 "```r\\n"',
+      'headings 16000 "```text i\\n\\n"',
+      'headings 16000 "```text i\\n```\\n\\n"',
+      'headings 5000 "```text i\\n```text i\\n```text i\\n\\n"',
+      'headings 4000 "```text i\\n```text i\\n```text i\\n```\\n\\n# H\\n\\n"',
+      'headings 4000 "```text i\\n```text i\\n```text i\\n\\n# H\\n\\n```text i\\n```text i\\n```text i\\n```\\n\\n# H\\n\\n"',
+      'headings 16000 "```text i\\n"',
+      'headings 16000 "```text 0\\n"',
+      'headings 16000 "```{r\\n"',
+      'headings 16000 "~~~{r a}\\n"',
+      'headings 16000 "~~~r\\n"',
+      `headings 16000 ${JSON.stringify(`\`\`\`text i\n\`\`\`${FENCE_TAIL}`)}`,
+      `headings 10000 ${JSON.stringify(`\`\`\`text i\n\`\`\`\n\n\`\`\`text i\n\`\`\`${FENCE_TAIL}`)}`,
+      'headings 20000 "> ```text i\\n\\n# After\\n"',
+      'headings 12000 "- a\\n  ```text i\\n\\n# After\\n"',
+      'cells 15000 "```text i\\n"',
+      'labels 14000 "```text i\\n"',
+    ]);
+  });
+});
