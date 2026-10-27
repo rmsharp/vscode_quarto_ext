@@ -199,6 +199,21 @@ describe("Session 331 — ColumnStack hands out the distinct columns as a snapsh
     expect(stack.columns()).toEqual([]);
   });
 
+  it("does nothing when asked to pop an empty stack, as popping an empty array did", () => {
+    const stack = new ColumnStack();
+    stack.pop();
+    stack.popAbove(0);
+    expect(stack.length).toBe(0);
+    expect(stack.columns()).toEqual([]);
+    stack.push(4, "list", true);
+    stack.pop();
+    stack.pop();
+    expect(stack.length).toBe(0);
+    expect(stack.hasList()).toBe(false);
+    expect(stack.hasListSiblingAt(0)).toBe(false);
+    expect(stack.columns()).toEqual([]);
+  });
+
   it("keeps a column while one entry still holds it and drops it when the last entry goes", () => {
     const stack = new ColumnStack();
     stack.push(4, "definition", true);
