@@ -287,38 +287,3 @@ passes on arrival (its RED is a mutant); the three interleaved-kind rows, the ca
 **TDD:** RED before GREEN for the 11 refused-shape rows (`9e80dbb` before `c158265`) and for the three interleaved-kind rows (shown on a copy of the parent); for the review's additions 17 of 17 answer-changing mutants shown SURVIVING with the runner before the rows and
 killed after. Passed on arrival, disclosed: the oracle file, its stated rows, the comparator's self-test, the controls and guards.
 **Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** 6 agents in 1 workflow (1,056,213 subagent tokens, 214 tool calls, 37.5 minutes), 114 mutant runs of mine in the runner (50 + 2 + 31 + 31), a 500,000-document differential, 0 quarto renders.
-
-## Session 326 Handoff Evaluation (by Session 327)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers (at the claim commit `9d16619`'s parent `363e00c`, gap 0), no `pending` receipt other than this session's, the
-ratchet citation (2/2, results `bba236856bad`, read from the results file) and the baseline (12,245 in 97 files) all held, and the picker the plan ranked was accurate: candidate (a) was the `$` half, placed by finishing a feature,
-with the note that the plan's candidate row does not list the item.
-**Helped:** candidate (a) said "profile first (Learning 739)" and gave the item's figures (1.6 s at 32,002 characters, 6.5 s at 64,000): my cold figures (1,407 and 5,441 ms) matched in slope before any code was read, and the profile
-(`scan` 39%, the `\s` test 37%) showed the item's three shapes were one cause. Gotcha 2 (the runner tests the COMMITTED tree, skips a stale `from`) made me commit before each mutant run; gotcha 3 (a kill with no title is a crash; a
-survivor needs a parent-versus-mutant differential) is how L04, L05 and the 14 equivalents were handled; gotcha 4 (the pins will be incomplete) was true a THIRTEENTH time; gotcha 5 (quote a timing with its load) shaped every figure;
-gotchas 1, 7, 8, 9 and 12 (exact paths; the clock rows that flake; the worker gone and the worktree not mine; `test:integration` not run; the U+2028 trap and waiting after a question) held, and I waited at the picker.
-**Missing:** (a) that the item's `$a ` is one of three shapes with one cause (the item named only the first; the digit and escape refusals cost the same and the digit one is the worst, 30 s at 25,600 repeats); (b) that the 81-mutant
-list takes about 30 minutes, not the 17 of the Session 326 lists; (c) that "the plan's key count prints 221" was not something I could re-run cheaply (I did not); nothing it said was stale.
-**Wrong:** nothing I could find in the claims I checked; the item's `$a ` figures (1.6 s at 32,002 characters, 6.5 s at 64,000) are within 20% of mine (1.4 and 5.4 s cold, load 6 to 8), and it said load moves them. **ROI: high.**
-
-## Session 327 Self-Assessment
-
-**Score: 7/10.**
-**Went right.** I timed three shapes in fresh processes before reading code and profiled one (that found the item's attribution right but incomplete: three refusals of a closer, one cause). The 7 refused-shape rows were run on the
-unmodified tree and failed on the clock alone (4.0 to 6.7 s, answers right) in a commit of their own BEFORE the cure. I kept the old scan as the oracle by script and proved the rename reversible, enumerated 10 million strings, and
-had every pinned count re-derived by a separate Python port. Every claim of the review I acted on was run here: the 13 gap mutants (13 survive on the tests as they stood, 13 killed after the rows), the two new refused-shape rows on
-a copy of the parent (4,790 and 3,753 ms) and the 210,000-character reach row there (54,465 ms), the timeout kill R01 timed alone (436,916 ms), and the reviewer's wording of which guard kills which cap against my own run 1 (it was
-wrong; the comment now says what my run says). I waited at the Phase 0 picker, which Session 326 had skipped.
-**Went wrong.** (1) My pins were incomplete for the THIRTEENTH set (Learnings 773 to 826; 830, 831): 13 survivors after 81 mutants of my own, six of them cost-only (a kept value forgotten at a statement the cure passes) and seven
-about characters, widths and a window that no alphabet held, though the handoff's gotcha 4 had said to expect it. (2) Text I wrote was wrong in ten places (two about my own tests, a control that does not exist, a parenthesis
-describing the parent, "kept across skip regions", the oracle header, the README duration) and in two commit messages (`ddd7923` "9.5 million" for 10,049,350, `38e557c` "34 math rows", not reproduced; both stay); I also miscounted
-the review commit's tests (10 for 15) and caught it before any push. (3) TDD deviations, disclosed: the oracle file passes on arrival (its RED is a mutant); the 15 stated rows and the clock rows for R01 to R04 were written after the
-mutants survived (their RED is the survivor, shown with the runner); the 400,000-opener and 100,000-opener reach rows were not run on the parent (about half an hour and two minutes, extrapolated); the 70,000-opener one was (54 s).
-(4) The review took 98 minutes and 1.03 million tokens; the performance lens ran at a load of up to 104 from other processes, so its timings are the ones taken at load 3.6 to 4.9. (5) A harness defect of mine (`mkvariant.py
---parent` left a call site unrenamed) cost three lenses a workaround. (6) I mistyped a relative path to my own timing harness once (it needed an absolute path) and re-ran.
-**Known residuals (filed or stated):** the S311 item's parts (3), (4), (5) and (10); the constant factor of the cure (filed, Polish; decided against); the heading `{` run (S318 item part (2)); `isAttributeBlock`'s prefix test
-(filed); `test:integration` NOT run.
-**TDD:** RED before GREEN for the 7 refused-shape rows (`72d4a9c` before `38e557c`) and for the review's additions: 13 of 13 gap mutants shown SURVIVING with the runner before the rows and killed after; 2 of the 6 new clock rows
-shown failing on a copy of the parent. Passed on arrival, disclosed: the oracle file, its first stated rows, the comparator's self-test, the controls and guards.
-**Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** 6 agents in 1 workflow (1,032,020 subagent tokens, 211 tool calls, 98 minutes), about 190 mutant runs of mine (81 in run 1, 6 again, 13 twice, 81 again
-on the final tests, one 7-minute timing), 0 quarto renders.
