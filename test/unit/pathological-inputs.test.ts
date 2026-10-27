@@ -1253,11 +1253,11 @@ describe("Session 325 — a heading line holding many openers whose closers neve
   // a heading's text for a token pandoc's inline parser refuses, skipping what a code span, a bracketed group, a macro argument, a comment, a CDATA section, a processing instruction, a tag's quoted attribute or
   // a shortcode swallows. Each skip asks the text AFTER the opener where its closer is, and an opener with NO closer answered "one character on" after reading to the end of the line, so the next opener of the same
   // kind read the same tail again: quadratic in the openers, on a line a pasted blob can be.
-  // Bare `findHeadings` (document rows) and bare `headingContentRefused` (function rows, which the filed `HEADING_ATTRIBUTE` regex cannot hide), a warm call after warm-up calls, load average 3.4 to 6 (Session 325): `
+  // Bare `findHeadings` (document rows) and bare `headingContentRefused` (function rows, which the then-filed `HEADING_ATTRIBUTE` regex could not hide; closed in Session 330), a warm call after warm-up calls, load average 3.4 to 6 (Session 325): `
   // x 8,000 / 16,000 / 32,000 / 64,000: 86 / 355 / 1,416 / 5,587 ms (ratios 4.1, 4.0, 3.9); `[` the same; `\a[` x 8,000 / 16,000 / 32,000: 406 / 1,557 / 4,798 ms; `\a{` x 32,000 / 40,000: 2,452 / 3,943 ms; `<a` x 8,000
   // to 64,000: 167 / 605 / 1,869 / 8,330 ms; `<a " ` x 8,000 / 16,000 / 32,000: 542 / 2,057 / 6,653 ms; `<!--` x 8,000 to 32,000: 556 / 2,206 / 8,777 ms; `<?` x 32,000: 4,467 ms; `<![CDATA[` x 4,000 / 8,000 / 12,000:
-  // 493 / 1,845 / 4,486 ms; `{{<` x 160,000 / 320,000: 850 / 3,447 ms. Bare `{` and a bare backslash are NOT this function's: their time is in `HEADING_ATTRIBUTE` and the closing-hash strip (the Session 318 item's parts (2)
-  // and (3)), so there is no row for them here. At the row sizes the parent takes 3.4 to 6.3 s in the runs of Session 325 (4.2 to 8.0 s in the review round's, which ran at a higher load) against a limit the cure meets in
+  // 493 / 1,845 / 4,486 ms; `{{<` x 160,000 / 320,000: 850 / 3,447 ms. Bare `{` and a bare backslash are NOT this function's: their time was in `HEADING_ATTRIBUTE` and the closing-hash strip (the Session 318 item's parts (2)
+  // and (3), closed in Session 330: see its describe below), so there is no row for them here. At the row sizes the parent takes 3.4 to 6.3 s in the runs of Session 325 (4.2 to 8.0 s in the review round's, which ran at a higher load) against a limit the cure meets in
   // milliseconds, and the closed-construct controls come first. The review round added the rows for the call sites the first rows did not reach: the class-ARG macro reader (`\section[`, `\section{`: 5.1 and 5.7 s on the parent
   // at 24,000), the followers of a closed label (`[a](`, `[a]{`, `[a][`), a line that mixes the three markers (a one-slot memo passes every single-marker row), the `'` quote and the closing tags, runs of backticks that
   // all differ in length, and, as guards that are linear on the parent too, a group that CLOSES after 100,000 openers and 40,000 closed labels past index 65,535 (a table of 16-bit entries answers wrongly or never ends).
@@ -1295,7 +1295,7 @@ describe("Session 325 — a heading line holding many openers whose closers neve
     // What an unclosed opener hides is NOTHING: the block tag after the run still refuses the heading, so no heading is read.
     { site: "heading: 64,000 backticks, none closed, then a block tag that still refuses", unit: "`", many: 64_000, build: (run) => `# ${run}<section>\n`, read: openHeadings, answer: () => [] },
     { site: "heading: 64,000 `[`, none closed, then a block tag that still refuses", unit: "[", many: 64_000, build: (run) => `# ${run}<section>\n`, read: openHeadings, answer: () => [] },
-    // The shapes the strips of `buildHeading` would otherwise hide (a `{` run is the filed `HEADING_ATTRIBUTE` item): the scan alone.
+    // The shapes the strips of `buildHeading` would otherwise hide (a `{` run was the then-filed `HEADING_ATTRIBUTE` item, closed in Session 330): the scan alone.
     { site: "scan: 320,000 shortcode openers, none closed", unit: "{{<", many: 320_000, build: (run) => run, read: openScan, answer: () => false },
     { site: "scan: 40,000 macros each opening a `{` that never closes", unit: "\\a{", many: 40_000, build: (run) => run, read: openScan, answer: () => false },
     // The call sites and shapes the review round found unpinned (a removed cache at each of them passed every row above).

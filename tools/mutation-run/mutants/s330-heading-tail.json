@@ -1,0 +1,410 @@
+[
+ {
+  "name": "A01 evenBackslashesBefore: the parity inverted",
+  "file": "src/core/qmd/model.ts",
+  "from": "return (index - from) % 2 === 0;",
+  "to": "return (index - from) % 2 === 1;",
+  "expect": "killed",
+  "why": "every escaped hash reads as a closing run and every real one as escaped: the stated rows and every enumeration fail"
+ },
+ {
+  "name": "A02 evenBackslashesBefore: the walk reads a slash, not a backslash",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (from > 0 && text.charCodeAt(from - 1) === 0x5c) {",
+  "to": "while (from > 0 && text.charCodeAt(from - 1) === 0x2f) {",
+  "expect": "killed",
+  "why": "no run is ever seen, so every character reads as unescaped"
+ },
+ {
+  "name": "A03 evenBackslashesBefore: the walk stops one character short of the start",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (from > 0 && text.charCodeAt(from - 1) === 0x5c) {",
+  "to": "while (from > 1 && text.charCodeAt(from - 1) === 0x5c) {",
+  "expect": "killed",
+  "why": "a backslash at index 0 is never counted: `\\#` reads as a closing run"
+ },
+ {
+  "name": "A04 evenBackslashesBefore: only a zero run is even",
+  "file": "src/core/qmd/model.ts",
+  "from": "return (index - from) % 2 === 0;",
+  "to": "return index - from === 0;",
+  "expect": "killed",
+  "why": "a run of two backslashes reads as escaping: `a \\\\#` is refused"
+ },
+ {
+  "name": "A05 evenBackslashesBefore: the parity taken mod 4",
+  "file": "src/core/qmd/model.ts",
+  "from": "return (index - from) % 2 === 0;",
+  "to": "return (index - from) % 4 === 0;",
+  "expect": "killed",
+  "why": "a run of two backslashes reads as odd"
+ },
+ {
+  "name": "A06 evenBackslashesBefore: the walk capped at 64 characters",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (from > 0 && text.charCodeAt(from - 1) === 0x5c) {",
+  "to": "while (from > 0 && index - from < 64 && text.charCodeAt(from - 1) === 0x5c) {",
+  "expect": "killed",
+  "why": "a run of 101 backslashes reads as 64 (even): the grid's 101 and the long-run rows"
+ },
+ {
+  "name": "A07 evenBackslashesBefore: the walk capped at 4,096 characters",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (from > 0 && text.charCodeAt(from - 1) === 0x5c) {",
+  "to": "while (from > 0 && index - from < 4096 && text.charCodeAt(from - 1) === 0x5c) {",
+  "expect": "killed",
+  "why": "only a long ODD run is misread: the 4,097-backslash row of the oracle file (the old patterns are far too slow to compare there)"
+ },
+ {
+  "name": "A08 evenBackslashesBefore: the walk capped at 65,536 characters",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (from > 0 && text.charCodeAt(from - 1) === 0x5c) {",
+  "to": "while (from > 0 && index - from < 65536 && text.charCodeAt(from - 1) === 0x5c) {",
+  "expect": "killed",
+  "why": "only a run past 65,536 is misread: the 65,537 and 1,000,001 rows"
+ },
+ {
+  "name": "A09 evenBackslashesBefore: the walk reads the character AT the index, not before it",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (from > 0 && text.charCodeAt(from - 1) === 0x5c) {",
+  "to": "while (from > 0 && text.charCodeAt(from) === 0x5c) {",
+  "expect": "killed",
+  "why": "the character at the index is the hash or the brace, never a backslash: every run reads as even"
+ },
+ {
+  "name": "A10 evenBackslashesBefore: the run counted from the start of the text for every call (a quadratic with a small constant)",
+  "file": "src/core/qmd/model.ts",
+  "from": "  let from = index;\n  while (from > 0 && text.charCodeAt(from - 1) === 0x5c) {\n    from--;\n  }\n  return (index - from) % 2 === 0;",
+  "to": "  let run = 0;\n  for (let k = 0; k < index; k++) {\n    run = text.charCodeAt(k) === 0x5c ? run + 1 : 0;\n  }\n  return run % 2 === 0;",
+  "expect": "killed",
+  "why": "every answer is the same; `headingAttributeStart` asks once per escaped brace, so 50,000 of them cost 5e9 steps: the control row of 50,000 escaped braces fails on the clock alone"
+ },
+ {
+  "name": "C01 atxClosingPandocStart: the run is made of dollar signs",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (start > 0 && text.charCodeAt(start - 1) === 0x23) {",
+  "to": "while (start > 0 && text.charCodeAt(start - 1) === 0x24) {",
+  "expect": "killed",
+  "why": "no hash run is ever found"
+ },
+ {
+  "name": "C02 atxClosingPandocStart: trimEnd() for the trailing blanks",
+  "file": "src/core/qmd/model.ts",
+  "from": "const end = trimEndBlanks(text).length;",
+  "to": "const end = text.trimEnd().length;",
+  "expect": "killed",
+  "why": "a CR, a no-break space or a line separator after the run reads as a blank: the wide enumeration and the stated rows"
+ },
+ {
+  "name": "C03 atxClosingPandocStart: the trailing blanks are not trimmed",
+  "file": "src/core/qmd/model.ts",
+  "from": "const end = trimEndBlanks(text).length;",
+  "to": "const end = text.length;",
+  "expect": "killed",
+  "why": "`a #  ` is not a closing run"
+ },
+ {
+  "name": "C04 atxClosingPandocStart: the hash walk stops at index 1",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (start > 0 && text.charCodeAt(start - 1) === 0x23) {",
+  "to": "while (start > 1 && text.charCodeAt(start - 1) === 0x23) {",
+  "expect": "killed",
+  "why": "a text that is all hashes starts its run at 1, not 0"
+ },
+ {
+  "name": "C05 atxClosingPandocStart: a text with no hash run is not refused",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (start === end) {\n    return -1;\n  }",
+  "to": "  if (start === end + 1) {\n    return -1;\n  }",
+  "expect": "killed",
+  "why": "the start index of the (empty) run is answered for every text with no hash run"
+ },
+ {
+  "name": "C06 atxClosingPandocStart: the parity negated",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (evenBackslashesBefore(text, start)) {",
+  "to": "if (!evenBackslashesBefore(text, start)) {",
+  "expect": "killed",
+  "why": "escaped and unescaped hashes swap"
+ },
+ {
+  "name": "C07 atxClosingPandocStart: the second hash also taken for a run of ONE",
+  "file": "src/core/qmd/model.ts",
+  "from": "return end - start >= 2 ? start + 1 : -1;",
+  "to": "return end - start >= 1 ? start + 1 : -1;",
+  "expect": "killed",
+  "why": "`a \\#` answers an index past the only hash"
+ },
+ {
+  "name": "C08 atxClosingPandocStart: the second hash needs a run of THREE",
+  "file": "src/core/qmd/model.ts",
+  "from": "return end - start >= 2 ? start + 1 : -1;",
+  "to": "return end - start >= 3 ? start + 1 : -1;",
+  "expect": "killed",
+  "why": "`\\##` (an escaped hash and a closing one) is refused"
+ },
+ {
+  "name": "C09 atxClosingPandocStart: the third hash, not the second",
+  "file": "src/core/qmd/model.ts",
+  "from": "return end - start >= 2 ? start + 1 : -1;",
+  "to": "return end - start >= 2 ? start + 2 : -1;",
+  "expect": "killed",
+  "why": "`\\##` answers 3, not 2"
+ },
+ {
+  "name": "C10 atxClosingPandocStart: an escaped single hash answers its own index",
+  "file": "src/core/qmd/model.ts",
+  "from": "return end - start >= 2 ? start + 1 : -1;",
+  "to": "return end - start >= 2 ? start + 1 : start;",
+  "expect": "killed",
+  "why": "`a \\#` is read as a closing run"
+ },
+ {
+  "name": "C11 atxClosingPandocStart: an escaped first hash never falls back to the second",
+  "file": "src/core/qmd/model.ts",
+  "from": "return end - start >= 2 ? start + 1 : -1;",
+  "to": "return -1;",
+  "expect": "killed",
+  "why": "`\\##` is refused"
+ },
+ {
+  "name": "C12 atxClosingPandocStart: the unescaped run answers its second hash",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (evenBackslashesBefore(text, start)) {\n    return start;\n  }",
+  "to": "  if (evenBackslashesBefore(text, start)) {\n    return start + 1;\n  }",
+  "expect": "killed",
+  "why": "every closing run keeps its first hash"
+ },
+ {
+  "name": "C13 atxClosingPandocStart: the parity read at the END of the run",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (evenBackslashesBefore(text, start)) {",
+  "to": "if (evenBackslashesBefore(text, end)) {",
+  "expect": "killed",
+  "why": "the run before the last character is the run of hashes, always even"
+ },
+ {
+  "name": "C14 atxClosingPandocStart: the parity read after the first hash",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (evenBackslashesBefore(text, start)) {",
+  "to": "if (evenBackslashesBefore(text, start + 1)) {",
+  "expect": "killed",
+  "why": "the character before is the hash itself, always even"
+ },
+ {
+  "name": "C15 atxClosingPandocStart: the hash walk starts at the end of the text, not at the end of the blanks",
+  "file": "src/core/qmd/model.ts",
+  "from": "  let start = end;",
+  "to": "  let start = text.length;",
+  "expect": "killed",
+  "why": "trailing blanks stop the walk at once, so `a #  ` has no run"
+ },
+ {
+  "name": "C16 atxClosingPandocStart: a blank accepted inside the hash walk",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (start > 0 && text.charCodeAt(start - 1) === 0x23) {",
+  "to": "while (start > 0 && (text.charCodeAt(start - 1) === 0x23 || text.charCodeAt(start - 1) === 0x20)) {",
+  "expect": "killed",
+  "why": "`# #` starts its run at 0"
+ },
+ {
+  "name": "D01 atxClosingRun: the two spellings swapped",
+  "file": "src/core/qmd/model.ts",
+  "from": "return commonmarkDialect ? atxClosingCommonmarkStart : atxClosingPandocStart;",
+  "to": "return commonmarkDialect ? atxClosingPandocStart : atxClosingCommonmarkStart;",
+  "expect": "killed",
+  "why": "gfm strips an unspaced `C#` and the markdown family does not: the older heading rows of qmd-model.test.ts"
+ },
+ {
+  "name": "D02 atxClosingRun: the pandoc spelling for every reader",
+  "file": "src/core/qmd/model.ts",
+  "from": "return commonmarkDialect ? atxClosingCommonmarkStart : atxClosingPandocStart;",
+  "to": "return atxClosingPandocStart;",
+  "expect": "killed",
+  "why": "gfm, commonmark and commonmark_x strip an unspaced `C#`"
+ },
+ {
+  "name": "D03 atxClosingCommonmarkStart: the space before the run not required",
+  "file": "src/core/qmd/model.ts",
+  "from": "return text.search(ATX_CLOSING);",
+  "to": "return text.search(/#+[ \\t]*$/);",
+  "expect": "killed",
+  "why": "`C#` loses its hash under gfm"
+ },
+ {
+  "name": "H01 headingAttributeStart: the last character must be an opening brace",
+  "file": "src/core/qmd/model.ts",
+  "from": "text.charCodeAt(close) !== 0x7d",
+  "to": "text.charCodeAt(close) !== 0x7b",
+  "expect": "killed",
+  "why": "no block is ever found"
+ },
+ {
+  "name": "H02 headingAttributeStart: a lone closing brace is not refused up front",
+  "file": "src/core/qmd/model.ts",
+  "from": "close < 1 ||",
+  "to": "close < 0 ||",
+  "expect": "survives",
+  "why": "EQUIVALENT: text `}` has its closing brace at index 0, the search for the previous brace clamps to index 0 and finds the brace itself, and no `{` follows; the answer is -1 either way"
+ },
+ {
+  "name": "H03 headingAttributeStart: an empty block `{}` is refused",
+  "file": "src/core/qmd/model.ts",
+  "from": "close < 1 ||",
+  "to": "close < 2 ||",
+  "expect": "killed",
+  "why": "`{}` has its closing brace at index 1"
+ },
+ {
+  "name": "H04 headingAttributeStart: the last character must NOT be a closing brace",
+  "file": "src/core/qmd/model.ts",
+  "from": "text.charCodeAt(close) !== 0x7d",
+  "to": "text.charCodeAt(close) === 0x7d",
+  "expect": "killed",
+  "why": "every block is refused and every non-block accepted"
+ },
+ {
+  "name": "H05 headingAttributeStart: trimEnd() for the trailing blanks",
+  "file": "src/core/qmd/model.ts",
+  "from": "const close = trimEndBlanks(text).length - 1;",
+  "to": "const close = text.trimEnd().length - 1;",
+  "expect": "killed",
+  "why": "a CR, a no-break space or a line separator after the block reads as a blank"
+ },
+ {
+  "name": "H06 headingAttributeStart: the search for the opening brace starts AT the previous closing brace",
+  "file": "src/core/qmd/model.ts",
+  "from": "text.lastIndexOf(\"}\", close - 1) + 1)",
+  "to": "text.lastIndexOf(\"}\", close - 1))",
+  "expect": "survives",
+  "why": "EQUIVALENT: the character at that index is a `}`, not a `{`, and with no previous brace the index is -1, which `indexOf` clamps to 0"
+ },
+ {
+  "name": "H07 headingAttributeStart: the search starts two characters after the previous closing brace",
+  "file": "src/core/qmd/model.ts",
+  "from": "text.lastIndexOf(\"}\", close - 1) + 1)",
+  "to": "text.lastIndexOf(\"}\", close - 1) + 2)",
+  "expect": "killed",
+  "why": "a `{` right after a `}` is skipped: `a }{x}`"
+ },
+ {
+  "name": "H08 headingAttributeStart: the previous closing brace looked for from the last one itself",
+  "file": "src/core/qmd/model.ts",
+  "from": "text.lastIndexOf(\"}\", close - 1)",
+  "to": "text.lastIndexOf(\"}\", close)",
+  "expect": "killed",
+  "why": "the last brace is its own predecessor, so the search for an opening brace starts past the end: no block is ever found"
+ },
+ {
+  "name": "H09 headingAttributeStart: the FIRST closing brace of the text, not the one before the last",
+  "file": "src/core/qmd/model.ts",
+  "from": "text.lastIndexOf(\"}\", close - 1)",
+  "to": "text.indexOf(\"}\")",
+  "expect": "killed",
+  "why": "a `{` between two earlier braces is taken for the start: `{a}{b}{c}`"
+ },
+ {
+  "name": "H10 headingAttributeStart: the loop also stops at the closing brace",
+  "file": "src/core/qmd/model.ts",
+  "from": "open !== -1; open = text.indexOf(\"{\", open + 1))",
+  "to": "open !== -1 && open < close; open = text.indexOf(\"{\", open + 1))",
+  "expect": "survives",
+  "why": "EQUIVALENT: no `{` lies at or after the last non-blank character, which is a `}`"
+ },
+ {
+  "name": "H11 headingAttributeStart: after an escaped brace the next one is skipped",
+  "file": "src/core/qmd/model.ts",
+  "from": "open = text.indexOf(\"{\", open + 1))",
+  "to": "open = text.indexOf(\"{\", open + 2))",
+  "expect": "killed",
+  "why": "`a \\{{x}`: the brace right after an escaped one is the answer"
+ },
+ {
+  "name": "H12 headingAttributeStart: the parity not asked",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (evenBackslashesBefore(text, open)) {",
+  "to": "if (true as boolean) {",
+  "expect": "killed",
+  "why": "an escaped brace opens a block: `a \\{x}`"
+ },
+ {
+  "name": "H13 headingAttributeStart: the answer is the character after the brace",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (evenBackslashesBefore(text, open)) {\n      return open;",
+  "to": "    if (evenBackslashesBefore(text, open)) {\n      return open + 1;",
+  "expect": "killed",
+  "why": "every block starts one character late"
+ },
+ {
+  "name": "H14 headingAttributeStart: the LAST brace of the line, not the first one after the previous closing brace",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let open = text.indexOf(\"{\", text.lastIndexOf(\"}\", close - 1) + 1); open !== -1;",
+  "to": "for (let open = text.lastIndexOf(\"{\", close); open !== -1;",
+  "expect": "killed",
+  "why": "`a {{x}` answers 3, not 2"
+ },
+ {
+  "name": "H15 headingAttributeStart: the parity read after the brace",
+  "file": "src/core/qmd/model.ts",
+  "from": "evenBackslashesBefore(text, open)",
+  "to": "evenBackslashesBefore(text, open + 1)",
+  "expect": "killed",
+  "why": "the character before is the brace itself: always even"
+ },
+ {
+  "name": "W01 buildHeading: the attribute text taken from one character after the brace",
+  "file": "src/core/qmd/model.ts",
+  "from": "rawText.slice(braceAt);",
+  "to": "rawText.slice(braceAt + 1);",
+  "expect": "killed",
+  "why": "SURVIVED the first rows (46 killed, 5 survived in the first run): a block text read one character late differs only when the heading has exactly TWO opening braces (`# T {{#a}`), which no row held; killed by the WIRING rows added after that run (the parent's answers for 24 headings, `heading-tail-equivalence.test.ts`)"
+ },
+ {
+  "name": "W02 buildHeading: the cut keeps the opening brace",
+  "file": "src/core/qmd/model.ts",
+  "from": "rawText.slice(0, braceAt)",
+  "to": "rawText.slice(0, braceAt + 1)",
+  "expect": "killed",
+  "why": "a block leaves its `{` in the text"
+ },
+ {
+  "name": "W03 buildHeading: the closing cut keeps the first hash",
+  "file": "src/core/qmd/model.ts",
+  "from": "text = text.slice(0, closingAt);",
+  "to": "text = text.slice(0, closingAt + 1);",
+  "expect": "killed",
+  "why": "a closing run leaves its first hash in the text"
+ },
+ {
+  "name": "W04 buildHeading: a closing run at index 0 is not cut",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (closingAt !== -1) {",
+  "to": "if (closingAt > 0) {",
+  "expect": "killed",
+  "why": "an all-hash heading (`## ##`) is kept instead of dropped"
+ },
+ {
+  "name": "W05 buildHeading: the attribute index tested with < 0",
+  "file": "src/core/qmd/model.ts",
+  "from": "braceAt === -1 ? null",
+  "to": "braceAt < 0 ? null",
+  "expect": "survives",
+  "why": "EQUIVALENT: the locator answers -1 or an index"
+ },
+ {
+  "name": "W06 buildHeading: the attribute block looked for under every reader",
+  "file": "src/core/qmd/model.ts",
+  "from": "honoursAttributes ? headingAttributeStart(rawText) : -1",
+  "to": "headingAttributeStart(rawText)",
+  "expect": "killed",
+  "why": "gfm and markdown_github render a trailing `{...}` as text"
+ },
+ {
+  "name": "W07 buildHeading: the closing run located in the RAW text, attribute block included",
+  "file": "src/core/qmd/model.ts",
+  "from": "const closingAt = closing(text);",
+  "to": "const closingAt = closing(rawText);",
+  "expect": "killed",
+  "why": "a closing run before an attribute block (`a ## {#x}`) is not found"
+ }
+]

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { atxClosingPandocStart, headingAttributeStart } from "../../src/core/qmd/model";
+import { atxClosingPandocStart, findHeadings, headingAttributeStart } from "../../src/core/qmd/model";
 import { LS, NBSP, countStrings, everyString, seededRandom, slowestExec } from "./support/regex-equivalence";
 
 // Session 330 — the BACKLOG item "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", parts (2) and (3).
@@ -166,6 +166,53 @@ describe("Session 330 — the heading's closing-hash run and attribute block: th
   ] as const)("%s: the stated answers hold for the old pattern and the new function", (_name, site, answers) => {
     expect(answers.map(([text]) => oldIndex(site.old, text))).toEqual(answers.map(([, index]) => index));
     expect(answers.map(([text]) => site.now(text))).toEqual(answers.map(([, index]) => index));
+  });
+
+  // Long runs of backslashes of both parities, where the old patterns are far too slow to be the oracle (a walk back over the run at every index): the answer is the one the parity rule states. A cap on the walk
+  // (at 64, 4,096 or 65,536 characters) turns an odd run into an even one and is seen only here and at the grid's 101.
+  it.each([4095, 4096, 4097, 65_535, 65_536, 65_537, 1_000_000, 1_000_001])("a run of %i backslashes: the parity decides, exactly", (run) => {
+    const slashes = "\\".repeat(run);
+    const even = run % 2 === 0;
+    expect(atxClosingPandocStart(`a${slashes}#`)).toBe(even ? run + 1 : -1);
+    expect(atxClosingPandocStart(`a${slashes}##`)).toBe(even ? run + 1 : run + 2);
+    expect(atxClosingPandocStart(`${slashes}#  `)).toBe(even ? run : -1);
+    expect(headingAttributeStart(`a${slashes}{x}`)).toBe(even ? run + 1 : -1);
+    expect(headingAttributeStart(`${slashes}{{x} `)).toBe(even ? run : run + 1);
+  });
+
+  // The wiring through `buildHeading`: the answers the PARENT `c0647be` gave for these headings (read off its build, not off the new functions), which the cure keeps. They are the rows for the changes of the call site: the cut
+  // at an index, the block text taken from the index (a doubled opening brace, `{{#a}`, is the only text on which a block text read one character late differs), the closing run cut at index 0, and the readers that honour
+  // neither, one or both strips. A parent-versus-cure differential over 1,000,000 generated documents (Session 330) found no difference; this is its stated form.
+  type Wiring = [from: string | null, source: string, expected: Array<[level: number, text: string, id: string | undefined]>];
+  const WIRING: Wiring[] = [
+    [null, "# T {{#a}", [[1, "T {{#a}", undefined]]], // the block opens at the FIRST brace, so its text starts with a brace and is no block
+    [null, "# T {{{#a}", [[1, "T {{{#a}", undefined]]],
+    [null, "# T {#a}", [[1, "T", "a"]]],
+    [null, "# T {{#a}}", [[1, "T {{#a}}", undefined]]],
+    [null, "# T {#a}{#b}", [[1, "T {#a}", "b"]]], // only the LAST block is a block
+    [null, "## ##", []], // a closing run at index 0 leaves nothing: the heading is dropped
+    [null, "# a ## {#x}", [[1, "a", "x"]]],
+    [null, "# a {#x} ##", [[1, "a {#x}", undefined]]], // the closing run comes last, so the braces are text
+    [null, "# C#", [[1, "C", undefined]]], // the pandoc family needs no space before the run
+    [null, "# a \\#", [[1, "a #", undefined]]],
+    [null, "# a \\##", [[1, "a #", undefined]]],
+    ["gfm", "# C#", [[1, "C#", undefined]]], // the CommonMark family does
+    ["gfm", "# a ##", [[1, "a", undefined]]],
+    ["gfm", "# T {#a}", [[1, "T {#a}", undefined]]], // gfm renders a trailing block as text
+    ["gfm", "## ##", []],
+    ["markdown_github", "# T {#a}", [[1, "T {#a}", undefined]]], // the pandoc closing run and no attribute block
+    ["markdown_github", "# C#", [[1, "C", undefined]]],
+    ["markdown_github", "## ##", []],
+    ["commonmark_x", "# T {#a}", [[1, "T", "a"]]], // the attribute block and the CommonMark closing run
+    ["commonmark_x", "# C#", [[1, "C#", undefined]]],
+    ["commonmark_x", "# T {{#a}", [[1, "T {{#a}", undefined]]],
+    ["commonmark_x", "# a ## {#x}", [[1, "a", "x"]]],
+    [null, "T {{#a}\n===", [[1, "T {{#a}", undefined]]], // a setext heading honours the block and has no closing run
+    [null, "T {#a}\n===", [[1, "T", "a"]]],
+  ];
+  it.each(WIRING.map((row) => [`${row[0] ?? "no from:"}, ${JSON.stringify(row[1])}`, row] as const))("buildHeading keeps the parent's answer: %s", (_label, [from, source, expected]) => {
+    const document = `${from === null ? "" : `---\nfrom: ${from}\n---\n\n`}${source}\n`;
+    expect(findHeadings(document).map((heading): [number, string, string | undefined] => [heading.level, heading.text, heading.id])).toEqual(expected);
   });
 
   // The comparison can fail: the single-character lookbehind `(?<!\\)` (the shortcut an agent proposed for part (2); it changes `a\##`) disagrees with the old pattern, and the old pattern agrees with itself.
