@@ -52,7 +52,7 @@ export function findMathRegions(text: string): MathRegion[] {
     // length-preserving, so offsets into `masked` index `source` 1:1 — region
     // content is sliced from `source` to preserve any real backticks in math.
     const masked = run.map((b) => maskInlineCode(b.text)).join("\n");
-    scan(masked, source, run[0].line, out);
+    scanMathRegions(masked, source, run[0].line, out);
   }
   return out;
 }
@@ -76,9 +76,11 @@ function contiguousRuns(body: BodyLine[]): BodyLine[][] {
  * appending each to `out`. `detect` has inline code spans masked; `source` is
  * the unmasked text the same length, from which region content is sliced. A
  * `$$` always opens display math (it wins over inline); a lone `$` opens inline
- * math that closes at the next closer-shaped `$` on the line.
+ * math that closes at the next closer-shaped `$` on the line. Exported for
+ * `test/unit/math-scan-equivalence.test.ts`, which keeps the function this one
+ * replaced as the oracle.
  */
-function scan(
+export function scanMathRegions(
   detect: string,
   source: string,
   baseLine: number,
