@@ -42,6 +42,12 @@ macOS `sed` rejects `|` as a delimiter and `sed -i` needs `''`; zsh rejects a ba
 (13) This session was resumed after a context break on a rebooted machine; its first context's three commits (`7210ef6`, `97669ab`, `87b786e`) and its untracked mutant list were re-verified by running them (the baseline, the whole list, a parent-copy
 run of the rows). The operator's "go" was taken as the go-ahead without a second wait: say so if it matters.
 
+### What Session 327 Did
+**Deliverable:** g02 of the backlog ordering plan, eleventh session: the `$` half of the Session 311 item's part (6), `findMathRegions` on an unclosed `$` run (`$a ` repeated) is quadratic (IN PROGRESS)
+**Started:** 2026-10-26
+**Status:** Session claimed. Work beginning. Strict TDD: time the shape firsthand in a fresh process with its load beside it, cold and warm and by doubling; profile before reading the cure (Learning 739; the item's attribution is a reviewer's profile at 8,000 repeats); size RED rows from the WARM figure with the controls first (816); then a linear spelling proved against the old one (the old function is the oracle). Operator decision at the Phase 0 picker: the `$` half of the Session 311 item's part (6), the option marked recommended (placed by finishing a feature; the plan's candidate row does not list this item).
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
 ### What Session 326 Did
 **Deliverable:** g02 of the backlog ordering plan, tenth session: the Session 317 item's part (3), the native-div one-line check in `indexLabels` is quadratic (`<div` + `{` x N), with the `{` half of the Session 311 item's part (6) -- DONE; claim
 `ada8bfb`
