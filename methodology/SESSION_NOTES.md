@@ -242,39 +242,3 @@ the runner before the rows and killed after.
 Passed on arrival, disclosed: the oracle file, its 18 fixed rows, the 3 guards, the 6 controls.
 **Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** 6 agents in 1 workflow (1,186,325 subagent tokens, 303 tool calls, 68 minutes), about 190 mutant runs of mine in four runs (77 + 22 + 6 + 10, the 76 again on the final tree, A01
 whole-suite), 0 quarto renders.
-
-## Session 323 Handoff Evaluation (by Session 324)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers at HEAD (`5f628c7`, gap 0), no `pending` receipt, the ratchet citation (2/2, results `bba236856bad`), the real-document score (2423 of 2438), the plan's
-key count (221) and the baseline (11,981 in 94 files; 12,002 after my 21 rows) all held, and the picker the plan ranked was accurate: it offered the S317 item's part (1) first, as finishing a feature.
-**Helped:** candidate (a) said "time it COLD" and that the BACKLOG figures are warm: my cold figures (276 / 1,094 / 4,326 ms at 22 / 24 / 26 classes) matched the item's cold ones (285 / 1,138 / 4.5 s) before any code was read; gotcha 2 (the runner tests the COMMITTED
-tree, skips a stale `from`) made me commit
-before each mutant run; gotcha 3 (a timing is a fact about a load) put a load beside every figure; gotcha 12 (a review round is not bounded by its brief; check `ps`) is why this round was briefed a tool-call budget and took 27 minutes against 6.0 hours; gotchas 1 and 13
-(exact paths; the U+2028 trap) held; gotcha 9 (the worker and the worktree are not mine) held.
-**Missing:** (a) that the item's part (1) is wider than it names: an id before the classes costs twice as much, a dash after each class has three splits a boundary, and a run of dashes after an id or a class is QUADRATIC (12.3 s at 100,000), on seven routes; I found it by
-measuring, the item said only the class shape;
-(b) "set a test's clock limit from the cold figure" points the wrong way for a row in a file of many (a pattern warmed by an earlier row runs about 10 times faster: Learning 816); (c) that the plan's rule P5 makes the first session on a filed item commit a tracked sweep
-generator under `tools/`: the handoff offered the item without saying so, and I met the rule only in part.
-**Wrong:** the item's "74-byte line" is not the shape the rows time (68 bytes): the item's figure, not the handoff's, but I copied it into four places before the records lens corrected it. Nothing else I could find in the claims I checked. **ROI: high.**
-
-## Session 324 Self-Assessment
-
-**Score: 7/10.**
-**Went right.** I timed the site firsthand before reading code, cold and warm and by doubling (276 / 1,094 / 4,326 / 17,230 ms; 455 ms warm at 26), and the timing found what the item had not named (an id first, three splits a boundary, a quadratic dash run, seven routes).
-The 12 refused-shape rows were run on the unmodified tree and failed on the clock alone
-(3.7 to 12.3 s against 1,000 ms, answers equal, 7 controls passing) in a commit of their own BEFORE the cure. I derived the language as its shape and proved it three ways that share nothing: enumerations counted by a recogniser with no regex (now tracked), the review's
-product walk of two automata with 58 million of its own strings, and 120,000 documents end to end.
-The review round was held to a tool-call budget and every claim I acted on was checked firsthand: I reproduced M01 with the runner (A39 to A42 SURVIVE), refuted the design lens's claim about a bare `(?:-)*` by running it (a capture `(-)*` and a lookahead are what throw at
-9,000,000 dashes), bisected the stack boundary (3,340,000 answers, 3,360,000 throws; `.A#a` shifts by one),
-showed that the `#a.A` row alone kills A43, and re-checked each records finding against the files.
-**Went wrong.** (1) The TENTH set of pins was incomplete (Learnings 773, 776, 780, 788, 793, 798, 802, 807; 815): four language-preserving mutants of the id loop survived every row after 43 mutants of my own, and the mutation lens found them, though the handoff's gotcha 4
-said to expect it. (2) Text I wrote was wrong in several places: "74-byte" in four places (the item's figure, never re-run), a "by luck" example that is false,
-"the first five rows" for six, a row title that read backwards, "about 8 s" for 7.4 to 7.6, and "55 hand-stated tokens" for 56 in the `15a8a04` message (stays). (3) My first draft of the replacement mutants A40 to A43 dropped the `+`, so four changed the language and were
-killed for the wrong reason; the runner's table showed it. (4) TDD deviations, disclosed: the equivalence file landed after the cure and passes on arrival
-(its RED is a mutant: A00 and A07 hang), the 9,000,000-dash row passed on arrival (A44 is also killed by the group comparison of the older rows; A45 was NOT shown surviving before the row), and the document rows were sized from my own warm figure, not the item's cold one.
-(5) Plan rule P5 was not met: no sweep generator under `tools/`, only seeded samples and the counting script (stated; the operator decides who owns the unrun 68% of the sweep).
-**Known residuals (filed or stated):** the ids are a group, so about 3.36 million of them throw `RangeError` (S319 item part (5)); `headingAttributeTokens` builds a token a character at a time (115 bytes resident a character, the lens's figure); the commonmark arm of
-`atoms` is unobservable (B03); the call-site mutants were not run (the design lens showed 3 call-site kills); `test:integration` NOT run.
-**TDD:** RED before GREEN for the 12 refused-shape document rows (`047b5fa` before `8432555`); for the review's additions, 4 of 4 id-loop mutants shown SURVIVING with the runner before the five rows and killed after (A43 was already killed by the `#a.A` row). Passed on
-arrival, disclosed: the equivalence file, the 9,000,000-dash row, the 7 controls.
-**Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** 5 agents in 1 workflow (923,678 subagent tokens, 200 tool calls, about 27 minutes), about 115 mutant runs of mine, 0 quarto renders.
