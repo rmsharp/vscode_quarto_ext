@@ -1,0 +1,402 @@
+[
+ {
+  "name": "K01 the key leaves out isCell",
+  "file": "src/core/qmd/model.ts",
+  "from": "JSON.stringify([open.isCell, open.char, open.len, open.indent, open.columns])",
+  "to": "JSON.stringify([open.char, open.len, open.indent, open.columns])",
+  "expect": "killed",
+  "why": "a plain fence and a cell of the same character and length share a span (a longer run closes one and not the other)"
+ },
+ {
+  "name": "K02 the key leaves out the character",
+  "file": "src/core/qmd/model.ts",
+  "from": "JSON.stringify([open.isCell, open.char, open.len, open.indent, open.columns])",
+  "to": "JSON.stringify([open.isCell, open.len, open.indent, open.columns])",
+  "expect": "killed",
+  "why": "a backtick fence and a tilde fence share a span"
+ },
+ {
+  "name": "K03 the key leaves out the run length",
+  "file": "src/core/qmd/model.ts",
+  "from": "JSON.stringify([open.isCell, open.char, open.len, open.indent, open.columns])",
+  "to": "JSON.stringify([open.isCell, open.char, open.indent, open.columns])",
+  "expect": "killed",
+  "why": "a fence of three and a fence of four share a span"
+ },
+ {
+  "name": "K04 the key leaves out the cell indent",
+  "file": "src/core/qmd/model.ts",
+  "from": "JSON.stringify([open.isCell, open.char, open.len, open.indent, open.columns])",
+  "to": "JSON.stringify([open.isCell, open.char, open.len, open.columns])",
+  "expect": "killed",
+  "why": "an opener that must match an indent shares a span with one that need not"
+ },
+ {
+  "name": "K05 the key leaves out the container columns",
+  "file": "src/core/qmd/model.ts",
+  "from": "JSON.stringify([open.isCell, open.char, open.len, open.indent, open.columns])",
+  "to": "JSON.stringify([open.isCell, open.char, open.len, open.indent])",
+  "expect": "killed",
+  "why": "a fence at the top level and one inside a container whose column makes indent four a closer share a span"
+ },
+ {
+  "name": "K06 the key keeps the first container column only",
+  "file": "src/core/qmd/model.ts",
+  "from": "open.indent, open.columns])",
+  "to": "open.indent, open.columns[0]])",
+  "expect": "killed",
+  "why": "columns [0] and [0, 4] become one kind"
+ },
+ {
+  "name": "K07 the key is a comma-joined string",
+  "file": "src/core/qmd/model.ts",
+  "from": "JSON.stringify([open.isCell, open.char, open.len, open.indent, open.columns])",
+  "to": "[open.isCell, open.char, open.len, open.indent, open.columns].join(\",\")",
+  "expect": "killed",
+  "why": "a null indent and an empty one both join as nothing: two kinds become one"
+ },
+ {
+  "name": "K08 a null indent keys as an empty one",
+  "file": "src/core/qmd/model.ts",
+  "from": "open.len, open.indent, open.columns])",
+  "to": "open.len, open.indent ?? \"\", open.columns])",
+  "expect": "killed",
+  "why": "an opener that need not match an indent shares a span with one that must match an empty indent"
+ },
+ {
+  "name": "K09 one key for every kind",
+  "file": "src/core/qmd/model.ts",
+  "from": "JSON.stringify([open.isCell, open.char, open.len, open.indent, open.columns])",
+  "to": "\"kind\"",
+  "expect": "killed",
+  "why": "every kind shares one span"
+ },
+ {
+  "name": "K10 the span is answered from before its start",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (known !== undefined && known.from <= from && from <= known.end) {",
+  "to": "if (known !== undefined && from <= known.end) {",
+  "expect": "killed",
+  "why": "a question before the scan's start is answered from it"
+ },
+ {
+  "name": "K11 the span is answered from beyond its end",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (known !== undefined && known.from <= from && from <= known.end) {",
+  "to": "if (known !== undefined && known.from <= from) {",
+  "expect": "killed",
+  "why": "a question past the closer or blank line is answered from the scan before it"
+ },
+ {
+  "name": "K12 a question at the scan's own start rescans",
+  "file": "src/core/qmd/model.ts",
+  "from": "known.from <= from && from <= known.end",
+  "to": "known.from < from && from <= known.end",
+  "expect": "killed",
+  "why": "the same question asked twice reads the lines twice (the answer does not change)"
+ },
+ {
+  "name": "K13 a question at the scan's last line rescans",
+  "file": "src/core/qmd/model.ts",
+  "from": "known.from <= from && from <= known.end",
+  "to": "known.from <= from && from < known.end",
+  "expect": "killed",
+  "why": "a question on the closer's own line, or on the blank line that stopped the scan, reads again (the answer does not change)"
+ },
+ {
+  "name": "K14 the span reaches one line past its end",
+  "file": "src/core/qmd/model.ts",
+  "from": "known.from <= from && from <= known.end",
+  "to": "known.from <= from && from <= known.end + 1",
+  "expect": "killed",
+  "why": "a question one line past the closer or the blank line is answered from the scan before it"
+ },
+ {
+  "name": "K15 the span stops one line before its end",
+  "file": "src/core/qmd/model.ts",
+  "from": "known.from <= from && from <= known.end",
+  "to": "known.from <= from && from <= known.end - 1",
+  "expect": "killed",
+  "why": "a question on the last line of the span reads again"
+ },
+ {
+  "name": "K16 the span is never used",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (known !== undefined && known.from <= from && from <= known.end) {",
+  "to": "if (false) {",
+  "expect": "killed",
+  "why": "every question rescans"
+ },
+ {
+  "name": "K17 the span is never kept",
+  "file": "src/core/qmd/model.ts",
+  "from": "lastScan.set(kind, { from, found, end: k });",
+  "to": "",
+  "expect": "killed",
+  "why": "every question rescans"
+ },
+ {
+  "name": "K18 the span ends one line late",
+  "file": "src/core/qmd/model.ts",
+  "from": "{ from, found, end: k }",
+  "to": "{ from, found, end: k + 1 }",
+  "expect": "killed",
+  "why": "a question one line past the stop is answered from the scan"
+ },
+ {
+  "name": "K19 the span ends one line early",
+  "file": "src/core/qmd/model.ts",
+  "from": "{ from, found, end: k }",
+  "to": "{ from, found, end: k - 1 }",
+  "expect": "killed",
+  "why": "a question on the stopping line reads again"
+ },
+ {
+  "name": "K20 the span runs to the end of the text",
+  "file": "src/core/qmd/model.ts",
+  "from": "{ from, found, end: k }",
+  "to": "{ from, found, end: lines.length }",
+  "expect": "killed",
+  "why": "a question past a blank line is answered from the scan before it"
+ },
+ {
+  "name": "K21 the span starts at the top",
+  "file": "src/core/qmd/model.ts",
+  "from": "{ from, found, end: k }",
+  "to": "{ from: 0, found, end: k }",
+  "expect": "killed",
+  "why": "a question before the scan's start is answered from it"
+ },
+ {
+  "name": "K22 the span always keeps no closer",
+  "file": "src/core/qmd/model.ts",
+  "from": "{ from, found, end: k }",
+  "to": "{ from, found: -1, end: k }",
+  "expect": "killed",
+  "why": "a later question inside a span that found a closer is told there is none"
+ },
+ {
+  "name": "K23 one map for the process, not the document",
+  "file": "src/core/qmd/model.ts",
+  "from": "const lastScan = new Map<string, { from: number; found: number; end: number }>();\n  return (from, open) => {",
+  "to": "return (from, open) => {\n    const lastScan = new Map<string, { from: number; found: number; end: number }>();",
+  "expect": "killed",
+  "why": "the map is made again for every question: the span is never found"
+ },
+ {
+  "name": "K24 the scan starts one line late",
+  "file": "src/core/qmd/model.ts",
+  "from": "let k = from;\n    let found = -1;",
+  "to": "let k = from + 1;\n    let found = -1;",
+  "expect": "killed",
+  "why": "a closer on the line asked about is missed"
+ },
+ {
+  "name": "K25 the blank line is a line of no characters",
+  "file": "src/core/qmd/model.ts",
+  "from": "lines[k].trim() === \"\"",
+  "to": "lines[k].length === 0",
+  "expect": "killed",
+  "why": "a line of blanks no longer stops the scan"
+ },
+ {
+  "name": "K26 the blank line is spaces and tabs",
+  "file": "src/core/qmd/model.ts",
+  "from": "lines[k].trim() === \"\"",
+  "to": "/^[ \\t]*$/.test(lines[k])",
+  "expect": "killed",
+  "why": "a line of no-break spaces, form feeds, U+2028, a byte order mark or an ideographic space no longer stops the scan"
+ },
+ {
+  "name": "K27 no line stops the scan",
+  "file": "src/core/qmd/model.ts",
+  "from": "lines[k].trim() === \"\"",
+  "to": "false",
+  "expect": "killed",
+  "why": "the scan runs past blank lines"
+ },
+ {
+  "name": "K28 every line stops the scan",
+  "file": "src/core/qmd/model.ts",
+  "from": "lines[k].trim() === \"\"",
+  "to": "lines[k].trim() !== \"\"",
+  "expect": "killed",
+  "why": "the scan stops at the first non-blank line"
+ },
+ {
+  "name": "K29 a non-closer is the answer",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (isCloser(lines[k], open)) {",
+  "to": "if (!isCloser(lines[k], open)) {",
+  "expect": "killed",
+  "why": "the first line that is not a closer is the answer"
+ },
+ {
+  "name": "K30 the answer is one line past the closer",
+  "file": "src/core/qmd/model.ts",
+  "from": "found = k;\n        break;",
+  "to": "found = k + 1;\n        break;",
+  "expect": "killed",
+  "why": "every answer is one line late"
+ },
+ {
+  "name": "K31 the scan goes on past the closer",
+  "file": "src/core/qmd/model.ts",
+  "from": "found = k;\n        break;",
+  "to": "found = k;",
+  "expect": "killed",
+  "why": "the last closer of the run is the answer, not the first"
+ },
+ {
+  "name": "K32 the scan reads one line past the end",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (; k < lines.length; k++) {",
+  "to": "for (; k <= lines.length; k++) {",
+  "expect": "killed",
+  "why": "the last read is of a line that is not there"
+ },
+ {
+  "name": "K33 the scan leaves out the last line",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (; k < lines.length; k++) {",
+  "to": "for (; k < lines.length - 1; k++) {",
+  "expect": "killed",
+  "why": "a closer on the last line of the text is missed"
+ },
+ {
+  "name": "K34 the reader is made again for every opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "const consumed = consumedCloserLine(i + 1, candidate);",
+  "to": "const consumed = makeConsumedCloserLine(lines)(i + 1, candidate);",
+  "expect": "killed",
+  "why": "the span is never found: the run is read once for each opener again"
+ },
+ {
+  "name": "K35 the opener asks from its own line",
+  "file": "src/core/qmd/model.ts",
+  "from": "const consumed = consumedCloserLine(i + 1, candidate);",
+  "to": "const consumed = consumedCloserLine(i, candidate);",
+  "expect": "killed",
+  "why": "a refused bare fence under a paragraph is its own closer"
+ },
+ {
+  "name": "T01 the seeded row asks 3 histories",
+  "file": "test/unit/consumed-closer-equivalence.test.ts",
+  "from": "const SEEDED_HISTORIES = 300_000;",
+  "to": "const SEEDED_HISTORIES = 3;",
+  "expect": "killed",
+  "why": "the count pin fails"
+ },
+ {
+  "name": "T02 the second set holds no no-break space",
+  "file": "test/unit/consumed-closer-equivalence.test.ts",
+  "from": "b: NBSP, c: \"\\f\"",
+  "to": "b: \"\", c: \"\\f\"",
+  "expect": "killed",
+  "why": "the documents lose their no-break space line: the counts move"
+ },
+ {
+  "name": "T03 another seed",
+  "file": "test/unit/consumed-closer-equivalence.test.ts",
+  "from": "seededRandom(328)",
+  "to": "seededRandom(329)",
+  "expect": "killed",
+  "why": "the seeded documents change: the counts move"
+ },
+ {
+  "name": "T04 two run lengths in the full space",
+  "file": "test/unit/consumed-closer-equivalence.test.ts",
+  "from": "for (const len of [3, 4, 5]) {",
+  "to": "for (const len of [3, 4]) {",
+  "expect": "killed",
+  "why": "the kinds are fewer than 192"
+ },
+ {
+  "name": "T05 the seeded documents hold no long runs",
+  "file": "test/unit/consumed-closer-equivalence.test.ts",
+  "from": "lines.push(pick.trim() === \"\" && random() < 0.7 ? \"```text i\" : pick);",
+  "to": "lines.push(pick);",
+  "expect": "killed",
+  "why": "blank lines are not replaced by refused openers: the counts move"
+ },
+ {
+  "name": "T06 the descending sweep is dropped",
+  "file": "test/unit/consumed-closer-equivalence.test.ts",
+  "from": "    checkHistory(lines, kinds, descending, tally, make);\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the sweeps ask fewer questions: the counts move"
+ },
+ {
+  "name": "T07 the fifth kind repeats the first",
+  "file": "test/unit/consumed-closer-equivalence.test.ts",
+  "from": "kind(false, \"`\", 3, \"\", [0]),",
+  "to": "kind(false, \"`\", 3, null, [0]),",
+  "expect": "killed",
+  "why": "two of the ten kinds are one"
+ },
+ {
+  "name": "P01 the few-units text is one unit",
+  "file": "test/unit/pathological-inputs.test.ts",
+  "from": "const FENCE_FEW = 3;",
+  "to": "const FENCE_FEW = 1;",
+  "expect": "killed",
+  "why": "the sentinel row fails"
+ },
+ {
+  "name": "P02 a limit of 100 s",
+  "file": "test/unit/pathological-inputs.test.ts",
+  "from": "const FENCE_LIMIT_MS = 1000;",
+  "to": "const FENCE_LIMIT_MS = 100000;",
+  "expect": "killed",
+  "why": "the sentinel row fails"
+ },
+ {
+  "name": "P03 three kinds are one",
+  "file": "test/unit/pathological-inputs.test.ts",
+  "from": "[\"```text i\", \"````text i\", \"~~~r\"][i % 3]",
+  "to": "[\"```text i\", \"````text i\", \"~~~r\"][i % 1]",
+  "expect": "killed",
+  "why": "the three-kind row becomes the one-kind row: the builder row fails"
+ },
+ {
+  "name": "E01 the columns are keyed as a comma-joined string inside the JSON",
+  "file": "src/core/qmd/model.ts",
+  "from": "open.indent, open.columns])",
+  "to": "open.indent, open.columns.join(\",\")])",
+  "expect": "survives",
+  "why": "EQUIVALENT: a number array and its comma-joined text map to each other one to one (no number's text holds a comma), so the partition of the questions into kinds is the same"
+ },
+ {
+  "name": "E02 the span ends at the closer's line spelled another way",
+  "file": "src/core/qmd/model.ts",
+  "from": "{ from, found, end: k }",
+  "to": "{ from, found, end: found >= 0 ? found : k }",
+  "expect": "survives",
+  "why": "EQUIVALENT: when found is not -1 the loop broke with k equal to found"
+ },
+ {
+  "name": "E03 the blank test by length of the trimmed line",
+  "file": "src/core/qmd/model.ts",
+  "from": "lines[k].trim() === \"\"",
+  "to": "lines[k].trim().length === 0",
+  "expect": "survives",
+  "why": "EQUIVALENT: the same test"
+ },
+ {
+  "name": "E04 the span test with its sides swapped",
+  "file": "src/core/qmd/model.ts",
+  "from": "known.from <= from && from <= known.end",
+  "to": "from >= known.from && from <= known.end",
+  "expect": "survives",
+  "why": "EQUIVALENT: the same inequality"
+ },
+ {
+  "name": "E05 a negative line asked about reads nothing",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (; k < lines.length; k++) {",
+  "to": "for (; k >= 0 && k < lines.length; k++) {",
+  "expect": "survives",
+  "why": "OUTSIDE THE DOMAIN: the call site asks from i + 1 >= 1; for a negative `from` the old function throws a TypeError (lines[-1] is undefined) and this one answers -1, and no row asks a negative `from`"
+ }
+]

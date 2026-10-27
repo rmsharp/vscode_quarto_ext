@@ -412,6 +412,39 @@ describe("consumedCloserLine: the cost, as lines read", () => {
     expect(fresh.reads()).toBe(runs * 2 * per + runs / 2);
   });
 
+  // The ends of a span. A boundary read as one line too few or too many gives the same ANSWER (the scan it triggers finds what the span already held, or the span reaches a line it should not) in most places, so these count the reads.
+  it("answers a question asked again, and a question on the closer's own line, without reading a line", () => {
+    const lines = ["word", "word", "```", "word"];
+    const counting = counted(lines);
+    const read = makeConsumedCloserLine(counting.lines);
+    expect(read(1, PLAIN)).toBe(2);
+    const afterFirst = counting.reads();
+    expect(afterFirst).toBe(4); // lines 1 and 2, twice each
+    expect(read(1, PLAIN)).toBe(2); // the same question again
+    expect(read(2, PLAIN)).toBe(2); // the closer's own line is the end of the span
+    expect(counting.reads()).toBe(afterFirst);
+  });
+
+  it("answers a question on the blank line that stopped a scan, and one at the end of the text that a scan ran to, without reading a line", () => {
+    const stopped = counted(["word", "word", "", "```"]);
+    const readStopped = makeConsumedCloserLine(stopped.lines);
+    expect(readStopped(0, PLAIN)).toBe(-1);
+    const afterStop = stopped.reads();
+    expect(afterStop).toBe(5); // lines 0 and 1 twice each, and the blank line's trim()
+    expect(readStopped(0, PLAIN)).toBe(-1);
+    expect(readStopped(2, PLAIN)).toBe(-1); // the blank line itself is the end of the span
+    expect(stopped.reads()).toBe(afterStop);
+
+    const ran = counted(["word", "word"]);
+    const readRan = makeConsumedCloserLine(ran.lines);
+    expect(readRan(0, PLAIN)).toBe(-1);
+    const afterRun = ran.reads();
+    expect(afterRun).toBe(4);
+    expect(readRan(1, PLAIN)).toBe(-1);
+    expect(readRan(2, PLAIN)).toBe(-1); // lines.length is the end of the span
+    expect(ran.reads()).toBe(afterRun);
+  });
+
   it("scans afresh when asked beyond the closer it found, and the new scan starts where it was asked", () => {
     const n = 500;
     const lines = [...Array.from({ length: n }, () => "```text i"), "```", ...Array.from({ length: n }, () => "```text i"), "```"];
