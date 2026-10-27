@@ -89,9 +89,11 @@ export function scanMathRegions(
   const s = detect;
   const charLine = buildCharLine(s, baseLine);
   // The first closer-shaped `$` at or after the last inline opener's right
-  // neighbour (`s.length` when there is none). Whether a `$` can close depends
-  // on that `$` alone, so one search serves every opener before it: a line of N
-  // unclosed `$` is read once, not once per opener.
+  // neighbour (`s.length` when there is none; -1 before the first search, and
+  // stale once it is behind `p`, which is when the next opener searches again).
+  // Whether a `$` can close depends on that `$` alone, so one search serves
+  // every opener before it: a line of N unclosed `$` is read once, not once per
+  // opener. That holds only because `p` never moves back.
   let closer = -1;
   let p = 0;
   while (p < s.length) {
@@ -150,9 +152,11 @@ function findDisplayClose(s: string, from: number): number {
  * `s.length` if there is none. Following Pandoc's `tex_math_dollars`, a closer
  * must (a) not be backslash-escaped, (b) have a non-space immediately to its
  * left, and (c) not be immediately followed by a digit (so `$20 and $30` is not
- * math). That is a test of the `$` alone, never of the opener, and it is never
- * asked of the `$` at `from` itself: `from` is an opener's right neighbour,
- * which is not a `$` (a `$$` opens display math).
+ * math). That is a test of the `$` alone, never of the opener. Two preconditions
+ * the signature does not enforce: `from` is at least 1 (the test reads
+ * `s[k - 1]`), and `s[from]` is not a `$` (it is an opener's right neighbour,
+ * and a `$$` opens display math), which is why the guard `k > from` of the
+ * function this replaced could be dropped.
  */
 function nextInlineCloser(s: string, from: number): number {
   for (let k = from; k < s.length; k++) {
