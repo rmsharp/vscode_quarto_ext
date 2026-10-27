@@ -17,6 +17,14 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-27 · [BL-What is still quadratic or deep enough to overflow after Session 311, every shape re-measured on the final tree (`066cfcc1`) and none of it in that session's diff] Session 329 (in progress): claim -- g02 thirteenth session, part (5), a front-matter block scalar and many `---` groups are quadratic
+
+Session claimed. Phase 0 found both ledger frontiers at HEAD (`af3d653`, gap 0), no pending receipt (the one grep hit is prose inside a gotcha), no merges, the ratchet 2/2 (results bba236856bad, the S328 receipt's citation holds), the dashboard at 76/100 "critical" with 18 vulnerabilities (all dev toolchain: `npm audit --omit=dev` finds 0, re-run here; the dashboard copy is v2.22.0 against canonical v2.23.0, not synced), and the working tree clean apart from the dashboard's history line. The operator chose part (5) at the Phase 0 picker, the option marked recommended (placed by finishing a feature: Sessions 326 to 328 closed parts (3) and (6) of the same item; the plan's candidate row does not list this item, so the operator's pick settles it). Phase 3F replaces this entry with the outcome.
+
+### 2026-10-27 · [ad hoc] Session 329: `master` fast-forwarded to `af3d653` (HEAD had been detached since `216b39e`)
+
+Phase 0 found HEAD detached with Session 328's last 8 commits (`aa6d6a9` to `af3d653`) on no branch; `master` stopped at `216b39e` (0 commits behind HEAD, so a pure fast-forward). The operator chose "Fast-forward master" at the Phase 0 picker. `git checkout master` then `git merge --ff-only af3d653`: `master` and HEAD are both `af3d653`, the tree is unchanged, nothing pushed (`master` is 341 commits ahead of `origin/master`, 333 before this).
+
 ### 2026-10-27 · [ad hoc] Session 328: the quality-gate run cited in the receipt -- 2/2 pass at 530ea6d
 
 `quality_ratchet.py --run`, after the ledger commits (Learning 683): ledger-lag 0 and release-gate 0 (`npm run check-package`), 2 pass, 0 fail, 0 unmeasured, results `bba236856bad`, manifest `334939914945`. The `HANDOFFS.md` receipt's `quality_ratchet:` line says the same.

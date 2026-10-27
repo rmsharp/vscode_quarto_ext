@@ -34,6 +34,14 @@ document (part (10)); many kinds in one run (part (11), new).
 (12) The Write and Edit tools turn a backslash-u escape for U+2028 into the raw character (Learning 792). `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices, edit with a Python script (`python3 -I -`).
 macOS `sed` rejects `|` as a delimiter and `sed -i` needs `''`; zsh rejects a bare `=====` argument to echo. A foreground `sleep` is blocked: use a background run or the Monitor tool. After answering a direct question, STOP and wait (memory).
 
+### What Session 329 Did
+**Deliverable:** g02 of the backlog ordering plan, thirteenth session: the Session 311 item's part (5), a front-matter block scalar and many `---` groups are quadratic (IN PROGRESS)
+**Started:** 2026-10-27
+**Status:** Session claimed. Work beginning. Strict TDD: time both shapes firsthand in a fresh process with the load beside each figure, cold and by doubling.
+Profile BEFORE reading the cure (Learning 739): the item names two functions (`resolveDocumentEngine`, `findHeadings`) and may have two causes.
+Size the RED rows from the warm figure, controls first (816); keep the old function as the oracle (a differential, then mutants). Operator decisions at Phase 0: part (5) (recommended; placed by finishing a feature) and fast-forward `master` to `af3d653`, done.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
 ### What Session 328 Did
 **Deliverable:** g02 of the backlog ordering plan, twelfth session: the Session 311 item's part (3), unclosed fence-like lines with no blank line between them are quadratic (`` ```text i `` x N), the reviewer's attribution is `consumedCloserLine` -- DONE; claim `fdd1f66`
 **Started:** 2026-10-27
