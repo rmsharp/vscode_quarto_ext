@@ -13821,7 +13821,8 @@ function closesOnOwnIndent(engine: EngineHint, kernel: string | null, info: RegE
 
 /**
  * The five fields of an open fence that `isCloser` reads, and so everything the answer to "which line closes it" can depend on besides the lines (Session 328).
- * `makeConsumedCloserLine` keeps one answer per distinct value of these, so a sixth field read by `isCloser` must be added here or the cache would serve one fence's answer to another.
+ * `makeConsumedCloserLine` keeps one answer per distinct value of these. The key it builds lists the same five fields BY HAND, a separate list from this type: a sixth field read by `isCloser` must be added to
+ * both, or the cache would serve one fence's answer to another (the rows "each field of a kind separates two kinds" in test/unit/consumed-closer-equivalence.test.ts pin the five that exist).
  */
 export type CloserShape = Pick<OpenCellFence, "isCell" | "char" | "len" | "indent" | "columns">;
 
@@ -14092,7 +14093,7 @@ function blockQuoteEndIndex(lines: readonly string[]): number[] {
  *
  * ⚠ **Scanned rather than indexed, and one scan serves every opener of a kind below it (Session 328).** The scan stops at the FIRST blank line or the first closer, whichever comes
  * first, but a run of lines with no blank line in it can be as long as the document, and every refused opener in that run started the same walk again: N refused openers with no
- * blank line between them were N x N tests of `isCloser` (12,000 lines of `` ```text i `` took 2.2 s). What a scan found holds for a later opener of the same kind that starts
+ * blank line between them were N(N + 1)/2 tests of `isCloser` between them (12,000 lines of `` ```text i `` took 2.2 s). What a scan found holds for a later opener of the same kind that starts
  * inside it. If the scan from `from0` found the closer at `k`, the lines in `[from0, k)` are neither blank nor closers, so a scan from any `from` in `[from0, k]` finds `k`; if it
  * stopped at a blank line (or at the end of the text) at `e`, none of `[from0, e)` is a blank line or a closer, so a scan from any `from` in `[from0, e]` finds nothing. A scan from beyond
  * that span starts afresh and keeps its own answer, and the spans of one kind do not overlap when the openers are asked in order (as `computeRegions` asks them), so the lines of a
@@ -14101,14 +14102,17 @@ function blockQuoteEndIndex(lines: readonly string[]): number[] {
  * ⚠ **THE KIND IS EVERYTHING `isCloser` READS OF THE OPENER (`CloserShape`), NOT THE OPENER'S LINE.** The info string is no part of it, so openers with distinct info strings
  * share their answer, and openers that differ in the run length, the character, the container columns or the cell indent do not. It is a different scan each, and a document
  * that holds S kinds of refused opener in one run costs S walks of that run. What tells two kinds apart is something the opener spells out (a longer run, the other character, a
- * deeper or different container), so a document with many kinds in one run is a document with long lines or deep nesting; the cost of that case is not measured.
+ * deeper or different container), so a document with many kinds in one run is a document with long lines or deep nesting. Measured in lines read (Session 328 review): S kinds followed by N openers of ONE
+ * kind read S walks of the run, S = 400 and N = 20,000 (264 KB) 16.2 million reads where the parent read 416 million; and a kind on EVERY line (S = 400, N = 0) reads exactly what the parent read, 159,600:
+ * no gain and no loss. Filed in BACKLOG.md as part (11) of the Session 311 item.
  *
  * The reader is made once per document (`computeRegions`) because its answers are the document's: a reader shared between documents would answer from the wrong lines.
  */
 export function makeConsumedCloserLine(lines: readonly string[]): (from: number, open: CloserShape) => number {
   const lastScan = new Map<string, { from: number; found: number; end: number }>();
   return (from, open) => {
-    // JSON, not a joined string: the key must tell two kinds apart for ANY value of the fields (an `indent` of "-" and a `null` one, a `len` of 12 after a `char` of "`1").
+    // JSON, not a joined string: the key must tell two kinds apart for every value a caller can produce (an `indent` of "-" and a `null` one, a `len` of 12 after a `char` of "`1"). Not for every value the TYPE allows: NaN and
+    // +-Infinity are `null` in JSON, so a non-finite `len` would share a key (it would behave differently on a plain fence); a `len` is the length of a run of fence characters, at least 3, and none reaches it.
     const kind = JSON.stringify([open.isCell, open.char, open.len, open.indent, open.columns]);
     const known = lastScan.get(kind);
     if (known !== undefined && known.from <= from && from <= known.end) {
