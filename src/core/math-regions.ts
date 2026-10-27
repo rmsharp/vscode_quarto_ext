@@ -76,7 +76,7 @@ function contiguousRuns(body: BodyLine[]): BodyLine[][] {
  * appending each to `out`. `detect` has inline code spans masked; `source` is
  * the unmasked text the same length, from which region content is sliced. A
  * `$$` always opens display math (it wins over inline); a lone `$` opens inline
- * math that closes at the next `$` on the line.
+ * math that closes at the next closer-shaped `$` on the line.
  */
 function scan(
   detect: string,
@@ -86,6 +86,11 @@ function scan(
 ): void {
   const s = detect;
   const charLine = buildCharLine(s, baseLine);
+  // The first closer-shaped `$` at or after the last inline opener's right
+  // neighbour (`s.length` when there is none). Whether a `$` can close depends
+  // on that `$` alone, so one search serves every opener before it: a line of N
+  // unclosed `$` is read once, not once per opener.
+  let closer = -1;
   let p = 0;
   while (p < s.length) {
     if (s[p] === "$" && !isEscaped(s, p)) {
@@ -105,15 +110,18 @@ function scan(
       }
       // Inline opener: the character to its right must be a non-space.
       if (p + 1 < s.length && !isSpace(s[p + 1])) {
-        const q = findInlineClose(s, p + 1, charLine[p], charLine);
-        if (q !== -1) {
+        if (closer < p + 1) {
+          closer = nextInlineCloser(s, p + 1);
+        }
+        // Inline math does not span lines: a closer on a later line closes nothing.
+        if (closer < s.length && charLine[closer] === charLine[p]) {
           out.push({
             type: "inline",
-            content: source.slice(p + 1, q),
+            content: source.slice(p + 1, closer),
             startLine: charLine[p],
             endLine: charLine[p],
           });
-          p = q + 1;
+          p = closer + 1;
           continue;
         }
       }
@@ -136,32 +144,26 @@ function findDisplayClose(s: string, from: number): number {
 }
 
 /**
- * Index of the closing `$` of an inline region opened just before `from`, or
- * -1. Following Pandoc's `tex_math_dollars`, the closer must (a) be on the same
- * line (`openLine`) as the opener, (b) not be backslash-escaped, (c) have a
- * non-space immediately to its left, and (d) not be immediately followed by a
- * digit (so `$20 and $30` is not math).
+ * Index of the first `$` at or after `from` that can close inline math, or
+ * `s.length` if there is none. Following Pandoc's `tex_math_dollars`, a closer
+ * must (a) not be backslash-escaped, (b) have a non-space immediately to its
+ * left, and (c) not be immediately followed by a digit (so `$20 and $30` is not
+ * math). That is a test of the `$` alone, never of the opener, and it is never
+ * asked of the `$` at `from` itself: `from` is an opener's right neighbour,
+ * which is not a `$` (a `$$` opens display math).
  */
-function findInlineClose(
-  s: string,
-  from: number,
-  openLine: number,
-  charLine: number[],
-): number {
+function nextInlineCloser(s: string, from: number): number {
   for (let k = from; k < s.length; k++) {
-    if (charLine[k] !== openLine) {
-      return -1; // inline math does not span lines
-    }
     if (s[k] !== "$" || isEscaped(s, k)) {
       continue;
     }
-    const precededByNonSpace = k > from && !isSpace(s[k - 1]);
+    const precededByNonSpace = !isSpace(s[k - 1]);
     const followedByDigit = k + 1 < s.length && isDigit(s[k + 1]);
     if (precededByNonSpace && !followedByDigit) {
       return k;
     }
   }
-  return -1;
+  return s.length;
 }
 
 /** True if the character at `i` is preceded by an odd run of backslashes. */
