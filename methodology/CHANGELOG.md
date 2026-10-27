@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-27 · [BL-Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph, none of them in Session 318's diff] Session 330 (in progress): claim -- g02 fourteenth session, parts (2) and (3), `ATX_CLOSING_PANDOC` and `HEADING_ATTRIBUTE`
+
+Session claimed. Phase 0 found both ledger frontiers at HEAD (`24fa414`, gap 0), no pending receipt (the one grep hit is prose inside a gotcha), no merges, the ratchet 2/2 (results bba236856bad, the S329 receipt's citation holds, read from the results file), the dashboard at 76/100 "critical" with 18 vulnerabilities (not examined; the dashboard copy is v2.22.0 against canonical v2.23.0, not synced), `master` equal to `origin/master` as last fetched (the S329 handoff's "344 ahead" is stale), and the working tree clean apart from the dashboard's history line. The operator chose parts (2) and (3) at the Phase 0 picker, the option marked recommended (placed by finishing a feature: Sessions 324 and 325 made the rest of the heading scan linear, and the plan's candidate row lists this item). Phase 3F replaces this entry with the outcome.
+
 ### 2026-10-27 · [ad hoc] Session 329: the quality-gate run cited in the receipt -- 2/2 pass at 4bb1c70
 
 `quality_ratchet.py --run`, after the ledger commits (Learning 683): ledger-lag 0 and release-gate 0 (`npm run check-package`), 2 pass, 0 fail, 0 unmeasured, results `bba236856bad`, manifest `334939914945`. The `HANDOFFS.md` receipt's `quality_ratchet:` line says the same.

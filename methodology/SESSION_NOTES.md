@@ -45,6 +45,14 @@ script (`python3 -I -`).
 macOS `sed` rejects `|` as a delimiter and `sed -i` needs `''`; zsh rejects a bare `=====` argument to echo. A foreground `sleep` is blocked: use a background run or the Monitor tool. After answering a direct question, STOP and wait
 (memory).
 
+### What Session 330 Did
+**Deliverable:** g02 of the backlog ordering plan, fourteenth session: the Session 318 item's parts (2) and (3), `ATX_CLOSING_PANDOC` and `HEADING_ATTRIBUTE`, the slow time left on a heading line (IN PROGRESS)
+**Started:** 2026-10-27
+**Status:** Session claimed. Work beginning. Strict TDD: time the literal shapes at HEAD first, in fresh processes, with the load beside each figure (Learning 840: the item's figures are Session 318's).
+Profile BEFORE reading the cure (Learning 739): part (3) infers that `buildHeading` runs `HEADING_ATTRIBUTE` twice (not run), and a bare backslash run reaches both patterns.
+Size the RED rows from the warm figure, controls first; keep the old patterns as the oracle (an exhaustive proof, then mutants). Operator decision at Phase 0: this pair (recommended; placed by finishing a feature, the heading line).
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
 ### What Session 329 Did
 **Deliverable:** g02 of the backlog ordering plan, thirteenth session: the Session 311 item's part (5), a front-matter block scalar and many `---` groups -- found already closed, pinned -- DONE; claim `66eba23`
 **Started:** 2026-10-27
