@@ -1528,7 +1528,9 @@ describe("Session 327 — a line holding many `$` whose closing `$` never comes"
 
 describe("Session 328 — refused fence openers with no blank line between them", () => {
   // Part (3) of the BACKLOG item "What is still quadratic or deep enough to overflow after Session 311". An opener whose info string pandoc refuses (`text i`, a bare `{r`, a tilde fence under an open paragraph) is read as text, and its closer is swallowed into an inline code span; to find the closer the
-  // scan walks every non-blank line below the opener until a blank line or a closer (`consumedCloserLine`, Session 224). N such openers in one run with no blank line between them are N walks of the same run: N x N tests of `isCloser`.
+  // scan walks every non-blank line below the opener until a blank line or a closer (`consumedCloserLine`, Session 224). N such openers in one run with no blank line between them are N walks of the same run: N x N tests of `isCloser`. The cure
+  // (`makeConsumedCloserLine`, one reader per document) keeps the span of the last scan of each KIND of opener (the character, the run length, the container columns, the cell indent) and answers an opener that starts inside it from it; the old
+  // function is the oracle in test/unit/consumed-closer-equivalence.test.ts. A reader with ONE slot instead of one per kind would be linear on every row but the three that interleave kinds, which is why those are here.
   // The profile (Session 328, `--cpu-prof`, `findHeadings`, 12,000 lines of `` ```text i ``, 2,304 ms in all): the closer regex `FENCE_CLOSE` 48.9%, `consumedCloserLine` 29.0%, `fenceMatchAt` 16.3%, `computeRegions` itself 2.0%; `{r` and `~~~r` at 8,000 lines are 48 / 27 / 16 the same way.
   // Fresh process per shape, cold (Session 328, load average 2.7 to 4.1): `` ```text i `` x 3,000 / 6,000 / 12,000 through `findHeadings`: 162 / 576 / 2,243 ms (4x per doubling; the item's 0.56 s and 2.2 s held), through `findAllCells` 160 / 564 / 2,173 ms; at 16,000 lines `findHeadings` 3,795 ms,
   // `findAllCells` 3,828, `buildOutline` 3,807, `indexLabels` 3,891; distinct info strings 3,977; `` ```{r `` 3,873; `~~~{r a}` 3,706; `~~~r` 3,755; a closer at the END of the run 3,863 (every opener walks to it); `> ` quoted openers 703 / 2,728 ms at 8,000 / 16,000; openers inside a list item 1,368 / 5,398 ms;
@@ -1568,6 +1570,10 @@ describe("Session 328 — refused fence openers with no blank line between them"
     { site: "run: 10,000 + 10,000 of `` ```text i `` with a closer after each run", entry: "headings", many: 10_000, build: (count) => `${"```text i\n".repeat(count)}\`\`\`\n\n${"```text i\n".repeat(count)}\`\`\`${FENCE_TAIL}`, answer: (count) => afterAt(2 * count + 9) },
     { site: "run: 20,000 quoted openers `> ```text i`", entry: "headings", many: 20_000, build: (count) => `${"> ```text i\n".repeat(count)}\n# After\n`, answer: (count) => afterAt(count + 1) },
     { site: "run: 12,000 openers inside a list item", entry: "headings", many: 12_000, build: (count) => `- a\n${"  ```text i\n".repeat(count)}\n# After\n`, answer: (count) => afterAt(count + 2) },
+    // Kinds in one run: each kind keeps its own span. Alternating two kinds, cycling three, and a line of text between openers (the opener below a text line is refused by the same rule).
+    { site: "run: 16,000 lines alternating `` ```text i `` and `~~~{r a}` (two kinds in one run)", entry: "headings", many: 16_000, build: (count) => Array.from({ length: count }, (_, i) => `${i % 2 === 0 ? "```text i" : "~~~{r a}"}\n`).join(""), answer: nothing },
+    { site: "run: 16,000 lines cycling `` ```text i ``, `` ````text i `` and `~~~r` (three kinds in one run)", entry: "headings", many: 16_000, build: (count) => Array.from({ length: count }, (_, i) => `${["```text i", "````text i", "~~~r"][i % 3]}\n`).join(""), answer: nothing },
+    { site: "run: 12,000 refused openers, a line of text under each", entry: "headings", many: 12_000, build: (count) => "```text i\nsome text\n".repeat(count), answer: nothing },
     // The same scan serves every reader of the regions, so the item's shape is also timed through two other entries.
     { site: "entry findAllCells: 15,000 of `` ```text i ``", entry: "cells", many: 15_000, build: (count) => "```text i\n".repeat(count), answer: nothing },
     { site: "entry indexLabels: 14,000 of `` ```text i ``", entry: "labels", many: 14_000, build: (count) => "```text i\n".repeat(count), answer: nothing },
@@ -1594,6 +1600,11 @@ describe("Session 328 — refused fence openers with no blank line between them"
     }
   });
 
+  it("builds the interleaved rows from the kinds they are named for", () => {
+    const interleaved = FENCE_ROWS.filter((row) => row.site.includes("in one run"));
+    expect(interleaved.map((row) => row.build(4))).toEqual(["```text i\n~~~{r a}\n```text i\n~~~{r a}\n", "```text i\n````text i\n~~~r\n```text i\n"]);
+  });
+
   // A run of 3,000 openers, or a limit of 100 s, would pass on the parent too (it takes 3.7 to 7.7 s on the RED rows), so the boundary of `withinFenceLimit` is pinned, and the sizes the rows are built on.
   it("keeps the sizes, the limit and the shapes the Session 328 rows are built on", () => {
     expect([FENCE_FEW, FENCE_LIMIT_MS]).toEqual([3, 1000]);
@@ -1614,6 +1625,9 @@ describe("Session 328 — refused fence openers with no blank line between them"
       `headings 10000 ${JSON.stringify(`\`\`\`text i\n\`\`\`\n\n\`\`\`text i\n\`\`\`${FENCE_TAIL}`)}`,
       'headings 20000 "> ```text i\\n\\n# After\\n"',
       'headings 12000 "- a\\n  ```text i\\n\\n# After\\n"',
+      'headings 16000 "```text i\\n"',
+      'headings 16000 "```text i\\n"',
+      'headings 12000 "```text i\\nsome text\\n"',
       'cells 15000 "```text i\\n"',
       'labels 14000 "```text i\\n"',
     ]);
