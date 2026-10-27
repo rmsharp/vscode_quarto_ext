@@ -1,0 +1,250 @@
+[
+ {
+  "name": "M01 columns keyed by their count",
+  "file": "src/core/qmd/model.ts",
+  "from": "open.indent, open.columns])",
+  "to": "open.indent, open.columns.length])",
+  "expect": "killed",
+  "why": "[0,2] and [0,4] become one kind; they differ on a closer at indent 6 or 7, which no alphabet line has"
+ },
+ {
+  "name": "M02 columns joined with no separator",
+  "file": "src/core/qmd/model.ts",
+  "from": "open.indent, open.columns])",
+  "to": "open.indent, open.columns.join(\"\")])",
+  "expect": "killed",
+  "why": "[0,12] and [0,1,2] both join as 012; no pair of the alphabet columns collides"
+ },
+ {
+  "name": "M03 columns keyed as nested or not",
+  "file": "src/core/qmd/model.ts",
+  "from": "open.indent, open.columns])",
+  "to": "open.indent, open.columns.length > 1])",
+  "expect": "killed",
+  "why": "[0,2], [0,4], [0,3,6] become one kind"
+ },
+ {
+  "name": "M04 columns keyed by the last one only",
+  "file": "src/core/qmd/model.ts",
+  "from": "open.indent, open.columns])",
+  "to": "open.indent, open.columns[open.columns.length - 1]])",
+  "expect": "killed",
+  "why": "[0,3,6] and [0,6] become one kind; no pair of the alphabet columns shares a last column"
+ },
+ {
+  "name": "M05 run length in a byte",
+  "file": "src/core/qmd/model.ts",
+  "from": "open.char, open.len, open.indent",
+  "to": "open.char, open.len & 0xff, open.indent",
+  "expect": "killed",
+  "why": "a fence of 259 and a fence of 3 become one kind; no kind has a run over 5"
+ },
+ {
+  "name": "M06 run length capped at 5",
+  "file": "src/core/qmd/model.ts",
+  "from": "open.char, open.len, open.indent",
+  "to": "open.char, Math.min(open.len, 5), open.indent",
+  "expect": "killed",
+  "why": "6 and 7 backticks become one kind; no kind has a run over 5"
+ },
+ {
+  "name": "M07 indent keyed by its length",
+  "file": "src/core/qmd/model.ts",
+  "from": "open.len, open.indent, open.columns])",
+  "to": "open.len, open.indent?.length, open.columns])",
+  "expect": "killed",
+  "why": "one space and one tab become one kind (only '', two spaces and a tab are used, and their lengths differ)"
+ },
+ {
+  "name": "M08 kind is the identity of the opener object",
+  "file": "src/core/qmd/model.ts",
+  "from": "const kind = JSON.stringify([open.isCell, open.char, open.len, open.indent, open.columns]);",
+  "to": "const kind = open as unknown as string;",
+  "expect": "killed",
+  "why": "structurally equal openers do not share a span: answer-equal, but only the timing rows on candidate objects can see the cost"
+ },
+ {
+  "name": "M09 kind is the whole opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "const kind = JSON.stringify([open.isCell, open.char, open.len, open.indent, open.columns]);",
+  "to": "const kind = JSON.stringify(open);",
+  "expect": "killed",
+  "why": "the opener's own line number is in the key: same partition on the unit objects, none on computeRegions' candidates"
+ },
+ {
+  "name": "M10 a one-line scan is not kept",
+  "file": "src/core/qmd/model.ts",
+  "from": "lastScan.set(kind, { from, found, end: k });",
+  "to": "if (k > from) lastScan.set(kind, { from, found, end: k });",
+  "expect": "killed",
+  "why": "cost only: the same question asked twice reads one line twice"
+ },
+ {
+  "name": "M11 the longer span is kept",
+  "file": "src/core/qmd/model.ts",
+  "from": "lastScan.set(kind, { from, found, end: k });",
+  "to": "if (known === undefined || k > known.end) lastScan.set(kind, { from, found, end: k });",
+  "expect": "survives",
+  "why": "COST ONLY, out of order: the longer span is kept when a fresh scan starts before it. The product asks i + 1 for ascending i, so the case never arises; a descending sweep is quadratic in the cure itself (the performance lens), whichever span it keeps"
+ },
+ {
+  "name": "M12 a hit narrows the span to the question",
+  "file": "src/core/qmd/model.ts",
+  "from": "      return known.found;\n    }\n    let k = from;",
+  "to": "      lastScan.set(kind, { from, found: known.found, end: known.end });\n      return known.found;\n    }\n    let k = from;",
+  "expect": "killed",
+  "why": "cost only for out-of-order questions"
+ },
+ {
+  "name": "M13 the new span reaches back to the old one",
+  "file": "src/core/qmd/model.ts",
+  "from": "{ from, found, end: k }",
+  "to": "{ from: Math.min(from, known?.from ?? from), found, end: k }",
+  "expect": "killed",
+  "why": "a question in the gap between two spans is answered from the later"
+ },
+ {
+  "name": "M14 one slot for every kind",
+  "file": "src/core/qmd/model.ts",
+  "from": "lastScan.set(kind, { from, found, end: k });",
+  "to": "lastScan.clear();\n    lastScan.set(kind, { from, found, end: k });",
+  "expect": "killed",
+  "why": "interleaved kinds rescan"
+ },
+ {
+  "name": "M15 at most eight kinds kept",
+  "file": "src/core/qmd/model.ts",
+  "from": "lastScan.set(kind, { from, found, end: k });",
+  "to": "if (lastScan.size >= 8) lastScan.clear();\n    lastScan.set(kind, { from, found, end: k });",
+  "expect": "killed",
+  "why": "cost only: nine kinds interleaved in one run"
+ },
+ {
+  "name": "M16 span end in 20 bits",
+  "file": "src/core/qmd/model.ts",
+  "from": "{ from, found, end: k }",
+  "to": "{ from, found, end: k & 0xfffff }",
+  "expect": "killed",
+  "why": "a run past 2^20 lines"
+ },
+ {
+  "name": "M17 span end in 24 bits",
+  "file": "src/core/qmd/model.ts",
+  "from": "{ from, found, end: k }",
+  "to": "{ from, found, end: k & 0xffffff }",
+  "expect": "survives",
+  "why": "COST ONLY, past 2^24 lines: the span end is masked to 24 bits, never raised, so a span only shrinks and the answers stay right (`found` is not masked); a run of more than 16.7 million lines rescans. Argued, not run at that size (M16, 20 bits, is killed by the 1,100,000-line row)"
+ },
+ {
+  "name": "M18 closer test before blank test",
+  "file": "src/core/qmd/model.ts",
+  "from": "      if (lines[k].trim() === \"\") {\n        break;\n      }\n      if (isCloser(lines[k], open)) {\n        found = k;\n        break;\n      }",
+  "to": "      if (isCloser(lines[k], open)) {\n        found = k;\n        break;\n      }\n      if (lines[k].trim() === \"\") {\n        break;\n      }",
+  "expect": "survives",
+  "why": "EQUIVALENT BEHAVIOUR: the closer is tested before the blank line, and a blank line is never a closer, so the answers are the same; one more read at each stop. The cost pins are relative (the whole sequence equals the first scan of each kind), so they allow it, as they allow reading lines[k] once (M19)"
+ },
+ {
+  "name": "M19 each line read once",
+  "file": "src/core/qmd/model.ts",
+  "from": "      if (lines[k].trim() === \"\") {\n        break;\n      }\n      if (isCloser(lines[k], open)) {\n        found = k;\n        break;\n      }",
+  "to": "      const line = lines[k];\n      if (line.trim() === \"\") {\n        break;\n      }\n      if (isCloser(line, open)) {\n        found = k;\n        break;\n      }",
+  "expect": "survives",
+  "why": "EQUIVALENT BEHAVIOUR: lines[k] is read once into a local: the same answers, half the reads of a line. The cost pins are relative, so they allow it (the first draft's 2(n-1) pin reddened it)"
+ },
+ {
+  "name": "M20 blank test hand made, U+2005 missing",
+  "file": "src/core/qmd/model.ts",
+  "from": "lines[k].trim() === \"\"",
+  "to": "/^[ \\t\\v\\f\\r\\u00a0\\u1680\\u2000-\\u2004\\u2006-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]*$/.test(lines[k])",
+  "expect": "killed",
+  "why": "a line of U+2005 is not blank"
+ },
+ {
+  "name": "M21 blank test by \\s",
+  "file": "src/core/qmd/model.ts",
+  "from": "lines[k].trim() === \"\"",
+  "to": "/^\\s*$/.test(lines[k])",
+  "expect": "survives",
+  "why": "EQUIVALENT: /^\\s*$/ and trim() === \"\" agree on all 65,536 UTF-16 code units (the mutation lens), since \\s is the WhiteSpace and LineTerminator set trim() strips"
+ },
+ {
+  "name": "W01 asks two lines below the opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "consumedCloserLine(i + 1, candidate)",
+  "to": "consumedCloserLine(i + 2, candidate)",
+  "expect": "killed",
+  "why": "a closer directly under a lone refused opener is not consumed"
+ },
+ {
+  "name": "W02 asks with column zero only",
+  "file": "src/core/qmd/model.ts",
+  "from": "consumedCloserLine(i + 1, candidate)",
+  "to": "consumedCloserLine(i + 1, { ...candidate, columns: [0] })",
+  "expect": "killed",
+  "why": "a closer in a list item at indent 4 is code to this kind"
+ },
+ {
+  "name": "W03 asks with run length 3",
+  "file": "src/core/qmd/model.ts",
+  "from": "consumedCloserLine(i + 1, candidate)",
+  "to": "consumedCloserLine(i + 1, { ...candidate, len: 3 })",
+  "expect": "killed",
+  "why": "a three-run closer is taken for a four-run opener's"
+ },
+ {
+  "name": "W04 asks with the backtick",
+  "file": "src/core/qmd/model.ts",
+  "from": "consumedCloserLine(i + 1, candidate)",
+  "to": "consumedCloserLine(i + 1, { ...candidate, char: \"`\" })",
+  "expect": "killed",
+  "why": "a tilde opener looks for a backtick closer"
+ },
+ {
+  "name": "W05 asks for an empty indent",
+  "file": "src/core/qmd/model.ts",
+  "from": "consumedCloserLine(i + 1, candidate)",
+  "to": "consumedCloserLine(i + 1, { ...candidate, indent: \"\" })",
+  "expect": "killed",
+  "why": "an indented closer is not taken"
+ },
+ {
+  "name": "W06 asks as a cell",
+  "file": "src/core/qmd/model.ts",
+  "from": "consumedCloserLine(i + 1, candidate)",
+  "to": "consumedCloserLine(i + 1, { ...candidate, isCell: true })",
+  "expect": "killed",
+  "why": "a cell takes the exact run length only"
+ },
+ {
+  "name": "W07 consumed > 0",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (consumed >= 0) {",
+  "to": "if (consumed > 0) {",
+  "expect": "survives",
+  "why": "EQUIVALENT: the call asks from i + 1 >= 1, so a found line is at least 1"
+ },
+ {
+  "name": "W08 the map is shared between documents",
+  "file": "src/core/qmd/model.ts",
+  "from": "const lastScan = new Map<string, { from: number; found: number; end: number }>();",
+  "to": "const lastScan = ((globalThis as unknown as { __scan?: Map<string, { from: number; found: number; end: number }> }).__scan ??= new Map<string, { from: number; found: number; end: number }>());",
+  "expect": "killed",
+  "why": "spans of one document answer for the next"
+ },
+ {
+  "name": "X1 isCloser not exported",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function isCloser(line: string, open: CloserShape)",
+  "to": "function isCloser(line: string, open: CloserShape)",
+  "expect": "killed",
+  "why": "the oracle test imports it"
+ },
+ {
+  "name": "X2 makeConsumedCloserLine not exported",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function makeConsumedCloserLine(",
+  "to": "function makeConsumedCloserLine(",
+  "expect": "killed",
+  "why": "the tests import it"
+ }
+]
