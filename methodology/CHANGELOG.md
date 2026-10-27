@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-27 · [ad hoc] SESSION_NOTES trim (Session 328): the Session 324 handoff evaluation and the Session 325 self-assessment dropped, the three newest pairs kept
+
+The retention rule of Session 256 (the live file holds at most three close-out pairs), applied at Phase 3D in `366fcea` after the close-out commit `e10b0a8`; the trim commit holds no other edit to the file (a pure deletion of 48 lines at its end). The dropped pair is one command away: `git show e10b0a8:methodology/SESSION_NOTES.md`. The file reads 245 lines (`context_budget.py`: ok for it, 35,138 B of 120,000 after the trim, 41,472 B before, and no line over 280 B; the three historical ledgers still read over, as before this session).
+
 ### 2026-10-27 · [BL-What is still quadratic or deep enough to overflow after Session 311, every shape re-measured on the final tree (`066cfcc1`) and none of it in that session's diff] Session 328: part (3) closed -- refused fence openers with no blank line between them are read once per kind of opener, not once per opener
 
 g02's twelfth session (the operator chose part (3) at the Phase 0 picker, the option marked recommended, placed by finishing a feature: Session 327 closed part (6) of the same item; claim `fdd1f66`, 2026-10-27). An opener whose info string pandoc refuses, or a tilde fence under an open paragraph, is read as text and swallows the closer below it into an inline code span; `consumedCloserLine` found that closer by walking every non-blank line below the opener to a blank line or a closer, so N refused openers in one run were N(N + 1)/2 tests of `isCloser`.
