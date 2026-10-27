@@ -48,6 +48,13 @@ Python script (`python3 -I -`).
 macOS `sed` rejects `|` as a delimiter and `sed -i` needs `''`; zsh rejects a bare `=====` argument to echo. A foreground `sleep` is blocked: use a background run or the Monitor tool. After answering a direct question, STOP and wait
 (memory).
 
+### What Session 331 Did
+**Deliverable:** g02 of the backlog ordering plan, fifteenth session: the Session 319 item's part (1), consecutive lines that each open a container column nothing closes (a long definition list) are quadratic, cubic under `from: commonmark_x` for `~ a` (IN PROGRESS)
+**Started:** 2026-10-27
+**Status:** Session claimed. Work beginning. Strict TDD: time the literal shapes (`: a`, `~ a`, `  : a`, `> : a`, `[^1]: a`, `A. a`, `I. a`, `aa. a`) at HEAD first, in fresh processes, with the load beside each figure (Learning 840: the item's figures are Session 319's).
+Profile BEFORE reading the cure (Learning 739): the item's cause (a push with no pop, re-read per line) is a HYPOTHESIS. Size the RED rows from the warm figure, controls first (a blank line between the lines is linear); keep the old function as the oracle, then mutants. Operator decision at Phase 0: this part (recommended; placed by finishing a feature, and the one candidate a real document is likely to meet).
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
 ### What Session 330 Did
 **Deliverable:** g02 of the backlog ordering plan, fourteenth session: the Session 318 item's parts (2) and (3), `ATX_CLOSING_PANDOC` and `HEADING_ATTRIBUTE`, the slow time left on a heading line -- DONE; claim `4482bae`
 **Started:** 2026-10-27
