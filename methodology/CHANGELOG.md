@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-28 · [ad hoc] SESSION_NOTES trim (Session 334): the Session 330 handoff evaluation and the Session 331 self-assessment dropped, the three newest pairs kept
+
+The retention rule of Session 256 (the live file holds at most three close-out pairs), applied at Phase 3D in `fd319af` after the close-out commit `b7b9513`; the trim commit holds no other edit to the file (31 lines deleted, none added). The dropped pair is one command away: `git show b7b9513:methodology/SESSION_NOTES.md`. The file is 294 lines and about 43,000 bytes against the 400-line and 120,000-byte ceilings, and no line is over 280 bytes. The close-out commit `b7b9513` also carries the ordering plan's status rows, the eighteenth outcome and the Session 334 filing, and the complete `S334` receipt.
+
 ### 2026-10-28 · [BL-Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph, none of them in Session 318's diff] Session 334 review round: the four cures agree with the old spelling on about 400 million strings and 3 million documents, the answers were pinned only on strings of 260 characters or fewer and 137 new mutants say where (106 killed by the rows added, 31 argued), 7 shapes filed, 5 numbers in commit messages corrected
 
 `wf_4c0e316d-989`: five read-only lenses over `08b271f..5ebc915` (equivalence, complexity, claims, siblings, mutation), each finding re-run by two refuting verifiers (73 agents, 8.2 million subagent tokens, 2,085 tool calls, 3 hours 34 minutes, machine load 5 to 250 from other projects and from the workflow itself, so every absolute time in the agents' reports is an upper bound and the session re-ran what it cites). 34 findings: 28 held (many narrower than claimed), 2 split between the verifiers, 2 refuted by both (the comment about "lists" in the knitr oracle file, which is right when a list is the argument list of an `options(` call; and the mutation lens's claim that 27 survivors were all equivalent, which was false for five and is how the real findings below were found).
