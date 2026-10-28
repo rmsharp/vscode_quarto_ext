@@ -13475,8 +13475,42 @@ function contentGatedElement(line: string, nativeDivs: boolean): boolean {
 }
 /** A raw HTML line that leaves TEXT behind its tag: `<div>x</div>` (a tag-only line such as `</div>` has none). */
 export function htmlLineHasText(line: string): boolean {
-  // (a `>` inside a quoted attribute does not end the tag: rendered `review2/r2_012`)
-  return /^[ \t]*<\/?[A-Za-z]/.test(line) && line.replace(/<(?:[^>"']|"[^"]*"|'[^']*')*>/g, "").trim() !== "";
+  if (!/^[ \t]*<\/?[A-Za-z]/.test(line)) {
+    return false;
+  }
+  // One scan from the left, answering at the first character that is neither whitespace nor inside a tag. A `<` that opens no tag (no `>` outside the quotes reaches it) stays in the text, so it is
+  // already the answer: the global tag-stripping regex this replaced (`/<(?:[^>"']|"[^"]*"|'[^']*')*>/g`, then `trim`) went on to try every later `<`, each reading to the end of the line, which made
+  // a run of n of them cost n squared (Session 334; 36,000 took 3.3 s). Each tag is read once and the scan resumes after it, so the whole line is read once.
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] !== "<") {
+      if (/\S/.test(line[i])) {
+        return true;
+      }
+      continue;
+    }
+    const end = htmlTagBodyEnd(line, i + 1);
+    if (end < 0) {
+      return true;
+    }
+    i = end - 1;
+  }
+  return false;
+}
+/** The index just after the `>` that ends the tag whose body begins at `from`, or -1 where none closes. A `>` inside a quoted attribute does not end the tag (rendered `review2/r2_012`), and a quote that never closes ends nothing. */
+function htmlTagBodyEnd(line: string, from: number): number {
+  for (let i = from; i < line.length; i++) {
+    const c = line[i];
+    if (c === ">") {
+      return i + 1;
+    }
+    if (c === '"' || c === "'") {
+      i = line.indexOf(c, i + 1);
+      if (i < 0) {
+        return -1;
+      }
+    }
+  }
+  return -1;
 }
 /**
  * A line after which pandoc is certainly between blocks (Session 295, adversarial round 2; Session 293 first had it as `endsBlock`, which took ` {0,3}` for the ATX heading and the underline, and was dropped in Session 298):
