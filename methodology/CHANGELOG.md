@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-28 · [BL-Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph, none of them in Session 318's diff] Session 333 (in progress): claim -- g02 seventeenth session, part (1), `GRID_TABLE_BORDER`
+
+Session claimed. Phase 0 found both ledger frontiers at HEAD (`03f9696`, gap 0), no pending receipt, no merges, the ratchet 2/2 (results bba236856bad, measured at `8efa6ac`, the S332 receipt's citation holds), the dashboard at 76/100 "critical" with 18 vulnerabilities (all dev-only and accepted, Learning 20; `npm audit --omit=dev` reports 0; the dashboard copy is v2.22.0 against canonical v2.23.0, not synced), `master` 42 commits ahead of `origin/master` (the S332 handoff's 37 is stale), and the working tree clean apart from the dashboard's history line. The operator chose part (1) at the Phase 0 picker, the option marked recommended (placed by finishing a feature: the Session 318 item has parts (2), (3), (8), (9) closed and (1), (4) to (7) open). Phase 3F replaces this entry with the outcome.
+
 ### 2026-10-28 · [ad hoc] Session 332: the quality-gate run cited in the receipt -- 2/2 pass at 8efa6ac
 
 `quality_ratchet.py --run`, after the ledger commits (Learning 683): ledger-lag 0 and release-gate 0 (`npm run check-package`), 2 pass, 0 fail, 0 unmeasured, results `bba236856bad`, manifest `334939914945`. The `HANDOFFS.md` receipt's `quality_ratchet:` line says the same. `check-package` had gone red once earlier in the session on an empty file named `=` in the repo root (made by an unquoted heredoc, removed before the run recorded here).

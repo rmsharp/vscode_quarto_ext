@@ -44,6 +44,13 @@ and this close-out's); the dashboard copy is v2.22.0 against canonical v2.23.0 (
 (13) The Write and Edit tools turn a backslash-u escape for U+2028 into the raw character (Learning 792). `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices, edit with a
 Python script (`python3 -I -`). macOS `sed` rejects `|` as a delimiter and `sed -i` needs `''`. A foreground `sleep` is blocked: use a background run or the Monitor tool. After answering a direct question, STOP and wait (memory).
 
+### What Session 333 Did
+**Deliverable:** g02 of the backlog ordering plan, seventeenth session: the Session 318 item's part (1), `GRID_TABLE_BORDER` (`model.ts`), quadratic on `+` then n dashes then ` -` (IN PROGRESS)
+**Started:** 2026-10-28
+**Status:** Session claimed. Work beginning. Strict TDD: time the literal shape at HEAD first, in fresh processes, with the load beside each figure (Learning 840: the item's figures are Session 318's: 354 ms at 10,000 and 1,394 ms at 20,000).
+Profile BEFORE reading the cure (Learning 739). The item's cure `^\+(?=[-+=:]*[-=:])[-+=:]*[ \t]*$` was tested by the agent on 2,396,745 strings and is not trusted until the old regex is the oracle in a test of its own. Three call sites: `model.ts` 5224, 5242, 13764. Operator decision at Phase 0: this part (recommended; placed by finishing a feature).
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
 ### What Session 332 Did
 **Deliverable:** g02 of the backlog ordering plan, sixteenth session: the Session 318 item's part (9), a long paragraph of consecutive lines under a top-level `from: gfm`, `commonmark` or `commonmark_x` is quadratic -- DONE; claim `e2fb887`
 **Started:** 2026-10-28
