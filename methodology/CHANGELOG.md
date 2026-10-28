@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-28 · [BL-Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph, none of them in Session 318's diff] Session 332 (in progress): claim -- g02 sixteenth session, part (9), a long paragraph under from: gfm / commonmark / commonmark_x
+
+Session claimed. Phase 0 found both ledger frontiers at HEAD (`8e03d50`, gap 0), no pending receipt (the one grep hit is prose inside an old receipt's gotchas, `HANDOFFS.md:1160`), no merges, the ratchet 2/2 (results bba236856bad at 8e03d50, the S331 receipt's citation holds, read from the results file and not re-run), the dashboard at 76/100 "critical" with 18 vulnerabilities (not examined; the dashboard copy is v2.22.0 against canonical v2.23.0, not synced), `master` 22 commits ahead of `origin/master` (Sessions 330 and 331, not pushed) and the working tree clean apart from the dashboard's history line. The operator chose part (9) at the Phase 0 picker, the option marked recommended (placed by finishing a feature: g02 is in flight, and Session 331 left `~ a` under `commonmark_x` paying exactly this cost). Phase 3F replaces this entry with the outcome.
+
 ### 2026-10-27 · [ad hoc] Session 331: the quality-gate run cited in the receipt -- 2/2 pass at fd656a7
 
 `quality_ratchet.py --run`, after the ledger commits (Learning 683): ledger-lag 0 and release-gate 0 (`npm run check-package`), 2 pass, 0 fail, 0 unmeasured, results `bba236856bad`, manifest `334939914945`. A first run, before the trim had its own entry, read ledger-lag 1 (results `ef628a07495a`) and was not cited. The `HANDOFFS.md` receipt's `quality_ratchet:` line says the same.

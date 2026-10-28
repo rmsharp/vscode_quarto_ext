@@ -41,6 +41,13 @@ Python script (`python3 -I -`).
 macOS `sed` rejects `|` as a delimiter and `sed -i` needs `''`; zsh rejects a bare `=====` argument to echo and does not word-split `$var`. A foreground `sleep` is blocked: use a background run or the Monitor tool. After answering a
 direct question, STOP and wait (memory).
 
+### What Session 332 Did
+**Deliverable:** g02 of the backlog ordering plan, sixteenth session: the Session 318 item's part (9), a long paragraph of consecutive non-blank lines is quadratic under a top-level `from: gfm`, `commonmark` or `commonmark_x` (IN PROGRESS)
+**Started:** 2026-10-28
+**Status:** Session claimed. Work beginning. Strict TDD: time the literal shapes at HEAD first, in fresh processes, with the load beside each figure (Learning 840: the item's figures are Sessions 318 and 329's): `x` x n under `from: gfm`; `text` + `<?php` repeated; `- item` + n `===` lines.
+Profile BEFORE reading the cure (Learning 739): the item's cause (the `titleLineCount` slice in `computeRegions`) is a HYPOTHESIS and its cure is UNTESTED. Size the RED rows from the warm figure, controls first; keep the old function as the oracle, then mutants, then a review workflow. Operator decision at Phase 0: this part (recommended; placed by finishing a feature).
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
 ### What Session 331 Did
 **Deliverable:** g02 of the backlog ordering plan, fifteenth session: the Session 319 item's part (1), consecutive lines that each open a container column nothing closes (a long definition list) -- DONE; claim `673072d`
 **Started:** 2026-10-27
