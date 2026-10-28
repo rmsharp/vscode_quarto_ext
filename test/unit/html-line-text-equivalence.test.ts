@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { htmlLineHasText } from "../../src/core/qmd/model";
-import { BOM, LS, NBSP, PS, countStrings, everyString, seededRandom } from "./support/regex-equivalence";
+import { BOM, JS_WHITESPACE, LS, NBSP, PS, countStrings, everyString, seededRandom } from "./support/regex-equivalence";
 
 // The enumerations take several seconds each on a loaded machine; the sibling equivalence files give their heavy rows the same ceiling.
 const HEAVY_ROW_MS = 120_000;
@@ -47,8 +47,6 @@ function definitionTagEnd(line: string, at: number): number {
 function isAsciiLetter(c: string | undefined): boolean {
   return c !== undefined && ((c >= "a" && c <= "z") || (c >= "A" && c <= "Z"));
 }
-// The whitespace `String.prototype.trim` removes: WhiteSpace and LineTerminator, spelled out so that the set is read from the specification and not from `\s`.
-const TRIM_WHITESPACE = new Set(["\t", "\n", "\v", "\f", "\r", " ", NBSP, BOM, LS, PS, String.fromCharCode(0x1680), ...Array.from({ length: 11 }, (_, i) => String.fromCharCode(0x2000 + i)), String.fromCharCode(0x202f), String.fromCharCode(0x205f), String.fromCharCode(0x3000)]);
 function definitionHasText(line: string): boolean {
   let start = 0;
   while (line[start] === " " || line[start] === "\t") {
@@ -69,7 +67,7 @@ function definitionHasText(line: string): boolean {
     kept += line[i];
     i++;
   }
-  return Array.from(kept).some((c) => !TRIM_WHITESPACE.has(c));
+  return Array.from(kept).some((c) => !JS_WHITESPACE.has(c));
 }
 
 type Count = { compared: number; hasText: number; disagreements: string[] };

@@ -13589,7 +13589,11 @@ function linkDefinitionAt(lines: readonly string[], y: number): boolean {
     }
     rest = next.trim();
   }
-  return !rest.startsWith("[") && !/^\S+[ \t]+(?:"[^"]*"|'[^']*'|\([^)]*\))[ \t]*\S/.test(rest) && !/^\S+[ \t]*\{[^}]*\}[ \t]*\S/.test(rest);
+  return !rest.startsWith("[") && !/^\S+[ \t]+(?:"[^"]*"|'[^']*'|\([^)]*\))[ \t]*\S/.test(rest) && !linkAttributesHaveJunk(rest);
+}
+/** Whether the text after `[a]:` is a URL and a `{...}` link-attribute block with something after it (`/u {#id} x`), the third shape `linkDefinitionAt` refuses. */
+export function linkAttributesHaveJunk(rest: string): boolean {
+  return /^\S+[ \t]*\{[^}]*\}[ \t]*\S/.test(rest);
 }
 /**
  * Whether the simple table whose dash-column rule is at `u` BEGINS A BLOCK (Session 298, rendered `review3/contexts/r3_001`-`r3_004`): its header line above the rule, a plain text line that is not a heading or

@@ -8,6 +8,13 @@ export const IDEOGRAPHIC = String.fromCharCode(0x3000);
 export const EM_SPACE = String.fromCharCode(0x2003);
 export const NEL = String.fromCharCode(0x85);
 
+/** The characters `\s` matches and `String.prototype.trim` removes (ECMAScript WhiteSpace and LineTerminator), spelled out so that a reading by definition takes the set from the specification and not from `\s`. */
+export const JS_WHITESPACE: ReadonlySet<string> = new Set([
+  "\t", "\n", "\v", "\f", "\r", " ", NBSP, BOM, LS, PS, String.fromCharCode(0x1680),
+  ...Array.from({ length: 11 }, (_, i) => String.fromCharCode(0x2000 + i)),
+  String.fromCharCode(0x202f), String.fromCharCode(0x205f), IDEOGRAPHIC,
+]);
+
 /** The two answers are the same match: both refuse, or both match at the same index with the same whole match and the same groups (an unset group included). */
 export function sameMatch(a: RegExpExecArray | null, b: RegExpExecArray | null): boolean {
   if (a === null || b === null) {
