@@ -5,7 +5,7 @@ import { seededRandom } from "./support/regex-equivalence";
 // Session 332 — the BACKLOG item "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", part (9). Under a `from: gfm`, `commonmark` or `commonmark_x` reader the title of a
 // setext underline is the whole open paragraph, unless a line of it BELOW ITS FIRST interrupts the paragraph, so `computeRegions` asked, for every line it read, `bodyLines.slice(-wholeParagraph).slice(1).some((l) =>
 // commonmarkParagraphInterrupt(l.text, [0, ...columns]))`: two copies of the paragraph so far and a fresh `[0, ...columns]` array for each line tested (`pathological-inputs.test.ts` has the document rows). The question is now
-// `ParagraphInterruptScan.interruptedAfterFirst`, the same question without the copies, and it is asked only where the line can underline. The old expression is kept here as the oracle (Learning 738; the columns it spread from `columnStack.columns()` are a parameter): the new
+// `ParagraphInterruptScan.interruptedAfterFirst`, the same question without the copies, and it is asked only where the line can underline. The old expression is kept here as the oracle (Learning 738; the columns it spread from `columnStack.columns()` are a parameter, and the list of rows is the one `interruptListMatches` the scan shares: the wiring file's documents pin the list itself): the new
 // scan must answer what it answered for every list of lines, every paragraph length and every set of open container columns, asked cold (a fresh scan for each question) and warm (one scan kept across a growing list).
 const oldTitleScan = (bodyLines: Array<{ text: string }>, wholeParagraph: number, columns: readonly number[]): boolean =>
   wholeParagraph > 1 &&
@@ -148,6 +148,25 @@ describe("Session 332 — the paragraph-interrupt scan without the copies", () =
     expect(columns).toEqual([2, 4]);
   });
 
+  // Every distinct indent is kept, however many: the review round's mutation lens capped the set at 4 and at 16 and no row noticed. Bullets at 5 and at 17 distinct indents, all code under no open column, ahead of ONE line that
+  // interrupts: with a cap the interrupter is dropped and the answer is no. And a long paragraph is read to its end: a cap of 4,096 lines per question (or 100,000) misses an interrupter further down.
+  it("keeps every distinct indent, however many: 5 and 17 code-depth bullets ahead of one interrupter", () => {
+    for (const count of [5, 17]) {
+      const bullets = Array.from({ length: count }, (_, k) => " ".repeat(4 + k) + "- b");
+      expect(coldScan(["x", ...bullets, "<span>a</span>"].map(line), count + 2, [])).toBe(true);
+      expect(coldScan(["x", ...bullets].map(line), count + 1, [])).toBe(false);
+      // Under an open column at 3 the first bullet (indent 4) is no longer code.
+      expect(coldScan(["x", ...bullets].map(line), count + 1, [3])).toBe(true);
+    }
+  });
+
+  it("reads a long paragraph to its end: an interrupter 5,000 and 100,500 lines down is found", () => {
+    const longParagraph = (count: number, at: number | null): Array<{ text: string }> => Array.from({ length: count }, (_, k) => line(k === at ? "<span>a</span>" : "x"));
+    expect(coldScan(longParagraph(5_002, 5_001), 5_002, [])).toBe(true);
+    expect(coldScan(longParagraph(110_000, 100_500), 110_000, [])).toBe(true);
+    expect(coldScan(longParagraph(110_000, null), 110_000, [])).toBe(false);
+  });
+
   // The cost of a COLD question: one pass over the lines below the first and no copy of the paragraph. This row guards the class against a quadratic reading; it does not separate it from the old expression, which is also linear for a
   // single cold question (about 40 ms against 30 ms for 200,000 lines): the rows that separate them are the 200,000 questions about a growing paragraph, below, and the document rows of pathological-inputs.test.ts.
   it("reads a paragraph of 200,000 lines with nothing in it that interrupts in linear time, and reads each line below the first once and no line above it", () => {
@@ -195,7 +214,7 @@ describe("Session 332 — the paragraph-interrupt scan without the copies", () =
 // The gate left one shape quadratic: an interrupter far down the paragraph, then many lines that can underline and cannot claim it. Each of them asked the question again, and the answer was read from the whole paragraph every
 // time. `ParagraphInterruptScan` keeps what it has read of the paragraph so far, so a paragraph that grows one line at a time costs one test per line. What it keeps is NOT an answer but the indents of the lines that match the
 // interrupt list (an answer depends on the open container columns, which change between two questions of one paragraph: a first version that kept the answer under one columns array restarted at every change, and the review round
-// timed it at 4x per doubling on a three-line unit), so it can answer again under any columns without reading a line twice. The lines it is handed only GROW (`bodyLines` in `computeRegions` is appended to and never edited), and
+// timed it at 3.3x and 3.7x per doubling on a three-line unit), so it can answer again under any columns without reading a line twice. The lines it is handed only GROW (`bodyLines` in `computeRegions` is appended to and never edited), and
 // every answer must still be the old expression's.
 const WARM_EXHAUSTIVE_LENGTH = 4;
 const WARM_SEEDED_SEQUENCES = 20_000;
@@ -316,7 +335,7 @@ describe("Session 332 — the paragraph-interrupt scan that keeps what it has re
       expect(scan(["x", "plain", "more"], columns)).toBe(false);
       expect(scan(["x", "    four spaces", "      plain"], columns)).toBe(false);
     }
-    // Indent 4 is code under no column and a bullet under a column at 1 to 3 (code starts four columns past the deepest open column not past the line); indent 12 is a bullet only under a column of 9 or more.
+    // Indent 4 is code under no column and a bullet under a column at 1 to 4 (code starts four columns past the deepest open column not past the line); indent 12 is a bullet only under a column of 9 to 12.
     expect(scan(["x", "    - b"], [])).toBe(false);
     expect(scan(["x", "    - b"], [2])).toBe(true);
     expect(scan(["x", "            - b"], [4])).toBe(false);
