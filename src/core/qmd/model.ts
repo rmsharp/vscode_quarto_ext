@@ -8148,7 +8148,17 @@ function knitrCodeMasksPrinters(code: readonly string[]): boolean {
 }
 /** The names assigned in the argument list of an `options(` call, in order: a letter or a dot and then name characters, followed by blanks and an `=`. */
 export function knitrOptionNames(args: string): string[] {
-  return [...args.matchAll(/([A-Za-z.][\w.]*)[ \t]*=/g)].map((match) => match[1]);
+  // The pattern this replaced, `/([A-Za-z.][\w.]*)[ \t]*=/g`, tried every letter of a run of name characters as a start and read each to the end of the run looking for an `=`: n letters cost n squared
+  // (Session 334; 72,000 took 3.2 s). A start may not follow a name character, so each MAXIMAL run is tried once: when blanks and an `=` follow it, the name is the run without its leading digits and
+  // underscores (the old pattern's leftmost start in the run is its first letter or dot), and a run of nothing else names nothing.
+  const names: string[] = [];
+  for (const run of args.matchAll(/(?<![\w.])[\w.]+(?=[ \t]*=)/g)) {
+    const name = run[0].replace(/^[0-9_]+/, "");
+    if (name !== "") {
+      names.push(name);
+    }
+  }
+  return names;
 }
 /**
  * Whether a `message()` or `warning()` of the chunk can still write a block (Session 309): the chunk sets neither option itself (rendered, `scratchpad/s309/msg` m002, m003, m007: a value
