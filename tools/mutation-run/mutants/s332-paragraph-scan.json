@@ -159,7 +159,7 @@
     "why": "As P21, for the lines array."
   },
   {
-    "name": "G01 the scan is asked for every line (the gate removed: a clock mutant)",
+    "name": "G01 the scan is asked for every line (the gate removed)",
     "file": "src/core/qmd/model.ts",
     "from": "commonmarkUnderlineLevel !== null && paragraphScan.interruptedAfterFirst(",
     "to": "true && paragraphScan.interruptedAfterFirst(",
