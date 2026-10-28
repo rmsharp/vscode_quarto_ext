@@ -292,34 +292,3 @@ item's part (1); the S317 stack overflows (4) to (9); `test:integration` NOT run
 **TDD:** RED before GREEN for the clock rows (`b8a62a8` before `be9eed7`, `9cde0dc` before `f440341`, `0918c3f` before `944fccb`) and for the oracle's class (stub, then class); the wiring and review rows are mutant-RED.
 **Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** 10 agents in 2 workflows (1,626,651 and 1,039,720 subagent tokens; 569 and 328 tool calls; 2.24 hours and 53 minutes), about 190 runner mutants of mine
 and the lens's 105, a 12-million-document differential, 0 quarto renders (the oracle ran warm).
-
-## Session 330 Handoff Evaluation (by Session 331)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers (at HEAD `23d6018`, gap 0), no `pending` receipt (the one grep hit is prose inside a gotcha), the ratchet citation (2/2,
-results `bba236856bad`, read from the results file), the baseline (12,584 tests in 100 files) and the real-document score (2423 of 2438, unchanged) all held, and the picker the plan ranked was accurate: candidate (a) was the S319 item's
-part (1), placed by finishing a feature, and the item's own figures were NOT stale (`: a` x 2,000 lines 115 to 135 ms against the item's 104 ms at 8,000 characters).
-**Helped:** gotcha 3 (the runner tests the COMMITTED source; run `mutation-lists-apply.test.ts` before the mutation run) caught two orphaned mutants after a refactor; gotcha 4 (the pins are incomplete, a SIXTEENTH time) was true a
-seventeenth time and is why the review list was read for gaps before the rows were trusted; the Learning 840 line made me time the literal shapes before reading code and Learning 848 told me to rebuild the harness from tracked files;
-gotchas 1, 7, 8, 9 and 14 held, and I waited at the picker.
-**Missing:** nothing that cost time. **Wrong:** nothing I checked, including the `master` claim (it was 11 commits ahead of `origin/master`, Session 330's, as the handoff said). **ROI: high.**
-
-## Session 331 Self-Assessment
-
-**Score: 7/10.**
-**Went right.** I timed the eight shapes in fresh processes before reading any code and profiled before reading the cure; the item's hypothesis held and the profile named the readers. The 20 rows were run on the unmodified tree in a commit
-of their own BEFORE the cure and failed on the clock alone (2.5 to 4.0 s against 1,000 ms, answers right). The class has its own oracle (the plain arrays and the old expressions, every sequence of up to four operations and 15,000 seeded
-ones), and the claim that the helpers read a set was proved two ways, with a control that fails (2,338 differences). A 600,000-document differential found 0 differences and its own controls told me what that zero was worth: 3 of 9
-deliberate breakages were invisible to it, and I wrote aimed searches for them. Every witness and every wrong statement of the review that I acted on was run or read here, on the parent and the cure; I waited on the mutation logs and on the
-quiet machine for the final timings.
-**Went wrong.** (1) My pins were incomplete for the SEVENTEENTH set (Learnings 773 to 852): the first whole-suite run of my 80 mutants left 12 alive (68 killed, 11 contradicting their expectation), and the review's mutation lens found 12
-more gaps; W01 and W42 I recorded as "no witness found" and the README said so, and they had two- and five-line witnesses. I searched with random generators and not with an exhaustive enumeration of each reader's own forms until the review
-did. (2) Text I wrote was wrong in 15 places (a "linear" that was quadratic, a sentence reversed on W31, W47 named for its inverse, W13's direction, "ascending" left in a declaration comment, "nine" for ten, the columns 4 and 3 swapped
-between the markers, comments naming the removed arrays). (3) The first wiring script of the session was a failed first run (no file was written) and was redone. (4) `computeRegions` needed three type annotations (TS7022) that I found at
-the first compile and did not comment until the review. (5) The machine ran at a load of 14 to 45 from other projects for most of the session, so the timings were taken again at a load of 3 at the end; the review ran at up to 197.
-(6) TDD deviations, disclosed: the oracle file, the wiring rows (the first 19, the review's 13) and the identity row pass on arrival; their RED is a mutant, shown with the runner (68 killed first; 12 of the review's 20 killed after the
-rows, 8 argued). The `ColumnStack` methods `topColumn` was added test-first (RED shown); the class itself was written after its oracle (a stub that throws, RED shown) in a commit before the wiring.
-**Known residuals (filed or stated):** the S318 item's parts (1), (4) to (7) and (9); the S311 item's parts (4), (10), (11); the `isAttributeBlock` prefix item; the S322 item's part (1); the S317 stack overflows (4) to (9); the per-line
-cost in distinct columns and the quote-entry copy (S319 part (1)); `test:integration` NOT run.
-**TDD:** RED before GREEN for the 20 clock rows (`2bd08b7` before `b65afb0`), for the class's oracle (stub, then class) and for `topColumn`; the pins and review rows are mutant-RED (above).
-**Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** 14 agents in 2 workflows (886,067 and 1,131,848 subagent tokens; the review 401 tool calls, 73.9 minutes at a machine load of 2 to 197 from other projects),
-80, 12, 20, 9 and 1 mutant runs of mine, a 600,000-document differential, 0 quarto renders.
