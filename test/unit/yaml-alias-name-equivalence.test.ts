@@ -266,7 +266,7 @@ describe("Session 334 review — yamlAliasName on long values, on every whitespa
     expect(before.ms).toBeLessThan(LIMIT_MS);
   });
 
-  // A scan to the end of the value from every `#`, before or after the guard, is a quadratic that keeps every answer, and at native speed (2 ns a character) the 72,000-character rows would pass it: 500,000 cost 2.8 s.
+  // A scan to the end of the value from every `#`, before or after the guard, is a quadratic that keeps every answer, and at native speed (2 ns a character) the 72,000-character rows would pass it: 500,000 cost about 2.8 s.
   it.each([["no terminator: an alias named by the whole run", "*" + "#".repeat(CLOCK_HASHES), "#".repeat(CLOCK_HASHES)], ["a carriage return and a letter: no alias", "*" + "#".repeat(CLOCK_HASHES) + "\rx", null]] as const)("`*` + 500,000 `#`, %s, is read in linear time", (_label, value, expected) => {
     const { result, ms } = clock(() => yamlAliasName(value));
     expect(result).toBe(expected);

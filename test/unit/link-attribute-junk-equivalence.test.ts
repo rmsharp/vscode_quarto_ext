@@ -213,7 +213,7 @@ describe("Session 334 review — linkAttributesHaveJunk on long texts and on eve
     expect(linkAttributesHaveJunk(text)).toBe(expected);
   });
 
-  // A search to the end of the text from every `{` of the run is a quadratic that keeps every answer, and at native speed (2 ns a character) the document rows would pass it: 500,000 braces cost 2.8 s that way (the reviewer's mutant), under 1 ms here.
+  // A search to the end of the text from every `{` of the run is a quadratic that keeps every answer, and at native speed (2 ns a character) the document rows would pass it: 500,000 braces cost about 2.8 s that way (the reviewer's mutant, interpolated from 100,000 to 800,000), under 1 ms here.
   const CLOCK_BRACES = 500_000;
   const CLOCK_LIMIT_MS = 1000;
   it("a URL of 500,000 braces is read in linear time", () => {
