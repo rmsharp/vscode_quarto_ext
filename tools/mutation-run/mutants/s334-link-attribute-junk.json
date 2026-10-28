@@ -1,0 +1,218 @@
+[
+ {
+  "name": "L01 the run ends at a space or a tab",
+  "file": "src/core/qmd/model.ts",
+  "from": "const space = rest.search(/\\s/);",
+  "to": "const space = rest.search(/[ \\t]/);",
+  "expect": "killed",
+  "why": "a no-break space ends the run: `x\\u00a0{a}b` is not a link attribute block"
+ },
+ {
+  "name": "L02 the run ends at a space",
+  "file": "src/core/qmd/model.ts",
+  "from": "const space = rest.search(/\\s/);",
+  "to": "const space = rest.search(/ /);",
+  "expect": "killed",
+  "why": "a tab ends the run: `x\\t{a}b`"
+ },
+ {
+  "name": "L03 the run includes the first blank",
+  "file": "src/core/qmd/model.ts",
+  "from": "const run = space < 0 ? rest.length : space;",
+  "to": "const run = space < 0 ? rest.length : space + 1;",
+  "expect": "killed",
+  "why": "the first blank is part of the run"
+ },
+ {
+  "name": "L04 a text starting with whitespace is one run",
+  "file": "src/core/qmd/model.ts",
+  "from": "const run = space < 0 ? rest.length : space;",
+  "to": "const run = space <= 0 ? rest.length : space;",
+  "expect": "killed",
+  "why": "` x{a}b` has a blank first and so no `\\S+`"
+ },
+ {
+  "name": "L05 the empty-run guard removed",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (run === 0) {\n    return false;\n  }",
+  "to": "  if (false) {\n    return false;\n  }",
+  "expect": "killed",
+  "why": "` {a}b` and a text that starts with a blank have no `\\S+`"
+ },
+ {
+  "name": "L06 a brace at index 0 opens the block",
+  "file": "src/core/qmd/model.ts",
+  "from": "let open = rest.indexOf(\"{\", 1);",
+  "to": "let open = rest.indexOf(\"{\", 0);",
+  "expect": "killed",
+  "why": "`{a}b` has nothing before its brace"
+ },
+ {
+  "name": "L07 a brace at index 1 does not open the block",
+  "file": "src/core/qmd/model.ts",
+  "from": "let open = rest.indexOf(\"{\", 1);",
+  "to": "let open = rest.indexOf(\"{\", 2);",
+  "expect": "killed",
+  "why": "`x{a}b` is a link attribute block with junk"
+ },
+ {
+  "name": "L08 a brace past the run opens the block wherever it is",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (open < 0 || open >= run) {",
+  "to": "  if (open < 0) {",
+  "expect": "killed",
+  "why": "`x y {a}b`: only blanks may stand between the run and the brace"
+ },
+ {
+  "name": "L09 the brace test is open > run",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (open < 0 || open >= run) {",
+  "to": "  if (open < 0 || open > run) {",
+  "expect": "survives",
+  "why": "equivalent: the character at `run` is whitespace or past the end, never `{`, so `open` cannot equal `run`"
+ },
+ {
+  "name": "L10 a missing brace is not a refusal",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (open < 0 || open >= run) {",
+  "to": "  if (open >= run) {",
+  "expect": "killed",
+  "why": "`a}b` has no `{`: `open` is -1"
+ },
+ {
+  "name": "L11 the blanks are read from the second character",
+  "file": "src/core/qmd/model.ts",
+  "from": "    open = run;\n    while",
+  "to": "    open = run + 1;\n    while",
+  "expect": "killed",
+  "why": "a no-break space after the run is not a blank: `x\\u00a0{a}b`"
+ },
+ {
+  "name": "L12 only spaces between the run and the brace",
+  "file": "src/core/qmd/model.ts",
+  "from": "    while (rest[open] === \" \" || rest[open] === \"\\t\") {\n      open++;",
+  "to": "    while (rest[open] === \" \") {\n      open++;",
+  "expect": "killed",
+  "why": "`x\\t{a}b`"
+ },
+ {
+  "name": "L13 only tabs between the run and the brace",
+  "file": "src/core/qmd/model.ts",
+  "from": "    while (rest[open] === \" \" || rest[open] === \"\\t\") {\n      open++;",
+  "to": "    while (rest[open] === \"\\t\") {\n      open++;",
+  "expect": "killed",
+  "why": "`x {a}b`"
+ },
+ {
+  "name": "L14 the brace check removed",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (rest[open] !== \"{\") {\n      return false;\n    }",
+  "to": "    if (false) {\n      return false;\n    }",
+  "expect": "killed",
+  "why": "`x y{a}b`: the character after the blanks must be the brace"
+ },
+ {
+  "name": "L15 the closing brace is searched from the opening one",
+  "file": "src/core/qmd/model.ts",
+  "from": "const close = rest.indexOf(\"}\", open + 1);",
+  "to": "const close = rest.indexOf(\"}\", open);",
+  "expect": "survives",
+  "why": "equivalent: the character at `open` is `{`, never `}`"
+ },
+ {
+  "name": "L16 the closing brace is searched from two past the opening one",
+  "file": "src/core/qmd/model.ts",
+  "from": "const close = rest.indexOf(\"}\", open + 1);",
+  "to": "const close = rest.indexOf(\"}\", open + 2);",
+  "expect": "killed",
+  "why": "an empty block `{}` is not closed: `x{}b`"
+ },
+ {
+  "name": "L17 the closing brace is the last one",
+  "file": "src/core/qmd/model.ts",
+  "from": "const close = rest.indexOf(\"}\", open + 1);",
+  "to": "const close = rest.lastIndexOf(\"}\");",
+  "expect": "killed",
+  "why": "`x{a}b}` ends with its last brace, not its first"
+ },
+ {
+  "name": "L18 no closing brace answers true",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (close < 0) {\n    return false;\n  }",
+  "to": "  if (close < 0) {\n    return true;\n  }",
+  "expect": "killed",
+  "why": "`x{a` has no closing brace"
+ },
+ {
+  "name": "L19 the text after the block is read from its brace",
+  "file": "src/core/qmd/model.ts",
+  "from": "  let after = close + 1;",
+  "to": "  let after = close;",
+  "expect": "killed",
+  "why": "the closing brace is read as the junk: `x{a}` has none"
+ },
+ {
+  "name": "L20 only spaces between the block and the junk",
+  "file": "src/core/qmd/model.ts",
+  "from": "  while (rest[after] === \" \" || rest[after] === \"\\t\") {\n    after++;",
+  "to": "  while (rest[after] === \" \") {\n    after++;",
+  "expect": "killed",
+  "why": "`x{a}\\t y`"
+ },
+ {
+  "name": "L21 only tabs between the block and the junk",
+  "file": "src/core/qmd/model.ts",
+  "from": "  while (rest[after] === \" \" || rest[after] === \"\\t\") {\n    after++;",
+  "to": "  while (rest[after] === \"\\t\") {\n    after++;",
+  "expect": "killed",
+  "why": "`x{a} y`"
+ },
+ {
+  "name": "L22 the end of the text is junk",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return after < rest.length && /\\S/.test(rest[after]);",
+  "to": "  return /\\S/.test(rest[after]);",
+  "expect": "killed",
+  "why": "`x{a}` and `x{a} `: `undefined` is a non-blank string to the test"
+ },
+ {
+  "name": "L23 junk is anything but a space or a tab",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return after < rest.length && /\\S/.test(rest[after]);",
+  "to": "  return after < rest.length && /[^ \\t]/.test(rest[after]);",
+  "expect": "killed",
+  "why": "a no-break space after the block is whitespace, not junk (`x{a}\\u00a0`)"
+ },
+ {
+  "name": "L24 junk is a word character",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return after < rest.length && /\\S/.test(rest[after]);",
+  "to": "  return after < rest.length && /\\w/.test(rest[after]);",
+  "expect": "killed",
+  "why": "`x{a}{b}` and `x{a}/`: junk is any non-whitespace character"
+ },
+ {
+  "name": "L25 junk is not whitespace by the negated test",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return after < rest.length && /\\S/.test(rest[after]);",
+  "to": "  return after < rest.length && !/\\s/.test(rest[after]);",
+  "expect": "survives",
+  "why": "equivalent: `\\S` is the complement of `\\s`"
+ },
+ {
+  "name": "L26 the brace is the last one in the text",
+  "file": "src/core/qmd/model.ts",
+  "from": "let open = rest.indexOf(\"{\", 1);",
+  "to": "let open = rest.lastIndexOf(\"{\");",
+  "expect": "killed",
+  "why": "`x{a}{b` : the first brace opens the block"
+ },
+ {
+  "name": "C01 the old pattern put back",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const space = rest.search(/\\s/);",
+  "to": "  if (true) {\n    return /^\\S+[ \\t]*\\{[^}]*\\}[ \\t]*\\S/.test(rest);\n  }\n  const space = rest.search(/\\s/);",
+  "expect": "killed",
+  "why": "the Session 318 item's part (5): same answers, n squared on a run of `{` (the clock rows alone)"
+ }
+]

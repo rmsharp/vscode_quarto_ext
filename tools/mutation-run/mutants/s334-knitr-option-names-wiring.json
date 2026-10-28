@@ -1,0 +1,26 @@
+[
+ {
+  "name": "W01 the call site tests every name",
+  "file": "src/core/qmd/model.ts",
+  "from": ".some((name) => ![\"digits\", \"scipen\", \"width\", \"stringsAsFactors\", \"OutDec\", \"max.print\"].includes(name))",
+  "to": ".every((name) => ![\"digits\", \"scipen\", \"width\", \"stringsAsFactors\", \"OutDec\", \"max.print\"].includes(name))",
+  "expect": "killed",
+  "why": "an `options(` that sets one allowed and one other option masks the printing calls"
+ },
+ {
+  "name": "W02 the call site tests for an allowed name",
+  "file": "src/core/qmd/model.ts",
+  "from": ".some((name) => ![\"digits\", \"scipen\", \"width\", \"stringsAsFactors\", \"OutDec\", \"max.print\"].includes(name))",
+  "to": ".some((name) => [\"digits\", \"scipen\", \"width\", \"stringsAsFactors\", \"OutDec\", \"max.print\"].includes(name))",
+  "expect": "killed",
+  "why": "`options(digits = 3)` is harmless"
+ },
+ {
+  "name": "W03 the call site reads the name's first character",
+  "file": "src/core/qmd/model.ts",
+  "from": ".some((name) => ![\"digits\", \"scipen\", \"width\", \"stringsAsFactors\", \"OutDec\", \"max.print\"].includes(name))",
+  "to": ".some((name) => ![\"digits\", \"scipen\", \"width\", \"stringsAsFactors\", \"OutDec\", \"max.print\"].includes(name[0]))",
+  "expect": "killed",
+  "why": "every name masks"
+ }
+]

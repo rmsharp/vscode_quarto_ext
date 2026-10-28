@@ -1,0 +1,162 @@
+[
+ {
+  "name": "K01 the lookbehind dropped",
+  "file": "src/core/qmd/model.ts",
+  "from": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/g)",
+  "to": "args.matchAll(/[\\w.]+(?=[ \\t]*=)/g)",
+  "expect": "killed",
+  "why": "same answers, n squared: a run followed by no `=` is retried from every one of its characters (the clock rows alone)"
+ },
+ {
+  "name": "K02 the lookbehind guards word characters only",
+  "file": "src/core/qmd/model.ts",
+  "from": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/g)",
+  "to": "args.matchAll(/(?<![\\w])[\\w.]+(?=[ \\t]*=)/g)",
+  "expect": "killed",
+  "why": "same answers, n squared on a run of dots (the clock row of 72,000 dots)"
+ },
+ {
+  "name": "K03 the run may be empty",
+  "file": "src/core/qmd/model.ts",
+  "from": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/g)",
+  "to": "args.matchAll(/(?<![\\w.])[\\w.]*(?=[ \\t]*=)/g)",
+  "expect": "survives",
+  "why": "equivalent: an empty run is named \"\", which is dropped, and a non-empty run is taken greedily first"
+ },
+ {
+  "name": "K04 no `=` needed after the run",
+  "file": "src/core/qmd/model.ts",
+  "from": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/g)",
+  "to": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*)/g)",
+  "expect": "killed",
+  "why": "every run names an option: `aaaa` has none"
+ },
+ {
+  "name": "K05 spaces only between the name and the `=`",
+  "file": "src/core/qmd/model.ts",
+  "from": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/g)",
+  "to": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ ]*=)/g)",
+  "expect": "killed",
+  "why": "`x\\t= 1`"
+ },
+ {
+  "name": "K06 any whitespace between the name and the `=`",
+  "file": "src/core/qmd/model.ts",
+  "from": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/g)",
+  "to": "args.matchAll(/(?<![\\w.])[\\w.]+(?=\\s*=)/g)",
+  "expect": "killed",
+  "why": "a no-break space or a newline between the name and the `=` is not a blank"
+ },
+ {
+  "name": "K07 at least one blank before the `=`",
+  "file": "src/core/qmd/model.ts",
+  "from": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/g)",
+  "to": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]+=)/g)",
+  "expect": "killed",
+  "why": "`a=1` has no blank"
+ },
+ {
+  "name": "K08 the name has no leading underscore stripped",
+  "file": "src/core/qmd/model.ts",
+  "from": "run[0].replace(/^[0-9_]+/, \"\")",
+  "to": "run[0].replace(/^[0-9]+/, \"\")",
+  "expect": "killed",
+  "why": "`_a = 1` names `a`"
+ },
+ {
+  "name": "K09 the name has no leading digit stripped",
+  "file": "src/core/qmd/model.ts",
+  "from": "run[0].replace(/^[0-9_]+/, \"\")",
+  "to": "run[0].replace(/^_+/, \"\")",
+  "expect": "killed",
+  "why": "`1x = 2` names `x`"
+ },
+ {
+  "name": "K10 the leading dot is stripped too",
+  "file": "src/core/qmd/model.ts",
+  "from": "run[0].replace(/^[0-9_]+/, \"\")",
+  "to": "run[0].replace(/^[0-9_.]+/, \"\")",
+  "expect": "killed",
+  "why": "`.5 = 1` names `.5`"
+ },
+ {
+  "name": "K11 digits and underscores are stripped everywhere",
+  "file": "src/core/qmd/model.ts",
+  "from": "run[0].replace(/^[0-9_]+/, \"\")",
+  "to": "run[0].replace(/[0-9_]+/g, \"\")",
+  "expect": "killed",
+  "why": "`a1 = 1` names `a1`"
+ },
+ {
+  "name": "K12 an empty strip is an empty strip",
+  "file": "src/core/qmd/model.ts",
+  "from": "run[0].replace(/^[0-9_]+/, \"\")",
+  "to": "run[0].replace(/^[0-9_]*/, \"\")",
+  "expect": "survives",
+  "why": "equivalent: replacing an empty prefix by the empty string changes nothing"
+ },
+ {
+  "name": "K13 an empty name is pushed",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (name !== \"\") {",
+  "to": "    if (true) {",
+  "expect": "killed",
+  "why": "`9 = 1` and `__ = 1` name nothing"
+ },
+ {
+  "name": "K14 the run is pushed, not the name",
+  "file": "src/core/qmd/model.ts",
+  "from": "      names.push(name);",
+  "to": "      names.push(run[0]);",
+  "expect": "killed",
+  "why": "`1x = 2` names `x`"
+ },
+ {
+  "name": "K15 the names come out in reverse",
+  "file": "src/core/qmd/model.ts",
+  "from": "      names.push(name);",
+  "to": "      names.unshift(name);",
+  "expect": "killed",
+  "why": "`digits=3, scipen=10` lists them in order"
+ },
+ {
+  "name": "K16 the global flag dropped",
+  "file": "src/core/qmd/model.ts",
+  "from": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/g)",
+  "to": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/)",
+  "expect": "killed",
+  "why": "`matchAll` needs the flag"
+ },
+ {
+  "name": "K17 a name has no dot",
+  "file": "src/core/qmd/model.ts",
+  "from": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/g)",
+  "to": "args.matchAll(/(?<![\\w.])[\\w]+(?=[ \\t]*=)/g)",
+  "expect": "killed",
+  "why": "`a.b=1` names `a.b`, `max.print = 5` names `max.print`"
+ },
+ {
+  "name": "K18 a name has no underscore",
+  "file": "src/core/qmd/model.ts",
+  "from": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/g)",
+  "to": "args.matchAll(/(?<![\\w.])[A-Za-z0-9.]+(?=[ \\t]*=)/g)",
+  "expect": "killed",
+  "why": "`a_b = 1` names `a_b`"
+ },
+ {
+  "name": "K19 the lookbehind guards a dot only",
+  "file": "src/core/qmd/model.ts",
+  "from": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/g)",
+  "to": "args.matchAll(/(?<![.])[\\w.]+(?=[ \\t]*=)/g)",
+  "expect": "killed",
+  "why": "same answers, n squared on a run of letters (the clock rows alone)"
+ },
+ {
+  "name": "K20 a word boundary opens the run",
+  "file": "src/core/qmd/model.ts",
+  "from": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/g)",
+  "to": "args.matchAll(/\\b[\\w.]+(?=[ \\t]*=)/g)",
+  "expect": "killed",
+  "why": "`.5 = 1` and a dot-led name have no word boundary before the dot"
+ }
+]

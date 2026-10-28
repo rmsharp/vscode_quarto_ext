@@ -1,0 +1,226 @@
+[
+ {
+  "name": "H01 the guard's optional slash dropped",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!/^[ \\t]*<\\/?[A-Za-z]/.test(line)) {",
+  "to": "if (!/^[ \\t]*<[A-Za-z]/.test(line)) {",
+  "expect": "killed",
+  "why": "a closing tag with text after it (`\\t</p>x`) stops being a tag line"
+ },
+ {
+  "name": "H02 the guard's leading blanks are spaces only",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!/^[ \\t]*<\\/?[A-Za-z]/.test(line)) {",
+  "to": "if (!/^[ ]*<\\/?[A-Za-z]/.test(line)) {",
+  "expect": "killed",
+  "why": "a tab-indented tag line (`\\t</p>x`) stops being one"
+ },
+ {
+  "name": "H03 the guard's letter class is lowercase only",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!/^[ \\t]*<\\/?[A-Za-z]/.test(line)) {",
+  "to": "if (!/^[ \\t]*<\\/?[a-z]/.test(line)) {",
+  "expect": "killed",
+  "why": "a capitalised tag name (`<A>x`) stops being a tag line"
+ },
+ {
+  "name": "H04 the guard removed",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!/^[ \\t]*<\\/?[A-Za-z]/.test(line)) {",
+  "to": "if (false) {",
+  "expect": "killed",
+  "why": "text before the tag (`x<p>`) and a non-letter after the `<` (`<1>x`) stop being refused"
+ },
+ {
+  "name": "H05 the guard's start anchor dropped",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!/^[ \\t]*<\\/?[A-Za-z]/.test(line)) {",
+  "to": "if (!/[ \\t]*<\\/?[A-Za-z]/.test(line)) {",
+  "expect": "killed",
+  "why": "`x<p>` is a tag line"
+ },
+ {
+  "name": "H06 the guard's letter class is a word character",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!/^[ \\t]*<\\/?[A-Za-z]/.test(line)) {",
+  "to": "if (!/^[ \\t]*<\\/?\\w/.test(line)) {",
+  "expect": "killed",
+  "why": "`<1>x` is a tag line"
+ },
+ {
+  "name": "H07 the loop stops one character short",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let i = 0; i < line.length; i++) {\n    if (line[i] !== \"<\") {",
+  "to": "for (let i = 0; i < line.length - 1; i++) {\n    if (line[i] !== \"<\") {",
+  "expect": "killed",
+  "why": "the last character of the line is never read: `<a>x` has no text"
+ },
+ {
+  "name": "H08 the loop starts at the second character",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let i = 0; i < line.length; i++) {\n    if (line[i] !== \"<\") {",
+  "to": "for (let i = 1; i < line.length; i++) {\n    if (line[i] !== \"<\") {",
+  "expect": "killed",
+  "why": "the first `<` is not read as a tag: `<a>` leaves its letter as text"
+ },
+ {
+  "name": "H09 the branch test inverted",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let i = 0; i < line.length; i++) {\n    if (line[i] !== \"<\") {",
+  "to": "for (let i = 0; i < line.length; i++) {\n    if (line[i] === \"<\") {",
+  "expect": "killed",
+  "why": "every character reads the wrong way round"
+ },
+ {
+  "name": "H10 a text character is anything but a space or a tab",
+  "file": "src/core/qmd/model.ts",
+  "from": "      if (/\\S/.test(line[i])) {\n        return true;\n      }\n      continue;",
+  "to": "      if (/[^ \\t]/.test(line[i])) {\n        return true;\n      }\n      continue;",
+  "expect": "killed",
+  "why": "a no-break space, a line separator and a form feed after a tag are whitespace (`<p>\\u00a0` has no text)"
+ },
+ {
+  "name": "H11 a text character is a word character",
+  "file": "src/core/qmd/model.ts",
+  "from": "      if (/\\S/.test(line[i])) {\n        return true;\n      }\n      continue;",
+  "to": "      if (/\\w/.test(line[i])) {\n        return true;\n      }\n      continue;",
+  "expect": "killed",
+  "why": "`<a>/` and `<a>=` have text that is not a word character"
+ },
+ {
+  "name": "H12 a text character answers false",
+  "file": "src/core/qmd/model.ts",
+  "from": "      if (/\\S/.test(line[i])) {\n        return true;\n      }\n      continue;",
+  "to": "      if (/\\S/.test(line[i])) {\n        return false;\n      }\n      continue;",
+  "expect": "killed",
+  "why": "text after a tag no longer counts"
+ },
+ {
+  "name": "H13 a `<` that opens no tag answers false",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (end < 0) {\n      return true;\n    }",
+  "to": "    if (end < 0) {\n      return false;\n    }",
+  "expect": "killed",
+  "why": "`<a><` keeps its stray `<` as text"
+ },
+ {
+  "name": "H14 the failing test is <= 0",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (end < 0) {\n      return true;\n    }",
+  "to": "    if (end <= 0) {\n      return true;\n    }",
+  "expect": "survives",
+  "why": "equivalent: the end of a tag is the index after a `>` that comes after the `<` at the loop's index, so never 0; a failure is -1"
+ },
+ {
+  "name": "H15 the scan resumes AT the tag's end, not after it",
+  "file": "src/core/qmd/model.ts",
+  "from": "      return true;\n    }\n    i = end - 1;",
+  "to": "      return true;\n    }\n    i = end;",
+  "expect": "killed",
+  "why": "the character right after a tag is skipped: `<a>x` has no text"
+ },
+ {
+  "name": "H16 the scan resumes ON the `>`",
+  "file": "src/core/qmd/model.ts",
+  "from": "      return true;\n    }\n    i = end - 1;",
+  "to": "      return true;\n    }\n    i = end - 2;",
+  "expect": "killed",
+  "why": "the tag's own `>` is read as text: `<a>` has text"
+ },
+ {
+  "name": "H17 the tag body is read from the `<` itself",
+  "file": "src/core/qmd/model.ts",
+  "from": "    const end = htmlTagBodyEnd(line, i + 1);",
+  "to": "    const end = htmlTagBodyEnd(line, i);",
+  "expect": "survives",
+  "why": "equivalent: the `<` is neither a `>` nor a quote, so the body's first step passes over it"
+ },
+ {
+  "name": "H18 the tag body is read from the second character",
+  "file": "src/core/qmd/model.ts",
+  "from": "    const end = htmlTagBodyEnd(line, i + 1);",
+  "to": "    const end = htmlTagBodyEnd(line, i + 2);",
+  "expect": "killed",
+  "why": "the first body character is never read: `<a><>` (an empty tag) does not close"
+ },
+ {
+  "name": "H19 the end of a tag is its `>`, not the index after it",
+  "file": "src/core/qmd/model.ts",
+  "from": "      return i + 1;\n    }\n    if (c === '\"'",
+  "to": "      return i;\n    }\n    if (c === '\"'",
+  "expect": "killed",
+  "why": "the scan resumes on the `>` and reads it as text"
+ },
+ {
+  "name": "H20 only double quotes hide a `>`",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (c === '\"' || c === \"'\") {\n      i = line.indexOf(c, i + 1);",
+  "to": "    if (c === '\"') {\n      i = line.indexOf(c, i + 1);",
+  "expect": "killed",
+  "why": "`<a b='x>y'>` ends at the `>` inside the single quotes"
+ },
+ {
+  "name": "H21 only single quotes hide a `>`",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (c === '\"' || c === \"'\") {\n      i = line.indexOf(c, i + 1);",
+  "to": "    if (c === \"'\") {\n      i = line.indexOf(c, i + 1);",
+  "expect": "killed",
+  "why": "`<a b=\"x>y\">` ends at the `>` inside the double quotes"
+ },
+ {
+  "name": "H22 the closing quote is searched from the opening one",
+  "file": "src/core/qmd/model.ts",
+  "from": "      i = line.indexOf(c, i + 1);",
+  "to": "      i = line.indexOf(c, i);",
+  "expect": "killed",
+  "why": "the opening quote is its own closer: a `>` inside the quotes ends the tag"
+ },
+ {
+  "name": "H23 the closing quote is searched from the second character after the opening one",
+  "file": "src/core/qmd/model.ts",
+  "from": "      i = line.indexOf(c, i + 1);",
+  "to": "      i = line.indexOf(c, i + 2);",
+  "expect": "killed",
+  "why": "an empty quoted string (`\"\"`) is not closed by its second quote"
+ },
+ {
+  "name": "H24 the closing quote is the last one on the line",
+  "file": "src/core/qmd/model.ts",
+  "from": "      i = line.indexOf(c, i + 1);",
+  "to": "      i = line.lastIndexOf(c);",
+  "expect": "killed",
+  "why": "two quoted strings on one line are read as one"
+ },
+ {
+  "name": "H25 a tag nothing closes answers the line's length",
+  "file": "src/core/qmd/model.ts",
+  "from": "      i = line.indexOf(c, i + 1);\n      if (i < 0) {\n        return -1;\n      }\n    }\n  }\n  return -1;",
+  "to": "      i = line.indexOf(c, i + 1);\n      if (i < 0) {\n        return -1;\n      }\n    }\n  }\n  return line.length;",
+  "expect": "killed",
+  "why": "`<a><` and `<a>\"` have a stray `<` that opens no tag"
+ },
+ {
+  "name": "H26 the body scan skips its first character",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let i = from; i < line.length; i++) {",
+  "to": "  for (let i = from + 1; i < line.length; i++) {",
+  "expect": "killed",
+  "why": "a tag whose body starts with `>` or a quote is misread"
+ },
+ {
+  "name": "H27 whitespace by trim",
+  "file": "src/core/qmd/model.ts",
+  "from": "      if (/\\S/.test(line[i])) {\n        return true;\n      }\n      continue;",
+  "to": "      if (line[i].trim() !== \"\") {\n        return true;\n      }\n      continue;",
+  "expect": "survives",
+  "why": "equivalent: `trim` removes exactly the characters `\\s` matches (WhiteSpace and LineTerminator); checked over all 65,536 code units in Session 334"
+ },
+ {
+  "name": "C01 the old tag-stripping regex put back",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let i = 0; i < line.length; i++) {\n    if (line[i] !== \"<\") {\n      if (/\\S/.test(line[i])) {\n        return true;\n      }\n      continue;\n    }\n    const end = htmlTagBodyEnd(line, i + 1);\n    if (end < 0) {\n      return true;\n    }\n    i = end - 1;\n  }\n  return false;\n}",
+  "to": "  return line.replace(/<(?:[^>\"']|\"[^\"]*\"|'[^']*')*>/g, \"\").trim() !== \"\";\n}",
+  "expect": "killed",
+  "why": "the Session 318 item's part (4): same answers, n squared on a run of `<` (the clock rows alone)"
+ }
+]
