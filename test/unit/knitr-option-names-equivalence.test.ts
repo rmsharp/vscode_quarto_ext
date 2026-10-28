@@ -245,6 +245,7 @@ describe("Session 334 review — knitrOptionNames on long runs and on characters
 describe("Session 334 review — knitrOptionNames reads a blank run and a long list in linear time", () => {
   const LIMIT_MS = 1000;
   const SIZE = 60_000;
+  const CALLS = 10_000;
   it.each([["blanks", " "], ["tabs", "\t"]] as const)("%s after a name that is followed by no equals sign: `a` x 60,000, 60,000 %s and a letter, no names", (_label, gap) => {
     const args = "a".repeat(SIZE) + gap.repeat(SIZE) + "x";
     const started = performance.now();
@@ -266,7 +267,7 @@ describe("Session 334 review — knitrOptionNames reads a blank run and a long l
   // Without `at = close` after an `options(` call, the scan for the NEXT call restarts inside the one just read: n copies of `options(` followed by one `)` give the same answer and cost n squared (Session 309's line; the
   // 40,000 UNCLOSED calls of `knitr-prints.test.ts` return at the first, so they never reach it). 10,000 take 3.7 s without it and 12 ms with it.
   it("a chunk of 10,000 `options(` and one `)` is read in linear time", () => {
-    const text = "```{r}\n" + "options(".repeat(10_000) + ")\n```\n\n# Z\n";
+    const text = "```{r}\n" + "options(".repeat(CALLS) + ")\n```\n\n# Z\n";
     const started = performance.now();
     const headings = findHeadings(text, "knitr").map((heading) => heading.text);
     const ms = performance.now() - started;
@@ -275,7 +276,7 @@ describe("Session 334 review — knitrOptionNames reads a blank run and a long l
   }, HEAVY_ROW_MS);
 
   it("keeps the sizes and the limit the clock rows above are built on", () => {
-    expect([SIZE, LIMIT_MS]).toEqual([60_000, 1000]);
+    expect([SIZE, LIMIT_MS, CALLS]).toEqual([60_000, 1000, 10_000]);
   });
 });
 

@@ -240,6 +240,7 @@ describe("Session 334 — yamlAliasName: the new function answers what the old a
 // first or last 4,096 or 2^20), a cap on the name or the blanks, a whitespace character no alphabet holds, and a second sigil (`&a` is an anchor, `!a` a tag) left the pins unchanged.
 describe("Session 334 review — yamlAliasName on long values, on every whitespace character and on the other sigils", () => {
   const LIMIT_MS = 1000;
+  const CLOCK_HASHES = 500_000;
   const clock = <T,>(run: () => T): { result: T; ms: number } => {
     const started = performance.now();
     const result = run();
@@ -266,10 +267,14 @@ describe("Session 334 review — yamlAliasName on long values, on every whitespa
   });
 
   // A scan to the end of the value from every `#`, before or after the guard, is a quadratic that keeps every answer, and at native speed (2 ns a character) the 72,000-character rows would pass it: 500,000 cost 2.8 s.
-  it.each([["no terminator: an alias named by the whole run", "*" + "#".repeat(500_000), "#".repeat(500_000)], ["a carriage return and a letter: no alias", "*" + "#".repeat(500_000) + "\rx", null]] as const)("`*` + 500,000 `#`, %s, is read in linear time", (_label, value, expected) => {
+  it.each([["no terminator: an alias named by the whole run", "*" + "#".repeat(CLOCK_HASHES), "#".repeat(CLOCK_HASHES)], ["a carriage return and a letter: no alias", "*" + "#".repeat(CLOCK_HASHES) + "\rx", null]] as const)("`*` + 500,000 `#`, %s, is read in linear time", (_label, value, expected) => {
     const { result, ms } = clock(() => yamlAliasName(value));
     expect(result).toBe(expected);
     expect(ms).toBeLessThan(LIMIT_MS);
+  });
+  // The terminator rows above run on 72,000 and 60,000 characters: 7,200, or a limit of 100 s, would pass the parent too; 50,000 `#` would pass the native-scan quadratic.
+  it("keeps the sizes and the limit of the clock rows of this describe", () => {
+    expect([CLOCK_HASHES, LIMIT_MS]).toEqual([500_000, 1000]);
   });
 
   const LONG: Array<[string, string, string | null]> = [
