@@ -191,3 +191,33 @@ describe("Session 334 — linkAttributesHaveJunk: the new scan answers what the 
     expect(linkAttributesHaveJunk(text)).toBe(expected);
   });
 });
+
+// The review round of Session 334 (mutation lens, `wf_4c0e316d-989`): the enumerations stop at 10 characters and the seeded sample at about 45, so a cap on the search for a `{`, a `}` or the end of the leading run, and a
+// whitespace character no alphabet holds, left the pins unchanged. These rows hold LONG texts and every whitespace character, the answer stated by hand and asked of the old pattern too (which is linear on every shape here:
+// the greedy `\S+` gives back only the few characters after the block).
+describe("Session 334 review — linkAttributesHaveJunk on long texts and on every whitespace character", () => {
+  const LONG: Array<[string, string, boolean]> = [
+    ["a `{` after 5,000 letters", "x".repeat(5_000) + "{a}x", true],
+    ["a `{` after 1,100,000 letters", "x".repeat(1_100_000) + "{a}x", true],
+    ["a `}` 70,000 characters after the `{`", "x{" + "a".repeat(70_000) + "}y", true],
+    ["a `}` 1,100,000 characters after the `{`", "x{" + "a".repeat(1_100_000) + "}y", true],
+    ["5,000 blanks between the URL and the `{`", "/u" + " ".repeat(5_000) + "{a}x", true],
+    ["5,000 blanks between the `}` and the junk", "/u {a}" + " ".repeat(5_000) + "x", true],
+    ["5,000 blanks after the `}` and nothing else", "/u {a}" + " ".repeat(5_000), false],
+    ["a URL of 5,000 letters, a blank, a word and a block after the word", "x".repeat(5_000) + " y {a}x", false],
+    ["a URL of 5,000 letters, a blank and a block with junk", "x".repeat(5_000) + " {a}x", true],
+    ["a `{` after 70,000 tabs behind the URL", "/u" + "\t".repeat(70_000) + "{a}x", true],
+  ];
+  it.each(LONG.map(([label, text, expected]) => [label, text, expected] as const))("%s", (_label, text, expected) => {
+    expect(OLD_LINK_ATTRIBUTE_JUNK.test(text)).toBe(expected);
+    expect(linkAttributesHaveJunk(text)).toBe(expected);
+  });
+
+  // Only a space and a tab are blanks to the pattern's `[ \t]`; any other whitespace character ends the leading run of non-blanks and the block is not found after it, and is no junk after the `}` (`\S` refuses it).
+  it.each([...JS_WHITESPACE].filter((c) => c !== " " && c !== "\t").map((c) => [`U+${c.charCodeAt(0).toString(16).toUpperCase().padStart(4, "0")}`, c] as const))("%s ends the run, and is neither a blank before the `{` nor junk after the `}`", (_label, c) => {
+    for (const text of ["/u" + c + "{#id} x", "/u {#id}" + c + "x", "/u {#id}" + c]) {
+      expect(OLD_LINK_ATTRIBUTE_JUNK.test(text)).toBe(false);
+      expect(linkAttributesHaveJunk(text)).toBe(false);
+    }
+  });
+});

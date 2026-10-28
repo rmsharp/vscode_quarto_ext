@@ -229,6 +229,12 @@ describe("Session 298 — stacked block enders in the free case", () => {
     ["two definitions on one line and a break", "heading", ["[a]:[b]: /u", "***"]],
     ["a definition with junk after its title and a break", "heading", ["[a]: /u 't' x", "***  "]],
     ["a definition with junk after its title and a code line", "blank", ["[a]: /u 't' x", "     code"]],
+    // the third shape, link attributes with junk after them (`linkAttributesHaveJunk`, Session 334's review round: removing the call, asking it of the URL alone, of the first 4,096 characters or of the text after the
+    // first character changed no row of this file)
+    ["a definition with junk after its link attributes and a break", "heading", ["[a]: /u {#id} x", "***  "]],
+    ["a definition with junk after its link attributes and a code line", "blank", ["[a]: /u {#id} x", "     code"]],
+    ["a bare label whose attributes and junk sit on the next line, and a break", "heading", ["[a]:", "/u {#id} x", "***  "]],
+    ["a definition with junk after attributes that touch its URL, and a break", "heading", ["[a]: /u{#id} x", "***  "]],
     ["a definition with no URL and an indented definition", "blank", ["[a]: ", "    [a]: /u"]],
     ["a tilde fence under a prose line, two comments", "blank", ["Para above.", "~~~", "x", "~~~", "<!-- a -->", "<!-- b -->"]],
     ["a raw tilde fence under a prose line, two comments", "blank", ["Para above.", "~~~{=html}", "<i>x</i>", "~~~", "<!-- a -->", "<!-- b -->"]],

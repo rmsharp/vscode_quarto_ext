@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { htmlLineHasText } from "../../src/core/qmd/model";
+import { findHeadings, htmlLineHasText } from "../../src/core/qmd/model";
 import { BOM, JS_WHITESPACE, LS, NBSP, PS, countStrings, everyString, seededRandom } from "./support/regex-equivalence";
 
 // The enumerations take several seconds each on a loaded machine; the sibling equivalence files give their heavy rows the same ceiling.
@@ -95,7 +95,7 @@ function compareAll(texts: Iterable<string>): Count {
 const NARROW = ["<", ">", '"', "'", " ", "x", "/"];
 const WIDE = ["<", ">", '"', " ", "\t", NBSP, LS, PS, "\r", BOM, "x"];
 const GUARD = ["<", "/", "a", "A", "1", " ", "\t", ">", '"'];
-// Tokens, not characters: whole quoted strings holding a `>` or a `<`, whole tags, a tag name with a space, an equals sign.
+// Tokens, not characters: whole quoted strings holding a `>`, whole tags, a tag name with a space, an equals sign.
 const TOKENS = ["<", ">", '"', "'", '"x>y"', "'p>q'", "<b>", "</b>", " ", "z", "<i ", "="];
 
 function* behind(prefix: string, alphabet: readonly string[], maxLength: number): Generator<string> {
@@ -201,5 +201,76 @@ describe("Session 334 — htmlLineHasText: the new scan answers what the old tag
     expect(oldHtmlLineHasText(line)).toBe(expected);
     expect(definitionHasText(line)).toBe(expected);
     expect(htmlLineHasText(line)).toBe(expected);
+  });
+});
+
+// The review round of Session 334 (mutation lens, `wf_4c0e316d-989`): the enumerations above stop at 10 characters and the seeded sample at about 255, so a cap on the scan, on a tag body or on a quoted string, and a
+// whitespace character no alphabet holds, left the pins unchanged. These rows hold LONG lines and every whitespace character, with the answer stated by hand and asked of the old function too (the old function is linear
+// on every shape here; it overflows V8's stack only on a tag body of about 9 million characters, which the last long row of the first describe asks of the new function alone).
+const CURLY_QUOTE = String.fromCharCode(0x2019);
+describe("Session 334 review — htmlLineHasText on long lines and on characters no alphabet holds", () => {
+  const LONG: Array<[string, string, boolean]> = [
+    ["a tag and 150,000 empty tags", "<p>" + "<>".repeat(150_000), false],
+    ["a tag, 150,000 empty tags and a letter", "<p>" + "<>".repeat(150_000) + "x", true],
+    ["a tag and 600,000 empty tags", "<p>" + "<>".repeat(600_000), false],
+    ["a tag, 600,000 empty tags and a letter", "<p>" + "<>".repeat(600_000) + "x", true],
+    ["one tag of 300,000 `<` closed by a `>` (longer than 262,144 characters)", "<p>" + "<".repeat(300_000) + ">", false],
+    ["a double-quoted `>` inside a tag of 300,000 characters", '<a b="' + "x".repeat(300_000) + '>y">', false],
+    ["a double-quoted `>` inside a tag of 5,000 characters", '<a b="' + "x".repeat(5_000) + '>y">', false],
+    ["a single-quoted `>` inside a tag of 5,000 characters", "<a b='" + "x".repeat(5_000) + ">y'>", false],
+    ["a tag of 5,000 characters and a letter after it", "<a " + "x".repeat(5_000) + ">y", true],
+    ["a tag that never closes, 300,000 letters", "<a " + "x".repeat(300_000), true],
+    ["200,000 blanks after a tag", "<a>" + " ".repeat(200_000), false],
+    ["200,000 blanks after a tag and a letter", "<a>" + " ".repeat(200_000) + "x", true],
+    ["200,000 no-break spaces after a tag", "<a>" + NBSP.repeat(200_000), false],
+    ["200,000 tabs before a tag and a letter after it", "\t".repeat(200_000) + "<a>x", true],
+  ];
+  it.each(LONG.map(([label, line, expected]) => [label, line, expected] as const))("%s", (_label, line, expected) => {
+    expect(oldHtmlLineHasText(line)).toBe(expected);
+    expect(htmlLineHasText(line)).toBe(expected);
+  });
+
+  // The old regex kept one backtrack entry per character of a tag body and threw RangeError ("Maximum call stack size exceeded") from about 9 million characters (measured on Node 22, 8,000,000 answered, 9,000,000 threw);
+  // the scan has no such limit. The old function is not asked: whether it throws depends on the engine.
+  it("a tag body of 10,000,000 characters is read, not a stack overflow", () => {
+    expect(htmlLineHasText("<a " + "x".repeat(10_000_000) + ">")).toBe(false);
+    expect(htmlLineHasText("<a " + "x".repeat(10_000_000) + ">y")).toBe(true);
+  });
+
+  it("a backtick or a curly quote hides nothing: the `>` between two of them ends the tag and the rest is text", () => {
+    expect(oldHtmlLineHasText("<a b=`x>y`>")).toBe(true);
+    expect(htmlLineHasText("<a b=`x>y`>")).toBe(true);
+    expect(oldHtmlLineHasText(`<a b=${CURLY_QUOTE}x>y${CURLY_QUOTE}>`)).toBe(true);
+    expect(htmlLineHasText(`<a b=${CURLY_QUOTE}x>y${CURLY_QUOTE}>`)).toBe(true);
+  });
+
+  // `JS_WHITESPACE` is every code unit `\s` and `trim()` take (the link file pins it against all 65,536); a tag line followed by one of them alone is no text, and one before a letter is.
+  it.each([...JS_WHITESPACE].map((c) => [`U+${c.charCodeAt(0).toString(16).toUpperCase().padStart(4, "0")}`, c] as const))("%s after a tag is no text, between two tags is no text, before a letter is text", (_label, c) => {
+    for (const [line, expected] of [["<p>" + c, false], ["<p>" + c + "<b>" + c, false], ["<p>" + c + "x", true]] as const) {
+      expect(oldHtmlLineHasText(line)).toBe(expected);
+      expect(htmlLineHasText(line)).toBe(expected);
+    }
+  });
+
+  // The guard takes an ASCII letter after the `<` (or after `</`) and nothing else. Through the two callers a line that fails it never reaches this function, so only a direct call sees the letter class.
+  it.each(["_", "[", "\\", "]", "^", "`", "!", "?", "é", "1", ":", "-"].map((c) => [c] as const))("`<%s` is no tag start: the line has no text for the guard to see", (c) => {
+    expect(oldHtmlLineHasText("<" + c + "a>x")).toBe(false);
+    expect(htmlLineHasText("<" + c + "a>x")).toBe(false);
+    expect(oldHtmlLineHasText("</" + c + "a>x")).toBe(false);
+    expect(htmlLineHasText("</" + c + "a>x")).toBe(false);
+  });
+});
+
+// The two callers, asked on documents the rows above do not hold. The answers are what the PARENT (`08b271f`, before the cure) gave for the same documents, checked in Session 334's review round (found by a random search; a pin
+// of the wiring, not a claim about what quarto renders). Without the first the call `endsFreshHtml` makes is unobserved; without the second the indented-tag clause of `isTableHeaderCandidate` is.
+describe("Session 334 review — the two htmlLineHasText callers on documents the rows above do not hold", () => {
+  const rows = (text: string): Array<[number, string]> => findHeadings(text).map((heading): [number, string] => [heading.line, heading.text]);
+  it("endsFreshHtml: a tag-only element under -markdown_in_html_blocks ends no block, so the cell opener below it is not a code cell", () => {
+    expect(rows("---\nfrom: markdown-markdown_in_html_blocks\n---\n\n<button></button>\n<p></p>\n<img src=x>\n- - -\n<div>\n    1\n# Z\n")).toEqual([]);
+    expect(rows("---\nfrom: markdown-markdown_in_html_blocks\n---\n\n<div></div>\n<img src=x>\n- - -\nx y\n-------\n<div>x</div>\n    ```{python}\n# Z\n")).toEqual([]);
+  });
+  it("isTableHeaderCandidate: an indented tag line that begins a block is a header row, so the dash rule below it is a table's", () => {
+    expect(rows("\t<p>\n- - -\n<p></p>\n    1\n# Z\n")).toEqual([]);
+    expect(rows("---\nfrom: markdown+native_divs\n---\n\n\t<p>\n- - -\n    1\n    ```{python}\n# Z\n")).toEqual([]);
   });
 });
