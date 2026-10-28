@@ -5,7 +5,7 @@ import { LS, NBSP, countStrings, everyString, seededRandom, slowestExec } from "
 // The enumerations take 2 to 23 s on a loaded machine; the sibling equivalence files give their heavy rows the same ceiling.
 const HEAVY_ROW_MS = 120_000;
 
-// Session 330 — the BACKLOG item "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", parts (2) and (3).
+// Session 330 — the former BACKLOG item (closed, CHANGELOG: Session 334) "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", parts (2) and (3).
 // `buildHeading` cut a heading's closing-hash run (the pandoc `markdown*` readers) and its trailing attribute block by two regexes, `ATX_CLOSING_PANDOC` and `HEADING_ATTRIBUTE`, each opening with a
 // backslash-parity lookbehind and each failing only at the end of the line. They are now `atxClosingPandocStart` and `headingAttributeStart`, which scan back from the end and answer the INDEX the
 // regex matched at (-1 for none). That is only sound if the answer is the SAME on EVERY text, so the two regexes are kept below, copied character for character from the parent `c0647be`

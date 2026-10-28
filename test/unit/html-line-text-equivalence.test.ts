@@ -5,7 +5,7 @@ import { BOM, JS_WHITESPACE, LS, NBSP, PS, countStrings, everyString, seededRand
 // The enumerations take several seconds each on a loaded machine; the sibling equivalence files give their heavy rows the same ceiling.
 const HEAVY_ROW_MS = 120_000;
 
-// Session 334 — the BACKLOG item "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", part (4).
+// Session 334 — the former BACKLOG item (closed, CHANGELOG: Session 334) "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", part (4).
 // `htmlLineHasText` answered "does a raw HTML line leave TEXT behind its tags" by stripping every tag with a global regex, `/<(?:[^>"']|"[^"]*"|'[^']*')*>/g`, and trimming what was left. A `<` that opens no
 // tag (no `>` outside the quotes reaches it) stays in the text, so the answer is already TRUE at the first one, and the global regex went on trying every later `<` for nothing: each of a run of n of them
 // read to the end of the line, n squared. It is now one left-to-right scan that answers at the first character that is not whitespace and not inside a tag. The old function is kept below, copied from the

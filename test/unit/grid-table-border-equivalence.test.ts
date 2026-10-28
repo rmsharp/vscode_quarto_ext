@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { GRID_TABLE_BORDER } from "../../src/core/qmd/model";
 import { compare, countStrings, everyString, IDEOGRAPHIC, LS, NBSP, PS, seededRandom, slowestExec } from "./support/regex-equivalence";
 
-// Session 333 — the BACKLOG item "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", part (1). `GRID_TABLE_BORDER` was
+// Session 333 — the former BACKLOG item (closed, CHANGELOG: Session 334) "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", part (1). `GRID_TABLE_BORDER` was
 // `/^\+[-+=:]*[-=:][-+=:]*[ \t]*$/`: two stars around one required class, so a run of n class characters followed by a blank and one more class character cost n squared. It is now
 // `/^\+(?=[-+=:]*[-=:])[-+=:]*[ \t]*$/` (a lookahead that asks once whether the run holds a `-`, `=` or `:`, then one star, then the blanks). The two classes of the tail (`[-+=:]` and `[ \t]`) share no
 // character, so after the lookahead the rest has one way to match. This file keeps the OLD spelling as the oracle (Learning 738) and checks the two against each other on every enumeration below; a

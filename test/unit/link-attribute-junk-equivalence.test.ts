@@ -5,7 +5,7 @@ import { IDEOGRAPHIC, JS_WHITESPACE, LS, NBSP, PS, countStrings, everyString, se
 // The enumerations take several seconds each on a loaded machine; the sibling equivalence files give their heavy rows the same ceiling.
 const HEAVY_ROW_MS = 120_000;
 
-// Session 334 — the BACKLOG item "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", part (5).
+// Session 334 — the former BACKLOG item (closed, CHANGELOG: Session 334) "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", part (5).
 // `linkDefinitionAt` refuses a link-reference definition whose link ATTRIBUTES have junk after them (`[a]: /u {#id} x`): it asked `/^\S+[ \t]*\{[^}]*\}[ \t]*\S/` of the text after `[a]:`. When that text
 // is itself a long run of `{` (a URL of braces) the greedy `\S+` takes the whole run and gives it back one `{` at a time, and each `{` read on to the end of the text looking for a `}`: n squared. It is now
 // `linkAttributesHaveJunk`, which finds the first `{` that can open the block (inside the leading run of non-blanks, at index 1 or later, or right after the blanks that follow the run), the first `}` after

@@ -5,7 +5,7 @@ import { NBSP, countStrings, everyString, seededRandom } from "./support/regex-e
 // The enumerations take several seconds each on a loaded machine; the sibling equivalence files give their heavy rows the same ceiling.
 const HEAVY_ROW_MS = 120_000;
 
-// Session 334 — the BACKLOG item "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", part (6).
+// Session 334 — the former BACKLOG item (closed, CHANGELOG: Session 334) "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", part (6).
 // `knitrCodeMasksPrinters` reads the NAMES assigned in the argument list of an `options(` call (anything but a number-format option masks a printing call). It listed them with the unanchored global pattern
 // `/([A-Za-z.][\w.]*)[ \t]*=/g`, which tries every letter of a run of name characters as a start and reads each to the end of the run looking for an `=`: a run of n letters cost n squared. It is now
 // `knitrOptionNames`, which finds each MAXIMAL run of `[\w.]` once (a start inside a run can only succeed where the run's own first letter or dot would, so the lookbehind keeps a start from following a name
