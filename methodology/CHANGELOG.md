@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-28 · [ad hoc] Session 332: the quality-gate run cited in the receipt -- 2/2 pass at 8efa6ac
+
+`quality_ratchet.py --run`, after the ledger commits (Learning 683): ledger-lag 0 and release-gate 0 (`npm run check-package`), 2 pass, 0 fail, 0 unmeasured, results `bba236856bad`, manifest `334939914945`. The `HANDOFFS.md` receipt's `quality_ratchet:` line says the same. `check-package` had gone red once earlier in the session on an empty file named `=` in the repo root (made by an unquoted heredoc, removed before the run recorded here).
+
 ### 2026-10-28 · [ad hoc] SESSION_NOTES trim (Session 332): the Session 328 handoff evaluation and the Session 329 self-assessment dropped, the three newest pairs kept
 
 The retention rule of Session 256 (the live file holds at most three close-out pairs), applied at Phase 3D in `35e0d31` after the close-out commit `2689893`; the trim commit holds no other edit to the file (40 lines deleted, none added). The dropped pair is one command away: `git show 2689893:methodology/SESSION_NOTES.md`. The file is 290 lines and about 45,000 bytes against the 400-line and 120,000-byte ceilings, and no line is over 280 bytes.
