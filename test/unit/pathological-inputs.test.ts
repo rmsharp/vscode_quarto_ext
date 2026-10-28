@@ -2061,7 +2061,7 @@ describe("Session 332 — a long paragraph of consecutive lines under a CommonMa
 
 describe("Session 333 — a table-border-shaped line holding a long run of dashes and a tail the border pattern refuses", () => {
   // The BACKLOG item "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", part (1). `tableShapedLineIsBlock` asks `GRID_TABLE_BORDER`
-  // (`/^\+[-+=:]*[-=:][-+=:]*[ \t]*$/`) of a line that starts with `+` and holds only `-`, `+`, `=`, `:` and spaces (`PLUS_ONLY_ROW` is the gate: a tail of any other character never reaches it). The pattern
+  // (`/^\+[-+=:]*[-=:][-+=:]*[ \t]*$/`) of a line that starts with `+` and holds only `-`, `+`, `=`, `:` and spaces (`PLUS_ONLY_ROW` gates the line's OWN question only: a tail of any other character never reaches the pattern that way, but the neighbour scan and the third call site ask it of a line with no gate, so the rows below with an `x` tail beside a border are RED too). The pattern
   // has two stars around one required class, so for a run of n characters followed by a space and one more class character (which the blank-tail cannot absorb) the first star takes the run, gives one back to the
   // required class, the second star takes the rest and `[ \t]*$` fails; every further give-back of the first star repeats that walk: n squared. Profile (Session 333, `node --cpu-prof`, `+` + `-` x 20,000 + ` -`, load
   // near 8): 96.5% of the time in that one pattern. The reader does not matter (the pattern is asked under `gfm`, `commonmark_x`, `markdown_github` and `markdown_strict` alike, rows below), and a long line is asked
@@ -2075,7 +2075,9 @@ describe("Session 333 — a table-border-shaped line holding a long run of dashe
   type GridRow = { site: string; from: string | null; unit: string; many: number; build: (run: string) => string; headings: Array<[number, string]> };
 
   const GRID_ROWS: GridRow[] = [
-    // Controls: fast on the parent too (the gate refuses the line, no class character follows the blank, the first attempt matches, the line is inside a list item, or a long blank run sits between class characters), so they cannot be RED there; they hold the cure to the same answers at the same size.
+    // Controls: fast on the parent too, so they cannot be RED there; they hold the cure to the same answers at the same size, and the last four are the inputs that a wrong respelling of the cure is slow on (rows 6 to 9: the mutants C04 and R01 to R03 of the mutation lists).
+    // Why each is fast on the parent: row 1 the gate refuses the line; row 2 no `-`, `=` or `:` comes before the blank; rows 3 and 4 the first attempt matches; row 5 the line is inside a list item; row 6 one long blank run sits between two class characters;
+    // row 7 every run is one character long; row 8 the only required class character comes before a run of `+`, which the old first star gives back in one pass; row 9 the same for a run of tabs, in a line only a neighbour asks about.
     { site: "control: 30,000 dashes, a space and an `x` (the gate refuses the tail)", from: null, unit: "-", many: 30_000, build: (run) => `+${run} x\n# H\n`, headings: [] },
     { site: "control: 30,000 `+`, a space and a dash (no required class before the blank)", from: null, unit: "+", many: 30_000, build: (run) => `+${run} -\n# H\n`, headings: [[1, "H"]] },
     { site: "control: a real border of 30,000 dashes", from: null, unit: "-", many: 30_000, build: (run) => `+${run}+\n# H\n`, headings: [] },
@@ -2083,6 +2085,8 @@ describe("Session 333 — a table-border-shaped line holding a long run of dashe
     { site: "control: 30,000 dashes, a space and a dash inside a list item", from: null, unit: "-", many: 30_000, build: (run) => `- +${run} -\n\n  # H\n`, headings: [[2, "H"]] },
     { site: "control: a dash, 64,000 spaces and a dash (one long blank run, then a class character)", from: null, unit: " ", many: 64_000, build: (run) => `+-${run}-\n# H\n`, headings: [[1, "H"]] },
     { site: "control: 30,000 pairs of a dash and a space, then a dash", from: null, unit: "- ", many: 30_000, build: (run) => `+${run}-\n# H\n`, headings: [[1, "H"]] },
+    { site: "control: a dash, 30,000 `+`, a space and a dash (a run of `+` after the only required class character)", from: null, unit: "+", many: 30_000, build: (run) => `+-${run} -\n# H\n`, headings: [[1, "H"]] },
+    { site: "control: a border above a dash, 64,000 tabs and a dash (a tab run, asked of a neighbour only)", from: null, unit: "\t", many: 64_000, build: (run) => `+-+\n+-${run}-\n# H\n`, headings: [] },
 
     // The question for the line itself: the run, a space and one more class character, for each class character and each tail character, with the heading below, above, and a paragraph above.
     { site: "line: 30,000 dashes, a space and a dash, a heading below", from: null, unit: "-", many: 30_000, build: (run) => `+${run} -\n# H\n`, headings: [[1, "H"]] },
@@ -2099,6 +2103,12 @@ describe("Session 333 — a table-border-shaped line holding a long run of dashe
     // The neighbour scan: a border next to the long line asks the pattern of the long line too (once for a border above, twice for a border on each side).
     { site: "neighbour: a border above 20,000 dashes, a space and a dash", from: null, unit: "-", many: 20_000, build: (run) => `+-+\n+${run} -\n# H\n`, headings: [] },
     { site: "neighbour: a border above and a border below 18,000 dashes, a space and a dash", from: null, unit: "-", many: 18_000, build: (run) => `+-+\n+${run} -\n+-+\n# H\n`, headings: [] },
+    { site: "neighbour: a border above 24,000 dashes and an `x` (a neighbour is not gated by the line's own question)", from: null, unit: "-", many: 24_000, build: (run) => `+-+\n+${run}x\n# H\n`, headings: [] },
+
+    // The third call site (`tableOrLineBlockEndsAt`, the count of borders in a run of `+` lines) is asked when the line right after the run is a rule (`* * *`, `- - -`, `---`) or an indented cell opener (four spaces or a tab). It tests every line of the run,
+    // so a long line in it is tested again for each such question (1 and 2 long calls in the two rows below, counted with a wrapper at 5,000 dashes, Session 333 review); the rows have an `x` tail, which only the neighbour scan and this site ask of a line.
+    { site: "third site: a border, 22,000 dashes, a space and an `x`, then a `* * *` rule", from: null, unit: "-", many: 22_000, build: (run) => `+-+\n+${run} x\n* * *\n# H\n`, headings: [] },
+    { site: "third site: a border, 16,000 dashes, a space and an `x`, then an indented cell opener", from: null, unit: "-", many: 16_000, build: (run) => `+-+\n+${run} x\n    \`\`\`{bash}\n# H\n`, headings: [] },
 
     // The reader does not matter: the same line under four `from:` values.
     { site: "reader: 30,000 dashes, a space and a dash under from: markdown_strict", from: "markdown_strict", unit: "-", many: 30_000, build: (run) => `+${run} -\n# H\n`, headings: [[5, "H"]] },
@@ -2129,9 +2139,10 @@ describe("Session 333 — a table-border-shaped line holding a long run of dashe
   it("keeps the sizes, the limit and the units the Session 333 rows are built on", () => {
     expect([GRID_FEW, GRID_LIMIT_MS]).toEqual([4, 1000]);
     expect(GRID_ROWS.map((row) => `${row.unit}x${row.many}`)).toEqual([
-      "-x30000", "+x30000", "-x30000", "=x30000", "-x30000", " x64000", "- x30000",
+      "-x30000", "+x30000", "-x30000", "=x30000", "-x30000", " x64000", "- x30000", "+x30000", "\tx64000",
       "-x30000", "-x30000", "-x30000", "=x30000", ":x30000", "-+x20000", "-x30000", "-x30000", "-x30000", "-x30000",
-      "-x20000", "-x18000",
+      "-x20000", "-x18000", "-x24000",
+      "-x22000", "-x16000",
       "-x30000", "-x30000", "-x30000", "-x30000",
     ]);
   });

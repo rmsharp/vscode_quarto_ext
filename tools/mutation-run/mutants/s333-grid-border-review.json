@@ -1,0 +1,122 @@
+[
+ {
+  "name": "R01 a `+` star touching the class star",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*\\+*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "keeps every answer and is quadratic on a run of `+` after the only required class character and a tail the blanks cannot absorb (`+-`, 30,000 `+`, ` -`: 719 ms at 15,000 and 2.9 s at 30,000 on the pattern alone); the million-character row of the oracle file never builds that shape. Killed by the control row \"a dash, 30,000 `+`, a space and a dash\" alone"
+ },
+ {
+  "name": "R02 a tab star touching the blank star",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*\\t*$/;",
+  "expect": "killed",
+  "why": "keeps every answer and is quadratic in a run of tabs (468 ms at 32,000 and 1.9 s at 64,000 on the pattern alone); `PLUS_ONLY_ROW` refuses a tab, so only the neighbour scan and the third site can hand the pattern such a line. Killed by the control row \"a border above a dash, 64,000 tabs and a dash\" alone"
+ },
+ {
+  "name": "R03 the old spelling put back at the third site only",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (GRID_TABLE_BORDER.test(lines[j])) {",
+  "to": "if (/^\\+[-+=:]*[-=:][-+=:]*[ \\t]*$/.test(lines[j])) {",
+  "expect": "killed",
+  "why": "the third call site (`tableOrLineBlockEndsAt`) tests the lines of a run again for each rule line or indented cell opener right under it; before the review no row sent a long line there (the Session 333 probes had neither), and S04 (the count never counts) is killed only by short-line rows of the older suites. Killed by the two \"third site\" rows"
+ },
+ {
+  "name": "R04 the old spelling put back at the neighbour scan only",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (GRID_TABLE_BORDER.test(otherShape)) {",
+  "to": "if (/^\\+[-+=:]*[-=:][-+=:]*[ \\t]*$/.test(otherShape)) {",
+  "expect": "killed",
+  "why": "the neighbour scan asks the pattern of a neighbour with no `PLUS_ONLY_ROW` gate, so a border beside a long line with an `x` tail reaches it too. Killed by the two \"neighbour\" rows with a dash tail and by the \"neighbour\" row with an `x`"
+ },
+ {
+  "name": "R05 the old spelling put back at the line's own question only",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!GRID_TABLE_BORDER.test(loose)) {",
+  "to": "if (!/^\\+[-+=:]*[-=:][-+=:]*[ \\t]*$/.test(loose)) {",
+  "expect": "killed",
+  "why": "the line's own question (after the `PLUS_ONLY_ROW` gate). Killed by the \"line\" and \"reader\" rows"
+ },
+ {
+  "name": "R06 the run class takes a bar",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:|]*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "`+-|-` is accepted: a cell bar inside a border (a stated refusal, and `|` is in the wider alphabet of the 111,111-string enumeration). At document level `+---+`, `+--|--+`, `--|--`, `# H` gives no heading at the head and `[[3, \"H\"]]` with this edit (Session 333 review, reproduced here)"
+ },
+ {
+  "name": "R07 the blank class takes a form feed",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t\\f]*$/;",
+  "expect": "killed",
+  "why": "`+-\\f` is accepted; the stated refusal and the enumeration over the wider alphabet see it. At document level `> a`, `+---\\f`, `+---+`, `# H` gives no heading at the head and `[[3, \"H\"]]` with this edit: the lazy continuation of a quoted paragraph is the one context where the neighbour scan is asked with a paragraph open (Session 333 review, reproduced here)"
+ },
+ {
+  "name": "R08 the blank class takes a vertical tab",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t\\v]*$/;",
+  "expect": "killed",
+  "why": "`+-\\v` is accepted (a stated refusal)"
+ },
+ {
+  "name": "R09 the blank class takes a no-break space",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t\\u00a0]*$/;",
+  "expect": "killed",
+  "why": "`+-` and a no-break space is accepted (a stated refusal, and the wider alphabet holds one); the quoted-paragraph document of R07 with a no-break space in place of the form feed gives `[[3, \"H\"]]` with this edit and nothing at the head (reproduced here)"
+ },
+ {
+  "name": "R10 the blank class takes an ideographic space",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t\\u3000]*$/;",
+  "expect": "killed",
+  "why": "`+-` and U+3000 is accepted (a stated refusal)"
+ },
+ {
+  "name": "R11 the lookahead's run takes a bar",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:|]*[-=:])[-+=:]*[ \\t]*$/;",
+  "expect": "survives",
+  "why": "the lookahead can only see a `|` that the next star cannot read, and then the line is refused at that `|` anyway: a string `+`, class characters, blanks is accepted by this edit exactly when it is by the source. Run against the oracle on the 111,111-string wider-alphabet enumeration (which holds `|`) and the 960,800-, 2,441,406- and 1,398,101-string ones: 0 differences"
+ },
+ {
+  "name": "R12 a cap of 40,000 on the run",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]{0,40000}[ \\t]*$/;",
+  "expect": "killed",
+  "why": "a border longer than 40,000 characters is refused; the answer on `+` and a million dashes is asserted by the oracle file's last row (before the review nothing built an accepted line past 30,001 characters)"
+ },
+ {
+  "name": "R13 a cap of 1,002 on the blanks",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]{0,1002}$/;",
+  "expect": "killed",
+  "why": "a border followed by more than 1,002 blanks is refused; the oracle file's last row asserts `+-` and a million spaces is accepted"
+ },
+ {
+  "name": "R14 a cap of 5,000 on the lookahead's run",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]{0,5000}[-=:])[-+=:]*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "a run of more than 5,000 `+` before the first `-`, `=` or `:` is refused; the oracle file's last row asserts `+`, a million `+` and a dash is accepted"
+ },
+ {
+  "name": "R15 a cap of 40,000 on the lookahead's run",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]{0,40000}[-=:])[-+=:]*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "the same at 40,000"
+ }
+]

@@ -5143,12 +5143,15 @@ export const TABLE_RULE_ROW =
  */
 const LINE_BLOCK_START = /^\|([ \t]|$)/;
 /**
- * A grid table's border line, as the docstring above describes it: a plus, class characters (`-`, `+`, `=`, `:`) holding at least one of `-`, `=` or `:`, then blanks.
+ * A grid table's border line: a plus, class characters (`-`, `+`, `=`, `:`) holding at least one of `-`, `=` or `:`, then trailing blanks. The docstring above (the one on `LINE_BLOCK_START`) says a border "FORBIDS A SPACE" and means an INTERIOR one;
+ * a trailing blank is allowed (`qmd-model.test.ts`, Session 235 C5).
  *
  * ⚠ **The required class is asked by a LOOKAHEAD, not by a second star (Session 333).** The old spelling, `/^\+[-+=:]*[-=:][-+=:]*[ \t]*$/`, had two stars around the one required class, so for a run of n class
- * characters followed by a blank and one more class character (`+` and 30,000 dashes and ` -`, which `PLUS_ONLY_ROW` lets through) the first star gave back one position at a time and the second star read the rest again
- * each time: n squared, 3.4 s at 30,000. The lookahead answers "does the run hold one?" once and is not given back to (a lookahead is atomic); the one star after it meets the blanks, which share no
- * character with the class, so the rest has a single way to match. The two spellings accept the same strings: `grid-table-border-equivalence.test.ts` keeps the old one as the oracle.
+ * characters followed by a tail the pattern cannot read (a blank and one more class character, `+` and 30,000 dashes and ` -`, which `PLUS_ONLY_ROW` lets through for the line's own question; or any character outside both
+ * classes, such as `x`, when a border beside the line makes the neighbour scan ask it with no gate) the first star gave back one position at a time and the second star read the rest again each time: n squared, about 3 to 4 s
+ * at 30,000 (load-dependent). The lookahead answers "does the run hold one?" once and is not given back to (a lookahead is atomic); the one star after it meets the blanks, which share no character with the class, so the
+ * rest has a single way to match. The two spellings accept the same strings: `grid-table-border-equivalence.test.ts` keeps the old one as the oracle. Two stars that touch are a place to go quadratic again
+ * even when every answer stays the same; the document rows hold a control for each such respelling tried (C03 and C04 in `mutants/s333-grid-border-clock.json`, R01 and R02 in `-review.json`, the last two found by the review).
  */
 export const GRID_TABLE_BORDER = /^\+(?=[-+=:]*[-=:])[-+=:]*[ \t]*$/;
 const GRID_TABLE_ROW = /^\|/;
