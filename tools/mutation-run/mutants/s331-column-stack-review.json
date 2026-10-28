@@ -1,0 +1,162 @@
+[
+  {
+    "name": "N01 popAbove loop guard on an empty stack: undefined > column is false",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "while (this.cols.length > 0 && this.cols[this.cols.length - 1] > column) {",
+    "to": "while (this.cols.length >= 0 && this.cols[this.cols.length - 1] > column) {",
+    "expect": "survives",
+    "why": "equivalent: on an empty stack the top read is undefined, and undefined > column is false"
+  },
+  {
+    "name": "N02 push drops the distinct-columns snapshot on every push, not only when the set changes",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "    if (this.hold(this.held, column)) {\n      this.distinct = null;\n    }\n    if (commonmark && this.hold(",
+    "to": "    this.hold(this.held, column);\n    this.distinct = null;\n    if (commonmark && this.hold(",
+    "expect": "killed",
+    "why": "test gap (identity only): columns() is rebuilt after a push of a column already held; no test pushes between two columns() calls; no clock row can see it because the per-line spreads already cost O(distinct)"
+  },
+  {
+    "name": "N03 pop drops the distinct-columns snapshot on every pop",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "    if (this.release(this.held, column)) {\n      this.distinct = null;\n    }",
+    "to": "    this.release(this.held, column);\n    this.distinct = null;",
+    "expect": "killed",
+    "why": "test gap (identity only), same as N02 for pop"
+  },
+  {
+    "name": "N04 push drops the commonmark snapshot on every push, even of a non-commonmark entry",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "    if (commonmark && this.hold(this.heldCommonmark, column)) {\n      this.distinctCommonmark = null;\n    }",
+    "to": "    if (commonmark) {\n      this.hold(this.heldCommonmark, column);\n    }\n    this.distinctCommonmark = null;",
+    "expect": "killed",
+    "why": "test gap (identity only): commonmarkColumns() rebuilt after a non-commonmark push"
+  },
+  {
+    "name": "N05 pop drops the commonmark snapshot on every pop",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "    if (commonmark === true && this.release(this.heldCommonmark, column)) {\n      this.distinctCommonmark = null;\n    }",
+    "to": "    if (commonmark === true) {\n      this.release(this.heldCommonmark, column);\n    }\n    this.distinctCommonmark = null;",
+    "expect": "killed",
+    "why": "test gap (identity only): commonmarkColumns() rebuilt after a pop"
+  },
+  {
+    "name": "N06 columns() in reverse insertion order (the set claim)",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "this.distinct ??= Array.from(this.held.keys());",
+    "to": "this.distinct ??= Array.from(this.held.keys()).reverse();",
+    "expect": "survives",
+    "why": "equivalent: the readers take the columns as a set (1,000,000 generated documents differ in 0)"
+  },
+  {
+    "name": "N07 columns() ascending (the set claim)",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "this.distinct ??= Array.from(this.held.keys());",
+    "to": "this.distinct ??= Array.from(this.held.keys()).sort((a, b) => a - b);",
+    "expect": "survives",
+    "why": "equivalent: as N06, ascending order"
+  },
+  {
+    "name": "N08 commonmarkColumns() in reverse insertion order (the set claim)",
+    "file": "src/core/qmd/column-stack.ts",
+    "from": "this.distinctCommonmark ??= Array.from(this.heldCommonmark.keys());",
+    "to": "this.distinctCommonmark ??= Array.from(this.heldCommonmark.keys()).reverse();",
+    "expect": "survives",
+    "why": "equivalent: as N06, commonmarkColumns() reversed"
+  },
+  {
+    "name": "N15 the blank-line restore without the inQuote term (argued equivalent: outerColumns is non-null only while inQuote)",
+    "file": "src/core/qmd/model.ts",
+    "from": "if (inQuote && outerColumns !== null) {\n        columnStack = outerColumns.stack;",
+    "to": "if (outerColumns !== null) {\n        columnStack = outerColumns.stack;",
+    "expect": "survives",
+    "why": "equivalent: outerColumns is non-null only while inQuote is true (both exits null it); 730,915 generated documents differ in 0"
+  },
+  {
+    "name": "N16 the live marker columns are only the commonmark entries",
+    "file": "src/core/qmd/model.ts",
+    "from": "rawMarkerStash ?? columnStack.columns()",
+    "to": "rawMarkerStash ?? columnStack.commonmarkColumns()",
+    "expect": "killed",
+    "why": "test gap, witness 'A. a' / '' / TAB '> # H' (default reader): cure and parent [[1,'H',2]], mutant []"
+  },
+  {
+    "name": "N17 the stash is read when the columns are used, not when the line starts",
+    "file": "src/core/qmd/model.ts",
+    "from": "    const rawMarkerStash: readonly number[] | null = outerColumns !== null ? outerColumns.rawColumns : null;\n    const rawMarkerColumns = (): readonly number[] => rawMarkerStash ?? columnStack.columns();",
+    "to": "    const rawMarkerColumns = (): readonly number[] => (outerColumns !== null ? outerColumns.rawColumns : null) ?? columnStack.columns();",
+    "expect": "killed",
+    "why": "test gap, witness ': a' / '' / 8 spaces 'A. a' / 4 spaces '> ===' : cure and parent [[1,'A. a',2]], mutant []"
+  },
+  {
+    "name": "N24 a div is judged moved only by a deeper stack",
+    "file": "src/core/qmd/model.ts",
+    "from": "columnStack.length !== div.containerDepth",
+    "to": "columnStack.length > div.containerDepth",
+    "expect": "survives",
+    "why": "argued equivalent: a stack SHALLOWER than the div's opening depth always follows a pop (or the table dash column's blank line pop) and the next line's pop block auto-closes the div first; 194,653 generated documents differ in 0"
+  },
+  {
+    "name": "N26 the entries still open at an ATX heading are counted one column further",
+    "file": "src/core/qmd/model.ts",
+    "from": "columnStack.countAtOrBelow(indentColumn(line))",
+    "to": "columnStack.countAtOrBelow(indentColumn(line) + 1)",
+    "expect": "killed",
+    "why": "test gap, witness commonmark_x ': a' / 'A. a' / '' / '   ::: {.callout-note}' / '   # T' / '   text' / '   :::' (a buried definition column at heading indent + 1): cure and parent [[1,'T',8]], mutant []"
+  },
+  {
+    "name": "N27 a div's host column is the deepest column one past the fence",
+    "file": "src/core/qmd/model.ts",
+    "from": "hostColumn: columnStack.columnsAtOrBelow(divFence!.column).reduce(",
+    "to": "hostColumn: columnStack.columnsAtOrBelow(divFence!.column + 1).reduce(",
+    "expect": "survives",
+    "why": "no witness found (1.3M generated documents, quote variants): hostColumn is read only by the marked-blank loop and needs an inner column exactly one past the fence's raw column; like W42 of the tracked list"
+  },
+  {
+    "name": "N30 the container block's code-depth test sees only the commonmark entries",
+    "file": "src/core/qmd/model.ts",
+    "from": "if (!indentedCodeLine(line, columnStack.columns())) {",
+    "to": "if (!indentedCodeLine(line, columnStack.commonmarkColumns())) {",
+    "expect": "killed",
+    "why": "test gap, witness ' A. a' / '    * b' / '===' (default reader): cure and parent [[1,'b',1]], mutant []"
+  },
+  {
+    "name": "N33 the empty-sibling-item test reads the wrong line's indent",
+    "file": "src/core/qmd/model.ts",
+    "from": "columnStack.hasListSiblingAt(indentColumn(lines[i + 1]));",
+    "to": "columnStack.hasListSiblingAt(indentColumn(lines[i]));",
+    "expect": "killed",
+    "why": "test gap, witness '-' / ' ## H' / '-' (default reader): cure and parent [[2,'H',1]], mutant []"
+  },
+  {
+    "name": "N35 top-level bullet break: only a LIST column counts as a container",
+    "file": "src/core/qmd/model.ts",
+    "from": "          columnStack.length === 0 && !stripQuote && BULLET_THEMATIC_BREAK.test(line) && !(dashLineHasHeaderAbove",
+    "to": "          !columnStack.hasList() && !stripQuote && BULLET_THEMATIC_BREAK.test(line) && !(dashLineHasHeaderAbove",
+    "expect": "killed",
+    "why": "test gap, witness ': a' / '    2) a' / '    * * *' / TAB '===' : cure and parent [[1,'* * *',2]], mutant []"
+  },
+  {
+    "name": "N36 comment opener: only a LIST column counts as a container",
+    "file": "src/core/qmd/model.ts",
+    "from": "      columnStack.length === 0 &&\n      !stripQuote &&\n      /^ {0,3}<!--/.test(line) &&",
+    "to": "      !columnStack.hasList() &&\n      !stripQuote &&\n      /^ {0,3}<!--/.test(line) &&",
+    "expect": "survives",
+    "why": "argued equivalent: a comment opener at indent 0-3 under a CommonMark reader runs cmBlockStartEndsItems, whose pop empties a stack that holds no list (every definition column is 4 or more); 926,824 generated documents differ in 0"
+  },
+  {
+    "name": "N37 raw HTML block: only a LIST column counts as a container",
+    "file": "src/core/qmd/model.ts",
+    "from": "(!(columnStack.length > 0 || stripQuote)",
+    "to": "(!(columnStack.hasList() || stripQuote)",
+    "expect": "killed",
+    "why": "test gap, witness commonmark_x '~ a' / '<![CDATA[' / '# K': cure and parent [[1,'K',6]], mutant []"
+  },
+  {
+    "name": "N39 line block: only a LIST column counts as a container",
+    "file": "src/core/qmd/model.ts",
+    "from": "          lineBlocksDialect,\n          columnStack.length === 0,",
+    "to": "          lineBlocksDialect,\n          !columnStack.hasList(),",
+    "expect": "killed",
+    "why": "test gap, witness '| row2' / '  : a' / '  ```' / '      # H' / '  ```' (default reader): cure and parent [], mutant [[1,'H',3]]"
+  }
+]

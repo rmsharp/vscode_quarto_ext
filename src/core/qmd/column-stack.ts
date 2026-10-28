@@ -14,11 +14,15 @@ export type ColumnKind = "list" | "definition";
  *   - `definitionMax[i]` and `lastCommonmark[i]` are prefix aggregates (the deepest definition column, and the latest commonmark entry, among the entries up to and including i), which a pop discards with the entry;
  *   - `listParents` counts the list entries by the column of the entry BELOW them (0 for the bottom one), which is what a sibling marker is compared with;
  *   - `held` and `heldCommonmark` count the entries by column, and `columns()` hands out the DISTINCT columns, because every helper that takes the columns (`indentedCodeLine`, `containerContentColumn`, the setext and
- *     ATX rows, the fence and quote readers) reads them as a SET: the deepest column at or below a given one, or membership. Session 331 checked that two ways: each helper was classified from its code by independent
- *     readers, and the whole unit suite and 100,000 generated documents were run with every helper handed a deduplicated, reversed copy of its array and gave the same answers.
+ *     ATX rows, the fence and quote readers) reads them as a SET: the deepest column at or below a given one, the deepest of all, membership, or whether there are any. Session 331 checked that two ways: each helper was
+ *     classified from its code by independent readers, and the whole unit suite and 100,000 generated documents were run with every helper handed a deduplicated, reversed copy of its array and gave the same answers. Two
+ *     CONSUMERS of a fence candidate's columns are not set readers in the strict sense and cost nothing for it: `makeConsumedCloserLine` keys its scan memo on the array's text (the same set in another order only misses
+ *     the memo) and `hasCloserBelow` spreads it into `Math.max`.
  *
- * `columns()` and `commonmarkColumns()` return a SNAPSHOT: the array is rebuilt, never edited, when the set of columns changes, so a reader that kept an earlier one (a quote's marker columns) keeps what it saw. They are
- * the same array until a column enters or leaves the set, which is why a run of lines that push the same column costs nothing per line.
+ * `columns()` and `commonmarkColumns()` return a SNAPSHOT: the array is rebuilt, never edited, when the set of columns changes, so a caller that kept an earlier one keeps what it saw (`computeRegions` uses each before the
+ * next push or pop, and a quote keeps a fresh `columnsAtOrBelow` array). They are the same array until a column enters or leaves the set, which is why a run of lines that push the same column costs nothing per line.
+ * What stays linear is the per-line cost in the number of DISTINCT columns open (the helpers scan the snapshot), which is at most about the square root of the document's size: 750 nested bullets and then 40,000 `: a` lines
+ * take 0.8 s.
  */
 export class ColumnStack {
   private readonly cols: number[] = [];
@@ -26,7 +30,6 @@ export class ColumnStack {
   private readonly commonmark: boolean[] = [];
   private readonly definitionMax: number[] = [];
   private readonly lastCommonmark: number[] = [];
-  private lists = 0;
   private readonly listParents = new Map<number, number>();
   private readonly held = new Map<number, number>();
   private readonly heldCommonmark = new Map<number, number>();
@@ -41,7 +44,6 @@ export class ColumnStack {
   push(column: number, kind: ColumnKind, commonmark: boolean): void {
     const at = this.cols.length;
     if (kind === "list") {
-      this.lists++;
       const parent = at === 0 ? 0 : this.cols[at - 1];
       this.listParents.set(parent, (this.listParents.get(parent) ?? 0) + 1);
     }
@@ -71,7 +73,6 @@ export class ColumnStack {
     this.definitionMax.pop();
     this.lastCommonmark.pop();
     if (kind === "list") {
-      this.lists--;
       const parent = at === 0 ? 0 : this.cols[at - 1];
       this.release(this.listParents, parent);
     }
@@ -102,7 +103,8 @@ export class ColumnStack {
 
   /** Whether any entry was opened by a list marker. */
   hasList(): boolean {
-    return this.lists > 0;
+    // `listParents` holds a key exactly while a list entry sits above that column.
+    return this.listParents.size > 0;
   }
 
   /** Whether some list entry sits directly on `column`, that is, the entry below it (or the page edge, 0) is at `column`: the column at which an open list would take a sibling marker. */
@@ -110,7 +112,7 @@ export class ColumnStack {
     return (this.listParents.get(column) ?? 0) > 0;
   }
 
-  /** Whether every entry deeper than `column` is a list entry (true for an empty stack). */
+  /** Whether every entry deeper than `column` is a list entry (true for an empty stack). `column` is a line's indent, 0 or more: the "none" of `definitionMax` is -1. */
   deeperAreAllLists(column: number): boolean {
     return this.cols.length === 0 || this.definitionMax[this.cols.length - 1] <= column;
   }

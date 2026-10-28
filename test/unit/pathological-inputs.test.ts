@@ -1811,17 +1811,17 @@ describe("Session 330 — a heading line holding a long run of `#`, backslashes 
 
 describe("Session 331 — consecutive lines that each open a container column nothing closes", () => {
   // Part (1) of the BACKLOG item "More quadratic and stack-overflow shapes found by Session 319's sweep and review". `computeRegions` keeps a stack of container content columns (`contentColumns`, with a kind and a CommonMark flag per entry) and pushes
-  // one for every line that opens a container: a definition marker (`: a`, `~ a`, `[^1]: a`, at any indent, in a quote) and the list markers the model over-accepts (`A. a`, `I. a`, `aa. a`). A line pops only when the line above it is blank
-  // or when it is a marker that closes a LIST item, and none of these does, so N such lines leave a stack of N entries and each of the dozen readers a line asks (`columnKinds.includes`, `.some`, `.every`, `indentedCodeLine`, the `[0, ...contentColumns]`
+  // one for every line that opens a container: a definition marker (`: a`, `~ a`, `[^1]: a`, at an indent that is not code, and in a quote) and the list markers the model over-accepts (`A. a`, `I. a`, `aa. a`). A line pops only in a few
+  // cases (the line above it is blank, a CommonMark block start ends the items, or it is a marker that closes a LIST item, among others), and none of these does, so N such lines leave a stack of N entries and each of the dozen readers a line asks (`columnKinds.includes`, `.some`, `.every`, `indentedCodeLine`, the `[0, ...contentColumns]`
   // spreads, `blockQuoteContentStart`) reads all N: N(N + 1)/2 steps between them. Under `from: commonmark_x` a `~ a` line is also a paragraph line and the setext-title test scans the paragraph so far, spreading the stack for each of its lines:
   // cubic.
   // Profile (Session 331, `node --cpu-prof`, load 7 to 8): `: a` x 16,000 `computeRegions` itself 40.7%, `scanRegions` 27.9% (callees inlined), the `.every` and `.some` callbacks 10.6%, `indentedCodeLine` 5.1%, `blockQuoteContentStart` 4.0%;
   // `~ a` x 2,000 under `commonmark_x` 53% in the paragraph-interrupt callback and 37% in `computeRegions`.
   // Fresh process per size, cold, `findHeadings`, load 6 to 8 (Session 331): `: a` x 2,000 / 4,000 / 8,000 / 16,000 135 / 319 / 990 / 3,927 ms (4x per doubling), `~ a` 131 / 342 / 1,073 / 3,933, `  : a` 3,909, `> : a` 3,956, `[^1]: a` 3,940,
   // `A. a` 4,130, `I. a` 4,140, `aa. a` 4,120; alternating `: a` and `A. a` 4,262 ms at 16,000 lines; `: a` and `  : a` alternating 4,046; every other reader of the regions pays the same (`findAllCells`, `indexLabels`, `buildOutline` 1.1 s at 8,000);
-  // a blank line after each line 92 ms at 16,000; `- a` (a bullet pops its predecessor) 76 ms. Under `commonmark_x`: `~ a` x 250 / 500 / 1,000 / 2,000 52 / 232 / 1,556 / 11,864 ms (8x per doubling), `: a` (not a paragraph line there) linear.
-  // The TAIL of a row is what makes its answer depend on the stack: `# After` after a blank line is a heading whatever the stack held; an indented `# H` is a heading only while the container's column is still known (`: a`, `~ a`, `[^1]: a`, `aa. a`:
-  // yes, column 4 or 3; `A. a`, `I. a`: no), and for a stack that had lost its column it would be indented code.
+  // a blank line after each line 92 ms at 16,000; `- a` (a bullet pops its predecessor) 76 ms. Under `commonmark_x`: `~ a` x 250 / 500 / 1,000 / 2,000 52 / 232 / 1,556 / 11,864 ms (8x per doubling), `: a` (not a paragraph line there, so not cubic) 143 / 363 / 1,184 / 4,530 ms at 2,000 / 4,000 / 8,000 / 16,000, quadratic like the default reader.
+  // The TAIL of a row is what makes its answer depend on the stack: `# After` after a blank line is a heading whatever the stack held; an indented `# H` is a heading only at the container's column, and only while that column is still known (after two of `: a`, `~ a`, `[^1]: a`, `aa. a` the indents 0 and 4 give
+  // a heading, after `A. a`, `I. a` the indents 0 and 3: measured on the parent and the cure, indents 0 to 9), and for a stack that had lost its column it would be indented code.
   // The paragraph factor of that cubic is the BACKLOG item "Eight more regexes and one paragraph reader" part (9): plain `a` lines under `commonmark_x` take 373 / 1,382 / 5,406 / 20,967 ms at 2,000 / 4,000 / 8,000 / 16,000 with an EMPTY stack, so the
   // `commonmark_x` row below is relative to that floor and not an absolute limit.
   const COLUMN_LIMIT_MS = 1000;
@@ -1862,7 +1862,7 @@ describe("Session 331 — consecutive lines that each open a container column no
     { site: "run: 14,000 `~ a`, then an indented heading", entry: "headings", many: 14_000, build: (count) => "~ a\n".repeat(count) + INDENTED, answer: indentedLine },
     { site: "run: 14,000 `[^1]: a`, then an indented heading", entry: "headings", many: 14_000, build: (count) => "[^1]: a\n".repeat(count) + INDENTED, answer: indentedLine },
     { site: "run: 14,000 `aa. a`, then an indented heading", entry: "headings", many: 14_000, build: (count) => "aa. a\n".repeat(count) + INDENTED, answer: indentedLine },
-    { site: "run: 14,000 `A. a`, then an indented heading (not a heading: column 3 plus code depth)", entry: "headings", many: 14_000, build: (count) => "A. a\n".repeat(count) + INDENTED, answer: none },
+    { site: "run: 14,000 `A. a`, then an indented heading (not a heading: after `A. a` the indents that give one are 0 and 3, and this row indents 4)", entry: "headings", many: 14_000, build: (count) => "A. a\n".repeat(count) + INDENTED, answer: none },
 
     // Mixed kinds and columns: a stack that does not repeat one entry, so an encoding of runs would not help.
     { site: "run: 14,000 lines alternating `: a` and `A. a` (a definition column and a list column)", entry: "headings", many: 14_000, build: (count) => lines(count, (i) => (i % 2 === 0 ? ": a" : "A. a")) + AFTER, answer: afterLine },

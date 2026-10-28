@@ -9827,7 +9827,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
   // is what the block's CommonMark TYPE decides and what `prevOpenedHtmlBlock` above (a
   // one-line lookback) cannot express. See `COMMONMARK_HTML_TYPE6_OPEN`.
   let commonmarkHtmlBlock: "blank" | "type1" | null = null;
-  // The content column of every CONTAINER open above this line, ascending, EXCLUDING the
+  // The content column of every CONTAINER open above this line, in the order they were pushed (not always ascending: [4, 6, 4] is a legal stack, Session 331), EXCLUDING the
   // document root's own 0 which is always available (Session 189). This is the state the
   // raw-TeX row's ` {0,3}` was standing in for: pandoc re-parses a container's content
   // DEDENTED, so the container's content column is that sub-document's column 0, and a raw
@@ -9847,8 +9847,8 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
   // the container-maintenance block for why that row cannot use the post-push length.
   let columnsAboveThisLine = 0;
   // Whether each of those columns was opened by a construct the CommonMark readers actually have (Session 202), and what OPENED each one, a list marker or a definition marker (Session 198), are kept inside `columnStack`, entry for entry
-  // with its columns. Only the container POP reads the kind, and only in its no-blank branch: a shallow LIST START closes a LIST ITEM container and does NOT close a FOOTNOTE or DEFINITION-LIST one, so a column alone cannot answer the
-  // question. Measured over 40 documents through the real `quarto render` path (`scratchpad/s198/reg`) — container kind x four shallow spellings: a definition container survives all four, a list item container survives prose only.
+  // with its columns. The kind is read by `hasList`, `hasListSiblingAt`, `topIsList` (the table dash column's pop at a blank line) and, where it matters most, `deeperAreAllLists` in the container pop's no-blank branch: a shallow LIST START closes
+  // a LIST ITEM container and does NOT close a FOOTNOTE or DEFINITION-LIST one, so a column alone cannot answer the question. Measured over 40 documents through the real `quarto render` path (`scratchpad/s198/reg`) — container kind x four shallow spellings: a definition container survives all four, a list item container survives prose only.
   // Whether a BLOCK QUOTE may still be open, which suspends the column rule entirely — see
   // the assignment at the foot of the loop. Measured, and the single largest deletion trap in
   // this change: `> quoted` / `>` / `   \clearpage` / `   # ATX Below` renders the heading
@@ -9987,13 +9987,13 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
     // ⚠ **THE COLUMNS THE RAW LINE IS WRITTEN IN, WHICH ARE NOT ALWAYS THE STASHED ONES
     // (Session 241).** The stash is taken at the quote-entry line, BEFORE that line's own
     // container maintenance has run — so when the marker sits shallower than an open container,
-    // its own line CLOSES that container and `columns` keeps the column anyway. Rendered,
+    // its own line CLOSES that container and `stack` keeps the column anyway. Rendered,
     // `- Kilo item text` / `` / `> Lima Quoted Title` / `  ===` renders `h1:Lima Quoted Title`:
     // the list closed at the quote, so column 2 is not a container column and the underline is
     // lazy (`scratchpad/s241/r2/pop_e2`, `pop_d2`, `olpop_e3`, `mid_e2`, and the corpus row
     // `s192/adv/l06/a28` that Session 234 pinned as C6).
-    // ⚠ **`stack` IS LEFT ALONE ON PURPOSE.** It is what the quote-end block puts back as `columnStack`, a path Session 240 shipped and this session does not touch; the two
-    // answer different questions about the same stash.
+    // ⚠ **`stack` IS LEFT ALONE ON PURPOSE.** It is what the quote-end block puts back as `columnStack`, a path Session 240 shipped (Session 331 changed what it holds, the stack object in place of a copy of the
+    // columns, and nothing about when it is put back); the two answer different questions about the same stash.
     rawColumns: readonly number[];
   } | null = null;
   let inQuote = false;
@@ -10036,7 +10036,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
     // (G6) went red on the blanket spelling within the minute.
     // The container stack the RAW line's own MARKER RUN is measured against (Session 243).
     // ⚠ **IT IS THE OUTER DOCUMENT'S STACK WHENEVER A QUOTE IS OPEN, NOT `contentColumns`**, and
-    // the two are never the same there: entering a quote CLEARS `contentColumns` so the quote's
+    // the two are never the same there: entering a quote starts an EMPTY `columnStack` (it CLEARED `contentColumns` before Session 331) so the quote's
     // content is measured from its own column 0, while the marker run is still written in the
     // DOCUMENT ROOT's coordinates. Measured — `-   item` / `` / `    > alpha` / `    >` / a
     // marker swept 0-9 renders the heading at 0-7 and not at 8, exactly the OUTER container's
@@ -10047,13 +10047,13 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
     // containers govern what is inside the markers; they say nothing about where the markers
     // themselves may sit. This is `rawLineColumns`' question one line earlier, before the strip
     // has decided anything — see that const for the same distinction on an UNMARKED line.
-    // ⚠ **`rawColumns`, NOT `columns` (Session 243), AND THE ENUMERATION IS WHAT SAYS SO.** The
+    // ⚠ **`rawColumns`, NOT `stack` (`columns` until Session 331; Session 243), AND THE ENUMERATION IS WHAT SAYS SO.** The
     // stash keeps containers the quote's OWN ENTRY LINE closed, and a continuation marker is
     // measured against what is still open after that pop. Rendered: with the quote ENTERED at
     // column 3 inside a container whose content column is 4, the entry line is SHALLOWER than
     // the item, so it ends the list and opens a TOP-LEVEL quote — and a continuation marker at
     // 4-7 is then indented code, ends the quote, and the ATX below it RENDERS
-    // (`scratchpad/s243/r12/e3_4`-`e3_7`). Reading the unpopped `columns` keeps the quote open
+    // (`scratchpad/s243/r12/e3_4`-`e3_7`). Reading the unpopped `stack` keeps the quote open
     // across it and SWALLOWS that heading — 24 deleting rows of a 12,287,081-document
     // enumeration, on which the 51,382-document corpus sweep and 571 rendered probes were all
     // clean. ⚠ The entry-at-4 control is unmoved by the change, because there the pop keeps the
@@ -11038,7 +11038,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
       // every container row; this is the same contrast `SETEXT_UNDERLINE_RUN`'s docstring draws
       // against itself. Guarded at G5, G6, G10.
       //
-      // ⚠ **`rawColumns`, NOT `columns` — the entry line's own pop decides what is on offer**
+      // ⚠ **`rawColumns`, NOT `stack` — the entry line's own pop decides what is on offer**
       // (Session 243's field, for exactly this). A marker at column 0 or 2 inside a list whose
       // content column is 4 CLOSES that list, and quarto then renders `ul>blockquote>hr>h1`: the
       // underline at 4 claims nothing and only `# Probe Z` is real (`r2/pop0_u4`, `pop2_u4`).
@@ -11119,7 +11119,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
     // `  ---` underlines correctly for exactly that reason (guards G10, G11).
     //
     // What empties the stack is the QUOTE COORDINATE SWITCH far above, which stashes the outer
-    // document's columns in `outerColumns` and clears `contentColumns` so the quote's content
+    // document's stack in `outerColumns` and starts an empty one (it cleared `contentColumns` before Session 331) so the quote's content
     // is measured from its own column 0. On a line the strip DID reach that is right. On a line
     // it did NOT reach — an UNMARKED line below an open quote — the line is still written in the
     // DOCUMENT ROOT's coordinates, and the stash is exactly the stack it is written against.
@@ -11151,7 +11151,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
     // must not drift — they answer the same question about the same line. And where no stash was
     // taken, `contentColumns` IS the document root's stack, so it is the correct answer there and
     // `[]` would merely be a coincidence that holds while nothing has pushed a column.
-    // ⚠ `rawColumns`, not `columns` (Session 241) — the stash keeps containers the quote's own
+    // ⚠ `rawColumns`, not `stack` (`columns` until Session 331; Session 241) — the stash keeps containers the quote's own
     // line closed, and this reader is the only one that can see the difference. See the field.
     const rawLineColumns: readonly number[] =
       quoteOpen && !stripQuote && outerColumns !== null ? outerColumns.rawColumns : columnStack.columns();
@@ -11329,6 +11329,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
       setextTitle !== undefined &&
       underlineQuoteDepth >
         blockQuoteMarkerOffsets(lines[setextTitle.line] ?? "", rawMarkerColumns()).length;
+    // Annotated on purpose: without the type `npm run check-types` reports TS7022 here, and at `divFence` and `divRole` below (Session 331, when `columnStack` became an object with methods).
     const setextTitleQuoted: boolean =
       !stripQuote &&
       setextTitle !== undefined &&
@@ -11506,7 +11507,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
         // `-   item` / `` / `    > quoted one` / `    ---` renders `h2:> quoted one` — marker
         // KEPT, Session 240's `[0, ...outerColumns]` set — and reading the quote's stack
         // reports `h2:quoted one` (`scratchpad/s243/r1/W_ul_04`, `r1/X_eq_04`, `r0/A_anchor4`;
-        // pinned as G8 and G12). ⚠ **At top level the two arrays ARE the same object**, which is
+        // pinned as G8 and G12). ⚠ **At top level the two hold the same columns** (they were the same array object before Session 331), which is
         // why Session 237 could measure this term across six rounds without meeting it.
         columnIsCodeDepth(indentColumn(line), rawLineColumns) ||
         lazyEqualsBand ||
@@ -12102,6 +12103,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
         line,
         stripQuote ? columnAtOffset(raw, quoteContentStart as number) : 0,
       );
+      // Annotated on purpose, with `divRole` below: TS7022 without them (see `setextTitleQuoted`).
       const divFence: ReturnType<typeof divFenceRole> =
         divFenceRaw !== null && columnIsCodeDepth(divFenceRaw.column, rawTexColumns)
           ? null

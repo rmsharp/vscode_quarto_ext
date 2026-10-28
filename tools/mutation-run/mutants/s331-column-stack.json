@@ -42,16 +42,16 @@
     "expect": "killed"
   },
   {
-    "name": "C07 pop forgets a list entry",
+    "name": "C07 pop forgets a list entry (its parent column keeps the count)",
     "file": "src/core/qmd/column-stack.ts",
-    "from": "      this.lists--;\n",
+    "from": "      this.release(this.listParents, parent);\n",
     "to": "",
     "expect": "killed"
   },
   {
-    "name": "C08 push forgets a list entry",
+    "name": "C08 push forgets a list entry (its parent column is not counted)",
     "file": "src/core/qmd/column-stack.ts",
-    "from": "      this.lists++;\n",
+    "from": "      this.listParents.set(parent, (this.listParents.get(parent) ?? 0) + 1);\n",
     "to": "",
     "expect": "killed"
   },
@@ -168,7 +168,7 @@
     "expect": "killed"
   },
   {
-    "name": "C25 a column is held again only when the set is unchanged",
+    "name": "C25 `hold` answers \"the set changed\" when the column was already held, and not when it entered",
     "file": "src/core/qmd/column-stack.ts",
     "from": "return before === undefined;",
     "to": "return before !== undefined;",
@@ -200,7 +200,7 @@
     "file": "src/core/qmd/model.ts",
     "from": "const rawMarkerColumns = (): readonly number[] => rawMarkerStash ?? columnStack.columns();",
     "to": "const rawMarkerSnap: readonly number[] = rawMarkerStash ?? columnStack.columns();\n    const rawMarkerColumns = (): readonly number[] => rawMarkerSnap;",
-    "expect": "survives"
+    "expect": "killed"
   },
   {
     "name": "W02 the marker columns ignore the stashed ones",
@@ -273,21 +273,21 @@
     "expect": "killed"
   },
   {
-    "name": "W12 a CommonMark block start ends no item",
+    "name": "W12 the items a CommonMark block start ends are judged against no columns",
     "file": "src/core/qmd/model.ts",
     "from": "cmBlockStartEndsItems(line, columnStack.columns(), indentWidth)",
     "to": "cmBlockStartEndsItems(line, [], indentWidth)",
     "expect": "killed"
   },
   {
-    "name": "W13 the container pop stops one column early",
+    "name": "W13 the container pop goes one column further (an entry at the line's own indent is popped too)",
     "file": "src/core/qmd/model.ts",
     "from": "        columnStack.popAbove(indentWidth);\n",
     "to": "        columnStack.popAbove(indentWidth - 1);\n",
     "expect": "killed"
   },
   {
-    "name": "W14 the pop pops at the next column",
+    "name": "W14 the container pop goes one column less far (an entry one past the line's indent stays)",
     "file": "src/core/qmd/model.ts",
     "from": "        columnStack.popAbove(indentWidth);\n",
     "to": "        columnStack.popAbove(indentWidth + 1);\n",
@@ -487,7 +487,7 @@
     "file": "src/core/qmd/model.ts",
     "from": "hostColumn: columnStack.columnsAtOrBelow(divFence!.column).reduce(",
     "to": "hostColumn: columnStack.columns().reduce(",
-    "expect": "survives"
+    "expect": "killed"
   },
   {
     "name": "W43 the host column of a quote is 0",
@@ -518,7 +518,7 @@
     "expect": "killed"
   },
   {
-    "name": "W47 a bullet-spelled break at top level is judged with a container open",
+    "name": "W47 a bullet-spelled break inside a container is judged as if it were at the top level",
     "file": "src/core/qmd/model.ts",
     "from": "columnStack.length === 0 && !stripQuote && BULLET_THEMATIC_BREAK.test(line)",
     "to": "columnStack.length >= 0 && !stripQuote && BULLET_THEMATIC_BREAK.test(line)",

@@ -186,6 +186,29 @@ describe("Session 331 — ColumnStack hands out the distinct columns as a snapsh
     expect(stack.commonmarkColumns()).toBe(stack.commonmarkColumns());
   });
 
+  it("keeps the same array across a push or pop that leaves its set of columns unchanged, and changes only the one whose set changed", () => {
+    // A run of lines that push the column already held must cost nothing per line (the class comment); the commonmark set is its own array, left alone by an entry that is not a commonmark one.
+    const stack = new ColumnStack();
+    stack.push(4, "definition", true);
+    const columns = stack.columns();
+    const commonmark = stack.commonmarkColumns();
+    stack.push(4, "definition", true);
+    expect(stack.columns()).toBe(columns);
+    expect(stack.commonmarkColumns()).toBe(commonmark);
+    stack.push(7, "list", false);
+    expect(stack.commonmarkColumns()).toBe(commonmark);
+    expect(stack.columns()).not.toBe(columns);
+    expect(sorted(stack.columns())).toEqual([4, 7]);
+    stack.pop();
+    expect(stack.commonmarkColumns()).toBe(commonmark);
+    const afterPop = stack.columns();
+    expect(afterPop).toEqual([4]);
+    stack.pop();
+    expect(stack.columns()).toBe(afterPop);
+    expect(stack.commonmarkColumns()).toBe(commonmark);
+    expect(stack.length).toBe(1);
+  });
+
   it("does not change an array it already handed out when the stack changes afterwards", () => {
     const stack = new ColumnStack();
     stack.push(4, "definition", true);

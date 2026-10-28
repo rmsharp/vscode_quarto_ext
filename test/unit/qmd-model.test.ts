@@ -15521,7 +15521,7 @@ describe("Session 246 — a sibling list marker starts a fresh block", () => {
     // open above: `*   alpha` / `    ---` / `# Probe Z` / `    ---` / `1.  bravo` / `-` renders
     // `h2:1. bravo` as its third heading and this build reports only the first two
     // (`scratchpad/s246/r12/e_E0101`; also `e_E0102`, `e_E0086`). Closing it needs the
-    // bullet-vs-ordered kind of each open column, which `columnKinds` does not carry, so it is
+    // bullet-vs-ordered kind of each open column, which the `ColumnStack` (`columnKinds` until Session 331) does not carry, so it is
     // FILED rather than guessed at.
     // ⚠ **CORPUS WEIGHT ZERO** — 60,998 documents swept, 628 movers rendered, and this family is
     // in none of them; every document that shows it is a synthetic string of bare markers.
@@ -15884,8 +15884,8 @@ describe("Session 247 — an ordered marker is stripped where the list it opens 
     // (`scratchpad/s247/r2/a_second_same`, `a_second_blank`, `a_third`, `a_same_num`,
     // `f_ol_open_ol`, `c_inner_sib_u0`, `c_inner_sib_u4`).
     // ⚠ Answering it needs the KIND and DELIMITER of the open list, because a marker of a
-    // DIFFERENT kind or delimiter starts a NEW list and keeps its marker — and `columnKinds`
-    // carries only `list`/`definition`. Those two rows are guarded at G2, so a fix must keep them.
+    // DIFFERENT kind or delimiter starts a NEW list and keeps its marker — and the `ColumnStack`
+    // (`columnKinds` until Session 331) carries only `list`/`definition`. Those two rows are guarded at G2, so a fix must keep them.
     // ⚠ NO HEADING IS GAINED OR LOST by leaving it: every one of these rows reported the marker
     // before this session too. Corpus weight: 0 of 60,998 documents swept.
     expect(names(["1.  alpha", "2.  bravo", "---"])).toEqual(["h2:2.  bravo"]); // quarto: h2:bravo
@@ -24021,7 +24021,7 @@ describe("Session 296 — the CommonMark-family readers (gfm, commonmark, common
   ]);
   // GATE 6. A MARKER THE COMMONMARK READERS LACK OPENS NO CONTAINER. `a.`, `A)`, `i.`, `#.` and `J. Smith` are plain paragraphs under `gfm`, `commonmark` and `commonmark_x-fancy_lists`, but this model keeps a
   // list column for them (pandoc's fancy lists, accepted on purpose), and the fence window and the item bound were then read from a column that is not there. Only a column opened by a marker
-  // CommonMark has (`columnIsCommonmark`) counts for the CommonMark rules. (Round 2 `defs` 005, 006, 017-022, 037, 038, 053, 058, 059.)
+  // CommonMark has (the CommonMark flag of a `ColumnStack` entry, `columnIsCommonmark` until Session 331) counts for the CommonMark rules. (Round 2 `defs` 005, 006, 017-022, 037, 038, 053, 058, 059.)
   round2([
 ["005 gfm alpha para fence col4 head col3", "gfm", "markdown", ["a. item","    ```text","   ## In","    ```","","## After","","tail"], ["Before","In","After"]], // adv2/defs/defs_005_gfm_alpha_para_fence_col4_head_col3.qmd
     ["006 gfm hashdot para fence col4 head col3", "gfm", "markdown", ["#. item","    ```text","   ## In","    ```","","## After","","tail"], ["Before","In","After"]], // adv2/defs/defs_006_gfm_hashdot_para_fence_col4_head_col3.qmd
