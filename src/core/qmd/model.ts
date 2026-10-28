@@ -8138,13 +8138,17 @@ function knitrCodeMasksPrinters(code: readonly string[]): boolean {
       if (close < 0) {
         return true;
       }
-      if ([...line.slice(at + open[0].length, close).matchAll(/([A-Za-z.][\w.]*)[ \t]*=/g)].some((name) => !["digits", "scipen", "width", "stringsAsFactors", "OutDec", "max.print"].includes(name[1]))) {
+      if (knitrOptionNames(line.slice(at + open[0].length, close)).some((name) => !["digits", "scipen", "width", "stringsAsFactors", "OutDec", "max.print"].includes(name))) {
         return true;
       }
       at = close;
     }
   }
   return false;
+}
+/** The names assigned in the argument list of an `options(` call, in order: a letter or a dot and then name characters, followed by blanks and an `=`. */
+export function knitrOptionNames(args: string): string[] {
+  return [...args.matchAll(/([A-Za-z.][\w.]*)[ \t]*=/g)].map((match) => match[1]);
 }
 /**
  * Whether a `message()` or `warning()` of the chunk can still write a block (Session 309): the chunk sets neither option itself (rendered, `scratchpad/s309/msg` m002, m003, m007: a value
