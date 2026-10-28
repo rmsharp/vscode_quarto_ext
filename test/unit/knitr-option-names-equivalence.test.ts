@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { knitrOptionNames } from "../../src/core/qmd/model";
+import { findHeadings, knitrOptionNames } from "../../src/core/qmd/model";
 import { NBSP, countStrings, everyString, seededRandom } from "./support/regex-equivalence";
 
 // The enumerations take several seconds each on a loaded machine; the sibling equivalence files give their heavy rows the same ceiling.
@@ -177,5 +177,36 @@ describe("Session 334 — knitrOptionNames: the new scan lists what the old patt
     expect(oldNames(args)).toEqual(expected);
     expect(definitionNames(args)).toEqual(expected);
     expect(knitrOptionNames(args)).toEqual(expected);
+  });
+});
+
+// The call site: `knitrCodeMasksPrinters` asks whether ANY name assigned in an `options(` call is not a number-format option, and a chunk that may mask a printing call is not taken to print. The effect is on the stray-fence
+// geometry (Session 309): a silenced chunk that certainly prints swallows every heading between a stray bare fence above it and itself, a chunk that may mask does not. The first four lists below set number formats only;
+// every other list sets one or more names that are not, which a call site that asked for EVERY name, or for an allowed one, or read a name's first character, would get wrong.
+describe("Session 334 — knitrCodeMasksPrinters reads the names of an options( call through knitrOptionNames", () => {
+  const outline = (code: string[]): string[] => {
+    const text = ["---", "title: t", "---", "", "```{r setup0, include=FALSE}", "x <- 1", "```", "", "# Top", "", "```", "", "## Between", "", "```{r, echo=FALSE}", ...code, "```", "", "## After", ""].join("\n");
+    return findHeadings(text, "knitr").map((heading) => heading.text);
+  };
+  const PRINTS = ["Top", "After"]; // the chunk certainly prints: "Between" sits between the stray fence and it and is swallowed
+  const MAYBE = ["Top", "Between", "After"]; // the chunk may mask a printing call: nothing is swallowed
+  const ROWS: Array<[string, string[], string[]]> = [
+    ["no options call", ["summary(x)"], PRINTS],
+    ["digits only", ["options(digits = 3)", "summary(x)"], PRINTS],
+    ["digits and width", ["options(digits = 3, width = 80)", "summary(x)"], PRINTS],
+    ["digits and stringsAsFactors", ["options(digits = 3, stringsAsFactors = FALSE)", "summary(x)"], PRINTS],
+    ["digits and a name that is all digits (it names nothing)", ["options(digits = 3, 9 = 1)", "summary(x)"], PRINTS],
+    ["an allowed name first, another second", ["options(digits = 3, foo = 1)", "summary(x)"], MAYBE],
+    ["another name first, an allowed one second", ["options(foo = 1, digits = 3)", "summary(x)"], MAYBE],
+    ["another name only", ["options(foo = 1)", "summary(x)"], MAYBE],
+    ["a digit-led name after an allowed one", ["options(digits = 3, 1x = 1)", "summary(x)"], MAYBE],
+    ["an underscore-led name after an allowed one", ["options(digits = 3, _a = 1)", "summary(x)"], MAYBE],
+    ["a dot-led name after an allowed one", ["options(digits = 3, .b = 1)", "summary(x)"], MAYBE],
+    ["a dotted name after an allowed one", ["options(digits = 3, a.b = 1)", "summary(x)"], MAYBE],
+    ["a tab before the equals sign", ["options(digits = 3, foo\t= 1)", "summary(x)"], MAYBE],
+    ["a one-letter name after an allowed one", ["options(digits = 3, w = 1)", "summary(x)"], MAYBE],
+  ];
+  it.each(ROWS.map(([label, code, expected]) => [label, code, expected] as const))("%s", (_label, code, expected) => {
+    expect(outline([...code])).toEqual(expected);
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { yamlAliasName } from "../../src/core/qmd/model";
-import { JS_WHITESPACE, LS, NBSP, PS, countStrings, everyString, seededRandom } from "./support/regex-equivalence";
+import { JS_WHITESPACE, LS, NBSP, NEL, PS, countStrings, everyString, seededRandom } from "./support/regex-equivalence";
 
 // The enumerations take several seconds each on a loaded machine; the sibling equivalence files give their heavy rows the same ceiling.
 const HEAVY_ROW_MS = 120_000;
@@ -80,7 +80,8 @@ function compareAll(texts: Iterable<string>, byDefinition = false): Count {
 // brackets and braces the name excludes, a form feed.
 const NARROW = ["*", "#", "a", " ", "\t", "\r", ","];
 const AFTER_STAR = ["#", "a", " ", "\t", "\r", ",", LS];
-const WIDE = ["#", "a", " ", "\t", "\r", "\n", LS, PS, NBSP, "[", "]", "{", "}", ","];
+// (the vertical tab, the form feed and U+0085 are the whitespace and the near-terminators that `.` DOES match: a guard that took one of them for a terminator would refuse `*a #` + that character, an alias with a comment)
+const WIDE = ["#", "a", " ", "\t", "\r", "\n", LS, PS, NBSP, "[", "]", "{", "}", ",", "\v", "\f", NEL];
 // Tokens, not characters: a name with a `#` inside, a comment, a flow indicator, every terminator, a form feed.
 const TOKENS = ["*", "#", "a", "ab", " ", "\t", "\r", LS, "x#", "#y", ",", "{}", "*a", "# c", "\f"];
 const SMALL_DEFINITION = ["*", "#", "a", " ", "\r"];
@@ -94,7 +95,7 @@ function* behind(prefix: string, alphabet: readonly string[], maxLength: number)
 const ENUMERATIONS: Array<{ label: string; prefix: string; alphabet: readonly string[]; maxLength: number; matched: number; byDefinition: boolean }> = [
   { label: "7 characters, up to 8", prefix: "", alphabet: NARROW, maxLength: 8, matched: 100_452, byDefinition: false },
   { label: "7 characters behind `*`, up to 8", prefix: "*", alphabet: AFTER_STAR, maxLength: 8, matched: 82_048, byDefinition: false },
-  { label: "14 characters behind ` *`, up to 5", prefix: " *", alphabet: WIDE, maxLength: 5, matched: 3_186, byDefinition: false },
+  { label: "17 characters behind ` *`, up to 5", prefix: " *", alphabet: WIDE, maxLength: 5, matched: 10_323, byDefinition: false },
   { label: "15 tokens, up to 5", prefix: "", alphabet: TOKENS, maxLength: 5, matched: 31_415, byDefinition: false },
   { label: "5 characters, up to 8, also by definition", prefix: "", alphabet: SMALL_DEFINITION, maxLength: 8, matched: 15_243, byDefinition: true },
 ];
@@ -163,6 +164,12 @@ const STATED: Array<[string, string | null]> = [
   ["*#####", "#####"],
   ["*#####\rx", null],
   ["*a#" + "\r" + "x", null],
+  ["*a #\v", "a"],
+  ["*a #\f", "a"],
+  ["*a #" + NEL, "a"],
+  ["*a #" + NBSP, "a"],
+  ["*a\v", null],
+  ["*a" + NEL, "a" + NEL],
 ];
 
 describe("Session 334 — yamlAliasName: the new function answers what the old alias pattern captured", () => {
@@ -193,6 +200,25 @@ describe("Session 334 — yamlAliasName: the new function answers what the old a
     expect(result.disagreements).toEqual([]);
     expect(result.compared).toBe(3 * 5 * SHORT_RUNS.length * 5 * 6);
     expect(result.matched).toBe(362);
+  });
+
+  // `yamlAliasName` is also asked directly, where a value can hold a line feed, which no line of a document does; the old pattern is slow on each of the four terminators (the document rows of
+  // `pathological-inputs.test.ts` cover the other three through `findHeadings`), and the last row shows the clock can fail: the old pattern takes seconds on the same text.
+  const CLOCK_RUN = 72_000;
+  it.each([["a carriage return", "\r"], ["a line feed", "\n"], ["a line separator", LS], ["a paragraph separator", PS]] as const)("a name of %s's worth of `#`: `*` + 72,000 `#` + the terminator + a letter is refused in linear time", (_label, terminator) => {
+    const value = `*${"#".repeat(CLOCK_RUN)}${terminator}x`;
+    const started = performance.now();
+    const name = yamlAliasName(value);
+    const ms = performance.now() - started;
+    expect(name).toBeNull();
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it("the clock row can fail: the old pattern takes over a second on `*` + 56,000 `#` + a line feed + a letter", () => {
+    const value = `*${"#".repeat(56_000)}\nx`;
+    const started = performance.now();
+    expect(OLD_YAML_ALIAS_VALUE.exec(value)).toBeNull();
+    expect(performance.now() - started).toBeGreaterThan(1000);
   });
 
   it.each(STATED.map(([value, expected]) => [JSON.stringify(value), value, expected] as const))("%s is stated as %j by hand, by the old pattern, by definition and by the new function", (_label, value, expected) => {
