@@ -13593,7 +13593,33 @@ function linkDefinitionAt(lines: readonly string[], y: number): boolean {
 }
 /** Whether the text after `[a]:` is a URL and a `{...}` link-attribute block with something after it (`/u {#id} x`), the third shape `linkDefinitionAt` refuses. */
 export function linkAttributesHaveJunk(rest: string): boolean {
-  return /^\S+[ \t]*\{[^}]*\}[ \t]*\S/.test(rest);
+  // The pattern this replaced, `/^\S+[ \t]*\{[^}]*\}[ \t]*\S/`, let its greedy `\S+` give the leading non-blank run back one character at a time and read on from every `{` of it to the end of the text
+  // looking for a `}`: a URL of n braces cost n squared (Session 334; 60,000 took 3.3 s). The `{` that opens the block is the first one at index 1 or later inside that run, or else the one right after the
+  // blanks that follow it, and the first such `{` decides the answer for every later one (a later `{` before the `}` shares it, and one after it would need a non-blank right after the `}`).
+  const space = rest.search(/\s/);
+  const run = space < 0 ? rest.length : space;
+  if (run === 0) {
+    return false;
+  }
+  let open = rest.indexOf("{", 1);
+  if (open < 0 || open >= run) {
+    open = run;
+    while (rest[open] === " " || rest[open] === "\t") {
+      open++;
+    }
+    if (rest[open] !== "{") {
+      return false;
+    }
+  }
+  const close = rest.indexOf("}", open + 1);
+  if (close < 0) {
+    return false;
+  }
+  let after = close + 1;
+  while (rest[after] === " " || rest[after] === "\t") {
+    after++;
+  }
+  return after < rest.length && /\S/.test(rest[after]);
 }
 /**
  * Whether the simple table whose dash-column rule is at `u` BEGINS A BLOCK (Session 298, rendered `review3/contexts/r3_001`-`r3_004`): its header line above the rule, a plain text line that is not a heading or
