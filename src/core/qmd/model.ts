@@ -5142,7 +5142,7 @@ export const TABLE_RULE_ROW =
  * whole family block-level while `+---+---+` (`r1/a06`) still becomes prose.
  */
 const LINE_BLOCK_START = /^\|([ \t]|$)/;
-const GRID_TABLE_BORDER = /^\+[-+=:]*[-=:][-+=:]*[ \t]*$/;
+export const GRID_TABLE_BORDER = /^\+[-+=:]*[-=:][-+=:]*[ \t]*$/;
 const GRID_TABLE_ROW = /^\|/;
 const PLUS_ONLY_ROW = /^\+[-+=: ]*$/;
 const BULLET_MARKER = /^[-*+][ \t]+/;
