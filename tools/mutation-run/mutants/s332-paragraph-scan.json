@@ -7,17 +7,10 @@
     "expect": "killed"
   },
   {
-    "name": "P02 a count of 1 is a paragraph the scan starts again for (the guard lowered to <)",
+    "name": "P02 a count of 1 is a paragraph the scan starts again for (the guard lowered to < 1, which for a whole count is also <= 0)",
     "file": "src/core/qmd/model.ts",
     "from": "if (paragraphLines <= 1) {",
     "to": "if (paragraphLines < 1) {",
-    "expect": "killed"
-  },
-  {
-    "name": "P03 a count of 1 is a paragraph the scan starts again for (the guard lowered to <= 0)",
-    "file": "src/core/qmd/model.ts",
-    "from": "if (paragraphLines <= 1) {",
-    "to": "if (paragraphLines <= 0) {",
     "expect": "killed"
   },
   {
@@ -200,12 +193,12 @@
     "expect": "killed"
   },
   {
-    "name": "G08 a line that cannot underline holds 0 lines as its count",
+    "name": "G08 a line that cannot underline holds 0 lines as its count (the default reader's one-line title is lost)",
     "file": "src/core/qmd/model.ts",
     "from": "        : defaultTitleLineCount;",
     "to": "        : 0;",
-    "expect": "survives",
-    "why": "Equivalent: the scan answers true only for a paragraph of two lines or more, where `consecutiveBody === 1` is false and `defaultTitleLineCount` is 0; and for a line that cannot underline nothing reads the count."
+    "expect": "killed",
+    "why": "Not equivalent, although it reads so: the default count is 1 for the line below a single paragraph line, and the default reader (and from: markdown) underlines exactly that one line, so a title of 0 lines loses its heading. Killed by the wiring row that reads a one-line title under the default reader."
   },
   {
     "name": "G09 the scan reads the CommonMark entries' columns only",

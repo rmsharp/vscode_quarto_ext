@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Count how often the OLD paragraph-interrupt scan answers `true` over the exhaustive row of `test/unit/paragraph-interrupt-equivalence.test.ts`, from the CommonMark rule and not from the code (Session 332).
+"""Count how often the OLD paragraph-interrupt scan answers `true` over the exhaustive rows of `test/unit/paragraph-interrupt-equivalence.test.ts`, from the code-depth rule and a hand classification of the lines, not from the project's code (Session 332).
 
 The test pins how many comparisons of its exhaustive row the old expression answers `true` for (`ANSWERED.exhaustive` of `ANSWERED.compared`). Those numbers must not come from the code under test, or a
 comparison could pass by both being wrong the same way. This script derives them from two facts:

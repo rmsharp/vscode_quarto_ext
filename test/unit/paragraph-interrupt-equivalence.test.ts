@@ -5,7 +5,7 @@ import { seededRandom } from "./support/regex-equivalence";
 // Session 332 — the BACKLOG item "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", part (9). Under a `from: gfm`, `commonmark` or `commonmark_x` reader the title of a
 // setext underline is the whole open paragraph, unless a line of it BELOW ITS FIRST interrupts the paragraph, so `computeRegions` asked, for every line it read, `bodyLines.slice(-wholeParagraph).slice(1).some((l) =>
 // commonmarkParagraphInterrupt(l.text, [0, ...columns]))`: two copies of the paragraph so far and a fresh `[0, ...columns]` array for each line tested (`pathological-inputs.test.ts` has the document rows). The question is now
-// `ParagraphInterruptScan.interruptedAfterFirst`, the same question without the copies, and it is asked only where the line can underline. The old expression is kept here, verbatim, as the oracle (Learning 738): the new
+// `ParagraphInterruptScan.interruptedAfterFirst`, the same question without the copies, and it is asked only where the line can underline. The old expression is kept here as the oracle (Learning 738; the columns it spread from `columnStack.columns()` are a parameter): the new
 // scan must answer what it answered for every list of lines, every paragraph length and every set of open container columns, asked cold (a fresh scan for each question) and warm (one scan kept across a growing list).
 const oldTitleScan = (bodyLines: Array<{ text: string }>, wholeParagraph: number, columns: readonly number[]): boolean =>
   wholeParagraph > 1 &&
@@ -35,7 +35,8 @@ const LINEAR_LIMIT_MS = 500;
 
 /**
  * How many comparisons the OLD spelling answers `true` for: a comparison cannot pass by both answering `false` everywhere. The exhaustive pair (790,120 comparisons, 422,640 answered `true`) is counted again by a
- * separate implementation that reads the CommonMark rule and not this code (`tools/paragraph-interrupt-count/count_answered.py`); the seeded one is counted from the old spelling here alone.
+ * separate script that reads the code-depth rule and a hand classification of the ten lines against this model's interrupt list, not the project's code (`tools/paragraph-interrupt-count/count_answered.py`; the list is broader than
+ * CommonMark's, whose HTML rows are narrower than this model's `<`); the seeded one is counted from the old spelling here alone.
  */
 const ANSWERED = { exhaustive: 422_640, compared: 790_120, seeded: 73_153 };
 
@@ -199,8 +200,8 @@ describe("Session 332 — the paragraph-interrupt scan without the copies", () =
 const WARM_EXHAUSTIVE_LENGTH = 4;
 const WARM_SEEDED_SEQUENCES = 20_000;
 const WARM_SEEDED_LENGTH = 30;
-/** As `ANSWERED`: the exhaustive pair (3,023,320 comparisons, 904,840 answered `true`) is counted again by `tools/paragraph-interrupt-count/count_answered.py`; the seeded count is from the old spelling here alone. */
-const WARM_ANSWERED = { compared: 3_023_320, exhaustive: 904_840, seeded: 208_944 };
+/** As `ANSWERED`: the exhaustive pair (3,023,320 comparisons, 904,840 answered `true`) is counted again by `tools/paragraph-interrupt-count/count_answered.py`; the seeded pair (301,130 comparisons, 208,944 answered `true`) is counted from the old spelling here alone. */
+const WARM_ANSWERED = { compared: 3_023_320, exhaustive: 904_840, seededCompared: 301_130, seeded: 208_944 };
 
 describe("Session 332 — the paragraph-interrupt scan that keeps what it has read", () => {
   it("answers the old expression after every line of every list of up to four lines, for every count and every set of columns, through ONE scan kept across the list", () => {
@@ -241,7 +242,7 @@ describe("Session 332 — the paragraph-interrupt scan that keeps what it has re
       }
     }
     expect(tally.disagreements).toEqual([]);
-    expect({ compared: tally.compared > 100_000, answered: tally.answered }).toEqual({ compared: true, answered: WARM_ANSWERED.seeded });
+    expect({ compared: tally.compared, answered: tally.answered }).toEqual({ compared: WARM_ANSWERED.seededCompared, answered: WARM_ANSWERED.seeded });
   });
 
   // What it reads is pinned, not only what it answers: each line records its own index when its text is read.

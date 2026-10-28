@@ -5,7 +5,8 @@ import { findHeadings, ParagraphInterruptScan } from "../../src/core/qmd/model";
 // below its first interrupts the paragraph; `computeRegions` asks that only where the line can underline, and through a scan that keeps its place (`ParagraphInterruptScan`). `paragraph-interrupt-equivalence.test.ts` holds the
 // scan against the old expression; these rows hold the WIRING: which question is asked, of which lines, under which columns, and that a line that cannot underline asks nothing. The answers are the PARENT's (the `src` of
 // `8e03d50`, which Session 332's claim and RED commits left untouched, bundled and run on each document: taken by running it, not by reasoning), so a row that passes says the cure answers what the parent answered;
-// `pathological-inputs.test.ts` holds the clocks. Each document is the body below a front matter that selects the reader, and the line numbers count that front matter (3 lines).
+// `pathological-inputs.test.ts` holds the clocks. Each document is the body below a front matter that selects the reader, and the line numbers count that front matter (3 lines). Many cases pin the parent's answer and not the scan (an always-no scan
+// and an always-yes scan give the same headings: the underline is refused or accepted for other reasons, or no underline follows); the equivalence file holds the scan's own answers, and the cases that do tell them apart are the ones the mutation list names.
 const FRONT = (reader: string): string => `---\nfrom: ${reader}\n---\n`;
 const READERS = ["gfm", "commonmark", "commonmark_x"] as const;
 type Answer = Array<[number, string, number]>;
@@ -122,8 +123,8 @@ describe("Session 332 — the paragraph-interrupt scan through findHeadings", ()
     for (const reader of READERS) expect(findHeadings(FRONT(reader) + joined).map((heading) => heading.text)).toEqual(["x y"]);
   });
 
-  // HOW OFTEN the scan is asked is part of the wiring, and a mutant that asks it for every line answers every document the same way. It is asked once for each line that can underline (a `=` or `-` run at one of the four columns of the
-  // innermost content column) under a CommonMark-family reader, and never otherwise. Each text carries its own tag: `scanRegions` keeps the last two texts it read, and a text served from that cache asks nothing.
+  // HOW OFTEN the scan is asked is part of the wiring, and a mutant that asks it for every line answers every document the same way. It is asked once for each body line that is an underline at one of the four columns of the
+  // innermost content column under a CommonMark-family reader, and never otherwise (a line that a fence, a comment, an HTML block, a table or a metadata block has consumed never reaches the setext row, and asks nothing). Each text carries its own tag: `scanRegions` keeps the last two texts it read, and a text served from that cache asks nothing.
   describe("how often the scan is asked", () => {
     const asked = (text: string): number => {
       const spy = vi.spyOn(ParagraphInterruptScan.prototype, "interruptedAfterFirst");

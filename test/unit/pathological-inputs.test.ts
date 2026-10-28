@@ -2015,12 +2015,9 @@ describe("Session 332 — a long paragraph of consecutive lines under a CommonMa
     // The TEXT alone, not the entry with it: `scanRegions` keeps the last two scans by text (`regionsCache`), so a row whose text another row read just before it is served from the cache and cannot be RED.
     const long = PARAGRAPH_ROWS.map((row) => row.build(row.many));
     expect(new Set(long).size).toBe(PARAGRAPH_ROWS.length);
+    // The small texts are distinct too (the rows are read at PARAGRAPH_FEW units first, and a cache hit there would hide the answer check); no two rows share one.
     const small = PARAGRAPH_ROWS.map((row) => row.build(PARAGRAPH_FEW));
-    const bySmall = new Map<string, string[]>();
-    PARAGRAPH_ROWS.forEach((row, k) => bySmall.set(small[k], [...(bySmall.get(small[k]) ?? []), `${row.entry}:${row.many}`]));
-    for (const sizes of bySmall.values()) {
-      expect(new Set(sizes).size).toBe(sizes.length);
-    }
+    expect(new Set(small).size).toBe(PARAGRAPH_ROWS.length);
   });
 
   // The RED rows take 1.8 s and more on the parent at a load near 8 (the figures are in the commit messages), so a limit of 100 s or a row of 1,000 lines would pass there too: the boundary of `withinParagraphLimit` is pinned, and the sizes and shapes the rows are built on.
