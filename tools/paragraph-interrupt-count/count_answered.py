@@ -13,7 +13,7 @@ The ten lines of the reduced alphabet are classified by hand below (is the line 
     python3 -I tools/paragraph-interrupt-count/count_answered.py     # prints: 11111 790120 422640  (lists, comparisons, answered true)
                                                                      #         11111 3023320 904840 (the same lists asked after EVERY line, the "keeps what it has read" row)
 
-If the test's alphabet, list length, count range or column sets change, change them here too, and compare the line this prints with the `ANSWERED` constants. The seeded row's count has no second
+If the test's alphabet, list length, count range or column sets change, change them here too, and compare the two lines this prints with the `ANSWERED` constants (the first line) and the `WARM_ANSWERED` constants (the second). The seeded row's count has no second
 implementation (it draws from a 42-line alphabet with a generator of its own): it is counted from the old spelling in the test alone.
 """
 import itertools

@@ -6146,11 +6146,11 @@ function interruptListMatches(line: string): boolean {
  * The scan keeps what it has read, so a question about a paragraph that GROWS one line at a time reads only the lines added since the last one: each line of a paragraph is read once. What it keeps is NOT an answer: a line
  * interrupts when it matches the list AND is not indented code, and whether it is code depends on the open container columns, which change between two questions of one paragraph (a list item that pushes a column, one that pops
  * it). So it keeps the distinct INDENT COLUMNS of the lines that match the list (a handful: every other line costs one failed match), and answers a question from those and the columns it is handed: `columnIsCodeDepth` of each
- * indent. A first version kept the answer under one columns array and started again whenever the array changed; the review round timed a three-line unit at 4x per doubling (189 / 621 / 2,298 ms at 1,000 / 2,000 / 4,000 units).
+ * indent. A first version kept the answer under one columns array and started again whenever the array changed; the review round timed a three-line unit at 3.3x and 3.7x per doubling (189 / 621 / 2,298 ms at 1,000 / 2,000 / 4,000 units).
  * That a leading 0 in the columns changes nothing (`containerContentColumn` starts its base at 0) is why the old expression's `[0, ...columns]` is not rebuilt.
  *
  * ⚠ **THE KEY IS (THE LIST, WHERE THE PARAGRAPH STARTS) AND ITS CONTRACT IS WHAT MAKES IT EXACT.** `bodyLines` in `computeRegions` is only ever appended to and its entries are never edited, so what was read stays true for as long
- * as the list and the start are the same. A different list, or a different start (the paragraph restarted, or the count did not grow with the list), starts again from the paragraph's second line. A list that has become SHORTER than
+ * as the list and the start are the same (nothing enforces that at run time: an entry edited in place, or a shrink followed by a regrow past `next`, would be missed, and `computeRegions` is the only caller). A different list, or a different start (the paragraph restarted, or the count did not grow with the list), starts again from the paragraph's second line. A list that has become SHORTER than
  * what was read starts again too, which `computeRegions` never does, but a scan that answered from a stale position there would be wrong, not slow. A count of 1 or less leaves what has been read alone.
  * `test/unit/paragraph-interrupt-equivalence.test.ts` keeps `bodyLines.slice(-n).slice(1).some(...)` as the oracle for every list, count and set of columns, one scan kept across a growing list.
  */
@@ -11333,10 +11333,11 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
     //
     // ⚠ **THE SCAN IS ASKED ONLY WHERE THIS LINE CAN UNDERLINE (Session 332), BECAUSE THE COUNT IS READ NOWHERE ELSE.** It used to be asked for every line, and it reads the whole paragraph so far: a paragraph of N lines
     // cost about N^2/2 tests. Only a CommonMark-family reader has a title longer than one line (`wholeParagraph` is `defaultTitleLineCount`, 0 or 1, everywhere else, and the scan needs 2). There `titleLineCount` reaches
-    // `setextTitle`, and `setextTitle` is read by `setextTitleTooShallow`, `setextTitleQuoted`, `lazyEqualsBand`, `lazyDashesBand` and `lazyStripDepth`. `setextLevel` reads `titleLineCount` and the first two of those; `lazyQuotedUnderline`
-    // reads the next three, and it is `false` under a CommonMark-family reader (`!commonmarkDialect`), which leaves `lazyStripDepth` at 0. So the count matters only through `setextLevel`, and `setextLevel` is `null` for a line that
-    // is not an underline at one of the four columns of the innermost content column (`commonmarkUnderlineLevel`, the same call `setextLevel` makes below).
-    // ⚠ **THE COUNT A LINE THAT CANNOT UNDERLINE HOLDS IS THE DEFAULT, AND NOT THE WHOLE PARAGRAPH (the review round).** Nothing reads it, so any value is right, and the whole paragraph is the expensive one: it makes `setextTitle` the
+    // `setextTitle`, and `setextTitle` is read by `setextTitleTooShallow`, `setextTitleQuoted`, `lazyEqualsBand`, `lazyDashesBand` and `lazyStripDepth`. `setextLevel` reads `titleLineCount`, `setextTitleTooShallow` and
+    // `setextTitleQuoted`; `lazyQuotedUnderline` reads `setextTitleQuoted`, `lazyEqualsBand` and `lazyDashesBand`, and it is `false` under a CommonMark-family reader (`!commonmarkDialect`); `lazyStripDepth` reads `setextTitle` but only behind
+    // `lazyQuotedUnderline`, so it is 0 there. So the count matters only through `setextLevel` (and the block under `if (setextLevel !== null)`, which reads it behind that test), and `setextLevel` is `null` for a line that is not an
+    // underline at one of the four columns of the innermost content column (`commonmarkUnderlineLevel`, whose value `setextLevel` reads below).
+    // ⚠ **THE COUNT A LINE THAT CANNOT UNDERLINE HOLDS IS THE DEFAULT, AND NOT THE WHOLE PARAGRAPH (the review round).** Under a CommonMark-family reader nothing reads it for such a line, so any value is right there, and the whole paragraph is the expensive one (under the other readers the count is the default either way, and the default reader's one-line title is read from it): it makes `setextTitle` the
     // paragraph's FIRST line for every later line, and `setextTitleTooShallow` measures that line's quote markers each time. The parent gave an interrupted paragraph the default count, 0, and measured nothing; a first line of
     // 20,000 quote markers cost 36 ms for 2,000 lines on the parent and 484 ms with the whole paragraph here.
     const commonmarkUnderlineLevel = commonmarkDialect

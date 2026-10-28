@@ -147,7 +147,7 @@
     "from": "commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(",
     "to": "true && !paragraphScan.interruptedAfterFirst(",
     "expect": "killed",
-    "why": "Killed by the 'how often the scan is asked' rows of paragraph-interrupt-wiring.test.ts and by the clock pin of two lines that alternate the open columns (without the gate the scan is asked for every line; the memo no longer depends on the columns, so it is also cheap, but the count rows hold the contract)."
+    "why": "Killed by the four 'how often the scan is asked' rows of paragraph-interrupt-wiring.test.ts and by the clock row with a first line of 20,000 quote markers and no interrupter in pathological-inputs.test.ts. The two lines that alternate the open columns do NOT kill it under the final scan: it keeps indents and not an answer, so asking at every line costs the same there (it was quadratic without the gate under the first version of the scan, which restarted at every change of the columns)."
   },
   {
     "name": "G02 the scan is asked only for a level 1 underline",
