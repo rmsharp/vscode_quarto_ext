@@ -1,0 +1,597 @@
+[
+  {
+    "name": "L01 initial start field 7",
+    "file": "src/core/qmd/model.ts",
+    "from": "  private start = 0;\n",
+    "to": "  private start = 7;\n",
+    "expect": "survives",
+    "why": "Equivalent: the field is replaced by the first call's restart (`lines` is null until then)."
+  },
+  {
+    "name": "L02 initial next field 3",
+    "file": "src/core/qmd/model.ts",
+    "from": "  private next = 0;\n",
+    "to": "  private next = 3;\n",
+    "expect": "survives",
+    "why": "Equivalent: as L01."
+  },
+  {
+    "name": "L03 guard only for a count of exactly 1",
+    "file": "src/core/qmd/model.ts",
+    "from": "if (paragraphLines <= 1) {",
+    "to": "if (paragraphLines === 1) {",
+    "expect": "killed"
+  },
+  {
+    "name": "L04 guard answers the stale 'yes' of the last paragraph",
+    "file": "src/core/qmd/model.ts",
+    "from": "    if (paragraphLines <= 1) {\n      return false;\n    }",
+    "to": "    if (paragraphLines <= 1) {\n      return this.lines === bodyLines && this.indents.size > 0;\n    }",
+    "expect": "killed"
+  },
+  {
+    "name": "L05 start floored at 1",
+    "file": "src/core/qmd/model.ts",
+    "from": "Math.max(0, bodyLines.length - paragraphLines)",
+    "to": "Math.max(1, bodyLines.length - paragraphLines)",
+    "expect": "killed"
+  },
+  {
+    "name": "L06 start clamped to the list length too",
+    "file": "src/core/qmd/model.ts",
+    "from": "Math.max(0, bodyLines.length - paragraphLines)",
+    "to": "Math.min(bodyLines.length, Math.max(0, bodyLines.length - paragraphLines))",
+    "expect": "survives",
+    "why": "Equivalent: `paragraphLines >= 2` here, so `length - count < length` and the minimum never binds."
+  },
+  {
+    "name": "L07 no restart for a first ask whose start is 0",
+    "file": "src/core/qmd/model.ts",
+    "from": "this.lines !== bodyLines ||",
+    "to": "(this.lines !== bodyLines && this.lines !== null) ||",
+    "expect": "killed"
+  },
+  {
+    "name": "L08 restart only when the paragraph starts LATER",
+    "file": "src/core/qmd/model.ts",
+    "from": "this.start !== start ||",
+    "to": "this.start < start ||",
+    "expect": "killed"
+  },
+  {
+    "name": "L09 restart only when the paragraph starts EARLIER",
+    "file": "src/core/qmd/model.ts",
+    "from": "this.start !== start ||",
+    "to": "this.start > start ||",
+    "expect": "killed"
+  },
+  {
+    "name": "L10 restart at next == length (no growth since the last ask)",
+    "file": "src/core/qmd/model.ts",
+    "from": "|| this.next > bodyLines.length",
+    "to": "|| this.next >= bodyLines.length",
+    "expect": "killed"
+  },
+  {
+    "name": "L11 restart at next > length + 1",
+    "file": "src/core/qmd/model.ts",
+    "from": "|| this.next > bodyLines.length",
+    "to": "|| this.next > bodyLines.length + 1",
+    "expect": "killed"
+  },
+  {
+    "name": "L12 indents cleared in place instead of replaced",
+    "file": "src/core/qmd/model.ts",
+    "from": "      this.indents = new Set();\n",
+    "to": "      this.indents.clear();\n",
+    "expect": "survives",
+    "why": "Equivalent: nobody else holds the old Set."
+  },
+  {
+    "name": "L13 the start is never stored",
+    "file": "src/core/qmd/model.ts",
+    "from": "      this.start = start;\n",
+    "to": "",
+    "expect": "killed",
+    "why": "this.start stays 0: every ask for a paragraph that starts below line 0 restarts."
+  },
+  {
+    "name": "L14 a restart keeps a later next",
+    "file": "src/core/qmd/model.ts",
+    "from": "this.next = start + 1;",
+    "to": "this.next = Math.max(this.next, start + 1);",
+    "expect": "killed"
+  },
+  {
+    "name": "L15 the last line is never read",
+    "file": "src/core/qmd/model.ts",
+    "from": "for (; this.next < bodyLines.length; this.next++) {",
+    "to": "for (; this.next < bodyLines.length - 1; this.next++) {",
+    "expect": "killed"
+  },
+  {
+    "name": "L16 next never advances (everything re-read each ask)",
+    "file": "src/core/qmd/model.ts",
+    "from": "    for (; this.next < bodyLines.length; this.next++) {\n      const text = bodyLines[this.next].text;",
+    "to": "    for (let k = this.next; k < bodyLines.length; k++) {\n      const text = bodyLines[k].text;",
+    "expect": "killed"
+  },
+  {
+    "name": "L17 a tab counts as one column in the kept indent",
+    "file": "src/core/qmd/model.ts",
+    "from": "this.indents.add(indentColumn(text));",
+    "to": "this.indents.add(text.length - text.trimStart().length);",
+    "expect": "killed"
+  },
+  {
+    "name": "L18 kept indent capped at 16",
+    "file": "src/core/qmd/model.ts",
+    "from": "this.indents.add(indentColumn(text));",
+    "to": "this.indents.add(Math.min(indentColumn(text), 16));",
+    "expect": "killed",
+    "why": "Survived the first rows of the second review round (the alphabets stop at indent 20 and use even columns); killed by the class-level row that keeps an indent as it is (a bullet 20 and 40 columns in under an open column of 17 and of 37)."
+  },
+  {
+    "name": "L19 kept indent mod 32",
+    "file": "src/core/qmd/model.ts",
+    "from": "this.indents.add(indentColumn(text));",
+    "to": "this.indents.add(indentColumn(text) % 32);",
+    "expect": "killed",
+    "why": "Survived the first rows of the second review round (the alphabets stop at indent 20 and use even columns); killed by the class-level row that keeps an indent as it is (a bullet 20 and 40 columns in under an open column of 17 and of 37)."
+  },
+  {
+    "name": "L20 only the smallest kept indent is kept",
+    "file": "src/core/qmd/model.ts",
+    "from": "this.indents.add(indentColumn(text));",
+    "to": "{ const kept = Math.min(indentColumn(text), ...this.indents); this.indents.clear(); this.indents.add(kept); }",
+    "expect": "killed"
+  },
+  {
+    "name": "L21 only the largest kept indent is kept",
+    "file": "src/core/qmd/model.ts",
+    "from": "this.indents.add(indentColumn(text));",
+    "to": "{ const kept = Math.max(indentColumn(text), ...this.indents); this.indents.clear(); this.indents.add(kept); }",
+    "expect": "killed"
+  },
+  {
+    "name": "L22 at most 16 distinct indents kept",
+    "file": "src/core/qmd/model.ts",
+    "from": "this.indents.add(indentColumn(text));",
+    "to": "if (this.indents.size < 16) this.indents.add(indentColumn(text));",
+    "expect": "killed"
+  },
+  {
+    "name": "L23 at most 4 distinct indents kept",
+    "file": "src/core/qmd/model.ts",
+    "from": "this.indents.add(indentColumn(text));",
+    "to": "if (this.indents.size < 4) this.indents.add(indentColumn(text));",
+    "expect": "killed"
+  },
+  {
+    "name": "L24 matching lines found on the left-trimmed text",
+    "file": "src/core/qmd/model.ts",
+    "from": "      if (interruptListMatches(text)) {\n        this.indents.add",
+    "to": "      if (interruptListMatches(text.trimStart())) {\n        this.indents.add",
+    "expect": "killed"
+  },
+  {
+    "name": "L25 only the first matching line is kept",
+    "file": "src/core/qmd/model.ts",
+    "from": "      if (interruptListMatches(text)) {\n        this.indents.add",
+    "to": "      if (interruptListMatches(text) && this.indents.size === 0) {\n        this.indents.add",
+    "expect": "killed"
+  },
+  {
+    "name": "L26 the code-depth test sees the first column only",
+    "file": "src/core/qmd/model.ts",
+    "from": "if (!columnIsCodeDepth(indent, columns)) {",
+    "to": "if (!columnIsCodeDepth(indent, columns.slice(0, 1))) {",
+    "expect": "killed"
+  },
+  {
+    "name": "L27 the code-depth test sees the last column only",
+    "file": "src/core/qmd/model.ts",
+    "from": "if (!columnIsCodeDepth(indent, columns)) {",
+    "to": "if (!columnIsCodeDepth(indent, columns.slice(-1))) {",
+    "expect": "killed"
+  },
+  {
+    "name": "L28 the code-depth test gets a leading 0",
+    "file": "src/core/qmd/model.ts",
+    "from": "if (!columnIsCodeDepth(indent, columns)) {",
+    "to": "if (!columnIsCodeDepth(indent, [0, ...columns])) {",
+    "expect": "survives",
+    "why": "Equivalent: `containerContentColumn` starts its base at 0, so a 0 in the columns changes no answer."
+  },
+  {
+    "name": "L29 the code-depth test drops the zero columns",
+    "file": "src/core/qmd/model.ts",
+    "from": "if (!columnIsCodeDepth(indent, columns)) {",
+    "to": "if (!columnIsCodeDepth(indent, columns.filter((c) => c > 0))) {",
+    "expect": "survives",
+    "why": "Equivalent: as L28, from the other side."
+  },
+  {
+    "name": "L30 the code-depth test gets the columns shifted by one",
+    "file": "src/core/qmd/model.ts",
+    "from": "if (!columnIsCodeDepth(indent, columns)) {",
+    "to": "if (!columnIsCodeDepth(indent, columns.map((c) => c + 1))) {",
+    "expect": "killed"
+  },
+  {
+    "name": "L31 kept indents visited newest first",
+    "file": "src/core/qmd/model.ts",
+    "from": "for (const indent of this.indents) {",
+    "to": "for (const indent of [...this.indents].reverse()) {",
+    "expect": "survives",
+    "why": "Equivalent: the answer is an 'any' over the kept indents, whatever the order."
+  },
+  {
+    "name": "L32 dedupe broken: every line adds a distinct (fractional) key",
+    "file": "src/core/qmd/model.ts",
+    "from": "this.indents.add(indentColumn(text));",
+    "to": "this.indents.add(indentColumn(text) + this.next * 1e-12);",
+    "expect": "killed",
+    "why": "a clock mutant: same answers, the kept set grows by one per matching line"
+  },
+  {
+    "name": "L33 restart whenever the columns ARRAY changes (the first design)",
+    "file": "src/core/qmd/model.ts",
+    "from": "  private indents = new Set<number>();\n\n  interruptedAfterFirst(bodyLines: ReadonlyArray<{ readonly text: string }>, paragraphLines: number, columns: readonly number[]): boolean {\n    if (paragraphLines <= 1) {\n      return false;\n    }\n    const start = Math.max(0, bodyLines.length - paragraphLines);\n    if (this.lines !== bodyLines ||",
+    "to": "  private indents = new Set<number>();\n  private seen: readonly number[] | null = null;\n\n  interruptedAfterFirst(bodyLines: ReadonlyArray<{ readonly text: string }>, paragraphLines: number, columns: readonly number[]): boolean {\n    if (paragraphLines <= 1) {\n      return false;\n    }\n    const start = Math.max(0, bodyLines.length - paragraphLines);\n    const sameColumns = this.seen === columns;\n    this.seen = columns;\n    if (!sameColumns || this.lines !== bodyLines ||",
+    "expect": "killed"
+  },
+  {
+    "name": "L34 restart whenever the NUMBER of columns changes",
+    "file": "src/core/qmd/model.ts",
+    "from": "  private indents = new Set<number>();\n\n  interruptedAfterFirst(bodyLines: ReadonlyArray<{ readonly text: string }>, paragraphLines: number, columns: readonly number[]): boolean {\n    if (paragraphLines <= 1) {\n      return false;\n    }\n    const start = Math.max(0, bodyLines.length - paragraphLines);\n    if (this.lines !== bodyLines ||",
+    "to": "  private indents = new Set<number>();\n  private seen = -1;\n\n  interruptedAfterFirst(bodyLines: ReadonlyArray<{ readonly text: string }>, paragraphLines: number, columns: readonly number[]): boolean {\n    if (paragraphLines <= 1) {\n      return false;\n    }\n    const start = Math.max(0, bodyLines.length - paragraphLines);\n    const sameColumns = this.seen === columns.length;\n    this.seen = columns.length;\n    if (!sameColumns || this.lines !== bodyLines ||",
+    "expect": "killed"
+  },
+  {
+    "name": "L35 list matched on the left-trimmed line (shared by the oracle and the scan)",
+    "file": "src/core/qmd/model.ts",
+    "from": "COMMONMARK_PARAGRAPH_INTERRUPT.some((re) => re.test(line))",
+    "to": "COMMONMARK_PARAGRAPH_INTERRUPT.some((re) => re.test(line.trimStart()))",
+    "expect": "killed"
+  },
+  {
+    "name": "L36 the footnote row is dropped (shared)",
+    "file": "src/core/qmd/model.ts",
+    "from": "COMMONMARK_PARAGRAPH_INTERRUPT.some((re) => re.test(line))",
+    "to": "COMMONMARK_PARAGRAPH_INTERRUPT.slice(0, 9).some((re) => re.test(line))",
+    "expect": "killed"
+  },
+  {
+    "name": "L37 the list sees at most 4096 characters of a line (shared)",
+    "file": "src/core/qmd/model.ts",
+    "from": "COMMONMARK_PARAGRAPH_INTERRUPT.some((re) => re.test(line))",
+    "to": "COMMONMARK_PARAGRAPH_INTERRUPT.some((re) => re.test(line.slice(0, 4096)))",
+    "expect": "killed"
+  },
+  {
+    "name": "L38 the list is matched on the right-trimmed line (shared)",
+    "file": "src/core/qmd/model.ts",
+    "from": "COMMONMARK_PARAGRAPH_INTERRUPT.some((re) => re.test(line))",
+    "to": "COMMONMARK_PARAGRAPH_INTERRUPT.some((re) => re.test(line.trimEnd()))",
+    "expect": "killed",
+    "why": "every $-anchored row ends in a class that already takes the trailing blanks."
+  },
+  {
+    "name": "L39 the oracle's blank guard dropped (columnIsCodeDepth for indentedCodeLine)",
+    "file": "src/core/qmd/model.ts",
+    "from": "  if (indentedCodeLine(line, contentColumns)) {\n    return false;\n  }\n  return interruptListMatches(line);",
+    "to": "  if (columnIsCodeDepth(indentColumn(line), contentColumns)) {\n    return false;\n  }\n  return interruptListMatches(line);",
+    "expect": "survives",
+    "why": "Equivalent for every line the list matches: such a line is never blank, so the blank branch of `indentedCodeLine` cannot fire (checked by reading the ten rows: each needs a marker character)."
+  },
+  {
+    "name": "L40 a level is computed for the other readers too, at column 0",
+    "file": "src/core/qmd/model.ts",
+    "from": "    const commonmarkUnderlineLevel = commonmarkDialect\n      ? setextUnderlineLevel(line, COMMONMARK_INDENT_OFFSETS.map((o) => innermostColumn + o))\n      : null;",
+    "to": "    const commonmarkUnderlineLevel = commonmarkDialect\n      ? setextUnderlineLevel(line, COMMONMARK_INDENT_OFFSETS.map((o) => innermostColumn + o))\n      : setextUnderlineLevel(line, [0]);",
+    "expect": "killed"
+  },
+  {
+    "name": "L41 the hoisted level only inside a paragraph (consecutiveBody > 0)",
+    "file": "src/core/qmd/model.ts",
+    "from": "    const commonmarkUnderlineLevel = commonmarkDialect\n      ? setextUnderlineLevel(line, COMMONMARK_INDENT_OFFSETS.map((o) => innermostColumn + o))\n      : null;",
+    "to": "    const commonmarkUnderlineLevel = commonmarkDialect && consecutiveBody > 0\n      ? setextUnderlineLevel(line, COMMONMARK_INDENT_OFFSETS.map((o) => innermostColumn + o))\n      : null;",
+    "expect": "killed",
+    "why": "an underline with no paragraph above has count 0 and claims nothing; only the number of asks differs."
+  },
+  {
+    "name": "L42 the hoisted level not asked where the run opens a non-paragraph",
+    "file": "src/core/qmd/model.ts",
+    "from": "    const commonmarkUnderlineLevel = commonmarkDialect\n      ? setextUnderlineLevel(line, COMMONMARK_INDENT_OFFSETS.map((o) => innermostColumn + o))\n      : null;",
+    "to": "    const commonmarkUnderlineLevel = commonmarkDialect && !bodyRunOpensNonParagraph\n      ? setextUnderlineLevel(line, COMMONMARK_INDENT_OFFSETS.map((o) => innermostColumn + o))\n      : null;",
+    "expect": "killed"
+  },
+  {
+    "name": "L43 the underline columns drop offset 3",
+    "file": "src/core/qmd/model.ts",
+    "from": "    const commonmarkUnderlineLevel = commonmarkDialect\n      ? setextUnderlineLevel(line, COMMONMARK_INDENT_OFFSETS.map((o) => innermostColumn + o))\n      : null;",
+    "to": "    const commonmarkUnderlineLevel = commonmarkDialect\n      ? setextUnderlineLevel(line, COMMONMARK_INDENT_OFFSETS.map((o) => innermostColumn + o).slice(0, 3))\n      : null;",
+    "expect": "killed"
+  },
+  {
+    "name": "L44 the underline columns gain offset 4",
+    "file": "src/core/qmd/model.ts",
+    "from": "    const commonmarkUnderlineLevel = commonmarkDialect\n      ? setextUnderlineLevel(line, COMMONMARK_INDENT_OFFSETS.map((o) => innermostColumn + o))\n      : null;",
+    "to": "    const commonmarkUnderlineLevel = commonmarkDialect\n      ? setextUnderlineLevel(line, COMMONMARK_INDENT_OFFSETS.map((o) => innermostColumn + o).concat([innermostColumn + 4]))\n      : null;",
+    "expect": "killed"
+  },
+  {
+    "name": "L45 the underline columns reversed",
+    "file": "src/core/qmd/model.ts",
+    "from": "    const commonmarkUnderlineLevel = commonmarkDialect\n      ? setextUnderlineLevel(line, COMMONMARK_INDENT_OFFSETS.map((o) => innermostColumn + o))\n      : null;",
+    "to": "    const commonmarkUnderlineLevel = commonmarkDialect\n      ? setextUnderlineLevel(line, COMMONMARK_INDENT_OFFSETS.map((o) => innermostColumn + o).reverse())\n      : null;",
+    "expect": "survives",
+    "why": "Equivalent: the four columns of an underline are a set (`columns.includes`), whatever the order."
+  },
+  {
+    "name": "L46 gate with || in place of &&",
+    "file": "src/core/qmd/model.ts",
+    "from": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "to": "      commonmarkUnderlineLevel !== null || !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "expect": "killed"
+  },
+  {
+    "name": "L47 gate level test spelled out as 1 or 2",
+    "file": "src/core/qmd/model.ts",
+    "from": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "to": "      (commonmarkUnderlineLevel === 1 || commonmarkUnderlineLevel === 2) && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "expect": "survives",
+    "why": "Equivalent: `setextUnderlineLevel` returns 1, 2 or null."
+  },
+  {
+    "name": "L48 the scan is asked first, then the level",
+    "file": "src/core/qmd/model.ts",
+    "from": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "to": "      !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns()) && commonmarkUnderlineLevel !== null\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "expect": "killed"
+  },
+  {
+    "name": "L49 title length capped at 1000",
+    "file": "src/core/qmd/model.ts",
+    "from": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "to": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())\n        ? Math.min(wholeParagraph, 1000)\n        : defaultTitleLineCount;",
+    "expect": "killed"
+  },
+  {
+    "name": "L50 an interrupted paragraph keeps its last line as the title",
+    "file": "src/core/qmd/model.ts",
+    "from": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "to": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())\n        ? wholeParagraph\n        : Math.min(1, wholeParagraph);",
+    "expect": "killed"
+  },
+  {
+    "name": "L51 else-branch holds 1",
+    "file": "src/core/qmd/model.ts",
+    "from": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "to": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())\n        ? wholeParagraph\n        : 1;",
+    "expect": "killed"
+  },
+  {
+    "name": "L52 else-branch holds default unless the paragraph count is 0",
+    "file": "src/core/qmd/model.ts",
+    "from": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "to": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())\n        ? wholeParagraph\n        : wholeParagraph === 0 ? 0 : defaultTitleLineCount;",
+    "expect": "survives",
+    "why": "Equivalent: a line that cannot underline holds a count nothing reads under a CommonMark-family reader, and the default count otherwise."
+  },
+  {
+    "name": "L53 the scan is handed no columns",
+    "file": "src/core/qmd/model.ts",
+    "from": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "to": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, [])\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "expect": "killed"
+  },
+  {
+    "name": "L54 the scan is handed the columns without the deepest",
+    "file": "src/core/qmd/model.ts",
+    "from": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "to": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns().slice(0, -1))\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "expect": "killed"
+  },
+  {
+    "name": "L55 the scan is handed the columns without the first",
+    "file": "src/core/qmd/model.ts",
+    "from": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "to": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns().slice(1))\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "expect": "killed"
+  },
+  {
+    "name": "L56 the scan is handed only the innermost CommonMark column",
+    "file": "src/core/qmd/model.ts",
+    "from": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "to": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, [innermostColumn])\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "expect": "killed"
+  },
+  {
+    "name": "L57 the scan is handed a leading 0 as the old call did",
+    "file": "src/core/qmd/model.ts",
+    "from": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "to": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, [0, ...columnStack.columns()])\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "expect": "survives",
+    "why": "Equivalent: a leading 0 in the columns changes nothing (see L28)."
+  },
+  {
+    "name": "L58 the scan is handed the columns plus the innermost column",
+    "file": "src/core/qmd/model.ts",
+    "from": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "to": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, [...columnStack.columns(), innermostColumn])\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "expect": "survives",
+    "why": "Equivalent: the innermost content column is already one of the open columns, and the columns are a set."
+  },
+  {
+    "name": "L59 the scan is handed a copy of the list",
+    "file": "src/core/qmd/model.ts",
+    "from": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "to": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines.slice(), wholeParagraph, columnStack.columns())\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "expect": "killed"
+  },
+  {
+    "name": "L60 the scan is handed at least 2 as the count",
+    "file": "src/core/qmd/model.ts",
+    "from": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "to": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, Math.max(wholeParagraph, 2), columnStack.columns())\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "expect": "survives",
+    "why": "Equivalent: a paragraph of one line asked as two lines reads that one line, and the default count for it is 1, the same as the whole-paragraph count."
+  },
+  {
+    "name": "L61 the scan is handed the title count of the default",
+    "file": "src/core/qmd/model.ts",
+    "from": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "to": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, defaultTitleLineCount, columnStack.columns())\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "expect": "killed"
+  },
+  {
+    "name": "L62 the scan is asked about the run of body lines plus one",
+    "file": "src/core/qmd/model.ts",
+    "from": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "to": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph + (consecutiveBody > 3 ? 1 : 0), columnStack.columns())\n        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "expect": "killed"
+  },
+  {
+    "name": "L63 the CommonMark branch falls back to column 0",
+    "file": "src/core/qmd/model.ts",
+    "from": "        ? commonmarkDialect\n          ? commonmarkUnderlineLevel\n          : setextUnderlineLevel(",
+    "to": "        ? commonmarkDialect\n          ? commonmarkUnderlineLevel ?? setextUnderlineLevel(line, [0])\n          : setextUnderlineLevel(",
+    "expect": "killed"
+  },
+  {
+    "name": "L64 the CommonMark branch swaps the levels",
+    "file": "src/core/qmd/model.ts",
+    "from": "        ? commonmarkDialect\n          ? commonmarkUnderlineLevel\n          : setextUnderlineLevel(",
+    "to": "        ? commonmarkDialect\n          ? (commonmarkUnderlineLevel === null ? null : ((3 - commonmarkUnderlineLevel) as 1 | 2))\n          : setextUnderlineLevel(",
+    "expect": "killed"
+  },
+  {
+    "name": "L65 the CommonMark branch only for a title of 2 lines or more",
+    "file": "src/core/qmd/model.ts",
+    "from": "        ? commonmarkDialect\n          ? commonmarkUnderlineLevel\n          : setextUnderlineLevel(",
+    "to": "        ? commonmarkDialect && titleLineCount > 1\n          ? commonmarkUnderlineLevel\n          : setextUnderlineLevel(",
+    "expect": "killed"
+  },
+  {
+    "name": "L66 only the hoisted level is used, for every reader",
+    "file": "src/core/qmd/model.ts",
+    "from": "        ? commonmarkDialect\n          ? commonmarkUnderlineLevel\n          : setextUnderlineLevel(",
+    "to": "        ? commonmarkUnderlineLevel\n          : setextUnderlineLevel(",
+    "expect": "killed",
+    "why": "the other readers lose their setext headings"
+  },
+  {
+    "name": "L67 a tab counts as 4 columns wherever it stands (scan only)",
+    "file": "src/core/qmd/model.ts",
+    "from": "this.indents.add(indentColumn(text));",
+    "to": "this.indents.add(indentColumn(text.replace(/\\t/g, \"    \")));",
+    "expect": "killed"
+  },
+  {
+    "name": "L68 51 the else-branch: 1 (default reader row)",
+    "file": "src/core/qmd/model.ts",
+    "from": "        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "to": "        ? wholeParagraph\n        : 1;",
+    "expect": "killed"
+  },
+  {
+    "name": "R01 the hoisted level is used for every reader (L66 re-done: valid syntax)",
+    "file": "src/core/qmd/model.ts",
+    "from": "        ? commonmarkDialect\n          ? commonmarkUnderlineLevel\n          : setextUnderlineLevel(",
+    "to": "        ? true\n          ? commonmarkUnderlineLevel\n          : setextUnderlineLevel(",
+    "expect": "killed"
+  },
+  {
+    "name": "R02 at most 4,096 lines read per ask",
+    "file": "src/core/qmd/model.ts",
+    "from": "for (; this.next < bodyLines.length; this.next++) {",
+    "to": "for (const end = Math.min(bodyLines.length, this.next + 4096); this.next < end; this.next++) {",
+    "expect": "killed"
+  },
+  {
+    "name": "R03 at most 100,000 lines read per ask",
+    "file": "src/core/qmd/model.ts",
+    "from": "for (; this.next < bodyLines.length; this.next++) {",
+    "to": "for (const end = Math.min(bodyLines.length, this.next + 100000); this.next < end; this.next++) {",
+    "expect": "killed",
+    "why": "a gap: no row asks once about a paragraph of more than 100,000 lines with an interrupter in it"
+  },
+  {
+    "name": "R04 the paragraph window capped at 100,000 lines",
+    "file": "src/core/qmd/model.ts",
+    "from": "Math.max(0, bodyLines.length - paragraphLines)",
+    "to": "Math.max(0, bodyLines.length - Math.min(paragraphLines, 100000))",
+    "expect": "killed",
+    "why": "a gap: the 200,000-line rows hold no interrupter"
+  },
+  {
+    "name": "R05 the paragraph window capped at 4,096 lines",
+    "file": "src/core/qmd/model.ts",
+    "from": "Math.max(0, bodyLines.length - paragraphLines)",
+    "to": "Math.max(0, bodyLines.length - Math.min(paragraphLines, 4096))",
+    "expect": "killed"
+  },
+  {
+    "name": "R06 one scan shared by every document",
+    "file": "src/core/qmd/model.ts",
+    "from": "const paragraphScan = new ParagraphInterruptScan();",
+    "to": "const paragraphScan = ((globalThis as any).__ps ??= new ParagraphInterruptScan()) as ParagraphInterruptScan;",
+    "expect": "survives",
+    "why": "Equivalent in answers: the scan is keyed on the list, so one scan shared by every document restarts at each new list (it only keeps the last document's lines alive)."
+  },
+  {
+    "name": "R07 the scan reads at most 4,096 characters of a line (scan only, the oracle does not)",
+    "file": "src/core/qmd/model.ts",
+    "from": "      const text = bodyLines[this.next].text;\n      if (interruptListMatches(text)) {",
+    "to": "      const text = bodyLines[this.next].text.slice(0, 4096);\n      if (interruptListMatches(text)) {",
+    "expect": "killed",
+    "why": "a gap: no line of a row is longer than 4,096 characters"
+  },
+  {
+    "name": "R08 the scan is not asked for a count of 1 or less",
+    "file": "src/core/qmd/model.ts",
+    "from": "      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())",
+    "to": "      commonmarkUnderlineLevel !== null && consecutiveBody > 1 && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())",
+    "expect": "killed",
+    "why": "answers equal; only the number of asks differs"
+  },
+  {
+    "name": "R09 a 'found' that sticks for the paragraph, across other columns (the round-1 K9 design)",
+    "file": "src/core/qmd/model.ts",
+    "from": "    for (const indent of this.indents) {\n      if (!columnIsCodeDepth(indent, columns)) {\n        return true;\n      }\n    }\n    return false;",
+    "to": "    if ((this as any).found === this.start) {\n      return true;\n    }\n    for (const indent of this.indents) {\n      if (!columnIsCodeDepth(indent, columns)) {\n        (this as any).found = this.start;\n        return true;\n      }\n    }\n    return false;",
+    "expect": "killed"
+  },
+  {
+    "name": "R12 indent kept as a string key",
+    "file": "src/core/qmd/model.ts",
+    "from": "this.indents.add(indentColumn(text));",
+    "to": "this.indents.add(Number(String(indentColumn(text))));",
+    "expect": "survives",
+    "why": "Equivalent: a round trip of a number through a string."
+  },
+  {
+    "name": "R13 the oracle takes a contentColumns of null for the empty list",
+    "file": "src/core/qmd/model.ts",
+    "from": "  contentColumns: readonly number[] | null,\n): boolean {\n  if (indentedCodeLine(line, contentColumns)) {",
+    "to": "  contentColumns: readonly number[] | null,\n): boolean {\n  if (indentedCodeLine(line, contentColumns ?? [])) {",
+    "expect": "survives",
+    "why": "Equivalent: `columnIsCodeDepth` treats null columns as none."
+  },
+  {
+    "name": "R14 start floor and key use the list length at the first ask only",
+    "file": "src/core/qmd/model.ts",
+    "from": "const start = Math.max(0, bodyLines.length - paragraphLines);",
+    "to": "const start = this.lines === bodyLines ? this.start : Math.max(0, bodyLines.length - paragraphLines);",
+    "expect": "killed"
+  },
+  {
+    "name": "R15 the key ignores the start when the list is the same and next is past it",
+    "file": "src/core/qmd/model.ts",
+    "from": "this.start !== start ||",
+    "to": "(this.start !== start && this.next <= start) ||",
+    "expect": "killed"
+  }
+]
