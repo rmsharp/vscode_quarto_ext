@@ -8,8 +8,8 @@ const HEAVY_ROW_MS = 120_000;
 // Session 334 — the BACKLOG item "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", part (6).
 // `knitrCodeMasksPrinters` reads the NAMES assigned in the argument list of an `options(` call (anything but a number-format option masks a printing call). It listed them with the unanchored global pattern
 // `/([A-Za-z.][\w.]*)[ \t]*=/g`, which tries every letter of a run of name characters as a start and reads each to the end of the run looking for an `=`: a run of n letters cost n squared. It is now
-// `knitrOptionNames`, which finds each MAXIMAL run of `[\w.]` once (a start may not follow a name character) that is followed by blanks and an `=`, and answers the run without its leading digits and
-// underscores (a name starts with a letter or a dot; the old pattern's leftmost start in a run is its first such character). The OLD pattern is kept here, copied from the parent `50fa22b`
+// `knitrOptionNames`, which finds each MAXIMAL run of `[\w.]` once (a start inside a run can only succeed where the run's own first letter or dot would, so the lookbehind keeps a start from following a name
+// character) that is followed by blanks and an `=`, and answers the run without its leading digits and underscores (a name starts with a letter or a dot; the old pattern's leftmost start in a run is its first such character). The OLD pattern is kept here, copied from the parent `50fa22b`
 // (`src/core/qmd/model.ts` before the cure), as the oracle (Learning 738), beside a reading by definition that uses no regex at all; the function returns the LIST of names, so the comparison is on every
 // name and its order and not on whether one was found. The pinned counts (how many names the enumeration yields in all) come from those two and never from the code under test.
 
@@ -71,7 +71,7 @@ function compareAll(texts: Iterable<string>, byDefinition = false): Count {
   return { compared, names, disagreements };
 }
 
-// The characters the pattern reads (a letter, a digit, an underscore, a dot, a space and a tab, `=`), and for the wide alphabet the neighbours a name character could be confused with: a capital letter, a hyphen, a
+// The characters the pattern reads (a letter, a digit, an underscore, a dot, a space, `=`), and for the wide alphabet a tab and the neighbours a name character could be confused with: a capital letter, a hyphen, a
 // no-break space (whitespace to `\s`, not to `[ \t]`), a newline, a comma.
 const NARROW = ["a", "1", "_", ".", " ", "="];
 const WIDE = ["a", "Z", "1", "_", ".", " ", "\t", "=", NBSP, "-", "\n", ","];
@@ -205,6 +205,102 @@ describe("Session 334 — knitrCodeMasksPrinters reads the names of an options( 
     ["a dotted name after an allowed one", ["options(digits = 3, a.b = 1)", "summary(x)"], MAYBE],
     ["a tab before the equals sign", ["options(digits = 3, foo\t= 1)", "summary(x)"], MAYBE],
     ["a one-letter name after an allowed one", ["options(digits = 3, w = 1)", "summary(x)"], MAYBE],
+  ];
+  it.each(ROWS.map(([label, code, expected]) => [label, code, expected] as const))("%s", (_label, code, expected) => {
+    expect(outline([...code])).toEqual(expected);
+  });
+});
+
+// The review round of Session 334 (mutation lens, `wf_4c0e316d-989`): the enumerations stop at 9 characters and the seeded sample at about 45, so a cap on a run, on the blanks before the `=` or on the number of names, and a
+// character no alphabet holds (`$`, an accented letter, an arrow), left the pins unchanged. The answers below are stated by hand and asked of the old pattern too (linear on every shape here).
+describe("Session 334 review — knitrOptionNames on long runs and on characters no alphabet holds", () => {
+  const LONG: Array<[string, string, string[]]> = [
+    ["5,000 digits and an equals sign name nothing", "1".repeat(5_000) + "=1", []],
+    ["1,100,000 digits and an equals sign name nothing", "1".repeat(1_100_000) + "=1", []],
+    ["a name of 70,000 letters", "a".repeat(70_000) + "=1", ["a".repeat(70_000)]],
+    ["a name of 1,100,000 letters", "a".repeat(1_100_000) + "=1", ["a".repeat(1_100_000)]],
+    ["a name and 200 blanks before its equals sign", "a" + " ".repeat(200) + "=1", ["a"]],
+    ["a name and 70,000 tabs before its equals sign", "a" + "\t".repeat(70_000) + "=1", ["a"]],
+    ["5,000 underscores and digits, then a name", "_1".repeat(2_500) + "x = 1", ["x"]],
+    ["a `$` is no name character: the name starts after it", "x$y = 1", ["y"]],
+    ["a leading `$`", "$a = 1", ["a"]],
+    ["an accented letter is no name character", "éa = 1", ["a"]],
+    ["an arrow is no assignment here", "a<-1", []],
+  ];
+  it.each(LONG.map(([label, args, expected]) => [label, args, expected] as const))("%s", (_label, args, expected) => {
+    expect(oldNames(args)).toEqual(expected);
+    expect(knitrOptionNames(args)).toEqual(expected);
+  });
+
+  // 300,000 names in one argument list, all listed.
+  it("300,000 assignments are 300,000 names", () => {
+    const args = "a=1,".repeat(300_000);
+    expect(oldNames(args).length).toBe(300_000);
+    expect(knitrOptionNames(args).length).toBe(300_000);
+  });
+});
+
+// The clock rows of the pure function. A cure-shaped regression that keeps every answer is invisible to the equivalence rows above, so these rows read the cost: a name followed by a long run of blanks (or tabs) must not be
+// read once per blank (a lookahead spelled `[ \t]*[ \t]*=` does exactly that, and so did the parent from every letter), and a long list must not be copied once per name (`names = [...names, name]`, or a `concat`).
+describe("Session 334 review — knitrOptionNames reads a blank run and a long list in linear time", () => {
+  const LIMIT_MS = 1000;
+  const SIZE = 60_000;
+  it.each([["blanks", " "], ["tabs", "\t"]] as const)("%s after a name that is followed by no equals sign: `a` x 60,000, 60,000 %s and a letter, no names", (_label, gap) => {
+    const args = "a".repeat(SIZE) + gap.repeat(SIZE) + "x";
+    const started = performance.now();
+    const names = knitrOptionNames(args);
+    const ms = performance.now() - started;
+    expect(names).toEqual([]);
+    expect(ms).toBeLessThan(LIMIT_MS);
+  }, HEAVY_ROW_MS);
+
+  it("60,000 assignments in one argument list are listed in linear time", () => {
+    const args = "a=1,".repeat(SIZE);
+    const started = performance.now();
+    const names = knitrOptionNames(args);
+    const ms = performance.now() - started;
+    expect(names.length).toBe(SIZE);
+    expect(ms).toBeLessThan(LIMIT_MS);
+  }, HEAVY_ROW_MS);
+
+  // Without `at = close` after an `options(` call, the scan for the NEXT call restarts inside the one just read: n copies of `options(` followed by one `)` give the same answer and cost n squared (Session 309's line; the
+  // 40,000 UNCLOSED calls of `knitr-prints.test.ts` return at the first, so they never reach it). 10,000 take 3.7 s without it and 12 ms with it.
+  it("a chunk of 10,000 `options(` and one `)` is read in linear time", () => {
+    const text = "```{r}\n" + "options(".repeat(10_000) + ")\n```\n\n# Z\n";
+    const started = performance.now();
+    const headings = findHeadings(text, "knitr").map((heading) => heading.text);
+    const ms = performance.now() - started;
+    expect(headings).toEqual(["Z"]);
+    expect(ms).toBeLessThan(LIMIT_MS);
+  }, HEAVY_ROW_MS);
+
+  it("keeps the sizes and the limit the clock rows above are built on", () => {
+    expect([SIZE, LIMIT_MS]).toEqual([60_000, 1000]);
+  });
+});
+
+// The call site again, on the shapes the first table does not hold (the review round): the number formats `scipen` and `OutDec`, a name that is not one (`warn`), a call that does not close on its line, a name after the first `)`,
+// a call written another way (`options (`, `x.options(`, `myoptions(`), an empty last argument, and 33 blanks before the `(`. Every answer is what the PARENT gave for the same chunk, checked in the review round.
+describe("Session 334 review — knitrCodeMasksPrinters on options( calls the first table does not hold", () => {
+  const outline = (code: string[]): string[] => {
+    const text = ["---", "title: t", "---", "", "```{r setup0, include=FALSE}", "x <- 1", "```", "", "# Top", "", "```", "", "## Between", "", "```{r, echo=FALSE}", ...code, "```", "", "## After", ""].join("\n");
+    return findHeadings(text, "knitr").map((heading) => heading.text);
+  };
+  const PRINTS = ["Top", "After"];
+  const MAYBE = ["Top", "Between", "After"];
+  const ROWS: Array<[string, string[], string[]]> = [
+    ["scipen is a number format", ["options(scipen = 3)", "summary(x)"], PRINTS],
+    ["OutDec is a number format", ['options(OutDec = ",")', "summary(x)"], PRINTS],
+    ["warn is not a number format", ["options(warn = 1)", "summary(x)"], MAYBE],
+    ["a call that does not close on its line", ["options(digits = 3", "summary(x)"], MAYBE],
+    ["a call that closes on a later line", ["options(digits = 3,", "        foo = 1)", "summary(x)"], MAYBE],
+    ["a name after the first closing paren, in a later call", ["options(digits = 3); summary(x, a = 1)"], PRINTS],
+    ["another call with a name after the first closing paren", ["options(digits = 3); foo(a = 1)", "summary(x)"], PRINTS],
+    ["a blank before the (", ["options (foo = 1)", "summary(x)"], MAYBE],
+    ["a dot before options is another function", ["x.options(foo = 1)", "summary(x)"], PRINTS],
+    ["a name before options is another function", ["myoptions(foo = 1)", "summary(x)"], PRINTS],
+    ["an empty last argument", ["options(digits = 3, foo=)", "summary(x)"], MAYBE],
+    ["33 blanks before the (", ["options" + " ".repeat(32) + "(foo = 1)", "summary(x)"], MAYBE],
   ];
   it.each(ROWS.map(([label, code, expected]) => [label, code, expected] as const))("%s", (_label, code, expected) => {
     expect(outline([...code])).toEqual(expected);

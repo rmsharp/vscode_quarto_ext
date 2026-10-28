@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { yamlAliasName } from "../../src/core/qmd/model";
+import { findHeadings, yamlAliasName } from "../../src/core/qmd/model";
 import { JS_WHITESPACE, LS, NBSP, NEL, PS, countStrings, everyString, seededRandom } from "./support/regex-equivalence";
 
 // The enumerations take several seconds each on a loaded machine; the sibling equivalence files give their heavy rows the same ceiling.
@@ -82,7 +82,7 @@ const NARROW = ["*", "#", "a", " ", "\t", "\r", ","];
 const AFTER_STAR = ["#", "a", " ", "\t", "\r", ",", LS];
 // (the vertical tab, the form feed and U+0085 are the whitespace and the near-terminators that `.` DOES match: a guard that took one of them for a terminator would refuse `*a #` + that character, an alias with a comment)
 const WIDE = ["#", "a", " ", "\t", "\r", "\n", LS, PS, NBSP, "[", "]", "{", "}", ",", "\v", "\f", NEL];
-// Tokens, not characters: a name with a `#` inside, a comment, a flow indicator, every terminator, a form feed.
+// Tokens, not characters: a name with a `#` inside, a comment, a flow indicator, a carriage return, a line separator, a form feed.
 const TOKENS = ["*", "#", "a", "ab", " ", "\t", "\r", LS, "x#", "#y", ",", "{}", "*a", "# c", "\f"];
 const SMALL_DEFINITION = ["*", "#", "a", " ", "\r"];
 
@@ -205,25 +205,110 @@ describe("Session 334 — yamlAliasName: the new function answers what the old a
   // `yamlAliasName` is also asked directly, where a value can hold a line feed, which no line of a document does; the old pattern is slow on each of the four terminators (the document rows of
   // `pathological-inputs.test.ts` cover the other three through `findHeadings`), and the last row shows the clock can fail: the old pattern takes seconds on the same text.
   const CLOCK_RUN = 72_000;
-  it.each([["a carriage return", "\r"], ["a line feed", "\n"], ["a line separator", LS], ["a paragraph separator", PS]] as const)("a name of %s's worth of `#`: `*` + 72,000 `#` + the terminator + a letter is refused in linear time", (_label, terminator) => {
+  const CLOCK_LIMIT_MS = 1000;
+  const OLD_RUN = 56_000;
+  const OLD_FLOOR_MS = 1000;
+  it.each([["a carriage return", "\r"], ["a line feed", "\n"], ["a line separator", LS], ["a paragraph separator", PS]] as const)("`*` + 72,000 `#` + %s + a letter is refused in linear time", (_label, terminator) => {
     const value = `*${"#".repeat(CLOCK_RUN)}${terminator}x`;
     const started = performance.now();
     const name = yamlAliasName(value);
     const ms = performance.now() - started;
     expect(name).toBeNull();
-    expect(ms).toBeLessThan(1000);
+    expect(ms).toBeLessThan(CLOCK_LIMIT_MS);
   });
 
   it("the clock row can fail: the old pattern takes over a second on `*` + 56,000 `#` + a line feed + a letter", () => {
-    const value = `*${"#".repeat(56_000)}\nx`;
+    const value = `*${"#".repeat(OLD_RUN)}\nx`;
     const started = performance.now();
     expect(OLD_YAML_ALIAS_VALUE.exec(value)).toBeNull();
-    expect(performance.now() - started).toBeGreaterThan(1000);
+    expect(performance.now() - started).toBeGreaterThan(OLD_FLOOR_MS);
+  });
+
+  // A run of 7,200 characters, a limit of 100 s or a floor of 1 ms would pass on the parent too (the old pattern takes about 30 ms on 7,200).
+  it("keeps the sizes, the limit and the floor the clock rows above are built on", () => {
+    expect([CLOCK_RUN, CLOCK_LIMIT_MS, OLD_RUN, OLD_FLOOR_MS]).toEqual([72_000, 1000, 56_000, 1000]);
   });
 
   it.each(STATED.map(([value, expected]) => [JSON.stringify(value), value, expected] as const))("%s is stated as %j by hand, by the old pattern, by definition and by the new function", (_label, value, expected) => {
     expect(oldName(value)).toBe(expected);
     expect(definitionName(value)).toBe(expected);
     expect(yamlAliasName(value)).toBe(expected);
+  });
+});
+
+// The review round of Session 334 (mutation lens, `wf_4c0e316d-989`): the rows above end every value in a letter and stop at about 45 characters, so a guard that looks at part of the value (all but the last character, the
+// first or last 4,096 or 2^20), a cap on the name or the blanks, a whitespace character no alphabet holds, and a second sigil (`&a` is an anchor, `!a` a tag) left the pins unchanged.
+describe("Session 334 review — yamlAliasName on long values, on every whitespace character and on the other sigils", () => {
+  const LIMIT_MS = 1000;
+  const clock = <T,>(run: () => T): { result: T; ms: number } => {
+    const started = performance.now();
+    const result = run();
+    return { result, ms: performance.now() - started };
+  };
+
+  // The guard must see the terminator wherever it is: last, with a long tail behind it, or beyond the first megabyte. (A guard on the value without its last character, on the first or last 4,096 characters, or on the
+  // first 2^20, returns the quadratic of the parent on one of these and keeps every answer.)
+  it.each([["a carriage return", "\r"], ["a line feed", "\n"], ["a line separator", LS], ["a paragraph separator", PS]] as const)("the terminator %s last, or followed by 5,000 letters, is refused in linear time", (_label, t) => {
+    const last = clock(() => yamlAliasName("*" + "#".repeat(72_000) + t));
+    expect(last.result).toBeNull();
+    expect(last.ms).toBeLessThan(LIMIT_MS);
+    const tail = clock(() => yamlAliasName("*" + "#".repeat(72_000) + t + "x".repeat(5_000)));
+    expect(tail.result).toBeNull();
+    expect(tail.ms).toBeLessThan(LIMIT_MS);
+  });
+  it("a carriage return after 1,100,000 characters is refused in linear time, and so is one before 1,100,000 more", () => {
+    const far = clock(() => yamlAliasName("*" + "#".repeat(3_000) + "a".repeat(1_100_000) + "\r"));
+    expect(far.result).toBeNull();
+    expect(far.ms).toBeLessThan(LIMIT_MS);
+    const before = clock(() => yamlAliasName("*" + "#".repeat(60_000) + "\r" + "x".repeat(1_100_000)));
+    expect(before.result).toBeNull();
+    expect(before.ms).toBeLessThan(LIMIT_MS);
+  });
+
+  const LONG: Array<[string, string, string | null]> = [
+    ["a name of 70,000 letters", "*" + "a".repeat(70_000), "a".repeat(70_000)],
+    ["a name of 1,100,000 letters", "*" + "a".repeat(1_100_000), "a".repeat(1_100_000)],
+    ["5,000 blanks after the name", "*a" + " ".repeat(5_000), "a"],
+    ["5,000 blanks before the star", " ".repeat(5_000) + "*a", "a"],
+    ["5,000 tabs before the star and 5,000 after the name", "\t".repeat(5_000) + "*a" + "\t".repeat(5_000), "a"],
+    ["a `$` in the name", "*a$b", "a$b"],
+    ["`!`, `&` and `*` in the name", "*a!&*", "a!&*"],
+    ["an anchor is no alias", "&a", null],
+    ["a tag is no alias", "!a", null],
+  ];
+  it.each(LONG.map(([label, value, expected]) => [label, value, expected] as const))("%s", (_label, value, expected) => {
+    expect(oldName(value)).toBe(expected);
+    expect(yamlAliasName(value)).toBe(expected);
+  });
+
+  // Only a space and a tab are blanks to `[ \t]`; any other whitespace character ends the name and is neither a blank after it nor the start of a comment.
+  it.each([...JS_WHITESPACE].filter((c) => c !== " " && c !== "\t").map((c) => [`U+${c.charCodeAt(0).toString(16).toUpperCase().padStart(4, "0")}`, c] as const))("%s ends the name and is no blank: `*a` + it + `b` is no alias", (_label, c) => {
+    expect(oldName("*a" + c + "b")).toBeNull();
+    expect(yamlAliasName("*a" + c + "b")).toBeNull();
+  });
+  // The same by name for the characters a fixed alphabet is most likely to leave out; each is whitespace to `\s`, so it ends a name that has been read and cannot start one.
+  it.each([["a no-break space", NBSP], ["a byte order mark", String.fromCharCode(0xfeff)], ["an ideographic space", String.fromCharCode(0x3000)], ["U+1680", String.fromCharCode(0x1680)], ["U+202F", String.fromCharCode(0x202f)], ["U+205F", String.fromCharCode(0x205f)], ["U+2003", String.fromCharCode(0x2003)]] as const)("%s ends a name that has been read", (_label, c) => {
+    expect(oldName("*a" + c)).toBeNull();
+    expect(yamlAliasName("*a" + c)).toBeNull();
+    expect(oldName("*" + c + "a")).toBeNull();
+    expect(yamlAliasName("*" + c + "a")).toBeNull();
+  });
+});
+
+// The two call sites (`mappingFromValueLine` for a block `from:`, `dereferenceFlowScalar` for a flow mapping), on documents the Session 206 and 208 rows of `qmd-model.test.ts` do not hold. Every answer is what the PARENT
+// (`ae72f74`) gave for the same document, checked in Session 334's review round: an alias followed or led by a no-break space is no alias, a name of 5,000 characters resolves at both sites, and an alias at a nested key
+// resolves against an anchor that is nested too.
+describe("Session 334 review — the two yamlAliasName call sites on values the older rows did not hold", () => {
+  const body = "\n# Top\n\n#Pressed\n\n## Last\n";
+  const texts = (lines: string[]): string[] => findHeadings("---\n" + lines.join("\n") + "\n---\n" + body).map((heading) => heading.text);
+  const x5000 = "x".repeat(5000);
+  it.each([
+    ["a block alias followed by a no-break space is no alias", ["rdr: &rdr markdown_strict", "from: *rdr" + NBSP], ["Top", "Last"]],
+    ["a block alias led by a no-break space is no alias", ["rdr: &rdr markdown_strict", "from:" + NBSP + "*rdr"], ["Top", "Last"]],
+    ["an alias whose name is 5,000 characters long resolves (block)", ["a" + x5000 + ": &" + x5000 + " markdown_strict", "from: *" + x5000], ["Top", "Pressed", "Last"]],
+    ["an alias whose name is 5,000 characters long resolves (flow)", ["a: &" + x5000 + " markdown_strict", "format: {html: {from: *" + x5000 + "}}"], ["Top", "Pressed", "Last"]],
+    ["a nested anchor is not resolved for a nested alias", ["format:", "  html:", "    other: &o markdown_strict", "    from: *o"], ["Top", "Last"]],
+  ] as Array<[string, string[], string[]]>)("%s", (_label, lines, expected) => {
+    expect(texts(lines)).toEqual(expected);
   });
 });
