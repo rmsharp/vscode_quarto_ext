@@ -229,12 +229,15 @@ describe("Session 298 — stacked block enders in the free case", () => {
     ["two definitions on one line and a break", "heading", ["[a]:[b]: /u", "***"]],
     ["a definition with junk after its title and a break", "heading", ["[a]: /u 't' x", "***  "]],
     ["a definition with junk after its title and a code line", "blank", ["[a]: /u 't' x", "     code"]],
-    // the third shape, link attributes with junk after them (`linkAttributesHaveJunk`, Session 334's review round: removing the call, asking it of the URL alone, of the first 4,096 characters or of the text after the
-    // first character changed no row of this file)
+    // the third shape, link attributes with junk after them (`linkAttributesHaveJunk`). Session 334's review round: removing the call, or asking it of the first 4,096 or 65,536 characters, changed no row of this file.
+    // Rendered with quarto 1.7.33 (`--to html --no-execute`, exit 0, Session 334): each of these swallows the opener (the h2 `In` is not in the page), the controls in the GUARD table below list it.
     ["a definition with junk after its link attributes and a break", "heading", ["[a]: /u {#id} x", "***  "]],
     ["a definition with junk after its link attributes and a code line", "blank", ["[a]: /u {#id} x", "     code"]],
     ["a bare label whose attributes and junk sit on the next line, and a break", "heading", ["[a]:", "/u {#id} x", "***  "]],
-    ["a definition with junk after attributes that touch its URL, and a break", "heading", ["[a]: /u{#id} x", "***  "]],
+    ["a definition with junk after its link attributes, last before the opener", "blank", ["[a]: /u {#id} x"]],
+    ["a definition with blanks, then junk, after its link attributes, last before the opener", "blank", ["[a]: /u {#id}   x"]],
+    ["a definition with a 5,000-character URL and junk after its link attributes", "blank", ["[a]: " + "x".repeat(5_000) + " {#id} x"]],
+    ["a definition with a 70,000-character URL and junk after its link attributes", "blank", ["[a]: " + "x".repeat(70_000) + " {#id} x"]],
     ["a definition with no URL and an indented definition", "blank", ["[a]: ", "    [a]: /u"]],
     ["a tilde fence under a prose line, two comments", "blank", ["Para above.", "~~~", "x", "~~~", "<!-- a -->", "<!-- b -->"]],
     ["a raw tilde fence under a prose line, two comments", "blank", ["Para above.", "~~~{=html}", "<i>x</i>", "~~~", "<!-- a -->", "<!-- b -->"]],
@@ -245,6 +248,16 @@ describe("Session 298 — stacked block enders in the free case", () => {
   // definition, not as an open paragraph, so it opens the fence (which pandoc reads as text under the paragraph) and its closer is recorded. The parent refused every stack and was right by accident.
   it("RESIDUAL, kept on purpose: the opener below a bare definition, a tilde fence and two comments is listed here (quarto swallows it)", () => {
     expect(texts(probe("markdown", "heading", ["[a]:", "~~~~ {.cls}", "x", "~~~~", "<!-- a -->", "<!-- b -->"]), "markdown")).toEqual(["Before", "In", "After"]); // quarto: Before, After
+  });
+  // RESIDUAL, kept on purpose (found by Session 334's review round, rendered with quarto 1.7.33, `--to html --no-execute`, exit 0): link attributes that TOUCH the URL (`/u{#id}`, `u{#id}`, a URL of 5,000 letters and `{#id}`)
+  // are no attribute block to quarto, which lists `In` (the definition is accepted, `x` being unquoted junk after the URL); `linkAttributesHaveJunk` takes a `{` at index 1 or later of the URL for the block's opener (the
+  // old pattern `^\S+[ \t]*\{` did too, `[ \t]*` being allowed to match nothing), so this build refuses the definition and swallows the opener. Pinned as it is until the item in BACKLOG.md is taken up.
+  it.each<[string, string[]]>([
+    ["a one-letter URL that the attributes touch", ["[a]: u{#id} x"]],
+    ["a URL that the attributes touch", ["[a]: /u{#id} x"]],
+    ["a URL of 5,000 letters that the attributes touch", ["[a]: " + "x".repeat(5_000) + "{#id} x"]],
+  ])("RESIDUAL, kept on purpose: the opener below %s and junk is swallowed here (quarto lists it)", (_label, x) => {
+    claim(probe("markdown", "blank", x), "markdown", SWALLOWED, "markdown"); // quarto: Before, In, After
   });
   // The real shapes still end a block: a definition with a quoted or parenthesised title, an angle-bracket URL and a fence under a blank line (quarto lists `In`; the first three are grid pairs of slice 1).
   it.each<[string, string[]]>([
@@ -257,6 +270,8 @@ describe("Session 298 — stacked block enders in the free case", () => {
     ["a bare label, the opener being its URL line", ["[a]:"]],
     ["a bare label with its URL on the next, indented line", ["[a]:", "    /url"]],
     ["a definition with link attributes", ["[a]: /url {.cls}"]],
+    ["a definition with link attributes and an id (rendered Session 334)", ["[a]: /u {#id}"]],
+    ["a definition with a 5,000-character URL and link attributes (rendered Session 334)", ["[a]: " + "x".repeat(5_000) + " {#id}"]],
     ["a chain of definitions, one with its URL on the next line", ["[a1]: http://example.com/one", "[a2]: /two \"Title Two\"", "[a3]:", "    /three", "[a4]: /four (Four)"]],
     ["a break, a definition and a bare label", ["***", "[a1]: /a1", "[a2]:"]],
   ])("GUARD: an indent-4 `{bash}` opener below %s is indented code", (_label, x) => {

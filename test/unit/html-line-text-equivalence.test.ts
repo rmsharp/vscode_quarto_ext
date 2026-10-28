@@ -232,14 +232,20 @@ describe("Session 334 review — htmlLineHasText on long lines and on characters
 
   // A scan after every tag, native or not, is a quadratic that keeps every answer: the document rows are sized for the parent's regex (2 ns a character at native speed would pass them), so the run is 4 times longer here
   // (a native `indexOf` to the end of the line after each of 400,000 tags costs 3.5 s on the reviewer's mutant; the scan costs 4 ms).
+  const CLOCK_TAGS = 400_000;
+  const CLOCK_LIMIT_MS = 1000;
   it("400,000 empty tags after a tag are read in linear time", () => {
-    const line = "<p>" + "<>".repeat(400_000);
+    const line = "<p>" + "<>".repeat(CLOCK_TAGS);
     const started = performance.now();
     const text = htmlLineHasText(line);
     const ms = performance.now() - started;
     expect(text).toBe(false);
-    expect(ms).toBeLessThan(1000);
+    expect(ms).toBeLessThan(CLOCK_LIMIT_MS);
   }, HEAVY_ROW_MS);
+  // 40,000 tags, or a limit of 100 s, would pass the native-scan quadratic above.
+  it("keeps the size and the limit of the clock row above", () => {
+    expect([CLOCK_TAGS, CLOCK_LIMIT_MS]).toEqual([400_000, 1000]);
+  });
 
   // The old regex kept one backtrack entry per character of a tag body and threw RangeError ("Maximum call stack size exceeded") from about 9 million characters (measured on Node 22, 8,000,000 answered, 9,000,000 threw);
   // the scan has no such limit. The old function is not asked: whether it throws depends on the engine.
@@ -283,5 +289,11 @@ describe("Session 334 review — the two htmlLineHasText callers on documents th
   it("isTableHeaderCandidate: an indented tag line that begins a block is a header row, so the dash rule below it is a table's", () => {
     expect(rows("\t<p>\n- - -\n<p></p>\n    1\n# Z\n")).toEqual([]);
     expect(rows("---\nfrom: markdown+native_divs\n---\n\n\t<p>\n- - -\n    1\n    ```{python}\n# Z\n")).toEqual([]);
+  });
+  // A tag-only line is no header row (the dash column below it is a break, so `# Z` is a heading): the question is asked of the WHOLE line. 2,100 empty tags after `<p>` make 4,203 characters; a call on the first 4,096
+  // would cut a pair in half, find a `<` that opens no tag and call the line text (the review's mutation lens: the cap survived every row). The answers equal the parent's (`08b271f`).
+  it("isTableHeaderCandidate: a tag-only line of 4,203 characters is no header row, so the dash column below it is a break", () => {
+    const line = "<p>" + "<>".repeat(2_100);
+    expect(rows("---\nfrom: markdown-raw_html\n---\n</div>\n" + line + "\n- - -\n    1\n# Z\n")).toEqual([[7, "Z"]]);
   });
 });

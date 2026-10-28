@@ -214,14 +214,20 @@ describe("Session 334 review — linkAttributesHaveJunk on long texts and on eve
   });
 
   // A search to the end of the text from every `{` of the run is a quadratic that keeps every answer, and at native speed (2 ns a character) the document rows would pass it: 500,000 braces cost 2.8 s that way (the reviewer's mutant), under 1 ms here.
+  const CLOCK_BRACES = 500_000;
+  const CLOCK_LIMIT_MS = 1000;
   it("a URL of 500,000 braces is read in linear time", () => {
-    const rest = "{".repeat(500_000);
+    const rest = "{".repeat(CLOCK_BRACES);
     const started = performance.now();
     const junk = linkAttributesHaveJunk(rest);
     const ms = performance.now() - started;
     expect(junk).toBe(false);
-    expect(ms).toBeLessThan(1000);
+    expect(ms).toBeLessThan(CLOCK_LIMIT_MS);
   }, HEAVY_ROW_MS);
+  // 50,000 braces, or a limit of 100 s, would pass the native-scan quadratic above.
+  it("keeps the size and the limit of the clock row above", () => {
+    expect([CLOCK_BRACES, CLOCK_LIMIT_MS]).toEqual([500_000, 1000]);
+  });
 
   // Only a space and a tab are blanks to the pattern's `[ \t]`; any other whitespace character ends the leading run of non-blanks and the block is not found after it, and is no junk after the `}` (`\S` refuses it).
   it.each([...JS_WHITESPACE].filter((c) => c !== " " && c !== "\t").map((c) => [`U+${c.charCodeAt(0).toString(16).toUpperCase().padStart(4, "0")}`, c] as const))("%s ends the run, and is neither a blank before the `{` nor junk after the `}`", (_label, c) => {
