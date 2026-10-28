@@ -1,0 +1,114 @@
+[
+ {
+  "name": "Y01 a line feed does not stop the pattern",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (/[\\n\\r\\u2028\\u2029]/.test(value)) {\n    return null;\n  }",
+  "to": "  if (/[\\r\\u2028\\u2029]/.test(value)) {\n    return null;\n  }",
+  "expect": "killed",
+  "why": "same answers, n squared on `*` + `#` x n + LF + a letter (no value of a document holds an LF: a direct clock row of the oracle file)"
+ },
+ {
+  "name": "Y02 a carriage return does not stop the pattern",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (/[\\n\\r\\u2028\\u2029]/.test(value)) {\n    return null;\n  }",
+  "to": "  if (/[\\n\\u2028\\u2029]/.test(value)) {\n    return null;\n  }",
+  "expect": "killed",
+  "why": "same answers, n squared on `*` + `#` x n + CR + a letter (the clock rows)"
+ },
+ {
+  "name": "Y03 a line separator does not stop the pattern",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (/[\\n\\r\\u2028\\u2029]/.test(value)) {\n    return null;\n  }",
+  "to": "  if (/[\\n\\r\\u2029]/.test(value)) {\n    return null;\n  }",
+  "expect": "killed",
+  "why": "same answers, n squared on U+2028 (the clock row)"
+ },
+ {
+  "name": "Y04 a paragraph separator does not stop the pattern",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (/[\\n\\r\\u2028\\u2029]/.test(value)) {\n    return null;\n  }",
+  "to": "  if (/[\\n\\r\\u2028]/.test(value)) {\n    return null;\n  }",
+  "expect": "killed",
+  "why": "same answers, n squared on U+2029 (the clock row)"
+ },
+ {
+  "name": "Y05 a value with a terminator answers the empty name",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (/[\\n\\r\\u2028\\u2029]/.test(value)) {\n    return null;",
+  "to": "  if (/[\\n\\r\\u2028\\u2029]/.test(value)) {\n    return \"\";",
+  "expect": "killed",
+  "why": "`*a\\r` is no alias"
+ },
+ {
+  "name": "Y06 the guard removed",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (/[\\n\\r\\u2028\\u2029]/.test(value)) {\n    return null;\n  }",
+  "to": "  if (false) {\n    return null;\n  }",
+  "expect": "killed",
+  "why": "same answers, n squared (the clock rows alone)"
+ },
+ {
+  "name": "Y07 the whole match is the name",
+  "file": "src/core/qmd/model.ts",
+  "from": "return alias === null ? null : alias[1];",
+  "to": "return alias === null ? null : alias[0];",
+  "expect": "killed",
+  "why": "`*a` names `a`, not `*a`"
+ },
+ {
+  "name": "Y08 the name is trimmed",
+  "file": "src/core/qmd/model.ts",
+  "from": "return alias === null ? null : alias[1];",
+  "to": "return alias === null ? null : alias[1].trim();",
+  "expect": "survives",
+  "why": "equivalent: the name holds no whitespace (`[^\\s,[\\]{}]`)"
+ },
+ {
+  "name": "Y09 only the first 1,000 characters are checked",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (/[\\n\\r\\u2028\\u2029]/.test(value)) {",
+  "to": "  if (/[\\n\\r\\u2028\\u2029]/.test(value.slice(0, 1000))) {",
+  "expect": "killed",
+  "why": "a terminator past 1,000 characters is not seen: n squared (the clock rows)"
+ },
+ {
+  "name": "Y10 a form feed stops the pattern",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (/[\\n\\r\\u2028\\u2029]/.test(value)) {\n    return null;\n  }",
+  "to": "  if (/[\\n\\r\\u2028\\u2029\\f]/.test(value)) {\n    return null;\n  }",
+  "expect": "killed",
+  "why": "`*a #\\f` is an alias with a comment (`.` matches a form feed)"
+ },
+ {
+  "name": "Y11 a vertical tab stops the pattern",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (/[\\n\\r\\u2028\\u2029]/.test(value)) {\n    return null;\n  }",
+  "to": "  if (/[\\n\\r\\u2028\\u2029\\v]/.test(value)) {\n    return null;\n  }",
+  "expect": "killed",
+  "why": "`*a #\\v` is an alias with a comment (`.` matches a vertical tab)"
+ },
+ {
+  "name": "Y12 a next-line character stops the pattern",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (/[\\n\\r\\u2028\\u2029]/.test(value)) {\n    return null;\n  }",
+  "to": "  if (/[\\n\\r\\u2028\\u2029\\u0085]/.test(value)) {\n    return null;\n  }",
+  "expect": "killed",
+  "why": "`*a #\\u0085` is an alias with a comment (`.` matches U+0085)"
+ },
+ {
+  "name": "Y13 a no-break space stops the pattern",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (/[\\n\\r\\u2028\\u2029]/.test(value)) {\n    return null;\n  }",
+  "to": "  if (/[\\n\\r\\u2028\\u2029\\u00a0]/.test(value)) {\n    return null;\n  }",
+  "expect": "killed",
+  "why": "`*a #\\u00a0` is an alias with a comment"
+ },
+ {
+  "name": "Y14 the guard is inverted",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (/[\\n\\r\\u2028\\u2029]/.test(value)) {",
+  "to": "  if (!/[\\n\\r\\u2028\\u2029]/.test(value)) {",
+  "expect": "killed",
+  "why": "every alias is refused"
+ }
+]

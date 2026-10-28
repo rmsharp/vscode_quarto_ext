@@ -1,0 +1,26 @@
+[
+ {
+  "name": "W01 the block `from:` site dereferences the name without its first character",
+  "file": "src/core/qmd/model.ts",
+  "from": "const anchored = topLevelForms ? topLevelAnchor(block, indent, alias) : null;",
+  "to": "const anchored = topLevelForms ? topLevelAnchor(block, indent, alias.slice(1)) : null;",
+  "expect": "killed",
+  "why": "an alias to a top-level anchor (`from: *rdr`)"
+ },
+ {
+  "name": "W02 the flow site dereferences the name without its first character",
+  "file": "src/core/qmd/model.ts",
+  "from": "return alias === null ? raw : topLevelAnchor(content, top, alias);",
+  "to": "return alias === null ? raw : topLevelAnchor(content, top, alias.slice(1));",
+  "expect": "killed",
+  "why": "an alias inside a flow mapping (`format: {html: {from: *rdr}}`)"
+ },
+ {
+  "name": "W03 the flow site answers the name, not the dereferenced value",
+  "file": "src/core/qmd/model.ts",
+  "from": "return alias === null ? raw : topLevelAnchor(content, top, alias);",
+  "to": "return alias === null ? raw : alias;",
+  "expect": "killed",
+  "why": "an alias inside a flow mapping is dereferenced"
+ }
+]
