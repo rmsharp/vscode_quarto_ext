@@ -1938,3 +1938,93 @@ describe("Session 331 — consecutive lines that each open a container column no
     ]);
   });
 });
+
+describe("Session 332 — a long paragraph of consecutive lines under a CommonMark-family reader", () => {
+  // Part (9) of the BACKLOG item "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph". Under a top-level `from: gfm`, `commonmark` or `commonmark_x` the title of a setext underline is the WHOLE open paragraph, so
+  // `computeRegions` asks, for EVERY line it reads and not only for an underline, whether any line of the paragraph so far (below its first) interrupts it: `bodyLines.slice(-wholeParagraph).slice(1).some(...)`, two copies of the paragraph and a test
+  // of each line, with a fresh `[0, ...columns]` array for each test. A paragraph of N lines with no interrupter costs about N^2/2 tests, and the answer is read only if the line IS an underline. `format: gfm` and `from: markdown` do not pay it (the default reader's title is one line).
+  // Profile (Session 332, `node --cpu-prof`, fresh process, load 9): `x` x 6,000 under `from: gfm` 2.7 s, 19.8% and 17.7% in two anonymous functions (the callback and `COMMONMARK_PARAGRAPH_INTERRUPT.some`), 13.4% in `computeRegions`, the rest in the regexes
+  // of the list; the repeated block shape 92% of the line ticks on the one `computeRegions` line and 20% of the time in garbage collection, with no time in the pattern tests: the cost is the two `slice` copies of a paragraph that is 2N lines long.
+  // Fresh process, cold, `findHeadings`, load 9 to 12 (Session 332): `x` x 2,000 / 4,000 / 6,000 under `from: gfm` 334 / 1,210 / 2,667 ms (the item's 321 / 1,194 / 2,653), `commonmark` and `commonmark_x` 1,220 and 1,213 ms at 4,000; `format: gfm` and `from: markdown` 36 ms
+  // at 8,000 (linear); blank-separated paragraphs 39 ms at 4,000; `---\nfrom: gfm\n---\ntext\n<?php\n` repeated 2,500 / 5,000 / 10,000 times 112 / 622 / 2,577 ms (the item's 606 at 5,000), the same with `<!--` 609 ms at 5,000, with no `text` line 98 ms (linear);
+  // `- item` and `===` x 2,500 / 5,000 546 / 2,051 ms (the item's 1,980 at 5,000); `~ a` x 1,500 / 3,000 under `commonmark_x` 212 / 763 ms; `x` x 4,000 and 8,000 and ONE `===` at the end 1,207 / 4,665 ms.
+  const PARAGRAPH_LIMIT_MS = 1000;
+  const PARAGRAPH_FEW = 3;
+  const withinParagraphLimit = (ms: number): boolean => ms < PARAGRAPH_LIMIT_MS;
+  type ParagraphEntry = "headings" | "cells" | "labels";
+  type ParagraphRow = { site: string; entry: ParagraphEntry; many: number; build: (count: number) => string; answer: (count: number) => unknown };
+  const paragraphHeadings = (text: string): Array<[number, string, number]> => findHeadings(text).map((heading): [number, string, number] => [heading.level, heading.text, heading.line]);
+  const readParagraph = (entry: ParagraphEntry, text: string): unknown =>
+    entry === "headings" ? paragraphHeadings(text) : entry === "cells" ? findAllCells(text).map((cell) => [cell.lang, cell.startLine, cell.endLine]) : indexLabels(text).map((label) => [label.id, label.line]);
+  const reader = (from: string): string => `---\nfrom: ${from}\n---\n`;
+  const END = "\n# After\n";
+  const words = (count: number): string => Array.from({ length: count }, () => "x").join(" ");
+
+  const PARAGRAPH_ROWS: ParagraphRow[] = [
+    // Controls: linear on the parent too (the default reader's title is one line; a blank line ends the paragraph), so they cannot be RED there; they hold the cure to the same answers at the same size.
+    { site: "control: 40,000 `x` lines under the default reader", entry: "headings", many: 40_000, build: (count) => "x\n".repeat(count) + END, answer: (count) => [[1, "After", count + 1]] },
+    { site: "control: 40,000 `x` lines under `format: gfm` (only a top-level `from:` selects the reader)", entry: "headings", many: 40_000, build: (count) => "---\nformat: gfm\n---\n\n" + "x\n".repeat(count) + END, answer: (count) => [[1, "After", count + 5]] },
+    { site: "control: 14,000 `x` lines under `from: gfm`, a blank line after each", entry: "headings", many: 14_000, build: (count) => `${reader("gfm")}\n` + "x\n\n".repeat(count) + END, answer: (count) => [[1, "After", 2 * count + 5]] },
+
+    // The item's literal shape under each of the three readers, and the Session 329 doors to the same line.
+    { site: "run: 5,000 `x` lines under from: gfm", entry: "headings", many: 5_000, build: (count) => `${reader("gfm")}\n` + "x\n".repeat(count) + END, answer: (count) => [[1, "After", count + 5]] },
+    { site: "run: 5,000 `x` lines under from: commonmark", entry: "headings", many: 5_000, build: (count) => `${reader("commonmark")}\n` + "x\n".repeat(count) + END, answer: (count) => [[1, "After", count + 5]] },
+    { site: "run: 5,000 `x` lines under from: commonmark_x", entry: "headings", many: 5_000, build: (count) => `${reader("commonmark_x")}\n` + "x\n".repeat(count) + END, answer: (count) => [[1, "After", count + 5]] },
+    { site: "run: 10,000 blocks of `from: gfm`, `text` and an unclosed `<?php`", entry: "headings", many: 10_000, build: (count) => (reader("gfm") + "text\n<?php\n").repeat(count) + END, answer: (count) => [[1, "After", 5 * count + 1]] },
+    { site: "run: 10,000 blocks of `from: gfm`, `text` and an unclosed `<!--`", entry: "headings", many: 10_000, build: (count) => (reader("gfm") + "text\n<!--\n").repeat(count) + END, answer: (count) => [[1, "After", 5 * count + 1]] },
+    { site: "run: `- item` and 5,000 `===` lines under from: gfm", entry: "headings", many: 5_000, build: (count) => `${reader("gfm")}- item\n` + "===\n".repeat(count) + END, answer: (count) => [[1, "After", count + 5]] },
+    { site: "run: 5,000 `~ a` lines under from: commonmark_x", entry: "headings", many: 5_000, build: (count) => `${reader("commonmark_x")}` + "~ a\n".repeat(count) + END, answer: (count) => [[1, "After", count + 4]] },
+
+    // The underline that DOES claim the paragraph: the whole paragraph is its title, so the scan is read once and its answer is used.
+    { site: "run: 6,000 `x` lines and one `===` under from: gfm (the title is all 6,000 lines)", entry: "headings", many: 6_000, build: (count) => `${reader("gfm")}\n` + "x\n".repeat(count) + "===\n", answer: (count) => [[1, words(count), 4]] },
+    { site: "run: 6,000 `x` lines and one `---` under from: gfm (a level 2 title)", entry: "headings", many: 6_000, build: (count) => `${reader("gfm")}\n` + "x\n".repeat(count) + "---\n", answer: (count) => [[2, words(count), 4]] },
+    { site: "run: 5,000 `x` lines, one `===` and a heading under from: commonmark_x", entry: "headings", many: 5_000, build: (count) => `${reader("commonmark_x")}\n` + "x\n".repeat(count) + "===\n" + END, answer: (count) => [[1, words(count), 4], [1, "After", count + 6]] },
+
+    // The same scan serves every reader of the regions.
+    { site: "entry findAllCells: 5,000 `x` lines under from: gfm, then a cell", entry: "cells", many: 5_000, build: (count) => `${reader("gfm")}\n` + "x\n".repeat(count) + "\n```{r}\n1\n```\n", answer: (count) => [["r", count + 5, count + 7]] },
+    { site: "entry indexLabels: 5,000 `x` lines under from: commonmark_x, then a labelled heading (gfm indexes no heading label)", entry: "labels", many: 5_000, build: (count) => `${reader("commonmark_x")}\n` + "x\n".repeat(count) + "\n# H {#sec-h}\n", answer: (count) => [["sec-h", count + 5]] },
+  ];
+
+  it.each(PARAGRAPH_ROWS.map((row) => [row.site, row] as const))("%s: is read in linear time, and the answer is the stated one with 3 units and with the long run", (_site, row) => {
+    expect(readParagraph(row.entry, row.build(PARAGRAPH_FEW))).toEqual(row.answer(PARAGRAPH_FEW));
+    const longText = row.build(row.many);
+    const { result, ms } = timed(() => readParagraph(row.entry, longText));
+    expect(result).toEqual(row.answer(row.many));
+    expect({ ms, within: withinParagraphLimit(ms) }).toMatchObject({ within: true });
+  }, 120_000);
+
+  it("builds a different text for every row", () => {
+    // The TEXT alone, not the entry with it: `scanRegions` keeps the last two scans by text (`regionsCache`), so a row whose text another row read just before it is served from the cache and cannot be RED.
+    const long = PARAGRAPH_ROWS.map((row) => row.build(row.many));
+    expect(new Set(long).size).toBe(PARAGRAPH_ROWS.length);
+    const small = PARAGRAPH_ROWS.map((row) => row.build(PARAGRAPH_FEW));
+    const bySmall = new Map<string, string[]>();
+    PARAGRAPH_ROWS.forEach((row, k) => bySmall.set(small[k], [...(bySmall.get(small[k]) ?? []), `${row.entry}:${row.many}`]));
+    for (const sizes of bySmall.values()) {
+      expect(new Set(sizes).size).toBe(sizes.length);
+    }
+  });
+
+  // The RED rows take 1.8 to 2.7 s on the parent at a load near 8, so a limit of 100 s or a row of 1,000 lines would pass there too: the boundary of `withinParagraphLimit` is pinned, and the sizes and shapes the rows are built on.
+  it("keeps the sizes, the limit and the shapes the Session 332 rows are built on", () => {
+    expect([PARAGRAPH_FEW, PARAGRAPH_LIMIT_MS]).toEqual([3, 1000]);
+    expect([withinParagraphLimit(PARAGRAPH_LIMIT_MS - 1), withinParagraphLimit(PARAGRAPH_LIMIT_MS)]).toEqual([true, false]);
+    expect(PARAGRAPH_ROWS.map((row) => `${row.entry} ${row.many} ${JSON.stringify(row.build(2))}`)).toEqual([
+      'headings 40000 "x\\nx\\n\\n# After\\n"',
+      'headings 40000 "---\\nformat: gfm\\n---\\n\\nx\\nx\\n\\n# After\\n"',
+      'headings 14000 "---\\nfrom: gfm\\n---\\n\\nx\\n\\nx\\n\\n\\n# After\\n"',
+      'headings 5000 "---\\nfrom: gfm\\n---\\n\\nx\\nx\\n\\n# After\\n"',
+      'headings 5000 "---\\nfrom: commonmark\\n---\\n\\nx\\nx\\n\\n# After\\n"',
+      'headings 5000 "---\\nfrom: commonmark_x\\n---\\n\\nx\\nx\\n\\n# After\\n"',
+      'headings 10000 "---\\nfrom: gfm\\n---\\ntext\\n<?php\\n---\\nfrom: gfm\\n---\\ntext\\n<?php\\n\\n# After\\n"',
+      'headings 10000 "---\\nfrom: gfm\\n---\\ntext\\n<!--\\n---\\nfrom: gfm\\n---\\ntext\\n<!--\\n\\n# After\\n"',
+      'headings 5000 "---\\nfrom: gfm\\n---\\n- item\\n===\\n===\\n\\n# After\\n"',
+      'headings 5000 "---\\nfrom: commonmark_x\\n---\\n~ a\\n~ a\\n\\n# After\\n"',
+      'headings 6000 "---\\nfrom: gfm\\n---\\n\\nx\\nx\\n===\\n"',
+      'headings 6000 "---\\nfrom: gfm\\n---\\n\\nx\\nx\\n---\\n"',
+      'headings 5000 "---\\nfrom: commonmark_x\\n---\\n\\nx\\nx\\n===\\n\\n# After\\n"',
+      'cells 5000 "---\\nfrom: gfm\\n---\\n\\nx\\nx\\n\\n```{r}\\n1\\n```\\n"',
+      'labels 5000 "---\\nfrom: commonmark_x\\n---\\n\\nx\\nx\\n\\n# H {#sec-h}\\n"',
+    ]);
+  });
+});
