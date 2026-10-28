@@ -5,7 +5,7 @@ import { JS_WHITESPACE, LS, NBSP, NEL, PS, countStrings, everyString, seededRand
 // The enumerations take several seconds each on a loaded machine; the sibling equivalence files give their heavy rows the same ceiling.
 const HEAVY_ROW_MS = 120_000;
 
-// Session 334 — the BACKLOG item "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", part (7).
+// Session 334 — the former BACKLOG item (closed, CHANGELOG: Session 334) "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", part (7).
 // `YAML_ALIAS_VALUE`, `/^[ \t]*\*([^\s,[\]{}]+)[ \t]*(?:#.*)?$/`, reads a front-matter value that is nothing but an alias (`*name`, then blanks, then an optional comment). A `#` is a name character AND the
 // start of a comment, so a name holding a run of `#` gave each of them back in turn as the comment's start, and each `.*` read on to a line terminator that `$` then refused: `*` + n `#` + a CR and a
 // letter cost n squared. Every part of the pattern excludes a line terminator (`[ \t]`, `[^\s...]`, `#` and `.`), and `$` without the `m` flag is the end of the text, so a value that HOLDS one can never match.

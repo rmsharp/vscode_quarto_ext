@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { commonmarkParagraphInterrupt, ParagraphInterruptScan } from "../../src/core/qmd/model";
 import { seededRandom } from "./support/regex-equivalence";
 
-// Session 332 — the BACKLOG item "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", part (9). Under a `from: gfm`, `commonmark` or `commonmark_x` reader the title of a
+// Session 332 — the former BACKLOG item (closed, CHANGELOG: Session 334) "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", part (9). Under a `from: gfm`, `commonmark` or `commonmark_x` reader the title of a
 // setext underline is the whole open paragraph, unless a line of it BELOW ITS FIRST interrupts the paragraph, so `computeRegions` asked, for every line it read, `bodyLines.slice(-wholeParagraph).slice(1).some((l) =>
 // commonmarkParagraphInterrupt(l.text, [0, ...columns]))`: two copies of the paragraph so far and a fresh `[0, ...columns]` array for each line tested (`pathological-inputs.test.ts` has the document rows). The question is now
 // `ParagraphInterruptScan.interruptedAfterFirst`, the same question without the copies, and it is asked only where the line can underline. The old expression is kept here as the oracle (Learning 738; the columns it spread from `columnStack.columns()` are a parameter, and the list of rows is the one `interruptListMatches` the scan shares: the wiring file's documents pin the list itself): the new

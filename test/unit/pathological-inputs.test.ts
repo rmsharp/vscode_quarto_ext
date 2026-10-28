@@ -1735,7 +1735,7 @@ describe("Session 329 — the two documents of the Session 311 item's part (5), 
 });
 
 describe("Session 330 — a heading line holding a long run of `#`, backslashes or `{`", () => {
-  // The BACKLOG item "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", parts (2) and (3). `buildHeading` strips a trailing attribute block and the reader's closing-hash run from
+  // The former BACKLOG item (closed, CHANGELOG: Session 334) "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", parts (2) and (3). `buildHeading` strips a trailing attribute block and the reader's closing-hash run from
   // every heading, each by an unanchored regex that opens with a backslash-parity lookbehind: `ATX_CLOSING_PANDOC` (`(?<=(?:^|[^\\])(?:\\\\)*)#+[ \t]*$`, the pandoc `markdown*` readers) and `HEADING_ATTRIBUTE`
   // (`(?<=(?:^|[^\\])(?:\\\\)*)\{[^}]*\}[ \t]*$`, the readers that honour an attribute block). Both can fail only at the END of the line, so every start that cannot match still reads on: each `#` of a run inside the text reads the rest
   // of the run, each `{` of a run with no closing `}` reads to the end of the line, and, because the lookbehind comes first and is tried at EVERY index, a run of backslashes costs a walk back over the run per index (no `#` or `{`
@@ -1822,7 +1822,7 @@ describe("Session 331 — consecutive lines that each open a container column no
   // a blank line after each line 92 ms at 16,000; `- a` (a bullet pops its predecessor) 76 ms. Under `commonmark_x`: `~ a` x 250 / 500 / 1,000 / 2,000 52 / 232 / 1,556 / 11,864 ms (8x per doubling), `: a` (not a paragraph line there, so not cubic) 143 / 363 / 1,184 / 4,530 ms at 2,000 / 4,000 / 8,000 / 16,000, quadratic like the default reader.
   // The TAIL of a row is what makes its answer depend on the stack: `# After` after a blank line is a heading whatever the stack held; an indented `# H` is a heading only at the container's column, and only while that column is still known (after two of `: a`, `~ a`, `[^1]: a`, `aa. a` the indents 0 and 4 give
   // a heading, after `A. a`, `I. a` the indents 0 and 3: measured on the parent and the cure, indents 0 to 9), and for a stack that had lost its column it would be indented code.
-  // The paragraph factor of that cubic is the BACKLOG item "Eight more regexes and one paragraph reader" part (9): plain `a` lines under `commonmark_x` take 373 / 1,382 / 5,406 / 20,967 ms at 2,000 / 4,000 / 8,000 / 16,000 with an EMPTY stack, so the
+  // The paragraph factor of that cubic is the former BACKLOG item (closed, CHANGELOG: Session 334) "Eight more regexes and one paragraph reader" part (9): plain `a` lines under `commonmark_x` take 373 / 1,382 / 5,406 / 20,967 ms at 2,000 / 4,000 / 8,000 / 16,000 with an EMPTY stack, so the
   // `commonmark_x` row below is relative to that floor and not an absolute limit.
   const COLUMN_LIMIT_MS = 1000;
   const COLUMN_FEW = 3;
@@ -1940,7 +1940,7 @@ describe("Session 331 — consecutive lines that each open a container column no
 });
 
 describe("Session 332 — a long paragraph of consecutive lines under a CommonMark-family reader", () => {
-  // Part (9) of the BACKLOG item "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph". Under a top-level `from: gfm`, `commonmark` or `commonmark_x` the title of a setext underline is the WHOLE open paragraph, so
+  // Part (9) of the former BACKLOG item (closed, CHANGELOG: Session 334) "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph". Under a top-level `from: gfm`, `commonmark` or `commonmark_x` the title of a setext underline is the WHOLE open paragraph, so
   // `computeRegions` asks, for EVERY line it reads and not only for an underline, whether any line of the paragraph so far (below its first) interrupts it: `bodyLines.slice(-wholeParagraph).slice(1).some(...)`, two copies of the paragraph and a test
   // of each line, with a fresh `[0, ...columns]` array for each test. A paragraph of N lines with no interrupter costs about N^2/2 tests, and the answer is read only if the line IS an underline. `format: gfm` and `from: markdown` do not pay it (the default reader's title is one line).
   // Profile (Session 332, `node --cpu-prof`, fresh process, load 9): `x` x 6,000 under `from: gfm` 2.7 s, 19.8% and 17.7% in two anonymous functions (the callback and `COMMONMARK_PARAGRAPH_INTERRUPT.some`), 13.4% in `computeRegions`, the rest in the regexes
@@ -2060,7 +2060,7 @@ describe("Session 332 — a long paragraph of consecutive lines under a CommonMa
 });
 
 describe("Session 333 — a table-border-shaped line holding a long run of dashes and a tail the border pattern refuses", () => {
-  // The BACKLOG item "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", part (1). `tableShapedLineIsBlock` asks `GRID_TABLE_BORDER`
+  // The former BACKLOG item (closed, CHANGELOG: Session 334) "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", part (1). `tableShapedLineIsBlock` asks `GRID_TABLE_BORDER`
   // (`/^\+[-+=:]*[-=:][-+=:]*[ \t]*$/`) of a line that starts with `+` and holds only `-`, `+`, `=`, `:` and spaces (`PLUS_ONLY_ROW` gates the line's OWN question only: a tail of any other character never reaches the pattern that way, but the neighbour scan and the third call site ask it of a line with no gate, so the rows below with an `x` tail beside a border are RED too). The pattern
   // has two stars around one required class, so for a run of n characters followed by a space and one more class character (which the blank-tail cannot absorb) the first star takes the run, gives one back to the
   // required class, the second star takes the rest and `[ \t]*$` fails; every further give-back of the first star repeats that walk: n squared. Profile (Session 333, `node --cpu-prof`, `+` + `-` x 20,000 + ` -`, load
@@ -2149,7 +2149,7 @@ describe("Session 333 — a table-border-shaped line holding a long run of dashe
 });
 
 describe("Session 334 — a tag line, a link definition, an `options(` argument list or a YAML alias holding a long run that the pattern reads from every start", () => {
-  // The BACKLOG item "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", parts (4) to (7). Each pattern fails only at the END of the text it reads, so every start (or every give-back of
+  // The former BACKLOG item (closed, CHANGELOG: Session 334) "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", parts (4) to (7). Each pattern fails only at the END of the text it reads, so every start (or every give-back of
   // its greedy part) reads on to that end: (4) `htmlLineHasText` strips tags with `/<(?:[^>"']|"[^"]*"|'[^']*')*>/g`, so every `<` of a run with no `>` after it reads to the end of the line; (5) `linkDefinitionAt` asks
   // `/^\S+[ \t]*\{[^}]*\}[ \t]*\S/` of the text after `[a]:`, so a run of `{` that is the URL gives back one `{` at a time and each reads to the end looking for a `}`; (6) `knitrCodeMasksPrinters` scans the argument list of
   // `options(` with `/([A-Za-z.][\w.]*)[ \t]*=/g`, so every letter of a run reads to the end of the run looking for an `=`; (7) `YAML_ALIAS_VALUE` ends in `(?:#.*)?$`, and a `#` inside the NAME is a comment start at every give-back of the
