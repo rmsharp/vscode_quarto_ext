@@ -160,6 +160,19 @@ describe("Session 332 — the paragraph-interrupt scan without the copies", () =
     }
   });
 
+  // An indent is kept as it is, at any size: a cap of 16 on it, or its remainder modulo 32, gave the right answer for every column set the alphabets use (the second review round's mutation lens). A bullet 20 columns in is an interrupter
+  // under an open column at 17 (code starts four past it) and code under none; 40 columns in, under 37. The odd columns matter: the columns of a plain nested list are even, and a capped indent lands on one of them.
+  it("keeps an indent as it is, at any size: a bullet 20 and 40 columns in is an interrupter under an open column of 17 and of 37", () => {
+    const bulletAt = (indent: number): Array<{ text: string }> => ["x", " ".repeat(indent) + "- b"].map(line);
+    expect(coldScan(bulletAt(20), 2, [17])).toBe(true);
+    expect(coldScan(bulletAt(20), 2, [])).toBe(false);
+    expect(coldScan(bulletAt(40), 2, [37])).toBe(true);
+    expect(coldScan(bulletAt(40), 2, [])).toBe(false);
+    // And the column must be the right one: under 8 or 36 these are still code.
+    expect(coldScan(bulletAt(40), 2, [8])).toBe(false);
+    expect(coldScan(bulletAt(20), 2, [16])).toBe(false);
+  });
+
   it("reads a long paragraph to its end: an interrupter 5,000 and 100,500 lines down is found", () => {
     const longParagraph = (count: number, at: number | null): Array<{ text: string }> => Array.from({ length: count }, (_, k) => line(k === at ? "<span>a</span>" : "x"));
     expect(coldScan(longParagraph(5_002, 5_001), 5_002, [])).toBe(true);

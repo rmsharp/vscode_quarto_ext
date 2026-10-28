@@ -102,6 +102,7 @@ const CASES: Case[] = [
   { site: "a paragraph of five lines below the first body line, its first line a block quote", body: ["a","","> q","x","y","z","w","==="], answers: { gfm: [[1,"> q x y z w",5]], commonmark: [[1,"> q x y z w",5]], commonmark_x: [[1,"> q x y z w",5]] } },
   { site: "a tab that reaches column 4 inside a list item whose column is 2: a bullet there interrupts", body: ["- m","  x","  \t- b","  y","  ==="], answers: { gfm: [], commonmark: [], commonmark_x: [] } },
   { site: "the same bullet written with six spaces: code under the column 2, so the title is joined", body: ["- m","  x","      - b","  y","  ==="], answers: { gfm: [[1,"m x - b y",3]], commonmark: [[1,"m x - b y",3]], commonmark_x: [[1,"m x - b y",3]] } },
+  { site: "nine nested bullets (open columns up to 18) and an interrupter at the innermost content column plus two", body: ["- a","  - b","    - c","      - d","        - e","          - f","            - g","              - h","                - i","                  x","                    <span>a</span>","                  ---"], answers: { gfm: [], commonmark: [], commonmark_x: [] } },
 ];
 
 describe("Session 332 — the paragraph-interrupt scan through findHeadings", () => {
@@ -113,9 +114,9 @@ describe("Session 332 — the paragraph-interrupt scan through findHeadings", ()
   });
 
   // A table whose answers were all empty would pass a cure that found nothing. Half the rows hold a heading, and the cases are distinct.
-  it("keeps the shape of the table: 89 cases, 267 rows, 137 with a heading, 35 different answer sets, no case twice", () => {
-    expect(CASES.length).toBe(89);
-    expect(rows.length).toBe(267);
+  it("keeps the shape of the table: 90 cases, 270 rows, 137 with a heading, 35 different answer sets, no case twice", () => {
+    expect(CASES.length).toBe(90);
+    expect(rows.length).toBe(270);
     expect(rows.filter(([, reader, c]) => c.answers[reader].length > 0).length).toBe(137);
     expect(new Set(CASES.map((c) => JSON.stringify(c.answers))).size).toBe(35);
     expect(new Set(CASES.map((c) => c.site)).size).toBe(CASES.length);
