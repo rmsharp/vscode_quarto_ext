@@ -3490,9 +3490,9 @@ function mappingFromValueLine(
       continue;
     }
     const value = block[i].slice(indent + key[0].length);
-    const alias = YAML_ALIAS_VALUE.exec(value);
+    const alias = yamlAliasName(value);
     if (alias !== null) {
-      const anchored = topLevelForms ? topLevelAnchor(block, indent, alias[1]) : null;
+      const anchored = topLevelForms ? topLevelAnchor(block, indent, alias) : null;
       return anchored === null ? null : `from: ${anchored}`;
     }
     if (!FRONTMATTER_NOT_CONTENT.test(value) && !BLOCK_SCALAR_INDICATOR.test(value)) {
@@ -3517,6 +3517,11 @@ function mappingFromValueLine(
  * The name charset excludes YAML's flow indicators, which an anchor name may not contain.
  */
 const YAML_ALIAS_VALUE = /^[ \t]*\*([^\s,[\]{}]+)[ \t]*(?:#.*)?$/;
+/** The anchor name of a value that is nothing but an alias (`*name`, blanks, an optional comment), or `null` when it is not one. */
+export function yamlAliasName(value: string): string | null {
+  const alias = YAML_ALIAS_VALUE.exec(value);
+  return alias === null ? null : alias[1];
+}
 /**
  * The value carried by the top-level key that declares the anchor `&name`, or `null` when no
  * top-level key declares it.
@@ -4199,8 +4204,8 @@ function dereferenceFlowScalar(
   content: readonly string[],
   top: number,
 ): string | null {
-  const alias = YAML_ALIAS_VALUE.exec(raw);
-  return alias === null ? raw : topLevelAnchor(content, top, alias[1]);
+  const alias = yamlAliasName(raw);
+  return alias === null ? raw : topLevelAnchor(content, top, alias);
 }
 /** The raw `from:` scalar at the per-format path, before any alias is dereferenced. */
 function flowPerFormatFromRaw(content: readonly string[], top: number): string | null {
