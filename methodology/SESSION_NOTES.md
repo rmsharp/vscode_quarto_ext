@@ -8,48 +8,49 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 332 closed out.** g02's sixteenth session is done: the S318 item's part (9), a long paragraph of consecutive lines under `from: gfm`, `commonmark` or `commonmark_x`. `computeRegions` asks its
-paragraph-interrupt scan only at a line that can underline, and `ParagraphInterruptScan` (`src/core/qmd/model.ts`) keeps the distinct indents of the lines it has read: 20,000 lines took 28 s and take 148 ms. `e2fb887` the claim;
-`b8a62a8`, `9cde0dc`, `0918c3f` the RED rows; `be9eed7`, `f440341`, `944fccb` the cure (the first two were incomplete: the review found it); `0f219e5` to `e67ea42` the review rounds' rows and wording. `BACKLOG.md` "Active" is empty:
-present candidates via AskUserQuestion at Phase 0, ranked by the plan, each saying which rule placed it.
-**What's next (derived from the plan, not a promise):** g02 is still in flight; its items are taken in the plan's table order. Candidates (the picker shows three and a catch-all): (a) the S318 item's other open parts, (1)
-`GRID_TABLE_BORDER`, (4) `htmlLineHasText`, (5) `linkDefinitionAt`, (6) `knitrCodeMasksPrinters`, (7) `YAML_ALIAS_VALUE` (each needs one long line; the item's figures are Session 318's, so time the literal shape at HEAD FIRST,
-Learning 840); (b) the S311 item's parts (4), (10), (11); (c) the `isAttributeBlock` prefix item, the S322 item's part (1) and the S317 stack overflows (4) to (9). After those, the terminal bounded session files ONE RESIDUAL record,
-owns the sweep's unrun 68% (rule P5; the operator's decision of Session 325) and stops. Decisions as the plan says: D2, D3 before g03. The Session 332 residuals (a Polish item) are optional and are not g02's.
-**⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in a close-out commit).
-(2) No harness of this session is in the repo (it lived in the session scratchpad). Rebuild (Learning 848): `git archive <sha> src | tar -x -C parent`; `node_modules/.bin/esbuild src/core/qmd/model.ts --bundle --platform=node
---format=cjs --outfile=x.cjs`; one fresh process per timing, `performance.now()` around one `findHeadings` on a string built in-process; `node --cpu-prof` for the split. A differential of two bundles over generated documents (a
-seeded Mulberry32, forms drawn from the lines the construct reads, exhaustive up to 3 to 7 lines) found what 10 lenses did not once, and its CONTROLS (a bundle with a deliberate breakage) are what make its zero mean something
-(Learning 850).
-(3) ⚠ SHELL: write generated files and notes through a QUOTED heredoc (`<<'PY'`) and pass data by environment; an unquoted one ate backticks and turned `>= 2` into a redirect that made an EMPTY FILE NAMED `=` in the repo root, which
-reds `npm run package` (`check-package`) until removed (Learning 858). zsh does not word-split `$var` or `set -- $spec`: use bash scripts for loops. A backgrounded subshell notifies when its WRAPPER exits; wait on the log's end
-marker with the Monitor tool.
-(4) The runner tests the COMMITTED source (a throwaway worktree of HEAD), copies `--tests` files from the working tree and SKIPS a stale `from`; `mutation-lists-apply.test.ts` goes red on any tracked list whose text a refactor
-rewrote: run it before the mutation run. This session's lists: `s332-paragraph-scan.json` (36) and `s332-paragraph-scan-review.json` (81), run with `--tests` the three Session 332 files and `--cmd "npx vitest run -t 'Session 332'"`;
-the two clock mutants take about 165 s. Run alone, announce first.
-(5) Pins are incomplete an EIGHTEENTH time (Learning 857): 3 of my 35 mutants contradicted their expectation, one "equivalent" was false, and the second round's lens found 11 source edits no row noticed. A "no document tells them
-apart" is a claim about a vocabulary: write what was searched. Before a list says "equivalent", run the mutant against the parent on a differential with a control.
-(6) Clock rows flake under load: `qmd-model.test.ts` Session 307 and 308 rows, `math-scan-equivalence.test.ts`, the oracle file of `column-stack.test.ts` (about 12 s), and now `paragraph-interrupt-equivalence.test.ts`'s
-200,000-question rows (a 500 ms budget inside the loop; 30 to 70 ms alone). Name them, re-run the files alone, never loosen. The "Session 332" document rows have a 1,000 ms limit and 3x or more of headroom except the 24,000-line
-quote row (345 ms).
-(7) Residuals, all in the BACKLOG Polish item "Session 332 residuals of the paragraph-title scan": a question costs the distinct indents kept times the open columns (a 7.2 MB adversarial document, 8 s), two constant factors (1.20x
-on lines that begin with a long `=` run), the 200-line back-walk of `htmlBlockMayBeOpenAbove` (27% of a 160,000-line paragraph), test edits no row notices. The review lenses' scratch is under `scratchpad/s332/lens-*` and `lens2-*`
-(untracked, may be gone); each lens's full result is in the workflow's `journal.jsonl` under `~/.claude/projects/.../subagents/workflows/wf_4abc347e-5cc` and `wf_dd22ee3d-421`.
-(8) The foreign worktree `.claude/worktrees/wf_f559ba89-653-5` is still not mine: ask before removing it. (9) `test:integration` NOT run for twenty-two sessions (takes the screen: ask first). Baseline `npm test` at HEAD: 12,984
-tests in 104 files, clean.
-(10) Real-document score: `REALDOC_DATA=scratchpad/s265 REALDOC_ORDINALS=scratchpad/s251/realfiles.txt tools/realdoc-score/run.sh head` prints 2423 of 2438 (99.38%), 15 divergent; unchanged by this session (the cure answers the same
-on 10 million exhaustive documents and 2 million random ones).
-(11) The plan: update its status column AND its in-flight, next-group and g02 order-table rows at each close-out (done in this one). (12) `master` is NOT pushed: it is 37 commits ahead of `origin/master` (Sessions 330, 331 and 332
-and this close-out's); the dashboard copy is v2.22.0 against canonical v2.23.0 (not synced).
-(13) The Write and Edit tools turn a backslash-u escape for U+2028 into the raw character (Learning 792). `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices, edit with a
-Python script (`python3 -I -`). macOS `sed` rejects `|` as a delimiter and `sed -i` needs `''`. A foreground `sleep` is blocked: use a background run or the Monitor tool. After answering a direct question, STOP and wait (memory).
+**Task:** **NONE -- Session 333 closed out.** g02's seventeenth session is done: the S318 item's part (1), `GRID_TABLE_BORDER` (`src/core/qmd/model.ts`), quadratic on `+`, n dashes, ` -` (and, beside a border, on an
+`x` tail). Its required class is asked once, by a lookahead: 20,000 dashes took 1,507 ms and take 6 ms, a million characters 28 ms. `1be4982` the claim; `4f4560b` the RED rows; `2fcd716` the seam and the oracle;
+`a429813` the cure; `9002d6b`, `4964fd1`, `fda7c4c` the mutants and records; `c7d0bea`, `4bb02b2` the review round's rows and lists; then the close-out commits. `BACKLOG.md` "Active" is empty: present candidates via
+AskUserQuestion at Phase 0, ranked by the plan, each saying which rule placed it.
+**What's next (derived from the plan, not a promise):** g02 is still in flight; its items are taken in the plan's table order. Candidates (the picker shows three and a catch-all): (a) the S318 item's other open
+parts, (4) `htmlLineHasText`, (5) `linkDefinitionAt`, (6) `knitrCodeMasksPrinters`, (7) `YAML_ALIAS_VALUE` (the lookahead recipe is NOT equivalent there); (b) the NEW Up Next item "Six more shapes found by Session
+333's review round" (the third site's border re-count, `<pre>`-family openers, `closedRawHtmlBlockLines` under mmd and phpextra); (c) the S311 item's parts (4), (10), (11), the `isAttributeBlock` prefix item, the
+S322 item's part (1) and the S317 stack overflows (4) to (9). Time the literal shape at HEAD FIRST (Learning 840). After those, the terminal bounded session files ONE RESIDUAL record, owns the sweep's unrun 68%
+(rule P5; the operator's decision of Session 325) and stops. Decisions as the plan says: D2, D3 before g03.
+**⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in a
+close-out commit).
+(2) No harness of this session is in the repo (it lived in the session scratchpad). Rebuild (Learning 848): `git archive <sha> src | tar -x -C dir`; `node_modules/.bin/esbuild src/core/qmd/model.ts --bundle
+--platform=node --format=cjs --outfile=x.cjs`; one fresh process per timing, `performance.now()` around one `findHeadings` on a string built in-process. A COUNTING bundle (the pattern behind a wrapper that records
+the call site and the line length) names the callers, but only the sites your probes reach (Learning 862).
+(3) SHELL: write generated files through QUOTED heredocs (`<<'PY'`); zsh does not word-split `$var` (use `bash -c` for loops); a backgrounded subshell notifies when its WRAPPER exits, so wait on the log's end
+marker; the Write and Edit tools turn a backslash-u escape for U+2028 into the raw character (Learning 792).
+(4) The runner tests the COMMITTED source, copies `--tests` files from the working tree and SKIPS a stale `from`; run `mutation-lists-apply.test.ts` first. This session's lists (README rows hold the commands):
+`s333-grid-border.json` (36), `-clock.json` (4), `-older-suite.json` (2), `-review.json` (15) and `s333-table-shape-gaps.json` (11, all `survives`: flip an entry to `killed` when its row lands).
+(5) Pins are incomplete a NINETEENTH time (Learnings 860, 861, 863): 12 of the review's 15 new mutants were alive on my rows (two touching-star respellings, a widened class, repetition caps, the old spelling at the
+third site only). A "never" or "no document" is a claim about what was searched (Learning 862).
+(6) Clock rows flake under load: `qmd-model.test.ts` Session 307 and 308 rows, `math-scan-equivalence.test.ts`, the oracle file of `column-stack.test.ts`, `paragraph-interrupt-equivalence.test.ts`, and the
+million-character row of `grid-table-border-equivalence.test.ts` (100 ms a line). Name them, re-run the files alone, never loosen.
+(7) Residuals: the BACKLOG Up Next item "Six more shapes found by Session 333's review round" (4.0 s at 1,000 lines of 1,000 dashes; 1.6 s at 32,000 `<pre>` lines; mmd and phpextra `<div>`; the cure is 1.9x the old
+spelling on a long ACCEPTED line, its one-pass spelling `^\++[-=:][-+=:]*[ \t]*$` is in the item; 11 unpinned edits: render with quarto before pinning). The lenses' full results are in the workflow's `journal.jsonl`
+under `~/.claude/projects/.../subagents/workflows/wf_5cb9ea32-a35`.
+(8) The foreign worktree `.claude/worktrees/wf_f559ba89-653-5` is still not mine: ask before removing it. (9) `test:integration` NOT run for twenty-three sessions (takes the screen: ask first). Baseline `npm test`
+at HEAD: 13,071 tests in 105 files, clean.
+(10) Real-document score: `REALDOC_DATA=scratchpad/s265 REALDOC_ORDINALS=scratchpad/s251/realfiles.txt tools/realdoc-score/run.sh head` prints 2423 of 2438 (99.38%), 15 divergent; unchanged by this session (the cure
+answers the same on about 0.5 billion strings).
+(11) The plan: update its status column AND its in-flight, next-group and g02 order-table rows at each close-out (done in this one). (12) `master` is NOT pushed: it is 56 commits ahead of `origin/master`
+(Sessions 330 to 333); the dashboard copy is v2.22.0 against canonical v2.23.0 (not synced).
+(13) `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices, edit with a Python script (`python3 -I -`). macOS `sed` rejects `|` as a delimiter and `sed -i`
+needs `''`. A foreground `sleep` is blocked: use a background run or the Monitor tool. After answering a direct question, STOP and wait (memory).
 
 ### What Session 333 Did
-**Deliverable:** g02 of the backlog ordering plan, seventeenth session: the Session 318 item's part (1), `GRID_TABLE_BORDER` (`model.ts`), quadratic on `+` then n dashes then ` -` (IN PROGRESS)
+**Deliverable:** g02 of the backlog ordering plan, seventeenth session: the Session 318 item's part (1), `GRID_TABLE_BORDER` (`model.ts`), quadratic on `+` then n dashes then ` -` -- DONE; claim `1be4982`
 **Started:** 2026-10-28
-**Status:** Session claimed. Work beginning. Strict TDD: time the literal shape at HEAD first, in fresh processes, with the load beside each figure (Learning 840: the item's figures are Session 318's: 354 ms at 10,000 and 1,394 ms at 20,000).
-Profile BEFORE reading the cure (Learning 739). The item's cure `^\+(?=[-+=:]*[-=:])[-+=:]*[ \t]*$` was tested by the agent on 2,396,745 strings and is not trusted until the old regex is the oracle in a test of its own. Three call sites: `model.ts` 5224, 5242, 13764. Operator decision at Phase 0: this part (recommended; placed by finishing a feature).
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Status:** Closed out. Timed the item's shape first (fresh processes, load 7 to 9: it held, 374 / 1,507 ms) and profiled before reading the cure (96.5% in the pattern). `4f4560b` 21 rows, 16 RED on the parent on the clock alone; `2fcd716` the seam and the oracle (the old
+spelling kept in a test of its own; RED: the import was undefined); `a429813` the cure `^\+(?=[-+=:]*[-=:])[-+=:]*[ \t]*$` (20,000 dashes 1,507 ms to 6 ms, a million 28 ms; 47,079,208 strings, 0 differences); `9002d6b` 42 mutants in three lists and the two
+rows they asked for; `4964fd1`, `fda7c4c` records. Review `wf_5cb9ea32-a35` (5 lenses, 37 verifiers): the old and new patterns agree on about 0.5 billion strings; 12 of 15 new mutants were alive on my rows and are killed by `c7d0bea` (5 document rows, 13
+equivalence rows); the gate and the third call site had been described too narrowly (`PLUS_ONLY_ROW` guards only the line's own question; the third site does receive long lines); 12 wrong statements fixed; 6 shapes and 11 unpinned edits filed. `npm test` 13,071
+passing in 105 files; `npm run package` 44 files; `test:oracle` 2 files pass (warm); real-document score unchanged (2423 of 2438).
+**Ledger:** `CHANGELOG.md` 2026-10-28 -- one entry per action (the claim entry replaced by the outcome entry; one each for the review round, the SESSION_NOTES trim and the quality-gate citation), recorded in the close-out commits.
 
 ### What Session 332 Did
 **Deliverable:** g02 of the backlog ordering plan, sixteenth session: the Session 318 item's part (9), a long paragraph of consecutive lines under a top-level `from: gfm`, `commonmark` or `commonmark_x` is quadratic -- DONE; claim `e2fb887`
@@ -192,6 +193,35 @@ One new item filed (eight regexes and a paragraph reader). `npm test` 11,403 pas
 **Status:** Closed out. Five patterns respelled (`4627675d`), exhaustive proof plus near-miss and gap-grid rows, 51 + 4 mutants (49 + 3 killed, 3 argued equivalent), a five-lens review round that closed three test gaps.
 Nine more families filed. `npm test` 11,347 passing plus one load-flake clock row (11,348 in 85 files); `npm run package` 44 files; real-document score unchanged.
 **Ledger:** `CHANGELOG.md` 2026-10-16 -- one entry per action (the claim entry replaced), recorded in the close-out commit.
+
+## Session 332 Handoff Evaluation (by Session 333)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers (at HEAD `03f9696`, gap 0), no `pending` receipt, the ratchet citation (2/2, results `bba236856bad`, at `8efa6ac`) and the real-document score
+(2423 of 2438, re-measured at close-out) held, and the picker the plan ranked was accurate: candidate (a) was the S318 item's part (1), placed by finishing a feature, and the item's figures held (`+` + dashes + ` -` 374 / 1,507 ms at 10,000 / 20,000
+against the item's 354 / 1,394).
+**Helped:** gotcha 2 (the harness is gone: rebuild it from tracked files with the three commands) took five minutes and worked; gotcha 3 (quoted heredocs, bash for loops) kept me out of the stray-file trap; gotcha 4 (the runner tests the COMMITTED source)
+held; gotcha 5 (the pins are incomplete) was true a nineteenth time; Learnings 840 and 739 made me time the literal shape and profile before reading the cure; gotcha 6 named the clock rows that flake, and two did under the review's load.
+**Missing:** nothing that cost time except the `master` count: the handoff said 37 commits ahead and Orient measured 42 (three commits were made after the count was written, and two were not in it). **Wrong:** nothing else I checked. **ROI: high.**
+
+## Session 333 Self-Assessment
+
+**Score: 7/10.**
+**Went right.** I timed the item's shape in fresh processes at HEAD before reading code (it held), profiled before reading the cure, and showed the clock rows RED first (16, on the clock alone, answers already right). The old spelling is the oracle in a test of its
+own, with four enumerations (4,819,915 strings, counts recounted by a Python port of the definition), a reading by definition with no regex, a scratch run of 47,079,208 strings and wrong cures the comparator must see. The runner found two incomplete pins of mine
+(G01 killed only by its 600 s timeout, C04 alive at 599 ms) and I fixed both. The five-lens review found 0 semantic differences and I reproduced every claim I acted on with my own builders before changing a file (the ungated tail beside a border, the long
+line at the third site by a counting bundle, the S03 and S04 row counts, the 346,476 control, the two document-level differences for R06 and R07), and I filed what I did not fix instead of dropping it.
+**Went wrong.** (1) Three records, a Learning and a test comment said an `x` tail never reaches the pattern and the third call site never sees a long line; both were claims about my probes (about 100 documents, none with the third site's trigger, and no `x` tail
+beside a border), and the review corrected them. (2) My pins were incomplete a NINETEENTH time: 12 of the review's 15 new mutants were alive on my rows (a `+` star after the class star and a tab star after the blank star, which I should have found by listing every
+adjacent pair of stars; the old spelling at the third site alone; a class widened to `|`, a form feed or a no-break space; repetition caps), and my alphabet had none of those characters. (3) Twelve statements were wrong or too wide (the 5,094 control attached to the
+wrong run in four places, G21's note, S03 and S04 "4 rows" against 17 and 14, the 18% of the wrong denominator, "a 30,000-space control" that was a never-committed draft, "both against a reading by definition", the 2 ms and 6 ms figures on different bases); I had also
+drafted "about 590 ms" before I measured 599. (4) The cure reads an accepted run twice (1.9x the old spelling on a long accepted line) and a one-pass spelling exists; I did not find it, did not adopt it once the review did (microseconds a call; the mutants naming the lookahead
+would be rewritten) and filed it. (5) TDD deviations, disclosed: the oracle file, the added controls, the C04 and G01 fixes and the review round's rows all pass on arrival; their RED is a mutant (12 of 15 alive on the tests as committed, 14 killed after, run with the
+runner). (6) The machine ran at a load of 3 to 20 from other projects, and 15 to 240 during the review lenses, so I re-ran every cited timing at 6 to 10.
+**Known residuals (filed or stated):** the Up Next item "Six more shapes found by Session 333's review round"; the S318 item's parts (4) to (7); the S311 item's parts (4), (10), (11); the `isAttributeBlock` prefix item; the S322 item's part (1); the S317 stack
+overflows (4) to (9); `test:integration` NOT run.
+**TDD:** RED before GREEN for the clock rows (`4f4560b` before `a429813`) and for the oracle's seam (import undefined, `2fcd716`); every later row is mutant-RED.
+**Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** 42 agents in 1 workflow (4,692,545 subagent tokens; 1,258 tool calls; 2.1 hours), about 150 runner mutants of mine (36 + 4 + 2 + 15 + 11, with re-runs), a 47-million-string scratch
+enumeration, 0 quarto renders (the oracle ran warm).
 
 ## Session 331 Handoff Evaluation (by Session 332)
 
