@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GRID_TABLE_BORDER } from "../../src/core/qmd/model";
-import { compare, countStrings, everyString, seededRandom } from "./support/regex-equivalence";
+import { compare, countStrings, everyString, seededRandom, slowestExec } from "./support/regex-equivalence";
 
 // Session 333 — the BACKLOG item "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", part (1). `GRID_TABLE_BORDER` was
 // `/^\+[-+=:]*[-=:][-+=:]*[ \t]*$/`: two stars around one required class, so a run of n class characters followed by a blank and one more class character cost n squared. It is now
@@ -154,4 +154,23 @@ describe("Session 333 — GRID_TABLE_BORDER against its old spelling", () => {
       expect(match).toHaveLength(1);
     }
   });
+
+  // Each line is a million characters or so. The old spelling's slope (four times per doubling, 1,507 ms at 20,000) puts one of them at about an hour (extrapolated, not run); the pattern is linear.
+  // The limit is 100 ms for a line, far above the linear figure.
+  it("reads a line of a million characters in time proportional to its length", () => {
+    const million = 1_000_000;
+    const lines = [
+      `+${"-".repeat(million)} -`,
+      `+${"=".repeat(million)} -`,
+      `+${":".repeat(million)} -`,
+      `+${"-+".repeat(million / 2)} -`,
+      `+${"-".repeat(million)} +`,
+      `+${"-".repeat(million)}  x`,
+      `+${"+".repeat(million)} -`,
+      `+-${" ".repeat(million)}-`,
+      `+${"-".repeat(million)}${"\t".repeat(10)}-`,
+    ];
+    const { slow, slowestText } = slowestExec(GRID_TABLE_BORDER, lines, 100);
+    expect(slow, `slowest line starts ${slowestText}`).toBe(false);
+  }, 120_000);
 });

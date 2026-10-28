@@ -5142,7 +5142,15 @@ export const TABLE_RULE_ROW =
  * whole family block-level while `+---+---+` (`r1/a06`) still becomes prose.
  */
 const LINE_BLOCK_START = /^\|([ \t]|$)/;
-export const GRID_TABLE_BORDER = /^\+[-+=:]*[-=:][-+=:]*[ \t]*$/;
+/**
+ * A grid table's border line, as the docstring above describes it: a plus, class characters (`-`, `+`, `=`, `:`) holding at least one of `-`, `=` or `:`, then blanks.
+ *
+ * ⚠ **The required class is asked by a LOOKAHEAD, not by a second star (Session 333).** The old spelling, `/^\+[-+=:]*[-=:][-+=:]*[ \t]*$/`, had two stars around the one required class, so for a run of n class
+ * characters followed by a blank and one more class character (`+` and 30,000 dashes and ` -`, which `PLUS_ONLY_ROW` lets through) the first star gave back one position at a time and the second star read the rest again
+ * each time: n squared, 3.4 s at 30,000. The lookahead answers "does the run hold one?" once and is not given back to (a lookahead is atomic); the one star after it meets the blanks, which share no
+ * character with the class, so the rest has a single way to match. The two spellings accept the same strings: `grid-table-border-equivalence.test.ts` keeps the old one as the oracle.
+ */
+export const GRID_TABLE_BORDER = /^\+(?=[-+=:]*[-=:])[-+=:]*[ \t]*$/;
 const GRID_TABLE_ROW = /^\|/;
 const PLUS_ONLY_ROW = /^\+[-+=: ]*$/;
 const BULLET_MARKER = /^[-*+][ \t]+/;
