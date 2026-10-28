@@ -230,6 +230,17 @@ describe("Session 334 review — htmlLineHasText on long lines and on characters
     expect(htmlLineHasText(line)).toBe(expected);
   });
 
+  // A scan after every tag, native or not, is a quadratic that keeps every answer: the document rows are sized for the parent's regex (2 ns a character at native speed would pass them), so the run is 4 times longer here
+  // (a native `indexOf` to the end of the line after each of 400,000 tags costs 3.5 s on the reviewer's mutant; the scan costs 4 ms).
+  it("400,000 empty tags after a tag are read in linear time", () => {
+    const line = "<p>" + "<>".repeat(400_000);
+    const started = performance.now();
+    const text = htmlLineHasText(line);
+    const ms = performance.now() - started;
+    expect(text).toBe(false);
+    expect(ms).toBeLessThan(1000);
+  }, HEAVY_ROW_MS);
+
   // The old regex kept one backtrack entry per character of a tag body and threw RangeError ("Maximum call stack size exceeded") from about 9 million characters (measured on Node 22, 8,000,000 answered, 9,000,000 threw);
   // the scan has no such limit. The old function is not asked: whether it throws depends on the engine.
   it("a tag body of 10,000,000 characters is read, not a stack overflow", () => {

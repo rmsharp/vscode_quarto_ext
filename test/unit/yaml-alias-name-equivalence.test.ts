@@ -265,6 +265,13 @@ describe("Session 334 review — yamlAliasName on long values, on every whitespa
     expect(before.ms).toBeLessThan(LIMIT_MS);
   });
 
+  // A scan to the end of the value from every `#`, before or after the guard, is a quadratic that keeps every answer, and at native speed (2 ns a character) the 72,000-character rows would pass it: 500,000 cost 2.8 s.
+  it.each([["no terminator: an alias named by the whole run", "*" + "#".repeat(500_000), "#".repeat(500_000)], ["a carriage return and a letter: no alias", "*" + "#".repeat(500_000) + "\rx", null]] as const)("`*` + 500,000 `#`, %s, is read in linear time", (_label, value, expected) => {
+    const { result, ms } = clock(() => yamlAliasName(value));
+    expect(result).toBe(expected);
+    expect(ms).toBeLessThan(LIMIT_MS);
+  });
+
   const LONG: Array<[string, string, string | null]> = [
     ["a name of 70,000 letters", "*" + "a".repeat(70_000), "a".repeat(70_000)],
     ["a name of 1,100,000 letters", "*" + "a".repeat(1_100_000), "a".repeat(1_100_000)],
