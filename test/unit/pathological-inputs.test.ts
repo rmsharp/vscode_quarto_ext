@@ -15,7 +15,7 @@ import { findFrontMatterTopLevelLines } from "../../src/core/yaml-frontmatter-va
 import { CURATED_SCHEMA_INDEX } from "../../src/core/yaml-schema";
 import { isWrongValue } from "../../src/core/yaml-value-check";
 import { collectValueSources, valueFlags } from "../../src/core/yaml-value-flags";
-import { LS } from "./support/regex-equivalence";
+import { LS, PS } from "./support/regex-equivalence";
 
 // Session 311 — the BACKLOG item "Three PRE-EXISTING slow or crashing inputs" (found by Session 304's robustness
 // hunter, timed firsthand, identical in the parent build). Every row here is a document nobody writes by hand and
@@ -2144,6 +2144,104 @@ describe("Session 333 — a table-border-shaped line holding a long run of dashe
       "-x20000", "-x18000", "-x24000",
       "-x22000", "-x16000",
       "-x30000", "-x30000", "-x30000", "-x30000",
+    ]);
+  });
+});
+
+describe("Session 334 — a tag line, a link definition, an `options(` argument list or a YAML alias holding a long run that the pattern reads from every start", () => {
+  // The BACKLOG item "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", parts (4) to (7). Each pattern fails only at the END of the text it reads, so every start (or every give-back of
+  // its greedy part) reads on to that end: (4) `htmlLineHasText` strips tags with `/<(?:[^>"']|"[^"]*"|'[^']*')*>/g`, so every `<` of a run with no `>` after it reads to the end of the line; (5) `linkDefinitionAt` asks
+  // `/^\S+[ \t]*\{[^}]*\}[ \t]*\S/` of the text after `[a]:`, so a run of `{` that is the URL gives back one `{` at a time and each reads to the end looking for a `}`; (6) `knitrCodeMasksPrinters` scans the argument list of
+  // `options(` with `/([A-Za-z.][\w.]*)[ \t]*=/g`, so every letter of a run reads to the end of the run looking for an `=`; (7) `YAML_ALIAS_VALUE` ends in `(?:#.*)?$`, and a `#` inside the NAME is a comment start at every give-back of the
+  // name, where `.*` reads to a line terminator that `$` then refuses. Profile (Session 334, `node --cpu-prof`, `findHeadings` or `buildOutline`, load 8 to 10, 20,000 units): 94.5%, 89.2%, 83.1% and 84.6% of the time in those four patterns.
+  // Bare `findHeadings` (the engine hint "knitr" for part 6), a fresh process per shape, load near 9, against a limit of 1,000 ms; the parent takes the times in the row titles' sizes. The rows are sized for about 3 to 4 s on the parent,
+  // under vitest's 5 s default so that the failure is the clock assertion and not a timeout, and the controls come first so the patterns are warm (Learning 816).
+  const S334_LIMIT_MS = 1000;
+  const S334_FEW = 4;
+  const s334Headings = (text: string, engine?: "knitr"): Array<[number, string]> => findHeadings(text, engine).map((heading): [number, string] => [heading.line, heading.text]);
+  const s334FrontMatter = (from: string | null): string => (from === null ? "" : `---\nfrom: ${from}\n---\n\n`);
+  type S334Row = { site: string; from: string | null; engine?: "knitr"; unit: string; many: number; build: (run: string) => string; setext?: boolean };
+  // The heading `# Z` is the last line of every document. A tag line with NO text after its tags (`htmlLineHasText` false) is no header row, so `x y` over the dash rule below it is a setext heading, at line 4 (the row says `setext`); with text left
+  // over, the three lines are a simple table and `x y` is a row.
+  const s334Expected = (row: S334Row, text: string): Array<[number, string]> => (row.setext ? [[4, "x y"], [text.split("\n").length - 2, "Z"]] : [[text.split("\n").length - 2, "Z"]]);
+  const tagTable = (tag: string, tail = ""): ((run: string) => string) => (run) => `text\n\n${tag}${run}${tail}\n------- -------\nx y\n-------\n\n# Z\n`;
+  const cellOpener = "    ```{python}\n    1\n    ```\n";
+  const knitrCell = (call: (run: string) => string): ((run: string) => string) => (run) => `\`\`\`{r}\n${call(run)}\n\`\`\`\n\n# Z\n`;
+  const aliasDoc = (value: (run: string) => string): ((run: string) => string) => (run) => `---\nfrom: *${value(run)}\n---\n\n# Z\n`;
+
+  const S334_ROWS: S334Row[] = [
+    // Controls: fast on the parent too, so they cannot be RED there; they hold the cure to the same answers at the same size.
+    { site: "control (4): `<p>` and 100,000 `<>` pairs, every start matches", from: null, unit: "<>", many: 100_000, build: tagTable("<p>"), setext: true },
+    { site: "control (4): `<p>`, 100,000 `<` and a `>` at the end, the first start reads to the end and matches", from: null, unit: "<", many: 100_000, build: tagTable("<p>", ">"), setext: true },
+    { site: "control (4): a tag line of 200,000 letters, no further `<`", from: null, unit: "x", many: 200_000, build: tagTable("<p>") },
+    { site: "control (4): 100,000 `<` on a line that is no tag line, the first guard refuses it", from: null, unit: "<", many: 100_000, build: tagTable("ab") },
+    { site: "control (5): `[a]: /u` and 100,000 `{`, the URL ends before the run", from: null, unit: "{", many: 100_000, build: (run) => `[a]: /u ${run}\n------- -------\n\n# Z\n` },
+    { site: "control (5): `[a]: ` and 100,000 `{` closed by `}x`, the first give-back matches", from: null, unit: "{", many: 100_000, build: (run) => `[a]: ${run}}x\n------- -------\n\n# Z\n` },
+    { site: "control (6): `options(` and 200,000 digits, no name can start", from: null, engine: "knitr", unit: "1", many: 200_000, build: knitrCell((run) => `options(${run})`) },
+    { site: "control (6): 30,000 assignments inside one `options(`", from: null, engine: "knitr", unit: "a=1,", many: 30_000, build: knitrCell((run) => `options(${run})`) },
+    { site: "control (7): `from: *` and 200,000 letters, an alias with no terminator", from: null, unit: "a", many: 200_000, build: aliasDoc((run) => run) },
+    { site: "control (7): `from: *` and 100,000 `#` with no terminator", from: null, unit: "#", many: 100_000, build: aliasDoc((run) => run) },
+
+    // Part (4), the table-header question (`isTableHeaderCandidate`, asked of the line above a simple table's dash rule): the run, and the tails that keep a `>` out of reach.
+    { site: "(4) table header: `<p>` and 36,000 `<`", from: null, unit: "<", many: 36_000, build: tagTable("<p>") },
+    { site: "(4) table header: `<p>`, 36,000 `<` and a `>` inside double quotes", from: null, unit: "<", many: 36_000, build: tagTable("<p>", '"x>y"') },
+    { site: "(4) table header: `<p>`, 36,000 `<` and a double quote that never closes", from: null, unit: "<", many: 36_000, build: tagTable("<p>", '"') },
+    { site: "(4) table header: `<p>`, 36,000 `<` and a single quote that never closes", from: null, unit: "<", many: 36_000, build: tagTable("<p>", "'") },
+    { site: "(4) table header: `<p>` and 21,000 of `<a `", from: null, unit: "<a ", many: 21_000, build: tagTable("<p>") },
+    // Part (4), the free case (`endsFreshHtml`, asked of the line above an indented cell opener under a reader outside pandoc's markdown).
+    { site: "(4) free case: from: markdown_mmd, `<p>` and 52,000 `<`, then an indented cell opener", from: "markdown_mmd", unit: "<", many: 52_000, build: (run) => `<p>${run}\n${cellOpener}\n# Z\n` },
+    { site: "(4) free case: from: markdown_phpextra, text, `<div>` and 54,000 `<`, then an indented cell opener", from: "markdown_phpextra", unit: "<", many: 54_000, build: (run) => `text\n\n<div>${run}\n${cellOpener}\n# Z\n` },
+
+    // Part (5): the run is the URL itself (`[a]: ` and `{`), so `\S+` gives back one `{` at a time.
+    { site: "(5) rule below: `[a]: ` and 60,000 `{`", from: null, unit: "{", many: 60_000, build: (run) => `[a]: ${run}\n------- -------\n\n# Z\n` },
+    { site: "(5) rule below, the URL on the next line: `[a]:` then 80,000 `{`", from: null, unit: "{", many: 80_000, build: (run) => `[a]:\n${run}\n------- -------\n\n# Z\n` },
+    { site: "(5) rule below: `[a]: `, 60,000 `{` and a letter", from: null, unit: "{", many: 60_000, build: (run) => `[a]: ${run}x\n------- -------\n\n# Z\n` },
+
+    // Part (6): the argument list of `options(`, in a cell, in inline code and under a `#|` header.
+    { site: "(6) cell: `options(` and 72,000 letters", from: null, engine: "knitr", unit: "a", many: 72_000, build: knitrCell((run) => `options(${run})`) },
+    { site: "(6) cell: `options(` and 72,000 dots", from: null, engine: "knitr", unit: ".", many: 72_000, build: knitrCell((run) => `options(${run})`) },
+    { site: "(6) cell: `options(` and 30,000 of `a1`", from: null, engine: "knitr", unit: "a1", many: 30_000, build: knitrCell((run) => `options(${run})`) },
+    { site: "(6) cell: `options(digits = 3, ` and 72,000 letters, the first name is allowed", from: null, engine: "knitr", unit: "a", many: 72_000, build: knitrCell((run) => `options(digits = 3, ${run})`) },
+    { site: "(6) cell with a `#|` header: `options(` and 52,000 letters", from: null, engine: "knitr", unit: "a", many: 52_000, build: (run) => `\`\`\`{r}\n#| echo: false\noptions(${run})\n\`\`\`\n\n# Z\n` },
+    { site: "(6) inline code: `r options(` and 72,000 letters", from: null, engine: "knitr", unit: "a", many: 72_000, build: (run) => `text \`r options(${run})\`\n\n# Z\n` },
+
+    // Part (7): a `#` run is the alias name, a line terminator follows (CR, U+2028, U+2029), at the two call sites (a block `from:` and a flow-mapping `from:`).
+    { site: "(7) from: *, 72,000 `#`, a CR and a letter", from: null, unit: "#", many: 72_000, build: aliasDoc((run) => `${run}\rx`) },
+    { site: "(7) from: *, 72,000 `#`, a U+2028 and a letter", from: null, unit: "#", many: 72_000, build: aliasDoc((run) => `${run}${LS}x`) },
+    { site: "(7) from: *, 72,000 `#`, a U+2029 and a letter", from: null, unit: "#", many: 72_000, build: aliasDoc((run) => `${run}${PS}x`) },
+    { site: "(7) from: *, 52,000 of `a#`, a CR and a letter", from: null, unit: "a#", many: 52_000, build: aliasDoc((run) => `${run}\rx`) },
+    { site: "(7) format: html: from: *, 72,000 `#`, a CR and a letter", from: null, unit: "#", many: 72_000, build: (run) => `---\nformat:\n  html:\n    from: *${run}\rx\n---\n\n# Z\n` },
+    { site: "(7) flow format: {html: {from: *, 52,000 `#`, a CR and a letter", from: null, unit: "#", many: 52_000, build: (run) => `---\nformat: {html: {from: *${run}\rx}}\n---\n\n# Z\n` },
+  ];
+
+  it.each(S334_ROWS.map((row) => [row.site, row] as const))("%s: is read in linear time, and the answer is the stated one with 4 units and with the long run", (_site, row) => {
+    const short = s334FrontMatter(row.from) + row.build(row.unit.repeat(S334_FEW));
+    expect(s334Headings(short, row.engine)).toEqual(s334Expected(row, short));
+    const run = row.unit.repeat(row.many);
+    const longText = s334FrontMatter(row.from) + row.build(run);
+    expect(longText.length).toBeGreaterThan(run.length); // the timed text holds the whole run
+    const { result, ms } = timed(() => s334Headings(longText, row.engine));
+    expect(result).toEqual(s334Expected(row, longText));
+    expect(ms).toBeLessThan(S334_LIMIT_MS);
+  });
+
+  it("builds a different text for every row", () => {
+    // The TEXT alone: `scanRegions` keeps the last two scans by text, so a row whose text another row read just before it is served from the cache and cannot be RED.
+    const long = S334_ROWS.map((row) => s334FrontMatter(row.from) + row.build(row.unit.repeat(row.many)));
+    expect(new Set(long).size).toBe(S334_ROWS.length);
+    const small = S334_ROWS.map((row) => s334FrontMatter(row.from) + row.build(row.unit.repeat(S334_FEW)));
+    expect(new Set(small).size).toBe(S334_ROWS.length);
+  });
+
+  // A run of 3,000 characters, or a limit of 100 s, would pass on the parent too.
+  it("keeps the sizes, the limit and the units the Session 334 rows are built on", () => {
+    expect([S334_FEW, S334_LIMIT_MS]).toEqual([4, 1000]);
+    expect(S334_ROWS.map((row) => `${row.unit}x${row.many}`)).toEqual([
+      "<>x100000", "<x100000", "xx200000", "<x100000", "{x100000", "{x100000", "1x200000", "a=1,x30000", "ax200000", "#x100000",
+      "<x36000", "<x36000", "<x36000", "<x36000", "<a x21000", "<x52000", "<x54000",
+      "{x60000", "{x80000", "{x60000",
+      "ax72000", ".x72000", "a1x30000", "ax72000", "ax52000", "ax72000",
+      "#x72000", "#x72000", "#x72000", "a#x52000", "#x72000", "#x52000",
     ]);
   });
 });
