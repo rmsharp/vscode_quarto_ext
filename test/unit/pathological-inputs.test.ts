@@ -2058,3 +2058,79 @@ describe("Session 332 — a long paragraph of consecutive lines under a CommonMa
     ]);
   });
 });
+
+describe("Session 333 — a table-border-shaped line holding a long run of dashes and a tail the border pattern refuses", () => {
+  // The BACKLOG item "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", part (1). `tableShapedLineIsBlock` asks `GRID_TABLE_BORDER`
+  // (`/^\+[-+=:]*[-=:][-+=:]*[ \t]*$/`) of a line that starts with `+` and holds only `-`, `+`, `=`, `:` and spaces (`PLUS_ONLY_ROW` is the gate: a tail of any other character never reaches it). The pattern
+  // has two stars around one required class, so for a run of n characters followed by a space and one more class character (which the blank-tail cannot absorb) the first star takes the run, gives one back to the
+  // required class, the second star takes the rest and `[ \t]*$` fails; every further give-back of the first star repeats that walk: n squared. Profile (Session 333, `node --cpu-prof`, `+` + `-` x 20,000 + ` -`, load
+  // near 8): 96.5% of the time in that one pattern. The reader does not matter (the pattern is asked under `gfm`, `commonmark_x`, `markdown_github` and `markdown_strict` alike, rows below), and a long line is asked
+  // once for its own question and once more for each BORDER next to it (the neighbour scan), so two borders around one long line cost three tests. Bare `findHeadings`, a fresh process per row, load 7 to 9, against a
+  // limit of 1,000 ms: 30,000 units 3,344 to 3,495 ms for a single test, 6,718 for `-+` x 30,000, 6,664 with a border above, 10,038 with a border on each side; the controls take 1 to 2 ms. The rows are sized for about 3 to
+  // 4 s on the parent, under vitest's 5 s default so that the failure is the clock assertion and not a timeout, and the controls come first so the patterns are warm (Learning 816).
+  const GRID_LIMIT_MS = 1000;
+  const GRID_FEW = 4;
+  const gridHeadings = (text: string): Array<[number, string]> => findHeadings(text).map((heading): [number, string] => [heading.line, heading.text]);
+  const gridFrontMatter = (from: string | null): string => (from === null ? "" : `---\nfrom: ${from}\n---\n\n`);
+  type GridRow = { site: string; from: string | null; unit: string; many: number; build: (run: string) => string; headings: Array<[number, string]> };
+
+  const GRID_ROWS: GridRow[] = [
+    // Controls: fast on the parent too (the gate refuses the line, no class character follows the blank, the first attempt matches, or the line is inside a list item), so they cannot be RED there; they hold the cure to the same answers at the same size.
+    { site: "control: 30,000 dashes, a space and an `x` (the gate refuses the tail)", from: null, unit: "-", many: 30_000, build: (run) => `+${run} x\n# H\n`, headings: [] },
+    { site: "control: 30,000 `+`, a space and a dash (no required class before the blank)", from: null, unit: "+", many: 30_000, build: (run) => `+${run} -\n# H\n`, headings: [[1, "H"]] },
+    { site: "control: a real border of 30,000 dashes", from: null, unit: "-", many: 30_000, build: (run) => `+${run}+\n# H\n`, headings: [] },
+    { site: "control: a real border of 30,000 `=`", from: null, unit: "=", many: 30_000, build: (run) => `+${run}+\n# H\n`, headings: [] },
+    { site: "control: 30,000 dashes, a space and a dash inside a list item", from: null, unit: "-", many: 30_000, build: (run) => `- +${run} -\n\n  # H\n`, headings: [[2, "H"]] },
+
+    // The question for the line itself: the run, a space and one more class character, for each class character and each tail character, with the heading below, above, and a paragraph above.
+    { site: "line: 30,000 dashes, a space and a dash, a heading below", from: null, unit: "-", many: 30_000, build: (run) => `+${run} -\n# H\n`, headings: [[1, "H"]] },
+    { site: "line: 30,000 dashes, a space and a dash, a heading above", from: null, unit: "-", many: 30_000, build: (run) => `# H\n+${run} -\n`, headings: [[0, "H"]] },
+    { site: "line: 30,000 dashes, a space and a dash, a paragraph above and a heading below", from: null, unit: "-", many: 30_000, build: (run) => `a\n+${run} -\n# H\n`, headings: [] },
+    { site: "line: 30,000 `=`, a space and a dash", from: null, unit: "=", many: 30_000, build: (run) => `+${run} -\n# H\n`, headings: [[1, "H"]] },
+    { site: "line: 30,000 `:`, a space and a dash", from: null, unit: ":", many: 30_000, build: (run) => `+${run} -\n# H\n`, headings: [[1, "H"]] },
+    { site: "line: 20,000 of `-+`, a space and a dash", from: null, unit: "-+", many: 20_000, build: (run) => `+${run} -\n# H\n`, headings: [[1, "H"]] },
+    { site: "line: 30,000 dashes, a space and a `=`", from: null, unit: "-", many: 30_000, build: (run) => `+${run} =\n# H\n`, headings: [[1, "H"]] },
+    { site: "line: 30,000 dashes, a space and a `+`", from: null, unit: "-", many: 30_000, build: (run) => `+${run} +\n# H\n`, headings: [[1, "H"]] },
+    { site: "line: 30,000 dashes, a space and a dash, indented three spaces", from: null, unit: "-", many: 30_000, build: (run) => `   +${run} -\n# H\n`, headings: [[1, "H"]] },
+    { site: "line: 30,000 dashes, a space and a dash, in a block quote", from: null, unit: "-", many: 30_000, build: (run) => `> +${run} -\n> # H\n`, headings: [[1, "H"]] },
+
+    // The neighbour scan: a border next to the long line asks the pattern of the long line too (once for a border above, twice for a border on each side).
+    { site: "neighbour: a border above 20,000 dashes, a space and a dash", from: null, unit: "-", many: 20_000, build: (run) => `+-+\n+${run} -\n# H\n`, headings: [] },
+    { site: "neighbour: a border above and a border below 18,000 dashes, a space and a dash", from: null, unit: "-", many: 18_000, build: (run) => `+-+\n+${run} -\n+-+\n# H\n`, headings: [] },
+
+    // The reader does not matter: the same line under four `from:` values.
+    { site: "reader: 30,000 dashes, a space and a dash under from: markdown_strict", from: "markdown_strict", unit: "-", many: 30_000, build: (run) => `+${run} -\n# H\n`, headings: [[5, "H"]] },
+    { site: "reader: 30,000 dashes, a space and a dash under from: gfm", from: "gfm", unit: "-", many: 30_000, build: (run) => `+${run} -\n# H\n`, headings: [[5, "H"]] },
+    { site: "reader: 30,000 dashes, a space and a dash under from: commonmark_x", from: "commonmark_x", unit: "-", many: 30_000, build: (run) => `+${run} -\n# H\n`, headings: [[5, "H"]] },
+    { site: "reader: 30,000 dashes, a space and a dash under from: markdown_github", from: "markdown_github", unit: "-", many: 30_000, build: (run) => `+${run} -\n# H\n`, headings: [[5, "H"]] },
+  ];
+
+  it.each(GRID_ROWS.map((row) => [row.site, row] as const))("%s: is read in linear time, and the answer is the stated one with 4 units and with the long run", (_site, row) => {
+    expect(gridHeadings(gridFrontMatter(row.from) + row.build(row.unit.repeat(GRID_FEW)))).toEqual(row.headings);
+    const run = row.unit.repeat(row.many);
+    const longText = gridFrontMatter(row.from) + row.build(run);
+    expect(longText.length).toBeGreaterThan(run.length); // the timed text holds the whole run
+    const { result, ms } = timed(() => gridHeadings(longText));
+    expect(result).toEqual(row.headings);
+    expect(ms).toBeLessThan(GRID_LIMIT_MS);
+  });
+
+  it("builds a different text for every row", () => {
+    // The TEXT alone: `scanRegions` keeps the last two scans by text, so a row whose text another row read just before it is served from the cache and cannot be RED.
+    const long = GRID_ROWS.map((row) => gridFrontMatter(row.from) + row.build(row.unit.repeat(row.many)));
+    expect(new Set(long).size).toBe(GRID_ROWS.length);
+    const small = GRID_ROWS.map((row) => gridFrontMatter(row.from) + row.build(row.unit.repeat(GRID_FEW)));
+    expect(new Set(small).size).toBe(GRID_ROWS.length);
+  });
+
+  // A run of 3,000 characters, or a limit of 100 s, would pass on the parent too.
+  it("keeps the sizes, the limit and the units the Session 333 rows are built on", () => {
+    expect([GRID_FEW, GRID_LIMIT_MS]).toEqual([4, 1000]);
+    expect(GRID_ROWS.map((row) => `${row.unit}x${row.many}`)).toEqual([
+      "-x30000", "+x30000", "-x30000", "=x30000", "-x30000",
+      "-x30000", "-x30000", "-x30000", "=x30000", ":x30000", "-+x20000", "-x30000", "-x30000", "-x30000", "-x30000",
+      "-x20000", "-x18000",
+      "-x30000", "-x30000", "-x30000", "-x30000",
+    ]);
+  });
+});
