@@ -82,6 +82,14 @@ const CASES: Case[] = [
   { site: "an indented bullet (five spaces) and then an indented definition item", body: ["x","     - b","  : a","==="], answers: { gfm: [[1,"x - b : a",3]], commonmark: [[1,"x - b : a",3]], commonmark_x: [] } },
   { site: "an indented bullet (five spaces) and then a tilde definition item", body: ["x","     - b","~ a","==="], answers: { gfm: [[1,"x - b ~ a",3]], commonmark: [[1,"x - b ~ a",3]], commonmark_x: [] } },
   { site: "an indented bullet (five spaces), a letter-marker item, and an underline at its column", body: ["x","     - b","A. a","   ==="], answers: { gfm: [], commonmark: [], commonmark_x: [] } },
+  { site: "a paragraph below the first body line, its first line a list item", body: ["a","","- item","  x","  ---"], answers: { gfm: [[2,"item x",5]], commonmark: [[2,"item x",5]], commonmark_x: [[2,"item x",5]] } },
+  { site: "a paragraph below the first body line, its first line a block quote", body: ["a","","> q","x","y","==="], answers: { gfm: [[1,"> q x y",5]], commonmark: [[1,"> q x y",5]], commonmark_x: [[1,"> q x y",5]] } },
+  { site: "three nested bullets and an interrupter at the innermost content column plus two", body: ["- a","  - b","    - c","      x","        <span>a</span>","      ---"], answers: { gfm: [], commonmark: [], commonmark_x: [] } },
+  { site: "five nested bullets (a column of 9 or more) and an interrupter", body: ["- a","  - b","    - c","      - d","        - e","          x","            <span>a</span>","          ---"], answers: { gfm: [], commonmark: [], commonmark_x: [] } },
+  { site: "a bullet twelve columns in at top level is code, not an interrupter", body: ["x","            - b","y","==="], answers: { gfm: [[1,"x - b y",3]], commonmark: [[1,"x - b y",3]], commonmark_x: [[1,"x - b y",3]] } },
+  { site: "a quote line and then an unmarked underline inside a list item (the quote-aware columns)", body: ["1.","  >q","\t---","--"], answers: { gfm: [[2,">q ---",4]], commonmark: [[2,">q ---",4]], commonmark_x: [[2,">q ---",4]] } },
+  { site: "a tab inside the indent of a bullet in a list item", body: ["- m","  \t___","  --"], answers: { gfm: [], commonmark: [], commonmark_x: [] } },
+  { site: "the open columns change between two underline-shaped lines of one paragraph: a six-column quote is an interrupter under the first set and code under the second", body: ["i. a","      > q","==="," -"], answers: { gfm: [[2,"i. a > q ===",3]], commonmark: [[2,"i. a > q ===",3]], commonmark_x: [[2,"i. a > q ===",3]] } },
 ];
 
 describe("Session 332 — the paragraph-interrupt scan through findHeadings", () => {
@@ -93,11 +101,11 @@ describe("Session 332 — the paragraph-interrupt scan through findHeadings", ()
   });
 
   // A table whose answers were all empty would pass a cure that found nothing. Half the rows hold a heading, and the cases are distinct.
-  it("keeps the shape of the table: 70 cases, 210 rows, 101 with a heading, 25 different answer sets, no case twice", () => {
-    expect(CASES.length).toBe(70);
-    expect(rows.length).toBe(210);
-    expect(rows.filter(([, reader, c]) => c.answers[reader].length > 0).length).toBe(101);
-    expect(new Set(CASES.map((c) => JSON.stringify(c.answers))).size).toBe(25);
+  it("keeps the shape of the table: 78 cases, 234 rows, 116 with a heading, 29 different answer sets, no case twice", () => {
+    expect(CASES.length).toBe(78);
+    expect(rows.length).toBe(234);
+    expect(rows.filter(([, reader, c]) => c.answers[reader].length > 0).length).toBe(116);
+    expect(new Set(CASES.map((c) => JSON.stringify(c.answers))).size).toBe(29);
     expect(new Set(CASES.map((c) => c.site)).size).toBe(CASES.length);
     expect(new Set(CASES.map((c) => JSON.stringify(c.body))).size).toBe(CASES.length);
   });

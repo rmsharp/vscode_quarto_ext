@@ -6132,51 +6132,59 @@ export function commonmarkParagraphInterrupt(
   if (indentedCodeLine(line, contentColumns)) {
     return false;
   }
+  return interruptListMatches(line);
+}
+/** Whether `line` matches a row of `COMMONMARK_PARAGRAPH_INTERRUPT`, whatever its indent: the half of `commonmarkParagraphInterrupt` that does not depend on the open container columns (Session 332). */
+function interruptListMatches(line: string): boolean {
   return COMMONMARK_PARAGRAPH_INTERRUPT.some((re) => re.test(line));
 }
 /**
  * Whether any line of the open paragraph BELOW ITS FIRST interrupts it (Session 332) -- the question the multi-line setext title asks of the lines it would swallow. The paragraph is the last `paragraphLines` of
  * `bodyLines`; a count longer than the list is the whole list (what `slice(-n)` does), and a count of 1 or less is a paragraph with no line below its first. A cold question is
- * `bodyLines.slice(-n).slice(1).some((l) => commonmarkParagraphInterrupt(l.text, [0, ...columns]))` without the two copies of the paragraph and with the rooted columns made once; it stops at the first interrupter.
+ * `bodyLines.slice(-n).slice(1).some((l) => commonmarkParagraphInterrupt(l.text, [0, ...columns]))` without the two copies of the paragraph.
  *
- * The scan keeps how far it has read, so a question about the same paragraph that GROWS one line at a time, under the same columns, reads only the lines added since the last one, and once an interrupter has been found the
- * answer is kept. That is what makes it linear where the gate on the underline test alone was not: an interrupter far down the paragraph followed by many lines that can underline and cannot claim it
- * (`<span>a</span>` and then `===` x N) each asked again and read the whole paragraph to find the same interrupter.
+ * The scan keeps what it has read, so a question about a paragraph that GROWS one line at a time reads only the lines added since the last one: each line of a paragraph is read once. What it keeps is NOT an answer: a line
+ * interrupts when it matches the list AND is not indented code, and whether it is code depends on the open container columns, which change between two questions of one paragraph (a list item that pushes a column, one that pops
+ * it). So it keeps the distinct INDENT COLUMNS of the lines that match the list (a handful: every other line costs one failed match), and answers a question from those and the columns it is handed: `columnIsCodeDepth` of each
+ * indent. A first version kept the answer under one columns array and started again whenever the array changed; the review round timed a three-line unit at 4x per doubling (189 / 621 / 2,298 ms at 1,000 / 2,000 / 4,000 units).
+ * That a leading 0 in the columns changes nothing (`containerContentColumn` starts its base at 0) is why the old expression's `[0, ...columns]` is not rebuilt.
  *
- * ⚠ **THE KEY IS (THE LIST, WHERE THE PARAGRAPH STARTS, THE COLUMNS ARRAY), AND ITS CONTRACT IS WHAT MAKES IT EXACT.** A verdict is a function of one line's text and the columns, so what was read stays true for as long as
- * those three are the same: `bodyLines` in `computeRegions` is only ever appended to and its entries are never edited, and `ColumnStack.columns()` is a snapshot rebuilt, never edited, when the set of columns changes. A
- * different list, a different start (the paragraph restarted, or the count did not grow with the list) or a different array of columns (even an equal one, which costs one more read of the paragraph and no wrong answer)
- * starts again from the paragraph's second line. A list that has become SHORTER than what was read starts again too, which `computeRegions` never does, but a scan that answered from a stale position there would be wrong,
- * not slow. A count of 1 or less is a paragraph with no line below its first and leaves what has been read alone.
+ * ⚠ **THE KEY IS (THE LIST, WHERE THE PARAGRAPH STARTS) AND ITS CONTRACT IS WHAT MAKES IT EXACT.** `bodyLines` in `computeRegions` is only ever appended to and its entries are never edited, so what was read stays true for as long
+ * as the list and the start are the same. A different list, or a different start (the paragraph restarted, or the count did not grow with the list), starts again from the paragraph's second line. A list that has become SHORTER than
+ * what was read starts again too, which `computeRegions` never does, but a scan that answered from a stale position there would be wrong, not slow. A count of 1 or less leaves what has been read alone.
  * `test/unit/paragraph-interrupt-equivalence.test.ts` keeps `bodyLines.slice(-n).slice(1).some(...)` as the oracle for every list, count and set of columns, one scan kept across a growing list.
  */
 export class ParagraphInterruptScan {
   private lines: ReadonlyArray<{ readonly text: string }> | null = null;
   private start = 0;
-  private columns: readonly number[] | null = null;
-  private rooted: readonly number[] = [0];
-  /** The index of the next line to read: one past the last line read, which is the interrupter once `found`. */
+  /** The index of the next line to read: one past the last line read. */
   private next = 0;
-  private found = false;
+  /** The distinct indent columns of the lines read that match the interrupt list. */
+  private indents = new Set<number>();
 
   interruptedAfterFirst(bodyLines: ReadonlyArray<{ readonly text: string }>, paragraphLines: number, columns: readonly number[]): boolean {
     if (paragraphLines <= 1) {
       return false;
     }
     const start = Math.max(0, bodyLines.length - paragraphLines);
-    if (this.lines !== bodyLines || this.start !== start || this.columns !== columns || this.next > bodyLines.length) {
+    if (this.lines !== bodyLines || this.start !== start || this.next > bodyLines.length) {
       this.lines = bodyLines;
       this.start = start;
-      this.columns = columns;
-      this.rooted = [0, ...columns];
       this.next = start + 1;
-      this.found = false;
+      this.indents = new Set();
     }
-    while (!this.found && this.next < bodyLines.length) {
-      this.found = commonmarkParagraphInterrupt(bodyLines[this.next].text, this.rooted);
-      this.next += 1;
+    for (; this.next < bodyLines.length; this.next++) {
+      const text = bodyLines[this.next].text;
+      if (interruptListMatches(text)) {
+        this.indents.add(indentColumn(text));
+      }
     }
-    return this.found;
+    for (const indent of this.indents) {
+      if (!columnIsCodeDepth(indent, columns)) {
+        return true;
+      }
+    }
+    return false;
   }
 }
 /**
@@ -11323,19 +11331,21 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
     // one fabricates a heading out of two different blocks — see
     // `COMMONMARK_PARAGRAPH_INTERRUPT`, whose default is the inverse of `OPENS_FRESH_BLOCK`'s.
     //
-    // ⚠ **THE SCAN IS ASKED ONLY WHERE THIS LINE CAN UNDERLINE (Session 332), BECAUSE ITS ANSWER IS READ NOWHERE ELSE.** It used to be asked for every line, and it reads the whole paragraph so far: a paragraph of N lines
-    // cost about N^2/2 tests. Only a CommonMark-family reader has a title longer than one line (`wholeParagraph` is `defaultTitleLineCount`, 0 or 1, everywhere else, and the scan needs 2), and there
-    // `titleLineCount` reaches `setextTitle` and from it `setextTitleTooShallow` and `setextTitleQuoted`, whose only reader is `setextLevel`, and `setextLevel` is `null` for a line that is not an underline at one of the four
-    // columns of the innermost content column (`commonmarkUnderlineLevel`, the same call `setextLevel` makes). `lazyQuotedUnderline`, the one other reader of those flags, is `false` there (`!commonmarkDialect`).
-    // So for a line that cannot underline the count is unobservable and the scan is skipped; the count it then holds, the whole paragraph, is the one an uninterrupted paragraph has.
-    // The type is annotated for the reason `rawColumnsUnknown` explains.
-    const commonmarkUnderlineLevel: 1 | 2 | null = commonmarkDialect
+    // ⚠ **THE SCAN IS ASKED ONLY WHERE THIS LINE CAN UNDERLINE (Session 332), BECAUSE THE COUNT IS READ NOWHERE ELSE.** It used to be asked for every line, and it reads the whole paragraph so far: a paragraph of N lines
+    // cost about N^2/2 tests. Only a CommonMark-family reader has a title longer than one line (`wholeParagraph` is `defaultTitleLineCount`, 0 or 1, everywhere else, and the scan needs 2). There `titleLineCount` reaches
+    // `setextTitle`, and `setextTitle` is read by `setextTitleTooShallow`, `setextTitleQuoted`, `lazyEqualsBand`, `lazyDashesBand` and `lazyStripDepth`. `setextLevel` reads `titleLineCount` and the first two of those; `lazyQuotedUnderline`
+    // reads the next three, and it is `false` under a CommonMark-family reader (`!commonmarkDialect`), which leaves `lazyStripDepth` at 0. So the count matters only through `setextLevel`, and `setextLevel` is `null` for a line that
+    // is not an underline at one of the four columns of the innermost content column (`commonmarkUnderlineLevel`, the same call `setextLevel` makes below).
+    // ⚠ **THE COUNT A LINE THAT CANNOT UNDERLINE HOLDS IS THE DEFAULT, AND NOT THE WHOLE PARAGRAPH (the review round).** Nothing reads it, so any value is right, and the whole paragraph is the expensive one: it makes `setextTitle` the
+    // paragraph's FIRST line for every later line, and `setextTitleTooShallow` measures that line's quote markers each time. The parent gave an interrupted paragraph the default count, 0, and measured nothing; a first line of
+    // 20,000 quote markers cost 36 ms for 2,000 lines on the parent and 484 ms with the whole paragraph here.
+    const commonmarkUnderlineLevel = commonmarkDialect
       ? setextUnderlineLevel(line, COMMONMARK_INDENT_OFFSETS.map((o) => innermostColumn + o))
       : null;
     const titleLineCount =
-      commonmarkUnderlineLevel !== null && paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())
-        ? defaultTitleLineCount
-        : wholeParagraph;
+      commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())
+        ? wholeParagraph
+        : defaultTitleLineCount;
     // ⚠ The HTML-block guard is needed at BOTH heading sites, and this is not the half Session
     // 203 closed. `prevOpenedHtmlBlock` stops a MULTI-LINE title being JOINED across an opener;
     // this stops a title that lies wholly INSIDE the block from being claimed at all

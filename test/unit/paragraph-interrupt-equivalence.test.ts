@@ -147,8 +147,9 @@ describe("Session 332 — the paragraph-interrupt scan without the copies", () =
     expect(columns).toEqual([2, 4]);
   });
 
-  // The cost: a pass over the lines below the first, stopping at the first interrupter, with no copy of the paragraph. A paragraph of 200,000 lines is read in a few milliseconds; the old spelling copied it twice.
-  it("reads a paragraph of 200,000 lines with nothing in it that interrupts in linear time, and reads only the lines it needs", () => {
+  // The cost of a COLD question: one pass over the lines below the first and no copy of the paragraph. This row guards the class against a quadratic reading; it does not separate it from the old expression, which is also linear for a
+  // single cold question (about 40 ms against 30 ms for 200,000 lines): the rows that separate them are the 200,000 questions about a growing paragraph, below, and the document rows of pathological-inputs.test.ts.
+  it("reads a paragraph of 200,000 lines with nothing in it that interrupts in linear time, and reads each line below the first once and no line above it", () => {
     const lines = Array.from({ length: LINEAR_LINES }, () => line("x"));
     const started = Date.now();
     expect(coldScan(lines, LINEAR_LINES, [2, 4])).toBe(false);
@@ -161,8 +162,9 @@ describe("Session 332 — the paragraph-interrupt scan without the copies", () =
         return k === 4 ? "# H" : "x";
       },
     }));
+    // No early exit: what a scan keeps is the indents of the lines that match the list, not an answer, so a question reads every line below the first (the answer is still true: the line at 4 matches at indent 0).
     expect(coldScan(watched, 10, [])).toBe(true);
-    expect(reads).toEqual([1, 2, 3, 4]);
+    expect(reads).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
     reads.length = 0;
     // A count of 6 is the last six lines, 4 to 9, and the interrupter at 4 is the FIRST of them: not read, and the answer is false.
     expect(coldScan(watched, 6, [])).toBe(false);
@@ -189,9 +191,11 @@ describe("Session 332 — the paragraph-interrupt scan without the copies", () =
   });
 });
 
-// The gate left one shape quadratic: an interrupter far down the paragraph, then many lines that can underline and cannot claim it. Each of them asked the question again, and the answer ("yes", found at the end) was read from
-// the whole paragraph every time. `ParagraphInterruptScan` keeps what it has read of the paragraph so far, so a paragraph that grows one line at a time costs one test per line. The lines it is handed only GROW (`bodyLines` in
-// `computeRegions` is appended to and never edited), the columns are the stack's snapshot (`ColumnStack.columns()` is rebuilt, never edited), and every answer must still be the old expression's.
+// The gate left one shape quadratic: an interrupter far down the paragraph, then many lines that can underline and cannot claim it. Each of them asked the question again, and the answer was read from the whole paragraph every
+// time. `ParagraphInterruptScan` keeps what it has read of the paragraph so far, so a paragraph that grows one line at a time costs one test per line. What it keeps is NOT an answer but the indents of the lines that match the
+// interrupt list (an answer depends on the open container columns, which change between two questions of one paragraph: a first version that kept the answer under one columns array restarted at every change, and the review round
+// timed it at 4x per doubling on a three-line unit), so it can answer again under any columns without reading a line twice. The lines it is handed only GROW (`bodyLines` in `computeRegions` is appended to and never edited), and
+// every answer must still be the old expression's.
 const WARM_EXHAUSTIVE_LENGTH = 4;
 const WARM_SEEDED_SEQUENCES = 20_000;
 const WARM_SEEDED_LENGTH = 30;
@@ -248,10 +252,9 @@ describe("Session 332 — the paragraph-interrupt scan that keeps what it has re
     },
   });
   const take = (reads: number[]): number[] => reads.splice(0, reads.length);
-  // ONE array for the columns of a scan: a new array for each question is a new key (see the class), and these rows are about what is kept for the SAME one.
   const none: number[] = [];
 
-  it("reads each line of a growing paragraph once, and nothing once an interrupter has been found", () => {
+  it("reads each line of a growing paragraph once, whether or not an interrupter has been found", () => {
     const reads: number[] = [];
     const lines = ["x", "x", "x"].map((text, k) => watchedLine(k, text, reads));
     const scan = new ParagraphInterruptScan();
@@ -263,8 +266,10 @@ describe("Session 332 — the paragraph-interrupt scan that keeps what it has re
     lines.push(watchedLine(4, "# H", reads));
     expect(scan.interruptedAfterFirst(lines, 5, none)).toBe(true);
     expect(take(reads)).toEqual([4]);
+    // Found, and still each new line is read once: what is kept is the indent of a line that matches, not the answer (the answer depends on the columns).
     lines.push(watchedLine(5, "x", reads));
     expect(scan.interruptedAfterFirst(lines, 6, none)).toBe(true);
+    expect(take(reads)).toEqual([5]);
     expect(scan.interruptedAfterFirst(lines, 6, none)).toBe(true);
     expect(take(reads)).toEqual([]);
   });
@@ -274,7 +279,7 @@ describe("Session 332 — the paragraph-interrupt scan that keeps what it has re
     const lines = ["x", "x", "# H", "x", "x"].map((text, k) => watchedLine(k, text, reads));
     const scan = new ParagraphInterruptScan();
     expect(scan.interruptedAfterFirst(lines, 5, none)).toBe(true);
-    expect(take(reads)).toEqual([1, 2]);
+    expect(take(reads)).toEqual([1, 2, 3, 4]);
     // The paragraph is now the last two lines: a different start, so it reads again from its second line.
     expect(scan.interruptedAfterFirst(lines, 2, none)).toBe(false);
     expect(take(reads)).toEqual([4]);
@@ -285,22 +290,41 @@ describe("Session 332 — the paragraph-interrupt scan that keeps what it has re
     expect(take(reads)).toEqual([]);
   });
 
-  it("starts again when the columns are another array, even an equal one, and keeps what it has read for the same array", () => {
+  it("does not read again when the columns change, and answers under the columns it is given: a bullet six columns in is code under no open column and a bullet under a container at 4", () => {
     const reads: number[] = [];
     const lines = ["x", "x", "      - b"].map((text, k) => watchedLine(k, text, reads));
     const scan = new ParagraphInterruptScan();
     const four = [4];
-    // Six columns in is code under no open column and a bullet under a container at 4: the columns decide the answer.
     expect(scan.interruptedAfterFirst(lines, 3, none)).toBe(false);
     expect(take(reads)).toEqual([1, 2]);
     expect(scan.interruptedAfterFirst(lines, 3, four)).toBe(true);
-    expect(take(reads)).toEqual([1, 2]);
-    expect(scan.interruptedAfterFirst(lines, 3, four)).toBe(true);
-    expect(take(reads)).toEqual([]);
     expect(scan.interruptedAfterFirst(lines, 3, [...four])).toBe(true);
-    expect(take(reads)).toEqual([1, 2]);
+    expect(scan.interruptedAfterFirst(lines, 3, [2])).toBe(false);
+    expect(scan.interruptedAfterFirst(lines, 3, [2, 4])).toBe(true);
     expect(scan.interruptedAfterFirst(lines, 3, none)).toBe(false);
-    expect(take(reads)).toEqual([1, 2]);
+    expect(scan.interruptedAfterFirst(lines, 3, [3])).toBe(true);
+    expect(take(reads)).toEqual([]);
+  });
+
+  it("answers by the indents of the lines that match the list: any indent under four is an interrupter whatever the columns, and a line that matches nothing is none", () => {
+    const scan = (texts: string[], columns: readonly number[]): boolean =>
+      new ParagraphInterruptScan().interruptedAfterFirst(texts.map(line), texts.length, columns);
+    for (const columns of [[], [2], [4], [2, 4, 6, 8, 12]]) {
+      expect(scan(["x", "# H"], columns)).toBe(true);
+      expect(scan(["x", "   - b"], columns)).toBe(true);
+      expect(scan(["x", "plain", "more"], columns)).toBe(false);
+      expect(scan(["x", "    four spaces", "      plain"], columns)).toBe(false);
+    }
+    // Indent 4 is code under no column and a bullet under a column at 1 to 3 (code starts four columns past the deepest open column not past the line); indent 12 is a bullet only under a column of 9 or more.
+    expect(scan(["x", "    - b"], [])).toBe(false);
+    expect(scan(["x", "    - b"], [2])).toBe(true);
+    expect(scan(["x", "            - b"], [4])).toBe(false);
+    expect(scan(["x", "            - b"], [4, 8])).toBe(false);
+    expect(scan(["x", "            - b"], [4, 9])).toBe(true);
+    // Two matching lines at different indents: the answer is "yes" when either is not code.
+    expect(scan(["x", "    - b", "        - b"], [])).toBe(false);
+    expect(scan(["x", "    - b", "        - b"], [2])).toBe(true);
+    expect(scan(["x", "    - b", "        - b"], [6])).toBe(true);
   });
 
   it("starts again for another list of lines, and when the list it has read from has become shorter", () => {
@@ -328,21 +352,55 @@ describe("Session 332 — the paragraph-interrupt scan that keeps what it has re
     expect(columns).toEqual([2, 4]);
   });
 
-  // The shape the gate left quadratic: 100,000 lines of a paragraph, an interrupter, then 100,000 more lines each of which asks. Asked through a scan kept across the lines, 200,000 questions read 200,000 lines.
-  it("answers 200,000 questions about a paragraph that grows by a line each time in linear time, with an interrupter in the middle", () => {
+  // The shapes the first versions left quadratic, asked through ONE scan kept across the lines. The clock is read INSIDE the loop, because a synchronous loop that has gone quadratic cannot be interrupted by the test runner: a regression
+  // must FAIL in about a second and not hang the suite for an hour (the review round measured 12,000 of 200,000 questions in 10 s under a key that never matched).
+  const askGrowing = (columnsFor: (question: number) => readonly number[], interrupterAt: number): { falses: number; trues: number; ms: number; stoppedAt: number | null } => {
     const scan = new ParagraphInterruptScan();
     const lines: Array<{ text: string }> = [];
-    // ONE array of columns, as `ColumnStack.columns()` hands out until a column enters or leaves: a new array for each question is a new key and would read the paragraph again each time.
-    const columns = [2, 4];
     const started = Date.now();
     let falses = 0;
     let trues = 0;
     for (let k = 0; k < LINEAR_LINES; k++) {
-      lines.push(line(k === LINEAR_LINES / 2 ? "<span>a</span>" : "x"));
-      if (scan.interruptedAfterFirst(lines, lines.length, columns)) trues += 1;
+      lines.push(line(k === interrupterAt ? "<span>a</span>" : "x"));
+      if (scan.interruptedAfterFirst(lines, lines.length, columnsFor(k))) trues += 1;
       else falses += 1;
+      if (k % 1_000 === 999 && Date.now() - started > LINEAR_LIMIT_MS) return { falses, trues, ms: Date.now() - started, stoppedAt: k };
     }
-    expect(Date.now() - started).toBeLessThan(LINEAR_LIMIT_MS);
-    expect({ falses, trues }).toEqual({ falses: LINEAR_LINES / 2, trues: LINEAR_LINES / 2 });
+    return { falses, trues, ms: Date.now() - started, stoppedAt: null };
+  };
+
+  it("answers 200,000 questions about a paragraph that grows by a line each time in linear time, with an interrupter in the middle", () => {
+    // ONE array of columns, as `ColumnStack.columns()` hands out until a column enters or leaves.
+    const columns = [2, 4];
+    const result = askGrowing(() => columns, LINEAR_LINES / 2);
+    expect(result).toMatchObject({ falses: LINEAR_LINES / 2, trues: LINEAR_LINES / 2, stoppedAt: null });
+    expect(result.ms).toBeLessThan(LINEAR_LIMIT_MS);
+  });
+
+  it("answers them in linear time when the columns are a different array, with other content, for every question (the set of open columns changes between two questions of one paragraph)", () => {
+    const result = askGrowing((question) => (question % 2 === 0 ? [2, 4] : [3]), LINEAR_LINES / 2);
+    expect(result).toMatchObject({ falses: LINEAR_LINES / 2, trues: LINEAR_LINES / 2, stoppedAt: null });
+    expect(result.ms).toBeLessThan(LINEAR_LIMIT_MS);
+  });
+
+  it("answers them in linear time when every question gets a fresh copy of the same columns", () => {
+    const result = askGrowing(() => [2, 4], LINEAR_LINES / 2);
+    expect(result).toMatchObject({ falses: LINEAR_LINES / 2, trues: LINEAR_LINES / 2, stoppedAt: null });
+    expect(result.ms).toBeLessThan(LINEAR_LIMIT_MS);
+  });
+
+  // A paragraph whose interrupter-looking lines are all code under the columns asked about: the indents kept are few however many such lines there are.
+  it("answers 200,000 questions about a paragraph of code-depth bullets in linear time", () => {
+    const scan = new ParagraphInterruptScan();
+    const lines: Array<{ text: string }> = [];
+    const columns: number[] = [];
+    const started = Date.now();
+    let trues = 0;
+    for (let k = 0; k < LINEAR_LINES; k++) {
+      lines.push(line(k === 0 ? "x" : "    - b"));
+      if (scan.interruptedAfterFirst(lines, lines.length, columns)) trues += 1;
+      if (k % 1_000 === 999 && Date.now() - started > LINEAR_LIMIT_MS) break;
+    }
+    expect({ trues, ms: Date.now() - started < LINEAR_LIMIT_MS }).toEqual({ trues: 0, ms: true });
   });
 });

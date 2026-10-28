@@ -42,15 +42,7 @@
     "expect": "killed"
   },
   {
-    "name": "P07 a different columns array is not a new paragraph",
-    "file": "src/core/qmd/model.ts",
-    "from": "this.columns !== columns || ",
-    "to": "",
-    "expect": "killed",
-    "why": "No document in 300,000 random and 4.4 million aimed ones tells it from the key (the columns of an open paragraph almost never change between two questions); the warm seeded row of the oracle kills it."
-  },
-  {
-    "name": "P08 a list that has become shorter is not a new paragraph",
+    "name": "P07 a list that has become shorter is not a new paragraph",
     "file": "src/core/qmd/model.ts",
     "from": " || this.next > bodyLines.length",
     "to": "",
@@ -58,160 +50,173 @@
     "why": "computeRegions never shortens bodyLines; the read-count row of the oracle kills it."
   },
   {
-    "name": "P09 the columns are not rooted at 0 and nothing else (the open columns dropped)",
-    "file": "src/core/qmd/model.ts",
-    "from": "this.rooted = [0, ...columns];",
-    "to": "this.rooted = [0];",
-    "expect": "killed"
-  },
-  {
-    "name": "P10 the columns are not rooted at 0 (column 0 dropped)",
-    "file": "src/core/qmd/model.ts",
-    "from": "this.rooted = [0, ...columns];",
-    "to": "this.rooted = [...columns];",
-    "expect": "survives",
-    "why": "Equivalent: `containerContentColumn` starts its base at 0 and keeps the deepest column not past the line's, so a 0 in the columns array changes no answer; the rooting is kept because it is the old expression's own `[0, ...columns]`."
-  },
-  {
-    "name": "P11 the first line of the paragraph is read too",
+    "name": "P08 the first line of the paragraph is read too",
     "file": "src/core/qmd/model.ts",
     "from": "this.next = start + 1;",
     "to": "this.next = start;",
     "expect": "killed"
   },
   {
-    "name": "P12 the second line of the paragraph is not read",
+    "name": "P09 the second line of the paragraph is not read",
     "file": "src/core/qmd/model.ts",
     "from": "this.next = start + 1;",
     "to": "this.next = start + 2;",
     "expect": "killed"
   },
   {
-    "name": "P13 a new paragraph keeps the old answer",
+    "name": "P10 a new paragraph keeps the indents of the old one",
     "file": "src/core/qmd/model.ts",
-    "from": "      this.found = false;\n    }\n    while",
-    "to": "    }\n    while",
+    "from": "      this.indents = new Set();\n",
+    "to": "",
     "expect": "killed"
   },
   {
-    "name": "P14 the scan goes on past an interrupter and the last line decides",
+    "name": "P11 every second line is read",
     "file": "src/core/qmd/model.ts",
-    "from": "while (!this.found && this.next < bodyLines.length) {",
-    "to": "while (this.next < bodyLines.length) {",
+    "from": "this.next++",
+    "to": "this.next += 2",
     "expect": "killed"
   },
   {
-    "name": "P15 the last line of the paragraph is not read",
+    "name": "P12 the lines that do NOT match the list are the ones kept",
     "file": "src/core/qmd/model.ts",
-    "from": "while (!this.found && this.next < bodyLines.length) {",
-    "to": "while (!this.found && this.next < bodyLines.length - 1) {",
+    "from": "if (interruptListMatches(text)) {",
+    "to": "if (!interruptListMatches(text)) {",
     "expect": "killed"
   },
   {
-    "name": "P16 every second line is read",
+    "name": "P13 every kept indent is 0 (always an interrupter)",
     "file": "src/core/qmd/model.ts",
-    "from": "this.next += 1;",
-    "to": "this.next += 2;",
+    "from": "this.indents.add(indentColumn(text));",
+    "to": "this.indents.add(0);",
     "expect": "killed"
   },
   {
-    "name": "P17 the line above the one due is read",
+    "name": "P14 every kept indent is one column too deep",
     "file": "src/core/qmd/model.ts",
-    "from": "commonmarkParagraphInterrupt(bodyLines[this.next].text, this.rooted)",
-    "to": "commonmarkParagraphInterrupt(bodyLines[this.next - 1].text, this.rooted)",
+    "from": "this.indents.add(indentColumn(text));",
+    "to": "this.indents.add(indentColumn(text) + 1);",
     "expect": "killed"
   },
   {
-    "name": "P18 the answer is always no",
+    "name": "P15 every kept indent is one column too shallow",
     "file": "src/core/qmd/model.ts",
-    "from": "return this.found;",
-    "to": "return false;",
+    "from": "this.indents.add(indentColumn(text));",
+    "to": "this.indents.add(indentColumn(text) - 1);",
     "expect": "killed"
   },
   {
-    "name": "P19 the answer is always yes",
+    "name": "P16 the code-depth test is inverted",
     "file": "src/core/qmd/model.ts",
-    "from": "return this.found;",
-    "to": "return true;",
+    "from": "if (!columnIsCodeDepth(indent, columns)) {",
+    "to": "if (columnIsCodeDepth(indent, columns)) {",
     "expect": "killed"
   },
   {
-    "name": "P20 the verdict of a line is inverted",
+    "name": "P17 the open columns are ignored",
     "file": "src/core/qmd/model.ts",
-    "from": "this.found = commonmarkParagraphInterrupt(bodyLines[this.next].text, this.rooted);",
-    "to": "this.found = !commonmarkParagraphInterrupt(bodyLines[this.next].text, this.rooted);",
+    "from": "if (!columnIsCodeDepth(indent, columns)) {",
+    "to": "if (!columnIsCodeDepth(indent, [])) {",
     "expect": "killed"
   },
   {
-    "name": "P21 the columns are kept as a copy, so the key never matches (a clock mutant: every answer is right)",
+    "name": "P18 a kept indent that is not code answers no",
     "file": "src/core/qmd/model.ts",
-    "from": "this.columns = columns;",
-    "to": "this.columns = [...columns];",
-    "expect": "killed",
-    "why": "Every answer is right and every question rescans the paragraph: killed by the clock rows of pathological-inputs.test.ts (an interrupter far down a paragraph), and by the oracle's 200,000-question row, which never ends under it."
+    "from": "        return true;\n      }\n    }\n    return false;",
+    "to": "        return false;\n      }\n    }\n    return false;",
+    "expect": "killed"
   },
   {
-    "name": "P22 the lines are kept as a copy, so the key never matches (a clock mutant: every answer is right)",
+    "name": "P19 no kept indent is looked at",
+    "file": "src/core/qmd/model.ts",
+    "from": "for (const indent of this.indents) {",
+    "to": "for (const indent of new Set<number>()) {",
+    "expect": "killed"
+  },
+  {
+    "name": "P20 the lines are kept as a copy, so the key never matches (a clock mutant: every answer is right)",
     "file": "src/core/qmd/model.ts",
     "from": "this.lines = bodyLines;",
     "to": "this.lines = [...bodyLines];",
     "expect": "killed",
-    "why": "As P21, for the lines array."
+    "why": "Every answer is right and every question reads the paragraph again: killed by the clock rows of pathological-inputs.test.ts (an interrupter far down a paragraph), and by the oracle's 200,000-question rows, which stop at their time budget."
+  },
+  {
+    "name": "Q01 every line that is not code interrupts the paragraph",
+    "file": "src/core/qmd/model.ts",
+    "from": "  return interruptListMatches(line);\n}",
+    "to": "  return true;\n}",
+    "expect": "killed"
   },
   {
     "name": "G01 the scan is asked for every line (the gate removed)",
     "file": "src/core/qmd/model.ts",
-    "from": "commonmarkUnderlineLevel !== null && paragraphScan.interruptedAfterFirst(",
-    "to": "true && paragraphScan.interruptedAfterFirst(",
+    "from": "commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(",
+    "to": "true && !paragraphScan.interruptedAfterFirst(",
     "expect": "killed",
-    "why": "The scan is asked for every line when the gate is gone, and it still answers the same and costs the same on every shape tried (pairs and triples of line forms, random documents: the memo makes each question one read), so the clock cannot see it. The 'how often the scan is asked' rows of paragraph-interrupt-wiring.test.ts count the questions and kill it."
+    "why": "Killed by the 'how often the scan is asked' rows of paragraph-interrupt-wiring.test.ts and by the clock pin of two lines that alternate the open columns (without the gate the scan is asked for every line; the memo no longer depends on the columns, so it is also cheap, but the count rows hold the contract)."
   },
   {
     "name": "G02 the scan is asked only for a level 1 underline",
     "file": "src/core/qmd/model.ts",
-    "from": "commonmarkUnderlineLevel !== null && paragraphScan.interruptedAfterFirst(",
-    "to": "commonmarkUnderlineLevel === 1 && paragraphScan.interruptedAfterFirst(",
+    "from": "commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(",
+    "to": "commonmarkUnderlineLevel === 1 && !paragraphScan.interruptedAfterFirst(",
     "expect": "killed"
   },
   {
     "name": "G03 the scan is asked only for a level 2 underline",
     "file": "src/core/qmd/model.ts",
-    "from": "commonmarkUnderlineLevel !== null && paragraphScan.interruptedAfterFirst(",
-    "to": "commonmarkUnderlineLevel === 2 && paragraphScan.interruptedAfterFirst(",
+    "from": "commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(",
+    "to": "commonmarkUnderlineLevel === 2 && !paragraphScan.interruptedAfterFirst(",
     "expect": "killed"
   },
   {
-    "name": "G04 an interrupted paragraph keeps its whole title",
+    "name": "G04 an uninterrupted paragraph loses its title",
     "file": "src/core/qmd/model.ts",
-    "from": "        ? defaultTitleLineCount\n        : wholeParagraph;",
-    "to": "        ? wholeParagraph\n        : wholeParagraph;",
-    "expect": "killed"
-  },
-  {
-    "name": "G05 an uninterrupted paragraph loses its title",
-    "file": "src/core/qmd/model.ts",
-    "from": "        ? defaultTitleLineCount\n        : wholeParagraph;",
+    "from": "        ? wholeParagraph\n        : defaultTitleLineCount;",
     "to": "        ? defaultTitleLineCount\n        : defaultTitleLineCount;",
     "expect": "killed"
   },
   {
-    "name": "G06 an interrupted paragraph's title is 0 lines (the default, written as a number)",
+    "name": "G05 an interrupted paragraph keeps its whole title",
     "file": "src/core/qmd/model.ts",
-    "from": "        ? defaultTitleLineCount\n        : wholeParagraph;",
-    "to": "        ? 0\n        : wholeParagraph;",
-    "expect": "survives",
-    "why": "Equivalent: the scan answers true only for a paragraph of two lines or more, where `consecutiveBody === 1` is false and `defaultTitleLineCount` is 0."
+    "from": "        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "to": "        ? wholeParagraph\n        : wholeParagraph;",
+    "expect": "killed"
   },
   {
-    "name": "G07 the scan reads the CommonMark entries' columns only",
+    "name": "G06 a line that cannot underline holds the whole paragraph as its count (the review round's regression: every answer is right, a long first line is measured again by every later line)",
+    "file": "src/core/qmd/model.ts",
+    "from": "        ? wholeParagraph\n        : defaultTitleLineCount;",
+    "to": "        ? wholeParagraph\n        : commonmarkUnderlineLevel === null ? wholeParagraph : defaultTitleLineCount;",
+    "expect": "killed",
+    "why": "A clock mutant: killed by the rows with a first line of 20,000 quote markers in pathological-inputs.test.ts."
+  },
+  {
+    "name": "G07 the answer of the scan is taken the wrong way round",
+    "file": "src/core/qmd/model.ts",
+    "from": "commonmarkUnderlineLevel !== null && !paragraphScan.interruptedAfterFirst(",
+    "to": "commonmarkUnderlineLevel !== null && paragraphScan.interruptedAfterFirst(",
+    "expect": "killed"
+  },
+  {
+    "name": "G08 a line that cannot underline holds 0 lines as its count",
+    "file": "src/core/qmd/model.ts",
+    "from": "        : defaultTitleLineCount;",
+    "to": "        : 0;",
+    "expect": "survives",
+    "why": "Equivalent: the scan answers true only for a paragraph of two lines or more, where `consecutiveBody === 1` is false and `defaultTitleLineCount` is 0; and for a line that cannot underline nothing reads the count."
+  },
+  {
+    "name": "G09 the scan reads the CommonMark entries' columns only",
     "file": "src/core/qmd/model.ts",
     "from": "paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())",
     "to": "paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.commonmarkColumns())",
     "expect": "killed",
-    "why": "Found by Session 332's mutation run: no row told `columns()` from `commonmarkColumns()` until the wiring rows for an indented bullet followed by a letter-marker or definition item (a pandoc-only container column that makes the bullet an interrupter) were added."
+    "why": "Found by Session 332's first mutation run: no row told `columns()` from `commonmarkColumns()` until the wiring rows for an indented bullet followed by a letter-marker item (a pandoc-only container column that makes the bullet an interrupter) were added."
   },
   {
-    "name": "G08 the scan is told the run length and not the title length",
+    "name": "G10 the scan is told the run length and not the title length",
     "file": "src/core/qmd/model.ts",
     "from": "paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, ",
     "to": "paragraphScan.interruptedAfterFirst(bodyLines, consecutiveBody, ",
@@ -219,38 +224,46 @@
     "why": "Equivalent: `wholeParagraph` is `consecutiveBody` under a CommonMark reader unless the run opens a non-paragraph, and then it is `defaultTitleLineCount`, which both spellings return."
   },
   {
-    "name": "G09 a new scan for every question (a clock mutant: every answer is right)",
+    "name": "G11 a new scan for every question (a clock mutant: every answer is right)",
     "file": "src/core/qmd/model.ts",
     "from": "paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, ",
     "to": "new ParagraphInterruptScan().interruptedAfterFirst(bodyLines, wholeParagraph, ",
     "expect": "killed"
   },
   {
-    "name": "G10 the four columns of an underline start at the column 0",
+    "name": "G12 the four columns of an underline start at the column 0",
     "file": "src/core/qmd/model.ts",
     "from": "COMMONMARK_INDENT_OFFSETS.map((o) => innermostColumn + o)",
     "to": "COMMONMARK_INDENT_OFFSETS.map((o) => o)",
     "expect": "killed"
   },
   {
-    "name": "G11 the four columns of an underline run the other way",
+    "name": "G13 the four columns of an underline run the other way",
     "file": "src/core/qmd/model.ts",
     "from": "COMMONMARK_INDENT_OFFSETS.map((o) => innermostColumn + o)",
     "to": "COMMONMARK_INDENT_OFFSETS.map((o) => innermostColumn - o)",
     "expect": "killed"
   },
   {
-    "name": "G12 the underline of a CommonMark reader is asked of the other readers",
+    "name": "G14 the underline of a CommonMark reader is asked of the other readers",
     "file": "src/core/qmd/model.ts",
-    "from": "const commonmarkUnderlineLevel: 1 | 2 | null = commonmarkDialect\n",
-    "to": "const commonmarkUnderlineLevel: 1 | 2 | null = !commonmarkDialect\n",
+    "from": "const commonmarkUnderlineLevel = commonmarkDialect\n",
+    "to": "const commonmarkUnderlineLevel = !commonmarkDialect\n",
     "expect": "killed"
   },
   {
-    "name": "G13 setextLevel takes a level 1 whatever the underline",
+    "name": "G15 setextLevel takes a level 1 whatever the underline",
     "file": "src/core/qmd/model.ts",
     "from": "        ? commonmarkDialect\n          ? commonmarkUnderlineLevel\n",
     "to": "        ? commonmarkDialect\n          ? 1\n",
     "expect": "killed"
+  },
+  {
+    "name": "G16 the scan is handed the paragraph one line longer than it is",
+    "file": "src/core/qmd/model.ts",
+    "from": "paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, ",
+    "to": "paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph + 1, ",
+    "expect": "killed",
+    "why": "Found by the review round's mutation lens: a paragraph that starts below the first line of the document, with an interrupter as its first line, tells it apart; every earlier row started its paragraph at body index 0, where the floor hides the extra line."
   }
 ]
