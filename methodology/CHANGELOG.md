@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-28 · [ad hoc] SESSION_NOTES trim (Session 332): the Session 328 handoff evaluation and the Session 329 self-assessment dropped, the three newest pairs kept
+
+The retention rule of Session 256 (the live file holds at most three close-out pairs), applied at Phase 3D in `35e0d31` after the close-out commit `2689893`; the trim commit holds no other edit to the file (40 lines deleted, none added). The dropped pair is one command away: `git show 2689893:methodology/SESSION_NOTES.md`. The file is 290 lines and about 45,000 bytes against the 400-line and 120,000-byte ceilings, and no line is over 280 bytes.
+
 ### 2026-10-28 · [BL-Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph, none of them in Session 318's diff] Session 332: part (9) closed -- a long paragraph under from: gfm, commonmark or commonmark_x is read in linear time (`x` x 20,000 lines 28 s to 148 ms; an interrupter 8,000 lines down and 8,000 underline-shaped lines 13.4 s to 134 ms; a three-line unit that pushes and pops a column 8.2 s to 155 ms at 4,000 units)
 
 Claim `e2fb887`. Phase 0 picker: the operator chose part (9), the option marked recommended (placed by finishing a feature). Timed first in fresh processes at HEAD `8e03d50` (load 4 to 12): the item's figures held (`x` x 2,000 / 4,000 / 6,000 334 / 1,210 / 2,667 ms; `- item` and `===` x 5,000 2,051; the repeated `from: gfm` / `text` / `<?php` block 2,577 at 10,000; `~ a` x 1,500 / 3,000 under `commonmark_x` 212 / 763), the controls were linear (`format: gfm` and `from: markdown` 36 ms at 8,000), and a profile put the time on the `titleLineCount` line and the interrupt regexes before the cure was read. The cause is the item's hypothesis: `computeRegions` asked, for EVERY line, whether any line of the paragraph below its first interrupts it (`bodyLines.slice(-wholeParagraph).slice(1).some(...)`, two copies of the paragraph and a fresh `[0, ...columns]` per test) and read the answer only at an underline.
