@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-28 · [BL-Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph, none of them in Session 318's diff] Session 334 (in progress): claim -- g02 eighteenth session, parts (4) to (7)
+
+Session claimed. Phase 0 found both ledger frontiers at HEAD (`39bb039`, gap 0), no pending receipt, no merges, the ratchet 2/2 (results bba236856bad, measured at `6152f28`, the S333 receipt's citation holds), the dashboard at 76/100 "critical" with 18 vulnerabilities (dev-only: `package.json` has no `dependencies` key; the dashboard copy is v2.22.0 against canonical v2.23.0, not synced), and `master` 56 commits ahead of `origin/master` (the S333 handoff's 56 holds). Operator chose the S318 item's parts (4) to (7) at the Phase 0 picker (placed by finishing a feature): `htmlLineHasText`, `linkDefinitionAt`'s attribute check, `knitrCodeMasksPrinters`' `options(` scan and `YAML_ALIAS_VALUE`, all in `src/core/qmd/model.ts`. Outcome entries replace this one at close-out.
+
 ### 2026-10-28 · [ad hoc] Session 333: the quality-gate run cited in the receipt -- 2/2 pass at 6152f28
 
 `quality_ratchet.py --run`, after the ledger commits (Learning 683): ledger-lag 0 and release-gate 0 (`npm run check-package`), 2 pass, 0 fail, 0 unmeasured, results `bba236856bad`, manifest `334939914945`. The `HANDOFFS.md` receipt's `quality_ratchet:` line says the same. The dashboard stays at 76/100 (18 dev-only advisories; `npm audit --omit=dev` reports 0) and the context budget is OVER only for the three ledgers no session reads whole.

@@ -42,6 +42,13 @@ answers the same on about 0.5 billion strings).
 (13) `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices, edit with a Python script (`python3 -I -`). macOS `sed` rejects `|` as a delimiter and `sed -i`
 needs `''`. A foreground `sleep` is blocked: use a background run or the Monitor tool. After answering a direct question, STOP and wait (memory).
 
+### What Session 334 Did
+**Deliverable:** g02 of the backlog ordering plan, eighteenth session: the Session 318 item's parts (4) to (7), `htmlLineHasText`, `linkDefinitionAt`'s attribute check, `knitrCodeMasksPrinters`' `options(` scan and `YAML_ALIAS_VALUE` (all `model.ts`) (IN PROGRESS)
+**Started:** 2026-10-28
+**Status:** Session claimed. Work beginning. Strict TDD: time each literal shape at HEAD first, in fresh processes, with the load beside each figure (Learning 840: the item's figures are Session 318's, e.g. `htmlLineHasText` 251 ms at 10,000 and 981 ms at 20,000). Profile BEFORE reading the cures (Learning 739).
+The item's cures are the agents' and UNTESTED until the old spelling is the oracle in a test of its own; part (7)'s lookahead idiom is NOT equivalent (74,160 of 6,725,601 strings differ). One checkpoint commit per part (5-file cap per commit); if a part is not slow at HEAD, pin it as Session 329 did. Operator decision at Phase 0: these parts (recommended; placed by finishing a feature).
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
 ### What Session 333 Did
 **Deliverable:** g02 of the backlog ordering plan, seventeenth session: the Session 318 item's part (1), `GRID_TABLE_BORDER` (`model.ts`), quadratic on `+` then n dashes then ` -` -- DONE; claim `1be4982`
 **Started:** 2026-10-28
