@@ -3519,6 +3519,12 @@ function mappingFromValueLine(
 const YAML_ALIAS_VALUE = /^[ \t]*\*([^\s,[\]{}]+)[ \t]*(?:#.*)?$/;
 /** The anchor name of a value that is nothing but an alias (`*name`, blanks, an optional comment), or `null` when it is not one. */
 export function yamlAliasName(value: string): string | null {
+  // Every part of the pattern excludes a line terminator (`[ \t]`, `[^\s,[\]{}]`, `#` and `.`) and its `$` is the end of the text, so a value that HOLDS one (a CR, LF, U+2028 or U+2029) can never match. Asked
+  // anyway, a name of n `#` before a terminator gave each `#` back in turn as the start of a comment whose `.*` then read on to the terminator: n squared (Session 334; 72,000 took 3.1 s). Without a terminator
+  // the first `#` among the characters the name gives back ends the match, so the pattern is linear.
+  if (/[\n\r\u2028\u2029]/.test(value)) {
+    return null;
+  }
   const alias = YAML_ALIAS_VALUE.exec(value);
   return alias === null ? null : alias[1];
 }
