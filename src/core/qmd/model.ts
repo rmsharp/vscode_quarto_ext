@@ -6135,26 +6135,49 @@ export function commonmarkParagraphInterrupt(
   return COMMONMARK_PARAGRAPH_INTERRUPT.some((re) => re.test(line));
 }
 /**
- * Whether any line of the open paragraph BELOW ITS FIRST interrupts it (Session 332) -- the question the multi-line setext title asks of the lines it would swallow. The paragraph is the last `paragraphLines`
- * of `bodyLines`; a count longer than the list is the whole list (what `slice(-n)` does), and a count of 1 or less is a paragraph with no line below its first. This is
- * `bodyLines.slice(-n).slice(1).some((l) => commonmarkParagraphInterrupt(l.text, [0, ...columns]))` without the two copies of the paragraph and with the rooted columns made once, and it stops at the first
- * interrupter. `test/unit/paragraph-interrupt-equivalence.test.ts` keeps that expression as the oracle.
+ * Whether any line of the open paragraph BELOW ITS FIRST interrupts it (Session 332) -- the question the multi-line setext title asks of the lines it would swallow. The paragraph is the last `paragraphLines` of
+ * `bodyLines`; a count longer than the list is the whole list (what `slice(-n)` does), and a count of 1 or less is a paragraph with no line below its first. A cold question is
+ * `bodyLines.slice(-n).slice(1).some((l) => commonmarkParagraphInterrupt(l.text, [0, ...columns]))` without the two copies of the paragraph and with the rooted columns made once; it stops at the first interrupter.
+ *
+ * The scan keeps how far it has read, so a question about the same paragraph that GROWS one line at a time, under the same columns, reads only the lines added since the last one, and once an interrupter has been found the
+ * answer is kept. That is what makes it linear where the gate on the underline test alone was not: an interrupter far down the paragraph followed by many lines that can underline and cannot claim it
+ * (`<span>a</span>` and then `===` x N) each asked again and read the whole paragraph to find the same interrupter.
+ *
+ * ⚠ **THE KEY IS (THE LIST, WHERE THE PARAGRAPH STARTS, THE COLUMNS ARRAY), AND ITS CONTRACT IS WHAT MAKES IT EXACT.** A verdict is a function of one line's text and the columns, so what was read stays true for as long as
+ * those three are the same: `bodyLines` in `computeRegions` is only ever appended to and its entries are never edited, and `ColumnStack.columns()` is a snapshot rebuilt, never edited, when the set of columns changes. A
+ * different list, a different start (the paragraph restarted, or the count did not grow with the list) or a different array of columns (even an equal one, which costs one more read of the paragraph and no wrong answer)
+ * starts again from the paragraph's second line. A list that has become SHORTER than what was read starts again too, which `computeRegions` never does, but a scan that answered from a stale position there would be wrong,
+ * not slow. A count of 1 or less is a paragraph with no line below its first and leaves what has been read alone.
+ * `test/unit/paragraph-interrupt-equivalence.test.ts` keeps `bodyLines.slice(-n).slice(1).some(...)` as the oracle for every list, count and set of columns, one scan kept across a growing list.
  */
-export function paragraphInterruptedAfterFirst(
-  bodyLines: ReadonlyArray<{ readonly text: string }>,
-  paragraphLines: number,
-  columns: readonly number[],
-): boolean {
-  if (paragraphLines <= 1) {
-    return false;
-  }
-  const rooted = [0, ...columns];
-  for (let k = Math.max(0, bodyLines.length - paragraphLines) + 1; k < bodyLines.length; k++) {
-    if (commonmarkParagraphInterrupt(bodyLines[k].text, rooted)) {
-      return true;
+export class ParagraphInterruptScan {
+  private lines: ReadonlyArray<{ readonly text: string }> | null = null;
+  private start = 0;
+  private columns: readonly number[] | null = null;
+  private rooted: readonly number[] = [0];
+  /** The index of the next line to read: one past the last line read, which is the interrupter once `found`. */
+  private next = 0;
+  private found = false;
+
+  interruptedAfterFirst(bodyLines: ReadonlyArray<{ readonly text: string }>, paragraphLines: number, columns: readonly number[]): boolean {
+    if (paragraphLines <= 1) {
+      return false;
     }
+    const start = Math.max(0, bodyLines.length - paragraphLines);
+    if (this.lines !== bodyLines || this.start !== start || this.columns !== columns || this.next > bodyLines.length) {
+      this.lines = bodyLines;
+      this.start = start;
+      this.columns = columns;
+      this.rooted = [0, ...columns];
+      this.next = start + 1;
+      this.found = false;
+    }
+    while (!this.found && this.next < bodyLines.length) {
+      this.found = commonmarkParagraphInterrupt(bodyLines[this.next].text, this.rooted);
+      this.next += 1;
+    }
+    return this.found;
   }
-  return false;
 }
 /**
  * A line that OPENS a block whose content is not a paragraph, for the FIRST line of a body run
@@ -9481,6 +9504,8 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
   const headings: Heading[] = [];
   const cells: Cell[] = [];
   const bodyLines: BodyLine[] = [];
+  // What the setext title's interrupt scan has read of the paragraph so far (Session 332): `bodyLines` only grows, and a scan that keeps its place reads each line of a paragraph once.
+  const paragraphScan = new ParagraphInterruptScan();
   const codeFenceOpeners: CodeFenceOpener[] = [];
   // Closing fence lines a REFUSED opener above has already swallowed into an inline code span,
   // so they may not open a region themselves — see `consumedCloserLine` (Session 224).
@@ -11308,7 +11333,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
       ? setextUnderlineLevel(line, COMMONMARK_INDENT_OFFSETS.map((o) => innermostColumn + o))
       : null;
     const titleLineCount =
-      commonmarkUnderlineLevel !== null && paragraphInterruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())
+      commonmarkUnderlineLevel !== null && paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())
         ? defaultTitleLineCount
         : wholeParagraph;
     // ⚠ The HTML-block guard is needed at BOTH heading sites, and this is not the half Session

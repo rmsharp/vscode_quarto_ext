@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { commonmarkParagraphInterrupt, paragraphInterruptedAfterFirst } from "../../src/core/qmd/model";
+import { commonmarkParagraphInterrupt, ParagraphInterruptScan } from "../../src/core/qmd/model";
 import { seededRandom } from "./support/regex-equivalence";
 
 // Session 332 — the BACKLOG item "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", part (9). Under a `from: gfm`, `commonmark` or `commonmark_x` reader the title of a
 // setext underline is the whole open paragraph, unless a line of it BELOW ITS FIRST interrupts the paragraph, so `computeRegions` asked, for every line it read, `bodyLines.slice(-wholeParagraph).slice(1).some((l) =>
 // commonmarkParagraphInterrupt(l.text, [0, ...columns]))`: two copies of the paragraph so far and a fresh `[0, ...columns]` array for each line tested (`pathological-inputs.test.ts` has the document rows). The question is now
-// `paragraphInterruptedAfterFirst`, the same question without the copies, and it is asked only where the line can underline. The old expression is kept here, verbatim, as the oracle (Learning 738): the new function must
-// answer what it answered for every list of lines, every paragraph length and every set of open container columns.
+// `ParagraphInterruptScan.interruptedAfterFirst`, the same question without the copies, and it is asked only where the line can underline. The old expression is kept here, verbatim, as the oracle (Learning 738): the new
+// scan must answer what it answered for every list of lines, every paragraph length and every set of open container columns, asked cold (a fresh scan for each question) and warm (one scan kept across a growing list).
 const oldTitleScan = (bodyLines: Array<{ text: string }>, wholeParagraph: number, columns: readonly number[]): boolean =>
   wholeParagraph > 1 &&
   bodyLines
@@ -41,7 +41,12 @@ const ANSWERED = { exhaustive: 422_640, compared: 790_120, seeded: 73_153 };
 
 type Tally = { compared: number; answered: number; disagreements: string[] };
 
-function compareOne(lines: Array<{ text: string }>, wholeParagraph: number, columns: readonly number[], tally: Tally, reference = oldTitleScan, candidate = paragraphInterruptedAfterFirst): void {
+type TitleScan = (lines: Array<{ text: string }>, wholeParagraph: number, columns: readonly number[]) => boolean;
+
+// A COLD question: a scan that has read nothing yet, which is the old expression's own situation (it kept nothing between lines).
+const coldScan: TitleScan = (lines, wholeParagraph, columns) => new ParagraphInterruptScan().interruptedAfterFirst(lines, wholeParagraph, columns);
+
+function compareOne(lines: Array<{ text: string }>, wholeParagraph: number, columns: readonly number[], tally: Tally, reference: TitleScan = oldTitleScan, candidate: TitleScan = coldScan): void {
   const want = reference(lines, wholeParagraph, columns);
   const got = candidate(lines, wholeParagraph, columns);
   tally.compared += 1;
@@ -97,12 +102,12 @@ describe("Session 332 — the paragraph-interrupt scan without the copies", () =
   it("reports a function that tests the first line, skips the second, or ignores the columns (the comparator can fail)", () => {
     const early = (lines: Array<{ text: string }>, w: number, columns: readonly number[]): boolean => w > 1 && lines.slice(-w).some((l) => commonmarkParagraphInterrupt(l.text, [0, ...columns]));
     const late = (lines: Array<{ text: string }>, w: number, columns: readonly number[]): boolean => w > 1 && lines.slice(-w).slice(2).some((l) => commonmarkParagraphInterrupt(l.text, [0, ...columns]));
-    const blind = (lines: Array<{ text: string }>, w: number): boolean => w > 1 && lines.slice(-w).slice(1).some((l) => commonmarkParagraphInterrupt(l.text, [0]));
-    for (const [name, candidate] of [["early", early], ["late", late], ["blind", blind]] as const) {
+    const blind: TitleScan = (lines, w) => w > 1 && lines.slice(-w).slice(1).some((l) => commonmarkParagraphInterrupt(l.text, [0]));
+    for (const [name, candidate] of [["early", early], ["late", late], ["blind", blind]] as Array<[string, TitleScan]>) {
       const tally: Tally = { compared: 0, answered: 0, disagreements: [] };
       for (const lines of everyList(REDUCED_LINES, 3)) {
         for (let wholeParagraph = -1; wholeParagraph <= lines.length + 3; wholeParagraph++) {
-          for (const columns of COLUMN_SETS) compareOne(lines, wholeParagraph, columns, tally, oldTitleScan, candidate as typeof paragraphInterruptedAfterFirst);
+          for (const columns of COLUMN_SETS) compareOne(lines, wholeParagraph, columns, tally, oldTitleScan, candidate);
         }
       }
       expect({ name, reported: tally.disagreements.length > 0 }).toEqual({ name, reported: true });
@@ -113,31 +118,31 @@ describe("Session 332 — the paragraph-interrupt scan without the copies", () =
   it("states the window: the lines of the paragraph below its first, and the whole list when the count is larger", () => {
     const interrupter = line("# H");
     const plain = line("x");
-    expect(paragraphInterruptedAfterFirst([interrupter, plain, plain], 3, [])).toBe(false);
-    expect(paragraphInterruptedAfterFirst([plain, interrupter, plain], 3, [])).toBe(true);
-    expect(paragraphInterruptedAfterFirst([plain, plain, interrupter], 3, [])).toBe(true);
-    expect(paragraphInterruptedAfterFirst([plain, plain, interrupter], 2, [])).toBe(true);
-    expect(paragraphInterruptedAfterFirst([interrupter, plain, plain], 2, [])).toBe(false);
+    expect(coldScan([interrupter, plain, plain], 3, [])).toBe(false);
+    expect(coldScan([plain, interrupter, plain], 3, [])).toBe(true);
+    expect(coldScan([plain, plain, interrupter], 3, [])).toBe(true);
+    expect(coldScan([plain, plain, interrupter], 2, [])).toBe(true);
+    expect(coldScan([interrupter, plain, plain], 2, [])).toBe(false);
     // The paragraph is longer than the lines kept: the whole list, whose first line is still not tested.
-    expect(paragraphInterruptedAfterFirst([interrupter, plain], 9, [])).toBe(false);
-    expect(paragraphInterruptedAfterFirst([plain, interrupter], 9, [])).toBe(true);
+    expect(coldScan([interrupter, plain], 9, [])).toBe(false);
+    expect(coldScan([plain, interrupter], 9, [])).toBe(true);
     // A count of 0 or 1 is no paragraph that has a line below its first (`slice(-0)` would be the whole list: the guard comes first).
-    expect(paragraphInterruptedAfterFirst([plain, interrupter], 1, [])).toBe(false);
-    expect(paragraphInterruptedAfterFirst([plain, interrupter], 0, [])).toBe(false);
-    expect(paragraphInterruptedAfterFirst([plain, interrupter], -3, [])).toBe(false);
-    expect(paragraphInterruptedAfterFirst([], 5, [])).toBe(false);
+    expect(coldScan([plain, interrupter], 1, [])).toBe(false);
+    expect(coldScan([plain, interrupter], 0, [])).toBe(false);
+    expect(coldScan([plain, interrupter], -3, [])).toBe(false);
+    expect(coldScan([], 5, [])).toBe(false);
     // An interrupter at four columns past the container's content column is indented code and interrupts nothing: the columns decide it.
     const indentedBullet = line("      - b");
-    expect(paragraphInterruptedAfterFirst([plain, indentedBullet], 2, [])).toBe(false);
-    expect(paragraphInterruptedAfterFirst([plain, indentedBullet], 2, [2])).toBe(false);
-    expect(paragraphInterruptedAfterFirst([plain, indentedBullet], 2, [4])).toBe(true);
+    expect(coldScan([plain, indentedBullet], 2, [])).toBe(false);
+    expect(coldScan([plain, indentedBullet], 2, [2])).toBe(false);
+    expect(coldScan([plain, indentedBullet], 2, [4])).toBe(true);
   });
 
   it("does not change the lines it is given or the columns", () => {
     const lines = [line("x"), line("# H"), line("y")];
     const before = JSON.stringify(lines);
     const columns = [2, 4];
-    paragraphInterruptedAfterFirst(lines, 3, columns);
+    coldScan(lines, 3, columns);
     expect(JSON.stringify(lines)).toBe(before);
     expect(columns).toEqual([2, 4]);
   });
@@ -146,7 +151,7 @@ describe("Session 332 — the paragraph-interrupt scan without the copies", () =
   it("reads a paragraph of 200,000 lines with nothing in it that interrupts in linear time, and reads only the lines it needs", () => {
     const lines = Array.from({ length: LINEAR_LINES }, () => line("x"));
     const started = Date.now();
-    expect(paragraphInterruptedAfterFirst(lines, LINEAR_LINES, [2, 4])).toBe(false);
+    expect(coldScan(lines, LINEAR_LINES, [2, 4])).toBe(false);
     expect(Date.now() - started).toBeLessThan(LINEAR_LIMIT_MS);
 
     const reads: number[] = [];
@@ -156,14 +161,14 @@ describe("Session 332 — the paragraph-interrupt scan without the copies", () =
         return k === 4 ? "# H" : "x";
       },
     }));
-    expect(paragraphInterruptedAfterFirst(watched, 10, [])).toBe(true);
+    expect(coldScan(watched, 10, [])).toBe(true);
     expect(reads).toEqual([1, 2, 3, 4]);
     reads.length = 0;
     // A count of 6 is the last six lines, 4 to 9, and the interrupter at 4 is the FIRST of them: not read, and the answer is false.
-    expect(paragraphInterruptedAfterFirst(watched, 6, [])).toBe(false);
+    expect(coldScan(watched, 6, [])).toBe(false);
     expect(reads).toEqual([5, 6, 7, 8, 9]);
     reads.length = 0;
-    expect(paragraphInterruptedAfterFirst(watched.slice(5), 5, [])).toBe(false);
+    expect(coldScan(watched.slice(5), 5, [])).toBe(false);
     expect(reads).toEqual([6, 7, 8, 9]);
   });
 
@@ -181,5 +186,163 @@ describe("Session 332 — the paragraph-interrupt scan without the copies", () =
       "# H", "<span>a</span>", "- b", "---", "###### H", "```", "~~~~", "> q", ">", "***", "- - -", "___", "* b", "+ b", "1. one", "1) one", "(1) one", "::: {.a}", "<?php", "<!--", "[^1]: n", "  - b", "   - b",
     ]);
     expect(interruptsAt([0, 2, 6]).filter((text) => !interruptsAt([0]).includes(text))).toEqual(["    - b", "      - b", "\t- b", "\t\t- b", "     - b"]);
+  });
+});
+
+// The gate left one shape quadratic: an interrupter far down the paragraph, then many lines that can underline and cannot claim it. Each of them asked the question again, and the answer ("yes", found at the end) was read from
+// the whole paragraph every time. `ParagraphInterruptScan` keeps what it has read of the paragraph so far, so a paragraph that grows one line at a time costs one test per line. The lines it is handed only GROW (`bodyLines` in
+// `computeRegions` is appended to and never edited), the columns are the stack's snapshot (`ColumnStack.columns()` is rebuilt, never edited), and every answer must still be the old expression's.
+const WARM_EXHAUSTIVE_LENGTH = 4;
+const WARM_SEEDED_SEQUENCES = 20_000;
+const WARM_SEEDED_LENGTH = 30;
+/** As `ANSWERED`: the exhaustive pair (3,023,320 comparisons, 904,840 answered `true`) is counted again by `tools/paragraph-interrupt-count/count_answered.py`; the seeded count is from the old spelling here alone. */
+const WARM_ANSWERED = { compared: 3_023_320, exhaustive: 904_840, seeded: 208_944 };
+
+describe("Session 332 — the paragraph-interrupt scan that keeps what it has read", () => {
+  it("answers the old expression after every line of every list of up to four lines, for every count and every set of columns, through ONE scan kept across the list", () => {
+    const tally: Tally = { compared: 0, answered: 0, disagreements: [] };
+    const warm = (scan: ParagraphInterruptScan): TitleScan => (lines, w, columns) => scan.interruptedAfterFirst(lines, w, columns);
+    for (const finished of everyList(REDUCED_LINES, WARM_EXHAUSTIVE_LENGTH)) {
+      const scan = new ParagraphInterruptScan();
+      const lines: Array<{ text: string }> = [];
+      for (let upTo = 0; upTo <= finished.length; upTo++) {
+        if (upTo > 0) lines.push(finished[upTo - 1]);
+        for (let wholeParagraph = -1; wholeParagraph <= lines.length + 3; wholeParagraph++) {
+          for (const columns of COLUMN_SETS) compareOne(lines, wholeParagraph, columns, tally, oldTitleScan, warm(scan));
+        }
+      }
+    }
+    expect(tally.disagreements).toEqual([]);
+    expect({ compared: tally.compared, answered: tally.answered }).toEqual({ compared: WARM_ANSWERED.compared, answered: WARM_ANSWERED.exhaustive });
+  });
+
+  it("answers the old expression for 20,000 seeded paragraphs that grow one line at a time (counts that grow, counts that restart, the columns kept, switched, and copied)", () => {
+    const random = seededRandom(3320);
+    const tally: Tally = { compared: 0, answered: 0, disagreements: [] };
+    const scan = new ParagraphInterruptScan();
+    for (let n = 0; n < WARM_SEEDED_SEQUENCES; n++) {
+      const lines: Array<{ text: string }> = [];
+      const length = Math.floor(random() * (WARM_SEEDED_LENGTH + 1));
+      let columns = COLUMN_SETS[Math.floor(random() * COLUMN_SETS.length)];
+      let wholeParagraph = 0;
+      for (let k = 0; k < length; k++) {
+        lines.push(line(FULL_LINES[Math.floor(random() * FULL_LINES.length)]));
+        const move = random();
+        wholeParagraph = move < 0.7 ? wholeParagraph + 1 : move < 0.8 ? 1 : move < 0.9 ? 2 : Math.floor(random() * (lines.length + 4)) - 1;
+        const switched = random();
+        if (switched < 0.1) columns = COLUMN_SETS[Math.floor(random() * COLUMN_SETS.length)];
+        else if (switched < 0.15) columns = [...columns];
+        // One scan for ALL the sequences: a new array is a new paragraph to it, and it must say so.
+        compareOne(lines, wholeParagraph, columns, tally, oldTitleScan, (a, w, c) => scan.interruptedAfterFirst(a, w, c));
+      }
+    }
+    expect(tally.disagreements).toEqual([]);
+    expect({ compared: tally.compared > 100_000, answered: tally.answered }).toEqual({ compared: true, answered: WARM_ANSWERED.seeded });
+  });
+
+  // What it reads is pinned, not only what it answers: each line records its own index when its text is read.
+  const watchedLine = (index: number, text: string, reads: number[]): { text: string } => ({
+    get text(): string {
+      reads.push(index);
+      return text;
+    },
+  });
+  const take = (reads: number[]): number[] => reads.splice(0, reads.length);
+  // ONE array for the columns of a scan: a new array for each question is a new key (see the class), and these rows are about what is kept for the SAME one.
+  const none: number[] = [];
+
+  it("reads each line of a growing paragraph once, and nothing once an interrupter has been found", () => {
+    const reads: number[] = [];
+    const lines = ["x", "x", "x"].map((text, k) => watchedLine(k, text, reads));
+    const scan = new ParagraphInterruptScan();
+    expect(scan.interruptedAfterFirst(lines, 3, none)).toBe(false);
+    expect(take(reads)).toEqual([1, 2]);
+    lines.push(watchedLine(3, "x", reads));
+    expect(scan.interruptedAfterFirst(lines, 4, none)).toBe(false);
+    expect(take(reads)).toEqual([3]);
+    lines.push(watchedLine(4, "# H", reads));
+    expect(scan.interruptedAfterFirst(lines, 5, none)).toBe(true);
+    expect(take(reads)).toEqual([4]);
+    lines.push(watchedLine(5, "x", reads));
+    expect(scan.interruptedAfterFirst(lines, 6, none)).toBe(true);
+    expect(scan.interruptedAfterFirst(lines, 6, none)).toBe(true);
+    expect(take(reads)).toEqual([]);
+  });
+
+  it("starts again when the paragraph starts somewhere else, and a count of 1 or less leaves what it has read alone", () => {
+    const reads: number[] = [];
+    const lines = ["x", "x", "# H", "x", "x"].map((text, k) => watchedLine(k, text, reads));
+    const scan = new ParagraphInterruptScan();
+    expect(scan.interruptedAfterFirst(lines, 5, none)).toBe(true);
+    expect(take(reads)).toEqual([1, 2]);
+    // The paragraph is now the last two lines: a different start, so it reads again from its second line.
+    expect(scan.interruptedAfterFirst(lines, 2, none)).toBe(false);
+    expect(take(reads)).toEqual([4]);
+    expect(scan.interruptedAfterFirst(lines, 1, none)).toBe(false);
+    expect(scan.interruptedAfterFirst(lines, 0, none)).toBe(false);
+    expect(take(reads)).toEqual([]);
+    expect(scan.interruptedAfterFirst(lines, 2, none)).toBe(false);
+    expect(take(reads)).toEqual([]);
+  });
+
+  it("starts again when the columns are another array, even an equal one, and keeps what it has read for the same array", () => {
+    const reads: number[] = [];
+    const lines = ["x", "x", "      - b"].map((text, k) => watchedLine(k, text, reads));
+    const scan = new ParagraphInterruptScan();
+    const four = [4];
+    // Six columns in is code under no open column and a bullet under a container at 4: the columns decide the answer.
+    expect(scan.interruptedAfterFirst(lines, 3, none)).toBe(false);
+    expect(take(reads)).toEqual([1, 2]);
+    expect(scan.interruptedAfterFirst(lines, 3, four)).toBe(true);
+    expect(take(reads)).toEqual([1, 2]);
+    expect(scan.interruptedAfterFirst(lines, 3, four)).toBe(true);
+    expect(take(reads)).toEqual([]);
+    expect(scan.interruptedAfterFirst(lines, 3, [...four])).toBe(true);
+    expect(take(reads)).toEqual([1, 2]);
+    expect(scan.interruptedAfterFirst(lines, 3, none)).toBe(false);
+    expect(take(reads)).toEqual([1, 2]);
+  });
+
+  it("starts again for another list of lines, and when the list it has read from has become shorter", () => {
+    const reads: number[] = [];
+    const first = ["x", "x", "x", "x"].map((text, k) => watchedLine(k, text, reads));
+    const second = ["x", "x", "x", "x"].map((text, k) => watchedLine(k, text, reads));
+    const scan = new ParagraphInterruptScan();
+    expect(scan.interruptedAfterFirst(first, 4, none)).toBe(false);
+    expect(take(reads)).toEqual([1, 2, 3]);
+    expect(scan.interruptedAfterFirst(second, 4, none)).toBe(false);
+    expect(take(reads)).toEqual([1, 2, 3]);
+    expect(scan.interruptedAfterFirst(second, 4, none)).toBe(false);
+    expect(take(reads)).toEqual([]);
+    second.pop();
+    expect(scan.interruptedAfterFirst(second, 3, none)).toBe(false);
+    expect(take(reads)).toEqual([1, 2]);
+  });
+
+  it("does not change the lines it is given or the columns", () => {
+    const lines = [line("x"), line("# H"), line("y")];
+    const before = JSON.stringify(lines);
+    const columns = [2, 4];
+    new ParagraphInterruptScan().interruptedAfterFirst(lines, 3, columns);
+    expect(JSON.stringify(lines)).toBe(before);
+    expect(columns).toEqual([2, 4]);
+  });
+
+  // The shape the gate left quadratic: 100,000 lines of a paragraph, an interrupter, then 100,000 more lines each of which asks. Asked through a scan kept across the lines, 200,000 questions read 200,000 lines.
+  it("answers 200,000 questions about a paragraph that grows by a line each time in linear time, with an interrupter in the middle", () => {
+    const scan = new ParagraphInterruptScan();
+    const lines: Array<{ text: string }> = [];
+    // ONE array of columns, as `ColumnStack.columns()` hands out until a column enters or leaves: a new array for each question is a new key and would read the paragraph again each time.
+    const columns = [2, 4];
+    const started = Date.now();
+    let falses = 0;
+    let trues = 0;
+    for (let k = 0; k < LINEAR_LINES; k++) {
+      lines.push(line(k === LINEAR_LINES / 2 ? "<span>a</span>" : "x"));
+      if (scan.interruptedAfterFirst(lines, lines.length, columns)) trues += 1;
+      else falses += 1;
+    }
+    expect(Date.now() - started).toBeLessThan(LINEAR_LIMIT_MS);
+    expect({ falses, trues }).toEqual({ falses: LINEAR_LINES / 2, trues: LINEAR_LINES / 2 });
   });
 });
