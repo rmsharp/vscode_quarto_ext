@@ -2170,7 +2170,8 @@ describe("Session 334 — a tag line, a link definition, an `options(` argument 
   const aliasDoc = (value: (run: string) => string): ((run: string) => string) => (run) => `---\nfrom: *${value(run)}\n---\n\n# Z\n`;
 
   const S334_ROWS: S334Row[] = [
-    // Controls: fast on the parent too, so they cannot be RED there; they hold the cure to the same answers at the same size.
+    // Controls: fast on the parent too, so they cannot be RED there; they hold the HEADING LIST of the same documents at the same size. These rows are clocks: a cured function replaced by a constant keeps them green, and the answers of
+    // the four functions are pinned by the four `*-equivalence.test.ts` files and the call-site rows beside them (Session 334's review round).
     { site: "control (4): `<p>` and 100,000 `<>` pairs, every start matches", from: null, unit: "<>", many: 100_000, build: tagTable("<p>"), setext: true },
     { site: "control (4): `<p>`, 100,000 `<` and a `>` at the end, the first start reads to the end and matches", from: null, unit: "<", many: 100_000, build: tagTable("<p>", ">"), setext: true },
     { site: "control (4): a tag line of 200,000 letters, no further `<`", from: null, unit: "x", many: 200_000, build: tagTable("<p>") },

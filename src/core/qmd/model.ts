@@ -8160,8 +8160,9 @@ function knitrCodeMasksPrinters(code: readonly string[]): boolean {
 /** The names assigned in the argument list of an `options(` call, in order: a letter or a dot and then name characters, followed by blanks and an `=`. */
 export function knitrOptionNames(args: string): string[] {
   // The pattern this replaced, `/([A-Za-z.][\w.]*)[ \t]*=/g`, tried every letter of a run of name characters as a start and read each to the end of the run looking for an `=`: n letters cost n squared
-  // (Session 334; 72,000 took 3.2 s). A start may not follow a name character, so each MAXIMAL run is tried once: when blanks and an `=` follow it, the name is the run without its leading digits and
-  // underscores (the old pattern's leftmost start in the run is its first letter or dot), and a run of nothing else names nothing.
+  // (Session 334; 72,000 took 3.2 s). A start inside a run can only succeed where the run's own first letter or dot would (every start in a run reads to the run's end), so each MAXIMAL run is tried once (the
+  // lookbehind keeps a start from following a name character): when blanks and an `=` follow it, the name is the run without its leading digits and underscores (the old pattern's leftmost start in the run is its
+  // first letter or dot), and a run of nothing else names nothing.
   const names: string[] = [];
   for (const run of args.matchAll(/(?<![\w.])[\w.]+(?=[ \t]*=)/g)) {
     const name = run[0].replace(/^[0-9_]+/, "");

@@ -13,7 +13,7 @@
   "from": "const space = rest.search(/\\s/);",
   "to": "const space = rest.search(/ /);",
   "expect": "killed",
-  "why": "a tab ends the run: `x\\t{a}b`"
+  "why": "a tab ends the run: `x\\ty{a}b` is not junk (the first `{` is past the run and its blanks), and is junk if only a space ends the run"
  },
  {
   "name": "L03 the run includes the first blank",
