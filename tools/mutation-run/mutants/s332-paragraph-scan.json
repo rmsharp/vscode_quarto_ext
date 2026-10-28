@@ -69,7 +69,8 @@
     "file": "src/core/qmd/model.ts",
     "from": "this.rooted = [0, ...columns];",
     "to": "this.rooted = [...columns];",
-    "expect": "killed"
+    "expect": "survives",
+    "why": "Equivalent: `containerContentColumn` starts its base at 0 and keeps the deepest column not past the line's, so a 0 in the columns array changes no answer; the rooting is kept because it is the old expression's own `[0, ...columns]`."
   },
   {
     "name": "P11 the first line of the paragraph is read too",
@@ -146,21 +147,24 @@
     "file": "src/core/qmd/model.ts",
     "from": "this.columns = columns;",
     "to": "this.columns = [...columns];",
-    "expect": "killed"
+    "expect": "killed",
+    "why": "Every answer is right and every question rescans the paragraph: killed by the clock rows of pathological-inputs.test.ts (an interrupter far down a paragraph), and by the oracle's 200,000-question row, which never ends under it."
   },
   {
     "name": "P22 the lines are kept as a copy, so the key never matches (a clock mutant: every answer is right)",
     "file": "src/core/qmd/model.ts",
     "from": "this.lines = bodyLines;",
     "to": "this.lines = [...bodyLines];",
-    "expect": "killed"
+    "expect": "killed",
+    "why": "As P21, for the lines array."
   },
   {
     "name": "G01 the scan is asked for every line (the gate removed: a clock mutant)",
     "file": "src/core/qmd/model.ts",
     "from": "commonmarkUnderlineLevel !== null && paragraphScan.interruptedAfterFirst(",
     "to": "true && paragraphScan.interruptedAfterFirst(",
-    "expect": "killed"
+    "expect": "killed",
+    "why": "The scan is asked for every line when the gate is gone, and it still answers the same and costs the same on every shape tried (pairs and triples of line forms, random documents: the memo makes each question one read), so the clock cannot see it. The 'how often the scan is asked' rows of paragraph-interrupt-wiring.test.ts count the questions and kill it."
   },
   {
     "name": "G02 the scan is asked only for a level 1 underline",
@@ -203,7 +207,8 @@
     "file": "src/core/qmd/model.ts",
     "from": "paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())",
     "to": "paragraphScan.interruptedAfterFirst(bodyLines, wholeParagraph, columnStack.commonmarkColumns())",
-    "expect": "killed"
+    "expect": "killed",
+    "why": "Found by Session 332's mutation run: no row told `columns()` from `commonmarkColumns()` until the wiring rows for an indented bullet followed by a letter-marker or definition item (a pandoc-only container column that makes the bullet an interrupter) were added."
   },
   {
     "name": "G08 the scan is told the run length and not the title length",

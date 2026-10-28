@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { findHeadings } from "../../src/core/qmd/model";
+import { describe, expect, it, vi } from "vitest";
+import { findHeadings, ParagraphInterruptScan } from "../../src/core/qmd/model";
 
 // Session 332 — the setext title's paragraph-interrupt scan, read through the PUBLIC door. Under a `from: gfm`, `commonmark` or `commonmark_x` reader the title of an underline is the whole open paragraph, unless a line of it
 // below its first interrupts the paragraph; `computeRegions` asks that only where the line can underline, and through a scan that keeps its place (`ParagraphInterruptScan`). `paragraph-interrupt-equivalence.test.ts` holds the
@@ -76,6 +76,12 @@ const CASES: Case[] = [
   { site: "a definition marker line and an interrupter", body: ["x","~ a","<span>a</span>","y","==="], answers: { gfm: [], commonmark: [], commonmark_x: [] } },
   { site: "a letter-marker line in the paragraph", body: ["x","A. a","y","==="], answers: { gfm: [[1,"x A. a y",3]], commonmark: [[1,"x A. a y",3]], commonmark_x: [[1,"x A. a y",3]] } },
   { site: "a table dash rule under the paragraph", body: ["x","y","---","a"], answers: { gfm: [[2,"x y",3]], commonmark: [[2,"x y",3]], commonmark_x: [[2,"x y",3]] } },
+  { site: "an indented bullet (five spaces) and then a letter-marker item: the item's column makes it an interrupter", body: ["x","     - b","A. a","==="], answers: { gfm: [], commonmark: [], commonmark_x: [] } },
+  { site: "an indented bullet (four spaces) and then a letter-marker item", body: ["x","    - b","A. a","==="], answers: { gfm: [], commonmark: [], commonmark_x: [] } },
+  { site: "an indented bullet (five spaces) and then a definition item", body: ["x","     - b",": a","==="], answers: { gfm: [[1,"x - b : a",3]], commonmark: [[1,"x - b : a",3]], commonmark_x: [] } },
+  { site: "an indented bullet (five spaces) and then an indented definition item", body: ["x","     - b","  : a","==="], answers: { gfm: [[1,"x - b : a",3]], commonmark: [[1,"x - b : a",3]], commonmark_x: [] } },
+  { site: "an indented bullet (five spaces) and then a tilde definition item", body: ["x","     - b","~ a","==="], answers: { gfm: [[1,"x - b ~ a",3]], commonmark: [[1,"x - b ~ a",3]], commonmark_x: [] } },
+  { site: "an indented bullet (five spaces), a letter-marker item, and an underline at its column", body: ["x","     - b","A. a","   ==="], answers: { gfm: [], commonmark: [], commonmark_x: [] } },
 ];
 
 describe("Session 332 — the paragraph-interrupt scan through findHeadings", () => {
@@ -87,11 +93,11 @@ describe("Session 332 — the paragraph-interrupt scan through findHeadings", ()
   });
 
   // A table whose answers were all empty would pass a cure that found nothing. Half the rows hold a heading, and the cases are distinct.
-  it("keeps the shape of the table: 64 cases, 192 rows, 95 with a heading, 23 different answer sets, no case twice", () => {
-    expect(CASES.length).toBe(64);
-    expect(rows.length).toBe(192);
-    expect(rows.filter(([, reader, c]) => c.answers[reader].length > 0).length).toBe(95);
-    expect(new Set(CASES.map((c) => JSON.stringify(c.answers))).size).toBe(23);
+  it("keeps the shape of the table: 70 cases, 210 rows, 101 with a heading, 25 different answer sets, no case twice", () => {
+    expect(CASES.length).toBe(70);
+    expect(rows.length).toBe(210);
+    expect(rows.filter(([, reader, c]) => c.answers[reader].length > 0).length).toBe(101);
+    expect(new Set(CASES.map((c) => JSON.stringify(c.answers))).size).toBe(25);
     expect(new Set(CASES.map((c) => c.site)).size).toBe(CASES.length);
     expect(new Set(CASES.map((c) => JSON.stringify(c.body))).size).toBe(CASES.length);
   });
@@ -106,5 +112,45 @@ describe("Session 332 — the paragraph-interrupt scan through findHeadings", ()
     expect(findHeadings(fresh).map((heading) => heading.text)).toEqual(["y"]);
     expect(findHeadings("---\nfrom: markdown\n---\n" + fresh).map((heading) => heading.text)).toEqual(["y"]);
     for (const reader of READERS) expect(findHeadings(FRONT(reader) + joined).map((heading) => heading.text)).toEqual(["x y"]);
+  });
+
+  // HOW OFTEN the scan is asked is part of the wiring, and a mutant that asks it for every line answers every document the same way. It is asked once for each line that can underline (a `=` or `-` run at one of the four columns of the
+  // innermost content column) under a CommonMark-family reader, and never otherwise. Each text carries its own tag: `scanRegions` keeps the last two texts it read, and a text served from that cache asks nothing.
+  describe("how often the scan is asked", () => {
+    const asked = (text: string): number => {
+      const spy = vi.spyOn(ParagraphInterruptScan.prototype, "interruptedAfterFirst");
+      try {
+        findHeadings(text);
+        return spy.mock.calls.length;
+      } finally {
+        spy.mockRestore();
+      }
+    };
+    const plain = (tag: string, count: number): string => Array.from({ length: count }, (_, k) => `${tag} ${k}`).join("\n");
+
+    it("asks nothing for a paragraph of 50 lines that no line underlines", () => {
+      for (const reader of READERS) expect(asked(`${FRONT(reader)}${plain(`${reader} none`, 50)}\n`)).toBe(0);
+    });
+
+    it("asks once for the line that underlines it, and once for each underline-shaped line that follows", () => {
+      for (const reader of READERS) {
+        expect(asked(`${FRONT(reader)}${plain(`${reader} one`, 50)}\n===\n`)).toBe(1);
+        expect(asked(`${FRONT(reader)}${plain(`${reader} dash`, 50)}\n---\n`)).toBe(1);
+        expect(asked(`${FRONT(reader)}${plain(`${reader} three`, 5)}\n<span>a</span>\n===\n===\n---\n`)).toBe(3);
+      }
+    });
+
+    it("asks nothing for a heading, a rule that is not an underline's column, or a line that merely holds an equals sign", () => {
+      for (const reader of READERS) {
+        expect(asked(`${FRONT(reader)}${plain(`${reader} atx`, 20)}\n# H\n`)).toBe(0);
+        expect(asked(`${FRONT(reader)}${plain(`${reader} five`, 20)}\n     ===\n`)).toBe(0);
+        expect(asked(`${FRONT(reader)}${plain(`${reader} words`, 20)}\na = b\n`)).toBe(0);
+      }
+    });
+
+    it("asks nothing under the default reader or from: markdown, where the title is one line", () => {
+      expect(asked(`${plain("default", 20)}\n===\n`)).toBe(0);
+      expect(asked(`---\nfrom: markdown\n---\n${plain("markdown", 20)}\n===\n`)).toBe(0);
+    });
   });
 });
