@@ -13474,7 +13474,7 @@ function contentGatedElement(line: string, nativeDivs: boolean): boolean {
   return (name === "div" && nativeDivs) || (name !== undefined && HTML_EITHER_NAME.test(name));
 }
 /** A raw HTML line that leaves TEXT behind its tag: `<div>x</div>` (a tag-only line such as `</div>` has none). */
-function htmlLineHasText(line: string): boolean {
+export function htmlLineHasText(line: string): boolean {
   // (a `>` inside a quoted attribute does not end the tag: rendered `review2/r2_012`)
   return /^[ \t]*<\/?[A-Za-z]/.test(line) && line.replace(/<(?:[^>"']|"[^"]*"|'[^']*')*>/g, "").trim() !== "";
 }
