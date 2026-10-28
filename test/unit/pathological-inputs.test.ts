@@ -1980,6 +1980,13 @@ describe("Session 332 — a long paragraph of consecutive lines under a CommonMa
     { site: "run: 6,000 `x` lines and one `---` under from: gfm (a level 2 title)", entry: "headings", many: 6_000, build: (count) => `${reader("gfm")}\n` + "x\n".repeat(count) + "---\n", answer: (count) => [[2, words(count), 4]] },
     { site: "run: 5,000 `x` lines, one `===` and a heading under from: commonmark_x", entry: "headings", many: 5_000, build: (count) => `${reader("commonmark_x")}\n` + "x\n".repeat(count) + "===\n" + END, answer: (count) => [[1, words(count), 4], [1, "After", count + 6]] },
 
+    // An interrupter far down the paragraph, then many lines that can underline and cannot claim it: each of them asks the question again and the answer is "yes" every time, found at the END of the paragraph (the gate alone left these at 2.2 to 3.0 s; the last row is a control).
+    { site: "run: 4,000 `x` lines, one `<span>a</span>` and 4,000 `===` lines under from: gfm", entry: "headings", many: 4_000, build: (count) => `${reader("gfm")}\n` + "x\n".repeat(count) + "<span>a</span>\n" + "===\n".repeat(count) + END, answer: (count) => [[1, "After", 2 * count + 6]] },
+    { site: "run: 4,000 `x` lines, one `<span>a</span>` and 4,000 `---` lines under from: gfm", entry: "headings", many: 4_000, build: (count) => `${reader("gfm")}\n` + "x\n".repeat(count) + "<span>a</span>\n" + "---\n".repeat(count) + END, answer: (count) => [[1, "After", 2 * count + 6]] },
+    { site: "run: 4,000 `x` lines, one `<span>a</span>` and 4,000 `===` lines under from: commonmark_x", entry: "headings", many: 4_000, build: (count) => `${reader("commonmark_x")}\n` + "x\n".repeat(count) + "<span>a</span>\n" + "===\n".repeat(count) + END, answer: (count) => [[1, "After", 2 * count + 6]] },
+    { site: "run: a list item, 4,000 `  x` lines, one `  <span>a</span>` and 4,000 `  ===` lines under from: gfm (the container column is 2)", entry: "headings", many: 4_000, build: (count) => `${reader("gfm")}- item\n` + "  x\n".repeat(count) + "  <span>a</span>\n" + "  ===\n".repeat(count) + END, answer: (count) => [[1, "After", 2 * count + 6]] },
+    { site: "control: 4,000 `> x` lines, one `> <span>a</span>` and 4,000 `> ===` lines under from: gfm (inside a block quote: 101 ms on the parent, the quote's lines are not one paragraph run)", entry: "headings", many: 4_000, build: (count) => `${reader("gfm")}\n` + "> x\n".repeat(count) + "> <span>a</span>\n" + "> ===\n".repeat(count) + END, answer: (count) => [[1, "After", 2 * count + 6]] },
+
     // The same scan serves every reader of the regions.
     { site: "entry findAllCells: 5,000 `x` lines under from: gfm, then a cell", entry: "cells", many: 5_000, build: (count) => `${reader("gfm")}\n` + "x\n".repeat(count) + "\n```{r}\n1\n```\n", answer: (count) => [["r", count + 5, count + 7]] },
     { site: "entry indexLabels: 5,000 `x` lines under from: commonmark_x, then a labelled heading (gfm indexes no heading label)", entry: "labels", many: 5_000, build: (count) => `${reader("commonmark_x")}\n` + "x\n".repeat(count) + "\n# H {#sec-h}\n", answer: (count) => [["sec-h", count + 5]] },
@@ -2023,6 +2030,11 @@ describe("Session 332 — a long paragraph of consecutive lines under a CommonMa
       'headings 6000 "---\\nfrom: gfm\\n---\\n\\nx\\nx\\n===\\n"',
       'headings 6000 "---\\nfrom: gfm\\n---\\n\\nx\\nx\\n---\\n"',
       'headings 5000 "---\\nfrom: commonmark_x\\n---\\n\\nx\\nx\\n===\\n\\n# After\\n"',
+      'headings 4000 "---\\nfrom: gfm\\n---\\n\\nx\\nx\\n<span>a</span>\\n===\\n===\\n\\n# After\\n"',
+      'headings 4000 "---\\nfrom: gfm\\n---\\n\\nx\\nx\\n<span>a</span>\\n---\\n---\\n\\n# After\\n"',
+      'headings 4000 "---\\nfrom: commonmark_x\\n---\\n\\nx\\nx\\n<span>a</span>\\n===\\n===\\n\\n# After\\n"',
+      'headings 4000 "---\\nfrom: gfm\\n---\\n- item\\n  x\\n  x\\n  <span>a</span>\\n  ===\\n  ===\\n\\n# After\\n"',
+      'headings 4000 "---\\nfrom: gfm\\n---\\n\\n> x\\n> x\\n> <span>a</span>\\n> ===\\n> ===\\n\\n# After\\n"',
       'cells 5000 "---\\nfrom: gfm\\n---\\n\\nx\\nx\\n\\n```{r}\\n1\\n```\\n"',
       'labels 5000 "---\\nfrom: commonmark_x\\n---\\n\\nx\\nx\\n\\n# H {#sec-h}\\n"',
     ]);
