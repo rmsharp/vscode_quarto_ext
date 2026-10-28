@@ -6125,7 +6125,7 @@ const COMMONMARK_PARAGRAPH_INTERRUPT: readonly RegExp[] = [
  * condition is `indentedCodeLine`, REUSED rather than re-derived, for the same reason
  * `setextTitleText` reuses it (Sessions 196, 200 and 201).
  */
-function commonmarkParagraphInterrupt(
+export function commonmarkParagraphInterrupt(
   line: string,
   contentColumns: readonly number[] | null,
 ): boolean {
@@ -6133,6 +6133,28 @@ function commonmarkParagraphInterrupt(
     return false;
   }
   return COMMONMARK_PARAGRAPH_INTERRUPT.some((re) => re.test(line));
+}
+/**
+ * Whether any line of the open paragraph BELOW ITS FIRST interrupts it (Session 332) -- the question the multi-line setext title asks of the lines it would swallow. The paragraph is the last `paragraphLines`
+ * of `bodyLines`; a count longer than the list is the whole list (what `slice(-n)` does), and a count of 1 or less is a paragraph with no line below its first. This is
+ * `bodyLines.slice(-n).slice(1).some((l) => commonmarkParagraphInterrupt(l.text, [0, ...columns]))` without the two copies of the paragraph and with the rooted columns made once, and it stops at the first
+ * interrupter. `test/unit/paragraph-interrupt-equivalence.test.ts` keeps that expression as the oracle.
+ */
+export function paragraphInterruptedAfterFirst(
+  bodyLines: ReadonlyArray<{ readonly text: string }>,
+  paragraphLines: number,
+  columns: readonly number[],
+): boolean {
+  if (paragraphLines <= 1) {
+    return false;
+  }
+  const rooted = [0, ...columns];
+  for (let k = Math.max(0, bodyLines.length - paragraphLines) + 1; k < bodyLines.length; k++) {
+    if (commonmarkParagraphInterrupt(bodyLines[k].text, rooted)) {
+      return true;
+    }
+  }
+  return false;
 }
 /**
  * A line that OPENS a block whose content is not a paragraph, for the FIRST line of a body run
@@ -11275,12 +11297,18 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
     // a construct that interrupts the paragraph ends the title above it, and stitching across
     // one fabricates a heading out of two different blocks — see
     // `COMMONMARK_PARAGRAPH_INTERRUPT`, whose default is the inverse of `OPENS_FRESH_BLOCK`'s.
+    //
+    // ⚠ **THE SCAN IS ASKED ONLY WHERE THIS LINE CAN UNDERLINE (Session 332), BECAUSE ITS ANSWER IS READ NOWHERE ELSE.** It used to be asked for every line, and it reads the whole paragraph so far: a paragraph of N lines
+    // cost about N^2/2 tests. Only a CommonMark-family reader has a title longer than one line (`wholeParagraph` is `defaultTitleLineCount`, 0 or 1, everywhere else, and the scan needs 2), and there
+    // `titleLineCount` reaches `setextTitle` and from it `setextTitleTooShallow` and `setextTitleQuoted`, whose only reader is `setextLevel`, and `setextLevel` is `null` for a line that is not an underline at one of the four
+    // columns of the innermost content column (`commonmarkUnderlineLevel`, the same call `setextLevel` makes). `lazyQuotedUnderline`, the one other reader of those flags, is `false` there (`!commonmarkDialect`).
+    // So for a line that cannot underline the count is unobservable and the scan is skipped; the count it then holds, the whole paragraph, is the one an uninterrupted paragraph has.
+    // The type is annotated for the reason `rawColumnsUnknown` explains.
+    const commonmarkUnderlineLevel: 1 | 2 | null = commonmarkDialect
+      ? setextUnderlineLevel(line, COMMONMARK_INDENT_OFFSETS.map((o) => innermostColumn + o))
+      : null;
     const titleLineCount =
-      wholeParagraph > 1 &&
-      bodyLines
-        .slice(-wholeParagraph)
-        .slice(1)
-        .some((l) => commonmarkParagraphInterrupt(l.text, [0, ...columnStack.columns()]))
+      commonmarkUnderlineLevel !== null && paragraphInterruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())
         ? defaultTitleLineCount
         : wholeParagraph;
     // ⚠ The HTML-block guard is needed at BOTH heading sites, and this is not the half Session
@@ -11542,18 +11570,18 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
       !(siblingItemAtMarkerColumn && !prevLineOpenedOrderedList) &&
       (!setextTitleQuoted || lazyQuotedUnderline) &&
       !setextTitleTooShallow
-        ? setextUnderlineLevel(
-            line,
-            commonmarkDialect
-              ? COMMONMARK_INDENT_OFFSETS.map((o) => innermostColumn + o)
-              : lazyQuotedUnderline
+        ? commonmarkDialect
+          ? commonmarkUnderlineLevel
+          : setextUnderlineLevel(
+              line,
+              lazyQuotedUnderline
                 ? [0, ...columnStack.columns(), indentColumn(line)]
                 : // ⚠ `rawLineColumns`, not `contentColumns` — see its definition. This is the
                   // ONE reader of the widened set that can add a heading, and it can only ever
                   // add the marker-KEPT shape, because the lazy branch above already accepts
                   // every column through `indentColumn(line)`.
                   [0, ...rawLineColumns],
-          )
+            )
         : null;
     // How many of the TITLE's markers a lazily-continued underline removes (Session 232).
     //

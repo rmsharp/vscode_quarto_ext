@@ -394,8 +394,8 @@
   {
     "name": "W29 the paragraph interrupt of a setext title is judged against column 0 only",
     "file": "src/core/qmd/model.ts",
-    "from": "commonmarkParagraphInterrupt(l.text, [0, ...columnStack.columns()])",
-    "to": "commonmarkParagraphInterrupt(l.text, [0])",
+    "from": "paragraphInterruptedAfterFirst(bodyLines, wholeParagraph, columnStack.columns())",
+    "to": "paragraphInterruptedAfterFirst(bodyLines, wholeParagraph, [])",
     "expect": "killed"
   },
   {

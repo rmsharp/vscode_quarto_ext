@@ -1,0 +1,185 @@
+import { describe, expect, it } from "vitest";
+import { commonmarkParagraphInterrupt, paragraphInterruptedAfterFirst } from "../../src/core/qmd/model";
+import { seededRandom } from "./support/regex-equivalence";
+
+// Session 332 — the BACKLOG item "Eight more regexes and one paragraph reader that are quadratic on a long line or a long paragraph", part (9). Under a `from: gfm`, `commonmark` or `commonmark_x` reader the title of a
+// setext underline is the whole open paragraph, unless a line of it BELOW ITS FIRST interrupts the paragraph, so `computeRegions` asked, for every line it read, `bodyLines.slice(-wholeParagraph).slice(1).some((l) =>
+// commonmarkParagraphInterrupt(l.text, [0, ...columns]))`: two copies of the paragraph so far and a fresh `[0, ...columns]` array for each line tested (`pathological-inputs.test.ts` has the document rows). The question is now
+// `paragraphInterruptedAfterFirst`, the same question without the copies, and it is asked only where the line can underline. The old expression is kept here, verbatim, as the oracle (Learning 738): the new function must
+// answer what it answered for every list of lines, every paragraph length and every set of open container columns.
+const oldTitleScan = (bodyLines: Array<{ text: string }>, wholeParagraph: number, columns: readonly number[]): boolean =>
+  wholeParagraph > 1 &&
+  bodyLines
+    .slice(-wholeParagraph)
+    .slice(1)
+    .some((l) => commonmarkParagraphInterrupt(l.text, [0, ...columns]));
+
+const line = (text: string): { text: string } => ({ text });
+
+// Every kind of line the interrupt list tells apart, and the columns that make an indented one code (an interrupter at four columns past the container's content column is indented code and interrupts nothing).
+// The reduced alphabet is what the exhaustive rows enumerate; the full one is what the seeded rows draw from.
+const REDUCED_LINES = ["x", "#x", "    four spaces", "# H", "<span>a</span>", "- b", "    - b", "      - b", "---", ""];
+const FULL_LINES = [
+  ...REDUCED_LINES,
+  "plain words here", "  two-space indent", "2. two", "-", "|a|b|", "\ttab text", "1.x", "1. ", ":::", "   ",
+  "###### H", "```", "~~~~", "> q", ">", "***", "- - -", "___", "* b", "+ b", "1. one", "1) one", "(1) one", "::: {.a}", "<?php", "<!--", "[^1]: n",
+  "  - b", "   - b", "\t- b", "\t\t- b", "     - b",
+];
+const COLUMN_SETS: ReadonlyArray<readonly number[]> = [[], [2], [4], [2, 4], [3], [2, 6], [5], [0, 2]];
+
+const EXHAUSTIVE_LENGTH = 4;
+const SEEDED_DOCUMENTS = 100_000;
+const SEEDED_LENGTH = 30;
+const LINEAR_LINES = 200_000;
+const LINEAR_LIMIT_MS = 500;
+
+/**
+ * How many comparisons the OLD spelling answers `true` for: a comparison cannot pass by both answering `false` everywhere. The exhaustive pair (790,120 comparisons, 422,640 answered `true`) is counted again by a
+ * separate implementation that reads the CommonMark rule and not this code (`tools/paragraph-interrupt-count/count_answered.py`); the seeded one is counted from the old spelling here alone.
+ */
+const ANSWERED = { exhaustive: 422_640, compared: 790_120, seeded: 73_153 };
+
+type Tally = { compared: number; answered: number; disagreements: string[] };
+
+function compareOne(lines: Array<{ text: string }>, wholeParagraph: number, columns: readonly number[], tally: Tally, reference = oldTitleScan, candidate = paragraphInterruptedAfterFirst): void {
+  const want = reference(lines, wholeParagraph, columns);
+  const got = candidate(lines, wholeParagraph, columns);
+  tally.compared += 1;
+  if (want) tally.answered += 1;
+  if (want !== got && tally.disagreements.length < 5) {
+    tally.disagreements.push(`${JSON.stringify(lines.map((l) => l.text))} w=${wholeParagraph} columns=${JSON.stringify(columns)}: old ${want}, new ${got}`);
+  }
+}
+
+/** Every list of up to `maxLength` lines over `alphabet`, as arrays of line objects (a fresh array each, so a function that mutated its input would be seen by the next comparison). */
+function* everyList(alphabet: readonly string[], maxLength: number): Generator<Array<{ text: string }>> {
+  let layer: string[][] = [[]];
+  yield [];
+  for (let length = 1; length <= maxLength; length++) {
+    const next: string[][] = [];
+    for (const prefix of layer) {
+      for (const text of alphabet) next.push([...prefix, text]);
+    }
+    for (const texts of next) yield texts.map(line);
+    layer = next;
+  }
+}
+
+describe("Session 332 — the paragraph-interrupt scan without the copies", () => {
+  it("answers the old expression for every list of up to four lines, every paragraph length from -1 to the list's length + 3, and every set of columns", () => {
+    const tally: Tally = { compared: 0, answered: 0, disagreements: [] };
+    let lists = 0;
+    for (const lines of everyList(REDUCED_LINES, EXHAUSTIVE_LENGTH)) {
+      lists += 1;
+      for (let wholeParagraph = -1; wholeParagraph <= lines.length + 3; wholeParagraph++) {
+        for (const columns of COLUMN_SETS) compareOne(lines, wholeParagraph, columns, tally);
+      }
+    }
+    expect(tally.disagreements).toEqual([]);
+    expect({ lists, compared: tally.compared, answered: tally.answered }).toEqual({ lists: 11_111, compared: ANSWERED.compared, answered: ANSWERED.exhaustive });
+  });
+
+  it("answers the old expression for 100,000 seeded lists of up to 30 lines over the full alphabet", () => {
+    const random = seededRandom(332);
+    const tally: Tally = { compared: 0, answered: 0, disagreements: [] };
+    for (let n = 0; n < SEEDED_DOCUMENTS; n++) {
+      const length = Math.floor(random() * (SEEDED_LENGTH + 1));
+      const lines = Array.from({ length }, () => line(FULL_LINES[Math.floor(random() * FULL_LINES.length)]));
+      const wholeParagraph = Math.floor(random() * (length + 5)) - 1;
+      const columns = COLUMN_SETS[Math.floor(random() * COLUMN_SETS.length)];
+      compareOne(lines, wholeParagraph, columns, tally);
+    }
+    expect(tally.disagreements).toEqual([]);
+    expect({ compared: tally.compared, answered: tally.answered }).toEqual({ compared: SEEDED_DOCUMENTS, answered: ANSWERED.seeded });
+  });
+
+  // The comparison itself can fail: a function that starts one line early (it tests the paragraph's FIRST line, which a title may begin on), one line late, or that ignores the columns is reported by the exhaustive rows.
+  it("reports a function that tests the first line, skips the second, or ignores the columns (the comparator can fail)", () => {
+    const early = (lines: Array<{ text: string }>, w: number, columns: readonly number[]): boolean => w > 1 && lines.slice(-w).some((l) => commonmarkParagraphInterrupt(l.text, [0, ...columns]));
+    const late = (lines: Array<{ text: string }>, w: number, columns: readonly number[]): boolean => w > 1 && lines.slice(-w).slice(2).some((l) => commonmarkParagraphInterrupt(l.text, [0, ...columns]));
+    const blind = (lines: Array<{ text: string }>, w: number): boolean => w > 1 && lines.slice(-w).slice(1).some((l) => commonmarkParagraphInterrupt(l.text, [0]));
+    for (const [name, candidate] of [["early", early], ["late", late], ["blind", blind]] as const) {
+      const tally: Tally = { compared: 0, answered: 0, disagreements: [] };
+      for (const lines of everyList(REDUCED_LINES, 3)) {
+        for (let wholeParagraph = -1; wholeParagraph <= lines.length + 3; wholeParagraph++) {
+          for (const columns of COLUMN_SETS) compareOne(lines, wholeParagraph, columns, tally, oldTitleScan, candidate as typeof paragraphInterruptedAfterFirst);
+        }
+      }
+      expect({ name, reported: tally.disagreements.length > 0 }).toEqual({ name, reported: true });
+    }
+  });
+
+  // Stated by hand, so that a wrong old expression and a wrong new function cannot agree on a wrong answer: the window is the paragraph's lines below its FIRST.
+  it("states the window: the lines of the paragraph below its first, and the whole list when the count is larger", () => {
+    const interrupter = line("# H");
+    const plain = line("x");
+    expect(paragraphInterruptedAfterFirst([interrupter, plain, plain], 3, [])).toBe(false);
+    expect(paragraphInterruptedAfterFirst([plain, interrupter, plain], 3, [])).toBe(true);
+    expect(paragraphInterruptedAfterFirst([plain, plain, interrupter], 3, [])).toBe(true);
+    expect(paragraphInterruptedAfterFirst([plain, plain, interrupter], 2, [])).toBe(true);
+    expect(paragraphInterruptedAfterFirst([interrupter, plain, plain], 2, [])).toBe(false);
+    // The paragraph is longer than the lines kept: the whole list, whose first line is still not tested.
+    expect(paragraphInterruptedAfterFirst([interrupter, plain], 9, [])).toBe(false);
+    expect(paragraphInterruptedAfterFirst([plain, interrupter], 9, [])).toBe(true);
+    // A count of 0 or 1 is no paragraph that has a line below its first (`slice(-0)` would be the whole list: the guard comes first).
+    expect(paragraphInterruptedAfterFirst([plain, interrupter], 1, [])).toBe(false);
+    expect(paragraphInterruptedAfterFirst([plain, interrupter], 0, [])).toBe(false);
+    expect(paragraphInterruptedAfterFirst([plain, interrupter], -3, [])).toBe(false);
+    expect(paragraphInterruptedAfterFirst([], 5, [])).toBe(false);
+    // An interrupter at four columns past the container's content column is indented code and interrupts nothing: the columns decide it.
+    const indentedBullet = line("      - b");
+    expect(paragraphInterruptedAfterFirst([plain, indentedBullet], 2, [])).toBe(false);
+    expect(paragraphInterruptedAfterFirst([plain, indentedBullet], 2, [2])).toBe(false);
+    expect(paragraphInterruptedAfterFirst([plain, indentedBullet], 2, [4])).toBe(true);
+  });
+
+  it("does not change the lines it is given or the columns", () => {
+    const lines = [line("x"), line("# H"), line("y")];
+    const before = JSON.stringify(lines);
+    const columns = [2, 4];
+    paragraphInterruptedAfterFirst(lines, 3, columns);
+    expect(JSON.stringify(lines)).toBe(before);
+    expect(columns).toEqual([2, 4]);
+  });
+
+  // The cost: a pass over the lines below the first, stopping at the first interrupter, with no copy of the paragraph. A paragraph of 200,000 lines is read in a few milliseconds; the old spelling copied it twice.
+  it("reads a paragraph of 200,000 lines with nothing in it that interrupts in linear time, and reads only the lines it needs", () => {
+    const lines = Array.from({ length: LINEAR_LINES }, () => line("x"));
+    const started = Date.now();
+    expect(paragraphInterruptedAfterFirst(lines, LINEAR_LINES, [2, 4])).toBe(false);
+    expect(Date.now() - started).toBeLessThan(LINEAR_LIMIT_MS);
+
+    const reads: number[] = [];
+    const watched = Array.from({ length: 10 }, (_, k) => ({
+      get text(): string {
+        reads.push(k);
+        return k === 4 ? "# H" : "x";
+      },
+    }));
+    expect(paragraphInterruptedAfterFirst(watched, 10, [])).toBe(true);
+    expect(reads).toEqual([1, 2, 3, 4]);
+    reads.length = 0;
+    // A count of 6 is the last six lines, 4 to 9, and the interrupter at 4 is the FIRST of them: not read, and the answer is false.
+    expect(paragraphInterruptedAfterFirst(watched, 6, [])).toBe(false);
+    expect(reads).toEqual([5, 6, 7, 8, 9]);
+    reads.length = 0;
+    expect(paragraphInterruptedAfterFirst(watched.slice(5), 5, [])).toBe(false);
+    expect(reads).toEqual([6, 7, 8, 9]);
+  });
+
+  it("keeps the alphabets, the lengths and the column sets the rows are built on", () => {
+    expect(REDUCED_LINES).toEqual(["x", "#x", "    four spaces", "# H", "<span>a</span>", "- b", "    - b", "      - b", "---", ""]);
+    expect(FULL_LINES.length).toBe(42);
+    expect(new Set(FULL_LINES).size).toBe(FULL_LINES.length);
+    expect(REDUCED_LINES.every((text) => FULL_LINES.includes(text))).toBe(true);
+    expect(COLUMN_SETS).toEqual([[], [2], [4], [2, 4], [3], [2, 6], [5], [0, 2]]);
+    expect([EXHAUSTIVE_LENGTH, SEEDED_DOCUMENTS, SEEDED_LENGTH, LINEAR_LINES, LINEAR_LIMIT_MS]).toEqual([4, 100_000, 30, 200_000, 500]);
+    // The interrupters among the full alphabet are the ones the list means, and the plain ones are not: the answers above are not both false everywhere. At top level four columns of indent is code, so the indented bullets
+    // interrupt nothing there; each open container column moves where code starts, which is why the columns are part of the question.
+    const interruptsAt = (columns: readonly number[]): string[] => FULL_LINES.filter((text) => commonmarkParagraphInterrupt(text, columns));
+    expect(interruptsAt([0])).toEqual([
+      "# H", "<span>a</span>", "- b", "---", "###### H", "```", "~~~~", "> q", ">", "***", "- - -", "___", "* b", "+ b", "1. one", "1) one", "(1) one", "::: {.a}", "<?php", "<!--", "[^1]: n", "  - b", "   - b",
+    ]);
+    expect(interruptsAt([0, 2, 6]).filter((text) => !interruptsAt([0]).includes(text))).toEqual(["    - b", "      - b", "\t- b", "\t\t- b", "     - b"]);
+  });
+});
