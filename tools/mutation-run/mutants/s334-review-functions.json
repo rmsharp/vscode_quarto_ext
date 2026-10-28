@@ -1,0 +1,698 @@
+[
+ {
+  "name": "R-H01 the guard letter class [A-z] also takes [ \\ ] ^ _ and a backtick; no a",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!/^[ \\t]*<\\/?[A-Za-z]/.test(line)) {",
+  "to": "if (!/^[ \\t]*<\\/?[A-z]/.test(line)) {",
+  "expect": "killed",
+  "why": "the guard letter class [A-z] also takes [ \\ ] ^ _ and a backtick; no alphabet holds one"
+ },
+ {
+  "name": "R-H02 an underscore starts a tag name; no alphabet holds one",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!/^[ \\t]*<\\/?[A-Za-z]/.test(line)) {",
+  "to": "if (!/^[ \\t]*<\\/?[A-Za-z_]/.test(line)) {",
+  "expect": "killed",
+  "why": "an underscore starts a tag name; no alphabet holds one"
+ },
+ {
+  "name": "R-H03 a bang (a comment or declaration) starts a tag; no alphabet holds one",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!/^[ \\t]*<\\/?[A-Za-z]/.test(line)) {",
+  "to": "if (!/^[ \\t]*<\\/?[A-Za-z!]/.test(line)) {",
+  "expect": "killed",
+  "why": "a bang (a comment or declaration) starts a tag; no alphabet holds one"
+ },
+ {
+  "name": "R-H04 an accented letter starts a tag name",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!/^[ \\t]*<\\/?[A-Za-z]/.test(line)) {",
+  "to": "if (!/^[ \\t]*<\\/?[A-Za-z\\u00c0-\\u024f]/.test(line)) {",
+  "expect": "killed",
+  "why": "an accented letter starts a tag name"
+ },
+ {
+  "name": "R-H10 text past the 4,096th character is never seen (answers false there)",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let i = 0; i < line.length; i++) {\n    if (line[i] !== \"<\") {",
+  "to": "for (let i = 0; i < Math.min(line.length, 4096); i++) {\n    if (line[i] !== \"<\") {",
+  "expect": "killed",
+  "why": "text past the 4,096th character is never seen (answers false there)"
+ },
+ {
+  "name": "R-H11 same at 2^20",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let i = 0; i < line.length; i++) {\n    if (line[i] !== \"<\") {",
+  "to": "for (let i = 0; i < Math.min(line.length, 1048576); i++) {\n    if (line[i] !== \"<\") {",
+  "expect": "killed",
+  "why": "same at 2^20"
+ },
+ {
+  "name": "R-H12 a conservative cap at 100,000",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let i = 0; i < line.length; i++) {\n    if (line[i] !== \"<\") {\n      if (/\\S/.test(line[i])) {\n        return true;\n      }\n      continue;\n    }\n    const end = htmlTagBodyEnd(line, i + 1);\n    if (end < 0) {\n      return true;\n    }\n    i = end - 1;\n  }\n  return false;\n}",
+  "to": "  for (let i = 0; i < Math.min(line.length, 100000); i++) {\n    if (line[i] !== \"<\") {\n      if (/\\S/.test(line[i])) {\n        return true;\n      }\n      continue;\n    }\n    const end = htmlTagBodyEnd(line, i + 1);\n    if (end < 0) {\n      return true;\n    }\n    i = end - 1;\n  }\n  return line.length > 100000;\n}",
+  "expect": "killed",
+  "why": "a conservative cap at 100,000: a longer line answers true; the 200,003-character all-tags control answers false"
+ },
+ {
+  "name": "R-H13 a conservative cap at 2^20",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let i = 0; i < line.length; i++) {\n    if (line[i] !== \"<\") {\n      if (/\\S/.test(line[i])) {\n        return true;\n      }\n      continue;\n    }\n    const end = htmlTagBodyEnd(line, i + 1);\n    if (end < 0) {\n      return true;\n    }\n    i = end - 1;\n  }\n  return false;\n}",
+  "to": "  for (let i = 0; i < Math.min(line.length, 1048576); i++) {\n    if (line[i] !== \"<\") {\n      if (/\\S/.test(line[i])) {\n        return true;\n      }\n      continue;\n    }\n    const end = htmlTagBodyEnd(line, i + 1);\n    if (end < 0) {\n      return true;\n    }\n    i = end - 1;\n  }\n  return line.length > 1048576;\n}",
+  "expect": "killed",
+  "why": "a conservative cap at 2^20: no row has a line that long"
+ },
+ {
+  "name": "R-H15 a tag body longer than 65,536 is unclosed",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let i = from; i < line.length; i++) {\n    const c = line[i];",
+  "to": "for (let i = from; i < Math.min(line.length, from + 65536); i++) {\n    const c = line[i];",
+  "expect": "killed",
+  "why": "a tag body longer than 65,536 is unclosed: the 100,000 < control ends in a > at the end"
+ },
+ {
+  "name": "R-H16 same at 2^18",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let i = from; i < line.length; i++) {\n    const c = line[i];",
+  "to": "for (let i = from; i < Math.min(line.length, from + 262144); i++) {\n    const c = line[i];",
+  "expect": "killed",
+  "why": "same at 2^18: no row has a tag body that long"
+ },
+ {
+  "name": "R-H17 a quoted string longer than 4,096 is unclosed",
+  "file": "src/core/qmd/model.ts",
+  "from": "      i = line.indexOf(c, i + 1);\n      if (i < 0) {",
+  "to": "      i = line.slice(0, i + 1 + 4096).indexOf(c, i + 1);\n      if (i < 0) {",
+  "expect": "killed",
+  "why": "a quoted string longer than 4,096 is unclosed: the tag is no tag, so the line has text"
+ },
+ {
+  "name": "R-H18 same at 2^18",
+  "file": "src/core/qmd/model.ts",
+  "from": "      i = line.indexOf(c, i + 1);\n      if (i < 0) {",
+  "to": "      i = line.slice(0, i + 1 + 262144).indexOf(c, i + 1);\n      if (i < 0) {",
+  "expect": "killed",
+  "why": "same at 2^18"
+ },
+ {
+  "name": "R-H19 a backtick also hides a > (no alphabet holds a backtick)",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (c === '\"' || c === \"'\") {\n      i = line.indexOf(c, i + 1);",
+  "to": "if (c === '\"' || c === \"'\" || c === \"`\") {\n      i = line.indexOf(c, i + 1);",
+  "expect": "killed",
+  "why": "a backtick also hides a > (no alphabet holds a backtick)"
+ },
+ {
+  "name": "R-H20 a right single quotation mark also hides a >",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (c === '\"' || c === \"'\") {\n      i = line.indexOf(c, i + 1);",
+  "to": "if (c === '\"' || c === \"'\" || c === \"\\u2019\") {\n      i = line.indexOf(c, i + 1);",
+  "expect": "killed",
+  "why": "a right single quotation mark also hides a >"
+ },
+ {
+  "name": "R-H21 text test with a vertical tab not whitespace",
+  "file": "src/core/qmd/model.ts",
+  "from": "/\\S/.test(line[i])",
+  "to": "/[^\\t\\n\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]/.test(line[i])",
+  "expect": "killed",
+  "why": "text test with a vertical tab not whitespace: the html alphabets hold no a vertical tab"
+ },
+ {
+  "name": "R-H22 text test with a form feed not whitespace",
+  "file": "src/core/qmd/model.ts",
+  "from": "/\\S/.test(line[i])",
+  "to": "/[^\\t\\n\\v\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]/.test(line[i])",
+  "expect": "killed",
+  "why": "text test with a form feed not whitespace: the html alphabets hold no a form feed"
+ },
+ {
+  "name": "R-H23 text test with U+1680 ogham space mark not whitespace",
+  "file": "src/core/qmd/model.ts",
+  "from": "/\\S/.test(line[i])",
+  "to": "/[^\\t\\n\\v\\f\\r \\u00a0\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]/.test(line[i])",
+  "expect": "killed",
+  "why": "text test with U+1680 ogham space mark not whitespace: the html alphabets hold no U+1680 ogham space mark"
+ },
+ {
+  "name": "R-H24 text test with the eleven U+2000 to U+200A spaces not whitespace",
+  "file": "src/core/qmd/model.ts",
+  "from": "/\\S/.test(line[i])",
+  "to": "/[^\\t\\n\\v\\f\\r \\u00a0\\u1680\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]/.test(line[i])",
+  "expect": "killed",
+  "why": "text test with the eleven U+2000 to U+200A spaces not whitespace: the html alphabets hold no the eleven U+2000 to U+200A spaces"
+ },
+ {
+  "name": "R-H25 text test with U+202F not whitespace",
+  "file": "src/core/qmd/model.ts",
+  "from": "/\\S/.test(line[i])",
+  "to": "/[^\\t\\n\\v\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u205f\\u3000\\ufeff]/.test(line[i])",
+  "expect": "killed",
+  "why": "text test with U+202F not whitespace: the html alphabets hold no U+202F"
+ },
+ {
+  "name": "R-H26 text test with U+205F not whitespace",
+  "file": "src/core/qmd/model.ts",
+  "from": "/\\S/.test(line[i])",
+  "to": "/[^\\t\\n\\v\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u3000\\ufeff]/.test(line[i])",
+  "expect": "killed",
+  "why": "text test with U+205F not whitespace: the html alphabets hold no U+205F"
+ },
+ {
+  "name": "R-H27 text test with U+3000 ideographic space not whitespace",
+  "file": "src/core/qmd/model.ts",
+  "from": "/\\S/.test(line[i])",
+  "to": "/[^\\t\\n\\v\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\ufeff]/.test(line[i])",
+  "expect": "killed",
+  "why": "text test with U+3000 ideographic space not whitespace: the html alphabets hold no U+3000 ideographic space"
+ },
+ {
+  "name": "R-H29 text test with a line feed not whitespace",
+  "file": "src/core/qmd/model.ts",
+  "from": "/\\S/.test(line[i])",
+  "to": "/[^\\t\\v\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]/.test(line[i])",
+  "expect": "killed",
+  "why": "text test with a line feed not whitespace: the html alphabets hold no a line feed"
+ },
+ {
+  "name": "R-L01 the end of the leading run misses a vertical tab (the link alphabets h",
+  "file": "src/core/qmd/model.ts",
+  "from": "const space = rest.search(/\\s/);",
+  "to": "const space = rest.search(/[\\t\\n\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]/);",
+  "expect": "killed",
+  "why": "the end of the leading run misses a vertical tab (the link alphabets hold none)"
+ },
+ {
+  "name": "R-L02 the end of the leading run misses a byte order mark (the link alphabet",
+  "file": "src/core/qmd/model.ts",
+  "from": "const space = rest.search(/\\s/);",
+  "to": "const space = rest.search(/[\\t\\n\\v\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]/);",
+  "expect": "killed",
+  "why": "the end of the leading run misses a byte order mark (the link alphabets hold none)"
+ },
+ {
+  "name": "R-L03 the end of the leading run misses the U+2000 to U+200A spaces (the lin",
+  "file": "src/core/qmd/model.ts",
+  "from": "const space = rest.search(/\\s/);",
+  "to": "const space = rest.search(/[\\t\\n\\v\\f\\r \\u00a0\\u1680\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]/);",
+  "expect": "killed",
+  "why": "the end of the leading run misses the U+2000 to U+200A spaces (the link alphabets hold none)"
+ },
+ {
+  "name": "R-L04 the end of the leading run misses U+1680 (the link alphabets hold none",
+  "file": "src/core/qmd/model.ts",
+  "from": "const space = rest.search(/\\s/);",
+  "to": "const space = rest.search(/[\\t\\n\\v\\f\\r \\u00a0\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]/);",
+  "expect": "killed",
+  "why": "the end of the leading run misses U+1680 (the link alphabets hold none)"
+ },
+ {
+  "name": "R-L05 the end of the leading run misses U+202F (the link alphabets hold none",
+  "file": "src/core/qmd/model.ts",
+  "from": "const space = rest.search(/\\s/);",
+  "to": "const space = rest.search(/[\\t\\n\\v\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u205f\\u3000\\ufeff]/);",
+  "expect": "killed",
+  "why": "the end of the leading run misses U+202F (the link alphabets hold none)"
+ },
+ {
+  "name": "R-L06 junk test misses a vertical tab as whitespace",
+  "file": "src/core/qmd/model.ts",
+  "from": "return after < rest.length && /\\S/.test(rest[after]);",
+  "to": "return after < rest.length && /[^\\t\\n\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]/.test(rest[after]);",
+  "expect": "killed",
+  "why": "junk test misses a vertical tab as whitespace"
+ },
+ {
+  "name": "R-L07 junk test misses a byte order mark as whitespace",
+  "file": "src/core/qmd/model.ts",
+  "from": "return after < rest.length && /\\S/.test(rest[after]);",
+  "to": "return after < rest.length && /[^\\t\\n\\v\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]/.test(rest[after]);",
+  "expect": "killed",
+  "why": "junk test misses a byte order mark as whitespace"
+ },
+ {
+  "name": "R-L08 junk test misses the U+2000 to U+200A spaces as whitespace",
+  "file": "src/core/qmd/model.ts",
+  "from": "return after < rest.length && /\\S/.test(rest[after]);",
+  "to": "return after < rest.length && /[^\\t\\n\\v\\f\\r \\u00a0\\u1680\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]/.test(rest[after]);",
+  "expect": "killed",
+  "why": "junk test misses the U+2000 to U+200A spaces as whitespace"
+ },
+ {
+  "name": "R-L09 junk test misses U+205F as whitespace",
+  "file": "src/core/qmd/model.ts",
+  "from": "return after < rest.length && /\\S/.test(rest[after]);",
+  "to": "return after < rest.length && /[^\\t\\n\\v\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u3000\\ufeff]/.test(rest[after]);",
+  "expect": "killed",
+  "why": "junk test misses U+205F as whitespace"
+ },
+ {
+  "name": "R-L10 a } more than 65,536 characters past the { is not seen",
+  "file": "src/core/qmd/model.ts",
+  "from": "const close = rest.indexOf(\"}\", open + 1);",
+  "to": "const close = rest.slice(0, open + 1 + 65536).indexOf(\"}\", open + 1);",
+  "expect": "killed",
+  "why": "a } more than 65,536 characters past the { is not seen"
+ },
+ {
+  "name": "R-L11 a { past the 4,096th character is not seen",
+  "file": "src/core/qmd/model.ts",
+  "from": "let open = rest.indexOf(\"{\", 1);",
+  "to": "let open = rest.slice(0, 4096).indexOf(\"{\", 1);",
+  "expect": "killed",
+  "why": "a { past the 4,096th character is not seen"
+ },
+ {
+  "name": "R-L12 a { past 2^20 is not seen",
+  "file": "src/core/qmd/model.ts",
+  "from": "let open = rest.indexOf(\"{\", 1);",
+  "to": "let open = rest.slice(0, 1048576).indexOf(\"{\", 1);",
+  "expect": "killed",
+  "why": "a { past 2^20 is not seen"
+ },
+ {
+  "name": "R-L13 a run of 4,096 or more non-blanks is taken to run to the end",
+  "file": "src/core/qmd/model.ts",
+  "from": "const space = rest.search(/\\s/);",
+  "to": "const space = rest.slice(0, 4096).search(/\\s/);",
+  "expect": "killed",
+  "why": "a run of 4,096 or more non-blanks is taken to run to the end"
+ },
+ {
+  "name": "R-L14 blanks past 4,095 after the } are not skipped",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (rest[after] === \" \" || rest[after] === \"\\t\") {\n    after++;",
+  "to": "while ((rest[after] === \" \" || rest[after] === \"\\t\") && after < close + 4096) {\n    after++;",
+  "expect": "killed",
+  "why": "blanks past 4,095 after the } are not skipped"
+ },
+ {
+  "name": "R-L15 blanks past 4,095 before the { are not skipped",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (rest[open] === \" \" || rest[open] === \"\\t\") {\n      open++;",
+  "to": "while ((rest[open] === \" \" || rest[open] === \"\\t\") && open < run + 4096) {\n      open++;",
+  "expect": "killed",
+  "why": "blanks past 4,095 before the { are not skipped"
+ },
+ {
+  "name": "R-L16 an early false when no { follows the run",
+  "file": "src/core/qmd/model.ts",
+  "from": "let open = rest.indexOf(\"{\", 1);\n  if (open < 0 || open >= run) {",
+  "to": "let open = rest.indexOf(\"{\", 1);\n  if (open < 0 || open >= run) {\n    if (run < rest.length && rest.indexOf(\"{\", run) < 0) {\n      return false;\n    }",
+  "expect": "survives",
+  "why": "an early false when no { follows the run: equivalent (the blanks path needs a { right after them) (two verifiers re-built it and found no differing string in 1.2M to 62M strings each: Session 334 review)"
+ },
+ {
+  "name": "R-L18 a tab after the run is skipped once by the assignment and the loop tha",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (open < 0 || open >= run) {\n    open = run;",
+  "to": "if (open < 0 || open >= run) {\n    open = run + (rest[run] === \"\\t\" ? 1 : 0);",
+  "expect": "survives",
+  "why": "a tab after the run is skipped once by the assignment and the loop that follows skips the rest: equivalent (two verifiers re-built it and found no differing string in 1.2M to 62M strings each: Session 334 review)"
+ },
+ {
+  "name": "R-K01 a leading run of more than 4,096 digits and underscores keeps its tail",
+  "file": "src/core/qmd/model.ts",
+  "from": "run[0].replace(/^[0-9_]+/, \"\")",
+  "to": "run[0].replace(/^[0-9_]{1,4096}/, \"\")",
+  "expect": "killed",
+  "why": "a leading run of more than 4,096 digits and underscores keeps its tail as a name"
+ },
+ {
+  "name": "R-K02 same at 2^20",
+  "file": "src/core/qmd/model.ts",
+  "from": "run[0].replace(/^[0-9_]+/, \"\")",
+  "to": "run[0].replace(/^[0-9_]{1,1048576}/, \"\")",
+  "expect": "killed",
+  "why": "same at 2^20"
+ },
+ {
+  "name": "R-K03 a name of more than 65,536 characters is never found",
+  "file": "src/core/qmd/model.ts",
+  "from": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/g)",
+  "to": "args.matchAll(/(?<![\\w.])[\\w.]{1,65536}(?=[ \\t]*=)/g)",
+  "expect": "killed",
+  "why": "a name of more than 65,536 characters is never found"
+ },
+ {
+  "name": "R-K04 more than 100 blanks before the = end the name",
+  "file": "src/core/qmd/model.ts",
+  "from": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/g)",
+  "to": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]{0,100}=)/g)",
+  "expect": "killed",
+  "why": "more than 100 blanks before the = end the name"
+ },
+ {
+  "name": "R-K05 a dollar sign is a name character (no alphabet holds one)",
+  "file": "src/core/qmd/model.ts",
+  "from": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/g)",
+  "to": "args.matchAll(/(?<![\\w.])[\\w.$]+(?=[ \\t]*=)/g)",
+  "expect": "killed",
+  "why": "a dollar sign is a name character (no alphabet holds one)"
+ },
+ {
+  "name": "R-K06 a dollar sign before a name blocks it",
+  "file": "src/core/qmd/model.ts",
+  "from": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/g)",
+  "to": "args.matchAll(/(?<![\\w.$])[\\w.]+(?=[ \\t]*=)/g)",
+  "expect": "killed",
+  "why": "a dollar sign before a name blocks it"
+ },
+ {
+  "name": "R-K07 accented letters are name characters",
+  "file": "src/core/qmd/model.ts",
+  "from": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/g)",
+  "to": "args.matchAll(/(?<![\\w.])[\\w.\\u00c0-\\u024f]+(?=[ \\t]*=)/g)",
+  "expect": "killed",
+  "why": "accented letters are name characters"
+ },
+ {
+  "name": "R-K08 a left arrow also ends a name (no alphabet holds a <)",
+  "file": "src/core/qmd/model.ts",
+  "from": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/g)",
+  "to": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*(?:=|<-))/g)",
+  "expect": "killed",
+  "why": "a left arrow also ends a name (no alphabet holds a <)"
+ },
+ {
+  "name": "R-K09 the u flag",
+  "file": "src/core/qmd/model.ts",
+  "from": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/g)",
+  "to": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/gu)",
+  "expect": "survives",
+  "why": "the u flag: names are ASCII, so the same answers (two verifiers re-built it and found no differing string in 1.2M to 62M strings each: Session 334 review)"
+ },
+ {
+  "name": "R-K10 the i flag",
+  "file": "src/core/qmd/model.ts",
+  "from": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/g)",
+  "to": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/gi)",
+  "expect": "survives",
+  "why": "the i flag: \\w and the class have both cases already (two verifiers re-built it and found no differing string in 1.2M to 62M strings each: Session 334 review)"
+ },
+ {
+  "name": "R-K11 the m flag changes ^ and $ only, and the pattern has none (two verifie",
+  "file": "src/core/qmd/model.ts",
+  "from": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/g)",
+  "to": "args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/gm)",
+  "expect": "survives",
+  "why": "the m flag changes ^ and $ only, and the pattern has none (two verifiers re-built it and found no differing string in 1.2M to 62M strings each: Session 334 review)"
+ },
+ {
+  "name": "R-K15 the argument list is cut at 2^20 characters",
+  "file": "src/core/qmd/model.ts",
+  "from": "const names: string[] = [];\n  for (const run of args.matchAll(",
+  "to": "const names: string[] = [];\n  for (const run of args.slice(0, 1048576).matchAll(",
+  "expect": "killed",
+  "why": "the argument list is cut at 2^20 characters"
+ },
+ {
+  "name": "R-K17 a name must start with a letter or dot",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (name !== \"\") {\n      names.push(name);",
+  "to": "    if (name !== \"\" && /[A-Za-z.]/.test(name[0])) {\n      names.push(name);",
+  "expect": "survives",
+  "why": "a name must start with a letter or dot: it already does after the strip (two verifiers re-built it and found no differing string in 1.2M to 62M strings each: Session 334 review)"
+ },
+ {
+  "name": "R-K18 at most 100,000 names are listed",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (name !== \"\") {\n      names.push(name);",
+  "to": "    if (name !== \"\" && names.length < 100000) {\n      names.push(name);",
+  "expect": "killed",
+  "why": "at most 100,000 names are listed"
+ },
+ {
+  "name": "R-KW12 the scan resumes inside the call (argued equivalent unless the argumen",
+  "file": "src/core/qmd/model.ts",
+  "from": "      at = close;\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the scan resumes inside the call (argued equivalent unless the argument text holds options()"
+ },
+ {
+  "name": "R-Y01 only the first 2^20 characters are searched for a terminator",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (/[\\n\\r\\u2028\\u2029]/.test(value)) {",
+  "to": "  if (/[\\n\\r\\u2028\\u2029]/.test(value.slice(0, 1048576))) {",
+  "expect": "killed",
+  "why": "only the first 2^20 characters are searched for a terminator"
+ },
+ {
+  "name": "R-Y02 a terminator that is the LAST character is not seen",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (/[\\n\\r\\u2028\\u2029]/.test(value)) {",
+  "to": "  if (/[\\n\\r\\u2028\\u2029]/.test(value.slice(0, -1))) {",
+  "expect": "killed",
+  "why": "a terminator that is the LAST character is not seen: the pattern then runs on `*` + n # + CR (n squared)"
+ },
+ {
+  "name": "R-Y03 trailing whitespace is cut before the search",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (/[\\n\\r\\u2028\\u2029]/.test(value)) {",
+  "to": "  if (/[\\n\\r\\u2028\\u2029]/.test(value.trimEnd())) {",
+  "expect": "killed",
+  "why": "trailing whitespace is cut before the search: the same shape"
+ },
+ {
+  "name": "R-Y04 a terminator at index 0 is not seen",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (/[\\n\\r\\u2028\\u2029]/.test(value)) {",
+  "to": "  if (/[\\n\\r\\u2028\\u2029]/.test(value.slice(1))) {",
+  "expect": "survives",
+  "why": "a terminator at index 0 is not seen: the pattern fails at once on it (two verifiers re-built it and found no differing string in 1.2M to 62M strings each: Session 334 review)"
+ },
+ {
+  "name": "R-Y05 only the last 4,096 characters are searched",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (/[\\n\\r\\u2028\\u2029]/.test(value)) {",
+  "to": "  if (/[\\n\\r\\u2028\\u2029]/.test(value.slice(-4096))) {",
+  "expect": "killed",
+  "why": "only the last 4,096 characters are searched: a terminator right after a long # run and 4,096 more characters is missed"
+ },
+ {
+  "name": "R-Y06 only the last 2^20 characters",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (/[\\n\\r\\u2028\\u2029]/.test(value)) {",
+  "to": "  if (/[\\n\\r\\u2028\\u2029]/.test(value.slice(-1048576))) {",
+  "expect": "killed",
+  "why": "only the last 2^20 characters"
+ },
+ {
+  "name": "R-Y07 short values are left to the pattern (cheap, same answers) (two verifi",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (/[\\n\\r\\u2028\\u2029]/.test(value)) {",
+  "to": "  if (/[\\n\\r\\u2028\\u2029]/.test(value) && value.length > 16) {",
+  "expect": "survives",
+  "why": "short values are left to the pattern (cheap, same answers) (two verifiers re-built it and found no differing string in 1.2M to 62M strings each: Session 334 review)"
+ },
+ {
+  "name": "R-Y08 values under 1,024 characters are left to the pattern (same answers; t",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (/[\\n\\r\\u2028\\u2029]/.test(value)) {",
+  "to": "  if (/[\\n\\r\\u2028\\u2029]/.test(value) && value.length > 1024) {",
+  "expect": "survives",
+  "why": "values under 1,024 characters are left to the pattern (same answers; the cost is bounded, 0.64 ms per 1,000-character value, linear in the number of values) (two verifiers re-built it and found no differing string in 1.2M to 62M strings each: Session 334 review)"
+ },
+ {
+  "name": "R-Y10 the s flag",
+  "file": "src/core/qmd/model.ts",
+  "from": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\s,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "to": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\s,[\\]{}]+)[ \\t]*(?:#.*)?$/s;",
+  "expect": "survives",
+  "why": "the s flag: . takes a terminator, but the guard has refused every value that holds one (two verifiers re-built it and found no differing string in 1.2M to 62M strings each: Session 334 review)"
+ },
+ {
+  "name": "R-Y11 the m flag",
+  "file": "src/core/qmd/model.ts",
+  "from": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\s,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "to": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\s,[\\]{}]+)[ \\t]*(?:#.*)?$/m;",
+  "expect": "survives",
+  "why": "the m flag: with no terminator in the value, ^ and $ are the ends (two verifiers re-built it and found no differing string in 1.2M to 62M strings each: Session 334 review)"
+ },
+ {
+  "name": "R-Y12 an anchor name of more than 65,536 characters is no alias",
+  "file": "src/core/qmd/model.ts",
+  "from": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\s,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "to": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\s,[\\]{}]{1,65536})[ \\t]*(?:#.*)?$/;",
+  "expect": "killed",
+  "why": "an anchor name of more than 65,536 characters is no alias"
+ },
+ {
+  "name": "R-Y13 an anchor name of more than 2^20 characters is no alias",
+  "file": "src/core/qmd/model.ts",
+  "from": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\s,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "to": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\s,[\\]{}]{1,1048576})[ \\t]*(?:#.*)?$/;",
+  "expect": "killed",
+  "why": "an anchor name of more than 2^20 characters is no alias"
+ },
+ {
+  "name": "R-Y14 more than 4,096 blanks between the name and the end are no alias",
+  "file": "src/core/qmd/model.ts",
+  "from": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\s,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "to": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\s,[\\]{}]+)[ \\t]{0,4096}(?:#.*)?$/;",
+  "expect": "killed",
+  "why": "more than 4,096 blanks between the name and the end are no alias"
+ },
+ {
+  "name": "R-Y15 more than 4,096 blanks before the star are no alias",
+  "file": "src/core/qmd/model.ts",
+  "from": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\s,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "to": "const YAML_ALIAS_VALUE = /^[ \\t]{0,4096}\\*([^\\s,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "expect": "killed",
+  "why": "more than 4,096 blanks before the star are no alias"
+ },
+ {
+  "name": "R-Y18 the u flag",
+  "file": "src/core/qmd/model.ts",
+  "from": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\s,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "to": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\s,[\\]{}]+)[ \\t]*(?:#.*)?$/u;",
+  "expect": "survives",
+  "why": "the u flag: no class has an astral member (two verifiers re-built it and found no differing string in 1.2M to 62M strings each: Session 334 review)"
+ },
+ {
+  "name": "R-Y19 U+2028 is excluded from a name twice (\\s has it already) (two verifier",
+  "file": "src/core/qmd/model.ts",
+  "from": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\s,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "to": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\s,[\\]{}\\u2028]+)[ \\t]*(?:#.*)?$/;",
+  "expect": "survives",
+  "why": "U+2028 is excluded from a name twice (\\s has it already) (two verifiers re-built it and found no differing string in 1.2M to 62M strings each: Session 334 review)"
+ },
+ {
+  "name": "R-Y20 a dollar sign may not be in an anchor name",
+  "file": "src/core/qmd/model.ts",
+  "from": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\s,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "to": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\s,[\\]{}$]+)[ \\t]*(?:#.*)?$/;",
+  "expect": "killed",
+  "why": "a dollar sign may not be in an anchor name"
+ },
+ {
+  "name": "R-Y24 an anchor name is cut at 2^20 characters",
+  "file": "src/core/qmd/model.ts",
+  "from": "return alias === null ? null : alias[1];",
+  "to": "return alias === null ? null : alias[1].slice(0, 1048576);",
+  "expect": "killed",
+  "why": "an anchor name is cut at 2^20 characters"
+ },
+ {
+  "name": "R-Y25 an empty name is no alias",
+  "file": "src/core/qmd/model.ts",
+  "from": "return alias === null ? null : alias[1];",
+  "to": "return alias === null || alias[1] === \"\" ? null : alias[1];",
+  "expect": "survives",
+  "why": "an empty name is no alias: + needs one (two verifiers re-built it and found no differing string in 1.2M to 62M strings each: Session 334 review)"
+ },
+ {
+  "name": "R-Y30 the name class is not whitespace except U+3000, which it takes into a",
+  "file": "src/core/qmd/model.ts",
+  "from": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\s,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "to": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\t\\n\\v\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\ufeff,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "expect": "killed",
+  "why": "the name class is not whitespace except U+3000, which it takes into a name"
+ },
+ {
+  "name": "R-Y31 the name class is not whitespace except a byte order mark, which it ta",
+  "file": "src/core/qmd/model.ts",
+  "from": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\s,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "to": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\t\\n\\v\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "expect": "killed",
+  "why": "the name class is not whitespace except a byte order mark, which it takes into a name"
+ },
+ {
+  "name": "R-Y32 the name class is not whitespace except the U+2000 to U+200A spaces, w",
+  "file": "src/core/qmd/model.ts",
+  "from": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\s,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "to": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\t\\n\\v\\f\\r \\u00a0\\u1680\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "expect": "killed",
+  "why": "the name class is not whitespace except the U+2000 to U+200A spaces, which it takes into a name"
+ },
+ {
+  "name": "R-Y33 the name class is not whitespace except U+1680, which it takes into a",
+  "file": "src/core/qmd/model.ts",
+  "from": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\s,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "to": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\t\\n\\v\\f\\r \\u00a0\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "expect": "killed",
+  "why": "the name class is not whitespace except U+1680, which it takes into a name"
+ },
+ {
+  "name": "R-Y34 the name class is not whitespace except U+202F, which it takes into a",
+  "file": "src/core/qmd/model.ts",
+  "from": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\s,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "to": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\t\\n\\v\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u205f\\u3000\\ufeff,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "expect": "killed",
+  "why": "the name class is not whitespace except U+202F, which it takes into a name"
+ },
+ {
+  "name": "R-Y35 the name class is not whitespace except U+205F, which it takes into a",
+  "file": "src/core/qmd/model.ts",
+  "from": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\s,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "to": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\t\\n\\v\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u3000\\ufeff,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "expect": "killed",
+  "why": "the name class is not whitespace except U+205F, which it takes into a name"
+ },
+ {
+  "name": "R-Y36 an ampersand (an anchor declaration) opens an alias too",
+  "file": "src/core/qmd/model.ts",
+  "from": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\s,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "to": "const YAML_ALIAS_VALUE = /^[ \\t]*[*&]([^\\s,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "expect": "killed",
+  "why": "an ampersand (an anchor declaration) opens an alias too"
+ },
+ {
+  "name": "R-Y37 a bang (a tag) opens an alias too",
+  "file": "src/core/qmd/model.ts",
+  "from": "const YAML_ALIAS_VALUE = /^[ \\t]*\\*([^\\s,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "to": "const YAML_ALIAS_VALUE = /^[ \\t]*[*!]([^\\s,[\\]{}]+)[ \\t]*(?:#.*)?$/;",
+  "expect": "killed",
+  "why": "a bang (a tag) opens an alias too"
+ },
+ {
+  "name": "R-C01c a native scan to the end of the line after every tag (never true; comp",
+  "file": "src/core/qmd/model.ts",
+  "from": "    i = end - 1;\n  }\n  return false;\n}",
+  "to": "    i = end - 1;\n    if (line.indexOf(\"\\u0000\", i) > line.length) {\n      return true;\n    }\n  }\n  return false;\n}",
+  "expect": "killed",
+  "why": "a native scan to the end of the line after every tag (never true; compared with a bound the compiler cannot fold, because a comparison with -2 let it drop the call): n squared at native speed"
+ },
+ {
+  "name": "R-C03c a native } search from every { of the run (never true; compared with a",
+  "file": "src/core/qmd/model.ts",
+  "from": "const close = rest.indexOf(\"}\", open + 1);",
+  "to": "for (let o = open; o >= 0 && o < run; o = rest.indexOf(\"{\", o + 1)) {\n    if (rest.indexOf(\"}\", o + 1) > rest.length) {\n      return true;\n    }\n  }\n  const close = rest.indexOf(\"}\", open + 1);",
+  "expect": "killed",
+  "why": "a native } search from every { of the run (never true; compared with a bound the compiler cannot fold, because a comparison with -2 let it drop the call): n squared at native speed"
+ },
+ {
+  "name": "R-C08c after the guard",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const alias = YAML_ALIAS_VALUE.exec(value);",
+  "to": "  for (let h = value.indexOf(\"#\"); h >= 0; h = value.indexOf(\"#\", h + 1)) {\n    if (value.indexOf(\"\\u0000\", h) > value.length) {\n      return null;\n    }\n  }\n  const alias = YAML_ALIAS_VALUE.exec(value);",
+  "expect": "killed",
+  "why": "after the guard: no # run reaches it with a terminator, so only the 100,000 # control (no terminator) pays"
+ },
+ {
+  "name": "R-C09c before the guard",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (/[\\n\\r\\u2028\\u2029]/.test(value)) {\n    return null;\n  }",
+  "to": "  for (let h = value.indexOf(\"#\"); h >= 0; h = value.indexOf(\"#\", h + 1)) {\n    if (value.indexOf(\"\\u0000\", h) > value.length) {\n      return null;\n    }\n  }\n  if (/[\\n\\r\\u2028\\u2029]/.test(value)) {\n    return null;\n  }",
+  "expect": "killed",
+  "why": "before the guard: a native scan from every # (never true; compared with a bound the compiler cannot fold, because a comparison with -2 let it drop the call): n squared at native speed on the 72,000 # rows"
+ },
+ {
+  "name": "R-C07c the names array copied by concat for every name",
+  "file": "src/core/qmd/model.ts",
+  "from": "const names: string[] = [];\n  for (const run of args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/g)) {\n    const name = run[0].replace(/^[0-9_]+/, \"\");\n    if (name !== \"\") {\n      names.push(name);",
+  "to": "let names: string[] = [];\n  for (const run of args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/g)) {\n    const name = run[0].replace(/^[0-9_]+/, \"\");\n    if (name !== \"\") {\n      names = names.concat([name]);",
+  "expect": "killed",
+  "why": "every answer kept; quadratic in the number of names (the 30,000-assignment control row passed it at 525 to 586 ms; the 60,000-assignment direct row does not)"
+ },
+ {
+  "name": "R-K21 the lookahead's blank star doubled",
+  "file": "src/core/qmd/model.ts",
+  "from": "const names: string[] = [];\n  for (const run of args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*=)/g)) {\n    const name = run[0].replace(/^[0-9_]+/, \"\");\n    if (name !== \"\") {\n      names.push(name);",
+  "to": "const names: string[] = [];\n  for (const run of args.matchAll(/(?<![\\w.])[\\w.]+(?=[ \\t]*[ \\t]*=)/g)) {\n    const name = run[0].replace(/^[0-9_]+/, \"\");\n    if (name !== \"\") {\n      names.push(name);",
+  "expect": "killed",
+  "why": "every answer kept (0 differences over 1,111,111 strings); quadratic in a blank or tab run after a name that no equals sign follows (the parent was quadratic there too)"
+ }
+]

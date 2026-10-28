@@ -1,0 +1,138 @@
+[
+ {
+  "name": "R-TS08 the guard that the timed text holds the run",
+  "file": "test/unit/pathological-inputs.test.ts",
+  "from": "const longText = s334FrontMatter(row.from) + row.build(run);\n    expect(longText.length).toBeGreaterThan(run.length); // the timed text holds the whole run",
+  "to": "const longText = s334FrontMatter(row.from) + row.build(run);",
+  "expect": "survives",
+  "why": "the guard that the timed text holds the run: removing an assertion from a test cannot fail a test, so this one survives by construction"
+ },
+ {
+  "name": "R-TS10 the engine hint is dropped from the part (6) rows",
+  "file": "test/unit/pathological-inputs.test.ts",
+  "from": "const s334Headings = (text: string, engine?: \"knitr\"): Array<[number, string]> => findHeadings(text, engine)",
+  "to": "const s334Headings = (text: string, engine?: \"knitr\"): Array<[number, string]> => findHeadings(text, undefined)",
+  "expect": "survives",
+  "why": "the engine hint is dropped from the part (6) rows: a `{r}` cell resolves to knitr by itself, so the rows read the same"
+ },
+ {
+  "name": "R-TS14 the guard alphabet of the html file holds an underscore in place of a",
+  "file": "test/unit/html-line-text-equivalence.test.ts",
+  "from": "const GUARD = [\"<\", \"/\", \"a\", \"A\", \"1\", \" \", \"\\t\", \">\", '\"'];",
+  "to": "const GUARD = [\"<\", \"/\", \"a\", \"A\", \"_\", \" \", \"\\t\", \">\", '\"'];",
+  "expect": "survives",
+  "why": "the guard alphabet of the html file holds an underscore in place of a digit: the same set of guard failures"
+ },
+ {
+  "name": "R-TS17 the reading by definition tries the empty cut",
+  "file": "test/unit/knitr-option-names-equivalence.test.ts",
+  "from": "for (let end = longest; end > at && !found; end--) {",
+  "to": "for (let end = longest; end >= at && !found; end--) {",
+  "expect": "survives",
+  "why": "the reading by definition tries the empty cut: args[at] is a letter or a dot, never a blank or =, so it never succeeds"
+ },
+ {
+  "name": "R-TS21 the direct clock rows run on 7,200 characters",
+  "file": "test/unit/yaml-alias-name-equivalence.test.ts",
+  "from": "const CLOCK_RUN = 72_000;",
+  "to": "const CLOCK_RUN = 7_200;",
+  "expect": "killed",
+  "why": "the direct clock rows run on 7,200 characters: the old pattern takes about 30 ms there, so the row would pass on it (the sibling row 'the clock row can fail' only covers 56,000)"
+ },
+ {
+  "name": "R-TS22 the yaml direct clock rows allow 100 s",
+  "file": "test/unit/yaml-alias-name-equivalence.test.ts",
+  "from": "const CLOCK_LIMIT_MS = 1000;",
+  "to": "const CLOCK_LIMIT_MS = 100000;",
+  "expect": "killed",
+  "why": "the limit of the direct terminator rows"
+ },
+ {
+  "name": "R-TS23 the yaml can-fail floor is 1 ms",
+  "file": "test/unit/yaml-alias-name-equivalence.test.ts",
+  "from": "const OLD_FLOOR_MS = 1000;",
+  "to": "const OLD_FLOOR_MS = 1;",
+  "expect": "killed",
+  "why": "the floor the old pattern must exceed"
+ },
+ {
+  "name": "R-TS24 the yaml can-fail run is 5,600",
+  "file": "test/unit/yaml-alias-name-equivalence.test.ts",
+  "from": "const OLD_RUN = 56_000;",
+  "to": "const OLD_RUN = 5_600;",
+  "expect": "killed",
+  "why": "the old pattern's run in the can-fail row"
+ },
+ {
+  "name": "R-TS25 the yaml native-scan rows run 50,000 #",
+  "file": "test/unit/yaml-alias-name-equivalence.test.ts",
+  "from": "const CLOCK_HASHES = 500_000;",
+  "to": "const CLOCK_HASHES = 50_000;",
+  "expect": "killed",
+  "why": "a native scan from each # passes at 50,000"
+ },
+ {
+  "name": "R-TS26 the yaml review limit is 100 s",
+  "file": "test/unit/yaml-alias-name-equivalence.test.ts",
+  "from": "  const LIMIT_MS = 1000;\n  const CLOCK_HASHES",
+  "to": "  const LIMIT_MS = 100000;\n  const CLOCK_HASHES",
+  "expect": "killed",
+  "why": "the limit of the review describe's clock rows"
+ },
+ {
+  "name": "R-TS27 the html native-scan row runs 40,000 tags",
+  "file": "test/unit/html-line-text-equivalence.test.ts",
+  "from": "const CLOCK_TAGS = 400_000;",
+  "to": "const CLOCK_TAGS = 40_000;",
+  "expect": "killed",
+  "why": "a native scan after each tag passes at 40,000"
+ },
+ {
+  "name": "R-TS28 the html clock limit is 100 s",
+  "file": "test/unit/html-line-text-equivalence.test.ts",
+  "from": "const CLOCK_LIMIT_MS = 1000;",
+  "to": "const CLOCK_LIMIT_MS = 100000;",
+  "expect": "killed",
+  "why": "the limit of the native-scan row"
+ },
+ {
+  "name": "R-TS29 the link native-scan row runs 50,000 braces",
+  "file": "test/unit/link-attribute-junk-equivalence.test.ts",
+  "from": "const CLOCK_BRACES = 500_000;",
+  "to": "const CLOCK_BRACES = 50_000;",
+  "expect": "killed",
+  "why": "a native search from each { passes at 50,000"
+ },
+ {
+  "name": "R-TS30 the link clock limit is 100 s",
+  "file": "test/unit/link-attribute-junk-equivalence.test.ts",
+  "from": "const CLOCK_LIMIT_MS = 1000;",
+  "to": "const CLOCK_LIMIT_MS = 100000;",
+  "expect": "killed",
+  "why": "the limit of the native-scan row"
+ },
+ {
+  "name": "R-TS31 the knitr clock rows run 6,000",
+  "file": "test/unit/knitr-option-names-equivalence.test.ts",
+  "from": "const SIZE = 60_000;",
+  "to": "const SIZE = 6_000;",
+  "expect": "killed",
+  "why": "a doubled lookahead star and a copied list pass at 6,000"
+ },
+ {
+  "name": "R-TS32 the knitr closed-run row runs 1,000 calls",
+  "file": "test/unit/knitr-option-names-equivalence.test.ts",
+  "from": "const CALLS = 10_000;",
+  "to": "const CALLS = 1_000;",
+  "expect": "killed",
+  "why": "without `at = close` 1,000 calls cost 40 ms"
+ },
+ {
+  "name": "R-TS33 the knitr clock limit is 100 s",
+  "file": "test/unit/knitr-option-names-equivalence.test.ts",
+  "from": "  const LIMIT_MS = 1000;\n  const SIZE",
+  "to": "  const LIMIT_MS = 100000;\n  const SIZE",
+  "expect": "killed",
+  "why": "the limit of the knitr clock rows"
+ }
+]

@@ -1,0 +1,266 @@
+[
+ {
+  "name": "R-HC02 endsFreshHtml",
+  "file": "src/core/qmd/model.ts",
+  "from": "(b.readers.htmlContent || !htmlLineHasText(b.lines[x]) || !contentGatedElement(b.lines[x], b.readers.nativeDivs)) &&",
+  "to": "(b.readers.htmlContent || !contentGatedElement(b.lines[x], b.readers.nativeDivs)) &&",
+  "expect": "killed",
+  "why": "endsFreshHtml: the text question dropped"
+ },
+ {
+  "name": "R-HC04 endsFreshHtml",
+  "file": "src/core/qmd/model.ts",
+  "from": "(b.readers.htmlContent || !htmlLineHasText(b.lines[x]) || !contentGatedElement(b.lines[x], b.readers.nativeDivs)) &&",
+  "to": "(b.readers.htmlContent || !htmlLineHasText(b.lines[x].trim()) || !contentGatedElement(b.lines[x], b.readers.nativeDivs)) &&",
+  "expect": "survives",
+  "why": "endsFreshHtml: the line trimmed first (differs for a line led by a no-break space). SURVIVES with no witness: the review's random search, and 60,000 more documents with tag lines of 4,500 characters in the free case (Session 334), found no document that tells it from the shipped call; not argued equivalent, left unpinned"
+ },
+ {
+  "name": "R-HC05 endsFreshHtml",
+  "file": "src/core/qmd/model.ts",
+  "from": "(b.readers.htmlContent || !htmlLineHasText(b.lines[x]) || !contentGatedElement(b.lines[x], b.readers.nativeDivs)) &&",
+  "to": "(b.readers.htmlContent || !htmlLineHasText(b.lines[x].slice(0, 4096)) || !contentGatedElement(b.lines[x], b.readers.nativeDivs)) &&",
+  "expect": "survives",
+  "why": "endsFreshHtml: only the first 4,096 characters are asked. SURVIVES with no witness (the same searches as HC04, 160,000 documents in all); the same cap in isTableHeaderCandidate (HC10) is killed by a document row"
+ },
+ {
+  "name": "R-HC06 isTableHeaderCandidate",
+  "file": "src/core/qmd/model.ts",
+  "from": "return htmlLineHasText(line) || (/^[ \\t]/.test(line) && startsAtBoundary(b, y));",
+  "to": "return htmlLineHasText(line);",
+  "expect": "killed",
+  "why": "isTableHeaderCandidate: the indented-tag clause dropped"
+ },
+ {
+  "name": "R-HC09 isTableHeaderCandidate",
+  "file": "src/core/qmd/model.ts",
+  "from": "return htmlLineHasText(line) || (/^[ \\t]/.test(line) && startsAtBoundary(b, y));",
+  "to": "return htmlLineHasText(line.trim()) || (/^[ \\t]/.test(line) && startsAtBoundary(b, y));",
+  "expect": "survives",
+  "why": "isTableHeaderCandidate: the line trimmed first; the call site's guard has already admitted a line that starts [ \\t]*<, so the trim removes nothing the function would not skip (two verifiers compared 64M guard-admitted lines and found no difference: Session 334 review)"
+ },
+ {
+  "name": "R-HC10 isTableHeaderCandidate",
+  "file": "src/core/qmd/model.ts",
+  "from": "return htmlLineHasText(line) || (/^[ \\t]/.test(line) && startsAtBoundary(b, y));",
+  "to": "return htmlLineHasText(line.slice(0, 4096)) || (/^[ \\t]/.test(line) && startsAtBoundary(b, y));",
+  "expect": "killed",
+  "why": "isTableHeaderCandidate: only the first 4,096 characters are asked"
+ },
+ {
+  "name": "R-HC11 isTableHeaderCandidate",
+  "file": "src/core/qmd/model.ts",
+  "from": "return htmlLineHasText(line) || (/^[ \\t]/.test(line) && startsAtBoundary(b, y));",
+  "to": "return htmlLineHasText(line.trimEnd()) || (/^[ \\t]/.test(line) && startsAtBoundary(b, y));",
+  "expect": "survives",
+  "why": "isTableHeaderCandidate: trimEnd before the call; trailing whitespace is no text to the function (two verifiers compared 64M guard-admitted lines and found no difference: Session 334 review)"
+ },
+ {
+  "name": "R-W02 call site",
+  "file": "src/core/qmd/model.ts",
+  "from": "return !rest.startsWith(\"[\") && !/^\\S+[ \\t]+(?:\"[^\"]*\"|'[^']*'|\\([^)]*\\))[ \\t]*\\S/.test(rest) && !linkAttributesHaveJunk(rest);",
+  "to": "return !rest.startsWith(\"[\") && !/^\\S+[ \\t]+(?:\"[^\"]*\"|'[^']*'|\\([^)]*\\))[ \\t]*\\S/.test(rest);",
+  "expect": "killed",
+  "why": "call site: attributes with junk never refuse a definition"
+ },
+ {
+  "name": "R-W03 call site",
+  "file": "src/core/qmd/model.ts",
+  "from": "return !rest.startsWith(\"[\") && !/^\\S+[ \\t]+(?:\"[^\"]*\"|'[^']*'|\\([^)]*\\))[ \\t]*\\S/.test(rest) && !linkAttributesHaveJunk(rest);",
+  "to": "return !rest.startsWith(\"[\") && !/^\\S+[ \\t]+(?:\"[^\"]*\"|'[^']*'|\\([^)]*\\))[ \\t]*\\S/.test(rest) && !linkAttributesHaveJunk(m[1]);",
+  "expect": "survives",
+  "why": "call site: asked of the untrimmed first-line text. Equivalent through the callers: it differs only when rest came from the NEXT line, and the next line of a bare `[a]:` is always the opener, a dash rule or a line that starts `[` (a bare label over a line that starts `[` is refused first); no document found in 100,000 random ones and the 18 rendered ones"
+ },
+ {
+  "name": "R-W04 call site",
+  "file": "src/core/qmd/model.ts",
+  "from": "return !rest.startsWith(\"[\") && !/^\\S+[ \\t]+(?:\"[^\"]*\"|'[^']*'|\\([^)]*\\))[ \\t]*\\S/.test(rest) && !linkAttributesHaveJunk(rest);",
+  "to": "return !rest.startsWith(\"[\") && !/^\\S+[ \\t]+(?:\"[^\"]*\"|'[^']*'|\\([^)]*\\))[ \\t]*\\S/.test(rest) && !linkAttributesHaveJunk(rest.trimEnd());",
+  "expect": "survives",
+  "why": "call site: trailing blanks cut first; `rest` is already trimmed there (m[1].trim() or next.trim()), so trimEnd() removes nothing"
+ },
+ {
+  "name": "R-W05 call site",
+  "file": "src/core/qmd/model.ts",
+  "from": "return !rest.startsWith(\"[\") && !/^\\S+[ \\t]+(?:\"[^\"]*\"|'[^']*'|\\([^)]*\\))[ \\t]*\\S/.test(rest) && !linkAttributesHaveJunk(rest);",
+  "to": "return !rest.startsWith(\"[\") && !/^\\S+[ \\t]+(?:\"[^\"]*\"|'[^']*'|\\([^)]*\\))[ \\t]*\\S/.test(rest) && !linkAttributesHaveJunk(rest.slice(0, 4096));",
+  "expect": "killed",
+  "why": "call site: only the first 4,096 characters of the definition are asked"
+ },
+ {
+  "name": "R-W06 call site",
+  "file": "src/core/qmd/model.ts",
+  "from": "return !rest.startsWith(\"[\") && !/^\\S+[ \\t]+(?:\"[^\"]*\"|'[^']*'|\\([^)]*\\))[ \\t]*\\S/.test(rest) && !linkAttributesHaveJunk(rest);",
+  "to": "return !rest.startsWith(\"[\") && !/^\\S+[ \\t]+(?:\"[^\"]*\"|'[^']*'|\\([^)]*\\))[ \\t]*\\S/.test(rest) && !linkAttributesHaveJunk(rest.slice(1));",
+  "expect": "killed",
+  "why": "call site: the first character dropped"
+ },
+ {
+  "name": "R-KW01 scipen is no longer a number-format option",
+  "file": "src/core/qmd/model.ts",
+  "from": ".some((name) => ![\"digits\", \"scipen\", \"width\", \"stringsAsFactors\", \"OutDec\", \"max.print\"].includes(name))",
+  "to": ".some((name) => ![\"digits\", \"width\", \"stringsAsFactors\", \"OutDec\", \"max.print\"].includes(name))",
+  "expect": "killed",
+  "why": "scipen is no longer a number-format option"
+ },
+ {
+  "name": "R-KW02 OutDec is no longer a number-format option",
+  "file": "src/core/qmd/model.ts",
+  "from": ".some((name) => ![\"digits\", \"scipen\", \"width\", \"stringsAsFactors\", \"OutDec\", \"max.print\"].includes(name))",
+  "to": ".some((name) => ![\"digits\", \"scipen\", \"width\", \"stringsAsFactors\", \"max.print\"].includes(name))",
+  "expect": "killed",
+  "why": "OutDec is no longer a number-format option"
+ },
+ {
+  "name": "R-KW03 max.print is no longer a number-format option",
+  "file": "src/core/qmd/model.ts",
+  "from": ".some((name) => ![\"digits\", \"scipen\", \"width\", \"stringsAsFactors\", \"OutDec\", \"max.print\"].includes(name))",
+  "to": ".some((name) => ![\"digits\", \"scipen\", \"width\", \"stringsAsFactors\", \"OutDec\"].includes(name))",
+  "expect": "survives",
+  "why": "max.print is no longer a number-format option: the entry is DEAD at HEAD and at the parent, because `max` is a printing call name and the S3-method alternative of KNITR_MASK_ASSIGN (`max.print =`) masks the chunk first; filed in BACKLOG.md (Session 334 review)"
+ },
+ {
+  "name": "R-KW07 a call that does not close on its line does not mask",
+  "file": "src/core/qmd/model.ts",
+  "from": "      if (close < 0) {\n        return true;\n      }\n      if (knitrOptionNames",
+  "to": "      if (close < 0) {\n        return false;\n      }\n      if (knitrOptionNames",
+  "expect": "killed",
+  "why": "a call that does not close on its line does not mask"
+ },
+ {
+  "name": "R-KW08 only options( with no blank before the ( is a call",
+  "file": "src/core/qmd/model.ts",
+  "from": "const open = /^options[ \\t]*\\(/.exec(line.slice(at, at + 40));",
+  "to": "const open = /^options[ \\t]*\\(/.exec(line.slice(at, at + 8));",
+  "expect": "killed",
+  "why": "only options( with no blank before the ( is a call"
+ },
+ {
+  "name": "R-KW09 at most 31 blanks between options and (",
+  "file": "src/core/qmd/model.ts",
+  "from": "const open = /^options[ \\t]*\\(/.exec(line.slice(at, at + 40));",
+  "to": "const open = /^options[ \\t]*\\(/.exec(line.slice(at, at + 39));",
+  "expect": "killed",
+  "why": "at most 31 blanks between options and ("
+ },
+ {
+  "name": "R-KW10 a dot before options (x.options) is a call",
+  "file": "src/core/qmd/model.ts",
+  "from": "(at > 0 && /[\\w.]/.test(line[at - 1]))",
+  "to": "(at > 0 && /\\w/.test(line[at - 1]))",
+  "expect": "killed",
+  "why": "a dot before options (x.options) is a call"
+ },
+ {
+  "name": "R-KW11 the preceding-name-character check never applies",
+  "file": "src/core/qmd/model.ts",
+  "from": "(at > 0 && /[\\w.]/.test(line[at - 1]))",
+  "to": "(at > 0 && /[\\w]/.test(line[at - 1]) && false)",
+  "expect": "killed",
+  "why": "the preceding-name-character check never applies"
+ },
+ {
+  "name": "R-KW13 the last character before the ) is dropped from the argument list",
+  "file": "src/core/qmd/model.ts",
+  "from": "knitrOptionNames(line.slice(at + open[0].length, close))",
+  "to": "knitrOptionNames(line.slice(at + open[0].length, close - 1))",
+  "expect": "killed",
+  "why": "the last character before the ) is dropped from the argument list"
+ },
+ {
+  "name": "R-KW14 the ( inside the argument text (two verifiers re-built it and found no",
+  "file": "src/core/qmd/model.ts",
+  "from": "knitrOptionNames(line.slice(at + open[0].length, close))",
+  "to": "knitrOptionNames(line.slice(at + open[0].length - 1, close))",
+  "expect": "survives",
+  "why": "the ( inside the argument text (two verifiers re-built it and found no differing string in 1.2M to 62M strings each: Session 334 review)"
+ },
+ {
+  "name": "R-KW16 ')' searched from the start of 'options' (two verifiers re-built it an",
+  "file": "src/core/qmd/model.ts",
+  "from": "const close = line.indexOf(\")\", at + open[0].length);",
+  "to": "const close = line.indexOf(\")\", at);",
+  "expect": "survives",
+  "why": "')' searched from the start of 'options' (two verifiers re-built it and found no differing string in 1.2M to 62M strings each: Session 334 review)"
+ },
+ {
+  "name": "R-KW17 the LAST ) on the line closes the call",
+  "file": "src/core/qmd/model.ts",
+  "from": "const close = line.indexOf(\")\", at + open[0].length);",
+  "to": "const close = line.lastIndexOf(\")\");",
+  "expect": "killed",
+  "why": "the LAST ) on the line closes the call"
+ },
+ {
+  "name": "R-YW01 block site",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (alias !== null) {\n      const anchored",
+  "to": "if (alias !== null && topLevelForms) {\n      const anchored",
+  "expect": "survives",
+  "why": "block site: a nested alias falls through to the plain-value path. SURVIVES: only an INVALID document tells it apart (a flow mapping followed by an indented block, found by a fuzz of 100,000 documents; an undefined alias is a YAML parse error to quarto, measured Session 334)"
+ },
+ {
+  "name": "R-YW02 block site",
+  "file": "src/core/qmd/model.ts",
+  "from": "const anchored = topLevelForms ? topLevelAnchor(block, indent, alias) : null;",
+  "to": "const anchored = topLevelAnchor(block, indent, alias);",
+  "expect": "killed",
+  "why": "block site: a nested alias is resolved too"
+ },
+ {
+  "name": "R-YW03 block site",
+  "file": "src/core/qmd/model.ts",
+  "from": "return anchored === null ? null : `from: ${anchored}`;",
+  "to": "return anchored === null ? `from:${value}` : `from: ${anchored}`;",
+  "expect": "survives",
+  "why": "block site: an unresolved alias is kept as the value. SURVIVES: only an invalid document (an undefined alias) tells it apart; quarto stops with a YAML parse error (measured Session 334)"
+ },
+ {
+  "name": "R-YW04 flow site",
+  "file": "src/core/qmd/model.ts",
+  "from": "return alias === null ? raw : topLevelAnchor(content, top, alias);",
+  "to": "return alias === null ? raw : (topLevelAnchor(content, top, alias) ?? raw);",
+  "expect": "survives",
+  "why": "flow site: an unresolved alias keeps the raw text. SURVIVES: `format: {html: {from: *rdr}}` with no anchor is a YAML parse error to quarto (measured Session 334), so there is no answer to pin"
+ },
+ {
+  "name": "R-YW05 block site",
+  "file": "src/core/qmd/model.ts",
+  "from": "const alias = yamlAliasName(value);\n    if (alias !== null) {",
+  "to": "const alias = yamlAliasName(value.trim());\n    if (alias !== null) {",
+  "expect": "killed",
+  "why": "block site: the value is trimmed first (differs for a value ending in a no-break space)"
+ },
+ {
+  "name": "R-YW06 flow site",
+  "file": "src/core/qmd/model.ts",
+  "from": "const alias = yamlAliasName(raw);",
+  "to": "const alias = yamlAliasName(raw.trim());",
+  "expect": "survives",
+  "why": "flow site: the value is trimmed first. SURVIVES: the flow scalar arrives already cut from its mapping, and five documents with a no-break space or a byte order mark either side of the alias and 100,000 random ones show no difference"
+ },
+ {
+  "name": "R-YW07 block site",
+  "file": "src/core/qmd/model.ts",
+  "from": "const alias = yamlAliasName(value);\n    if (alias !== null) {",
+  "to": "const alias = yamlAliasName(value.trimEnd());\n    if (alias !== null) {",
+  "expect": "killed",
+  "why": "block site: trailing whitespace cut first"
+ },
+ {
+  "name": "R-YW08 block site",
+  "file": "src/core/qmd/model.ts",
+  "from": "const alias = yamlAliasName(value);\n    if (alias !== null) {",
+  "to": "const alias = yamlAliasName(value.slice(0, 4096));\n    if (alias !== null) {",
+  "expect": "killed",
+  "why": "block site: only the first 4,096 characters are read"
+ },
+ {
+  "name": "R-YW09 flow site",
+  "file": "src/core/qmd/model.ts",
+  "from": "const alias = yamlAliasName(raw);",
+  "to": "const alias = yamlAliasName(raw.slice(0, 4096));",
+  "expect": "killed",
+  "why": "flow site: only the first 4,096 characters are read"
+ }
+]
