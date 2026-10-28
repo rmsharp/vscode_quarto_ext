@@ -1,0 +1,290 @@
+[
+ {
+  "name": "G01 the start anchor dropped",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "a blank or a letter before the plus stops being refused (` +-` and `x+-` are stated refusals)"
+ },
+ {
+  "name": "G02 the end anchor dropped",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*/;",
+  "expect": "killed",
+  "why": "a tail after the blanks is accepted (`+- -` and `+-x` are stated refusals)"
+ },
+ {
+  "name": "G03 the lookahead removed",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+[-+=:]*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "a bare `+`, `++` and `+ ` are accepted (stated refusals; a bare `+` is an empty list item)"
+ },
+ {
+  "name": "G04 the lookahead's run without `+`",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "`++-` is refused (stated acceptance)"
+ },
+ {
+  "name": "G05 the lookahead asks for any class character",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-+=:])[-+=:]*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "`++` and `+++` are accepted (stated refusals)"
+ },
+ {
+  "name": "G06 the required class without `=`",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-:])[-+=:]*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "`+=` is refused (stated acceptance)"
+ },
+ {
+  "name": "G07 the required class without `:`",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=])[-+=:]*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "`+:` is refused (stated acceptance)"
+ },
+ {
+  "name": "G08 the required class without `-`",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[=:])[-+=:]*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "`+-` is refused (stated acceptance)"
+ },
+ {
+  "name": "G09 the run without `+`",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-=:]*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "`+-+` is refused (stated acceptance)"
+ },
+ {
+  "name": "G10 the run without `=`",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+:]*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "`+===+===+` is refused (stated acceptance)"
+ },
+ {
+  "name": "G11 the run without `:`",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=]*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "`+:--+--:+` is refused (stated acceptance)"
+ },
+ {
+  "name": "G12 the run without `-`",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[+=:]*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "`+-` is refused (stated acceptance)"
+ },
+ {
+  "name": "G13 the blanks without the tab",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ ]*$/;",
+  "expect": "killed",
+  "why": "`+-\\t` is refused (stated acceptance)"
+ },
+ {
+  "name": "G14 the blanks without the space",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[\\t]*$/;",
+  "expect": "killed",
+  "why": "`+- ` is refused (stated acceptance)"
+ },
+ {
+  "name": "G15 at least one blank required",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]+$/;",
+  "expect": "killed",
+  "why": "`+-` is refused (stated acceptance)"
+ },
+ {
+  "name": "G16 the blanks as `\\s`",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*\\s*$/;",
+  "expect": "killed",
+  "why": "`+-` then a newline or a carriage return is accepted (stated refusals)"
+ },
+ {
+  "name": "G17 the plus as `[-+]`",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^[-+](?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "`-+-` is accepted (stated refusal)"
+ },
+ {
+  "name": "G18 the plus optional",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+?(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "`-+-` is accepted (stated refusal)"
+ },
+ {
+  "name": "G19 the run after the lookahead needs a character",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]+[ \\t]*$/;",
+  "expect": "survives",
+  "why": "EQUIVALENT: the lookahead only succeeds when the run holds a `-`, `=` or `:`, so the run is at least one character and `+` asks the same. 47 million strings agree (Session 333 script, mutant against the oracle, with a control)"
+ },
+ {
+  "name": "G20 the lookahead's run needs a character",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]+[-=:])[-+=:]*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "`+-` is refused (stated acceptance)"
+ },
+ {
+  "name": "G21 the lookahead's run is at most one character",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]?[-=:])[-+=:]*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "`++-` is refused (stated acceptance)"
+ },
+ {
+  "name": "G22 the lookahead negated",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?![-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "`+-` is refused and `++` is accepted (stated rows)"
+ },
+ {
+  "name": "G23 the run lazy",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*?[ \\t]*$/;",
+  "expect": "survives",
+  "why": "EQUIVALENT in answer and in cost: a lazy star grows one character at a time and each growth tries the blanks and the end in constant time. Oracle agrees and the Session 333 clock rows pass (run here)"
+ },
+ {
+  "name": "G24 the blanks lazy",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*?$/;",
+  "expect": "survives",
+  "why": "EQUIVALENT: the run before it and the blanks share no character, so the blank star has one way to end at `$`. Oracle agrees and the clock rows pass (run here)"
+ },
+ {
+  "name": "G25 the multiline flag",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/m;",
+  "expect": "killed",
+  "why": "`+-` then a newline is accepted (stated refusal)"
+ },
+ {
+  "name": "G26 the unicode flag",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/u;",
+  "expect": "survives",
+  "why": "EQUIVALENT: every character the pattern names is ASCII and none is escaped in a way the flag changes; the oracle agrees"
+ },
+ {
+  "name": "G27 the global flag",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/g;",
+  "expect": "killed",
+  "why": "`.test` keeps `lastIndex`: the second of two successive tests starts past the line and refuses (the stated rows and the enumeration read one pattern many times)"
+ },
+ {
+  "name": "G28 the case-insensitive flag",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/i;",
+  "expect": "survives",
+  "why": "EQUIVALENT: the pattern names no letter; the oracle agrees"
+ },
+ {
+  "name": "G29 the export removed",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "the oracle file imports `undefined` (the seam)"
+ },
+ {
+  "name": "S01 site 1: the refusal negated",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!GRID_TABLE_BORDER.test(loose)) {",
+  "to": "if (GRID_TABLE_BORDER.test(loose)) {",
+  "expect": "killed",
+  "why": "a refused `+` row stops being block-level and a real border does (the heading below `+--- -` is swallowed)"
+ },
+ {
+  "name": "S02 site 1: every border is block-level",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!GRID_TABLE_BORDER.test(loose)) {",
+  "to": "if (true) {",
+  "expect": "killed",
+  "why": "a real border is block-level before the neighbour scan runs, so the rows that need the scan lose their answer"
+ },
+ {
+  "name": "T01 the clock limit raised",
+  "file": "test/unit/pathological-inputs.test.ts",
+  "from": "const GRID_LIMIT_MS = 1000;",
+  "to": "const GRID_LIMIT_MS = 100000;",
+  "expect": "killed",
+  "why": "the pin of the limit"
+ },
+ {
+  "name": "T02 the short run shortened",
+  "file": "test/unit/pathological-inputs.test.ts",
+  "from": "const GRID_FEW = 4;",
+  "to": "const GRID_FEW = 1;",
+  "expect": "killed",
+  "why": "the pin of the short run"
+ },
+ {
+  "name": "T03 the first RED row ten times smaller",
+  "file": "test/unit/pathological-inputs.test.ts",
+  "from": "{ site: \"line: 30,000 dashes, a space and a dash, a heading below\", from: null, unit: \"-\", many: 30_000,",
+  "to": "{ site: \"line: 30,000 dashes, a space and a dash, a heading below\", from: null, unit: \"-\", many: 3_000,",
+  "expect": "killed",
+  "why": "the pin of the sizes (3,000 dashes take 30 ms on the parent)"
+ },
+ {
+  "name": "T04 the border-above row ten times smaller",
+  "file": "test/unit/pathological-inputs.test.ts",
+  "from": "{ site: \"neighbour: a border above 20,000 dashes, a space and a dash\", from: null, unit: \"-\", many: 20_000,",
+  "to": "{ site: \"neighbour: a border above 20,000 dashes, a space and a dash\", from: null, unit: \"-\", many: 2_000,",
+  "expect": "killed",
+  "why": "the pin of the sizes"
+ },
+ {
+  "name": "T05 the alphabet of the enumeration without the tab",
+  "file": "test/unit/grid-table-border-equivalence.test.ts",
+  "from": "const ALPHABET = [\"+\", \"-\", \"=\", \":\", \" \", \"\\t\", \"x\"];",
+  "to": "const ALPHABET = [\"+\", \"-\", \"=\", \":\", \" \", \"x\"];",
+  "expect": "killed",
+  "why": "the pinned counts (960,800 strings and 42,933 accepted)"
+ }
+]

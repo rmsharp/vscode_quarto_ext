@@ -1,0 +1,34 @@
+[
+ {
+  "name": "C01 the old spelling put back",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+[-+=:]*[-=:][-+=:]*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "the Session 318 item's part (1): two stars around one required class (answers identical, n squared)"
+ },
+ {
+  "name": "C02 two stars around a lookahead",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+[-+=:]*(?=[-=:])[-+=:]*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "the same answers as the old spelling and the same cost: the first star gives back one position at a time"
+ },
+ {
+  "name": "C03 two class stars touching after the lookahead",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[-+=:]*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "the same answers; the split of a run between two adjacent stars is tried n ways before the tail is refused"
+ },
+ {
+  "name": "C04 two blank stars touching",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
+  "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*[ \\t]*$/;",
+  "expect": "killed",
+  "why": "the same answers; a long blank run between class characters (`+-`, 64,000 spaces, `-`) is split n ways (670 ms at 32,000 and 2.7 s at 64,000 on the pattern alone). Killed by the 64,000-space control row; at 30,000 spaces it survived (about 590 ms, under the 1,000 ms limit)"
+ }
+]

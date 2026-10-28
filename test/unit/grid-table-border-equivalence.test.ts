@@ -155,21 +155,22 @@ describe("Session 333 — GRID_TABLE_BORDER against its old spelling", () => {
     }
   });
 
-  // Each line is a million characters or so. The old spelling's slope (four times per doubling, 1,507 ms at 20,000) puts one of them at about an hour (extrapolated, not run); the pattern is linear.
-  // The limit is 100 ms for a line, far above the linear figure.
-  it("reads a line of a million characters in time proportional to its length", () => {
-    const million = 1_000_000;
-    const lines = [
-      `+${"-".repeat(million)} -`,
-      `+${"=".repeat(million)} -`,
-      `+${":".repeat(million)} -`,
-      `+${"-+".repeat(million / 2)} -`,
-      `+${"-".repeat(million)} +`,
-      `+${"-".repeat(million)}  x`,
-      `+${"+".repeat(million)} -`,
-      `+-${" ".repeat(million)}-`,
-      `+${"-".repeat(million)}${"\t".repeat(10)}-`,
+  // The shapes are tried at 20,000 characters first and at a million after, because the pattern is one synchronous call: the old spelling takes 1,507 ms on 20,000 (four times per doubling, so about an hour on a
+  // million, extrapolated and not run), a runner cannot interrupt it, and a spelling that restores a quadratic would otherwise hang the suite on the first million-character line (the runner killed an unanchored
+  // mutant of this pattern only at its 600 s limit). `slowestExec` stops at the first line past 100 ms, so such a spelling fails on a 20,000-character line in about a second.
+  it("reads a line of 20,000 and then of a million characters in time proportional to its length", () => {
+    const shapes = (size: number): string[] => [
+      `+${"-".repeat(size)} -`,
+      `+${"=".repeat(size)} -`,
+      `+${":".repeat(size)} -`,
+      `+${"-+".repeat(size / 2)} -`,
+      `+${"-".repeat(size)} +`,
+      `+${"-".repeat(size)}  x`,
+      `+${"+".repeat(size)} -`,
+      `+-${" ".repeat(size)}-`,
+      `+${"-".repeat(size)}${"\t".repeat(10)}-`,
     ];
+    const lines = [...shapes(20_000), ...shapes(1_000_000)];
     const { slow, slowestText } = slowestExec(GRID_TABLE_BORDER, lines, 100);
     expect(slow, `slowest line starts ${slowestText}`).toBe(false);
   }, 120_000);

@@ -2075,12 +2075,14 @@ describe("Session 333 — a table-border-shaped line holding a long run of dashe
   type GridRow = { site: string; from: string | null; unit: string; many: number; build: (run: string) => string; headings: Array<[number, string]> };
 
   const GRID_ROWS: GridRow[] = [
-    // Controls: fast on the parent too (the gate refuses the line, no class character follows the blank, the first attempt matches, or the line is inside a list item), so they cannot be RED there; they hold the cure to the same answers at the same size.
+    // Controls: fast on the parent too (the gate refuses the line, no class character follows the blank, the first attempt matches, the line is inside a list item, or a long blank run sits between class characters), so they cannot be RED there; they hold the cure to the same answers at the same size.
     { site: "control: 30,000 dashes, a space and an `x` (the gate refuses the tail)", from: null, unit: "-", many: 30_000, build: (run) => `+${run} x\n# H\n`, headings: [] },
     { site: "control: 30,000 `+`, a space and a dash (no required class before the blank)", from: null, unit: "+", many: 30_000, build: (run) => `+${run} -\n# H\n`, headings: [[1, "H"]] },
     { site: "control: a real border of 30,000 dashes", from: null, unit: "-", many: 30_000, build: (run) => `+${run}+\n# H\n`, headings: [] },
     { site: "control: a real border of 30,000 `=`", from: null, unit: "=", many: 30_000, build: (run) => `+${run}+\n# H\n`, headings: [] },
     { site: "control: 30,000 dashes, a space and a dash inside a list item", from: null, unit: "-", many: 30_000, build: (run) => `- +${run} -\n\n  # H\n`, headings: [[2, "H"]] },
+    { site: "control: a dash, 64,000 spaces and a dash (one long blank run, then a class character)", from: null, unit: " ", many: 64_000, build: (run) => `+-${run}-\n# H\n`, headings: [[1, "H"]] },
+    { site: "control: 30,000 pairs of a dash and a space, then a dash", from: null, unit: "- ", many: 30_000, build: (run) => `+${run}-\n# H\n`, headings: [[1, "H"]] },
 
     // The question for the line itself: the run, a space and one more class character, for each class character and each tail character, with the heading below, above, and a paragraph above.
     { site: "line: 30,000 dashes, a space and a dash, a heading below", from: null, unit: "-", many: 30_000, build: (run) => `+${run} -\n# H\n`, headings: [[1, "H"]] },
@@ -2127,7 +2129,7 @@ describe("Session 333 — a table-border-shaped line holding a long run of dashe
   it("keeps the sizes, the limit and the units the Session 333 rows are built on", () => {
     expect([GRID_FEW, GRID_LIMIT_MS]).toEqual([4, 1000]);
     expect(GRID_ROWS.map((row) => `${row.unit}x${row.many}`)).toEqual([
-      "-x30000", "+x30000", "-x30000", "=x30000", "-x30000",
+      "-x30000", "+x30000", "-x30000", "=x30000", "-x30000", " x64000", "- x30000",
       "-x30000", "-x30000", "-x30000", "=x30000", ":x30000", "-+x20000", "-x30000", "-x30000", "-x30000", "-x30000",
       "-x20000", "-x18000",
       "-x30000", "-x30000", "-x30000", "-x30000",
