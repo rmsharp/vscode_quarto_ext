@@ -29,6 +29,6 @@
   "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
   "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*[ \\t]*$/;",
   "expect": "killed",
-  "why": "the same answers; a long blank run between class characters (`+-`, 64,000 spaces, `-`) is split n ways (670 ms at 32,000 and 2.7 s at 64,000 on the pattern alone). Killed by the 64,000-space control row; at 30,000 spaces it survived (599 ms through `findHeadings`, under the 1,000 ms limit)"
+  "why": "the same answers; a long blank run between class characters (`+-`, 64,000 spaces, `-`) is split n ways (670 ms at 32,000 and 2.7 s at 64,000 on the pattern alone). Killed by the 64,000-space control row; a first draft of that control at 30,000 spaces (never committed) let it through (599 ms through `findHeadings`, under the 1,000 ms limit)"
  }
 ]

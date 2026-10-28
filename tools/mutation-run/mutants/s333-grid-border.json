@@ -165,7 +165,7 @@
   "from": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]*[-=:])[-+=:]*[ \\t]*$/;",
   "to": "export const GRID_TABLE_BORDER = /^\\+(?=[-+=:]?[-=:])[-+=:]*[ \\t]*$/;",
   "expect": "killed",
-  "why": "`++-` is refused (stated acceptance)"
+  "why": "`+++-` is refused (a stated acceptance, added after the review: this edit still accepts `++-`, which the stated rows held before; the enumerations and the seeded and grid rows killed it)"
  },
  {
   "name": "G22 the lookahead negated",

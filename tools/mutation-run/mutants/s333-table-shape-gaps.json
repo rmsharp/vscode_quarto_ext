@@ -1,0 +1,90 @@
+[
+ {
+  "name": "B04 the first site asks the untrimmed line",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!GRID_TABLE_BORDER.test(loose)) {",
+  "to": "if (!GRID_TABLE_BORDER.test(line)) {",
+  "expect": "survives",
+  "why": "`  +---+`, `# H` (and the same with one space of indent) gives no heading at the head and `[[1, \"H\"]]` with this edit: an indented lone border is prose. Survives the whole unit suite (13,051 tests, 105 files) at `fda7c4c` and at the parent `1be4982`, so Session 333 did not open the gap: the review's lens and verifier checked B11, B21, B23, B26, B27 and B28 by a call-by-call differential over every test (0 calls on which the edit answers differently), and B04 and the PLUS_ONLY_ROW edits by one whole-suite run each. Unrendered: render the document with quarto before pinning an answer."
+ },
+ {
+  "name": "B11 an unshaped neighbour is skipped, not the end of the scan",
+  "file": "src/core/qmd/model.ts",
+  "from": "        if (otherShape === null) {\n          break;\n        }",
+  "to": "        if (otherShape === null) {\n          continue;\n        }",
+  "expect": "survives",
+  "why": "`+---+`, `    code`, `+---+`, `# H` gives no heading at the head and `[[3, \"H\"]]` with this edit: the scan must stop at a line that is not shaped like a table line. Survives the whole unit suite (13,051 tests, 105 files) at `fda7c4c` and at the parent `1be4982`, so Session 333 did not open the gap: the review's lens and verifier checked B11, B21, B23, B26, B27 and B28 by a call-by-call differential over every test (0 calls on which the edit answers differently), and B04 and the PLUS_ONLY_ROW edits by one whole-suite run each. Unrendered: render the document with quarto before pinning an answer."
+ },
+ {
+  "name": "B21 shape's lower bound one column less",
+  "file": "src/core/qmd/model.ts",
+  "from": "return col >= base && col <= base + window ? other.trimStart() : null;",
+  "to": "return col >= base - 1 && col <= base + window ? other.trimStart() : null;",
+  "expect": "survives",
+  "why": "`+`, `+---+`, `  +---+`, `# H` gives no heading at the head and `[[3, \"H\"]]` with this edit. Survives the whole unit suite (13,051 tests, 105 files) at `fda7c4c` and at the parent `1be4982`, so Session 333 did not open the gap: the review's lens and verifier checked B11, B21, B23, B26, B27 and B28 by a call-by-call differential over every test (0 calls on which the edit answers differently), and B04 and the PLUS_ONLY_ROW edits by one whole-suite run each. Unrendered: render the document with quarto before pinning an answer."
+ },
+ {
+  "name": "B23 shape trims both ends",
+  "file": "src/core/qmd/model.ts",
+  "from": "return col >= base && col <= base + window ? other.trimStart() : null;",
+  "to": "return col >= base && col <= base + window ? other.trim() : null;",
+  "expect": "survives",
+  "why": "`+---+`, `+-<tab>`, `# H` gives no heading at the head and `[[2, \"H\"]]` with this edit: a trailing tab on the neighbour must be kept for the border test. Survives the whole unit suite (13,051 tests, 105 files) at `fda7c4c` and at the parent `1be4982`, so Session 333 did not open the gap: the review's lens and verifier checked B11, B21, B23, B26, B27 and B28 by a call-by-call differential over every test (0 calls on which the edit answers differently), and B04 and the PLUS_ONLY_ROW edits by one whole-suite run each. Unrendered: render the document with quarto before pinning an answer."
+ },
+ {
+  "name": "B26 the neighbour window is 4",
+  "file": "src/core/qmd/model.ts",
+  "from": "const otherShape = shape(other, 3);",
+  "to": "const otherShape = shape(other, 4);",
+  "expect": "survives",
+  "why": "`+---+`, `    +---+`, `# H` gives no heading at the head and `[[2, \"H\"]]` with this edit (a neighbour indented four columns is code, not a border). Survives the whole unit suite (13,051 tests, 105 files) at `fda7c4c` and at the parent `1be4982`, so Session 333 did not open the gap: the review's lens and verifier checked B11, B21, B23, B26, B27 and B28 by a call-by-call differential over every test (0 calls on which the edit answers differently), and B04 and the PLUS_ONLY_ROW edits by one whole-suite run each. Unrendered: render the document with quarto before pinning an answer."
+ },
+ {
+  "name": "B27 the neighbour window is 2",
+  "file": "src/core/qmd/model.ts",
+  "from": "const otherShape = shape(other, 3);",
+  "to": "const otherShape = shape(other, 2);",
+  "expect": "survives",
+  "why": "`+---+`, `   +---+` (three spaces), `# H` gives `[[2, \"H\"]]` at the head and no heading with this edit. Survives the whole unit suite (13,051 tests, 105 files) at `fda7c4c` and at the parent `1be4982`, so Session 333 did not open the gap: the review's lens and verifier checked B11, B21, B23, B26, B27 and B28 by a call-by-call differential over every test (0 calls on which the edit answers differently), and B04 and the PLUS_ONLY_ROW edits by one whole-suite run each. Unrendered: render the document with quarto before pinning an answer."
+ },
+ {
+  "name": "B28 the neighbour window is 0",
+  "file": "src/core/qmd/model.ts",
+  "from": "const otherShape = shape(other, 3);",
+  "to": "const otherShape = shape(other, 0);",
+  "expect": "survives",
+  "why": "`+---+`, `  +---+` (two spaces), `# H` gives `[[2, \"H\"]]` at the head and no heading with this edit. Survives the whole unit suite (13,051 tests, 105 files) at `fda7c4c` and at the parent `1be4982`, so Session 333 did not open the gap: the review's lens and verifier checked B11, B21, B23, B26, B27 and B28 by a call-by-call differential over every test (0 calls on which the edit answers differently), and B04 and the PLUS_ONLY_ROW edits by one whole-suite run each. Unrendered: render the document with quarto before pinning an answer."
+ },
+ {
+  "name": "P03 PLUS_ONLY_ROW without the start anchor",
+  "file": "src/core/qmd/model.ts",
+  "from": "const PLUS_ONLY_ROW = /^\\+[-+=: ]*$/;",
+  "to": "const PLUS_ONLY_ROW = /\\+[-+=: ]*$/;",
+  "expect": "survives",
+  "why": "`+--|--+`, `# H` and `- +---+`, `# H` give no heading at the head and `[[1, \"H\"]]` with this edit. Survives the whole unit suite (13,051 tests, 105 files) at `fda7c4c` and at the parent `1be4982`, so Session 333 did not open the gap: the review's lens and verifier checked B11, B21, B23, B26, B27 and B28 by a call-by-call differential over every test (0 calls on which the edit answers differently), and B04 and the PLUS_ONLY_ROW edits by one whole-suite run each. Unrendered: render the document with quarto before pinning an answer."
+ },
+ {
+  "name": "P04 PLUS_ONLY_ROW takes a tab",
+  "file": "src/core/qmd/model.ts",
+  "from": "const PLUS_ONLY_ROW = /^\\+[-+=: ]*$/;",
+  "to": "const PLUS_ONLY_ROW = /^\\+[-+=: \\t]*$/;",
+  "expect": "survives",
+  "why": "`+-<tab>-`, `# H` gives no heading at the head and `[[1, \"H\"]]` with this edit. Survives the whole unit suite (13,051 tests, 105 files) at `fda7c4c` and at the parent `1be4982`, so Session 333 did not open the gap: the review's lens and verifier checked B11, B21, B23, B26, B27 and B28 by a call-by-call differential over every test (0 calls on which the edit answers differently), and B04 and the PLUS_ONLY_ROW edits by one whole-suite run each. Unrendered: render the document with quarto before pinning an answer."
+ },
+ {
+  "name": "P05 PLUS_ONLY_ROW takes a bar",
+  "file": "src/core/qmd/model.ts",
+  "from": "const PLUS_ONLY_ROW = /^\\+[-+=: ]*$/;",
+  "to": "const PLUS_ONLY_ROW = /^\\+[-+=:| ]*$/;",
+  "expect": "survives",
+  "why": "`+-|-`, `# H` gives no heading at the head and `[[1, \"H\"]]` with this edit. Survives the whole unit suite (13,051 tests, 105 files) at `fda7c4c` and at the parent `1be4982`, so Session 333 did not open the gap: the review's lens and verifier checked B11, B21, B23, B26, B27 and B28 by a call-by-call differential over every test (0 calls on which the edit answers differently), and B04 and the PLUS_ONLY_ROW edits by one whole-suite run each. Unrendered: render the document with quarto before pinning an answer."
+ },
+ {
+  "name": "P09 PLUS_ONLY_ROW needs one character after the plus",
+  "file": "src/core/qmd/model.ts",
+  "from": "const PLUS_ONLY_ROW = /^\\+[-+=: ]*$/;",
+  "to": "const PLUS_ONLY_ROW = /^\\+[-+=: ]+$/;",
+  "expect": "survives",
+  "why": "`> +---+`, `+`, `# H` gives `[[2, \"H\"]]` at the head and no heading with this edit (a bare `+` is an empty list item). Survives the whole unit suite (13,051 tests, 105 files) at `fda7c4c` and at the parent `1be4982`, so Session 333 did not open the gap: the review's lens and verifier checked B11, B21, B23, B26, B27 and B28 by a call-by-call differential over every test (0 calls on which the edit answers differently), and B04 and the PLUS_ONLY_ROW edits by one whole-suite run each. Unrendered: render the document with quarto before pinning an answer."
+ }
+]

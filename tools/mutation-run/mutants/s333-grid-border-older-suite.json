@@ -5,7 +5,7 @@
   "from": "if (GRID_TABLE_BORDER.test(otherShape)) {",
   "to": "if (false) {",
   "expect": "killed",
-  "why": "no border is ever found next to another: four rows of `qmd-model.test.ts` fail (the Session 180 heading below a grid table, Session 235 guard G7 a real grid table closes, G10 two borders back to back, G11); the Session 333 rows read a refused neighbour only and do not notice"
+  "why": "no border is ever found next to another: 17 rows fail with the README's command, 9 in `qmd-model.test.ts` (the Session 180 heading below a grid table; Session 235 guards G7 a real grid table closes, G10 two borders back to back, G11, and C5; four Session 295 rows) and 8 in `qmd-stacked-enders.test.ts` (Session 298); the Session 333 rows read a refused neighbour only and do not notice"
  },
  {
   "name": "S04 site 3: the per-line border count never counts",
@@ -13,6 +13,6 @@
   "from": "if (GRID_TABLE_BORDER.test(lines[j])) {",
   "to": "if (false) {",
   "expect": "killed",
-  "why": "the third site's count of borders in a run never counts: four rows of `qmd-model.test.ts` fail (Session 295: the indent-4 `{bash}` opener below a grid table, with and without its closing border, and the two READER rows); no Session 333 row reaches this site with a long line (about 100 probe documents, Session 333)"
+  "why": "the third site's count of borders in a run never counts: 14 rows fail with the README's command, 5 in `qmd-model.test.ts` (Session 295: the indent-4 `{bash}` opener below a grid table, with and without its closing border, and the three READER rows: markdown, markdown-fenced_divs, markdown-blank_before_header) and 9 in `qmd-stacked-enders.test.ts` (Session 298). The first Session 333 rows sent no long line to this site; the \"third site\" rows added by the review round do (R03 of `s333-grid-border-review.json`)"
  }
 ]
