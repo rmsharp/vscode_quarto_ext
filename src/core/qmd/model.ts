@@ -6699,9 +6699,87 @@ const COMMONMARK_HTML_TYPE6_OPEN = new RegExp(
  *
  * The attribute grammar is CommonMark's own: an unquoted value may not contain whitespace,
  * quotes, `=`, `<`, `>` or a backtick.
+ *
+ * Session 337: the question was a pattern, `COMMONMARK_HTML_TYPE7_OPEN`, whose attribute list was the quantified group `(?:[ \t]+NAME(?:[ \t]*=[ \t]*VALUE)?)*`. V8 keeps one entry of
+ * its regex backtrack stack per repetition of a group, so a tag of 2,097,143 bare attributes (986,891 with a value) threw `RangeError: Maximum call stack size exceeded` (bisected
+ * at `8ebce73`) and the error reached every reader of the document. The language is read left to right and never needs to go back: the name and the attribute names end at a
+ * character no name holds, an unquoted value runs to the first blank, quote, `=`, `<`, `>` or backtick (a slash is a value character AND may end the tag, and both end at the
+ * same `>`), and a quote closes at the next one. `commonmarkTagLine` is that reading, and `type7-open-attrs-equivalence.test.ts` keeps the pattern as the oracle.
  */
-const COMMONMARK_HTML_TYPE7_OPEN =
-  /^ {0,3}(?:<[A-Za-z][A-Za-z0-9-]*(?:[ \t]+[A-Za-z_:][A-Za-z0-9_.:-]*(?:[ \t]*=[ \t]*(?:"[^"]*"|'[^']*'|[^ \t"'=<>`]+))?)*[ \t]*\/?>|<\/[A-Za-z][A-Za-z0-9-]*[ \t]*>)[ \t]*$/;
+export function commonmarkTagLine(line: string): boolean {
+  let lt = 0;
+  while (lt < 4 && line.charCodeAt(lt) === 32) {
+    lt++;
+  }
+  if (lt > 3 || line.charCodeAt(lt) !== 60) {
+    return false;
+  }
+  return line.charCodeAt(lt + 1) === 47 ? closingTagEndsLine(line, lt + 2) : openTagEndsLine(line, lt + 1);
+}
+/** A character a tag name holds after its first: a letter, a digit or a dash. */
+const isTagNameCode = (c: number): boolean => isLetterCode(c) || (c >= 48 && c <= 57) || c === 45;
+/** A character an attribute name holds after its first: a tag name's, a dot, a colon or an underscore. */
+const isAttributeNameCode = (c: number): boolean => isTagNameCode(c) || c === 46 || c === 58 || c === 95;
+/** A character an attribute name may start with: a letter, a colon or an underscore. */
+const isAttributeStartCode = (c: number): boolean => isLetterCode(c) || c === 58 || c === 95;
+/** A character an unquoted attribute value holds: none of a blank, `"`, `'`, `=`, `<`, `>` and a backtick. Asked only inside the line: past its end `charCodeAt` answers NaN, which no comparison here catches. */
+const isUnquotedValueCode = (c: number): boolean => !(c === 32 || c === 9 || c === 34 || c === 39 || c === 60 || c === 61 || c === 62 || c === 96);
+/** The end of the tag name that starts at `from` (a letter, then letters, digits and dashes), or -1 when no name starts there. */
+function tagNameEnd(line: string, from: number): number {
+  if (!isLetterCode(line.charCodeAt(from))) {
+    return -1;
+  }
+  let end = from + 1;
+  while (isTagNameCode(line.charCodeAt(end))) {
+    end++;
+  }
+  return end;
+}
+/** The end of the attribute whose name starts at `from`: the name, then optionally blanks, `=`, blanks and a value; -1 when the value is missing or its quote never closes. */
+function attributeEnd(line: string, from: number): number {
+  let end = from + 1;
+  while (isAttributeNameCode(line.charCodeAt(end))) {
+    end++;
+  }
+  const equals = skipBlanks(line, end);
+  if (line.charCodeAt(equals) !== 61) {
+    return end;
+  }
+  const value = skipBlanks(line, equals + 1);
+  const quote = line.charCodeAt(value);
+  if (quote === 34 || quote === 39) {
+    const closer = line.indexOf(quote === 34 ? '"' : "'", value + 1);
+    return closer < 0 ? -1 : closer + 1;
+  }
+  let stop = value;
+  while (stop < line.length && isUnquotedValueCode(line.charCodeAt(stop))) {
+    stop++;
+  }
+  return stop > value ? stop : -1;
+}
+/** Whether the open tag whose name starts at `from` (just after the `<`) ends the line: attributes, blanks, an optional slash, `>`, blanks. */
+function openTagEndsLine(line: string, from: number): boolean {
+  let at = tagNameEnd(line, from);
+  while (at >= 0) {
+    const gap = skipBlanks(line, at);
+    if (gap > at && isAttributeStartCode(line.charCodeAt(gap))) {
+      at = attributeEnd(line, gap);
+      continue;
+    }
+    const bracket = line.charCodeAt(gap) === 47 ? gap + 1 : gap;
+    return line.charCodeAt(bracket) === 62 && skipBlanks(line, bracket + 1) === line.length;
+  }
+  return false;
+}
+/** Whether the closing tag whose name starts at `from` (just after the `</`) ends the line: the name, blanks, `>`, blanks. */
+function closingTagEndsLine(line: string, from: number): boolean {
+  const name = tagNameEnd(line, from);
+  if (name < 0) {
+    return false;
+  }
+  const bracket = skipBlanks(line, name);
+  return line.charCodeAt(bracket) === 62 && skipBlanks(line, bracket + 1) === line.length;
+}
 /**
  * CommonMark §4.6 **type 1** — the four RCDATA-ish tags whose block ends at its OWN closing tag
  * and which a BLANK LINE does not touch (Session 204).
@@ -12572,7 +12650,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
         commonmarkHtmlBlock = COMMONMARK_HTML_TYPE1_OPEN.test(line)
           ? "type1"
           : COMMONMARK_HTML_TYPE6_OPEN.test(line) ||
-              (!paragraphOpen && COMMONMARK_HTML_TYPE7_OPEN.test(line))
+              (!paragraphOpen && commonmarkTagLine(line))
             ? "blank"
             : null;
       }
