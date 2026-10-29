@@ -98,13 +98,13 @@ function compareAll(texts: Iterable<string>): Count {
   return count;
 }
 
-// The two alphabets: twelve characters up to length 5 (both quotes, the backslash, a letter, a blank, a comma, a paren, `=` and the four line terminators but one: LF, CR, U+2028, U+2029), and five up to length 8 that reach
-// the long tangles of quotes and backslashes (the second line terminator class is the one the definition names).
+// The two alphabets: twelve characters up to length 5 (both quotes, the backslash, a letter, a blank, a comma, a paren, `=` and the four line terminators LF, CR, U+2028 and U+2029, each of which a backslash cannot
+// take), and five up to length 9 (both quotes, the backslash, a letter and U+2028) that reach the long tangles of quotes and backslashes, a failed read among them.
 const WIDE = ['"', "'", "\\", "a", " ", ",", "(", "=", LS, "\n", "\r", PS];
 const NARROW = ['"', "'", "\\", "a", LS];
 const ENUMERATIONS: Array<{ label: string; alphabet: readonly string[]; maxLength: number; changed: number; blanked: number; characters: number }> = [
   { label: "12 characters (both quotes, a backslash, a letter, a blank, `,`, `(`, `=`, LS, LF, CR, PS), up to 5", alphabet: WIDE, maxLength: 5, changed: 28_650, blanked: 28_868, characters: 83_344 },
-  { label: "5 characters (both quotes, a backslash, a letter, U+2028), up to 8", alphabet: NARROW, maxLength: 8, changed: 331_068, blanked: 400_214, characters: 1_352_464 },
+  { label: "5 characters (both quotes, a backslash, a letter, U+2028), up to 9", alphabet: NARROW, maxLength: 9, changed: 1_812_084, blanked: 2_316_962, characters: 8_235_364 },
 ];
 
 // The sweep: every UTF-16 code unit at every structural position of a string token, for both quotes: before the string, as the whole body, inside, right after a backslash (with and without more body), right after an

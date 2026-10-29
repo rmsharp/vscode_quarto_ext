@@ -28,7 +28,8 @@ const timed = <T>(run: () => T): { result: T; ms: number } => {
 
 describe("Session 337 part 7 — the string mask of a knitr chunk header's unnamed argument, on a single line of millions of characters", () => {
   const FEW = 4;
-  // 4 s, the limit of Session 336's comment rows, until the cured build's own cost is measured (the cure's commit states it): the parent has no time to compare because it throws in about 120 ms.
+  // 4 s, the limit of Session 336's comment rows. With the cure in, whole rows (the text built, the short control read and the long read) took 197 to 452 ms each, run alone (`--reporter=json`; the slowest are the label rows, 452 ms, and the 33.6-million-character
+  // `\a` pairs, 400 ms), so the limit is more than eight times the slowest and under the 10 s ceiling; the timed read is part of that. The parent has no time to compare because it throws in about 120 ms.
   const LIMIT_MS = 4000;
   const MANY = 16_800_000;
   /** A document with a stray bare fence above one chunk; `lead` only makes the text differ from every other row's. */

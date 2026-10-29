@@ -500,13 +500,17 @@ describe("Session 304 — a chunk that makes no figure defines no figure label",
       expect(Date.now() - started).toBeLessThan(1000);
     });
 
-    it("a header holding a 12 MB string makes the option reader overflow its stack: the index must not throw, and keeps the label (hunt3 robust-perf f26)", () => {
-      const text = ["```{r label=\"fig-x\", \"" + "A".repeat(12_000_000) + "\", eval=FALSE}", '#| fig-cap: "Cap"', "plot(1)", "```"].join("\n");
+    // Until Session 337 a header string of 8,388,574 characters or more made the option reader's string mask overflow the regex stack (hunt3 robust-perf f26), `readsNoTarget` caught the RangeError and the index KEPT the label
+    // ("a reader that cannot finish has read nothing"), so this row pinned that fallback: `["fig-x"]`. The mask is a loop now (`blankQuotedStrings`), the reader finishes, and the cell is judged as the same header with a short string is:
+    // `eval=FALSE` makes no figure, so the label is not listed. The catch stays for any other overflow; this row pins that the long string is READ.
+    it("a header holding a 12 MB string is read to the end: the index does not throw and judges the cell as it does with a short string (hunt3 robust-perf f26; Session 337)", () => {
+      const header = (string: string): string => ["```{r label=\"fig-x\", \"" + string + "\", eval=FALSE}", '#| fig-cap: "Cap"', "plot(1)", "```"].join("\n");
       let found: string[] = [];
       expect(() => {
-        found = indexLabels(text, "knitr").map((l) => l.id);
+        found = indexLabels(header("A".repeat(12_000_000)), "knitr").map((l) => l.id);
       }).not.toThrow();
-      expect(found).toEqual(["fig-x"]);
+      expect(indexLabels(header("A".repeat(12)), "knitr").map((l) => l.id)).toEqual([]);
+      expect(found).toEqual([]);
     });
 
     it("thousands of hidden labelled cells cost one pass over the document, not one per cell", () => {

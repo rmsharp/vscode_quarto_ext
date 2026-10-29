@@ -120,7 +120,7 @@ def every_code_unit():
 
 def main():
     count("wide", every_string(WIDE, 5))
-    count("narrow", every_string(NARROW, 8))
+    count("narrow", every_string(NARROW, 9))
     count("sweep", every_code_unit())
     print("templates", len(sweep_templates()))
 

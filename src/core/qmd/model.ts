@@ -8926,6 +8926,71 @@ function knitrChunkHasNoCode(body: readonly string[]): boolean {
   return body.slice(k).every((line) => line.trim() === "");
 }
 /**
+ * `text` with every quoted string replaced by `""` (Session 337). It is `text.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '""')`, read by a loop: the pattern repeated a GROUP once a character
+ * (once a pair for `\x`), and V8 keeps one entry of its regex backtrack stack per repetition, so ONE string of 8,388,574 or more characters threw `RangeError: Maximum call stack size exceeded`
+ * (bisected at `8ebce73`, the lower bound 8,388,573 verified to read), and the error reached every reader of a document handed the knitr engine (`knitrHeaderOptions`, through the silent-chunk scan:
+ * `findHeadings` and `buildOutline`; `indexLabels` caught it and answered as if the cell made its figure). `knitr-string-mask-equivalence.test.ts` keeps the pattern as the oracle.
+ *
+ * The language, as the pattern had it: a `"` or a `'` opens a string, which runs to the next quote of the SAME kind; a backslash takes the character after it (the other quote, a backslash, anything but a line
+ * terminator: `.` does not match LF, CR, U+2028 or U+2029), and a backslash before a line terminator, or the last character, makes the read FAIL. A quote that opens nothing is no string and the scan goes on at the
+ * next character, so the closer of one string may open another and a quote inside a failed read is read afresh.
+ *
+ * ⚠ A failed read ends at one place, and every later start of the same kind up to that place fails there too: it is an escaped quote of the first read (a quote met as a token would have closed it), so the
+ * read from just after it is the same read from a token boundary. `failsBefore*` carries that place, which keeps a run of escaped quotes before a failing end linear (the pattern restarted the read at each of
+ * them: 100,000 pairs took it over ten seconds). A chunk header cannot hold such a text, since `splitRHeaderArguments` declines an open string and the opener line holds no line terminator, but the function takes any text.
+ */
+export function blankQuotedStrings(text: string): string {
+  let out = "";
+  let copied = 0;
+  let failsBeforeDouble = 0;
+  let failsBeforeSingle = 0;
+  let at = 0;
+  while (at < text.length) {
+    const open = text.charCodeAt(at);
+    if ((open !== 34 && open !== 39) || at < (open === 34 ? failsBeforeDouble : failsBeforeSingle)) {
+      at++;
+      continue;
+    }
+    const end = quotedStringEnd(text, at);
+    if (end > 0) {
+      out += text.slice(copied, at) + '""';
+      copied = end;
+      at = end;
+    } else if (open === 34) {
+      failsBeforeDouble = -end;
+      at++;
+    } else {
+      failsBeforeSingle = -end;
+      at++;
+    }
+  }
+  return out + text.slice(copied);
+}
+/**
+ * Where the string that opens at `open` ends: the index just past its closing quote, or, when the read fails, the NEGATIVE of the index it stopped at (a backslash with no character
+ * after it or a line terminator after it, or the length of the text; never 0, since a string opens before it stops).
+ */
+function quotedStringEnd(text: string, open: number): number {
+  const quote = text.charCodeAt(open);
+  let at = open + 1;
+  while (at < text.length) {
+    const c = text.charCodeAt(at);
+    if (c === quote) {
+      return at + 1;
+    }
+    if (c !== 92) {
+      at++;
+      continue;
+    }
+    const escaped = text.charCodeAt(at + 1);
+    if (at + 1 >= text.length || escaped === 10 || escaped === 13 || escaped === 0x2028 || escaped === 0x2029) {
+      return -at;
+    }
+    at += 2;
+  }
+  return -text.length;
+}
+/**
  * The chunk header's options as a FLAT `name = value` list — the LAST assignment of a name wins —
  * or `null` when the header is anything this cannot read with certainty.
  *
@@ -8950,7 +9015,7 @@ function knitrHeaderOptions(tail: string): Map<string, string> | null {
     }
     // An UNNAMED argument is no option. Measured silent beside an `echo=FALSE`: a label, a number, a
     // string, an empty slot and a call (`lab`, `1`, `"x"`, `,,`, `c(1,2)`); the first slot is the label.
-    const blank = segment.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '""');
+    const blank = blankQuotedStrings(segment);
     const unnamed =
       k === 0
         ? /^[^\s=()[\]{}]*$/.test(blank)
