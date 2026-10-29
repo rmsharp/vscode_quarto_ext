@@ -5243,6 +5243,96 @@ const LINE_BLOCK_CONTINUATION = /^[ \t]+/;
  */
 export const TABLE_RULE_ROW =
   /^ {0,3}(?:\|?[ \t]*:?-+:?(?:[ \t]*\|[ \t]*:?-+:?)*(?:[ \t]*\|)?|\+(?:[-+=: ]*[-+=:])?)\s*$/;
+const skipBlanks = (line: string, from: number): number => {
+  let at = from;
+  while (line.charCodeAt(at) === 32 || line.charCodeAt(at) === 9) {
+    at++;
+  }
+  return at;
+};
+/** Whether `line` holds nothing but white space (`\s`) from `from` on. */
+const onlySpaceFrom = (line: string, from: number): boolean => {
+  for (let at = from; at < line.length; at++) {
+    if (!isSpaceCode(line.charCodeAt(at))) {
+      return false;
+    }
+  }
+  return true;
+};
+/** The end of one cell of a pipe table's delimiter row, `:?-+:?`, that starts at `from`, or -1 when none does (a cell needs a dash). */
+function pipeRuleCellEnd(line: string, from: number): number {
+  let at = from;
+  if (line.charCodeAt(at) === 58) {
+    at++;
+  }
+  const dashes = at;
+  while (line.charCodeAt(at) === 45) {
+    at++;
+  }
+  if (at === dashes) {
+    return -1;
+  }
+  return line.charCodeAt(at) === 58 ? at + 1 : at;
+}
+/**
+ * The end of the PIPE body of a table rule row that starts at `from` (after the indent): an optional outer pipe, blanks, a cell, then any number of a pipe and a cell (blanks around the pipe), then at most one
+ * trailing pipe; or -1 when the line does not start with that (Session 335). The blanks AFTER the last cell or pipe are not part of it, so the caller asks its own question of the rest. Read once from the left and
+ * never given back: a cell runs to its last dash or colon, a pipe is followed by a cell or by nothing the row accepts, and the pattern's other splits (fewer dashes, no colon) leave a character no later step takes.
+ */
+function pipeRuleBodyEnd(line: string, from: number): number {
+  let at = from;
+  if (line.charCodeAt(at) === 124) {
+    at++;
+  }
+  let end = pipeRuleCellEnd(line, skipBlanks(line, at));
+  if (end < 0) {
+    return -1;
+  }
+  for (;;) {
+    const bar = skipBlanks(line, end);
+    if (line.charCodeAt(bar) !== 124) {
+      return end;
+    }
+    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));
+    if (cell < 0) {
+      return bar + 1;
+    }
+    end = cell;
+  }
+}
+/**
+ * `TABLE_RULE_ROW.test(line)` read by a loop (Session 335): at most three spaces, then a pipe body or a grid body, then white space to the end. It was the pattern above, and V8 keeps one entry of its regex
+ * backtrack stack per repetition of a group: a line of 1,525,300 or more cells `|-` threw `RangeError: Maximum call stack size exceeded` (bisected at `c06ee06`), and the error reached every reader of the document.
+ * The grid body is `+` and a run of `-+=: ` that ends in a character other than a space, so the body ends after the LAST character of that run that is not a space and the rest must be white space.
+ * `table-rule-row-equivalence.test.ts` keeps the pattern as the oracle.
+ */
+export function tableRuleRow(line: string): boolean {
+  let at = 0;
+  while (at < 3 && line.charCodeAt(at) === 32) {
+    at++;
+  }
+  const pipeEnd = pipeRuleBodyEnd(line, at);
+  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {
+    return true;
+  }
+  if (line.charCodeAt(at) !== 43) {
+    return false;
+  }
+  let run = at + 1;
+  let bodyEnd = run;
+  for (;;) {
+    const c = line.charCodeAt(run);
+    if (c === 45 || c === 43 || c === 61 || c === 58) {
+      run++;
+      bodyEnd = run;
+    } else if (c === 32) {
+      run++;
+    } else {
+      break;
+    }
+  }
+  return onlySpaceFrom(line, bodyEnd);
+}
 /**
  * The four shapes a TABLE-SHAPED line can have, for `tableShapedLineIsBlock` (Session 235).
  *
@@ -14024,6 +14114,18 @@ function tableOrLineBlockEndsAt(b: BlockBoundaries, x: number, nextContinues = f
  * and took this spelling then. Each blank run now sits in front of the pipe it belongs to (`[ \t]*\|`), so the engine meets a run once per position. The strings accepted are the same (`blank-tail-equivalence.test.ts` holds the old spelling as the oracle); the pattern has no group and every caller reads `.test`.
  */
 export const PIPE_DELIMITER_ROW = /^ {0,3}\|?[ \t]*:?-+:?(?:[ \t]*\|[ \t]*:?-+:?)*(?:[ \t]*\|)?[ \t]*$/;
+/**
+ * `PIPE_DELIMITER_ROW.test(line)` read by a loop (Session 335), for the reason `tableRuleRow` gives: at most three spaces, the pipe body, then blanks to the end. `table-rule-row-equivalence.test.ts` keeps the
+ * pattern as the oracle.
+ */
+export function pipeDelimiterRow(line: string): boolean {
+  let at = 0;
+  while (at < 3 && line.charCodeAt(at) === 32) {
+    at++;
+  }
+  const end = pipeRuleBodyEnd(line, at);
+  return end >= 0 && skipBlanks(line, end) === line.length;
+}
 /** The top border of a grid table: dashes only between the plus signs (a `+====+` first border is no table). */
 const GRID_PLAIN_BORDER = /^\+(?:-+\+)+[ \t]*$/;
 
