@@ -2360,15 +2360,24 @@ const FRONTMATTER_COMMONMARK_FROM =
  * no space is absent because quarto REJECTS it (exit 1, `spl` `s_nospace`), so it has no
  * heading truth — the same reasoning `reader:` and upper-case `GFM` get elsewhere in this file.
  */
-const FRONTMATTER_MARKDOWN_BASE_FROM =
-  /^from[ \t]*:[ \t]*(["']?)markdown(?:[+-][a-zA-Z_]+)*\1[ \t]*(?:#.*)?$/;
+export function fromIsMarkdownBase(line: string): boolean {
+  return fromValueParts(line)?.base === "markdown";
+}
 /**
  * The same, for the four `markdown_*` bases measured WITHOUT `blank_before_header`. Matched
  * only so `+blank_before_header` can be honoured on them (Session 205) — on its own this
  * predicate must never fire the bail.
  */
-const FRONTMATTER_MARKDOWN_VARIANT_FROM =
-  /^from[ \t]*:[ \t]*(["']?)markdown(?:_strict|_mmd|_phpextra|_github)(?:[+-][a-zA-Z_]+)*\1[ \t]*(?:#.*)?$/;
+const FRONTMATTER_MARKDOWN_VARIANT_BASES: ReadonlySet<string> = new Set([
+  "markdown_strict",
+  "markdown_mmd",
+  "markdown_phpextra",
+  "markdown_github",
+]);
+export function fromIsMarkdownVariant(line: string): boolean {
+  const base = fromValueParts(line)?.base;
+  return base !== undefined && FRONTMATTER_MARKDOWN_VARIANT_BASES.has(base);
+}
 /**
  * A `from:` whose extension list turns `blank_before_header` ON, and one that turns it OFF.
  *
@@ -2401,13 +2410,10 @@ function fromKeepsBlankBeforeHeader(line: string): boolean {
   if (FRONTMATTER_FROM_DISABLES_BLANK_BEFORE_HEADER.test(line)) {
     return false;
   }
-  if (FRONTMATTER_MARKDOWN_BASE_FROM.test(line)) {
+  if (fromIsMarkdownBase(line)) {
     return true;
   }
-  return (
-    FRONTMATTER_MARKDOWN_VARIANT_FROM.test(line) &&
-    FRONTMATTER_FROM_ENABLES_BLANK_BEFORE_HEADER.test(line)
-  );
+  return fromIsMarkdownVariant(line) && FRONTMATTER_FROM_ENABLES_BLANK_BEFORE_HEADER.test(line);
 }
 /**
  * The five bases MEASURED to render a trailing `{…}` on a heading as ORDINARY TEXT, because they
@@ -2583,7 +2589,7 @@ function fromHonoursHeaderAttributes(line: string | null): boolean {
  * the feature-free control pair that showed it — the underscore-free twin renders normally.
  */
 function fromIsMarkdownFamily(line: string): boolean {
-  return FRONTMATTER_MARKDOWN_BASE_FROM.test(line) || FRONTMATTER_MARKDOWN_VARIANT_FROM.test(line);
+  return fromIsMarkdownBase(line) || fromIsMarkdownVariant(line);
 }
 /**
  * A resolved `from:` split into its BASE reader name and its EXTENSION list (Session 209).
@@ -2593,12 +2599,94 @@ function fromIsMarkdownFamily(line: string): boolean {
  * several bases and two DIFFERENT extensions have to be read against the same base — see
  * `fromHasDefinitionLists` and `fromHasFootnotes`, which are independent of each other.
  */
-const FRONTMATTER_FROM_READER_VALUE =
-  /^from[ \t]*:[ \t]*(["']?)([a-zA-Z][a-zA-Z0-9_]*)((?:[+-][a-zA-Z_]+)*)\1[ \t]*(?:#.*)?$/;
+export type FromValueParts = { quote: string; base: string; extensionStart: number; extensionEnd: number };
+const isBlankCode = (c: number): boolean => c === 32 || c === 9;
+const isLetterCode = (c: number): boolean => (c >= 65 && c <= 90) || (c >= 97 && c <= 122);
+/**
+ * Reads a front-matter `from:` line that names a reader — `from:`, an optional quote, a base reader name, an extension list (`+name` and `-name` after one another), the same quote, blanks and an optional YAML
+ * comment — or answers `null` for anything else (Session 335). It is the pattern `^from[ \t]*:[ \t]*(["']?)([a-zA-Z][a-zA-Z0-9_]*)((?:[+-][a-zA-Z_]+)*)\1[ \t]*(?:#.*)?$` read by a loop, because V8 keeps one entry of
+ * its regex backtrack stack per repetition of a group: an extension list of 3,356,294 or more tokens threw `RangeError: Maximum call stack size exceeded` (bisected at `c06ee06`), and the error reached every reader
+ * of the document. No step can give anything back for a later one (the base runs to its first sign, a name to the next sign or the end of its letters, the closing quote is one character), so the loop is the
+ * pattern, and `from-value-parts-equivalence.test.ts` keeps the pattern as the oracle. The list is returned as the offsets `[extensionStart, extensionEnd)` of `line`, not as a copy of it.
+ *
+ * The last answer is kept: one scan asks about the same `from:` line from some thirty places (a value of 13.6 million characters was read 28 times, 124 ms each, 3.5 of the 4.3 s the Outline took), and the
+ * answer is a function of the line alone, so it cannot go stale.
+ */
+let lastFromLine: string | null = null;
+let lastFromParts: FromValueParts | null = null;
+export function fromValueParts(line: string): FromValueParts | null {
+  if (line !== lastFromLine) {
+    lastFromParts = readFromValue(line);
+    lastFromLine = line;
+  }
+  return lastFromParts;
+}
+function readFromValue(line: string): FromValueParts | null {
+  if (!line.startsWith("from")) {
+    return null;
+  }
+  let at = 4;
+  while (isBlankCode(line.charCodeAt(at))) {
+    at++;
+  }
+  if (line[at] !== ":") {
+    return null;
+  }
+  at++;
+  while (isBlankCode(line.charCodeAt(at))) {
+    at++;
+  }
+  const quote = line[at] === '"' || line[at] === "'" ? line[at] : "";
+  at += quote.length;
+  const baseStart = at;
+  if (!isLetterCode(line.charCodeAt(at))) {
+    return null;
+  }
+  at++;
+  for (let c = line.charCodeAt(at); isLetterCode(c) || (c >= 48 && c <= 57) || c === 95; c = line.charCodeAt(at)) {
+    at++;
+  }
+  const base = line.slice(baseStart, at);
+  const extensionStart = at;
+  // A token is a sign and at least one letter or underscore; a sign with none is not part of the list, and the closing checks below refuse it.
+  for (;;) {
+    const sign = line.charCodeAt(at);
+    if (sign !== 43 && sign !== 45) {
+      break;
+    }
+    let end = at + 1;
+    for (let c = line.charCodeAt(end); isLetterCode(c) || c === 95; c = line.charCodeAt(end)) {
+      end++;
+    }
+    if (end === at + 1) {
+      break;
+    }
+    at = end;
+  }
+  const extensionEnd = at;
+  if (quote !== "") {
+    if (line[at] !== quote) {
+      return null;
+    }
+    at++;
+  }
+  while (isBlankCode(line.charCodeAt(at))) {
+    at++;
+  }
+  if (line[at] === "#") {
+    // `.` stops at a line feed, a CR and the two line separators, and the `$` after it is the end of the text.
+    for (at++; at < line.length; at++) {
+      const c = line.charCodeAt(at);
+      if (c === 10 || c === 13 || c === 0x2028 || c === 0x2029) {
+        return null;
+      }
+    }
+  }
+  return at === line.length ? { quote, base, extensionStart, extensionEnd } : null;
+}
 /** The base reader name of a resolved `from:`, or null if the value is not a reader name. */
-function fromReaderBase(line: string): string | null {
-  const m = FRONTMATTER_FROM_READER_VALUE.exec(line);
-  return m === null ? null : m[2];
+export function fromReaderBase(line: string): string | null {
+  return fromValueParts(line)?.base ?? null;
 }
 /**
  * Whether `extension` is turned ON (`true`), OFF (`false`) or left alone (`null`) by the
@@ -2610,16 +2698,22 @@ function fromReaderBase(line: string): string | null {
  * (`scratchpad/s209/adv` `x_deflast`, `x_deffirst`). It costs nothing to honour here and a
  * first-wins loop would be wrong on a value quarto accepts.
  */
-function fromExtensionState(line: string, extension: string): boolean | null {
-  const m = FRONTMATTER_FROM_READER_VALUE.exec(line);
-  if (m === null) {
+export function fromExtensionState(line: string, extension: string): boolean | null {
+  const parts = fromValueParts(line);
+  if (parts === null) {
     return null;
   }
+  // Each token runs from its sign to the next sign or the end of the list, and is compared where it lies: a list of millions of tokens is read once and copied never.
   let state: boolean | null = null;
-  for (const token of m[3].match(/[+-][a-zA-Z_]+/g) ?? []) {
-    if (token.slice(1) === extension) {
-      state = token[0] === "+";
+  for (let at = parts.extensionStart; at < parts.extensionEnd; ) {
+    let end = at + 1;
+    while (end < parts.extensionEnd && line[end] !== "+" && line[end] !== "-") {
+      end++;
     }
+    if (end - at - 1 === extension.length && line.startsWith(extension, at + 1)) {
+      state = line[at] === "+";
+    }
+    at = end;
   }
   return state;
 }
@@ -9791,7 +9885,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
   // Whether the reader is one whose REFUSAL structure was measured (Session 282, P3): no `from:` at all (the
   // default reader), or base `markdown` with any extensions — never the `markdown_*` variants, which lack
   // `blank_before_header` and were not measured, and never a CommonMark-family reader.
-  const measuredRefusalReader = fromValueLine === null || FRONTMATTER_MARKDOWN_BASE_FROM.test(fromValueLine);
+  const measuredRefusalReader = fromValueLine === null || fromIsMarkdownBase(fromValueLine);
   // ⚠ **WHETHER THE FREE CASE MAY CLAIM A PIPE TABLE, A LINE BLOCK OR A GRID TABLE (Session 295).** Rendered over 16 constructs x 7 readers
   // (`scratchpad/s295/rdr`): no `from:`, `markdown` (with any extensions), `gfm`, `commonmark` and `commonmark_x` all end the block at these constructs, while
   // `markdown_strict` has none of the three, so they are paragraph text there and the first cut's `Y` was a regression. `markdown_mmd`, `_phpextra` and
