@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-29 · [ad hoc] Session 337: the quality-gate run cited in the receipt -- 2/2 pass at c51db7e
+
+`quality_ratchet.py --run`, after the ledger commits (Learning 683): ledger-lag 0 and release-gate 0 (`npm run check-package`), 2 pass, 0 fail, 0 unmeasured, results `bba236856bad`, manifest `334939914945`. The dashboard reads 76/100 "critical" with 18 vulnerabilities (dev-only per Session 335, not re-checked; the dashboard copy is v2.22.0 against canonical v2.23.0, not synced). `context_budget.py`: `SESSION_NOTES.md` ok (332 lines, 46,947 B, no line over 280 B), `HANDOFFS.md`, `BACKLOG.md` and `PROJECT_LEARNINGS.md` over the 65,536 B ceiling as before, exit 2. `master` is 177 commits ahead of `origin/master`, unpushed. The worker worktrees and branches of this session were removed after `git cherry` showed all 35 of their commits on `master`; the foreign worktree `wf_f559ba89-653-5` is untouched.
+
 ### 2026-10-29 · [ad hoc] SESSION_NOTES trim (Session 337): the Session 333 handoff evaluation and the Session 334 self-assessment dropped, the three newest pairs kept
 
 The retention rule of Session 256 (the live file holds at most three close-out pairs), applied at Phase 3D after the close-out commit `bb3da38`; the trim commit `90bc758` holds no other edit to the file (29 lines deleted, none added). The dropped pair is one command away: `git show bb3da38:methodology/SESSION_NOTES.md`. `context_budget.py`: the notes are 332 lines and 46,947 bytes against 400 and 120,000, every line under 280 bytes (the new blocks were wrapped before the close-out commit); `HANDOFFS.md`, `BACKLOG.md` and `PROJECT_LEARNINGS.md` stay over the 65,536 B ceiling, as at Session 336, and the script exits 2 for them.
