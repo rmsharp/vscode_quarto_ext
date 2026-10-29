@@ -322,6 +322,9 @@ describe("Session 337 — refUsageEnd and refIdAt: the loop finds a cross-refere
     ["@fig-a..b", 0, 6],
     ["x @fig-a.b y", 2, 10],
     ["@fig-a", 1, -1], // not an `@`
+    ["afig-a", 0, -1], // a character that is no `@` with a kind right after it
+    [" fig-a", 0, -1],
+    ["xfig-a", 0, -1],
     ["@fig-a", -1, -1],
     ["@fig-a", 6, -1],
     ["@fig-a", 100, -1],
@@ -403,7 +406,8 @@ describe("Session 337 — refUsageEnd and refIdAt: the loop finds a cross-refere
     expect(refUsageEnd(`@fig-${ASTRAL_LETTER.repeat(Math.floor(n / 2))}`, 0)).toBe(5 + 2 * Math.floor(n / 2));
   }, HEAVY_ROW_MS);
 
-  it.each([4_194_286, 8_400_000])("a token of %i pairs `.a` ends after the last pair, and a doubled mark at the end stops it", (n) => {
+  const PAIR_RUNS = [4_194_286, 8_400_000];
+  it.each(PAIR_RUNS)("a token of %i pairs `.a` ends after the last pair, and a doubled mark at the end stops it", (n) => {
     const line = `@fig-a${".a".repeat(n)}`;
     expect(refUsageEnd(line, 0)).toBe(line.length);
     expect(refIdAt(line, 3)?.length).toBe(5 + 2 * n);
@@ -419,6 +423,17 @@ describe("Session 337 — refUsageEnd and refIdAt: the loop finds a cross-refere
     expect(refIdAt(line, 10)?.length).toBe(line.length - 1);
     expect(Date.now() - started).toBeLessThan(3000);
   }, HEAVY_ROW_MS);
+
+  // The cure's rows read a token the old pattern cannot (8,388,573 letters, 4,194,286 pairs `.a`, and the larger runs beside them), the comparison rows stay under what it reads on a two-byte line (4,194,286 letters;
+  // 2,796,190 pairs and the letter before them), and the seeded row's seed and size decide its pinned counts: none of these can be moved without the numbers beside them noticing.
+  it("keeps the sizes of the long-run rows and the seed of the seeded row", () => {
+    expect(SMALL_RUNS).toEqual([1, 2, 3, 100, 4_096, 65_536, 1_000_000]);
+    expect(LONG_RUNS).toEqual([8_388_573, 16_800_000]);
+    expect(PAIR_RUNS).toEqual([4_194_286, 8_400_000]);
+    expect([SEEDED_COUNT, SEED]).toEqual([100_000, 3370]);
+    expect(ENUMERATIONS.map((e) => `${e.alphabet.length} symbols up to ${e.maxLength}`)).toEqual(["7 symbols up to 7", "8 symbols up to 6", "11 symbols up to 5", "8 symbols up to 6"]);
+    expect(HEADS).toEqual(["@fig-a.b", " @eq-a:b_"]);
+  });
 
   // A comparison loop that cannot fail would pass every row above, so it is shown to fail once: a reader that never finds a usage disagrees with the old pattern, one that is the old pattern does not, and the loop
   // counts what it was given.
