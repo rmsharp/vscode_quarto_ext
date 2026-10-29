@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { fromExtensionState, fromIsMarkdownBase, fromIsMarkdownVariant, fromReaderBase, fromValueParts } from "../../src/core/qmd/model";
-import { LS, PS, seededRandom } from "./support/regex-equivalence";
+import { LS, PS, countCodeUnitEdits, everyCodeUnitEdit, seededRandom } from "./support/regex-equivalence";
 
 // The enumerations take several seconds each on a loaded machine; the sibling equivalence files give their heavy rows the same ceiling.
 const HEAVY_ROW_MS = 120_000;
 
 // Session 335 — the BACKLOG item "Nine more single-line overflow and slow-input families, none of them in Session 317's diff", part (5). Three patterns read the extension list of a front matter `from:`, `(?:[+-][a-zA-Z_]+)*`,
-// a group per token, and V8 keeps one entry of its regex backtrack stack per repetition of a group: a list of 3,356,294 or more tokens threw `RangeError: Maximum call stack size exceeded` (bisected at `c06ee06`), and
+// a group per token, and V8 keeps one entry of its regex backtrack stack per repetition of a group: a list of 3,355,428 or more tokens threw `RangeError: Maximum call stack size exceeded` (bisected at `c06ee06`), and
 // the error reached every reader of the document. `fromValueParts` reads the same line with a loop and the three questions are asked of its answer. The three old patterns and the old `fromExtensionState` are kept
 // below, copied from the parent `c06ee06` (`src/core/qmd/model.ts`), as the oracle (Learning 738); the pinned counts (how many lines of each enumeration the OLD patterns match) come from the old patterns and from a
 // Python port of them and never from the code under test.
@@ -37,7 +37,7 @@ const EXTENSIONS_ASKED = ["blank_before_header", "line_blocks", "a", "_", "Z", "
 
 type Count = { compared: number; reader: number; base: number; variant: number; onBlankBeforeHeader: number; offBlankBeforeHeader: number; disagreements: string[] };
 /** Compare the new reading with the old patterns over `lines`: how many were compared, how many each OLD pattern matched, and the first few disagreements. */
-function compareAll(lines: Iterable<string>): Count {
+function compareAll(lines: Iterable<string>, extensions: readonly string[] = EXTENSIONS_ASKED): Count {
   const count: Count = { compared: 0, reader: 0, base: 0, variant: 0, onBlankBeforeHeader: 0, offBlankBeforeHeader: 0, disagreements: [] };
   const note = (line: string, what: string): void => {
     if (count.disagreements.length < 5) {
@@ -73,7 +73,7 @@ function compareAll(lines: Iterable<string>): Count {
     if (fromReaderBase(line) !== oldFromReaderBase(line)) {
       note(line, `reader base: old ${oldFromReaderBase(line)}, now ${fromReaderBase(line)}`);
     }
-    for (const extension of EXTENSIONS_ASKED) {
+    for (const extension of extensions) {
       const expected = oldFromExtensionState(line, extension);
       if (fromExtensionState(line, extension) !== expected) {
         note(line, `extension ${JSON.stringify(extension)}: old ${expected}`);
@@ -230,7 +230,6 @@ describe("Session 335 — fromValueParts: the loop reads a front matter `from:` 
     expect(fromExtensionState("not a from line", "a")).toBeNull();
   });
 
-  // The last answer is kept, and a kept answer must not outlive its line: interleave other lines, ask for the same text as a different string object, and ask again.
   it("an extension name is looked for only in the list: not in the key, the base or the quote", () => {
     expect(fromExtensionState("from: markdown+a", "rom: markdown")).toBeNull();
     expect(fromExtensionState("from: markdown+a", "from: markdown")).toBeNull();
@@ -252,6 +251,7 @@ describe("Session 335 — fromValueParts: the loop reads a front matter `from:` 
     expect(Date.now() - started).toBeLessThan(1000);
   });
 
+  // The last answer is kept, and a kept answer must not outlive its line: interleave other lines, ask for the same text as a different string object, and ask again.
   it("a kept answer is never served for another line", () => {
     const lines = ["from: gfm", "from: markdown+a", "from: gfm", "from: markdown_mmd-b", "from: markdown_mmd-b", "from: markdown_mmd-c", "not from", "from: markdown+a"];
     for (const line of lines) {
@@ -266,9 +266,9 @@ describe("Session 335 — fromValueParts: the loop reads a front matter `from:` 
     expect(fromValueParts("from: markdown+a")).toEqual(first);
   });
 
-  // The cure itself: a list past the old overflow (3,356,294 tokens of `+_`) is read, and the list is the whole run. The old patterns are compared only below that, where they still read.
+  // The cure itself: a list past the old overflow (3,355,428 tokens of `+_`) is read, and the list is the whole run. The old patterns are compared only below that, where they still read.
   const SMALL_LISTS = [1, 2, 3, 100, 4_096, 65_536, 1_000_000, 3_000_000];
-  const LONG_LISTS = [3_356_294, 3_400_000, 6_800_000, 22_000_000];
+  const LONG_LISTS = [3_355_428, 3_400_000, 6_800_000, 22_000_000];
   it.each(SMALL_LISTS)("a list of %i tokens of `+_` and of `-Z` gives the old answer", (n) => {
     for (const unit of ["+_", "-Z"]) {
       for (const [head, tail] of [["from: markdown", ""], ["from: markdown_mmd", "  # why"], ['from: "markdown', '"'], ["from: markdown", "!"]]) {
@@ -306,5 +306,81 @@ describe("Session 335 — fromValueParts: the loop reads a front matter `from:` 
     expect(fromValueParts(line)).not.toBeNull();
     expect(fromExtensionState(line, "x")).toBeNull();
     expect(Date.now() - started).toBeLessThan(3000);
+  });
+});
+
+// The review round of Session 335 (its mutation lens): twenty edits of the reader survived every row above, because the alphabets of the heads, the bases, the tokens and the tails hold no form feed, vertical tab, no-break
+// space or next-line character, no `[`, `@` or backtick next to the letter ranges, no `z` and no lower case in a base. A blank class widened by one character, a letter class widened or narrowed by one, a comment that ends at a
+// character the old `.` takes, a slash inside a base, a base compared without its case: each changes the Outline of a document whose `from:` the line is. Every UTF-16 code unit is put into each head and in place of each of
+// its characters. The memo is pinned the same way: its key was only the line's length and its last 4,096 characters in one edit, and a null answer was not kept in another.
+describe("Session 335 review — fromValueParts on every code unit, and the memo's key and its null answer", () => {
+  const SWEEP_HEADS = ["from: markdown+az", "from:\t'markdown_mmd-AZ' #c", "from : gfm\t"];
+  it("every head with one code unit put into it, or in place of one of its characters, is read as the old patterns read it", () => {
+    const { disagreements, ...counts } = compareAll(everyCodeUnitEdit(SWEEP_HEADS), ["blank_before_header", "a", "z"]);
+    expect(disagreements).toEqual([]);
+    // Recounted by a Python port of the three old patterns and of the sweep (7,274,496 lines). No head holds `blank_before_header`, so the extension counters stay at nothing: the extension states are compared, line for line.
+    expect(counts).toEqual({ compared: countCodeUnitEdits(SWEEP_HEADS), reader: 200_619, base: 303, variant: 196_902, onBlankBeforeHeader: 0, offBlankBeforeHeader: 0 });
+  }, HEAVY_ROW_MS);
+
+  const REVIEW_STATED: Array<[string, string | null, boolean, boolean]> = [
+    // line, base or null, markdown base, markdown variant
+    ["from: MARKDOWN", "MARKDOWN", false, false],
+    ["from: Markdown+a", "Markdown", false, false],
+    ["from: markdown_MMD", "markdown_MMD", false, false],
+    ["from: markdown/x", null, false, false],
+    ["from: markdown+zebra", "markdown", true, false],
+    ["from: markdown+Zebra-yak_Z", "markdown", true, false],
+    ["from: markdown+a[b", null, false, false],
+    ["from: markdown+a@b", null, false, false],
+    ["from: markdown+a`b", null, false, false],
+    ["from: markdown+a{b", null, false, false],
+    ["from:\fmarkdown", null, false, false],
+    ["from:\vmarkdown", null, false, false],
+    ["from:" + String.fromCharCode(0xa0) + "markdown", null, false, false],
+    ["from\f: markdown", null, false, false],
+    ["from: markdown\f", null, false, false],
+    ["from: markdown # c\fd", "markdown", true, false],
+    ["from: markdown # c\vd", "markdown", true, false],
+    ["from: markdown # c" + String.fromCharCode(0x85) + "d", "markdown", true, false],
+    ["from: markdown # c" + String.fromCharCode(0xa0) + "d", "markdown", true, false],
+    ["from: markdown # c" + String.fromCharCode(0x2027) + "d", "markdown", true, false],
+    ["from: markdown # c" + String.fromCharCode(0x202a) + "d", "markdown", true, false],
+    ["from: markdown # c\0d", "markdown", true, false],
+  ];
+  it.each(REVIEW_STATED.map(([line, base, isBase, isVariant]) => [JSON.stringify(line), line, base, isBase, isVariant] as const))("%s is stated by hand, by the old patterns and by the new reading", (_label, line, base, isBase, isVariant) => {
+    expect(oldFromReaderBase(line)).toBe(base);
+    expect([OLD_MARKDOWN_BASE_FROM.test(line), OLD_MARKDOWN_VARIANT_FROM.test(line)]).toEqual([isBase, isVariant]);
+    expect(fromReaderBase(line)).toBe(base);
+    expect([fromIsMarkdownBase(line), fromIsMarkdownVariant(line)]).toEqual([isBase, isVariant]);
+  });
+
+  it("two lines of the same length with the same last 4,096 characters are two answers", () => {
+    const tail = "+_".repeat(3000);
+    const a = `from: markdown${tail}`;
+    const b = `from: gfm_____${tail}`;
+    expect(a.length).toBe(b.length);
+    expect(a.slice(-4096)).toBe(b.slice(-4096));
+    for (const line of [a, b, a, b]) {
+      expect(fromReaderBase(line)).toBe(oldFromReaderBase(line));
+      expect(fromIsMarkdownBase(line)).toBe(OLD_MARKDOWN_BASE_FROM.test(line));
+    }
+    expect([fromReaderBase(a), fromReaderBase(b)]).toEqual(["markdown", "gfm_____"]);
+  });
+
+  // A line that is no reader value (a character that ends the list) is the line a scan asks about from thirty places, as much as any other; its answer, null, is kept as well. The clock is a ratio, so a loaded
+  // machine cannot fake it: the first read of a 4-million-character line costs some milliseconds, the next thirty ask nothing more.
+  it("a line that is no reader value is read once, however often it is asked about", () => {
+    const line = `from: markdown${"+_".repeat(2_000_001)}!`;
+    const firstStarted = performance.now();
+    expect(fromValueParts(line)).toBeNull();
+    const first = performance.now() - firstStarted;
+    const restStarted = performance.now();
+    for (let i = 0; i < 10; i++) {
+      expect(fromReaderBase(line)).toBeNull();
+      expect(fromIsMarkdownBase(line)).toBe(false);
+      expect(fromExtensionState(line, "blank_before_header")).toBeNull();
+    }
+    const rest = performance.now() - restStarted;
+    expect(rest).toBeLessThan(first * 5 + 50);
   });
 });

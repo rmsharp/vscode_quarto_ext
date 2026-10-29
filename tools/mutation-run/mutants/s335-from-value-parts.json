@@ -5,7 +5,7 @@
   "from": "  if (!line.startsWith(\"from\")) {\n    return null;\n  }\n  let at = 4;",
   "to": "  if (!line.startsWith(\"fro\")) {\n    return null;\n  }\n  let at = 4;",
   "expect": "killed",
-  "why": "`fromm:` would be read as a from line"
+  "why": "`froX: markdown` would be read as a from line (any fourth character before the colon; `fromm:` is still refused, the colon is checked at index 4)"
  },
  {
   "name": "F02 readFromValue: the scan starts one character early",
@@ -398,5 +398,165 @@
   "to": "  return fromReaderBase(line) === \"markdown\";",
   "expect": "killed",
   "why": "`markdown-line_blocks` would keep line blocks"
+ },
+ {
+  "name": "RV01 FV1 isBlankCode: a form feed is a blank",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isBlankCode = (c: number): boolean => c === 32 || c === 9;",
+  "to": "const isBlankCode = (c: number): boolean => c === 32 || c === 9 || c === 12;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV02 FV2 isBlankCode: a no-break space is a blank",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isBlankCode = (c: number): boolean => c === 32 || c === 9;",
+  "to": "const isBlankCode = (c: number): boolean => c === 32 || c === 9 || c === 160;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV03 FV3 isBlankCode: a vertical tab is a blank",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isBlankCode = (c: number): boolean => c === 32 || c === 9;",
+  "to": "const isBlankCode = (c: number): boolean => c === 32 || c === 9 || c === 11;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV04 FV4 isLetterCode: [ is a letter",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isLetterCode = (c: number): boolean => (c >= 65 && c <= 90) || (c >= 97 && c <= 122);",
+  "to": "const isLetterCode = (c: number): boolean => (c >= 65 && c <= 91) || (c >= 97 && c <= 122);",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV05 FV5 isLetterCode: @ is a letter",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isLetterCode = (c: number): boolean => (c >= 65 && c <= 90) || (c >= 97 && c <= 122);",
+  "to": "const isLetterCode = (c: number): boolean => (c >= 64 && c <= 90) || (c >= 97 && c <= 122);",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV06 FV6 isLetterCode: a backtick is a letter",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isLetterCode = (c: number): boolean => (c >= 65 && c <= 90) || (c >= 97 && c <= 122);",
+  "to": "const isLetterCode = (c: number): boolean => (c >= 65 && c <= 90) || (c >= 96 && c <= 122);",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV07 FV9 isLetterCode: the lower-case range ends at y",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isLetterCode = (c: number): boolean => (c >= 65 && c <= 90) || (c >= 97 && c <= 122);",
+  "to": "const isLetterCode = (c: number): boolean => (c >= 65 && c <= 90) || (c >= 97 && c <= 121);",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV08 FV10 readFromValue: a slash is inside a base",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let c = line.charCodeAt(at); isLetterCode(c) || (c >= 48 && c <= 57) || c === 95; c = line.charCodeAt(at)) {",
+  "to": "for (let c = line.charCodeAt(at); isLetterCode(c) || (c >= 47 && c <= 57) || c === 95; c = line.charCodeAt(at)) {",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV09 FV22 readFromValue: a form feed ends a comment",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (c === 10 || c === 13 || c === 0x2028 || c === 0x2029) {",
+  "to": "if (c === 10 || c === 13 || c === 12 || c === 0x2028 || c === 0x2029) {",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV10 FV23 readFromValue: a vertical tab ends a comment",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (c === 10 || c === 13 || c === 0x2028 || c === 0x2029) {",
+  "to": "if (c === 10 || c === 13 || c === 11 || c === 0x2028 || c === 0x2029) {",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV11 FV24 readFromValue: NEL ends a comment",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (c === 10 || c === 13 || c === 0x2028 || c === 0x2029) {",
+  "to": "if (c === 10 || c === 13 || c === 0x85 || c === 0x2028 || c === 0x2029) {",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV12 FV25 readFromValue: a no-break space ends a comment",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (c === 10 || c === 13 || c === 0x2028 || c === 0x2029) {",
+  "to": "if (c === 10 || c === 13 || c === 0xa0 || c === 0x2028 || c === 0x2029) {",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV13 FV26 readFromValue: U+2027 ends a comment",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (c === 10 || c === 13 || c === 0x2028 || c === 0x2029) {",
+  "to": "if (c === 10 || c === 13 || c === 0x2027 || c === 0x2028 || c === 0x2029) {",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV14 FV27 readFromValue: U+202A ends a comment",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (c === 10 || c === 13 || c === 0x2028 || c === 0x2029) {",
+  "to": "if (c === 10 || c === 13 || c === 0x202a || c === 0x2028 || c === 0x2029) {",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV15 FV28 readFromValue: a NUL ends a comment",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (c === 10 || c === 13 || c === 0x2028 || c === 0x2029) {",
+  "to": "if (c === 10 || c === 13 || c === 0 || c === 0x2028 || c === 0x2029) {",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV16 FV35 readFromValue: the key may be followed by a form feed before the colon",
+  "file": "src/core/qmd/model.ts",
+  "from": "  let at = 4;\n  while (isBlankCode(line.charCodeAt(at))) {",
+  "to": "  let at = 4;\n  while (isBlankCode(line.charCodeAt(at)) || line.charCodeAt(at) === 12) {",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV17 FV36 memo: a null answer is not kept",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (line !== lastFromLine) {\n    lastFromParts = readFromValue(line);",
+  "to": "  if (line !== lastFromLine || lastFromParts === null) {\n    lastFromParts = readFromValue(line);",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV18 FV38 memo: only the last 4096 characters are compared",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (line !== lastFromLine) {\n    lastFromParts = readFromValue(line);",
+  "to": "  if (lastFromLine === null || line.slice(-4096) !== lastFromLine.slice(-4096) || line.length !== lastFromLine.length) {\n    lastFromParts = readFromValue(line);",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV19 FV40 memo: the answer is read twice",
+  "file": "src/core/qmd/model.ts",
+  "from": "    lastFromParts = readFromValue(line);\n    lastFromLine = line;",
+  "to": "    readFromValue(line);\n    lastFromParts = readFromValue(line);\n    lastFromLine = line;",
+  "expect": "survives",
+  "why": "found by the review round of Session 335 (its mutation lens): the answer is read twice for a line seen for the first time, and once for every later ask. The answers are the same and the extra cost is one read of one line (under 15 ms at 4 million characters), which no clock row can tell from load; recorded as a gap, not an error"
+ },
+ {
+  "name": "RV20 FV53 fromIsMarkdownBase: a base is compared case-insensitively",
+  "file": "src/core/qmd/model.ts",
+  "from": "return fromValueParts(line)?.base === \"markdown\";",
+  "to": "return fromValueParts(line)?.base?.toLowerCase() === \"markdown\";",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
  }
 ]
