@@ -1758,54 +1758,6 @@ export const PANDOC_INLINE_MACROS =
   "j|k|l|o|r|t|u|v";
 /** A control-sequence NAME ends at the first non-letter: `\vspace2` is `vspace` then `2`. */
 const MACRO_NAME_END = "(?![a-zA-Z])";
-/** One argument group, optional (`[…]`) or braced (`{…}`), tolerating one level of nesting
- *  so `\newcommand{\foo}{a{b}c}` is still recognised as consuming its arguments. */
-const MACRO_ARG_GROUP = "(?:\\[[^\\]]*\\]|\\{(?:[^{}]|\\{[^{}]*\\})*\\})";
-/** A macro that is NOT class C — the only thing (besides whitespace) allowed to follow a
- *  block macro on its line without turning the line into prose. */
-const NON_INLINE_MACRO =
-  "\\\\(?!(?:" + PANDOC_INLINE_MACROS + ")" + MACRO_NAME_END + ")[a-zA-Z]+" + MACRO_ARG_GROUP + "*";
-/** What may follow a block macro's own arguments: a run of non-inline macros, then only
- *  whitespace to end of line. Measured — see the tail note above. */
-const MACRO_LINE_TAIL = "(?:[ \\t]*" + NON_INLINE_MACRO + ")*[ \\t]*$";
-/**
- * Class A — a raw-TeX macro that opens a block in EVERY context, so it is tested AHEAD of the
- * `paragraphOpen` bail beside `RAW_TEX_ENV_OPEN`. This is the heading-RECOVERING direction:
- * before it, `prose` / `prose` / `\maketitle` / `# ATX Below` lost its heading outright.
- *
- * ⚠ **THE LEADING-WHITESPACE CLASS IS `[ \t]*` AND CARRIES NO CAP, WHICH IS THE OPPOSITE OF
- * THE CLASS-B ROW BELOW — the word "indent" names two rules that fail in opposite directions
- * (Session 190).** Class A never reaches pandoc's `rawTeXBlock` at all on the path that
- * matters here. It interrupts an open paragraph by making `inlineCommand'` FAIL —
- *
- *     guard $ isInlineCommand name || not (isBlockCommand name)
- *
- * — and that guard runs at the INLINE level, reached through `inline`'s `'\\'` dispatch on a
- * paragraph's continuation line, where the leading whitespace has already been consumed as
- * inter-word space. There is no `skipNonindentSpaces` on that path and no column rule anywhere
- * near it, so **the indent is not part of the question**. `^ {0,3}` therefore did not model
- * CommonMark's indented-code rule; it simply lost the class-A test on indented lines, and
- * Session 183's `paragraphOpen` bail then DELETED the heading below every one of them.
- *
- * Measured over the full 0-8 indent sweep in both contexts: `\maketitle` releases the heading
- * at EVERY indent and at one tab, two tabs and space+tab, while `\clearpage` — class B, the
- * control that decides it — releases it at NONE of them, at any indent. Widening class B the
- * same way restores the 1,043 phantoms Session 189 removed; capping class A deletes a real
- * heading under every indented `\maketitle`.
- *
- * ⚠ **The NAME is still the whole rule, and widening the indent did not weaken it.** The tail
- * rule, the arity split (`\par` block / `\par{x}` not; `\section{x}` block / bare `\section`
- * not) and the class-C exclusion all still decide the line — each re-measured AT INDENT 4 in
- * its own right rather than inherited from column 0. This is the same repair, for the same
- * reason, that `HTML_BLOCK_OPEN`'s indent class already carries (Session 185).
- */
-const RAW_TEX_BLOCK_MACRO = new RegExp(
-  "^[ \\t]*\\\\(?:" + PANDOC_BLOCK_MACROS_ANY + ")" + MACRO_NAME_END +
-    MACRO_ARG_GROUP + "*" + MACRO_LINE_TAIL +
-  "|^[ \\t]*\\\\(?:" + PANDOC_BLOCK_MACROS_ARG + ")" + MACRO_NAME_END +
-    MACRO_ARG_GROUP + "+" + MACRO_LINE_TAIL +
-  "|^[ \\t]*\\\\(?:" + PANDOC_BLOCK_MACROS_BARE + ")" + MACRO_NAME_END + MACRO_LINE_TAIL,
-);
 const macroNames = (list: string): ReadonlySet<string> => new Set(list.replace(/\\\*/g, "*").split("|"));
 const BLOCK_MACROS_ANY = macroNames(PANDOC_BLOCK_MACROS_ANY);
 const BLOCK_MACROS_ARG = macroNames(PANDOC_BLOCK_MACROS_ARG);
@@ -1887,7 +1839,37 @@ function blockMacroReads(line: string, name: string, from: number): boolean {
   return BLOCK_MACROS_BARE.has(name) && macroLineTailOk(line, from);
 }
 /**
- * `RAW_TEX_BLOCK_MACRO.test(line)` read by a loop (Session 335): blanks, a backslash, a block macro named in one of the three lists (the whole run of letters, or the run and a `*` that no letter follows), its argument
+ * Class A — a raw-TeX macro that opens a block in EVERY context, so it is tested AHEAD of the
+ * `paragraphOpen` bail beside `RAW_TEX_ENV_OPEN`. This is the heading-RECOVERING direction:
+ * before it, `prose` / `prose` / `\maketitle` / `# ATX Below` lost its heading outright.
+ *
+ * ⚠ **THE LEADING-WHITESPACE CLASS IS `[ \t]*` AND CARRIES NO CAP, WHICH IS THE OPPOSITE OF
+ * THE CLASS-B ROW BELOW — the word "indent" names two rules that fail in opposite directions
+ * (Session 190).** Class A never reaches pandoc's `rawTeXBlock` at all on the path that
+ * matters here. It interrupts an open paragraph by making `inlineCommand'` FAIL —
+ *
+ *     guard $ isInlineCommand name || not (isBlockCommand name)
+ *
+ * — and that guard runs at the INLINE level, reached through `inline`'s `'\\'` dispatch on a
+ * paragraph's continuation line, where the leading whitespace has already been consumed as
+ * inter-word space. There is no `skipNonindentSpaces` on that path and no column rule anywhere
+ * near it, so **the indent is not part of the question**. `^ {0,3}` therefore did not model
+ * CommonMark's indented-code rule; it simply lost the class-A test on indented lines, and
+ * Session 183's `paragraphOpen` bail then DELETED the heading below every one of them.
+ *
+ * Measured over the full 0-8 indent sweep in both contexts: `\maketitle` releases the heading
+ * at EVERY indent and at one tab, two tabs and space+tab, while `\clearpage` — class B, the
+ * control that decides it — releases it at NONE of them, at any indent. Widening class B the
+ * same way restores the 1,043 phantoms Session 189 removed; capping class A deletes a real
+ * heading under every indented `\maketitle`.
+ *
+ * ⚠ **The NAME is still the whole rule, and widening the indent did not weaken it.** The tail
+ * rule, the arity split (`\par` block / `\par{x}` not; `\section{x}` block / bare `\section`
+ * not) and the class-C exclusion all still decide the line — each re-measured AT INDENT 4 in
+ * its own right rather than inherited from column 0. This is the same repair, for the same
+ * reason, that `HTML_BLOCK_OPEN`'s indent class already carries (Session 185).
+ *
+ * Read by a loop since Session 335 (it was the pattern `RAW_TEX_BLOCK_MACRO`): blanks, a backslash, a block macro named in one of the three lists (the whole run of letters, or the run and a `*` that no letter follows), its argument
  * groups as its list allows, then a run of macros that are not class C and blanks to the end. The pattern read every argument group and every further macro as a group, and V8 keeps one entry of its regex backtrack
  * stack per repetition of a group: ` \pdfstringdef[]` and 2,097,487 `\x` threw `RangeError: Maximum call stack size exceeded` (bisected at `c06ee06`; the `[]` groups at 3,356,294 and the `{}` groups at 8,388,781), and
  * the error reached every reader of the document. Nothing is given back for a later step (an argument group ends at its first closing bracket or its matching brace, a name at its last letter, and a group or a
@@ -5983,7 +5965,7 @@ function closesParagraph(
   if (
     HTML_BLOCK_OPEN.test(line) ||
     RAW_TEX_ENV_OPEN.test(line) ||
-    RAW_TEX_BLOCK_MACRO.test(line) ||
+    rawTexBlockMacroLine(line) ||
     CLOSER_LINE.test(line) ||
     // ⚠ **`CLOSER_LINE` IS STILL ` {0,3}`, SO A FENCE DEEPER THAN THAT NEEDS ITS OWN SIGNAL**
     // (Session 227). The caller has already established that this line is a div fence sitting
@@ -6382,7 +6364,7 @@ function opensFreshBlock(
   contentColumns: readonly number[] | null,
   deepHeaderHere: boolean,
 ): boolean {
-  if (HTML_BLOCK_OPEN.test(line) || RAW_TEX_BLOCK_MACRO.test(line)) {
+  if (HTML_BLOCK_OPEN.test(line) || rawTexBlockMacroLine(line)) {
     return true;
   }
   // A line of 7+ `#` (Session 266), whose paragraph question the caller has already asked.
@@ -14908,7 +14890,7 @@ function sectionEndOf(headings: Heading[], k: number, lastLine: number): number 
  * Class A as a HEADING refuses it — the same three tables, read under a DIFFERENT arity rule and
  * with NO tail rule at all (Session 269, R4 of `docs/REAL-DOCUMENT-RESCORE.md`).
  *
- * ⚠ **THIS IS NOT `RAW_TEX_BLOCK_MACRO`, AND THE THREE DIFFERENCES ALL DELETE HEADINGS IF
+ * ⚠ **THIS IS NOT `rawTexBlockMacroLine`, AND THE THREE DIFFERENCES ALL DELETE HEADINGS IF
  * IGNORED.** That row answers "does this LINE open a block?", reached through pandoc's
  * `rawTeXBlock` at the start of a line. This one answers "does the INLINE parser refuse this
  * token?", reached through `rawLaTeXInline'`'s `notFollowedBy' rawLaTeXBlock` in the middle of a
@@ -14918,12 +14900,12 @@ function sectionEndOf(headings: Heading[], k: number, lastLine: number): number 
  *
  *   - **NO TAIL RULE.** `\maketitle and more words`, `\maketitle.`, `\maketitle % a comment` and
  *     `\maketitle \textbf{b}` ALL refuse the heading, where every one of those tails CANCELS
- *     blockhood on a line. `MACRO_LINE_TAIL` must not be applied here.
+ *     blockhood on a line. `macroLineTailOk` must not be applied here.
  *   - **THE BARE ARITY INVERTS.** `\par` is a block and `\par{x}` is not; in a heading BOTH
  *     refuse, along with `\item{x}`, `\hrule{x}`, `\raggedright{x}` and `\par x`. The leftover
  *     brace group opens a paragraph that swallows the heading below a LINE; inside a header there
  *     is nothing below to swallow.
- *   - **AN OPTIONAL `[…]` GROUP DOES NOT SATISFY ARG ARITY.** `MACRO_ARG_GROUP` admits either
+ *   - **AN OPTIONAL `[…]` GROUP DOES NOT SATISFY ARG ARITY.** `macroArgEnd` admits either
  *     bracket kind, and here only a BRACED group counts: `\section[a]`, `\title[a]` and
  *     `\caption[a]` are real headings while `\section[a]{x}` is not.
  *
