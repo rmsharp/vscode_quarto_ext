@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { ATTR_ATOM_RUN } from "../../src/core/qmd/model";
+import { attributeAtomRun } from "../../src/core/qmd/model";
 import { compare, countStrings, everyString, seededRandom } from "./support/regex-equivalence";
+
+/**
+ * A function that answers a yes or no, as the pattern it replaced answered `exec` and `test` (Session 337): the whole token as the match and no groups. `ATTR_ATOM_RUN` is the function `attributeAtomRun` since
+ * Session 337 (the pattern's id group was a quantified group and threw RangeError from 3,355,430 ids), and every row of this file still asks the grammar of Session 324 through `ATTR_ATOM_RUN.test` and `exec`.
+ * `attr-atom-id-run-equivalence.test.ts` compares the function with the pattern as it stood at that session.
+ */
+const asPattern = (accepts: (token: string) => boolean): RegExp =>
+  ({ exec: (text: string) => (accepts(text) ? Object.assign([text], { index: 0, input: text }) : null), test: accepts }) as unknown as RegExp;
+const ATTR_ATOM_RUN = asPattern(attributeAtomRun);
 
 // Session 324 — the BACKLOG item "Nine more single-line overflow and slow-input families, none of them in Session 317's diff", part (1). `ATTR_ATOM_RUN` judges one token of a heading, fence, image, span or div attribute block
 // as a run of `-`, `#id` and `.class` atoms. It was an alternation of the three atoms under a `+`, and an id's tail and a class's tail both hold `.` and `-`, so `.A.A.A` was one class or three and a token

@@ -481,10 +481,9 @@ function headingAttributeId(
   // Reusing Session 218's tokenizer is what makes a key=value contribute no ids at all, and it
   // is the same rule that already decided the block was valid: same split, same quote handling,
   // same escaped-space branch.
-  const atoms = commonmarkDialect ? ATTR_ATOM_COMMONMARK : ATTR_ATOM_RUN;
   const found: string[] = [];
   for (const token of headingAttributeTokens(content, pandocEscapes)) {
-    if (!atoms.test(token)) {
+    if (!(commonmarkDialect ? ATTR_ATOM_COMMONMARK.test(token) : attributeAtomRun(token))) {
       continue;
     }
     for (const m of token.matchAll(ATTR_ID_ALL)) {
@@ -750,7 +749,7 @@ const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 |
  * and so is `{.クラス}` (`*_x12unicls`), which the first draft of this rule kept — a regression
  * its own adversarial pass caught.
  *
- * ⚠ **THE PATTERN IS THE ATOM GRAMMAR FACTORED, NOT TRANSCRIBED (Session 324).** It used to be an alternation of
+ * ⚠ **THE READER IS THE ATOM GRAMMAR FACTORED, NOT TRANSCRIBED (Session 324).** It used to be an alternation of
  * the three atoms under a `+`, and an id's tail and a class's tail both hold `.` and `-`: `.A.A.A` was one class or
  * three, `#a-` an id or an id and a dash, so a token whose LAST character is wrong (`!`) was tried under every split
  * before it was refused (exponential in the classes: a 68-byte heading of 30 of them took 7.4 s warm, and quadratic in a run of dashes after
@@ -759,16 +758,87 @@ const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 |
  * adds no string. From the first `#` on, each `#` opens an id that takes every identifier character up to the next
  * `#`, so the rest is `#` and one or more identifier characters, repeated. The parts begin on `-`, `.` and `#`, and
  * the identifier set holds none of the `#`, so no character is read two ways at an edge and a refusal costs one pass.
- * The lookahead keeps the empty token refused (a run is one or more atoms). The old spelling is the oracle in
+ * The empty token is refused (a run is one or more atoms). The alternation is the oracle in
  * `test/unit/attr-atom-run-equivalence.test.ts`.
  *
- * ⚠ **"LINEAR" IS NOT "SAFE AT ANY LENGTH": THE IDS ARE STILL A QUANTIFIED GROUP.** A token of about 3.36 million ids (`#a`
- * repeated, 6.7 million characters) throws `RangeError` out of the regex stack, as the old spelling did at the same length
- * (BACKLOG, the item that lists the regex-stack overflows); dashes, one class and one long id are not groups and answer at
- * tens of millions of characters (the old alternation threw from 9 million dashes).
- * ⚠ Do not respell it as the alternation of the three atoms: every answer stays the same and only the clock rows go red.
+ * ⚠ **IT IS A LOOP BECAUSE THE IDS WERE A QUANTIFIED GROUP, AND V8 KEEPS ONE REGEX BACKTRACK ENTRY PER REPETITION OF A GROUP (Session 337).**
+ * Session 324 spelled the plain shape as the pattern `/^(?!$)-*(?:\.\p{L}[\p{L}\p{N}_:.-]*)?(?:#[\p{L}\p{N}_:.-]+)*$/u`,
+ * which was linear and still threw `RangeError: Maximum call stack size exceeded` on a token of 3,355,430 ids (`#a`
+ * repeated, 6.7 million characters; 3,355,429 read, Node 22.23): out of `findHeadings`, `buildOutline`, `findAllCells`,
+ * `indexLabels`, `findLabel` and `resolveDocumentEngine` for a heading, out of `indexLabels` for a div, an image or a span, and out of
+ * every entry for a tilde fence or a backtick fence with a word before the block, and a thrown `RangeError` answers NOTHING for the
+ * whole document. Dashes, one class and one long id were never groups and answered at tens of millions of characters.
+ * This function reads the same language by UTF-16 code unit, in one pass, with no stack: the dashes, the dot and one letter and the
+ * identifier characters after it, then `#` and one or more identifier characters, again and again. The old pattern is the oracle in
+ * `test/unit/attr-atom-id-run-equivalence.test.ts` (copied verbatim, beside a reading of the grammar by definition with no regular
+ * expression, an enumeration of every short string over three alphabets, and every UTF-16 code unit at every place of five heads).
+ * ⚠ A letter or a number outside ASCII is read as a CODE POINT, as the pattern's `u` flag read it: a high surrogate followed by a low
+ * one is ONE character (`𝐀`, a letter) and a surrogate on its own is neither a letter nor a number. ⚠ Do not respell it as the pattern
+ * above, and do not respell it as the alternation of the three atoms: every answer stays the same and only the document rows go red.
  */
-export const ATTR_ATOM_RUN = /^(?!$)-*(?:\.\p{L}[\p{L}\p{N}_:.-]*)?(?:#[\p{L}\p{N}_:.-]+)*$/u;
+export function attributeAtomRun(token: string): boolean {
+  const length = token.length;
+  let at = 0;
+  while (at < length && token.charCodeAt(at) === 45) {
+    at++;
+  }
+  if (at < length && token.charCodeAt(at) === 46) {
+    const afterLetter = attributeLetterEnd(token, at + 1);
+    if (afterLetter < 0) {
+      return false;
+    }
+    at = attributeIdentifierEnd(token, afterLetter);
+  }
+  while (at < length) {
+    if (token.charCodeAt(at) !== 35) {
+      return false;
+    }
+    const idEnd = attributeIdentifierEnd(token, at + 1);
+    if (idEnd === at + 1) {
+      return false;
+    }
+    at = idEnd;
+  }
+  return length > 0;
+}
+/** A letter or a number that is no ASCII character, read from `lastIndex` as one code point (a pair of surrogate halves is one), the way the `u` flag of the pattern it replaced read it. */
+const NON_ASCII_LETTER = /\p{L}/uy;
+const NON_ASCII_LETTER_OR_NUMBER = /[\p{L}\p{N}]/uy;
+/** Where the one letter that starts a class ends: the index after the letter at `at`, or -1 when `at` holds none. */
+function attributeLetterEnd(token: string, at: number): number {
+  if (at >= token.length) {
+    return -1;
+  }
+  const c = token.charCodeAt(at);
+  if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122)) {
+    return at + 1;
+  }
+  if (c < 128) {
+    return -1;
+  }
+  NON_ASCII_LETTER.lastIndex = at;
+  return NON_ASCII_LETTER.test(token) ? NON_ASCII_LETTER.lastIndex : -1;
+}
+/** Where a run of identifier characters (letters, numbers, `_`, `:`, `.` and `-`) that starts at `from` ends: the index of the first character that is none, or the length of the token. */
+function attributeIdentifierEnd(token: string, from: number): number {
+  let at = from;
+  while (at < token.length) {
+    const c = token.charCodeAt(at);
+    if (c < 128) {
+      if (!((c >= 97 && c <= 122) || (c >= 65 && c <= 90) || (c >= 48 && c <= 58) || c === 95 || c === 46 || c === 45)) {
+        break;
+      }
+      at++;
+      continue;
+    }
+    NON_ASCII_LETTER_OR_NUMBER.lastIndex = at;
+    if (!NON_ASCII_LETTER_OR_NUMBER.test(token)) {
+      break;
+    }
+    at = NON_ASCII_LETTER_OR_NUMBER.lastIndex;
+  }
+  return at;
+}
 /**
  * `commonmark_x`'s spelling of the two token forms above — **ONE atom per token, no `-`, and a
  * class that may start with anything but may not contain a `.`** (Session 218).
@@ -891,7 +961,7 @@ function headingAttributesValid(
       tokens.every((t) => ATTR_ATOM_COMMONMARK.test(t) || ATTR_KEY_VALUE_COMMONMARK.test(t))
     );
   }
-  return tokens.every((t) => ATTR_ATOM_RUN.test(t) || attributeKeyValue(t));
+  return tokens.every((t) => attributeAtomRun(t) || attributeKeyValue(t));
 }
 /**
  * The characters a backslash may escape under **CommonMark 6.1** — the 32 ASCII punctuation

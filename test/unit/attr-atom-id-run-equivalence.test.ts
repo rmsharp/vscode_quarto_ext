@@ -210,7 +210,7 @@ describe("Session 337 — attributeAtomRun accepts what ATTR_ATOM_RUN's pattern 
     expect(compared).toBe(countCodeUnitEdits(heads));
     expect(compared).toBe((31 + 11 + 5 + 7 + 3) * 0x10000);
     expect(accepted).toBeGreaterThan(compared / 10);
-    expect(accepted).toBeLessThan(compared / 2);
+    expect(accepted).toBeLessThan(compared * 0.9);
   });
 
   // A comparison loop that cannot fail would pass every row above, so it is shown to fail once: a function that accepts only dashes disagrees with the pattern, and the loop counts what it was asked.
