@@ -13039,7 +13039,7 @@ export function cellOptionLinesOf(cell: Cell): CellOptionLine[] {
     // the anchor sits MID-flow on a single line (`#| myopt: [one, &a'b]`: the `]` no longer
     // falls inside a phantom quote). So the first-char strip below and `scanFlow` are now BOTH
     // node-property-aware for quotes, on every path (§9 missed-sites lens, S156; fixed S157).
-    const stripped = armToken.replace(/^(?:[&!][^\s,[\]{}]*[ \t]*)+/, "");
+    const stripped = armToken.slice(nodePropertyEnd(armToken));
     const opener = stripped[0];
     if (opener === '"' || opener === "'" || opener === "[" || opener === "{") {
       const s = scanFlow(armToken, 0, null);
@@ -13099,6 +13099,37 @@ function slotsOf(
     keySlot,
     valueSlot: { startCol: valueStart, endCol: valueStart + valueText.length },
   };
+}
+
+/** The characters `\s` matches: ECMAScript's white space and line terminators, as the code units a loop compares (`isSpaceCode(c)` is `/\s/.test(String.fromCharCode(c))` for every `c` below 65,536). */
+const isSpaceCode = (c: number): boolean =>
+  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;
+/** What ends the NAME of a node property: white space (`\s`) or one of the c-flow indicators `,[]{}`. */
+const isNodePropertyStop = (c: number): boolean => isSpaceCode(c) || c === 44 || c === 91 || c === 93 || c === 123 || c === 125;
+
+/**
+ * Where the node properties (`&anchor`, `!tag`) at the start of a YAML value end: the offset of the first character past them and the blanks after the last, or 0 when the value starts with none (Session 335). Each
+ * property is its `&` or `!`, a NAME that runs to the first white space or c-flow indicator (`,[]{}`) and may hold more `&` and `!`, and the blanks (space and tab only) after it. It was the pattern
+ * `^(?:[&!][^\s,[\]{}]*[ \t]*)+`, read by `replace` at four sites (here, the two front matter enumerators and the project file reader), and V8 keeps one entry of its regex backtrack stack per repetition of a group:
+ * a value of 2,097,487 or more properties threw `RangeError: Maximum call stack size exceeded` (bisected at `c06ee06`), and the error reached every reader of the document. The pattern cannot give anything back
+ * for a later step (a name runs to the first stop, the blanks to the first non-blank, and a repetition needs its `&` or `!`), so the loop is the pattern, and `node-property-end-equivalence.test.ts` keeps it as the
+ * oracle. The text after the properties starts at the returned offset: `armToken.slice(nodePropertyEnd(armToken))` is what `armToken.replace(<the pattern>, "")` was.
+ */
+export function nodePropertyEnd(token: string): number {
+  let at = 0;
+  for (;;) {
+    const c = token.charCodeAt(at);
+    if (c !== 38 && c !== 33) {
+      return at;
+    }
+    at++;
+    while (at < token.length && !isNodePropertyStop(token.charCodeAt(at))) {
+      at++;
+    }
+    while (token.charCodeAt(at) === 32 || token.charCodeAt(at) === 9) {
+      at++;
+    }
+  }
 }
 
 /** The unclosed-value state after scanning a line: net flow-bracket depth + any open quote. */

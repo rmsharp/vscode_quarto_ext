@@ -33,7 +33,7 @@
  * (plan §3.3 footgun, §11 dragon 2).
  */
 
-import { findFrontMatter, frontMatterContentLines, scanFlow, trimEndBlanks } from "./qmd/model";
+import { findFrontMatter, frontMatterContentLines, nodePropertyEnd, scanFlow, trimEndBlanks } from "./qmd/model";
 import {
   indexLineIndents,
   type LineIndentIndex,
@@ -163,7 +163,7 @@ export function findNestedFrontMatterValueLines(
       // abutting bracket; the S154 cell-option charset `[^\s[\]{}"']` over-excluded quotes (the SAME
       // over-suppression, since corrected on that surface too — S156). All three value enumerators
       // and the cell-option `findCellOptionLines` share this.
-      const opener = armToken.replace(/^(?:[&!][^\s,[\]{}]*[ \t]*)+/, "")[0];
+      const opener = armToken[nodePropertyEnd(armToken)];
       if (opener === '"' || opener === "'" || opener === "[" || opener === "{") {
         const s = scanFlow(armToken, 0, null);
         if (s.depth > 0) {
