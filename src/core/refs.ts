@@ -83,7 +83,7 @@ const KIND_PREFIX = /^(fig|tbl|sec|eq|lst)-/;
  * identifier set: a Unicode letter or digit, `_`, `:`, `.` or `-`.
  *
  * ⚠ **THE DEFINITION SIDE IS A FLAT CLASS AND THE USE SIDE IS NOT, SO NEITHER RULE MAY BE
- * PORTED TO THE OTHER.** {@link REF_USAGE} is Pandoc's `citeKey`, where internal punctuation
+ * PORTED TO THE OTHER.** {@link refUsageEnd} reads Pandoc's `citeKey`, where internal punctuation
  * counts only when a regchar follows it; this set has **no follower rule and no position
  * clause** — an admitted character may open, sit inside, or end the id. Measured over 36
  * rendered rows in Session 221 with predictions frozen first (`scratchpad/s221/cal/attr.qmd`,
@@ -320,11 +320,38 @@ const REF_ID_REGCHAR = String.raw`[\p{L}\p{N}_]`;
  * `:` `.` `#` `$` `%` `&` `+` `?` `<` `>` `~` `/` and `-`.
  */
 const REF_ID_PUNCT = String.raw`[:.#$%&+?<>~/-]`;
+/** The five cross-reference kind prefixes, each with the `-` that ends it. They begin with five different letters, so at most one of them can follow an `@`. */
+const REF_USAGE_KINDS = ["fig-", "tbl-", "sec-", "eq-", "lst-"];
+/** The twelve characters of {@link REF_ID_PUNCT}, spelled as a string for {@link refUsageEnd}'s loop; the equivalence sweep of every code unit pins the two together. */
+const REF_ID_PUNCT_MARKS = ":.#$%&+?<>~/-";
 /**
- * A cross-reference *usage* — `@fig-plot`, `@sec-intro`, `@sec-meth:ods`. The negative
- * lookbehind rejects an `@` preceded by a word character (so `user@fig-x.org` is an email,
- * not a reference), and restricting to known kind prefixes leaves bare `@key` citations
- * (Phase 6c) untouched. Group 1 is the id.
+ * {@link REF_ID_REGCHAR} as a STICKY single-character pattern, for the code points beyond ASCII: a test at an index reads the whole code point there (an astral letter is one, a lone
+ * surrogate none), so the two ends of a surrogate pair are never judged apart.
+ */
+const REGCHAR_AT = new RegExp(REF_ID_REGCHAR, "uy");
+
+/** Whether a UTF-16 code unit is an ASCII letter, digit or `_`: the class of a usage's lookbehind, and the ASCII part of {@link REF_ID_REGCHAR}. */
+function isAsciiWordUnit(unit: number): boolean {
+  return (unit >= 97 && unit <= 122) || (unit >= 65 && unit <= 90) || (unit >= 48 && unit <= 57) || unit === 95;
+}
+
+/** How many UTF-16 code units the {@link REF_ID_REGCHAR} at `at` takes (1, or 2 for an astral letter or number), or 0 when the character there is none or `at` is past the end. */
+function regcharLengthAt(lineText: string, at: number): number {
+  if (at >= lineText.length) {
+    return 0;
+  }
+  const unit = lineText.charCodeAt(at);
+  if (unit < 128) {
+    return isAsciiWordUnit(unit) ? 1 : 0;
+  }
+  REGCHAR_AT.lastIndex = at;
+  return REGCHAR_AT.test(lineText) ? REGCHAR_AT.lastIndex - at : 0;
+}
+
+/**
+ * Where the cross-reference *usage* whose `@` stands at `at` ends (the index just past its last character), or -1 when no usage starts there — `@fig-plot`, `@sec-intro`, `@sec-meth:ods`.
+ * A usage is an `@` that no ASCII letter, digit or `_` comes right before (so `user@fig-x.org` is an email, not a reference), then one of the known kind prefixes (which leaves bare `@key`
+ * citations, Phase 6c, untouched), then the id.
  *
  * The id is Pandoc's `citeKey` — a regchar, then any run of (regchar | internal punctuation
  * immediately followed by a regchar) — measured over 55 rendered rows in Session 220 and
@@ -337,12 +364,37 @@ const REF_ID_PUNCT = String.raw`[:.#$%&+?<>~/-]`;
  * `日本@sec-x` and `.@sec-x` are NOT, and `-@sec-x` is the suppress-author citation form
  * (all measured, `scratchpad/s220/cal/lb.qmd`). Session 220 left the ASCII class exactly as
  * it found it so no row moves; the divergence is a separate filed item.
+ *
+ * ⚠ **A LOOP, NOT A PATTERN, SINCE SESSION 337.** The id was `(?:REGCHAR|PUNCT(?=REGCHAR))*` inside one regular expression, and V8 keeps one entry of its backtrack stack per repetition of a
+ * group, so a token of 8,388,573 or more characters (4,194,286 pairs `.a`) threw `RangeError: Maximum call stack size exceeded` in {@link refIdAt}, which the hover and go-to-definition
+ * token reader call with the line under the cursor. Each step is decided by the one character at the index (a punctuation mark also by the one after it), so nothing is ever taken back; the
+ * old pattern is kept as the oracle in `test/unit/ref-usage-equivalence.test.ts`.
  */
-const REF_USAGE = new RegExp(
-  String.raw`(?<![A-Za-z0-9_])@((?:fig|tbl|sec|eq|lst)-(?=${REF_ID_REGCHAR})` +
-    String.raw`(?:${REF_ID_REGCHAR}|${REF_ID_PUNCT}(?=${REF_ID_REGCHAR}))*)`,
-  "gu",
-);
+export function refUsageEnd(lineText: string, at: number): number {
+  if (lineText[at] !== "@" || (at > 0 && isAsciiWordUnit(lineText.charCodeAt(at - 1)))) {
+    return -1;
+  }
+  let pos = -1;
+  for (const kind of REF_USAGE_KINDS) {
+    if (lineText.startsWith(kind, at + 1)) {
+      pos = at + 1 + kind.length;
+      break;
+    }
+  }
+  if (pos < 0 || regcharLengthAt(lineText, pos) === 0) {
+    return -1;
+  }
+  for (;;) {
+    const width = regcharLengthAt(lineText, pos);
+    if (width > 0) {
+      pos += width;
+    } else if (pos < lineText.length && REF_ID_PUNCT_MARKS.includes(lineText[pos]) && regcharLengthAt(lineText, pos + 1) > 0) {
+      pos++;
+    } else {
+      return pos;
+    }
+  }
+}
 
 /** The cross-ref kind of an id, or `null` if its prefix is not a cross-ref kind. */
 function kindOf(id: string): RefKind | null {
@@ -705,13 +757,10 @@ export function isReferenceableLine(text: string, line: number): boolean {
  * you click the start, middle, or end). Drives go-to-definition.
  */
 export function refIdAt(lineText: string, column: number): string | null {
-  REF_USAGE.lastIndex = 0;
-  let m: RegExpExecArray | null;
-  while ((m = REF_USAGE.exec(lineText)) !== null) {
-    const start = m.index;
-    const end = m.index + m[0].length;
-    if (column >= start && column <= end) {
-      return m[1];
+  for (let at = lineText.indexOf("@"); at >= 0; at = lineText.indexOf("@", at + 1)) {
+    const end = refUsageEnd(lineText, at);
+    if (end >= 0 && column >= at && column <= end) {
+      return lineText.slice(at + 1, end);
     }
   }
   return null;
@@ -828,7 +877,7 @@ function dedupeById(labels: RefLabel[]): RefLabel[] {
  * {@link DEFINED_ID_CHAR_CLASS} as a testable single-character pattern — the boundary test
  * `idColumn` uses to decide whether an `#id` occurrence ends where the identifier ends.
  *
- * ⚠ **DELIBERATELY NOT THE USE-SIDE RULE, WHICH IS A DIFFERENT QUESTION.** {@link REF_USAGE}
+ * ⚠ **DELIBERATELY NOT THE USE-SIDE RULE, WHICH IS A DIFFERENT QUESTION.** {@link refUsageEnd}
  * asks what a reference TOKEN may consume as the author types it; this asks what a DEFINED
  * identifier may hold. Session 220 measured the first and Session 221 the second, separately,
  * and they disagree — the use side has a follower clause and this side does not.
