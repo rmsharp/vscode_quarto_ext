@@ -1,0 +1,474 @@
+[
+ {
+  "name": "C01 pipeRuleCellEnd: the leading colon is a semicolon",
+  "file": "src/core/qmd/model.ts",
+  "from": "function pipeRuleCellEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 58) {\n    at++;\n  }\n  const dashes = at;\n  while (line.charCodeAt(at) === 45) {\n    at++;\n  }\n  if (at === dashes) {\n    return -1;\n  }\n  return line.charCodeAt(at) === 58 ? at + 1 : at;\n}",
+  "to": "function pipeRuleCellEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 59) {\n    at++;\n  }\n  const dashes = at;\n  while (line.charCodeAt(at) === 45) {\n    at++;\n  }\n  if (at === dashes) {\n    return -1;\n  }\n  return line.charCodeAt(at) === 58 ? at + 1 : at;\n}",
+  "expect": "killed",
+  "why": "`:-:` would be refused"
+ },
+ {
+  "name": "C02 pipeRuleCellEnd: no leading colon",
+  "file": "src/core/qmd/model.ts",
+  "from": "function pipeRuleCellEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 58) {\n    at++;\n  }\n  const dashes = at;\n  while (line.charCodeAt(at) === 45) {\n    at++;\n  }\n  if (at === dashes) {\n    return -1;\n  }\n  return line.charCodeAt(at) === 58 ? at + 1 : at;\n}",
+  "to": "function pipeRuleCellEnd(line: string, from: number): number {\n  let at = from;\n  const dashes = at;\n  while (line.charCodeAt(at) === 45) {\n    at++;\n  }\n  if (at === dashes) {\n    return -1;\n  }\n  return line.charCodeAt(at) === 58 ? at + 1 : at;\n}",
+  "expect": "killed",
+  "why": "`:--` would be refused"
+ },
+ {
+  "name": "C03 pipeRuleCellEnd: the dash is a plus",
+  "file": "src/core/qmd/model.ts",
+  "from": "function pipeRuleCellEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 58) {\n    at++;\n  }\n  const dashes = at;\n  while (line.charCodeAt(at) === 45) {\n    at++;\n  }\n  if (at === dashes) {\n    return -1;\n  }\n  return line.charCodeAt(at) === 58 ? at + 1 : at;\n}",
+  "to": "function pipeRuleCellEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 58) {\n    at++;\n  }\n  const dashes = at;\n  while (line.charCodeAt(at) === 43) {\n    at++;\n  }\n  if (at === dashes) {\n    return -1;\n  }\n  return line.charCodeAt(at) === 58 ? at + 1 : at;\n}",
+  "expect": "killed",
+  "why": "no cell"
+ },
+ {
+  "name": "C04 pipeRuleCellEnd: one dash at most",
+  "file": "src/core/qmd/model.ts",
+  "from": "function pipeRuleCellEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 58) {\n    at++;\n  }\n  const dashes = at;\n  while (line.charCodeAt(at) === 45) {\n    at++;\n  }\n  if (at === dashes) {\n    return -1;\n  }\n  return line.charCodeAt(at) === 58 ? at + 1 : at;\n}",
+  "to": "function pipeRuleCellEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 58) {\n    at++;\n  }\n  const dashes = at;\n  if (line.charCodeAt(at) === 45) {\n    at++;\n  }\n  if (at === dashes) {\n    return -1;\n  }\n  return line.charCodeAt(at) === 58 ? at + 1 : at;\n}",
+  "expect": "killed",
+  "why": "`---` would end after the first dash"
+ },
+ {
+  "name": "C05 pipeRuleCellEnd: a cell needs no dash",
+  "file": "src/core/qmd/model.ts",
+  "from": "function pipeRuleCellEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 58) {\n    at++;\n  }\n  const dashes = at;\n  while (line.charCodeAt(at) === 45) {\n    at++;\n  }\n  if (at === dashes) {\n    return -1;\n  }\n  return line.charCodeAt(at) === 58 ? at + 1 : at;\n}",
+  "to": "function pipeRuleCellEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 58) {\n    at++;\n  }\n  const dashes = at;\n  while (line.charCodeAt(at) === 45) {\n    at++;\n  }\n  return line.charCodeAt(at) === 58 ? at + 1 : at;\n}",
+  "expect": "killed",
+  "why": "`::` and `:` would be cells"
+ },
+ {
+  "name": "C06 pipeRuleCellEnd: the cell ends at its dashes",
+  "file": "src/core/qmd/model.ts",
+  "from": "function pipeRuleCellEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 58) {\n    at++;\n  }\n  const dashes = at;\n  while (line.charCodeAt(at) === 45) {\n    at++;\n  }\n  if (at === dashes) {\n    return -1;\n  }\n  return line.charCodeAt(at) === 58 ? at + 1 : at;\n}",
+  "to": "function pipeRuleCellEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 58) {\n    at++;\n  }\n  const dashes = at;\n  while (line.charCodeAt(at) === 45) {\n    at++;\n  }\n  if (at === dashes) {\n    return -1;\n  }\n  return at;\n}",
+  "expect": "killed",
+  "why": "`--:` would end before the colon"
+ },
+ {
+  "name": "C07 pipeRuleCellEnd: a second colon is taken",
+  "file": "src/core/qmd/model.ts",
+  "from": "function pipeRuleCellEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 58) {\n    at++;\n  }\n  const dashes = at;\n  while (line.charCodeAt(at) === 45) {\n    at++;\n  }\n  if (at === dashes) {\n    return -1;\n  }\n  return line.charCodeAt(at) === 58 ? at + 1 : at;\n}",
+  "to": "function pipeRuleCellEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 58) {\n    at++;\n  }\n  const dashes = at;\n  while (line.charCodeAt(at) === 45) {\n    at++;\n  }\n  if (at === dashes) {\n    return -1;\n  }\n  return line.charCodeAt(at) === 58 ? (line.charCodeAt(at + 1) === 58 ? at + 2 : at + 1) : at;\n}",
+  "expect": "killed",
+  "why": "`-::` would be a cell"
+ },
+ {
+  "name": "C08 pipeRuleCellEnd: a missing cell answers 0",
+  "file": "src/core/qmd/model.ts",
+  "from": "function pipeRuleCellEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 58) {\n    at++;\n  }\n  const dashes = at;\n  while (line.charCodeAt(at) === 45) {\n    at++;\n  }\n  if (at === dashes) {\n    return -1;\n  }\n  return line.charCodeAt(at) === 58 ? at + 1 : at;\n}",
+  "to": "function pipeRuleCellEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 58) {\n    at++;\n  }\n  const dashes = at;\n  while (line.charCodeAt(at) === 45) {\n    at++;\n  }\n  if (at === dashes) {\n    return 0;\n  }\n  return line.charCodeAt(at) === 58 ? at + 1 : at;\n}",
+  "expect": "killed",
+  "why": "0 is a position, not a refusal"
+ },
+ {
+  "name": "P01 pipeRuleBodyEnd: the outer pipe is a bar of another code",
+  "file": "src/core/qmd/model.ts",
+  "from": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 124) {\n    at++;\n  }\n  let end = pipeRuleCellEnd(line, skipBlanks(line, at));\n  if (end < 0) {\n    return -1;\n  }\n  for (;;) {\n    const bar = skipBlanks(line, end);\n    if (line.charCodeAt(bar) !== 124) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));\n    if (cell < 0) {\n      return bar + 1;\n    }\n    end = cell;\n  }\n}",
+  "to": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 125) {\n    at++;\n  }\n  let end = pipeRuleCellEnd(line, skipBlanks(line, at));\n  if (end < 0) {\n    return -1;\n  }\n  for (;;) {\n    const bar = skipBlanks(line, end);\n    if (line.charCodeAt(bar) !== 124) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));\n    if (cell < 0) {\n      return bar + 1;\n    }\n    end = cell;\n  }\n}",
+  "expect": "killed",
+  "why": "`|---` would be refused"
+ },
+ {
+  "name": "P02 pipeRuleBodyEnd: no outer pipe",
+  "file": "src/core/qmd/model.ts",
+  "from": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 124) {\n    at++;\n  }\n  let end = pipeRuleCellEnd(line, skipBlanks(line, at));\n  if (end < 0) {\n    return -1;\n  }\n  for (;;) {\n    const bar = skipBlanks(line, end);\n    if (line.charCodeAt(bar) !== 124) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));\n    if (cell < 0) {\n      return bar + 1;\n    }\n    end = cell;\n  }\n}",
+  "to": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  let end = pipeRuleCellEnd(line, skipBlanks(line, at));\n  if (end < 0) {\n    return -1;\n  }\n  for (;;) {\n    const bar = skipBlanks(line, end);\n    if (line.charCodeAt(bar) !== 124) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));\n    if (cell < 0) {\n      return bar + 1;\n    }\n    end = cell;\n  }\n}",
+  "expect": "killed",
+  "why": "`|---|` would be refused"
+ },
+ {
+  "name": "P03 pipeRuleBodyEnd: blanks after the outer pipe are not skipped",
+  "file": "src/core/qmd/model.ts",
+  "from": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 124) {\n    at++;\n  }\n  let end = pipeRuleCellEnd(line, skipBlanks(line, at));\n  if (end < 0) {\n    return -1;\n  }\n  for (;;) {\n    const bar = skipBlanks(line, end);\n    if (line.charCodeAt(bar) !== 124) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));\n    if (cell < 0) {\n      return bar + 1;\n    }\n    end = cell;\n  }\n}",
+  "to": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 124) {\n    at++;\n  }\n  let end = pipeRuleCellEnd(line, at);\n  if (end < 0) {\n    return -1;\n  }\n  for (;;) {\n    const bar = skipBlanks(line, end);\n    if (line.charCodeAt(bar) !== 124) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));\n    if (cell < 0) {\n      return bar + 1;\n    }\n    end = cell;\n  }\n}",
+  "expect": "killed",
+  "why": "`| ---` would be refused"
+ },
+ {
+  "name": "P04 pipeRuleBodyEnd: a missing first cell is no refusal",
+  "file": "src/core/qmd/model.ts",
+  "from": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 124) {\n    at++;\n  }\n  let end = pipeRuleCellEnd(line, skipBlanks(line, at));\n  if (end < 0) {\n    return -1;\n  }\n  for (;;) {\n    const bar = skipBlanks(line, end);\n    if (line.charCodeAt(bar) !== 124) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));\n    if (cell < 0) {\n      return bar + 1;\n    }\n    end = cell;\n  }\n}",
+  "to": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 124) {\n    at++;\n  }\n  let end = pipeRuleCellEnd(line, skipBlanks(line, at));\n  if (end < 0) {\n    return from;\n  }\n  for (;;) {\n    const bar = skipBlanks(line, end);\n    if (line.charCodeAt(bar) !== 124) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));\n    if (cell < 0) {\n      return bar + 1;\n    }\n    end = cell;\n  }\n}",
+  "expect": "killed",
+  "why": "`|` and `x` would be bodies"
+ },
+ {
+  "name": "P05 pipeRuleBodyEnd: blanks before an inner pipe are not skipped",
+  "file": "src/core/qmd/model.ts",
+  "from": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 124) {\n    at++;\n  }\n  let end = pipeRuleCellEnd(line, skipBlanks(line, at));\n  if (end < 0) {\n    return -1;\n  }\n  for (;;) {\n    const bar = skipBlanks(line, end);\n    if (line.charCodeAt(bar) !== 124) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));\n    if (cell < 0) {\n      return bar + 1;\n    }\n    end = cell;\n  }\n}",
+  "to": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 124) {\n    at++;\n  }\n  let end = pipeRuleCellEnd(line, skipBlanks(line, at));\n  if (end < 0) {\n    return -1;\n  }\n  for (;;) {\n    const bar = end;\n    if (line.charCodeAt(bar) !== 124) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));\n    if (cell < 0) {\n      return bar + 1;\n    }\n    end = cell;\n  }\n}",
+  "expect": "killed",
+  "why": "`--- | ---` would end at the blank"
+ },
+ {
+  "name": "P06 pipeRuleBodyEnd: the separator is a colon",
+  "file": "src/core/qmd/model.ts",
+  "from": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 124) {\n    at++;\n  }\n  let end = pipeRuleCellEnd(line, skipBlanks(line, at));\n  if (end < 0) {\n    return -1;\n  }\n  for (;;) {\n    const bar = skipBlanks(line, end);\n    if (line.charCodeAt(bar) !== 124) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));\n    if (cell < 0) {\n      return bar + 1;\n    }\n    end = cell;\n  }\n}",
+  "to": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 124) {\n    at++;\n  }\n  let end = pipeRuleCellEnd(line, skipBlanks(line, at));\n  if (end < 0) {\n    return -1;\n  }\n  for (;;) {\n    const bar = skipBlanks(line, end);\n    if (line.charCodeAt(bar) !== 58) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));\n    if (cell < 0) {\n      return bar + 1;\n    }\n    end = cell;\n  }\n}",
+  "expect": "killed",
+  "why": "no second cell"
+ },
+ {
+  "name": "P07 pipeRuleBodyEnd: blanks after an inner pipe are not skipped",
+  "file": "src/core/qmd/model.ts",
+  "from": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 124) {\n    at++;\n  }\n  let end = pipeRuleCellEnd(line, skipBlanks(line, at));\n  if (end < 0) {\n    return -1;\n  }\n  for (;;) {\n    const bar = skipBlanks(line, end);\n    if (line.charCodeAt(bar) !== 124) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));\n    if (cell < 0) {\n      return bar + 1;\n    }\n    end = cell;\n  }\n}",
+  "to": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 124) {\n    at++;\n  }\n  let end = pipeRuleCellEnd(line, skipBlanks(line, at));\n  if (end < 0) {\n    return -1;\n  }\n  for (;;) {\n    const bar = skipBlanks(line, end);\n    if (line.charCodeAt(bar) !== 124) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, bar + 1);\n    if (cell < 0) {\n      return bar + 1;\n    }\n    end = cell;\n  }\n}",
+  "expect": "killed",
+  "why": "`--- | ---` would end after the pipe"
+ },
+ {
+  "name": "P08 pipeRuleBodyEnd: a pipe with no cell after it is not taken",
+  "file": "src/core/qmd/model.ts",
+  "from": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 124) {\n    at++;\n  }\n  let end = pipeRuleCellEnd(line, skipBlanks(line, at));\n  if (end < 0) {\n    return -1;\n  }\n  for (;;) {\n    const bar = skipBlanks(line, end);\n    if (line.charCodeAt(bar) !== 124) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));\n    if (cell < 0) {\n      return bar + 1;\n    }\n    end = cell;\n  }\n}",
+  "to": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 124) {\n    at++;\n  }\n  let end = pipeRuleCellEnd(line, skipBlanks(line, at));\n  if (end < 0) {\n    return -1;\n  }\n  for (;;) {\n    const bar = skipBlanks(line, end);\n    if (line.charCodeAt(bar) !== 124) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));\n    if (cell < 0) {\n      return end;\n    }\n    end = cell;\n  }\n}",
+  "expect": "killed",
+  "why": "`---|` (a trailing pipe) would leave the pipe in the tail"
+ },
+ {
+  "name": "P09 pipeRuleBodyEnd: a trailing pipe is not counted in the end",
+  "file": "src/core/qmd/model.ts",
+  "from": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 124) {\n    at++;\n  }\n  let end = pipeRuleCellEnd(line, skipBlanks(line, at));\n  if (end < 0) {\n    return -1;\n  }\n  for (;;) {\n    const bar = skipBlanks(line, end);\n    if (line.charCodeAt(bar) !== 124) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));\n    if (cell < 0) {\n      return bar + 1;\n    }\n    end = cell;\n  }\n}",
+  "to": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 124) {\n    at++;\n  }\n  let end = pipeRuleCellEnd(line, skipBlanks(line, at));\n  if (end < 0) {\n    return -1;\n  }\n  for (;;) {\n    const bar = skipBlanks(line, end);\n    if (line.charCodeAt(bar) !== 124) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));\n    if (cell < 0) {\n      return bar;\n    }\n    end = cell;\n  }\n}",
+  "expect": "killed",
+  "why": "the pipe would be left in the tail"
+ },
+ {
+  "name": "P10 pipeRuleBodyEnd: a second trailing pipe is taken",
+  "file": "src/core/qmd/model.ts",
+  "from": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 124) {\n    at++;\n  }\n  let end = pipeRuleCellEnd(line, skipBlanks(line, at));\n  if (end < 0) {\n    return -1;\n  }\n  for (;;) {\n    const bar = skipBlanks(line, end);\n    if (line.charCodeAt(bar) !== 124) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));\n    if (cell < 0) {\n      return bar + 1;\n    }\n    end = cell;\n  }\n}",
+  "to": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 124) {\n    at++;\n  }\n  let end = pipeRuleCellEnd(line, skipBlanks(line, at));\n  if (end < 0) {\n    return -1;\n  }\n  for (;;) {\n    const bar = skipBlanks(line, end);\n    if (line.charCodeAt(bar) !== 124) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));\n    if (cell < 0) {\n      return skipBlanks(line, bar + 1) + (line.charCodeAt(skipBlanks(line, bar + 1)) === 124 ? 1 : 0);\n    }\n    end = cell;\n  }\n}",
+  "expect": "killed",
+  "why": "`---||` would be a body"
+ },
+ {
+  "name": "P11 pipeRuleBodyEnd: the end of an inner cell is not kept",
+  "file": "src/core/qmd/model.ts",
+  "from": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 124) {\n    at++;\n  }\n  let end = pipeRuleCellEnd(line, skipBlanks(line, at));\n  if (end < 0) {\n    return -1;\n  }\n  for (;;) {\n    const bar = skipBlanks(line, end);\n    if (line.charCodeAt(bar) !== 124) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));\n    if (cell < 0) {\n      return bar + 1;\n    }\n    end = cell;\n  }\n}",
+  "to": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 124) {\n    at++;\n  }\n  let end = pipeRuleCellEnd(line, skipBlanks(line, at));\n  if (end < 0) {\n    return -1;\n  }\n  for (;;) {\n    const bar = skipBlanks(line, end);\n    if (line.charCodeAt(bar) !== 124) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));\n    if (cell < 0) {\n      return bar + 1;\n    }\n    end = bar + 1;\n  }\n}",
+  "expect": "killed",
+  "why": "the cell would be left in the tail"
+ },
+ {
+  "name": "P12 pipeRuleBodyEnd: only one inner cell is read",
+  "file": "src/core/qmd/model.ts",
+  "from": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 124) {\n    at++;\n  }\n  let end = pipeRuleCellEnd(line, skipBlanks(line, at));\n  if (end < 0) {\n    return -1;\n  }\n  for (;;) {\n    const bar = skipBlanks(line, end);\n    if (line.charCodeAt(bar) !== 124) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));\n    if (cell < 0) {\n      return bar + 1;\n    }\n    end = cell;\n  }\n}",
+  "to": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 124) {\n    at++;\n  }\n  let end = pipeRuleCellEnd(line, skipBlanks(line, at));\n  if (end < 0) {\n    return -1;\n  }\n  for (let rounds = 0; rounds < 1; rounds++) {\n    const bar = skipBlanks(line, end);\n    if (line.charCodeAt(bar) !== 124) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));\n    if (cell < 0) {\n      return bar + 1;\n    }\n    end = cell;\n  }\n}",
+  "expect": "killed",
+  "why": "`--|--|--` would end after the second cell"
+ },
+ {
+  "name": "P13 pipeRuleBodyEnd: a run of 4,096 inner cells at most",
+  "file": "src/core/qmd/model.ts",
+  "from": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 124) {\n    at++;\n  }\n  let end = pipeRuleCellEnd(line, skipBlanks(line, at));\n  if (end < 0) {\n    return -1;\n  }\n  for (;;) {\n    const bar = skipBlanks(line, end);\n    if (line.charCodeAt(bar) !== 124) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));\n    if (cell < 0) {\n      return bar + 1;\n    }\n    end = cell;\n  }\n}",
+  "to": "function pipeRuleBodyEnd(line: string, from: number): number {\n  let at = from;\n  if (line.charCodeAt(at) === 124) {\n    at++;\n  }\n  let end = pipeRuleCellEnd(line, skipBlanks(line, at));\n  if (end < 0) {\n    return -1;\n  }\n  for (let rounds = 0; rounds < 4096; rounds++) {\n    const bar = skipBlanks(line, end);\n    if (line.charCodeAt(bar) !== 124) {\n      return end;\n    }\n    const cell = pipeRuleCellEnd(line, skipBlanks(line, bar + 1));\n    if (cell < 0) {\n      return bar + 1;\n    }\n    end = cell;\n  }\n}",
+  "expect": "killed",
+  "why": "a row of 4,097 cells would end early: only a long row sees it"
+ },
+ {
+  "name": "K01 skipBlanks: a tab is not a blank",
+  "file": "src/core/qmd/model.ts",
+  "from": "const skipBlanks = (line: string, from: number): number => {\n  let at = from;\n  while (line.charCodeAt(at) === 32 || line.charCodeAt(at) === 9) {\n    at++;\n  }\n  return at;\n};",
+  "to": "const skipBlanks = (line: string, from: number): number => {\n  let at = from;\n  while (line.charCodeAt(at) === 32) {\n    at++;\n  }\n  return at;\n};",
+  "expect": "killed",
+  "why": "a tab before a cell"
+ },
+ {
+  "name": "K02 skipBlanks: a space is not a blank",
+  "file": "src/core/qmd/model.ts",
+  "from": "const skipBlanks = (line: string, from: number): number => {\n  let at = from;\n  while (line.charCodeAt(at) === 32 || line.charCodeAt(at) === 9) {\n    at++;\n  }\n  return at;\n};",
+  "to": "const skipBlanks = (line: string, from: number): number => {\n  let at = from;\n  while (line.charCodeAt(at) === 9) {\n    at++;\n  }\n  return at;\n};",
+  "expect": "killed",
+  "why": "a space before a cell"
+ },
+ {
+  "name": "K03 skipBlanks: the blanks are not skipped",
+  "file": "src/core/qmd/model.ts",
+  "from": "const skipBlanks = (line: string, from: number): number => {\n  let at = from;\n  while (line.charCodeAt(at) === 32 || line.charCodeAt(at) === 9) {\n    at++;\n  }\n  return at;\n};",
+  "to": "const skipBlanks = (line: string, from: number): number => {\n  let at = from;\n  return at;\n};",
+  "expect": "killed",
+  "why": "no blank is skipped"
+ },
+ {
+  "name": "K04 skipBlanks: one blank at most",
+  "file": "src/core/qmd/model.ts",
+  "from": "const skipBlanks = (line: string, from: number): number => {\n  let at = from;\n  while (line.charCodeAt(at) === 32 || line.charCodeAt(at) === 9) {\n    at++;\n  }\n  return at;\n};",
+  "to": "const skipBlanks = (line: string, from: number): number => {\n  let at = from;\n  if (line.charCodeAt(at) === 32 || line.charCodeAt(at) === 9) {\n    at++;\n  }\n  return at;\n};",
+  "expect": "killed",
+  "why": "two blanks before a cell"
+ },
+ {
+  "name": "O01 onlySpaceFrom: a form feed is not white space",
+  "file": "src/core/qmd/model.ts",
+  "from": "const onlySpaceFrom = (line: string, from: number): boolean => {\n  for (let at = from; at < line.length; at++) {\n    if (!isSpaceCode(line.charCodeAt(at))) {\n      return false;\n    }\n  }\n  return true;\n};",
+  "to": "const onlySpaceFrom = (line: string, from: number): boolean => {\n  for (let at = from; at < line.length; at++) {\n    if (line.charCodeAt(at) !== 32 && line.charCodeAt(at) !== 9) {\n      return false;\n    }\n  }\n  return true;\n};",
+  "expect": "killed",
+  "why": "a rule row followed by a vertical tab or a no-break space would be refused"
+ },
+ {
+  "name": "O02 onlySpaceFrom: the scan starts one late",
+  "file": "src/core/qmd/model.ts",
+  "from": "const onlySpaceFrom = (line: string, from: number): boolean => {\n  for (let at = from; at < line.length; at++) {\n    if (!isSpaceCode(line.charCodeAt(at))) {\n      return false;\n    }\n  }\n  return true;\n};",
+  "to": "const onlySpaceFrom = (line: string, from: number): boolean => {\n  for (let at = from + 1; at < line.length; at++) {\n    if (!isSpaceCode(line.charCodeAt(at))) {\n      return false;\n    }\n  }\n  return true;\n};",
+  "expect": "killed",
+  "why": "the first trailing character is skipped"
+ },
+ {
+  "name": "O03 onlySpaceFrom: the scan stops one early",
+  "file": "src/core/qmd/model.ts",
+  "from": "const onlySpaceFrom = (line: string, from: number): boolean => {\n  for (let at = from; at < line.length; at++) {\n    if (!isSpaceCode(line.charCodeAt(at))) {\n      return false;\n    }\n  }\n  return true;\n};",
+  "to": "const onlySpaceFrom = (line: string, from: number): boolean => {\n  for (let at = from; at < line.length - 1; at++) {\n    if (!isSpaceCode(line.charCodeAt(at))) {\n      return false;\n    }\n  }\n  return true;\n};",
+  "expect": "killed",
+  "why": "the last trailing character is skipped"
+ },
+ {
+  "name": "O04 onlySpaceFrom: anything is fine",
+  "file": "src/core/qmd/model.ts",
+  "from": "const onlySpaceFrom = (line: string, from: number): boolean => {\n  for (let at = from; at < line.length; at++) {\n    if (!isSpaceCode(line.charCodeAt(at))) {\n      return false;\n    }\n  }\n  return true;\n};",
+  "to": "const onlySpaceFrom = (line: string, from: number): boolean => {\n  for (let at = from; at < line.length; at++) {\n    if (!isSpaceCode(line.charCodeAt(at))) {\n      continue;\n    }\n  }\n  return true;\n};",
+  "expect": "killed",
+  "why": "a rule row followed by x"
+ },
+ {
+  "name": "R01 tableRuleRow: four spaces of indent",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "to": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 4 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "expect": "killed",
+  "why": "`    |---` would be a rule row"
+ },
+ {
+  "name": "R02 tableRuleRow: two spaces of indent",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "to": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 2 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "expect": "killed",
+  "why": "`   |---` would be refused"
+ },
+ {
+  "name": "R03 tableRuleRow: no indent",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "to": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 0 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "expect": "killed",
+  "why": "`  |---` would be refused"
+ },
+ {
+  "name": "R04 tableRuleRow: a tab is indent",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "to": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && (line.charCodeAt(at) === 32 || line.charCodeAt(at) === 9)) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "expect": "killed",
+  "why": "`\\t+---` would be a rule row"
+ },
+ {
+  "name": "R05 tableRuleRow: the pipe body must end the line",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "to": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "expect": "killed",
+  "why": "`|---| x` would be a rule row"
+ },
+ {
+  "name": "R06 tableRuleRow: a pipe body is no rule row",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "to": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (false && pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "expect": "killed",
+  "why": "`|---|` would be refused"
+ },
+ {
+  "name": "R07 tableRuleRow: the grid starts with a minus",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "to": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 45) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "expect": "killed",
+  "why": "`+---+` would be refused"
+ },
+ {
+  "name": "R08 tableRuleRow: no grid body",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "to": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (true) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "expect": "killed",
+  "why": "`+---+` would be refused"
+ },
+ {
+  "name": "R09 tableRuleRow: the grid body starts at the plus",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "to": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "expect": "survives",
+  "why": "the plus is read again as a body character (it is one) and bodyEnd lands on the same index: no answer changes (argued equivalent)"
+ },
+ {
+  "name": "R10 tableRuleRow: the grid body is not counted",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "to": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = at + 1;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "expect": "killed",
+  "why": "`+--` then x: the body would end at the plus and leave dashes in the tail"
+ },
+ {
+  "name": "R11 tableRuleRow: no equals sign in a grid",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "to": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "expect": "killed",
+  "why": "`+===+` would be refused"
+ },
+ {
+  "name": "R12 tableRuleRow: no colon in a grid",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "to": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "expect": "killed",
+  "why": "`+:--+` would be refused"
+ },
+ {
+  "name": "R13 tableRuleRow: no plus inside a grid",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "to": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "expect": "killed",
+  "why": "`+---+---+` would be refused"
+ },
+ {
+  "name": "R14 tableRuleRow: no minus in a grid",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "to": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "expect": "killed",
+  "why": "`+---` would be refused"
+ },
+ {
+  "name": "R15 tableRuleRow: a space ends the grid body",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "to": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      break;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "expect": "killed",
+  "why": "`+ - +` would be refused"
+ },
+ {
+  "name": "R16 tableRuleRow: a space inside a grid is not skipped",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "to": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 9) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "expect": "killed",
+  "why": "`+ -` would be refused"
+ },
+ {
+  "name": "R17 tableRuleRow: a space ends the body",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "to": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "expect": "killed",
+  "why": "the body would end before its last character and leave it in the tail"
+ },
+ {
+  "name": "R18 tableRuleRow: the grid tail may hold anything",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "to": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return true;\n}",
+  "expect": "killed",
+  "why": "`+---x` would be a rule row"
+ },
+ {
+  "name": "R19 tableRuleRow: the grid tail is read from the run end, not the body end",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, bodyEnd);\n}",
+  "to": "export function tableRuleRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const pipeEnd = pipeRuleBodyEnd(line, at);\n  if (pipeEnd >= 0 && onlySpaceFrom(line, pipeEnd)) {\n    return true;\n  }\n  if (line.charCodeAt(at) !== 43) {\n    return false;\n  }\n  let run = at + 1;\n  let bodyEnd = run;\n  for (;;) {\n    const c = line.charCodeAt(run);\n    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;\n    } else if (c === 32) {\n      run++;\n    } else {\n      break;\n    }\n  }\n  return onlySpaceFrom(line, run);\n}",
+  "expect": "survives",
+  "why": "the characters between bodyEnd and run are spaces, which are white space: no answer changes (argued equivalent)"
+ },
+ {
+  "name": "D01 pipeDelimiterRow: four spaces of indent",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function pipeDelimiterRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const end = pipeRuleBodyEnd(line, at);\n  return end >= 0 && skipBlanks(line, end) === line.length;\n}",
+  "to": "export function pipeDelimiterRow(line: string): boolean {\n  let at = 0;\n  while (at < 4 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const end = pipeRuleBodyEnd(line, at);\n  return end >= 0 && skipBlanks(line, end) === line.length;\n}",
+  "expect": "killed",
+  "why": "`    |---` would be a delimiter row"
+ },
+ {
+  "name": "D02 pipeDelimiterRow: two spaces of indent",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function pipeDelimiterRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const end = pipeRuleBodyEnd(line, at);\n  return end >= 0 && skipBlanks(line, end) === line.length;\n}",
+  "to": "export function pipeDelimiterRow(line: string): boolean {\n  let at = 0;\n  while (at < 2 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const end = pipeRuleBodyEnd(line, at);\n  return end >= 0 && skipBlanks(line, end) === line.length;\n}",
+  "expect": "killed",
+  "why": "`   |---` would be refused"
+ },
+ {
+  "name": "D03 pipeDelimiterRow: no indent",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function pipeDelimiterRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const end = pipeRuleBodyEnd(line, at);\n  return end >= 0 && skipBlanks(line, end) === line.length;\n}",
+  "to": "export function pipeDelimiterRow(line: string): boolean {\n  let at = 0;\n  while (at < 0 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const end = pipeRuleBodyEnd(line, at);\n  return end >= 0 && skipBlanks(line, end) === line.length;\n}",
+  "expect": "killed",
+  "why": "`  |---` would be refused"
+ },
+ {
+  "name": "D04 pipeDelimiterRow: a tab is indent",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function pipeDelimiterRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const end = pipeRuleBodyEnd(line, at);\n  return end >= 0 && skipBlanks(line, end) === line.length;\n}",
+  "to": "export function pipeDelimiterRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && (line.charCodeAt(at) === 32 || line.charCodeAt(at) === 9)) {\n    at++;\n  }\n  const end = pipeRuleBodyEnd(line, at);\n  return end >= 0 && skipBlanks(line, end) === line.length;\n}",
+  "expect": "killed",
+  "why": "`\\t|---|` would be a delimiter row"
+ },
+ {
+  "name": "D05 pipeDelimiterRow: anything may follow",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function pipeDelimiterRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const end = pipeRuleBodyEnd(line, at);\n  return end >= 0 && skipBlanks(line, end) === line.length;\n}",
+  "to": "export function pipeDelimiterRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const end = pipeRuleBodyEnd(line, at);\n  return end >= 0;\n}",
+  "expect": "killed",
+  "why": "`|---| x`"
+ },
+ {
+  "name": "D06 pipeDelimiterRow: white space of every kind may follow",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function pipeDelimiterRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const end = pipeRuleBodyEnd(line, at);\n  return end >= 0 && skipBlanks(line, end) === line.length;\n}",
+  "to": "export function pipeDelimiterRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const end = pipeRuleBodyEnd(line, at);\n  return end >= 0 && onlySpaceFrom(line, end);\n}",
+  "expect": "killed",
+  "why": "a vertical tab after the row is accepted by the rule row and not by the delimiter row"
+ },
+ {
+  "name": "D07 pipeDelimiterRow: no blank may follow",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function pipeDelimiterRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const end = pipeRuleBodyEnd(line, at);\n  return end >= 0 && skipBlanks(line, end) === line.length;\n}",
+  "to": "export function pipeDelimiterRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const end = pipeRuleBodyEnd(line, at);\n  return end >= 0 && end === line.length;\n}",
+  "expect": "killed",
+  "why": "`|---| ` would be refused"
+ },
+ {
+  "name": "D08 pipeDelimiterRow: a missing body is a row",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function pipeDelimiterRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const end = pipeRuleBodyEnd(line, at);\n  return end >= 0 && skipBlanks(line, end) === line.length;\n}",
+  "to": "export function pipeDelimiterRow(line: string): boolean {\n  let at = 0;\n  while (at < 3 && line.charCodeAt(at) === 32) {\n    at++;\n  }\n  const end = pipeRuleBodyEnd(line, at);\n  return skipBlanks(line, end) === line.length;\n}",
+  "expect": "killed",
+  "why": "`x` would be a delimiter row (the end is -1)"
+ },
+ {
+  "name": "W01 the pipe-table opener asks the old rule: the row below is not a delimiter",
+  "file": "src/core/qmd/model.ts",
+  "from": "pipeDelimiterRow(lines[k + 1]) &&",
+  "to": "tableRuleRow(lines[k + 1]) &&",
+  "expect": "killed",
+  "why": "a grid border would open a pipe table: the older table rows of qmd-model"
+ },
+ {
+  "name": "W02 the body-line arm asks for the pipe delimiter row",
+  "file": "src/core/qmd/model.ts",
+  "from": "      if (tableRuleRow(line)) {",
+  "to": "      if (pipeDelimiterRow(line)) {",
+  "expect": "killed",
+  "why": "a grid border would no longer arm: the older table rows"
+ },
+ {
+  "name": "W03 the table opener asks for the pipe delimiter row",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!tableRuleRow(line) || !line.includes(\"|\")) {",
+  "to": "if (!pipeDelimiterRow(line) || !line.includes(\"|\")) {",
+  "expect": "killed",
+  "why": "a pipe row with a trailing form feed would not open a table"
+ }
+]

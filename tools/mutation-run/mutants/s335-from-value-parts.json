@@ -1,0 +1,402 @@
+[
+ {
+  "name": "F01 readFromValue: the key may be spelled with any three letters first",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (!line.startsWith(\"from\")) {\n    return null;\n  }\n  let at = 4;",
+  "to": "  if (!line.startsWith(\"fro\")) {\n    return null;\n  }\n  let at = 4;",
+  "expect": "killed",
+  "why": "`fromm:` would be read as a from line"
+ },
+ {
+  "name": "F02 readFromValue: the scan starts one character early",
+  "file": "src/core/qmd/model.ts",
+  "from": "  let at = 4;\n  while (isBlankCode(line.charCodeAt(at))) {",
+  "to": "  let at = 3;\n  while (isBlankCode(line.charCodeAt(at))) {",
+  "expect": "killed",
+  "why": "every from line would be refused"
+ },
+ {
+  "name": "F03 readFromValue: one blank before the colon at most",
+  "file": "src/core/qmd/model.ts",
+  "from": "  let at = 4;\n  while (isBlankCode(line.charCodeAt(at))) {\n    at++;\n  }\n  if (line[at] !== \":\") {",
+  "to": "  let at = 4;\n  if (isBlankCode(line.charCodeAt(at))) {\n    at++;\n  }\n  if (line[at] !== \":\") {",
+  "expect": "killed",
+  "why": "`from  : markdown` (two blanks) would be refused: needs a stated row"
+ },
+ {
+  "name": "F04 readFromValue: the colon is a semicolon",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (line[at] !== \":\") {\n    return null;\n  }\n  at++;",
+  "to": "  if (line[at] !== \";\") {\n    return null;\n  }\n  at++;",
+  "expect": "killed",
+  "why": "every from line would be refused"
+ },
+ {
+  "name": "F05 readFromValue: one blank after the colon at most",
+  "file": "src/core/qmd/model.ts",
+  "from": "  at++;\n  while (isBlankCode(line.charCodeAt(at))) {\n    at++;\n  }\n  const quote",
+  "to": "  at++;\n  if (isBlankCode(line.charCodeAt(at))) {\n    at++;\n  }\n  const quote",
+  "expect": "killed",
+  "why": "`from:   markdown` would be refused"
+ },
+ {
+  "name": "F06 readFromValue: only a double quote opens a quoted value",
+  "file": "src/core/qmd/model.ts",
+  "from": "line[at] === '\"' || line[at] === \"'\" ? line[at] : \"\"",
+  "to": "line[at] === '\"' ? line[at] : \"\"",
+  "expect": "killed",
+  "why": "a single-quoted value would be refused"
+ },
+ {
+  "name": "F07 readFromValue: only a single quote opens a quoted value",
+  "file": "src/core/qmd/model.ts",
+  "from": "line[at] === '\"' || line[at] === \"'\" ? line[at] : \"\"",
+  "to": "line[at] === \"'\" ? line[at] : \"\"",
+  "expect": "killed",
+  "why": "a double-quoted value would be refused"
+ },
+ {
+  "name": "F08 readFromValue: the opening quote is not stepped over",
+  "file": "src/core/qmd/model.ts",
+  "from": "  at += quote.length;\n  const baseStart = at;",
+  "to": "  const baseStart = at;",
+  "expect": "killed",
+  "why": "a quoted value would be refused"
+ },
+ {
+  "name": "F09 readFromValue: a base may start with any character",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (!isLetterCode(line.charCodeAt(at))) {\n    return null;\n  }\n  at++;",
+  "to": "  at++;",
+  "expect": "killed",
+  "why": "`from: 9a` would be a reader (and the bare `from:` too)"
+ },
+ {
+  "name": "F10 readFromValue: no digit inside a base",
+  "file": "src/core/qmd/model.ts",
+  "from": "isLetterCode(c) || (c >= 48 && c <= 57) || c === 95; c = line.charCodeAt(at)) {",
+  "to": "isLetterCode(c) || c === 95; c = line.charCodeAt(at)) {",
+  "expect": "killed",
+  "why": "`markdown2` would end at `markdown`"
+ },
+ {
+  "name": "F11 readFromValue: the digit range stops at 8",
+  "file": "src/core/qmd/model.ts",
+  "from": "(c >= 48 && c <= 57) || c === 95; c = line.charCodeAt(at)) {",
+  "to": "(c >= 48 && c <= 56) || c === 95; c = line.charCodeAt(at)) {",
+  "expect": "killed",
+  "why": "a base holding a 9"
+ },
+ {
+  "name": "F12 readFromValue: no underscore inside a base",
+  "file": "src/core/qmd/model.ts",
+  "from": "isLetterCode(c) || (c >= 48 && c <= 57) || c === 95; c = line.charCodeAt(at)) {",
+  "to": "isLetterCode(c) || (c >= 48 && c <= 57); c = line.charCodeAt(at)) {",
+  "expect": "killed",
+  "why": "`markdown_mmd` would end at `markdown`"
+ },
+ {
+  "name": "F13 readFromValue: only a plus starts an extension",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (sign !== 43 && sign !== 45) {\n      break;",
+  "to": "    if (sign !== 43) {\n      break;",
+  "expect": "killed",
+  "why": "a `-name` token would not be read"
+ },
+ {
+  "name": "F14 readFromValue: only a minus starts an extension",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (sign !== 43 && sign !== 45) {\n      break;",
+  "to": "    if (sign !== 45) {\n      break;",
+  "expect": "killed",
+  "why": "a `+name` token would not be read"
+ },
+ {
+  "name": "F15 readFromValue: no underscore inside an extension name",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let c = line.charCodeAt(end); isLetterCode(c) || c === 95; c = line.charCodeAt(end)) {",
+  "to": "for (let c = line.charCodeAt(end); isLetterCode(c); c = line.charCodeAt(end)) {",
+  "expect": "killed",
+  "why": "`blank_before_header` would be cut at the first underscore"
+ },
+ {
+  "name": "F16 readFromValue: a sign alone is an extension",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (end === at + 1) {\n      break;\n    }\n    at = end;",
+  "to": "    if (end === at) {\n      break;\n    }\n    at = end;",
+  "expect": "killed",
+  "why": "`markdown+` would be a reader"
+ },
+ {
+  "name": "F17 readFromValue: the closing quote is not compared",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (line[at] !== quote) {\n      return null;\n    }\n    at++;",
+  "to": "    at++;",
+  "expect": "killed",
+  "why": "`\"markdown` and `\"markdown'` would be readers"
+ },
+ {
+  "name": "F18 readFromValue: the closing quote is not stepped over",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (line[at] !== quote) {\n      return null;\n    }\n    at++;",
+  "to": "    if (line[at] !== quote) {\n      return null;\n    }",
+  "expect": "killed",
+  "why": "the closing quote would be read as a trailing character"
+ },
+ {
+  "name": "F19 readFromValue: one blank before the comment at most",
+  "file": "src/core/qmd/model.ts",
+  "from": "  at++;\n  }\n  while (isBlankCode(line.charCodeAt(at))) {\n    at++;\n  }\n  if (line[at] === \"#\") {",
+  "to": "  at++;\n  }\n  if (isBlankCode(line.charCodeAt(at))) {\n    at++;\n  }\n  if (line[at] === \"#\") {",
+  "expect": "killed",
+  "why": "`from: markdown   # c` (three blanks) would be refused: needs a stated row"
+ },
+ {
+  "name": "F20 readFromValue: no comment is allowed",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (line[at] === \"#\") {",
+  "to": "  if (line[at] === \"\\u0000\") {",
+  "expect": "killed",
+  "why": "a trailing comment would be refused"
+ },
+ {
+  "name": "F21 readFromValue: a line feed in the comment is allowed",
+  "file": "src/core/qmd/model.ts",
+  "from": "      if (c === 10 || c === 13 || c === 0x2028 || c === 0x2029) {",
+  "to": "      if (c === 13 || c === 0x2028 || c === 0x2029) {",
+  "expect": "killed",
+  "why": "`from: markdown # c<LF>` would be accepted"
+ },
+ {
+  "name": "F22 readFromValue: a CR in the comment is allowed",
+  "file": "src/core/qmd/model.ts",
+  "from": "      if (c === 10 || c === 13 || c === 0x2028 || c === 0x2029) {",
+  "to": "      if (c === 10 || c === 0x2028 || c === 0x2029) {",
+  "expect": "killed",
+  "why": "`# c<CR>` would be accepted"
+ },
+ {
+  "name": "F23 readFromValue: U+2028 in the comment is allowed",
+  "file": "src/core/qmd/model.ts",
+  "from": "      if (c === 10 || c === 13 || c === 0x2028 || c === 0x2029) {",
+  "to": "      if (c === 10 || c === 13 || c === 0x2029) {",
+  "expect": "killed",
+  "why": "a comment with U+2028 would be accepted"
+ },
+ {
+  "name": "F24 readFromValue: U+2029 in the comment is allowed",
+  "file": "src/core/qmd/model.ts",
+  "from": "      if (c === 10 || c === 13 || c === 0x2028 || c === 0x2029) {",
+  "to": "      if (c === 10 || c === 13 || c === 0x2028) {",
+  "expect": "killed",
+  "why": "a comment with U+2029 would be accepted"
+ },
+ {
+  "name": "F25 readFromValue: anything may follow the value",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return at === line.length ? { quote, base, extensionStart, extensionEnd } : null;",
+  "to": "  return { quote, base, extensionStart, extensionEnd };",
+  "expect": "killed",
+  "why": "`from: markdown!` would be a reader"
+ },
+ {
+  "name": "F26 readFromValue: the extension list starts one character late",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const extensionStart = at;\n  // A token",
+  "to": "  const extensionStart = at + 1;\n  // A token",
+  "expect": "killed",
+  "why": "the list would lose its first sign"
+ },
+ {
+  "name": "F27 readFromValue: the extension list ends one character early",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const extensionEnd = at;\n  if (quote",
+  "to": "  const extensionEnd = at - 1;\n  if (quote",
+  "expect": "killed",
+  "why": "the list would lose its last letter"
+ },
+ {
+  "name": "F28 fromValueParts: the first answer is kept for ever",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (line !== lastFromLine) {\n    lastFromParts = readFromValue(line);",
+  "to": "  if (lastFromLine === null) {\n    lastFromParts = readFromValue(line);",
+  "expect": "killed",
+  "why": "a second line would be answered with the first one"
+ },
+ {
+  "name": "F29 fromValueParts: the line is not remembered",
+  "file": "src/core/qmd/model.ts",
+  "from": "    lastFromParts = readFromValue(line);\n    lastFromLine = line;",
+  "to": "    lastFromParts = readFromValue(line);",
+  "expect": "killed",
+  "why": "no change in an answer; the cost of the 28 reads of a 13.6 million character line is what the row times"
+ },
+ {
+  "name": "F30 fromValueParts: the answer is kept but the line it belongs to is not compared",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (line !== lastFromLine) {",
+  "to": "  if (line.length !== (lastFromLine ?? \"\").length) {",
+  "expect": "killed",
+  "why": "a second line of the same length would be answered with the first"
+ },
+ {
+  "name": "E01 fromExtensionState: the length of the name is not compared",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (end - at - 1 === extension.length && line.startsWith(extension, at + 1)) {",
+  "to": "    if (line.startsWith(extension, at + 1)) {",
+  "expect": "killed",
+  "why": "`blank_before_header_x` would count as `blank_before_header`"
+ },
+ {
+  "name": "E02 fromExtensionState: the name is not compared",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (end - at - 1 === extension.length && line.startsWith(extension, at + 1)) {",
+  "to": "    if (end - at - 1 === extension.length) {",
+  "expect": "killed",
+  "why": "any name of the same length would count"
+ },
+ {
+  "name": "E03 fromExtensionState: the first token wins",
+  "file": "src/core/qmd/model.ts",
+  "from": "      state = line[at] === \"+\";",
+  "to": "      state = state ?? (line[at] === \"+\");",
+  "expect": "killed",
+  "why": "the second token of `-a+a` would be ignored"
+ },
+ {
+  "name": "E04 fromExtensionState: every token is on",
+  "file": "src/core/qmd/model.ts",
+  "from": "      state = line[at] === \"+\";",
+  "to": "      state = true;",
+  "expect": "killed",
+  "why": "a `-name` would turn the extension on"
+ },
+ {
+  "name": "E05 fromExtensionState: a token ends only at a plus",
+  "file": "src/core/qmd/model.ts",
+  "from": "line[end] !== \"+\" && line[end] !== \"-\") {\n      end++;",
+  "to": "line[end] !== \"+\") {\n      end++;",
+  "expect": "killed",
+  "why": "`-a-b` would be one token"
+ },
+ {
+  "name": "E06 fromExtensionState: the loop runs past the list",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let at = parts.extensionStart; at < parts.extensionEnd; ) {",
+  "to": "  for (let at = parts.extensionStart; at <= parts.extensionEnd; ) {",
+  "expect": "killed",
+  "why": "the character after the list would be read as a token"
+ },
+ {
+  "name": "E07 fromExtensionState: the tokens are read from the start of the line",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let at = parts.extensionStart; at < parts.extensionEnd; ) {",
+  "to": "  for (let at = 0; at < parts.extensionEnd; ) {",
+  "expect": "killed",
+  "why": "the key and the base would be read as tokens"
+ },
+ {
+  "name": "B01 fromIsMarkdownBase: any base but markdown",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return fromValueParts(line)?.base === \"markdown\";",
+  "to": "  return fromValueParts(line)?.base !== \"markdown\";",
+  "expect": "killed",
+  "why": "swapped"
+ },
+ {
+  "name": "B02 fromIsMarkdownBase: markdown_mmd also",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return fromValueParts(line)?.base === \"markdown\";",
+  "to": "  return fromValueParts(line)?.base === \"markdown\" || fromValueParts(line)?.base === \"markdown_mmd\";",
+  "expect": "killed",
+  "why": "markdown_mmd would be the plain reader"
+ },
+ {
+  "name": "B03 fromIsMarkdownVariant: markdown_github is not a variant",
+  "file": "src/core/qmd/model.ts",
+  "from": "const FRONTMATTER_MARKDOWN_VARIANT_BASES: ReadonlySet<string> = new Set([\n  \"markdown_strict\",\n  \"markdown_mmd\",\n  \"markdown_phpextra\",\n  \"markdown_github\",\n]);",
+  "to": "const FRONTMATTER_MARKDOWN_VARIANT_BASES: ReadonlySet<string> = new Set([\n  \"markdown_strict\",\n  \"markdown_mmd\",\n  \"markdown_phpextra\",\n  \"markdown_githubx\",\n]);",
+  "expect": "killed",
+  "why": "markdown_github"
+ },
+ {
+  "name": "B04 fromIsMarkdownVariant: markdown_mmd is not a variant",
+  "file": "src/core/qmd/model.ts",
+  "from": "const FRONTMATTER_MARKDOWN_VARIANT_BASES: ReadonlySet<string> = new Set([\n  \"markdown_strict\",\n  \"markdown_mmd\",\n  \"markdown_phpextra\",\n  \"markdown_github\",\n]);",
+  "to": "const FRONTMATTER_MARKDOWN_VARIANT_BASES: ReadonlySet<string> = new Set([\n  \"markdown_strict\",\n  \"markdown_mmdx\",\n  \"markdown_phpextra\",\n  \"markdown_github\",\n]);",
+  "expect": "killed",
+  "why": "markdown_mmd"
+ },
+ {
+  "name": "B05 fromIsMarkdownVariant: markdown_phpextra is not a variant",
+  "file": "src/core/qmd/model.ts",
+  "from": "const FRONTMATTER_MARKDOWN_VARIANT_BASES: ReadonlySet<string> = new Set([\n  \"markdown_strict\",\n  \"markdown_mmd\",\n  \"markdown_phpextra\",\n  \"markdown_github\",\n]);",
+  "to": "const FRONTMATTER_MARKDOWN_VARIANT_BASES: ReadonlySet<string> = new Set([\n  \"markdown_strict\",\n  \"markdown_mmd\",\n  \"markdown_phpextrax\",\n  \"markdown_github\",\n]);",
+  "expect": "killed",
+  "why": "markdown_phpextra"
+ },
+ {
+  "name": "B06 fromIsMarkdownVariant: markdown_strict is not a variant",
+  "file": "src/core/qmd/model.ts",
+  "from": "const FRONTMATTER_MARKDOWN_VARIANT_BASES: ReadonlySet<string> = new Set([\n  \"markdown_strict\",\n  \"markdown_mmd\",\n  \"markdown_phpextra\",\n  \"markdown_github\",\n]);",
+  "to": "const FRONTMATTER_MARKDOWN_VARIANT_BASES: ReadonlySet<string> = new Set([\n  \"markdown_strictx\",\n  \"markdown_mmd\",\n  \"markdown_phpextra\",\n  \"markdown_github\",\n]);",
+  "expect": "killed",
+  "why": "markdown_strict"
+ },
+ {
+  "name": "B07 fromIsMarkdownVariant: gfm is a variant",
+  "file": "src/core/qmd/model.ts",
+  "from": "const FRONTMATTER_MARKDOWN_VARIANT_BASES: ReadonlySet<string> = new Set([\n  \"markdown_strict\",\n  \"markdown_mmd\",\n  \"markdown_phpextra\",\n  \"markdown_github\",\n]);",
+  "to": "const FRONTMATTER_MARKDOWN_VARIANT_BASES: ReadonlySet<string> = new Set([\n  \"markdown_strict\",\n  \"markdown_mmd\",\n  \"markdown_phpextra\",\n  \"markdown_github\",\n  \"gfm\",\n]);",
+  "expect": "killed",
+  "why": "gfm would keep blank_before_header off a +blank_before_header"
+ },
+ {
+  "name": "W01 fromKeepsBlankBeforeHeader: the plain base does not keep it",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (fromIsMarkdownBase(line)) {\n    return true;\n  }",
+  "to": "  if (fromIsMarkdownBase(line)) {\n    return false;\n  }",
+  "expect": "killed",
+  "why": "`from: markdown` would drop its suppression"
+ },
+ {
+  "name": "W02 fromKeepsBlankBeforeHeader: a variant keeps it without the extension",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return fromIsMarkdownVariant(line) && FRONTMATTER_FROM_ENABLES_BLANK_BEFORE_HEADER.test(line);",
+  "to": "  return fromIsMarkdownVariant(line);",
+  "expect": "killed",
+  "why": "markdown_mmd would suppress a pressed heading"
+ },
+ {
+  "name": "W03 fromIsMarkdownFamily: both are needed",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return fromIsMarkdownBase(line) || fromIsMarkdownVariant(line);",
+  "to": "  return fromIsMarkdownBase(line) && fromIsMarkdownVariant(line);",
+  "expect": "killed",
+  "why": "never a family"
+ },
+ {
+  "name": "W04 fromIsMarkdownFamily: the variants are left out",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return fromIsMarkdownBase(line) || fromIsMarkdownVariant(line);",
+  "to": "  return fromIsMarkdownBase(line);",
+  "expect": "killed",
+  "why": "markdown_mmd out of the family"
+ },
+ {
+  "name": "W05 the free case reader: the variants stand for the plain base",
+  "file": "src/core/qmd/model.ts",
+  "from": "fromValueLine === null || fromIsMarkdownBase(fromValueLine);",
+  "to": "fromValueLine === null || fromIsMarkdownVariant(fromValueLine);",
+  "expect": "killed",
+  "why": "the measured refusal reader would be the wrong set"
+ },
+ {
+  "name": "W06 fromHasLineBlocks: only the base decides",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return state !== null ? state : fromReaderBase(line) === \"markdown\";",
+  "to": "  return fromReaderBase(line) === \"markdown\";",
+  "expect": "killed",
+  "why": "`markdown-line_blocks` would keep line blocks"
+ }
+]

@@ -1,0 +1,282 @@
+[
+ {
+  "name": "N01 nodePropertyEnd: a tag is not a property",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (c !== 38 && c !== 33) {\n      return at;",
+  "to": "    if (c !== 38) {\n      return at;",
+  "expect": "killed",
+  "why": "`!t` would not be stripped"
+ },
+ {
+  "name": "N02 nodePropertyEnd: an anchor is not a property",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (c !== 38 && c !== 33) {\n      return at;",
+  "to": "    if (c !== 33) {\n      return at;",
+  "expect": "killed",
+  "why": "`&a` would not be stripped"
+ },
+ {
+  "name": "N03 nodePropertyEnd: an alias is a property",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (c !== 38 && c !== 33) {\n      return at;",
+  "to": "    if (c !== 38 && c !== 33 && c !== 42) {\n      return at;",
+  "expect": "killed",
+  "why": "`*a` would be stripped"
+ },
+ {
+  "name": "N04 nodePropertyEnd: one blank at most after a property",
+  "file": "src/core/qmd/model.ts",
+  "from": "    while (token.charCodeAt(at) === 32 || token.charCodeAt(at) === 9) {\n      at++;\n    }\n  }\n}",
+  "to": "    if (token.charCodeAt(at) === 32 || token.charCodeAt(at) === 9) {\n      at++;\n    }\n  }\n}",
+  "expect": "killed",
+  "why": "`&a  &b` (two blanks) would stop after the first property"
+ },
+ {
+  "name": "N05 nodePropertyEnd: a tab does not end the blanks",
+  "file": "src/core/qmd/model.ts",
+  "from": "    while (token.charCodeAt(at) === 32 || token.charCodeAt(at) === 9) {",
+  "to": "    while (token.charCodeAt(at) === 32) {",
+  "expect": "killed",
+  "why": "`&a\\t&b` would stop at the tab"
+ },
+ {
+  "name": "N06 nodePropertyEnd: a space does not end the blanks",
+  "file": "src/core/qmd/model.ts",
+  "from": "    while (token.charCodeAt(at) === 32 || token.charCodeAt(at) === 9) {",
+  "to": "    while (token.charCodeAt(at) === 9) {",
+  "expect": "killed",
+  "why": "`&a &b` would stop"
+ },
+ {
+  "name": "N07 nodePropertyEnd: the blanks are not stepped over",
+  "file": "src/core/qmd/model.ts",
+  "from": "    while (token.charCodeAt(at) === 32 || token.charCodeAt(at) === 9) {\n      at++;\n    }\n  }",
+  "to": "    while (token.charCodeAt(at) === 32 || token.charCodeAt(at) === 9) {\n      break;\n    }\n  }",
+  "expect": "killed",
+  "why": "the blanks would be left in the text"
+ },
+ {
+  "name": "N08 nodePropertyEnd: the name ignores the end of the token",
+  "file": "src/core/qmd/model.ts",
+  "from": "    while (at < token.length && !isNodePropertyStop(token.charCodeAt(at))) {",
+  "to": "    while (!isNodePropertyStop(token.charCodeAt(at))) {",
+  "expect": "killed",
+  "why": "a name running to the end of the token would never stop (NaN is no stop): a hang"
+ },
+ {
+  "name": "N09 isNodePropertyStop: a comma does not end a name",
+  "file": "src/core/qmd/model.ts",
+  "from": "isSpaceCode(c) || c === 44 || c === 91",
+  "to": "isSpaceCode(c) || c === 91",
+  "expect": "killed",
+  "why": "`&a,b` would be one property"
+ },
+ {
+  "name": "N10 isNodePropertyStop: [ does not end a name",
+  "file": "src/core/qmd/model.ts",
+  "from": "c === 44 || c === 91 || c === 93",
+  "to": "c === 44 || c === 93",
+  "expect": "killed",
+  "why": "`&a[` would be one property"
+ },
+ {
+  "name": "N11 isNodePropertyStop: ] does not end a name",
+  "file": "src/core/qmd/model.ts",
+  "from": "c === 91 || c === 93 || c === 123",
+  "to": "c === 91 || c === 123",
+  "expect": "killed",
+  "why": "`&a]`"
+ },
+ {
+  "name": "N12 isNodePropertyStop: { does not end a name",
+  "file": "src/core/qmd/model.ts",
+  "from": "c === 93 || c === 123 || c === 125",
+  "to": "c === 93 || c === 125",
+  "expect": "killed",
+  "why": "`&a{`"
+ },
+ {
+  "name": "N13 isNodePropertyStop: } does not end a name",
+  "file": "src/core/qmd/model.ts",
+  "from": "c === 123 || c === 125;",
+  "to": "c === 123;",
+  "expect": "killed",
+  "why": "`&a}`"
+ },
+ {
+  "name": "N14 isNodePropertyStop: a quote ends a name",
+  "file": "src/core/qmd/model.ts",
+  "from": "c === 123 || c === 125;",
+  "to": "c === 123 || c === 125 || c === 39;",
+  "expect": "killed",
+  "why": "`&a'b` would be cut at the quote"
+ },
+ {
+  "name": "N15 isNodePropertyStop: white space does not end a name",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isNodePropertyStop = (c: number): boolean => isSpaceCode(c) ||",
+  "to": "const isNodePropertyStop = (c: number): boolean => c === 32 ||",
+  "expect": "killed",
+  "why": "a no-break space would not end a name"
+ },
+ {
+  "name": "S01 isSpaceCode: a space is not white space",
+  "file": "src/core/qmd/model.ts",
+  "from": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;",
+  "to": "  c === 31 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;",
+  "expect": "killed",
+  "why": "a space would not end a name"
+ },
+ {
+  "name": "S02 isSpaceCode: the control range starts at 10",
+  "file": "src/core/qmd/model.ts",
+  "from": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;",
+  "to": "  c === 32 || (c >= 10 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;",
+  "expect": "killed",
+  "why": "a tab would not end a name"
+ },
+ {
+  "name": "S03 isSpaceCode: the control range ends at 12",
+  "file": "src/core/qmd/model.ts",
+  "from": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;",
+  "to": "  c === 32 || (c >= 9 && c <= 12) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;",
+  "expect": "killed",
+  "why": "a CR would not end a name"
+ },
+ {
+  "name": "S04 isSpaceCode: no no-break space",
+  "file": "src/core/qmd/model.ts",
+  "from": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;",
+  "to": "  c === 32 || (c >= 9 && c <= 13) || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;",
+  "expect": "killed",
+  "why": "U+00A0"
+ },
+ {
+  "name": "S05 isSpaceCode: no ogham space mark",
+  "file": "src/core/qmd/model.ts",
+  "from": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;",
+  "to": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;",
+  "expect": "killed",
+  "why": "U+1680"
+ },
+ {
+  "name": "S06 isSpaceCode: the general punctuation range ends at U+2009",
+  "file": "src/core/qmd/model.ts",
+  "from": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;",
+  "to": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x2009) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;",
+  "expect": "killed",
+  "why": "U+200A"
+ },
+ {
+  "name": "S07 isSpaceCode: the general punctuation range starts at U+2001",
+  "file": "src/core/qmd/model.ts",
+  "from": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;",
+  "to": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2001 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;",
+  "expect": "killed",
+  "why": "U+2000"
+ },
+ {
+  "name": "S08 isSpaceCode: no line separator",
+  "file": "src/core/qmd/model.ts",
+  "from": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;",
+  "to": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;",
+  "expect": "killed",
+  "why": "U+2028"
+ },
+ {
+  "name": "S09 isSpaceCode: no paragraph separator",
+  "file": "src/core/qmd/model.ts",
+  "from": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;",
+  "to": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;",
+  "expect": "killed",
+  "why": "U+2029"
+ },
+ {
+  "name": "S10 isSpaceCode: no narrow no-break space",
+  "file": "src/core/qmd/model.ts",
+  "from": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;",
+  "to": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x205f || c === 0x3000 || c === 0xfeff;",
+  "expect": "killed",
+  "why": "U+202F"
+ },
+ {
+  "name": "S11 isSpaceCode: no medium mathematical space",
+  "file": "src/core/qmd/model.ts",
+  "from": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;",
+  "to": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x3000 || c === 0xfeff;",
+  "expect": "killed",
+  "why": "U+205F"
+ },
+ {
+  "name": "S12 isSpaceCode: no ideographic space",
+  "file": "src/core/qmd/model.ts",
+  "from": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;",
+  "to": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0xfeff;",
+  "expect": "killed",
+  "why": "U+3000"
+ },
+ {
+  "name": "S13 isSpaceCode: no byte order mark",
+  "file": "src/core/qmd/model.ts",
+  "from": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;",
+  "to": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000;",
+  "expect": "killed",
+  "why": "U+FEFF"
+ },
+ {
+  "name": "S14 isSpaceCode: NEL is white space",
+  "file": "src/core/qmd/model.ts",
+  "from": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;",
+  "to": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff || c === 0x85;",
+  "expect": "killed",
+  "why": "U+0085 would end a name"
+ },
+ {
+  "name": "S15 isSpaceCode: U+180E is white space",
+  "file": "src/core/qmd/model.ts",
+  "from": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff;",
+  "to": "  c === 32 || (c >= 9 && c <= 13) || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000 || c === 0xfeff || c === 0x180e;",
+  "expect": "killed",
+  "why": "U+180E would end a name"
+ },
+ {
+  "name": "X01 cell option reader: the strip is not applied",
+  "file": "src/core/qmd/model.ts",
+  "from": "    const stripped = armToken.slice(nodePropertyEnd(armToken));",
+  "to": "    const stripped = armToken;",
+  "expect": "killed",
+  "why": "an anchored flow opener would not arm: the older qmd-model rows and the S335 wiring rows"
+ },
+ {
+  "name": "X02 cell option reader: the strip is applied twice",
+  "file": "src/core/qmd/model.ts",
+  "from": "    const stripped = armToken.slice(nodePropertyEnd(armToken));",
+  "to": "    const stripped = armToken.slice(nodePropertyEnd(armToken)).slice(nodePropertyEnd(armToken.slice(nodePropertyEnd(armToken))));",
+  "expect": "killed",
+  "why": "a second tag after a quote"
+ },
+ {
+  "name": "X03 top-level front matter reader: the strip is not applied",
+  "file": "src/core/yaml-frontmatter-values.ts",
+  "from": "      const opener = armToken[nodePropertyEnd(armToken)];",
+  "to": "      const opener = armToken[0];",
+  "expect": "killed",
+  "why": "an anchored flow opener would not arm"
+ },
+ {
+  "name": "X04 nested front matter reader: the strip is not applied",
+  "file": "src/core/yaml-frontmatter-nested-values.ts",
+  "from": "      const opener = armToken[nodePropertyEnd(armToken)];",
+  "to": "      const opener = armToken[0];",
+  "expect": "killed",
+  "why": "an anchored flow opener would not arm"
+ },
+ {
+  "name": "X05 project file reader: the strip is not applied",
+  "file": "src/core/project-yaml.ts",
+  "from": "      const opener = armToken[nodePropertyEnd(armToken)];",
+  "to": "      const opener = armToken[0];",
+  "expect": "killed",
+  "why": "an anchored flow opener would not arm"
+ }
+]

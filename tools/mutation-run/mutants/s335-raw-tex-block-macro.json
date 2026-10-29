@@ -1,0 +1,426 @@
+[
+ {
+  "name": "A01 macroArgEnd: a bracket group is opened by a paren",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j;\n    }\n  }\n  return -1;\n}",
+  "to": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 40) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j;\n    }\n  }\n  return -1;\n}",
+  "expect": "killed",
+  "why": "`[x]` would not be an argument"
+ },
+ {
+  "name": "A02 macroArgEnd: a bracket group ends at a brace",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j;\n    }\n  }\n  return -1;\n}",
+  "to": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"}\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j;\n    }\n  }\n  return -1;\n}",
+  "expect": "killed",
+  "why": "`[x]` would not close"
+ },
+ {
+  "name": "A03 macroArgEnd: a bracket group ends before its bracket",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j;\n    }\n  }\n  return -1;\n}",
+  "to": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j;\n    }\n  }\n  return -1;\n}",
+  "expect": "killed",
+  "why": "the bracket would stay in the tail"
+ },
+ {
+  "name": "A04 macroArgEnd: an unclosed bracket group is a group",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j;\n    }\n  }\n  return -1;\n}",
+  "to": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? line.length : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j;\n    }\n  }\n  return -1;\n}",
+  "expect": "killed",
+  "why": "`[x` would be an argument"
+ },
+ {
+  "name": "A05 macroArgEnd: a brace group is opened by another character",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j;\n    }\n  }\n  return -1;\n}",
+  "to": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 124) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j;\n    }\n  }\n  return -1;\n}",
+  "expect": "killed",
+  "why": "`{x}` would not be an argument"
+ },
+ {
+  "name": "A06 macroArgEnd: a brace group is read from its first character",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j;\n    }\n  }\n  return -1;\n}",
+  "to": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j;\n    }\n  }\n  return -1;\n}",
+  "expect": "killed",
+  "why": "the opening brace is read as an inner group"
+ },
+ {
+  "name": "A07 macroArgEnd: a brace group ends before its brace",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j;\n    }\n  }\n  return -1;\n}",
+  "to": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j;\n    }\n  }\n  return -1;\n}",
+  "expect": "killed",
+  "why": "the brace would stay in the tail"
+ },
+ {
+  "name": "A08 macroArgEnd: no inner group",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j;\n    }\n  }\n  return -1;\n}",
+  "to": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 12345) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j;\n    }\n  }\n  return -1;\n}",
+  "expect": "killed",
+  "why": "`{a{b}c}` would end at the first closing brace"
+ },
+ {
+  "name": "A09 macroArgEnd: an inner group is read from its opening brace",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j;\n    }\n  }\n  return -1;\n}",
+  "to": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j;\n    }\n  }\n  return -1;\n}",
+  "expect": "killed",
+  "why": "the opening brace ends the inner group at once"
+ },
+ {
+  "name": "A10 macroArgEnd: an inner group may hold a brace",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j;\n    }\n  }\n  return -1;\n}",
+  "to": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j;\n    }\n  }\n  return -1;\n}",
+  "expect": "killed",
+  "why": "`{a{b{c}}}` would be an argument"
+ },
+ {
+  "name": "A11 macroArgEnd: an inner group is unclosed and fine",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j;\n    }\n  }\n  return -1;\n}",
+  "to": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return line.length;\n      }\n      i = j;\n    }\n  }\n  return -1;\n}",
+  "expect": "killed",
+  "why": "`{a{b` would be an argument"
+ },
+ {
+  "name": "A12 macroArgEnd: the inner brace is not stepped over",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j;\n    }\n  }\n  return -1;\n}",
+  "to": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n    }\n  }\n  return -1;\n}",
+  "expect": "killed",
+  "why": "`{a{b}c}` would end at the inner closing brace"
+ },
+ {
+  "name": "A13 macroArgEnd: the inner group is not scanned at all",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j;\n    }\n  }\n  return -1;\n}",
+  "to": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j + 1;\n    }\n  }\n  return -1;\n}",
+  "expect": "killed",
+  "why": "the character after the inner brace is skipped"
+ },
+ {
+  "name": "A14 macroArgEnd: an unclosed brace group is a group",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j;\n    }\n  }\n  return -1;\n}",
+  "to": "function macroArgEnd(line: string, at: number): number {\n  const c = line.charCodeAt(at);\n  if (c === 91) {\n    const close = line.indexOf(\"]\", at + 1);\n    return close < 0 ? -1 : close + 1;\n  }\n  if (c !== 123) {\n    return -1;\n  }\n  for (let i = at + 1; i < line.length; i++) {\n    const d = line.charCodeAt(i);\n    if (d === 125) {\n      return i + 1;\n    }\n    if (d === 123) {\n      let j = i + 1;\n      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {\n        j++;\n      }\n      if (line.charCodeAt(j) !== 125) {\n        return -1;\n      }\n      i = j;\n    }\n  }\n  return line.length;\n}",
+  "expect": "killed",
+  "why": "`{x` would be an argument"
+ },
+ {
+  "name": "G01 macroArgsEnd: one group at most",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroArgsEnd(line: string, from: number): number {\n  let at = from;\n  for (let end = macroArgEnd(line, at); end >= 0; end = macroArgEnd(line, at)) {\n    at = end;\n  }\n  return at;\n}",
+  "to": "function macroArgsEnd(line: string, from: number): number {\n  let at = from;\n  const end = macroArgEnd(line, at);\n  if (end >= 0) {\n    at = end;\n  }\n  return at;\n}",
+  "expect": "killed",
+  "why": "`{}{}` would end after the first"
+ },
+ {
+  "name": "G02 macroArgsEnd: the groups are not read",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroArgsEnd(line: string, from: number): number {\n  let at = from;\n  for (let end = macroArgEnd(line, at); end >= 0; end = macroArgEnd(line, at)) {\n    at = end;\n  }\n  return at;\n}",
+  "to": "function macroArgsEnd(line: string, from: number): number {\n  let at = from;\n  for (let end = macroArgEnd(line, at); end >= 0; end = macroArgEnd(line, at)) {\n  }\n  return at;\n}",
+  "expect": "killed",
+  "why": "at would stay at the start"
+ },
+ {
+  "name": "G03 macroArgsEnd: the last group is not kept",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroArgsEnd(line: string, from: number): number {\n  let at = from;\n  for (let end = macroArgEnd(line, at); end >= 0; end = macroArgEnd(line, at)) {\n    at = end;\n  }\n  return at;\n}",
+  "to": "function macroArgsEnd(line: string, from: number): number {\n  let at = from;\n  for (let end = macroArgEnd(line, at); end >= 0; end = macroArgEnd(line, at)) {\n    at = end - 1;\n  }\n  return at;\n}",
+  "expect": "killed",
+  "why": "the closing bracket stays"
+ },
+ {
+  "name": "I01 macroIsInline: no name is inline",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroIsInline(line: string, start: number, end: number): boolean {\n  const name = line.slice(start, end);\n  return INLINE_MACROS.has(name) || (line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1)) && INLINE_MACROS.has(`${name}*`));\n}",
+  "to": "function macroIsInline(line: string, start: number, end: number): boolean {\n  const name = line.slice(start, end);\n  return false || (line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1)) && INLINE_MACROS.has(`${name}*`));\n}",
+  "expect": "killed",
+  "why": "`\\textbf` would be a non-inline tail"
+ },
+ {
+  "name": "I02 macroIsInline: every name is inline",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroIsInline(line: string, start: number, end: number): boolean {\n  const name = line.slice(start, end);\n  return INLINE_MACROS.has(name) || (line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1)) && INLINE_MACROS.has(`${name}*`));\n}",
+  "to": "function macroIsInline(line: string, start: number, end: number): boolean {\n  const name = line.slice(start, end);\n  return true || (line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1)) && INLINE_MACROS.has(`${name}*`));\n}",
+  "expect": "killed",
+  "why": "`\\x` would be an inline tail"
+ },
+ {
+  "name": "I03 macroIsInline: the star is another character",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroIsInline(line: string, start: number, end: number): boolean {\n  const name = line.slice(start, end);\n  return INLINE_MACROS.has(name) || (line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1)) && INLINE_MACROS.has(`${name}*`));\n}",
+  "to": "function macroIsInline(line: string, start: number, end: number): boolean {\n  const name = line.slice(start, end);\n  return INLINE_MACROS.has(name) || (line.charCodeAt(end) === 43 && !isLetterCode(line.charCodeAt(end + 1)) && INLINE_MACROS.has(`${name}*`));\n}",
+  "expect": "survives",
+  "why": "a starred inline name with no plain twin (none exists): argued equivalent"
+ },
+ {
+  "name": "I04 macroIsInline: a letter after the star does not matter",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroIsInline(line: string, start: number, end: number): boolean {\n  const name = line.slice(start, end);\n  return INLINE_MACROS.has(name) || (line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1)) && INLINE_MACROS.has(`${name}*`));\n}",
+  "to": "function macroIsInline(line: string, start: number, end: number): boolean {\n  const name = line.slice(start, end);\n  return INLINE_MACROS.has(name) || (line.charCodeAt(end) === 42 && INLINE_MACROS.has(`${name}*`));\n}",
+  "expect": "survives",
+  "why": "argued equivalent while every starred inline name has a plain twin"
+ },
+ {
+  "name": "I05 macroIsInline: the starred name is looked up without its star",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroIsInline(line: string, start: number, end: number): boolean {\n  const name = line.slice(start, end);\n  return INLINE_MACROS.has(name) || (line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1)) && INLINE_MACROS.has(`${name}*`));\n}",
+  "to": "function macroIsInline(line: string, start: number, end: number): boolean {\n  const name = line.slice(start, end);\n  return INLINE_MACROS.has(name) || (line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1)) && INLINE_MACROS.has(name));\n}",
+  "expect": "survives",
+  "why": "argued equivalent: the plain name was already found"
+ },
+ {
+  "name": "L01 macroLineTailOk: a line that ends is not ok",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroLineTailOk(line: string, from: number): boolean {\n  let at = from;\n  for (;;) {\n    at = skipBlanks(line, at);\n    if (at === line.length) {\n      return true;\n    }\n    if (line.charCodeAt(at) !== 92) {\n      return false;\n    }\n    let end = at + 1;\n    while (isLetterCode(line.charCodeAt(end))) {\n      end++;\n    }\n    if (end === at + 1 || macroIsInline(line, at + 1, end)) {\n      return false;\n    }\n    at = macroArgsEnd(line, end);\n  }\n}",
+  "to": "function macroLineTailOk(line: string, from: number): boolean {\n  let at = from;\n  for (;;) {\n    at = skipBlanks(line, at);\n    if (at === line.length) {\n      return false;\n    }\n    if (line.charCodeAt(at) !== 92) {\n      return false;\n    }\n    let end = at + 1;\n    while (isLetterCode(line.charCodeAt(end))) {\n      end++;\n    }\n    if (end === at + 1 || macroIsInline(line, at + 1, end)) {\n      return false;\n    }\n    at = macroArgsEnd(line, end);\n  }\n}",
+  "expect": "killed",
+  "why": "`\\maketitle` would not be a block"
+ },
+ {
+  "name": "L02 macroLineTailOk: blanks are not skipped",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroLineTailOk(line: string, from: number): boolean {\n  let at = from;\n  for (;;) {\n    at = skipBlanks(line, at);\n    if (at === line.length) {\n      return true;\n    }\n    if (line.charCodeAt(at) !== 92) {\n      return false;\n    }\n    let end = at + 1;\n    while (isLetterCode(line.charCodeAt(end))) {\n      end++;\n    }\n    if (end === at + 1 || macroIsInline(line, at + 1, end)) {\n      return false;\n    }\n    at = macroArgsEnd(line, end);\n  }\n}",
+  "to": "function macroLineTailOk(line: string, from: number): boolean {\n  let at = from;\n  for (;;) {\n    if (at === line.length) {\n      return true;\n    }\n    if (line.charCodeAt(at) !== 92) {\n      return false;\n    }\n    let end = at + 1;\n    while (isLetterCode(line.charCodeAt(end))) {\n      end++;\n    }\n    if (end === at + 1 || macroIsInline(line, at + 1, end)) {\n      return false;\n    }\n    at = macroArgsEnd(line, end);\n  }\n}",
+  "expect": "killed",
+  "why": "`\\maketitle ` and `\\maketitle \\newpage` would be refused"
+ },
+ {
+  "name": "L03 macroLineTailOk: a tail starts with another character",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroLineTailOk(line: string, from: number): boolean {\n  let at = from;\n  for (;;) {\n    at = skipBlanks(line, at);\n    if (at === line.length) {\n      return true;\n    }\n    if (line.charCodeAt(at) !== 92) {\n      return false;\n    }\n    let end = at + 1;\n    while (isLetterCode(line.charCodeAt(end))) {\n      end++;\n    }\n    if (end === at + 1 || macroIsInline(line, at + 1, end)) {\n      return false;\n    }\n    at = macroArgsEnd(line, end);\n  }\n}",
+  "to": "function macroLineTailOk(line: string, from: number): boolean {\n  let at = from;\n  for (;;) {\n    at = skipBlanks(line, at);\n    if (at === line.length) {\n      return true;\n    }\n    if (line.charCodeAt(at) !== 47) {\n      return false;\n    }\n    let end = at + 1;\n    while (isLetterCode(line.charCodeAt(end))) {\n      end++;\n    }\n    if (end === at + 1 || macroIsInline(line, at + 1, end)) {\n      return false;\n    }\n    at = macroArgsEnd(line, end);\n  }\n}",
+  "expect": "killed",
+  "why": "`\\maketitle\\newpage`"
+ },
+ {
+  "name": "L04 macroLineTailOk: prose after the tail is fine",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroLineTailOk(line: string, from: number): boolean {\n  let at = from;\n  for (;;) {\n    at = skipBlanks(line, at);\n    if (at === line.length) {\n      return true;\n    }\n    if (line.charCodeAt(at) !== 92) {\n      return false;\n    }\n    let end = at + 1;\n    while (isLetterCode(line.charCodeAt(end))) {\n      end++;\n    }\n    if (end === at + 1 || macroIsInline(line, at + 1, end)) {\n      return false;\n    }\n    at = macroArgsEnd(line, end);\n  }\n}",
+  "to": "function macroLineTailOk(line: string, from: number): boolean {\n  let at = from;\n  for (;;) {\n    at = skipBlanks(line, at);\n    if (at === line.length) {\n      return true;\n    }\n    if (line.charCodeAt(at) !== 92) {\n      return true;\n    }\n    let end = at + 1;\n    while (isLetterCode(line.charCodeAt(end))) {\n      end++;\n    }\n    if (end === at + 1 || macroIsInline(line, at + 1, end)) {\n      return false;\n    }\n    at = macroArgsEnd(line, end);\n  }\n}",
+  "expect": "killed",
+  "why": "`\\maketitle prose`"
+ },
+ {
+  "name": "L05 macroLineTailOk: a name may be empty",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroLineTailOk(line: string, from: number): boolean {\n  let at = from;\n  for (;;) {\n    at = skipBlanks(line, at);\n    if (at === line.length) {\n      return true;\n    }\n    if (line.charCodeAt(at) !== 92) {\n      return false;\n    }\n    let end = at + 1;\n    while (isLetterCode(line.charCodeAt(end))) {\n      end++;\n    }\n    if (end === at + 1 || macroIsInline(line, at + 1, end)) {\n      return false;\n    }\n    at = macroArgsEnd(line, end);\n  }\n}",
+  "to": "function macroLineTailOk(line: string, from: number): boolean {\n  let at = from;\n  for (;;) {\n    at = skipBlanks(line, at);\n    if (at === line.length) {\n      return true;\n    }\n    if (line.charCodeAt(at) !== 92) {\n      return false;\n    }\n    let end = at + 1;\n    while (isLetterCode(line.charCodeAt(end))) {\n      end++;\n    }\n    if (macroIsInline(line, at + 1, end)) {\n      return false;\n    }\n    at = macroArgsEnd(line, end);\n  }\n}",
+  "expect": "killed",
+  "why": "`\\maketitle \\1` would be a tail"
+ },
+ {
+  "name": "L06 macroLineTailOk: an inline macro is fine in the tail",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroLineTailOk(line: string, from: number): boolean {\n  let at = from;\n  for (;;) {\n    at = skipBlanks(line, at);\n    if (at === line.length) {\n      return true;\n    }\n    if (line.charCodeAt(at) !== 92) {\n      return false;\n    }\n    let end = at + 1;\n    while (isLetterCode(line.charCodeAt(end))) {\n      end++;\n    }\n    if (end === at + 1 || macroIsInline(line, at + 1, end)) {\n      return false;\n    }\n    at = macroArgsEnd(line, end);\n  }\n}",
+  "to": "function macroLineTailOk(line: string, from: number): boolean {\n  let at = from;\n  for (;;) {\n    at = skipBlanks(line, at);\n    if (at === line.length) {\n      return true;\n    }\n    if (line.charCodeAt(at) !== 92) {\n      return false;\n    }\n    let end = at + 1;\n    while (isLetterCode(line.charCodeAt(end))) {\n      end++;\n    }\n    if (end === at + 1) {\n      return false;\n    }\n    at = macroArgsEnd(line, end);\n  }\n}",
+  "expect": "killed",
+  "why": "`\\maketitle \\textbf{b}` would be a block"
+ },
+ {
+  "name": "L07 macroLineTailOk: the arguments of a tail macro are not read",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroLineTailOk(line: string, from: number): boolean {\n  let at = from;\n  for (;;) {\n    at = skipBlanks(line, at);\n    if (at === line.length) {\n      return true;\n    }\n    if (line.charCodeAt(at) !== 92) {\n      return false;\n    }\n    let end = at + 1;\n    while (isLetterCode(line.charCodeAt(end))) {\n      end++;\n    }\n    if (end === at + 1 || macroIsInline(line, at + 1, end)) {\n      return false;\n    }\n    at = macroArgsEnd(line, end);\n  }\n}",
+  "to": "function macroLineTailOk(line: string, from: number): boolean {\n  let at = from;\n  for (;;) {\n    at = skipBlanks(line, at);\n    if (at === line.length) {\n      return true;\n    }\n    if (line.charCodeAt(at) !== 92) {\n      return false;\n    }\n    let end = at + 1;\n    while (isLetterCode(line.charCodeAt(end))) {\n      end++;\n    }\n    if (end === at + 1 || macroIsInline(line, at + 1, end)) {\n      return false;\n    }\n    at = end;\n  }\n}",
+  "expect": "killed",
+  "why": "`\\maketitle\\newpage{x}` would be refused"
+ },
+ {
+  "name": "L08 macroLineTailOk: a tail macro name is one letter",
+  "file": "src/core/qmd/model.ts",
+  "from": "function macroLineTailOk(line: string, from: number): boolean {\n  let at = from;\n  for (;;) {\n    at = skipBlanks(line, at);\n    if (at === line.length) {\n      return true;\n    }\n    if (line.charCodeAt(at) !== 92) {\n      return false;\n    }\n    let end = at + 1;\n    while (isLetterCode(line.charCodeAt(end))) {\n      end++;\n    }\n    if (end === at + 1 || macroIsInline(line, at + 1, end)) {\n      return false;\n    }\n    at = macroArgsEnd(line, end);\n  }\n}",
+  "to": "function macroLineTailOk(line: string, from: number): boolean {\n  let at = from;\n  for (;;) {\n    at = skipBlanks(line, at);\n    if (at === line.length) {\n      return true;\n    }\n    if (line.charCodeAt(at) !== 92) {\n      return false;\n    }\n    let end = at + 1;\n    if (isLetterCode(line.charCodeAt(end))) {\n      end++;\n    }\n    if (end === at + 1 || macroIsInline(line, at + 1, end)) {\n      return false;\n    }\n    at = macroArgsEnd(line, end);\n  }\n}",
+  "expect": "killed",
+  "why": "`\\maketitle\\newpage` would read `\\n` and then `ewpage`"
+ },
+ {
+  "name": "B01 blockMacroReads: names with any arguments are not read",
+  "file": "src/core/qmd/model.ts",
+  "from": "function blockMacroReads(line: string, name: string, from: number): boolean {\n  if (BLOCK_MACROS_ANY.has(name) && macroLineTailOk(line, macroArgsEnd(line, from))) {\n    return true;\n  }\n  if (BLOCK_MACROS_ARG.has(name)) {\n    const args = macroArgsEnd(line, from);\n    if (args > from && macroLineTailOk(line, args)) {\n      return true;\n    }\n  }\n  return BLOCK_MACROS_BARE.has(name) && macroLineTailOk(line, from);\n}",
+  "to": "function blockMacroReads(line: string, name: string, from: number): boolean {\n  if (false && BLOCK_MACROS_ANY.has(name) && macroLineTailOk(line, macroArgsEnd(line, from))) {\n    return true;\n  }\n  if (BLOCK_MACROS_ARG.has(name)) {\n    const args = macroArgsEnd(line, from);\n    if (args > from && macroLineTailOk(line, args)) {\n      return true;\n    }\n  }\n  return BLOCK_MACROS_BARE.has(name) && macroLineTailOk(line, from);\n}",
+  "expect": "killed",
+  "why": "`\\maketitle` would be refused"
+ },
+ {
+  "name": "B02 blockMacroReads: names with any arguments do not read them",
+  "file": "src/core/qmd/model.ts",
+  "from": "function blockMacroReads(line: string, name: string, from: number): boolean {\n  if (BLOCK_MACROS_ANY.has(name) && macroLineTailOk(line, macroArgsEnd(line, from))) {\n    return true;\n  }\n  if (BLOCK_MACROS_ARG.has(name)) {\n    const args = macroArgsEnd(line, from);\n    if (args > from && macroLineTailOk(line, args)) {\n      return true;\n    }\n  }\n  return BLOCK_MACROS_BARE.has(name) && macroLineTailOk(line, from);\n}",
+  "to": "function blockMacroReads(line: string, name: string, from: number): boolean {\n  if (BLOCK_MACROS_ANY.has(name) && macroLineTailOk(line, from)) {\n    return true;\n  }\n  if (BLOCK_MACROS_ARG.has(name)) {\n    const args = macroArgsEnd(line, from);\n    if (args > from && macroLineTailOk(line, args)) {\n      return true;\n    }\n  }\n  return BLOCK_MACROS_BARE.has(name) && macroLineTailOk(line, from);\n}",
+  "expect": "killed",
+  "why": "`\\usepackage{x}` would be refused"
+ },
+ {
+  "name": "B03 blockMacroReads: names with an argument need none",
+  "file": "src/core/qmd/model.ts",
+  "from": "function blockMacroReads(line: string, name: string, from: number): boolean {\n  if (BLOCK_MACROS_ANY.has(name) && macroLineTailOk(line, macroArgsEnd(line, from))) {\n    return true;\n  }\n  if (BLOCK_MACROS_ARG.has(name)) {\n    const args = macroArgsEnd(line, from);\n    if (args > from && macroLineTailOk(line, args)) {\n      return true;\n    }\n  }\n  return BLOCK_MACROS_BARE.has(name) && macroLineTailOk(line, from);\n}",
+  "to": "function blockMacroReads(line: string, name: string, from: number): boolean {\n  if (BLOCK_MACROS_ANY.has(name) && macroLineTailOk(line, macroArgsEnd(line, from))) {\n    return true;\n  }\n  if (BLOCK_MACROS_ARG.has(name)) {\n    const args = macroArgsEnd(line, from);\n    if (macroLineTailOk(line, args)) {\n      return true;\n    }\n  }\n  return BLOCK_MACROS_BARE.has(name) && macroLineTailOk(line, from);\n}",
+  "expect": "killed",
+  "why": "a bare `\\section` would be a block"
+ },
+ {
+  "name": "B04 blockMacroReads: names with an argument read none",
+  "file": "src/core/qmd/model.ts",
+  "from": "function blockMacroReads(line: string, name: string, from: number): boolean {\n  if (BLOCK_MACROS_ANY.has(name) && macroLineTailOk(line, macroArgsEnd(line, from))) {\n    return true;\n  }\n  if (BLOCK_MACROS_ARG.has(name)) {\n    const args = macroArgsEnd(line, from);\n    if (args > from && macroLineTailOk(line, args)) {\n      return true;\n    }\n  }\n  return BLOCK_MACROS_BARE.has(name) && macroLineTailOk(line, from);\n}",
+  "to": "function blockMacroReads(line: string, name: string, from: number): boolean {\n  if (BLOCK_MACROS_ANY.has(name) && macroLineTailOk(line, macroArgsEnd(line, from))) {\n    return true;\n  }\n  if (BLOCK_MACROS_ARG.has(name)) {\n    const args = from;\n    if (args > from && macroLineTailOk(line, args)) {\n      return true;\n    }\n  }\n  return BLOCK_MACROS_BARE.has(name) && macroLineTailOk(line, from);\n}",
+  "expect": "killed",
+  "why": "`\\section{x}` would be refused"
+ },
+ {
+  "name": "B05 blockMacroReads: names with an argument are not read",
+  "file": "src/core/qmd/model.ts",
+  "from": "function blockMacroReads(line: string, name: string, from: number): boolean {\n  if (BLOCK_MACROS_ANY.has(name) && macroLineTailOk(line, macroArgsEnd(line, from))) {\n    return true;\n  }\n  if (BLOCK_MACROS_ARG.has(name)) {\n    const args = macroArgsEnd(line, from);\n    if (args > from && macroLineTailOk(line, args)) {\n      return true;\n    }\n  }\n  return BLOCK_MACROS_BARE.has(name) && macroLineTailOk(line, from);\n}",
+  "to": "function blockMacroReads(line: string, name: string, from: number): boolean {\n  if (BLOCK_MACROS_ANY.has(name) && macroLineTailOk(line, macroArgsEnd(line, from))) {\n    return true;\n  }\n  if (false && BLOCK_MACROS_ARG.has(name)) {\n    const args = macroArgsEnd(line, from);\n    if (args > from && macroLineTailOk(line, args)) {\n      return true;\n    }\n  }\n  return BLOCK_MACROS_BARE.has(name) && macroLineTailOk(line, from);\n}",
+  "expect": "killed",
+  "why": "`\\section{x}` would be refused"
+ },
+ {
+  "name": "B06 blockMacroReads: names with no argument read theirs",
+  "file": "src/core/qmd/model.ts",
+  "from": "function blockMacroReads(line: string, name: string, from: number): boolean {\n  if (BLOCK_MACROS_ANY.has(name) && macroLineTailOk(line, macroArgsEnd(line, from))) {\n    return true;\n  }\n  if (BLOCK_MACROS_ARG.has(name)) {\n    const args = macroArgsEnd(line, from);\n    if (args > from && macroLineTailOk(line, args)) {\n      return true;\n    }\n  }\n  return BLOCK_MACROS_BARE.has(name) && macroLineTailOk(line, from);\n}",
+  "to": "function blockMacroReads(line: string, name: string, from: number): boolean {\n  if (BLOCK_MACROS_ANY.has(name) && macroLineTailOk(line, macroArgsEnd(line, from))) {\n    return true;\n  }\n  if (BLOCK_MACROS_ARG.has(name)) {\n    const args = macroArgsEnd(line, from);\n    if (args > from && macroLineTailOk(line, args)) {\n      return true;\n    }\n  }\n  return BLOCK_MACROS_BARE.has(name) && macroLineTailOk(line, macroArgsEnd(line, from));\n}",
+  "expect": "killed",
+  "why": "`\\par{x}` would be a block"
+ },
+ {
+  "name": "B07 blockMacroReads: the bare names are not read",
+  "file": "src/core/qmd/model.ts",
+  "from": "function blockMacroReads(line: string, name: string, from: number): boolean {\n  if (BLOCK_MACROS_ANY.has(name) && macroLineTailOk(line, macroArgsEnd(line, from))) {\n    return true;\n  }\n  if (BLOCK_MACROS_ARG.has(name)) {\n    const args = macroArgsEnd(line, from);\n    if (args > from && macroLineTailOk(line, args)) {\n      return true;\n    }\n  }\n  return BLOCK_MACROS_BARE.has(name) && macroLineTailOk(line, from);\n}",
+  "to": "function blockMacroReads(line: string, name: string, from: number): boolean {\n  if (BLOCK_MACROS_ANY.has(name) && macroLineTailOk(line, macroArgsEnd(line, from))) {\n    return true;\n  }\n  if (BLOCK_MACROS_ARG.has(name)) {\n    const args = macroArgsEnd(line, from);\n    if (args > from && macroLineTailOk(line, args)) {\n      return true;\n    }\n  }\n  return false && macroLineTailOk(line, from);\n}",
+  "expect": "killed",
+  "why": "`\\par` would be refused"
+ },
+ {
+  "name": "B08 blockMacroReads: the lists are swapped",
+  "file": "src/core/qmd/model.ts",
+  "from": "function blockMacroReads(line: string, name: string, from: number): boolean {\n  if (BLOCK_MACROS_ANY.has(name) && macroLineTailOk(line, macroArgsEnd(line, from))) {\n    return true;\n  }\n  if (BLOCK_MACROS_ARG.has(name)) {\n    const args = macroArgsEnd(line, from);\n    if (args > from && macroLineTailOk(line, args)) {\n      return true;\n    }\n  }\n  return BLOCK_MACROS_BARE.has(name) && macroLineTailOk(line, from);\n}",
+  "to": "function blockMacroReads(line: string, name: string, from: number): boolean {\n  if (BLOCK_MACROS_ANY.has(name) && macroLineTailOk(line, macroArgsEnd(line, from))) {\n    return true;\n  }\n  if (BLOCK_MACROS_ARG.has(name)) {\n    const args = macroArgsEnd(line, from);\n    if (args > from && macroLineTailOk(line, args)) {\n      return true;\n    }\n  }\n  return BLOCK_MACROS_ARG.has(name) && macroLineTailOk(line, from);\n}",
+  "expect": "killed",
+  "why": "`\\par`"
+ },
+ {
+  "name": "M01 rawTexBlockMacroLine: leading blanks are not skipped",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {\n    return false;\n  }\n  at++;\n  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {\n    return false;\n  }\n  const word = line.slice(at, end);\n  const starred = line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1));\n  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));\n}",
+  "to": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = 0;\n  if (line.charCodeAt(at) !== 92) {\n    return false;\n  }\n  at++;\n  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {\n    return false;\n  }\n  const word = line.slice(at, end);\n  const starred = line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1));\n  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));\n}",
+  "expect": "killed",
+  "why": "` \\maketitle` would be refused"
+ },
+ {
+  "name": "M02 rawTexBlockMacroLine: a macro starts with another character",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {\n    return false;\n  }\n  at++;\n  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {\n    return false;\n  }\n  const word = line.slice(at, end);\n  const starred = line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1));\n  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));\n}",
+  "to": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 47) {\n    return false;\n  }\n  at++;\n  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {\n    return false;\n  }\n  const word = line.slice(at, end);\n  const starred = line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1));\n  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));\n}",
+  "expect": "killed",
+  "why": "no macro"
+ },
+ {
+  "name": "M03 rawTexBlockMacroLine: the backslash is not stepped over",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {\n    return false;\n  }\n  at++;\n  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {\n    return false;\n  }\n  const word = line.slice(at, end);\n  const starred = line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1));\n  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));\n}",
+  "to": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {\n    return false;\n  }\n  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {\n    return false;\n  }\n  const word = line.slice(at, end);\n  const starred = line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1));\n  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));\n}",
+  "expect": "killed",
+  "why": "the name would be empty"
+ },
+ {
+  "name": "M04 rawTexBlockMacroLine: an empty name is a name",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {\n    return false;\n  }\n  at++;\n  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {\n    return false;\n  }\n  const word = line.slice(at, end);\n  const starred = line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1));\n  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));\n}",
+  "to": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {\n    return false;\n  }\n  at++;\n  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  const word = line.slice(at, end);\n  const starred = line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1));\n  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));\n}",
+  "expect": "killed",
+  "why": "a bare backslash"
+ },
+ {
+  "name": "M05 rawTexBlockMacroLine: a name is one letter",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {\n    return false;\n  }\n  at++;\n  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {\n    return false;\n  }\n  const word = line.slice(at, end);\n  const starred = line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1));\n  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));\n}",
+  "to": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {\n    return false;\n  }\n  at++;\n  let end = at;\n  if (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {\n    return false;\n  }\n  const word = line.slice(at, end);\n  const starred = line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1));\n  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));\n}",
+  "expect": "killed",
+  "why": "`\\maketitle` would be `m`"
+ },
+ {
+  "name": "M06 rawTexBlockMacroLine: the star is another character",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {\n    return false;\n  }\n  at++;\n  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {\n    return false;\n  }\n  const word = line.slice(at, end);\n  const starred = line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1));\n  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));\n}",
+  "to": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {\n    return false;\n  }\n  at++;\n  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {\n    return false;\n  }\n  const word = line.slice(at, end);\n  const starred = line.charCodeAt(end) === 43 && !isLetterCode(line.charCodeAt(end + 1));\n  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));\n}",
+  "expect": "killed",
+  "why": "`\\section*{x}` would be refused"
+ },
+ {
+  "name": "M07 rawTexBlockMacroLine: a letter after the star does not matter",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {\n    return false;\n  }\n  at++;\n  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {\n    return false;\n  }\n  const word = line.slice(at, end);\n  const starred = line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1));\n  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));\n}",
+  "to": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {\n    return false;\n  }\n  at++;\n  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {\n    return false;\n  }\n  const word = line.slice(at, end);\n  const starred = line.charCodeAt(end) === 42;\n  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));\n}",
+  "expect": "killed",
+  "why": "`\\section*x{y}` would be a starred name"
+ },
+ {
+  "name": "M08 rawTexBlockMacroLine: a starred name is not read",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {\n    return false;\n  }\n  at++;\n  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {\n    return false;\n  }\n  const word = line.slice(at, end);\n  const starred = line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1));\n  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));\n}",
+  "to": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {\n    return false;\n  }\n  at++;\n  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {\n    return false;\n  }\n  const word = line.slice(at, end);\n  const starred = line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1));\n  return blockMacroReads(line, word, end);\n}",
+  "expect": "killed",
+  "why": "`\\section*{x}`"
+ },
+ {
+  "name": "M09 rawTexBlockMacroLine: the plain name is not read",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {\n    return false;\n  }\n  at++;\n  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {\n    return false;\n  }\n  const word = line.slice(at, end);\n  const starred = line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1));\n  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));\n}",
+  "to": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {\n    return false;\n  }\n  at++;\n  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {\n    return false;\n  }\n  const word = line.slice(at, end);\n  const starred = line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1));\n  return (starred && blockMacroReads(line, `${word}*`, end + 1));\n}",
+  "expect": "killed",
+  "why": "`\\maketitle`"
+ },
+ {
+  "name": "M10 rawTexBlockMacroLine: a star is read from the name",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {\n    return false;\n  }\n  at++;\n  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {\n    return false;\n  }\n  const word = line.slice(at, end);\n  const starred = line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1));\n  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));\n}",
+  "to": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {\n    return false;\n  }\n  at++;\n  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {\n    return false;\n  }\n  const word = line.slice(at, end);\n  const starred = line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1));\n  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end));\n}",
+  "expect": "killed",
+  "why": "the star would be left to the arguments"
+ },
+ {
+  "name": "M11 rawTexBlockMacroLine: the name is read from the backslash",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {\n    return false;\n  }\n  at++;\n  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {\n    return false;\n  }\n  const word = line.slice(at, end);\n  const starred = line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1));\n  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));\n}",
+  "to": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {\n    return false;\n  }\n  at++;\n  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {\n    return false;\n  }\n  const word = line.slice(at - 1, end);\n  const starred = line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1));\n  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));\n}",
+  "expect": "killed",
+  "why": "no name matches"
+ },
+ {
+  "name": "N01 the name lists keep their stars: they are read as plain names",
+  "file": "src/core/qmd/model.ts",
+  "from": "const macroNames = (list: string): ReadonlySet<string> => new Set(list.replace(/\\\\\\*/g, \"*\").split(\"|\"));",
+  "to": "const macroNames = (list: string): ReadonlySet<string> => new Set(list.split(\"|\"));",
+  "expect": "killed",
+  "why": "`\\section*{x}` would be refused"
+ },
+ {
+  "name": "N02 the name lists are split on another character",
+  "file": "src/core/qmd/model.ts",
+  "from": "new Set(list.replace(/\\\\\\*/g, \"*\").split(\"|\"));",
+  "to": "new Set(list.replace(/\\\\\\*/g, \"*\").split(\",\"));",
+  "expect": "killed",
+  "why": "no name"
+ },
+ {
+  "name": "Q01 the paragraph-closing row does not ask the macro scan",
+  "file": "src/core/qmd/model.ts",
+  "from": "    rawTexBlockMacroLine(line) ||",
+  "to": "    false ||",
+  "expect": "killed",
+  "why": "a block macro line would not close a paragraph: the older qmd-model rows"
+ },
+ {
+  "name": "Q02 the fresh-block test does not ask the macro scan",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (HTML_BLOCK_OPEN.test(line) || rawTexBlockMacroLine(line)) {",
+  "to": "if (HTML_BLOCK_OPEN.test(line)) {",
+  "expect": "killed",
+  "why": "a block macro line would not open a block"
+ }
+]
