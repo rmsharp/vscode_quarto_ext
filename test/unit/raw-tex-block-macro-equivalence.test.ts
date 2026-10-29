@@ -277,7 +277,7 @@ describe("Session 335 review — rawTexBlockMacroLine on every code unit and on 
     expect(INLINE_NAMES.filter((name) => !rawTexBlockMacroLine(`\\maketitle \\${name.replace(/\*$/, "")}Zq`))).toEqual([]);
   });
 
-  it.each([4_097, 5_000, 70_000, 4_300_000])("%i blanks before a macro, and a macro name of %i letters, are read as the old pattern read them", (n) => {
+  it.each([4_097, 5_000, 70_000, 4_300_000])("%i blanks before a macro, and a macro name of that many letters, are read as the old pattern read them", (n) => {
     const lines = [
       " ".repeat(n) + "\\maketitle",
       "\t".repeat(n) + "\\maketitle \\x",

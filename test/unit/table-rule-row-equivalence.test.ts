@@ -226,7 +226,7 @@ describe("Session 335 — the pipe table opener asks tableRuleRow", () => {
 // The review round of Session 335 (its mutation lens): a cell of more than 2^22 dashes and a run of more than 2^22 blanks were read by no row (the rows above stop at 1,500,000 cells and 3,000,000 blanks), so an edit that
 // capped either at 4,194,304 survived the rows of this file (the other caps, 4,096 and 65,536, are held by `blank-tail-equivalence.test.ts`). The old patterns read a plain class there, so they still answer and are compared.
 describe("Session 335 review — a cell or a run of blanks past 2^22", () => {
-  it.each([4_194_305, 4_300_000])("a cell of %i dashes, and %i blanks after a delimiter row, give the old answers", (n) => {
+  it.each([4_194_305, 4_300_000])("a cell of %i dashes, and that many blanks after a delimiter row, give the old answers", (n) => {
     const lines = [
       "|" + "-".repeat(n) + "|",
       "|" + ":" + "-".repeat(n) + ":" + "|",
