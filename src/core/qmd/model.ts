@@ -9102,11 +9102,79 @@ function readChunkLabelToken(text: string, firstSlot: boolean): { value: string;
   if (quoted !== null) {
     return { value: quoted[2], offset: 1 };
   }
-  const written = firstSlot ? /^[\p{L}\p{N}_:.-]+$/u : R_SYMBOL_CHAIN;
-  return written.test(text) ? { value: text, offset: 0 } : null;
+  const written = firstSlot ? /^[\p{L}\p{N}_:.-]+$/u.test(text) : isRSymbolChain(text);
+  return written ? { value: text, offset: 0 } : null;
 }
-/** A bare token R reads back as the text written: symbols and canonical integers joined by `-` or `:`. */
-const R_SYMBOL_CHAIN = /^\p{L}[\p{L}\p{N}_.]*(?:[-:](?:\p{L}[\p{L}\p{N}_.]*|(?:0|[1-9][0-9]{0,3})))*$/u;
+/** One sticky read at `lastIndex`: in unicode mode a surrogate pair is ONE code point and a lone surrogate is none, which is how the old pattern's `\p{L}` read the text. */
+const R_SYMBOL_LETTER_AT = /\p{L}/uy;
+const R_SYMBOL_LETTER_OR_NUMBER_AT = /[\p{L}\p{N}]/uy;
+const isAsciiLetterCode = (c: number): boolean => (c >= 65 && c <= 90) || (c >= 97 && c <= 122);
+const isAsciiDigitCode = (c: number): boolean => c >= 48 && c <= 57;
+/** Whether the code point at `at` can START a symbol: a letter. Past the end `charCodeAt` is NaN, and the sticky read fails at the end of the text. */
+function rSymbolStartsAt(text: string, at: number): boolean {
+  const c = text.charCodeAt(at);
+  if (c < 128) {
+    return isAsciiLetterCode(c);
+  }
+  R_SYMBOL_LETTER_AT.lastIndex = at;
+  return R_SYMBOL_LETTER_AT.test(text);
+}
+/** Whether the code point at `at` can go on a symbol: a letter, a number, `_` or `.`. */
+function rSymbolContinuesAt(text: string, at: number): boolean {
+  const c = text.charCodeAt(at);
+  if (c < 128) {
+    return isAsciiLetterCode(c) || isAsciiDigitCode(c) || c === 95 || c === 46;
+  }
+  R_SYMBOL_LETTER_OR_NUMBER_AT.lastIndex = at;
+  return R_SYMBOL_LETTER_OR_NUMBER_AT.test(text);
+}
+/** Where the symbol that starts at `from` ends: the offset past its last code point, or -1 when no symbol starts there. */
+function rSymbolEnd(text: string, from: number): number {
+  if (!rSymbolStartsAt(text, from)) {
+    return -1;
+  }
+  let at = from;
+  do {
+    at += (text.codePointAt(at) as number) > 0xffff ? 2 : 1;
+  } while (rSymbolContinuesAt(text, at));
+  return at;
+}
+/** Where the canonical integer that starts at `from` ends, or -1 when none does: `0` alone, or one to four ASCII digits that do not start with `0`. */
+function rIntegerEnd(text: string, from: number): number {
+  const first = text.charCodeAt(from);
+  if (first === 48) {
+    return from + 1;
+  }
+  if (!(first >= 49 && first <= 57)) {
+    return -1;
+  }
+  let at = from + 1;
+  while (at < from + 4 && isAsciiDigitCode(text.charCodeAt(at))) {
+    at++;
+  }
+  return at;
+}
+/**
+ * Whether `text` is a bare token R reads back as the text written: a symbol, then any number of parts, each a `-` or `:` and either another symbol or a canonical integer (Session 337). A symbol is a letter and then
+ * letters, numbers, `_` and `.`; an integer is `0`, or one to four ASCII digits that do not start with `0`. It was the pattern `^\p{L}[\p{L}\p{N}_.]*(?:[-:](?:\p{L}[\p{L}\p{N}_.]*|(?:0|[1-9][0-9]{0,3})))*$`, and
+ * V8 keeps one entry of its regex backtrack stack per repetition of a group: a token of 3,355,430 or more `-a` parts (8,388,573 or more integer parts) threw `RangeError: Maximum call stack size exceeded`
+ * (bisected at `8ebce73`, Node 22.23.3), and the error reached the label index (`indexLabels`, so `findLabel`, with the knitr hint). The pattern never has a choice to take back: the separators `-` and `:` are no
+ * symbol character, a part starts with a letter or a digit and never with both, and the end of a part is the first character the part cannot hold, so a loop that reads one part after another is the pattern.
+ * `r-symbol-chain-equivalence.test.ts` keeps the old pattern as the oracle.
+ */
+export function isRSymbolChain(text: string): boolean {
+  let at = rSymbolEnd(text, 0);
+  while (at >= 0 && at < text.length) {
+    const separator = text.charCodeAt(at);
+    if (separator !== 45 && separator !== 58) {
+      return false;
+    }
+    at++;
+    const symbolEnd = rSymbolEnd(text, at);
+    at = symbolEnd >= 0 ? symbolEnd : rIntegerEnd(text, at);
+  }
+  return at === text.length;
+}
 /**
  * How knitr cleans the front of a chunk header before it reads the arguments: the first run of commas goes, then at
  * most ONE more comma, and a comma still standing in front of the first argument is an empty slot that wrecks the

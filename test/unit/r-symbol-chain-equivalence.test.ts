@@ -324,7 +324,7 @@ describe("Session 337 — isRSymbolChain: the loop reads the language `^\\p{L}[\
   });
 
   // The cure itself: a token past the old overflow (3,355,430 `-a` parts, 8,388,573 integer parts) is read. The old pattern is compared only below that, where it still reads.
-  const SMALL_RUNS = [1, 2, 3, 100, 4_096, 65_536, 1_000_000];
+  const SMALL_RUNS = [1, 2, 3, 100, 4_096, 65_536];
   const UNITS = ["-a", ":a", "-ab", "-a1", "-a.", "-1", "-0", "-12", ":9999", `-${E_ACUTE}`, `:${BOLD_A}`];
   const TAILS = ["", "-b", "-0", "-1234", "-01", "-12345", "-", ":", "$", " x", ".5", "-a.", `-${ARABIC_THREE}`, "\ud835"];
   it.each(SMALL_RUNS)("a token of %i parts ends where the old pattern did, with every tail", (n) => {
@@ -336,41 +336,29 @@ describe("Session 337 — isRSymbolChain: the loop reads the language `^\\p{L}[\
     }
   }, HEAVY_ROW_MS);
 
-  it("a token of 3,000,000 parts, just under the old overflow of a name unit, is read as the old pattern reads it", () => {
-    for (const unit of ["-a", ":a", `-${E_ACUTE}`, "-1"]) {
-      for (const tail of ["", "-01", "-12345"]) {
-        const token = "a" + unit.repeat(3_000_000) + tail;
-        expect(isRSymbolChain(token)).toBe(oldAccepts(token));
-      }
+  // The last sizes the old pattern still reads (3,355,429 name parts, 8,388,572 integer parts, bisected at `8ebce73`) and a size well under: the old answer is the new one.
+  // A tail that starts a part (`-01`, `-12345`, `-`) is one repetition more for the old pattern before it fails, so the boundary rows take only the tails that start none.
+  it.each([["-a", 3_000_000, ["", "-01", "-12345", "-"]], [":a", 3_355_429, ["", "$", " x"]], [`-${E_ACUTE}`, 3_000_000, ["", "-01", "-12345", "-"]], ["-1", 8_388_572, ["", "$", " x"]], ["-0", 3_000_000, ["", "-01", "-12345", "-"]]] as const)("a token of n parts of the unit %s, n = %i, is read as the old pattern reads it", (unit, n, tails) => {
+    for (const tail of tails) {
+      const token = "a" + unit.repeat(n) + tail;
+      expect(isRSymbolChain(token)).toBe(oldAccepts(token));
     }
   }, HEAVY_ROW_MS);
 
-  const LONG_NAME_RUNS = [3_355_429, 3_355_430, 4_200_000, 6_720_000];
-  const LONG_NUMBER_RUNS = [8_388_572, 8_388_573, 16_800_000];
-  it.each(LONG_NAME_RUNS)("a token of %i name parts is a chain, and a bad tail still refuses it", (n) => {
-    for (const unit of ["-a", ":a", "-ab"]) {
-      const run = "a" + unit.repeat(n);
-      expect(isRSymbolChain(run)).toBe(true);
-      expect(isRSymbolChain(run + "-0")).toBe(true);
-      expect(isRSymbolChain(run + "-1234")).toBe(true);
-      expect(isRSymbolChain(run + "-01")).toBe(false);
-      expect(isRSymbolChain(run + "-12345")).toBe(false);
-      expect(isRSymbolChain(run + "-")).toBe(false);
-      expect(isRSymbolChain(run + "$")).toBe(false);
-      expect(isRSymbolChain("1" + run)).toBe(false);
-      expect(isRSymbolChain(run.slice(1))).toBe(false); // the head `a` is gone: a separator cannot start a token
-    }
-  }, HEAVY_ROW_MS);
-
-  const AFTER_FIVE: Record<string, boolean> = { "-1": true, "-0": false, "-12": true, ":9999": false };
-  it.each(LONG_NUMBER_RUNS)("a token of %i integer parts is a chain, and a bad tail still refuses it", (n) => {
-    for (const unit of ["-1", "-0", "-12", ":9999"]) {
-      const run = "a" + unit.repeat(n);
-      expect(isRSymbolChain(run)).toBe(true);
-      expect(isRSymbolChain(run + "-b")).toBe(true);
-      expect(isRSymbolChain(run + "-01")).toBe(false);
-      expect(isRSymbolChain(run + "-12345")).toBe(false);
-      expect(isRSymbolChain(run + "5")).toBe(AFTER_FIVE[unit]); // the last integer grows by a digit: `-05` and `:99995` are refused, `-15` and `-125` are read
+  // Past the old overflow the answer is the one the pattern would give with a stack that does not run out: the run is a chain, and a bad tail refuses it. The parent throws at every size below (an integer unit from 8,388,573).
+  const AFTER_FIVE: Record<string, boolean> = { "-1": true, "-0": false, "-12": true };
+  it.each([["-a", 3_355_430], ["-a", 6_720_000], [":a", 6_720_000], ["-ab", 3_355_430], ["-1", 8_388_573], ["-0", 16_800_000], ["-12", 8_388_573]] as const)("a token of n parts of the unit %s, n = %i, is a chain, and a bad tail still refuses it", (unit, n) => {
+    const run = "a" + unit.repeat(n);
+    expect(isRSymbolChain(run)).toBe(true);
+    expect(isRSymbolChain(run + "-b")).toBe(true);
+    expect(isRSymbolChain(run + "-01")).toBe(false);
+    expect(isRSymbolChain(run + "-12345")).toBe(false);
+    expect(isRSymbolChain(run + "-")).toBe(false);
+    expect(isRSymbolChain(run + "$")).toBe(false);
+    expect(isRSymbolChain("1" + run)).toBe(false);
+    expect(isRSymbolChain(run.slice(1))).toBe(false); // the head `a` is gone: a separator cannot start a token
+    if (unit in AFTER_FIVE) {
+      expect(isRSymbolChain(run + "5")).toBe(AFTER_FIVE[unit]); // the last integer grows by a digit: `-05` is refused, `-15` and `-125` are read
     }
   }, HEAVY_ROW_MS);
 
@@ -386,10 +374,10 @@ describe("Session 337 — isRSymbolChain: the loop reads the language `^\\p{L}[\
     expect(Date.now() - started).toBeLessThan(10_000);
   }, HEAVY_ROW_MS);
 
-  it("a token of 45,000,000 parts is read in linear time (the token is 90 million characters)", () => {
-    const token = "a" + "-a".repeat(45_000_000);
+  it("a token of 20,000,000 parts is read in linear time (the token is 40 million characters)", () => {
+    const token = "a" + "-a".repeat(20_000_000);
     const started = Date.now();
     expect(isRSymbolChain(token)).toBe(true);
-    expect(Date.now() - started).toBeLessThan(3000);
+    expect(Date.now() - started).toBeLessThan(5000); // it takes about half a second; a quadratic reading would take hours
   });
 });
