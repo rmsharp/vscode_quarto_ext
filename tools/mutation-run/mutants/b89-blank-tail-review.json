@@ -200,46 +200,6 @@
   "why": "ARGUED EQUIVALENT by the Session 319 review: `$` forces it to the end of the same rest"
  },
  {
-  "name": "R-PP01 PIPE_DELIMITER_ROW: the run after the leading pipe is capped at 4096",
-  "file": "src/core/qmd/model.ts",
-  "from": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
-  "to": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]{0,4096}:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
-  "expect": "killed",
-  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no accepted line has a long run between the leading pipe and the first dash"
- },
- {
-  "name": "R-PP02 PIPE_DELIMITER_ROW: the run after an inner pipe is capped at 4096",
-  "file": "src/core/qmd/model.ts",
-  "from": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
-  "to": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]{0,4096}:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
-  "expect": "killed",
-  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. every accepted tail has at most one blank after a pipe"
- },
- {
-  "name": "R-PP03 PIPE_DELIMITER_ROW: the first dash run is capped at 4096",
-  "file": "src/core/qmd/model.ts",
-  "from": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
-  "to": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-{1,4096}:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
-  "expect": "killed",
-  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no accepted line has more than two dashes"
- },
- {
-  "name": "R-PP04 PIPE_DELIMITER_ROW: the cell count is capped at 4096",
-  "file": "src/core/qmd/model.ts",
-  "from": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
-  "to": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?){0,4096}(?:[ \\t]*\\|)?[ \\t]*$/;",
-  "expect": "killed",
-  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no accepted line has more than a few hundred cells"
- },
- {
-  "name": "R-PP07 PIPE_DELIMITER_ROW: two blank runs after an inner pipe",
-  "file": "src/core/qmd/model.ts",
-  "from": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
-  "to": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
-  "expect": "killed",
-  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. `-|` and a long run then no dash"
- },
- {
   "name": "R-BB05 BIBLIOGRAPHY_ITEM_LINE: the item is lazy",
   "file": "src/core/frontmatter.ts",
   "from": "export const BIBLIOGRAPHY_ITEM_LINE = /^\\s*-\\s+(?!\\s)(.*)$/;",
@@ -478,14 +438,6 @@
   "to": "export const BIBLIOGRAPHY_ITEM_LINE = /^\\s*[-*]\\s+(?!\\s)(.*)$/;",
   "expect": "killed",
   "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no star in any alphabet"
- },
- {
-  "name": "R-CX15 PIPE_DELIMITER_ROW: an equals sign is a delimiter too",
-  "file": "src/core/qmd/model.ts",
-  "from": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
-  "to": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?[-=]+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
-  "expect": "killed",
-  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no equals sign in any alphabet"
  },
  {
   "name": "R-CX16 KNITR_ECHO_INCLUDE_LINE: `=` may stand for the colon",

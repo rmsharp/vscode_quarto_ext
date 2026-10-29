@@ -208,38 +208,6 @@
   "why": "the same strings and the same groups (the guard asserts nothing the group's greedy run does not already end on)"
  },
  {
-  "name": "R01 PIPE_DELIMITER_ROW: back to the old spelling (two blank runs touch)",
-  "file": "src/core/qmd/model.ts",
-  "from": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
-  "to": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?[ \\t]*(?:\\|[ \\t]*:?-+:?[ \\t]*)*\\|?[ \\t]*$/;",
-  "expect": "killed",
-  "why": "the language is the same; the document rows (U+2028, U+2029) and the near-miss clock row notice"
- },
- {
-  "name": "R02 PIPE_DELIMITER_ROW: no optional trailing pipe",
-  "file": "src/core/qmd/model.ts",
-  "from": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
-  "to": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*[ \\t]*$/;",
-  "expect": "killed",
-  "why": "`-|` stops being a delimiter row: the enumeration"
- },
- {
-  "name": "R03 PIPE_DELIMITER_ROW: a cell may be empty of dashes",
-  "file": "src/core/qmd/model.ts",
-  "from": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
-  "to": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-*:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
-  "expect": "killed",
-  "why": "`-||` starts matching: the enumeration"
- },
- {
-  "name": "R04 PIPE_DELIMITER_ROW: the leading pipe is required",
-  "file": "src/core/qmd/model.ts",
-  "from": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|?[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
-  "to": "export const PIPE_DELIMITER_ROW = /^ {0,3}\\|[ \\t]*:?-+:?(?:[ \\t]*\\|[ \\t]*:?-+:?)*(?:[ \\t]*\\|)?[ \\t]*$/;",
-  "expect": "killed",
-  "why": "`-` stops being a row: the enumeration"
- },
- {
   "name": "B01 BIBLIOGRAPHY_ITEM_LINE: no guard",
   "file": "src/core/frontmatter.ts",
   "from": "export const BIBLIOGRAPHY_ITEM_LINE = /^\\s*-\\s+(?!\\s)(.*)$/;",

@@ -12,13 +12,13 @@ import {
   DIV_FENCE,
   KNITR_ECHO_INCLUDE_LINE,
   LINK_DEFINITION_LINE,
-  PIPE_DELIMITER_ROW,
   PLAIN_ITEM_LINE,
   PLAIN_KEY_LINE,
   PROOF_KEY_LINE,
-  TABLE_RULE_ROW,
   TOP_LEVEL_ANCHOR_DECL,
   cellOptionPrefixFor,
+  pipeDelimiterRow,
+  tableRuleRow,
 } from "../../src/core/qmd/model";
 import { BOM, EM_SPACE, IDEOGRAPHIC, LS, NBSP, NEL, PS, compare, countStrings, everyString, seededRandom, slowestExec } from "./support/regex-equivalence";
 
@@ -78,6 +78,16 @@ const cellOptionSite = (open: string): Site => ({
 /** A run of seven or more `#` is no heading (the Outline caps at six): both readers must refuse these, and neither is a head any other row builds (a head is accepted by definition). */
 const sevenHashes = (n: number): string[] => ["#######", "####### x", "#######x", "#######  ", `#######${" ".repeat(n)}x`, `${"#".repeat(n)} x`, `${"#".repeat(n)}x`];
 
+/**
+ * A function that answers a yes or no, as the pattern it replaced answered `exec` (Session 335): the whole line as the match and no groups, which is what the two `^...$` patterns without groups below gave.
+ * `PIPE_DELIMITER_ROW` and `TABLE_RULE_ROW` are the functions `pipeDelimiterRow` and `tableRuleRow` since Session 335 (a group per cell overflowed V8's regex stack), and every row of this file that runs a site's
+ * `exec` still does: the enumerations, the seeded samples, the gap grids and the near-miss clocks. `table-rule-row-equivalence.test.ts` compares the functions with the patterns as they stood.
+ */
+const asPattern = (accepts: (line: string) => boolean): RegExp =>
+  ({ exec: (text: string) => (accepts(text) ? Object.assign([text], { index: 0, input: text }) : null), test: accepts }) as unknown as RegExp;
+/** The sites whose `now` is a function, so it has no source to hold a guard. */
+const FUNCTION_SITES: ReadonlySet<string> = new Set(["PIPE_DELIMITER_ROW", "TABLE_RULE_ROW"]);
+
 // ⚠ APPEND a new site at the END: each site's seeded sample is seeded with 319 plus its position here, so an entry put in the middle moves every later site's seed and its pinned `seeded` count
 // (Session 320 put TABLE_RULE_ROW mid-table first and five later sites failed their seeded rows).
 const SITES: Record<string, Site> = {
@@ -94,7 +104,7 @@ const SITES: Record<string, Site> = {
   "CELL_OPTION_PREFIX (*": cellOptionSite("(*"),
   PIPE_DELIMITER_ROW: {
     old: /^ {0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/,
-    now: PIPE_DELIMITER_ROW,
+    now: asPattern(pipeDelimiterRow),
     guard: "(?:[ \\t]*\\|)?[ \\t]*$",
     marks: ["|", "-", ":"],
     heads: ["-", "|-", ":-:", "|--"],
@@ -156,7 +166,7 @@ const SITES: Record<string, Site> = {
   // letter). The pipe body takes `PIPE_DELIMITER_ROW`'s spelling (each blank run in front of the pipe it belongs to); the grid body asks for its last non-space character before the shared `\s*`.
   TABLE_RULE_ROW: {
     old: /^ {0,3}(?:\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?|\+[-+=: ]*)\s*$/,
-    now: TABLE_RULE_ROW,
+    now: asPattern(tableRuleRow),
     guard: "(?:[ \\t]*\\|)?",
     marks: ["|", "-", ":", "+", "="],
     foils: ["*"],
@@ -444,7 +454,12 @@ describe("Session 319 — the blank-run patterns answer what their unguarded spe
   // guard text stays and its effect is weakened, it is the clock rows below that fail.
   it.each(names)("the oracle for %s is the spelling without the guard, and the new source holds it", (name) => {
     expect(SITES[name].old.source).not.toContain(SITES[name].guard);
-    expect(SITES[name].now.source).toContain(SITES[name].guard);
+    if (FUNCTION_SITES.has(name)) {
+      // A function has no source to hold a guard; its row is the clock rows below, which time `exec` on the near-miss lines of the site.
+      expect(SITES[name].now.source).toBeUndefined();
+    } else {
+      expect(SITES[name].now.source).toContain(SITES[name].guard);
+    }
   });
 
   it.each(names)("%s agrees, groups included, on every string of the site's marks, a blank, a tab, a CR, U+2028 and a letter, up to its length", (name) => {

@@ -5297,38 +5297,6 @@ function blockQuoteContentStart(
  */
 const LINE_BLOCK_LINE = /^\|[ \t]+\S/;
 const LINE_BLOCK_CONTINUATION = /^[ \t]+/;
-/**
- * A table's RULE row — the line that turns a run of `| … |` rows into a table rather than a
- * line block (Session 185). Two spellings, both measured: a PIPE table's delimiter
- * (`|---|---|`, with optional alignment colons and optional outer pipes) and a GRID table's
- * border (`+---+---+`, also `+===+===+`).
- *
- * ⚠ **This exists only to DISARM `LINE_BLOCK_LINE`, and that asymmetry is what makes it
- * safe.** A table's body row is spelled exactly like a line-block line, so without this the
- * rule arms on `| 1 | 2 |` and reads the row below as a continuation — measured wrong:
- *
- *   `| a | b |` / `|---|---|` / `| 1 | 2 |` / `  continued` / `# ATX Below`  ->  NO heading
- *   `| a | b |` /               `| 1 | 2 |` / `  continued` / `# ATX Below`  ->  the heading
- *
- * Only the delimiter row separates those two documents, and no per-line predicate can see it
- * without state — hence the flag. Because disarming merely restores the pre-Session-185
- * behaviour, an over-eager match here can only ever forgo a RECOVERY; it can never delete a
- * heading. That is the opposite polarity to `CLOSES_PARAGRAPH`, and it is why this pattern is
- * allowed to be approximate where those rows may not be.
- *
- * ⚠ **Both spellings, and `\s*$` rather than `[ \t]*$`, were added because Session 185's own
- * adversarial sweep produced the documents that need them** — a GRID table whose rule this
- * never matched, and a pipe delimiter whose trailing whitespace is a FORM FEED. Each armed the
- * line-block rule on a table body row and invented the heading below it.
- *
- * ⚠ **No two blank runs touch (Session 320).** The pipe body takes `PIPE_DELIMITER_ROW`'s spelling (each blank run sits in front of the pipe it belongs to; its docstring has the argument), and the grid
- * body's `[-+=: ]*` shared its space with the `\s*` after it in the same way, so it now ends in a character that is not a space, or in nothing, and the blanks after it belong to `\s*` alone. For n
- * blanks and ANY character that ended the match (not only a terminator) the old spelling tried all n+1 ways to split them and each split re-read the second run (`-`, 32,000 blanks, a letter: 617 ms in
- * one `exec`; a document costs twice that, every body line is tested twice). The strings accepted are the same (`blank-tail-equivalence.test.ts` holds the old spelling as the oracle); callers read
- * `.test` only.
- */
-export const TABLE_RULE_ROW =
-  /^ {0,3}(?:\|?[ \t]*:?-+:?(?:[ \t]*\|[ \t]*:?-+:?)*(?:[ \t]*\|)?|\+(?:[-+=: ]*[-+=:])?)\s*$/;
 const skipBlanks = (line: string, from: number): number => {
   let at = from;
   while (line.charCodeAt(at) === 32 || line.charCodeAt(at) === 9) {
@@ -5387,7 +5355,36 @@ function pipeRuleBodyEnd(line: string, from: number): number {
   }
 }
 /**
- * `TABLE_RULE_ROW.test(line)` read by a loop (Session 335): at most three spaces, then a pipe body or a grid body, then white space to the end. It was the pattern above, and V8 keeps one entry of its regex
+ * A table's RULE row — the line that turns a run of `| … |` rows into a table rather than a
+ * line block (Session 185). Two spellings, both measured: a PIPE table's delimiter
+ * (`|---|---|`, with optional alignment colons and optional outer pipes) and a GRID table's
+ * border (`+---+---+`, also `+===+===+`).
+ *
+ * ⚠ **This exists only to DISARM `LINE_BLOCK_LINE`, and that asymmetry is what makes it
+ * safe.** A table's body row is spelled exactly like a line-block line, so without this the
+ * rule arms on `| 1 | 2 |` and reads the row below as a continuation — measured wrong:
+ *
+ *   `| a | b |` / `|---|---|` / `| 1 | 2 |` / `  continued` / `# ATX Below`  ->  NO heading
+ *   `| a | b |` /               `| 1 | 2 |` / `  continued` / `# ATX Below`  ->  the heading
+ *
+ * Only the delimiter row separates those two documents, and no per-line predicate can see it
+ * without state — hence the flag. Because disarming merely restores the pre-Session-185
+ * behaviour, an over-eager match here can only ever forgo a RECOVERY; it can never delete a
+ * heading. That is the opposite polarity to `CLOSES_PARAGRAPH`, and it is why this pattern is
+ * allowed to be approximate where those rows may not be.
+ *
+ * ⚠ **Both spellings, and `\s*$` rather than `[ \t]*$`, were added because Session 185's own
+ * adversarial sweep produced the documents that need them** — a GRID table whose rule this
+ * never matched, and a pipe delimiter whose trailing whitespace is a FORM FEED. Each armed the
+ * line-block rule on a table body row and invented the heading below it.
+ *
+ * ⚠ **No two blank runs touch (Session 320).** The pipe body takes `pipeDelimiterRow`'s spelling (each blank run sits in front of the pipe it belongs to; its docstring has the argument), and the grid
+ * body's `[-+=: ]*` shared its space with the `\s*` after it in the same way, so it now ends in a character that is not a space, or in nothing, and the blanks after it belong to `\s*` alone. For n
+ * blanks and ANY character that ended the match (not only a terminator) the old spelling tried all n+1 ways to split them and each split re-read the second run (`-`, 32,000 blanks, a letter: 617 ms in
+ * one `exec`; a document costs twice that, every body line is tested twice). The strings accepted are the same (`blank-tail-equivalence.test.ts` holds the old spelling as the oracle); callers read
+ * `.test` only.
+ *
+ * Read by a loop since Session 335 (it was the exported pattern `TABLE_RULE_ROW`, `/^ {0,3}(?:\|?[ \t]*:?-+:?(?:[ \t]*\|[ \t]*:?-+:?)*(?:[ \t]*\|)?|\+(?:[-+=: ]*[-+=:])?)\s*$/`): at most three spaces, then a pipe body or a grid body, then white space to the end. It was the pattern above, and V8 keeps one entry of its regex
  * backtrack stack per repetition of a group: a line of 1,525,300 or more cells `|-` threw `RangeError: Maximum call stack size exceeded` (bisected at `c06ee06`), and the error reached every reader of the document.
  * The grid body is `+` and a run of `-+=: ` that ends in a character other than a space, so the body ends after the LAST character of that run that is not a space and the rest must be white space.
  * `table-rule-row-equivalence.test.ts` keeps the pattern as the oracle.
@@ -5493,7 +5490,7 @@ const BULLET_MARKER = /^[-*+][ \t]+/;
  *      own — see `pipeTableOpensHere`, which holds the measurement and the two readings this
  *      one replaced. ⚠ The delimiter must contain a `|` too: every measured one does (`--|--`,
  *      `|---|---|`, `:---|---:`, `- | -`), and requiring it keeps a bare `---` — which
- *      `TABLE_RULE_ROW` also matches — on the SETEXT path this session does not touch
+ *      `tableRuleRow` also matches — on the SETEXT path this session does not touch
  *      (`r3/h14`).
  *
  * `tableOpen` then carries part 4 forward across the table's body rows, which is what keeps a
@@ -5579,7 +5576,7 @@ function tableShapedLineIsBlock(
  *
  * **Three conditions, and the corpus sweep refuted a spelling of each before this one held.**
  *
- *   - **The delimiter carries a `|`.** Keeps a bare `---`, which `TABLE_RULE_ROW` also matches,
+ *   - **The delimiter carries a `|`.** Keeps a bare `---`, which `tableRuleRow` also matches,
  *     on the SETEXT path this session does not touch (`r3/h14`).
  *   - **The header carries a `|` too.** ⚠ `line one` / `|---|---|` / `# ATX Below` renders NO
  *     table (`scratchpad/s235/adj`, `162f5ced6906`) — a delimiter alone does not make the prose
@@ -5803,7 +5800,7 @@ function simpleTableOpensHere(
     // table, an `<hr>`, and then `<h1>Probe A</h1>` (`probe3/y08`). Guard G7 went red on the
     // spelling that omitted this, and the answer it deleted was a real heading. `tableRowsOpen`
     // is Session 235's flag, armed only by `pipeTableOpensHere` — deliberately not `inPipeTable`,
-    // which any `TABLE_RULE_ROW` arms, including this separator itself.
+    // which any `tableRuleRow` arms, including this separator itself.
     return false;
   }
   if (!DASH_RULE_ROW.test(line)) {
@@ -9936,7 +9933,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
   // a fence one `>` out from (or in from) its line block belongs to a DIFFERENT container.
   let lineBlockQuoteDepth: number = 0;
   // Whether a pipe TABLE's delimiter row has been seen in the current block, which disarms
-  // the line-block rule for the table's remaining body rows — see `TABLE_RULE_ROW`.
+  // the line-block rule for the table's remaining body rows — see `tableRuleRow`.
   // ⚠ Unlike `lineBlockOpen` this one is STICKY across the table's body rows, so it cannot be
   // cleared at the top of the loop. It is cleared instead at EVERY region boundary that
   // already ends a block — a blank line, a whole-line or opening HTML comment, a fence
@@ -9963,7 +9960,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
   // Whether a REAL table's body rows are still running — armed by `tableShapedLineIsBlock`'s
   // pipe-delimiter arm and read back by it on the rows below (Session 235). ⚠ Separate from
   // `inPipeTable` above ON PURPOSE, and the two must not be merged: that flag arms on ANY
-  // `TABLE_RULE_ROW`, including a lone `--|--` that forms no table at all, because its job is
+  // `tableRuleRow`, including a lone `--|--` that forms no table at all, because its job is
   // to DISARM the line-block rule where over-arming can only forgo a recovery. This one feeds
   // `CLOSES_PARAGRAPH`'s question, where over-arming keeps a phantom and under-arming deletes a
   // heading — the opposite polarity, so it needs the tighter arming. Cleared at exactly the
@@ -14196,12 +14193,10 @@ function tableOrLineBlockEndsAt(b: BlockBoundaries, x: number, nextContinues = f
  *
  * ⚠ **No two blank runs touch (Session 319).** The old spelling gave every cell its own trailing `[ \t]*` and then allowed an optional pipe and one more `[ \t]*`: with no further cell and no pipe the
  * two runs were adjacent, so for n blanks the engine tried all n+1 ways to split them and each split re-read the second run (quadratic, and for ANY character that ends the match, not only a
- * terminator: `-` and 32,000 blanks then `x` took 625 ms in one `exec`, and a document with 100,000 blanks then U+2028 took 6 s). `TABLE_RULE_ROW` carried the same alternation until Session 320
+ * terminator: `-` and 32,000 blanks then `x` took 625 ms in one `exec`, and a document with 100,000 blanks then U+2028 took 6 s). `tableRuleRow` carried the same alternation until Session 320
  * and took this spelling then. Each blank run now sits in front of the pipe it belongs to (`[ \t]*\|`), so the engine meets a run once per position. The strings accepted are the same (`blank-tail-equivalence.test.ts` holds the old spelling as the oracle); the pattern has no group and every caller reads `.test`.
- */
-export const PIPE_DELIMITER_ROW = /^ {0,3}\|?[ \t]*:?-+:?(?:[ \t]*\|[ \t]*:?-+:?)*(?:[ \t]*\|)?[ \t]*$/;
-/**
- * `PIPE_DELIMITER_ROW.test(line)` read by a loop (Session 335), for the reason `tableRuleRow` gives: at most three spaces, the pipe body, then blanks to the end. `table-rule-row-equivalence.test.ts` keeps the
+ *
+ * Read by a loop since Session 335 (it was the exported pattern `PIPE_DELIMITER_ROW`, `/^ {0,3}\|?[ \t]*:?-+:?(?:[ \t]*\|[ \t]*:?-+:?)*(?:[ \t]*\|)?[ \t]*$/`), for the reason `tableRuleRow` gives: at most three spaces, the pipe body, then blanks to the end. `table-rule-row-equivalence.test.ts` keeps the
  * pattern as the oracle.
  */
 export function pipeDelimiterRow(line: string): boolean {
