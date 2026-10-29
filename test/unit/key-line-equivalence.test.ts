@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dashPrefixEnd, readKeyLine } from "../../src/core/qmd/jupyter-kernel";
+import { dashPrefixEnd, jupyterKernelLanguage, readKeyLine } from "../../src/core/qmd/jupyter-kernel";
 import { LS, NBSP, PS, countCodeUnitEdits, countStrings, everyCodeUnitEdit, everyString, seededRandom } from "./support/regex-equivalence";
 
 // The enumerations take several seconds each on a loaded machine; the sibling equivalence files give their heavy rows the same ceiling.
@@ -382,4 +382,57 @@ describe("Session 337 -- a prefix of millions of dashes", () => {
     expect(dashPrefixEnd("- ".repeat(2_000_000) + "k: v")).toBe(4_000_000);
     expect(Date.now() - started).toBeLessThan(5000);
   }, HEAVY_ROW_MS);
+
+  // The sizes the rows above are built on. The old patterns read up to 3,000,000 repetitions and throw from 3,355,428, so a "small" run past the first or a "long" run below the second would prove less than the rows say.
+  it("keeps the sizes and the shapes the long-run rows are built on", () => {
+    expect(SMALL.map((row) => row.n)).toEqual([1, 2, 100, 4_096, 65_536, 1_000_000, 3_000_000]);
+    expect(Math.max(...SMALL.map((row) => row.n))).toBeLessThan(3_355_428);
+    expect(LONG.map((row) => row.n)).toEqual([3_355_428, 3_355_428, 3_355_428, 3_400_000, 6_800_000, 17_000_000]);
+    expect(Math.min(...LONG.map((row) => row.n))).toBeGreaterThanOrEqual(3_355_428);
+    expect(LONG.map((row) => row.tails)).toEqual([14, 3, 4, 5, 5, 3]);
+    expect(LONG.map((row) => row.units.length * row.leads.length)).toEqual([1, 2, 2, 1, 1, 1]);
+    expect(LONG_TAILS.length).toBe(14);
+  });
+});
+
+// The two callers: `seesThrough` refuses a front matter whose unindented line is no key line, and `leavesOpen` asks every line whether its value opens a quote or a flow collection that the line does not close,
+// reading the text after the dash prefix of a line that has no value (a sequence item, `key:` with nothing after it) from `dashPrefixEnd`. [front matter lines, the kernel language]: each answer was given by
+// `jupyterKernelLanguage` on the parent `8ebce73` (the lines were run through it, not worked out), so a caller that reads a line differently is seen here and not only in the functions.
+const CALLERS: Array<[string[], string | null]> = [
+  [["jupyter: python3", "x:", "  - [a"], null],
+  [["jupyter: python3", "x:", "  - [a]"], "python"],
+  [["jupyter: python3", "x:", '  - "a'], null],
+  [["jupyter: python3", "x:", '  - "a"'], "python"],
+  [["jupyter: python3", "x:", "  - 'a"], null],
+  [["jupyter: python3", "x:", "  - - [a"], null],
+  [["jupyter: python3", "x:", "\t- [a"], null],
+  [["jupyter: python3", "x:", "  -\t{a: b"], null],
+  [["jupyter: python3", "x:", "  - a: [b"], null],
+  [["jupyter: python3", "x:", "  - a: [b]"], "python"],
+  [["jupyter: python3", "x:", "  - a:"], "python"],
+  [["jupyter: python3", "x:", "  - a: "], "python"],
+  [["jupyter: python3", "x:", "  - a:b"], "python"],
+  [["jupyter: python3", "x:", "  - # [a"], "python"],
+  [["jupyter: python3", "x:", "  -"], "python"],
+  [["jupyter: python3", "x:", "  - "], "python"],
+  [["jupyter: python3", "x:", "  -[a"], null],
+  [["jupyter: python3", "- k: v"], "python"],
+  [["jupyter: python3", "- - k: v"], "python"],
+  [["jupyter: python3", "- k: [a"], null],
+  [["jupyter: python3", "-k: v"], null],
+  [["jupyter: python3", "k : v"], "python"],
+  [["jupyter: python3", '"k": v'], "python"],
+  [["jupyter: python3", "'k': v"], "python"],
+  [["jupyter: python3", "a b.c-d: v"], "python"],
+  [["jupyter: python3", "k:v"], null],
+  [["jupyter: python3", "k: v\r"], null],
+  [["- k: python3"], "python"],
+  [["jupyter: python3", "k:  "], "python"],
+  [["jupyter: python3", "  k: v"], "python"],
+  [["  jupyter: python3"], null],
+];
+describe("Session 337 -- the callers of readKeyLine and dashPrefixEnd answer what they answered with the patterns", () => {
+  it.each(CALLERS.map(([lines, kernel]) => [JSON.stringify(lines), lines, kernel] as const))("%s has the kernel language %j", (_label, lines, kernel) => {
+    expect(jupyterKernelLanguage(lines)).toBe(kernel);
+  });
 });

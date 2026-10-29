@@ -1,0 +1,482 @@
+[
+ {
+  "name": "K01 isBlankUnit: a space is not a blank",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "return code === 32 || code === 9;",
+  "to": "return code === 9;",
+  "expect": "killed",
+  "why": "`k: v` stops matching: the stated rows and every enumeration that holds a blank"
+ },
+ {
+  "name": "K02 isBlankUnit: a tab is not a blank",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "return code === 32 || code === 9;",
+  "to": "return code === 32;",
+  "expect": "killed",
+  "why": "`k:\\tv` and `-\\tk:` stop matching: the stated rows, the tab unit of the document rows and the enumerations with a tab"
+ },
+ {
+  "name": "K03 isBlankUnit: a no-break space is a blank",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "return code === 32 || code === 9;",
+  "to": "return code === 32 || code === 9 || code === 160;",
+  "expect": "killed",
+  "why": "`k:\\u00a0v` starts matching: the stated rows and the foil of the enumeration at the edges of the key class"
+ },
+ {
+  "name": "K04 isWordUnit: the digits start at 1 (`0` is no key character)",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "return (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95;",
+  "to": "return (code >= 49 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95;",
+  "expect": "killed",
+  "why": "the sweep of every code unit into the key of `- k: v` and `a-b.1 :`: `0:` stops being a key"
+ },
+ {
+  "name": "K05 isWordUnit: the digits end at `8` (`9` is no key character)",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "return (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95;",
+  "to": "return (code >= 48 && code <= 56) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95;",
+  "expect": "killed",
+  "why": "the sweep of every code unit, and the `9` of the enumeration at the edges of the key class"
+ },
+ {
+  "name": "K06 isWordUnit: the digits run up to `:` (a colon is a key character)",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "return (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95;",
+  "to": "return (code >= 48 && code <= 58) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95;",
+  "expect": "killed",
+  "why": "`k: v` is read as a key `k:` with no colon after it: every enumeration"
+ },
+ {
+  "name": "K07 isWordUnit: the capitals start at `B`",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "return (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95;",
+  "to": "return (code >= 48 && code <= 57) || (code >= 66 && code <= 90) || (code >= 97 && code <= 122) || code === 95;",
+  "expect": "killed",
+  "why": "the sweep of every code unit puts `A` into every key position"
+ },
+ {
+  "name": "K08 isWordUnit: the capitals end at `Y`",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "return (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95;",
+  "to": "return (code >= 48 && code <= 57) || (code >= 65 && code <= 89) || (code >= 97 && code <= 122) || code === 95;",
+  "expect": "killed",
+  "why": "the sweep of every code unit puts `Z` into every key position"
+ },
+ {
+  "name": "K09 isWordUnit: the capitals run up to `[`",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "return (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95;",
+  "to": "return (code >= 48 && code <= 57) || (code >= 65 && code <= 91) || (code >= 97 && code <= 122) || code === 95;",
+  "expect": "killed",
+  "why": "the sweep puts `[` into the key of every near-key line"
+ },
+ {
+  "name": "K10 isWordUnit: the lower case starts at `b`",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "return (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95;",
+  "to": "return (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 98 && code <= 122) || code === 95;",
+  "expect": "killed",
+  "why": "the sweep puts `a` into every key position"
+ },
+ {
+  "name": "K11 isWordUnit: the lower case ends at `y`",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "return (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95;",
+  "to": "return (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 121) || code === 95;",
+  "expect": "killed",
+  "why": "the sweep puts `z` into every key position"
+ },
+ {
+  "name": "K12 isWordUnit: the lower case starts at the backtick",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "return (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95;",
+  "to": "return (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 96 && code <= 122) || code === 95;",
+  "expect": "killed",
+  "why": "the sweep puts a backtick into the key of every near-key line"
+ },
+ {
+  "name": "K13 isWordUnit: the underscore is no key character",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "return (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95;",
+  "to": "return (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122);",
+  "expect": "killed",
+  "why": "the `_` of the enumeration at the edges of the key class and the sweep"
+ },
+ {
+  "name": "K14 isLineEndUnit: LF ends no value",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "return code === 10 || code === 13 || code === 0x2028 || code === 0x2029;",
+  "to": "return code === 13 || code === 0x2028 || code === 0x2029;",
+  "expect": "killed",
+  "why": "`k: v\\nw` starts matching: the stated rows and the enumeration around the value"
+ },
+ {
+  "name": "K15 isLineEndUnit: CR ends no value",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "return code === 10 || code === 13 || code === 0x2028 || code === 0x2029;",
+  "to": "return code === 10 || code === 0x2028 || code === 0x2029;",
+  "expect": "killed",
+  "why": "`k: v\\r` starts matching: the stated rows, the document rows (a refused line) and every enumeration with a CR"
+ },
+ {
+  "name": "K16 isLineEndUnit: U+2028 ends no value",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "return code === 10 || code === 13 || code === 0x2028 || code === 0x2029;",
+  "to": "return code === 10 || code === 13 || code === 0x2029;",
+  "expect": "killed",
+  "why": "`k: v` + U+2028 starts matching: the stated rows and the enumeration around the value"
+ },
+ {
+  "name": "K17 isLineEndUnit: U+2029 ends no value",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "return code === 10 || code === 13 || code === 0x2028 || code === 0x2029;",
+  "to": "return code === 10 || code === 13 || code === 0x2028;",
+  "expect": "killed",
+  "why": "`k: ` + U+2029 + `v` starts matching: the stated rows and the enumeration around the value"
+ },
+ {
+  "name": "K18 dashPrefixEnd: the leading blanks are not skipped",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "  let at = 0;\n  while (isBlankUnit(line.charCodeAt(at))) {\n    at++;\n  }\n  while (line.charCodeAt(at) === 45",
+  "to": "  let at = 0;\n  while (false) {\n    at++;\n  }\n  while (line.charCodeAt(at) === 45",
+  "expect": "killed",
+  "why": "an indented key line is no key line: the stated rows, the enumerations and the indented document rows"
+ },
+ {
+  "name": "K19 dashPrefixEnd: a dash needs no blank behind it",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "  while (line.charCodeAt(at) === 45 && isBlankUnit(line.charCodeAt(at + 1))) {\n    at += 2;\n    while (isBlankUnit(line.charCodeAt(at))) {\n      at++;\n    }\n  }\n  return at;",
+  "to": "  while (line.charCodeAt(at) === 45) {\n    at += 2;\n    while (isBlankUnit(line.charCodeAt(at))) {\n      at++;\n    }\n  }\n  return at;",
+  "expect": "killed",
+  "why": "`-k: v` is read as a prefix `-k` skipped by two: the stated rows `-k: v` and `- -k: v`"
+ },
+ {
+  "name": "K20 dashPrefixEnd: a dash is stepped over by one, the blank behind it by the loop",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "  while (line.charCodeAt(at) === 45 && isBlankUnit(line.charCodeAt(at + 1))) {\n    at += 2;\n    while (isBlankUnit(line.charCodeAt(at))) {\n      at++;\n    }\n  }\n  return at;",
+  "to": "  while (line.charCodeAt(at) === 45 && isBlankUnit(line.charCodeAt(at + 1))) {\n    at += 1;\n    while (isBlankUnit(line.charCodeAt(at))) {\n      at++;\n    }\n  }\n  return at;",
+  "expect": "survives",
+  "why": "equivalent: the guard has shown the character after the dash is a blank, which the loop that follows reads as its first iteration, so the same index is reached; argued from the code and checked by running the mutant against the retired patterns over 6,332,624 lines (the enumerations, the code-unit sweep, 100,000 seeded): no difference"
+ },
+ {
+  "name": "K21 dashPrefixEnd: the blanks behind a dash are not skipped",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "  while (line.charCodeAt(at) === 45 && isBlankUnit(line.charCodeAt(at + 1))) {\n    at += 2;\n    while (isBlankUnit(line.charCodeAt(at))) {\n      at++;\n    }\n  }\n  return at;",
+  "to": "  while (line.charCodeAt(at) === 45 && isBlankUnit(line.charCodeAt(at + 1))) {\n    at += 2;\n  }\n  return at;",
+  "expect": "killed",
+  "why": "`-  k: v` (two blanks) stops matching: the stated rows and the unit `-  ` of the document rows"
+ },
+ {
+  "name": "K22 dashPrefixEnd: at most one dash group",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "  while (line.charCodeAt(at) === 45 && isBlankUnit(line.charCodeAt(at + 1))) {\n    at += 2;\n    while (isBlankUnit(line.charCodeAt(at))) {\n      at++;\n    }\n  }\n  return at;",
+  "to": "  if (line.charCodeAt(at) === 45 && isBlankUnit(line.charCodeAt(at + 1))) {\n    at += 2;\n    while (isBlankUnit(line.charCodeAt(at))) {\n      at++;\n    }\n  }\n  return at;",
+  "expect": "killed",
+  "why": "`- - k: v` stops matching: the stated rows and every enumeration with two dashes"
+ },
+ {
+  "name": "K23 readKeyLine: the prefix is not skipped",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "let at = dashPrefixEnd(line);",
+  "to": "let at = 0;",
+  "expect": "killed",
+  "why": "`- k: v` and ` k: v` stop matching"
+ },
+ {
+  "name": "K24 readKeyLine: a double quote is `'`",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "if (first === 34) {",
+  "to": "if (first === 39) {",
+  "expect": "killed",
+  "why": "a double-quoted key stops matching and a single-quoted one is read as double quoted: the stated rows"
+ },
+ {
+  "name": "K25 readKeyLine: a double-quoted key may hold a backslash",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "while (at < line.length && line.charCodeAt(at) !== 34 && line.charCodeAt(at) !== 92) {",
+  "to": "while (at < line.length && line.charCodeAt(at) !== 34) {",
+  "expect": "killed",
+  "why": "`\"a\\\\b\": v` starts matching: the stated rows and the enumeration with quotes and a backslash"
+ },
+ {
+  "name": "K26 readKeyLine: a double-quoted key needs no closing quote",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "    if (line.charCodeAt(at) !== 34) {\n      return null;\n    }\n    at++;\n  } else if (first === 39) {",
+  "to": "    if (line.charCodeAt(at) !== 34 && false) {\n      return null;\n    }\n    at++;\n  } else if (first === 39) {",
+  "expect": "killed",
+  "why": "`\"a\\\\: v` (a backslash where the closer should be) starts matching: the enumeration with quotes, a backslash and a colon"
+ },
+ {
+  "name": "K27 readKeyLine: the closing double quote is not stepped over",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "    if (line.charCodeAt(at) !== 34) {\n      return null;\n    }\n    at++;\n  } else if (first === 39) {",
+  "to": "    if (line.charCodeAt(at) !== 34) {\n      return null;\n    }\n  } else if (first === 39) {",
+  "expect": "killed",
+  "why": "the closing quote is read where the colon should be: `\"k\": v` stops matching"
+ },
+ {
+  "name": "K28 readKeyLine: a single quote is a backtick",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "} else if (first === 39) {",
+  "to": "} else if (first === 96) {",
+  "expect": "killed",
+  "why": "a single-quoted key stops matching: the stated rows `'k': v`"
+ },
+ {
+  "name": "K29 readKeyLine: the closing single quote is searched from two characters on",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "const close = line.indexOf(\"'\", at + 1);",
+  "to": "const close = line.indexOf(\"'\", at + 2);",
+  "expect": "killed",
+  "why": "`'': v` (an empty key) stops matching: the stated rows"
+ },
+ {
+  "name": "K30 readKeyLine: a missing closing single quote is not refused when it sits at the start",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "if (close < 0) {",
+  "to": "if (close <= 0) {",
+  "expect": "survives",
+  "why": "equivalent: the search starts at the character after the opener, which is at index 1 or more, so a found closer is never at 0; also run against the retired patterns over 6,332,624 lines with no difference"
+ },
+ {
+  "name": "K31 readKeyLine: the colon is read at the closing single quote",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "at = close + 1;",
+  "to": "at = close;",
+  "expect": "killed",
+  "why": "`'k': v` stops matching: the stated rows"
+ },
+ {
+  "name": "K32 readKeyLine: a plain key holds no dot",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "line.charCodeAt(at) === 46 || line.charCodeAt(at) === 32 || line.charCodeAt(at) === 45) {",
+  "to": "line.charCodeAt(at) === 32 || line.charCodeAt(at) === 45) {",
+  "expect": "killed",
+  "why": "`a.b: v` stops matching: the stated rows and the edges-of-the-key-class enumeration"
+ },
+ {
+  "name": "K33 readKeyLine: a plain key holds no space",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "line.charCodeAt(at) === 46 || line.charCodeAt(at) === 32 || line.charCodeAt(at) === 45) {",
+  "to": "line.charCodeAt(at) === 46 || line.charCodeAt(at) === 45) {",
+  "expect": "killed",
+  "why": "`a b: v` stops matching: the stated rows"
+ },
+ {
+  "name": "K34 readKeyLine: a plain key holds no dash",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "line.charCodeAt(at) === 46 || line.charCodeAt(at) === 32 || line.charCodeAt(at) === 45) {",
+  "to": "line.charCodeAt(at) === 46 || line.charCodeAt(at) === 32) {",
+  "expect": "killed",
+  "why": "`a-b: v` stops matching: the stated rows"
+ },
+ {
+  "name": "K35 readKeyLine: a plain key holds a tab",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "line.charCodeAt(at) === 46 || line.charCodeAt(at) === 32 || line.charCodeAt(at) === 45) {",
+  "to": "line.charCodeAt(at) === 46 || isBlankUnit(line.charCodeAt(at)) || line.charCodeAt(at) === 45) {",
+  "expect": "killed",
+  "why": "`k\\tm: v` starts matching: the stated rows and the enumerations with a tab"
+ },
+ {
+  "name": "K36 readKeyLine: the first key character is not stepped over (the loop reads it)",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "} else if (isWordUnit(first)) {\n    at++;\n    while (",
+  "to": "} else if (isWordUnit(first)) {\n    while (",
+  "expect": "survives",
+  "why": "equivalent: the first character is a key character, so the loop that follows takes it as its first iteration and stops at the same index; also run against the retired patterns over 6,332,624 lines with no difference"
+ },
+ {
+  "name": "K37 readKeyLine: the blanks before the colon are not skipped",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "  while (isBlankUnit(line.charCodeAt(at))) {\n    at++;\n  }\n  if (line.charCodeAt(at) !== 58) {",
+  "to": "  if (line.charCodeAt(at) !== 58) {",
+  "expect": "killed",
+  "why": "`k : v` stops matching: the stated rows"
+ },
+ {
+  "name": "K38 readKeyLine: the colon is `;`",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "if (line.charCodeAt(at) !== 58) {",
+  "to": "if (line.charCodeAt(at) !== 59) {",
+  "expect": "killed",
+  "why": "every key line stops matching"
+ },
+ {
+  "name": "K39 readKeyLine: a colon with nothing after it has an empty value",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "return { value: undefined };",
+  "to": "return { value: \"\" };",
+  "expect": "killed",
+  "why": "`leavesOpen` and the oracle tell `k:` (no group) from `k: ` (an empty one): the stated rows"
+ },
+ {
+  "name": "K40 readKeyLine: a colon at the end is found with `>=`",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "if (at === line.length) {",
+  "to": "if (at >= line.length) {",
+  "expect": "survives",
+  "why": "equivalent: the colon was found at an index below the length, so the index after it is at most the length; also run against the retired patterns over 6,332,624 lines with no difference"
+ },
+ {
+  "name": "K41 readKeyLine: a colon needs no blank after it",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "  if (!isBlankUnit(line.charCodeAt(at))) {\n    return null;\n  }\n",
+  "to": "",
+  "expect": "killed",
+  "why": "`k:v` starts matching: the stated rows and the enumerations"
+ },
+ {
+  "name": "K42 readKeyLine: the blanks after the colon stay in the value",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "  while (isBlankUnit(line.charCodeAt(at))) {\n    at++;\n  }\n  for (let i = at; i < line.length; i++) {",
+  "to": "  for (let i = at; i < line.length; i++) {",
+  "expect": "killed",
+  "why": "`k:  v` has the value ` v`: the stated rows"
+ },
+ {
+  "name": "K43 readKeyLine: the value is searched for a line end from its second character",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "for (let i = at; i < line.length; i++) {",
+  "to": "for (let i = at + 1; i < line.length; i++) {",
+  "expect": "killed",
+  "why": "`k: \\r` and `k: \\rx` start matching: the stated rows and the enumeration around the value"
+ },
+ {
+  "name": "K44 readKeyLine: the value is searched for a line end up to its last but one character",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "for (let i = at; i < line.length; i++) {",
+  "to": "for (let i = at; i < line.length - 1; i++) {",
+  "expect": "killed",
+  "why": "`k: v\\r` starts matching: the stated rows"
+ },
+ {
+  "name": "K45 readKeyLine: the value may hold a line end",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "if (isLineEndUnit(line.charCodeAt(i))) {",
+  "to": "if (false) {",
+  "expect": "killed",
+  "why": "`k: v\\r` starts matching: the stated rows and the document rows"
+ },
+ {
+  "name": "K46 leavesOpen: a line with no value drops one more character after the prefix",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "const value = (readKeyLine(line)?.value ?? line.slice(dashPrefixEnd(line))).trim();",
+  "to": "const value = (readKeyLine(line)?.value ?? line.slice(dashPrefixEnd(line) + 1)).trim();",
+  "expect": "killed",
+  "why": "a sequence item that opens a flow collection (`  - [a`) is no longer open: 6 of the 31 caller rows of key-line-equivalence.test.ts fail (jupyter-kernel.test.ts alone does not notice it)"
+ },
+ {
+  "name": "K47 leavesOpen: a line with no value is read with its dash prefix",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "const value = (readKeyLine(line)?.value ?? line.slice(dashPrefixEnd(line))).trim();",
+  "to": "const value = (readKeyLine(line)?.value ?? line).trim();",
+  "expect": "survives",
+  "why": "equivalent: the prefix ends in a blank, so the first character after it is preceded by one whether or not the prefix is cut (leavesOpen treats the start of the value and a blank alike), and `-` and a blank are none of the characters it looks for; run against the parent over 1,516,856 front matters (379,214 lines in four places) with no difference, and the 31 caller rows and jupyter-kernel.test.ts pass with it"
+ },
+ {
+  "name": "K48 seesThrough: an unindented line that is no key line is accepted",
+  "file": "src/core/qmd/jupyter-kernel.ts",
+  "from": "if (indent !== 0 || readKeyLine(line) === null) {",
+  "to": "if (indent !== 0 || readKeyLine(line) !== null) {",
+  "expect": "killed",
+  "why": "every key line is refused and no line is accepted: the jupyter-kernel.test.ts rows and the document rows"
+ },
+ {
+  "name": "KT01 rows: 3,000,000 repetitions, below the first throw",
+  "file": "test/unit/s337-key-line-rows.test.ts",
+  "from": "const MANY = 6_800_000;",
+  "to": "const MANY = 3_000_000;",
+  "expect": "killed",
+  "why": "the size guard (twice the first throw, 6,710,856)"
+ },
+ {
+  "name": "KT02 rows: 6,700,000 repetitions, just under twice the first throw",
+  "file": "test/unit/s337-key-line-rows.test.ts",
+  "from": "const MANY = 6_800_000;",
+  "to": "const MANY = 6_700_000;",
+  "expect": "killed",
+  "why": "the size guard"
+ },
+ {
+  "name": "KT03 rows: a limit of 600 s",
+  "file": "test/unit/s337-key-line-rows.test.ts",
+  "from": "const LIMIT_MS = 6000;",
+  "to": "const LIMIT_MS = 600_000;",
+  "expect": "killed",
+  "why": "the size guard pins the limit"
+ },
+ {
+  "name": "KT04 rows: the tab-unit row has the space unit",
+  "file": "test/unit/s337-key-line-rows.test.ts",
+  "from": "site: \"findHeadings: the unit is a dash and a TAB\", unit: \"-\\t\"",
+  "to": "site: \"findHeadings: the unit is a dash and a TAB\", unit: \"- \"",
+  "expect": "killed",
+  "why": "the guard that every row has its own text and the unit pin"
+ },
+ {
+  "name": "KT05 rows: a known kernel lists no heading in the opener",
+  "file": "test/unit/s337-key-line-rows.test.ts",
+  "from": "const known = (heading: string): string[] => [heading, \"In\", \"After\"];",
+  "to": "const known = (heading: string): string[] => [heading, \"After\"];",
+  "expect": "killed",
+  "why": "the rows whose line is accepted fail at the short control"
+ },
+ {
+  "name": "KT06 oracle: another seed",
+  "file": "test/unit/key-line-equivalence.test.ts",
+  "from": "const SEED = 3371;",
+  "to": "const SEED = 3372;",
+  "expect": "killed",
+  "why": "the pinned counts of the seeded lines"
+ },
+ {
+  "name": "KT07 oracle: one seeded line fewer",
+  "file": "test/unit/key-line-equivalence.test.ts",
+  "from": "const SEEDED_COUNT = 300_000;",
+  "to": "const SEEDED_COUNT = 299_999;",
+  "expect": "killed",
+  "why": "the pinned counts of the seeded lines"
+ },
+ {
+  "name": "KT08 oracle: the code-unit sweep leaves out the last head",
+  "file": "test/unit/key-line-equivalence.test.ts",
+  "from": "\"k:\", \"k:  \"];",
+  "to": "\"k:\"];",
+  "expect": "killed",
+  "why": "the pinned count of the sweep"
+ },
+ {
+  "name": "KT09 oracle: the largest run the old patterns read is 4,000,000",
+  "file": "test/unit/key-line-equivalence.test.ts",
+  "from": "{ n: 3_000_000, units: [\"- \"], leads: [\"\"], tails: [\"k: v\", \"k:\", \"\", \"!\", \"k: [a\"] },",
+  "to": "{ n: 4_000_000, units: [\"- \"], leads: [\"\"], tails: [\"k: v\", \"k:\", \"\", \"!\", \"k: [a\"] },",
+  "expect": "killed",
+  "why": "the old pattern throws RangeError in that row"
+ },
+ {
+  "name": "KT10 oracle: the 6,800,000 row is 3,000,000",
+  "file": "test/unit/key-line-equivalence.test.ts",
+  "from": "{ n: 6_800_000, units: [\"- \"], leads: [\"\"], tails: 5 },",
+  "to": "{ n: 3_000_000, units: [\"- \"], leads: [\"\"], tails: 5 },",
+  "expect": "killed",
+  "why": "the guard on the long sizes"
+ },
+ {
+  "name": "KT11 oracle: the old pattern is thrown at 3,000,000 repetitions",
+  "file": "test/unit/key-line-equivalence.test.ts",
+  "from": "expect(() => OLD_KEY_LINE.test(\"- \".repeat(6_800_000) + \"k: v\")).toThrow(RangeError);",
+  "to": "expect(() => OLD_KEY_LINE.test(\"- \".repeat(3_000_000) + \"k: v\")).toThrow(RangeError);",
+  "expect": "killed",
+  "why": "the old pattern reads 3,000,000 repetitions: the witness row fails"
+ },
+ {
+  "name": "KT12 oracle: the linear-time row has a limit of 500 s",
+  "file": "test/unit/key-line-equivalence.test.ts",
+  "from": "expect(Date.now() - started).toBeLessThan(5000);",
+  "to": "expect(Date.now() - started).toBeLessThan(500_000);",
+  "expect": "survives",
+  "why": "a recorded gap: no row pins the value of a clock limit, and the row still reads each shape (a quadratic reading of them would take minutes and fail the answers' own timeout, HEAVY_ROW_MS)"
+ }
+]
