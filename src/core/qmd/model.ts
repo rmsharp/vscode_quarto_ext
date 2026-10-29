@@ -6941,22 +6941,58 @@ const COMMENT_OPEN = /^[ \t]*<!--/;
 /** Any line containing an HTML-comment terminator. */
 const COMMENT_CLOSE = /-->/;
 /**
+ * Whether the `<!--` at `open` of `line` starts a comment that ENDS the line: the closer is the FIRST `-->` that starts at or after the end of the opener (so the `-->` inside `<!-->` and `<!--->` is not one), and only
+ * blanks (space and tab) follow it. Session 336: the question was the pattern `<!--(?:(?!-->)[\s\S])*-->[ \t]*$`, and V8 keeps one entry of its regex backtrack stack per repetition of a group, so a line of 8,388,573 or more
+ * characters after an opener that never closes threw `RangeError: Maximum call stack size exceeded` (bisected at `aea22f6`), and the error reached every reader of the document. The tempered body cannot cross a `-->`, so
+ * the pattern could end only at the first one: `indexOf` finds it, and `comment-full-line-equivalence.test.ts` keeps the pattern as the oracle.
+ */
+function commentEndsLine(line: string, open: number): boolean {
+  const close = line.indexOf("-->", open + 4);
+  return close >= 0 && skipBlanks(line, close + 3) === line.length;
+}
+/**
  * A line that is ENTIRELY a single-line HTML comment (`<!-- … -->`, optional
  * surrounding whitespace). Pandoc renders nothing for it, so it is neither prose
  * nor a heading — excluded from body lines so a `{#fig-…}` inside it is not
  * indexed as a cross-ref (the block-comment case is already handled by the
  * `inComment` state; this closes the single-line gap). A line that mixes content
- * with a trailing comment is left as body (the content half is real). The
- * tempered `(?:(?!-->)…)*` makes the closer the FIRST `-->`, so a line that
- * merely starts and ends with comments but has real prose between them (which
- * Pandoc renders) is NOT treated as a whole-line comment.
+ * with a trailing comment is left as body (the content half is real). The closer
+ * is the FIRST `-->`, so a line that merely starts and ends with comments but has
+ * real prose between them (which Pandoc renders) is NOT treated as a whole-line
+ * comment. Exported for its oracle file; it was `^[ \t]*<!--(?:(?!-->)[\s\S])*-->[ \t]*$`.
  */
-const COMMENT_FULL_LINE = /^[ \t]*<!--(?:(?!-->)[\s\S])*-->[ \t]*$/;
+export function commentFullLine(line: string): boolean {
+  const open = skipBlanks(line, 0);
+  return line.startsWith("<!--", open) && commentEndsLine(line, open);
+}
 /**
  * The same whole-line comment at COLUMN 0 exactly (Session 295). Indented one space it is text to pandoc: rendered, an indent-4 opener below
- * ` <!-- c -->` stays paragraph continuation, where the same comment at column 0 leaves the opener indented code.
+ * ` <!-- c -->` stays paragraph continuation, where the same comment at column 0 leaves the opener indented code. It was `^<!--(?:(?!-->)[\s\S])*-->[ \t]*$` (Session 336).
  */
-const COMMENT_FULL_LINE_COL0 = /^<!--(?:(?!-->)[\s\S])*-->[ \t]*$/;
+export function commentFullLineCol0(line: string): boolean {
+  return line.startsWith("<!--") && commentEndsLine(line, 0);
+}
+/**
+ * Whether `line` is a comment, indented at most three spaces, with text after it on the line: the first `-->` after the opener, no line terminator before it (the old body was `.`), and a letter after the
+ * blanks that follow it (Session 336; it was `^ {0,3}<!--(?:(?!-->).)*-->[ \t]*[A-Za-z]`, the third alternative of `provableProse`). Pandoc renders such a line as text.
+ */
+export function commentThenText(line: string): boolean {
+  let open = 0;
+  while (open < 4 && line.charCodeAt(open) === 32) {
+    open++;
+  }
+  if (open > 3 || !line.startsWith("<!--", open)) {
+    return false;
+  }
+  const close = line.indexOf("-->", open + 4);
+  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4, close))) {
+    return false;
+  }
+  const text = line.charCodeAt(skipBlanks(line, close + 3));
+  return (text >= 65 && text <= 90) || (text >= 97 && text <= 122);
+}
+/** A character the pattern `.` does not match (no `s` flag): LF, CR, U+2028 and U+2029. */
+const LINE_TERMINATOR = /[\n\r\u2028\u2029]/;
 /** A comment region's first line at column 0, and its closer ending the line: anything after the terminator keeps the paragraph going. */
 const COMMENT_OPEN_COL0 = /^<!--/;
 const COMMENT_CLOSE_AT_END = /-->[ \t]*$/;
@@ -7035,7 +7071,7 @@ function htmlBlockMayBeOpenAbove(lines: readonly string[], x: number): boolean {
  * headless-table model that still declines the UNBALANCED `<div>` one line away, which renders
  * the heading — so the phantom is disclosed, pinned as R1 and filed rather than guessed at.
  */
-const SIMPLE_TABLE_HEADER_OUTRANKED: readonly RegExp[] = [
+const SIMPLE_TABLE_HEADER_OUTRANKED: ReadonlyArray<{ test(line: string): boolean }> = [
   ATX_HEADING, //                  an ATX heading with text
   /^[ \t]*#{1,6}[ \t]*$/, //       and a bare `##`, which pandoc reads as an EMPTY one
   DEEP_ATX_HEADER, //              and a line of 7+ `#`, bare or not — a header pandoc does not cap
@@ -7049,7 +7085,7 @@ const SIMPLE_TABLE_HEADER_OUTRANKED: readonly RegExp[] = [
   // `# Probe A` renders the heading with no table (`probe3/y03`), and guard G3 went red on the
   // spelling that left this row out. The scanner skips a whole-line comment entirely, so the
   // line simply arrives here as the neighbour above the separator.
-  COMMENT_FULL_LINE,
+  { test: commentFullLine },
   COMMENT_OPEN,
 ];
 /**
@@ -11027,7 +11063,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
     }
 
     // A whole-line single-line comment renders to nothing — skip it entirely.
-    if (COMMENT_FULL_LINE.test(line)) {
+    if (commentFullLine(line)) {
       consecutiveBody = 0;
       paragraphOpen = false;
       inPipeTable = false;
@@ -13778,7 +13814,7 @@ function endsFreshHtml(b: BlockBoundaries, x: number, stacked = false): boolean 
 }
 /** Whether the line at `x` is a whole-line HTML comment at column 0 that began at a block boundary, so pandoc is between blocks after it (Session 295; stackable, Session 298). */
 function endsFreshComment(b: BlockBoundaries, x: number): boolean {
-  return b.readers.rawHtml && COMMENT_FULL_LINE_COL0.test(b.lines[x]) && startsAtBoundary(b, x);
+  return b.readers.rawHtml && commentFullLineCol0(b.lines[x]) && startsAtBoundary(b, x);
 }
 /**
  * Whether line `x` is a ROW of a simple table still open above it (Session 298): in the non-blank run above `x` the first dash-only line is a dash-column rule with a row below it and a real header line
@@ -13875,7 +13911,7 @@ function provableProse(line: string): boolean {
     (/^[A-Za-z][^|<>]*$/.test(line) && !LINK_REFERENCE_DEFINITION.test(line) && !/^[A-Za-z][A-Za-z.]*[.)][ \t]/.test(line)) ||
     // an indented heading-shaped line is text to pandoc's markdown (an ATX heading needs column 0), and so is a comment with text after it on the line
     /^ {1,3}#{1,6}(?:[ \t]|$)/.test(line) ||
-    /^ {0,3}<!--(?:(?!-->).)*-->[ \t]*[A-Za-z]/.test(line)
+    commentThenText(line)
   );
 }
 /** Whether line `j` CERTAINLY continues a paragraph that began above it: walking up through lines that can sit inside a paragraph, a line of certain prose comes before any blank line or any line that could not be inside one. */

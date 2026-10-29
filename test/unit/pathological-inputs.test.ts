@@ -2370,6 +2370,9 @@ describe("Session 336 — a single line of millions of characters that a pattern
       { site: "(1) the line over a dash run is a setext heading of its own", unit: "b", many: 16_800_000, build: (run) => `<!--${run}\n---------\n\n# H\n`, read: headings, answer: ["<!--bbbb", "H"] },
       { site: "(1) the header line of a simple table's dash rules", unit: "b", many: 16_800_000, build: (run) => `<!--${run}\n---------\nrow\n---------\n\n# H\n`, read: headings, answer: ["<!--bbbb", "row", "H"] },
       { site: "(1) an ATX line directly under it is pressed text", unit: "b", many: 16_800_000, build: (run) => `<!--${run}\n# H\n\ntext\n`, read: headings, answer: [] },
+      // `provableProse` asks the line above a setext underline or an ATX line whether a paragraph certainly continues; it is reached from a thematic break under them, and only once the scan of the body lines has stopped throwing first.
+      { site: "(1) a setext underline and then a dash line: the long line is the heading (provableProse)", unit: "b", many: 16_800_000, build: (run) => `<!--${run}\n====\n---\n`, read: headings, answer: ["<!--bbbb"] },
+      { site: "(1) an ATX line and then a dash line: the ATX line is pressed text (provableProse)", unit: "b", many: 16_800_000, build: (run) => `<!--${run}\n# H\n---\n`, read: headings, answer: [] },
       { site: "(1) the Outline: a body line", unit: "b", many: 16_800_000, build: (run) => `Outline.\n\n<!--${run}\n\n# H\n`, read: (text) => buildOutline(text).length, answer: 1 },
       { site: "(1) the cells: a body line", unit: "b", many: 16_800_000, build: (run) => `Cells.\n\n<!--${run}\n\n\`\`\`{r}\n1\n\`\`\`\n`, read: (text) => findAllCells(text).length, answer: 1 },
       { site: "(1) the label index: a body line", unit: "b", many: 16_800_000, build: (run) => `Labels.\n\n<!--${run}\n\n![x](y){#fig-a}\n`, read: labelLines, answer: [["fig-a", 4]] },
@@ -2411,7 +2414,7 @@ describe("Session 336 — a single line of millions of characters that a pattern
       expect(S336_ROWS.map((row) => `${row.unit}x${row.many}`)).toEqual([
         ...Array.from({ length: 6 }, () => "bx16800000"),
         "<!-- x3400000", "<!--x4200000",
-        ...Array.from({ length: 7 }, () => "bx16800000"),
+        ...Array.from({ length: 9 }, () => "bx16800000"),
         "bx16800000", "bx16800000", "\\ x16800000",
         ...Array.from({ length: 7 }, () => "bx16800000"),
       ]);
