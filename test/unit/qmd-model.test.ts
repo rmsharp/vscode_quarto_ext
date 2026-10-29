@@ -9573,7 +9573,7 @@ describe("WHICH id a block with more than one defines is a reader split (Session
 
   it("⚠ a `#` inside a key=VALUE is not an id — the atoms come from TOKENS — `adv/md_x01kvhash`", () => {
     // ⚠ THE REGRESSION THIS SESSION'S OWN ADVERSARIAL PASS CAUGHT, AND IT POINTS THE WORST WAY.
-    // `ATTR_KEY_VALUE`'s bare value is `[^\s}]*`, which ADMITS `#`, so `{#sec-x01 key=#sec-fake}`
+    // `attributeKeyValue`'s bare value is `[^\s}]*`, which ADMITS `#`, so `{#sec-x01 key=#sec-fake}`
     // is a VALID block whose real id is `sec-x01` (measured, `scratchpad/s219/adv.quarto.tsv`,
     // all three pandoc readers). Scanning the block's RAW TEXT for the last `#…` takes
     // `sec-fake` instead — a cross-reference target no document defines, which is the exact

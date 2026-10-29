@@ -1379,7 +1379,7 @@ describe("Session 222 adversarial pins — rows aimed at THIS session's own rule
   it("Z3: an ESCAPED closing brace inside a value does not end the group", () => {
     // ⚠ This row was written expecting a MISS — the group scanner is quote-aware but not
     // escape-aware, so it ends the group at the `\}`. It passes anyway, because the truncated
-    // content `#fig-z06 key=a\` is still a valid token pair (`ATTR_KEY_VALUE`'s bare value
+    // content `#fig-z06 key=a\` is still a valid token pair (`attributeKeyValue`'s bare value
     // admits a backslash). Quarto defines `fig-z06` (adv.qmd z06) and so does this. Pinned
     // BECAUSE it is right for a reason the rule does not state: a value whose escaped brace is
     // followed by something that breaks the token would diverge, and no rendered row covers

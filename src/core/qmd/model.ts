@@ -470,7 +470,7 @@ function headingAttributeId(
 ): string | undefined {
   // ⚠ **THE IDS COME FROM THE TOKENS, NOT FROM THE RAW BLOCK — AND SCANNING THE RAW BLOCK IS A
   // REGRESSION THIS SESSION SHIPPED FOR TWO COMMITS AND ITS OWN ADVERSARIAL PASS CAUGHT.**
-  // `ATTR_KEY_VALUE`'s bare value is `[^\s}]*`, which ADMITS `#`, so `{#sec-x01 key=#sec-fake}`
+  // `attributeKeyValue`'s bare value is `[^\s}]*`, which ADMITS `#`, so `{#sec-x01 key=#sec-fake}`
   // is a VALID block whose real id is `sec-x01` — and a `matchAll` over the block text takes
   // `sec-fake`, a cross-reference target no document defines. Measured over the pandoc three in
   // four spellings (bare, double-quoted, quoted-with-spaces, single-quoted):
@@ -690,8 +690,40 @@ export function attributeBlockReader(text: string): AttributeBlockReader {
  * ⚠ The bare-value alternative deliberately admits a QUOTE (`{key=v"al}` → `cal2/*_q18quote1`,
  * stripped by the pandoc three) and may be EMPTY (`{key=}` → `cal/*_p16kvempty`, likewise).
  * Both are `commonmark_x` divergences — see `headingAttributesValid`.
+ *
+ * Session 336: this was the pattern `^[A-Za-z][^\s}#\\=]*=(?:"[^"]*"|'[^']*'|(?:\\ |[^\s}])*)$` (`ATTR_KEY_VALUE`), and its bare value is a group per character (an escaped blank is one repetition
+ * of the group), so a bare value of 8,388,573 characters threw `RangeError: Maximum call stack size exceeded` (bisected at `aea22f6`), and the error reached every reader of the document. The key runs to the first
+ * character it cannot hold, which must be `=`; a value is quoted (the same quote at both ends and none between: `indexOf`) or bare (no `}`, and white space only as a space that follows a backslash). The loop is the
+ * pattern, and `attribute-key-value-equivalence.test.ts` keeps the pattern as the oracle.
  */
-const ATTR_KEY_VALUE = /^[A-Za-z][^\s}#\\=]*=(?:"[^"]*"|'[^']*'|(?:\\ |[^\s}])*)$/;
+export function attributeKeyValue(token: string): boolean {
+  const first = token.charCodeAt(0);
+  if (!((first >= 65 && first <= 90) || (first >= 97 && first <= 122))) {
+    return false;
+  }
+  let at = 1;
+  while (at < token.length && !isAttributeKeyStop(token.charCodeAt(at))) {
+    at++;
+  }
+  if (token.charCodeAt(at) !== 61) {
+    return false;
+  }
+  const value = at + 1;
+  const last = token.length - 1;
+  const quote = token.charCodeAt(value);
+  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {
+    return true;
+  }
+  for (let i = value; i <= last; i++) {
+    const c = token.charCodeAt(i);
+    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {
+      return false;
+    }
+  }
+  return true;
+}
+/** What ends the KEY of a `key=value` attribute: white space (`\s`), `}`, `#`, a backslash or `=`. */
+const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61;
 /**
  * One whitespace-separated token as a run of one or more `#id` / `.class` / `-` ATOMS.
  *
@@ -777,7 +809,7 @@ const ATTR_KEY_VALUE_COMMONMARK = /^[A-Za-z][^\s}#\\=]*=(?:"[^"]*"|[^\s}"']+)$/;
  *
  * ⚠ A quote is honoured wherever it appears, not only after `=`, and an UNTERMINATED one simply
  * runs to the end of the block. `{key=v"al}` is stripped by the pandoc three, and it stays one
- * token either way — `ATTR_KEY_VALUE`'s bare-value alternative accepts the quote as content.
+ * token either way — `attributeKeyValue`'s bare-value alternative accepts the quote as content.
  */
 function headingAttributeTokens(content: string, escapedSpaceJoins: boolean): string[] {
   const tokens: string[] = [];
@@ -859,7 +891,7 @@ function headingAttributesValid(
       tokens.every((t) => ATTR_ATOM_COMMONMARK.test(t) || ATTR_KEY_VALUE_COMMONMARK.test(t))
     );
   }
-  return tokens.every((t) => ATTR_ATOM_RUN.test(t) || ATTR_KEY_VALUE.test(t));
+  return tokens.every((t) => ATTR_ATOM_RUN.test(t) || attributeKeyValue(t));
 }
 /**
  * The characters a backslash may escape under **CommonMark 6.1** — the 32 ASCII punctuation

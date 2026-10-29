@@ -2347,7 +2347,9 @@ describe("Session 336 — a single line of millions of characters that a pattern
   // thrown RangeError answers nothing for the whole document, so the stated answer is the heading (or the label) the line leaves standing, and where the line decides it, the heading it changes.
   () => {
     const S336_FEW = 4;
-    const S336_LIMIT_MS = 4000;
+    // 10 s, not the 4 s of Session 335's rows: the heading attribute block's tokenizer (`headingAttributeTokens`, which builds a token a character at a time, 61% garbage collection) is linear and takes 1.9 s for a 16.8-million-character
+    // value at a machine load of 30, and 4.9 s in the whole suite; a quadratic reading of that line would take hours, so the limit still tells the two apart.
+    const S336_LIMIT_MS = 10_000;
     // a long line is its own heading text where it underlines: its first eight characters stand for it
     const headings = (text: string): string[] => findHeadings(text).map((h) => h.text.slice(0, 8));
     const headingIds = (text: string): Array<[string, string | undefined]> => findHeadings(text).map((h) => [h.text.slice(0, 8), h.id]);
@@ -2410,7 +2412,7 @@ describe("Session 336 — a single line of millions of characters that a pattern
 
     // A run of 9,000,000 characters, or a limit of 100 s, would pass on the parent too.
     it("keeps the sizes, the limit and the units the Session 336 rows are built on", () => {
-      expect([S336_FEW, S336_LIMIT_MS]).toEqual([4, 4000]);
+      expect([S336_FEW, S336_LIMIT_MS]).toEqual([4, 10_000]);
       expect(S336_ROWS.map((row) => `${row.unit}x${row.many}`)).toEqual([
         ...Array.from({ length: 6 }, () => "bx16800000"),
         "<!-- x3400000", "<!--x4200000",
