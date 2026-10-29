@@ -197,8 +197,12 @@ export const ATX_HEADING_TIGHT = /^[ \t]*(#{1,6})(?!#)(?=.*$)[ \t]*(.+)$/;
  * The misreads underneath are pre-existing: verbatim `<pre>` / `<script>` / `<style>` and raw-TeX
  * bodies, footnote bodies, headerless simple tables, inline spans that cross the line end,
  * constructs a reader disables, and a last-wins `from:` the resolver reads backwards.
+ *
+ * ⚠ **THE RUN IS `#{7}#*`, NOT `#{7,}` (Session 335).** V8 keeps one entry of its regex backtrack stack per repetition of a counted loop, so `#{7,}` threw `RangeError: Maximum call stack size exceeded` on a
+ * line of 5,592,854 or more `#` (a pasted blob), and the error reached every reader of the document. Seven `#` and a star of the same character accept the same strings and cost the stack nothing; the old spelling
+ * is the oracle in `deep-atx-header-equivalence.test.ts`. The tight spelling below has the same fix.
  */
-const DEEP_ATX_HEADER = /^[ \t]*(#{7,})(?:[ \t].*)?$/;
+export const DEEP_ATX_HEADER =/^[ \t]*(#{7}#*)(?:[ \t].*)?$/;
 /**
  * `DEEP_ATX_HEADER` for a reader without `space_in_atx_header`, where `#######seven` is a header
  * too — measured under `markdown_strict`, `markdown_mmd`, `markdown_phpextra` and
@@ -211,7 +215,7 @@ const DEEP_ATX_HEADER = /^[ \t]*(#{7,})(?:[ \t].*)?$/;
  * render stays paragraph text here — a kept loss, not an invented block — pinned as the Session 266
  * RESIDUAL row.
  */
-const DEEP_ATX_HEADER_TIGHT = /^[ \t]*(#{7,})(?![.)])/;
+export const DEEP_ATX_HEADER_TIGHT = /^[ \t]*(#{7}#*)(?![.)])/;
 /**
  * Whether `line` is a 7+ `#` header at a column a header may start — the ATX row's own column rule
  * (`atxHeadingMatch`), including its block-quote fail-safe for unknown columns.
