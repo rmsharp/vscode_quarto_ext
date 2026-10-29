@@ -14,6 +14,11 @@ import { findLabel, isReferenceableLine, refIdAt } from "../../src/core/refs";
 // resolved engine to `findLabel` AFTER it, so the definition path is read here once per engine the resolver can answer ("markdown", "knitr", "jupyter"), calling the same core functions in the order
 // `CrossrefDefinitionProvider.provideDefinition` does.
 //
+// THE FIRST THROW DEPENDS ON HOW THE LINE IS STORED, which the item did not say (bisected at the same HEAD, one fresh process per probe, lower bound verified OK first): the 8,388,573 above is for a line whose
+// characters are all up to U+00FF (V8 stores it a byte a character). With ANY character above that on the line (an emoji, `日`, a typographic quote, an astral letter) the subject is stored two bytes a character
+// and the backtrack stack entry grows: `a` x 4,194,286 reads and x 4,194,287 THROWS, and `.a` pairs first throw at 2,796,191 (last OK 2,796,190), not 4,194,286. Two rows below sit between the two figures
+// (6,000,000 letters, 3,000,000 pairs behind an emoji): they read on a Latin-1 line and throw on that one.
+//
 // Every size is about twice the first throw (Learning 775). The answer is what the old pattern gives at a size where it does not throw (run firsthand at 8,000,000 and at 4 units), and where the long answer is a
 // 16.8-million-character id it is compared whole and described by its length.
 
@@ -66,6 +71,8 @@ describe("Session 337 — a cross-reference token of millions of characters that
     id: (run: string) => string | null;
     /** The literal answer for FEW units, stated by hand. */
     shortId: string | null;
+    /** The line holds a character above U+00FF, so it is stored two bytes a character and the old pattern's first throw is lower. */
+    twoByte?: true;
   }
 
   /** `CrossrefDefinitionProvider.provideDefinition`'s body, with the document's text and line passed in. */
@@ -102,6 +109,9 @@ describe("Session 337 — a cross-reference token of millions of characters that
     { site: "internal punctuation: `@sec-a` and n of `:a`", unit: ":a", many: 8_400_000, build: (run) => ({ line: `Colon @sec-a${run}`, column: 8 }), id: (run) => `sec-a${run}`, shortId: "sec-a:a:a:a:a" },
     { site: "a long token and then a short one, the cursor on the short one: the first match is the long one", unit: "a", many: 16_800_000, build: (run) => ({ line: `@fig-${run}${SHORT_TAIL}`, column: `@fig-${run}${SHORT_TAIL}`.length - 3 }), id: () => "fig-short", shortId: "fig-short" },
     { site: "a long token whose id stops at a doubled punctuation run (`..`): the id is the part before it", unit: "a", many: 16_800_000, build: (run) => ({ line: `Stop @fig-${run}..b`, column: 7 }), id: (run) => `fig-${run}`, shortId: "fig-aaaa" },
+    // Two-byte lines: an emoji (two code units) and a blank come before the `@`, so the `@` is at 3.
+    { site: "a two-byte line (an emoji before the `@`): n of `a`, under the 8,388,573 a Latin-1 line reads", unit: "a", many: 6_000_000, build: (run) => ({ line: `\u{1f600} @fig-${run}`, column: 5 }), id: (run) => `fig-${run}`, shortId: "fig-aaaa", twoByte: true },
+    { site: "a two-byte line (an emoji before the `@`): `@fig-a` and n of `.a`, under the 4,194,286 pairs a Latin-1 line reads", unit: ".a", many: 3_000_000, build: (run) => ({ line: `\u{1f600} @fig-a${run}`, column: 5 }), id: (run) => `fig-a${run}`, shortId: "fig-a.a.a.a.a", twoByte: true },
   ];
 
   it.each(ROWS.map((row) => [row.site, row] as const))("%s: is read without throwing, in linear time, with 4 units and with the long run", (_site, row) => {
@@ -150,10 +160,19 @@ describe("Session 337 — a cross-reference token of millions of characters that
       ":ax8400000",
       "ax16800000",
       "ax16800000",
+      "ax6000000",
+      ".ax3000000",
     ]);
-    // every run is at least twice the last size that reads (8,388,572 repetitions of the group; a unit of two characters, `.a` or `:a`, is two repetitions)
     for (const row of ROWS) {
-      expect(row.unit.length * row.many).toBeGreaterThanOrEqual(2 * 8_388_572);
+      const repetitions = row.unit.length * row.many;
+      if (row.twoByte === true) {
+        // between the figures: past the last repetition count a two-byte line reads (4,194,286 letters; 2,796,190 pairs and the letter before them) and under the first a Latin-1 line throws at
+        expect(repetitions).toBeGreaterThan(2 * 2_796_190 + 1);
+        expect(repetitions).toBeLessThan(8_388_573);
+      } else {
+        // at least twice the last size that reads (8,388,572 repetitions of the group; a unit of two characters, `.a` or `:a`, is two repetitions)
+        expect(repetitions).toBeGreaterThanOrEqual(2 * 8_388_572);
+      }
     }
   });
 });
