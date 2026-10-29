@@ -252,8 +252,8 @@
   "file": "src/core/qmd/model.ts",
   "from": "    const stripped = armToken.slice(nodePropertyEnd(armToken));",
   "to": "    const stripped = armToken.slice(nodePropertyEnd(armToken)).slice(nodePropertyEnd(armToken.slice(nodePropertyEnd(armToken))));",
-  "expect": "killed",
-  "why": "a second tag after a quote"
+  "expect": "survives",
+  "why": "the strip is maximal, so the text it leaves does not start with & or ! and a second strip finds nothing: no answer changes (argued equivalent)"
  },
  {
   "name": "X03 top-level front matter reader: the strip is not applied",

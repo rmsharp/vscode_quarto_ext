@@ -332,8 +332,8 @@
   "file": "src/core/qmd/model.ts",
   "from": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {\n    return false;\n  }\n  at++;\n  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {\n    return false;\n  }\n  const word = line.slice(at, end);\n  const starred = line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1));\n  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));\n}",
   "to": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {\n    return false;\n  }\n  at++;\n  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  const word = line.slice(at, end);\n  const starred = line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1));\n  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));\n}",
-  "expect": "killed",
-  "why": "a bare backslash"
+  "expect": "survives",
+  "why": "no list holds the empty name, so reading it changes no answer (argued equivalent)"
  },
  {
   "name": "M05 rawTexBlockMacroLine: a name is one letter",
@@ -356,8 +356,8 @@
   "file": "src/core/qmd/model.ts",
   "from": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {\n    return false;\n  }\n  at++;\n  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {\n    return false;\n  }\n  const word = line.slice(at, end);\n  const starred = line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1));\n  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));\n}",
   "to": "export function rawTexBlockMacroLine(line: string): boolean {\n  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {\n    return false;\n  }\n  at++;\n  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {\n    return false;\n  }\n  const word = line.slice(at, end);\n  const starred = line.charCodeAt(end) === 42;\n  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));\n}",
-  "expect": "killed",
-  "why": "`\\section*x{y}` would be a starred name"
+  "expect": "survives",
+  "why": "after a star a letter can never lead to an accepted tail (a tail starts with a blank, a backslash or the end), so the guard changes no answer (argued equivalent)"
  },
  {
   "name": "M08 rawTexBlockMacroLine: a starred name is not read",
