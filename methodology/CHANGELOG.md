@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-29 · [BL-Eight more single-line RangeError shapes and three more quadratic ones, found by Session 336's own probes and its review round, none of them in its diff] Session 337 (in progress): claim -- g02 twenty-first session
+
+Session claimed. Phase 0 found both ledger frontiers at HEAD (`7635df2`, gap 0), no pending receipt, no merges, the ratchet 2/2 (results `bba236856bad`; the S336 receipt's citation holds), the dashboard at 76/100 "critical" with 18 vulnerabilities (dev-only per Session 335, not re-checked; the dashboard copy is v2.22.0 against canonical v2.23.0, not synced), and `master` 131 commits ahead of `origin/master`. Operator chose the item at the Phase 0 picker (placed by finishing a feature, g02 being in flight, and by robustness: a reader that throws answers nothing for the whole document): parts (1) to (8), the eight single-line `RangeError` shapes, taken in order of cost; parts (9) to (11), the three quadratic shapes, stay in the item. In progress; the outcome entry replaces this one at close-out.
+
 ### 2026-10-29 · [ad hoc] Session 336: the quality-gate run cited in the receipt -- 2/2 pass at 67bbfda
 
 `quality_ratchet.py --run`, after the ledger commits (Learning 683): ledger-lag 0 and release-gate 0 (`npm run check-package`), 2 pass, 0 fail, 0 unmeasured, results `bba236856bad`, manifest `334939914945`. The dashboard reads 76/100 "critical" with 18 vulnerabilities (recorded as dev-only in Session 335, not re-checked; the dashboard copy is v2.22.0 against canonical v2.23.0, not synced). `context_budget.py`: `SESSION_NOTES.md` ok (315 lines, 45,293 B, no line over 280 B), HANDOFFS.md, BACKLOG.md and PROJECT_LEARNINGS.md over the 65,536 B ceiling as before, exit 2. `master` is 130 commits ahead of `origin/master`, unpushed.
