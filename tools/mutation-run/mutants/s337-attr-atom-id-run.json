@@ -146,8 +146,8 @@
  {
   "name": "L06 attributeLetterEnd: the letter is not consumed",
   "file": "src/core/qmd/model.ts",
-  "from": "    return at + 1;",
-  "to": "    return at;",
+  "from": "(c >= 97 && c <= 122)) {\n    return at + 1;",
+  "to": "(c >= 97 && c <= 122)) {\n    return at;",
   "expect": "survives",
   "why": "ARGUED EQUIVALENT: a letter is itself an identifier character, so the tail scan that starts at the letter reads it again and ends where it would have ended after it. Only the sign of the answer decides anything."
  },
@@ -282,8 +282,8 @@
  {
   "name": "D11 attributeIdentifierEnd: an ASCII character is read two at a time",
   "file": "src/core/qmd/model.ts",
-  "from": "      at++;\n      continue;",
-  "to": "      at += 2;\n      continue;",
+  "from": "c === 45)) {\n        break;\n      }\n      at++;\n      continue;",
+  "to": "c === 45)) {\n        break;\n      }\n      at += 2;\n      continue;",
   "expect": "killed",
   "why": "a bang after a one-character id is not skipped: the stated row `#a!`"
  },
