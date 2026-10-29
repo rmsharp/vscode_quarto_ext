@@ -422,5 +422,149 @@
   "to": "if (HTML_BLOCK_OPEN.test(line)) {",
   "expect": "killed",
   "why": "a block macro line would not open a block"
+ },
+ {
+  "name": "RV01 RM a macro name in a tail holds at signs",
+  "file": "src/core/qmd/model.ts",
+  "from": "    let end = at + 1;\n    while (isLetterCode(line.charCodeAt(end))) {\n      end++;\n    }\n    if (end === at + 1 || macroIsInline",
+  "to": "    let end = at + 1;\n    while (isLetterCode(line.charCodeAt(end)) || line.charCodeAt(end) === 64) {\n      end++;\n    }\n    if (end === at + 1 || macroIsInline",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV02 RM a macro name in a tail holds underscores",
+  "file": "src/core/qmd/model.ts",
+  "from": "    let end = at + 1;\n    while (isLetterCode(line.charCodeAt(end))) {\n      end++;\n    }\n    if (end === at + 1 || macroIsInline",
+  "to": "    let end = at + 1;\n    while (isLetterCode(line.charCodeAt(end)) || line.charCodeAt(end) === 95) {\n      end++;\n    }\n    if (end === at + 1 || macroIsInline",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV03 RM a macro name in a tail is at most 4096 letters",
+  "file": "src/core/qmd/model.ts",
+  "from": "    let end = at + 1;\n    while (isLetterCode(line.charCodeAt(end))) {\n      end++;\n    }\n    if (end === at + 1 || macroIsInline",
+  "to": "    let end = at + 1;\n    while (isLetterCode(line.charCodeAt(end)) && end - at < 4096) {\n      end++;\n    }\n    if (end === at + 1 || macroIsInline",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV04 RM a macro name in a tail is at most 2^22 letters",
+  "file": "src/core/qmd/model.ts",
+  "from": "    let end = at + 1;\n    while (isLetterCode(line.charCodeAt(end))) {\n      end++;\n    }\n    if (end === at + 1 || macroIsInline",
+  "to": "    let end = at + 1;\n    while (isLetterCode(line.charCodeAt(end)) && end - at < 4194304) {\n      end++;\n    }\n    if (end === at + 1 || macroIsInline",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV05 RM the macro name at the head is at most 4096 letters",
+  "file": "src/core/qmd/model.ts",
+  "from": "  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {",
+  "to": "  let end = at;\n  while (isLetterCode(line.charCodeAt(end)) && end - at < 4096) {\n    end++;\n  }\n  if (end === at) {",
+  "expect": "survives",
+  "why": "found by the review round of Session 335 (its mutation lens): argued equivalent: the head name is only looked up in the block lists, whose longest name is 18 letters, so a name cut at 4,096 letters and one of 5,000 are both unknown and the line is refused either way"
+ },
+ {
+  "name": "RV06 RM the macro name at the head holds digits",
+  "file": "src/core/qmd/model.ts",
+  "from": "  let end = at;\n  while (isLetterCode(line.charCodeAt(end))) {\n    end++;\n  }\n  if (end === at) {",
+  "to": "  let end = at;\n  while (isLetterCode(line.charCodeAt(end)) || (line.charCodeAt(end) >= 48 && line.charCodeAt(end) <= 57)) {\n    end++;\n  }\n  if (end === at) {",
+  "expect": "survives",
+  "why": "found by the review round of Session 335 (its mutation lens): argued equivalent: a digit after a block name is neither an argument opener, a blank nor a backslash, so the old pattern refuses the line; a name that holds the digit is in no list and the function refuses it too (the code-unit sweep puts every digit after every head name and agrees)"
+ },
+ {
+  "name": "RV07 RM macroIsInline: a name is compared in lower case",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return INLINE_MACROS.has(name) ||",
+  "to": "  return INLINE_MACROS.has(name.toLowerCase()) ||",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV08 RM macroIsInline: a name with a star is also inline when a letter follows",
+  "file": "src/core/qmd/model.ts",
+  "from": "(line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1)) && INLINE_MACROS.has(`${name}*`))",
+  "to": "(line.charCodeAt(end) === 42 && INLINE_MACROS.has(`${name}*`))",
+  "expect": "survives",
+  "why": "found by the review round of Session 335 (its mutation lens): argued equivalent (the same argument as I04): a starred inline name has its plain twin in the list (asserted in the lists row, 13 of 13), and the plain name followed by a star already ends at the star, so the starred test adds no line"
+ },
+ {
+  "name": "RV09 RM rawTexBlockMacroLine: at most 4096 leading blanks",
+  "file": "src/core/qmd/model.ts",
+  "from": "  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {",
+  "to": "  let at = skipBlanks(line, 0);\n  if (at > 4096 || line.charCodeAt(at) !== 92) {",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV10 RM rawTexBlockMacroLine: a form feed leads",
+  "file": "src/core/qmd/model.ts",
+  "from": "  let at = skipBlanks(line, 0);\n  if (line.charCodeAt(at) !== 92) {",
+  "to": "  let at = skipBlanks(line, 0);\n  while (line.charCodeAt(at) === 12) {\n    at = skipBlanks(line, at + 1);\n  }\n  if (line.charCodeAt(at) !== 92) {",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV11 RM rawTexBlockMacroLine: the starred name is tried first",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));",
+  "to": "  return (starred && blockMacroReads(line, `${word}*`, end + 1)) || blockMacroReads(line, word, end);",
+  "expect": "survives",
+  "why": "found by the review round of Session 335 (its mutation lens): equivalent: the two reads are pure functions joined by ||, so the order changes the cost of a refused line and no answer"
+ },
+ {
+  "name": "RV12 RM rawTexBlockMacroLine: a starred name is read only when the plain name is not a block macro",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));",
+  "to": "  return blockMacroReads(line, word, end) || (starred && !BLOCK_MACROS_ANY.has(word) && blockMacroReads(line, `${word}*`, end + 1));",
+  "expect": "survives",
+  "why": "found by the review round of Session 335 (its mutation lens): argued equivalent on the data: no name of the any-arguments list is starred and none has a starred twin in another block list (both asserted in the lists row), so the starred read never has a plain name of that list to be skipped for"
+ },
+ {
+  "name": "RV13 RM blockMacroReads: the any list needs an argument when the tail is not empty",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (BLOCK_MACROS_ANY.has(name) && macroLineTailOk(line, macroArgsEnd(line, from))) {",
+  "to": "  if (BLOCK_MACROS_ANY.has(name) && macroLineTailOk(line, macroArgsEnd(line, from)) && (macroArgsEnd(line, from) > from || skipBlanks(line, from) === line.length || line.charCodeAt(skipBlanks(line, from)) === 92)) {",
+  "expect": "survives",
+  "why": "found by the review round of Session 335 (its mutation lens): equivalent: the added condition (an argument was read, or only blanks follow, or the next character is a backslash) is what macroLineTailOk already requires when no argument was read, so it never refuses a line the tail check accepts"
+ },
+ {
+  "name": "RV14 RM blockMacroReads: the any list needs no tail check for the star",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (BLOCK_MACROS_ANY.has(name) && macroLineTailOk(line, macroArgsEnd(line, from))) {",
+  "to": "  if (BLOCK_MACROS_ANY.has(name) && (name.endsWith('*') || macroLineTailOk(line, macroArgsEnd(line, from)))) {",
+  "expect": "survives",
+  "why": "found by the review round of Session 335 (its mutation lens): equivalent on the data: no name of the any-arguments list ends in a star (asserted in the lists row), so the added test is never true"
+ },
+ {
+  "name": "RV15 RM macroNames: an empty name is a name",
+  "file": "src/core/qmd/model.ts",
+  "from": "new Set(list.replace(/\\\\\\*/g, \"*\").split(\"|\"))",
+  "to": "new Set(list.replace(/\\\\\\*/g, \"*\").split(\"|\")).add(\"\")",
+  "expect": "survives",
+  "why": "found by the review round of Session 335 (its mutation lens): the same edit as M04 (argued equivalent): an empty name is never looked up, because the head name is at least one letter and a tail name is read only after a backslash and a letter"
+ },
+ {
+  "name": "RV16 RM BLOCK_MACROS_ARG loses fancybreak* (the search text of the reviewer's edit had one backslash too many and replaced nothing; this one does)",
+  "file": "src/core/qmd/model.ts",
+  "from": "const BLOCK_MACROS_ARG = macroNames(PANDOC_BLOCK_MACROS_ARG);",
+  "to": "const BLOCK_MACROS_ARG = macroNames(PANDOC_BLOCK_MACROS_ARG.replace('fancybreak\\\\*|', ''));",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV17 RM INLINE_MACROS loses its last name (v)",
+  "file": "src/core/qmd/model.ts",
+  "from": "const INLINE_MACROS = macroNames(PANDOC_INLINE_MACROS);",
+  "to": "const INLINE_MACROS = macroNames(PANDOC_INLINE_MACROS.replace(/\\|v$/, ''));",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV18 RM INLINE_MACROS loses its first name (textogonekcentered)",
+  "file": "src/core/qmd/model.ts",
+  "from": "const INLINE_MACROS = macroNames(PANDOC_INLINE_MACROS);",
+  "to": "const INLINE_MACROS = macroNames(PANDOC_INLINE_MACROS.replace('textogonekcentered|', ''));",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
  }
 ]

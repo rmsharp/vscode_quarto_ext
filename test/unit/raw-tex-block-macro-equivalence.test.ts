@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { PANDOC_BLOCK_MACROS_ANY, PANDOC_BLOCK_MACROS_ARG, PANDOC_BLOCK_MACROS_BARE, PANDOC_INLINE_MACROS, rawTexBlockMacroLine } from "../../src/core/qmd/model";
-import { NBSP, everyString, seededRandom } from "./support/regex-equivalence";
+import { NBSP, countCodeUnitEdits, everyCodeUnitEdit, everyString, seededRandom } from "./support/regex-equivalence";
 
 // The enumerations take several seconds each on a loaded machine; the sibling equivalence files give their heavy rows the same ceiling.
 const HEAVY_ROW_MS = 120_000;
 
 // Session 335 — the BACKLOG item "Nine more single-line overflow and slow-input families, none of them in Session 317's diff", part (9). `RAW_TEX_BLOCK_MACRO` read a block macro's argument groups and every further macro
-// on its line as a group, and V8 keeps one entry of its regex backtrack stack per repetition of a group: ` \pdfstringdef[]` and 2,097,487 `\x` threw `RangeError: Maximum call stack size exceeded` (bisected at
-// `c06ee06`; the `[]` groups at 3,356,294 and the `{}` groups at 8,388,781), and the error reached every reader of the document. `rawTexBlockMacroLine` reads the same line with a loop. The pattern is rebuilt
+// on its line as a group, and V8 keeps one entry of its regex backtrack stack per repetition of a group: ` \pdfstringdef[]` and 2,097,143 `\x` threw `RangeError: Maximum call stack size exceeded` (bisected at
+// `c06ee06`; the `[]` groups at 3,355,429 and the `{}` groups at 8,388,572), and the error reached every reader of the document. `rawTexBlockMacroLine` reads the same line with a loop. The pattern is rebuilt
 // below, copied from the parent `c06ee06` (`src/core/qmd/model.ts`) from the name lists the source exports (data, unchanged by this session) and the parent's own composition, as the oracle (Learning 738); the pinned
 // counts (how many lines of each enumeration the OLD pattern accepts) come from that pattern and from a Python port that reads the lists from the source, and never from the code under test.
 
@@ -159,6 +159,13 @@ describe("Session 335 — rawTexBlockMacroLine: the loop accepts the lines RAW_T
     }
     expect(new Set([...ANY_NAMES, ...ARG_NAMES, ...BARE_NAMES]).size).toBe(ANY_NAMES.length + ARG_NAMES.length + BARE_NAMES.length);
     expect([ANY_NAMES.length, ARG_NAMES.length, BARE_NAMES.length, INLINE_NAMES.length]).toEqual([20, 46, 7, 294]);
+    // The title's last clause, asserted (the review of Session 335 found it was only claimed, and that the mutation entries I03 and I04 lean on it): a starred inline name has its plain twin in the list, 13 of them.
+    const starred = INLINE_NAMES.filter((name) => name.endsWith("*"));
+    expect(starred.length).toBe(13);
+    expect(starred.filter((name) => !INLINE_NAMES.includes(name.slice(0, -1)))).toEqual([]);
+    // Two more facts of the data that the mutation entries RV12 and RV14 lean on: no name of the any-arguments list is starred, and none has a starred twin in another block list.
+    expect(ANY_NAMES.filter((name) => name.endsWith("*"))).toEqual([]);
+    expect(ANY_NAMES.filter((name) => [...ARG_NAMES, ...BARE_NAMES].includes(`${name}*`))).toEqual([]);
   });
 
   it.each(STATED.map(([line, block]) => [JSON.stringify(line), line, block] as const))("%s is stated by hand, by the old pattern and by the new function", (_label, line, block) => {
@@ -166,9 +173,9 @@ describe("Session 335 — rawTexBlockMacroLine: the loop accepts the lines RAW_T
     expect(rawTexBlockMacroLine(line)).toBe(block);
   });
 
-  // The cure itself: a tail of 2,097,487 macros, 3,356,294 `[]` groups and 8,388,781 `{}` groups is read. The old pattern is compared only below those, where it still reads.
+  // The cure itself: a tail of 2,097,143 macros, 3,355,429 `[]` groups and 8,388,572 `{}` groups is read. The old pattern is compared only below those, where it still reads.
   const SMALL = [1, 2, 3, 100, 4_096, 65_536, 1_000_000];
-  const LONG = [2_097_487, 4_200_000, 10_000_000];
+  const LONG = [2_097_143, 4_200_000, 10_000_000];
   const SHAPES: Array<[string, (n: number) => string]> = [
     ["a tail of `\\x`", (n) => ` \t\\pdfstringdef[]${"\\x".repeat(n)}  `],
     ["a tail of `\\x{a}`", (n) => `\\maketitle${"\\x{a}".repeat(n)}`],
@@ -218,4 +225,72 @@ describe("Session 335 — rawTexBlockMacroLine: the loop accepts the lines RAW_T
     expect(rawTexBlockMacroLine(` \t\\pdfstringdef[]${tail} prose`)).toBe(false);
     expect(Date.now() - started).toBeLessThan(3000);
   });
+});
+
+// The review round of Session 335 (its mutation lens): nine edits of `rawTexBlockMacroLine` and its helpers survived every row above. The alphabets hold no `@` or `_` in a macro name, no upper case, no form feed before a
+// line and no name or lead longer than a few characters, so a tail name that took an at sign or an underscore, a name looked up in lower case, a lead capped at 4,096 blanks, a name capped at 4,096 or 2^22 letters, and a
+// form feed taken for a blank each changed an answer that no row asked about. Every UTF-16 code unit is put into each head and in place of each of its characters, and the long lead and the long name are compared with the old
+// pattern (its name and blank classes are plain, so it still answers at every size).
+describe("Session 335 review — rawTexBlockMacroLine on every code unit and on long names", () => {
+  const SWEEP_HEADS = ["\\par \\ab", "\\par\\a{x}", " \\par", "\\section*{x}", "\\par \\ab[x]", "\\par \\cite*"];
+  it("every head with one code unit put into it, or in place of one of its characters, is accepted or refused as the old pattern did", () => {
+    const { disagreements, ...counts } = compareAll(everyCodeUnitEdit(SWEEP_HEADS));
+    expect(disagreements).toEqual([]);
+    // Recounted by a Python port of the old pattern (it reads the name lists from the source) and of the sweep: 7,733,248 lines.
+    expect(counts).toEqual({ compared: countCodeUnitEdits(SWEEP_HEADS), block: 590_580 });
+  }, HEAVY_ROW_MS);
+
+  const REVIEW_STATED: Array<[string, boolean]> = [
+    ["\\maketitle \\new@page", false],
+    ["\\maketitle \\new_page", false],
+    ["\\par \\a_b", false],
+    ["\\maketitle \\MakeTextLowercase{x}", false],
+    ["\\maketitle \\TextBf{x}", true],
+    ["\\maketitle \\textbf{x}", false],
+    ["\\maketitle \\CITE", true],
+    ["\\maketitle \\Cite", false],
+    ["\\maketitle \\cite", false],
+    ["\f\\maketitle", false],
+    ["\v\\maketitle", false],
+    [NBSP + "\\maketitle", false],
+  ];
+  it.each(REVIEW_STATED.map(([line, block]) => [JSON.stringify(line), line, block] as const))("%s is stated by hand, by the old pattern and by the new function", (_label, line, block) => {
+    expect(OLD_RAW_TEX_BLOCK_MACRO.test(line)).toBe(block);
+    expect(rawTexBlockMacroLine(line)).toBe(block);
+  });
+
+  // The name lists are data, and the old pattern is built from the same exported strings as the function's sets, so deleting a name from a set is seen only by a line that asks about that name. The head names are all
+  // asked (`byName`). A TAIL name is asked about by four names only (`\\x`, `\\textbf`, `\\citep*`, `\\foreignquote*`), so a set that lost its first or its last inline name (RV17, RV18) answered the same on every row.
+  it("every inline name, plain, starred and with arguments, breaks a block line when it follows the macro", () => {
+    const lines: string[] = [];
+    for (const name of INLINE_NAMES) {
+      for (const head of ["\\maketitle", "\\par", "\\usepackage{a}"]) {
+        lines.push(`${head} \\${name}`, `${head} \\${name}{x}`, `${head}\\${name}[y]`);
+      }
+    }
+    expect(lines.length).toBe(INLINE_NAMES.length * 9);
+    for (const line of lines) {
+      expect(OLD_RAW_TEX_BLOCK_MACRO.test(line)).toBe(false);
+    }
+    expect(lines.filter((line) => rawTexBlockMacroLine(line))).toEqual([]);
+    // The same names with a letter after them are other names, and the line is a block again.
+    expect(INLINE_NAMES.filter((name) => !rawTexBlockMacroLine(`\\maketitle \\${name.replace(/\*$/, "")}Zq`))).toEqual([]);
+  });
+
+  it.each([4_097, 5_000, 70_000, 4_300_000])("%i blanks before a macro, and a macro name of %i letters, are read as the old pattern read them", (n) => {
+    const lines = [
+      " ".repeat(n) + "\\maketitle",
+      "\t".repeat(n) + "\\maketitle \\x",
+      "\\maketitle \\" + "x".repeat(n),
+      "\\maketitle \\" + "x".repeat(n) + "{a}",
+      "\\maketitle \\" + "x".repeat(n) + "1",
+      "\\maketitle" + "x".repeat(n),
+      "\\" + "x".repeat(n),
+      " ".repeat(n) + "\\maketitle prose",
+    ];
+    for (const line of lines) {
+      expect(rawTexBlockMacroLine(line)).toBe(OLD_RAW_TEX_BLOCK_MACRO.test(line));
+    }
+    expect(lines.map((line) => rawTexBlockMacroLine(line))).toEqual([true, true, true, true, false, false, false, false]);
+  }, HEAVY_ROW_MS);
 });
