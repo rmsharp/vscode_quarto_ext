@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-28 · [BL-Nine more single-line overflow and slow-input families, none of them in Session 317's diff] Session 335 (in progress): claim -- g02 nineteenth session, parts (4) to (9)
+
+Session claimed. Phase 0 found both ledger frontiers at HEAD (`42fc73f`, gap 0), no pending receipt, no merges, the ratchet 2/2 (results bba236856bad, measured at `d6abc7d`, the S334 receipt's citation holds), the dashboard at 76/100 "critical" with 18 vulnerabilities (dev-only, as recorded; the dashboard copy is v2.22.0 against canonical v2.23.0, not synced), and `master` 85 commits ahead of `origin/master`. Operator chose the S317 item's parts (4) to (9) at the Phase 0 picker (placed by finishing a feature and by robustness): the six regex groups that overflow the regex stack on a line of millions of characters (`pipeTableOpensHere`'s `|-` and `-|` runs, the front matter `from:` extension lists, the YAML tag and anchor group, a run of `#`, a run of `>`, the LaTeX macro argument tail), where a thrown RangeError answers nothing for the whole document. In progress; the outcome entry replaces this one at close-out.
+
 ### 2026-10-28 · [ad hoc] Session 334: the quality-gate run cited in the receipt -- 2/2 pass at d6abc7d
 
 `quality_ratchet.py --run`, after the ledger commits (Learning 683): ledger-lag 0 and release-gate 0 (`npm run check-package`), 2 pass, 0 fail, 0 unmeasured, results `bba236856bad`, manifest `334939914945`. A first run after the close-out commit and the trim showed ledger-lag 2 (two commits the ledger did not yet record) and 1 of 2 passing; the entry above recorded them and the run was repeated. The `HANDOFFS.md` receipt's `quality_ratchet:` line says the same. The dashboard stays at 76/100 (18 dev-only advisories) and the context budget is OVER only for the three ledgers no session reads whole.

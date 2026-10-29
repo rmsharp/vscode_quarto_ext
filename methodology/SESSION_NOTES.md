@@ -38,6 +38,13 @@ copy is v2.22.0 against canonical v2.23.0 (not synced).
 (13) `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices, edit with a Python script (`python3 -I -`). macOS `sed` rejects `|` as a delimiter and `sed -i` needs `''`. A foreground `sleep` is blocked:
 use a background run or the Monitor tool. After answering a direct question, STOP and wait (memory).
 
+### What Session 335 Did
+**Deliverable:** g02 of the backlog ordering plan, nineteenth session: the Session 317 item's parts (4) to (9), the regex-stack overflows (`pipeTableOpensHere`, the front matter `from:` extension lists, the YAML tag and anchor group, a run of `#`, a run of `>`, the LaTeX macro argument tail) (IN PROGRESS)
+**Started:** 2026-10-28
+**Status:** Session claimed. Work beginning. Strict TDD: reproduce each literal shape at HEAD first, in fresh processes (Learning 840; the item's figures are Session 317's), and read the failure: a RangeError that answers nothing for the whole document is the defect, so the RED row asserts the ANSWER on a line of millions of characters, not the clock. Profile BEFORE reading the cures (Learning 739).
+The item says parts (4) to (9) are part (8)'s class (rewrite the group away, keep the old pattern as the oracle, enumerate short strings, then time a failing near-miss line as well as an accepted one); that is the item's claim and UNTESTED here. One checkpoint commit per part (5-file cap per commit); if a part does not overflow at HEAD, pin it as Session 329 did. Operator decision at Phase 0: these parts (recommended; placed by finishing a feature and by robustness).
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
 ### What Session 334 Did
 **Deliverable:** g02 of the backlog ordering plan, eighteenth session: the Session 318 item's parts (4) to (7), `htmlLineHasText`, `linkAttributesHaveJunk` (was `linkDefinitionAt`'s attribute check), `knitrOptionNames` (was `knitrCodeMasksPrinters`' `options(`
 scan) and `yamlAliasName` (was `YAML_ALIAS_VALUE`), all `model.ts` -- DONE; claim `08b271f`
