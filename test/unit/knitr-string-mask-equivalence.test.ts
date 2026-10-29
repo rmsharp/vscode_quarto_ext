@@ -271,12 +271,25 @@ describe("Session 337 — blankQuotedStrings: the loop blanks the strings where 
     expect(Date.now() - started).toBeLessThan(3000);
   });
 
-  it("a run of 100,000 `\\\"` pairs in front of a string that cannot close is read in linear time", () => {
-    // the old pattern restarts the unclosed read at every escaped quote: 100,000 pairs take it over ten seconds. A header cannot hold the line terminator that makes the string fail, so this shape is reached only
-    // through the function itself; the answer is the old pattern's, which is no match at all and the text back.
-    const text = '"' + '\\"'.repeat(100_000) + "\\" + LS + '"';
+  // The old pattern restarts a failed read at every escaped quote after the opener (a quote met as a token would have closed the string, so each one is the second character of a pair): 100,000 pairs took it 13.7 s,
+  // measured at `8ebce73` with a backslash and U+2028 after them. A chunk header cannot hold this text (an open string is declined before the mask, and the opener line holds no line terminator), so it is reached through
+  // the function alone; the answer is the old pattern's, no string blanked and the text back, and the read is linear because the place a failed read stopped is kept per quote kind.
+  const ESCAPED_QUOTES = 100_000;
+  it.each([
+    ["a double-quoted string cut off by a backslash and U+2028", '"', '\\"', "\\" + LS + '"'],
+    ["a single-quoted string cut off by a backslash and U+2028", "'", "\\'", "\\" + LS + "'"],
+    ["a double-quoted string that never closes", '"', '\\"', ""],
+    ["a single-quoted string that never closes", "'", "\\'", ""],
+  ])("%s, after 100,000 escaped quotes, is read in linear time and nothing is blanked", (_label, quote, pair, tail) => {
+    const text = quote + pair.repeat(ESCAPED_QUOTES) + tail;
+    expect(text.length).toBeGreaterThan(200_000);
     const started = Date.now();
     expect(blankQuotedStrings(text)).toBe(text);
     expect(Date.now() - started).toBeLessThan(3000);
+  });
+
+  it("compares the old pattern only below its overflow and reads past it", () => {
+    expect(Math.max(...SMALL_RUNS)).toBeLessThan(8_388_574);
+    expect(Math.min(...LONG_RUNS)).toBeGreaterThanOrEqual(8_388_574);
   });
 });

@@ -1,0 +1,466 @@
+[
+ {
+  "name": "B01 blankQuotedStrings: a single quote opens nothing",
+  "file": "src/core/qmd/model.ts",
+  "from": "if ((open !== 34 && open !== 39) || at < (open === 34 ? failsBeforeDouble : failsBeforeSingle)) {",
+  "to": "if (open !== 34 || at < (open === 34 ? failsBeforeDouble : failsBeforeSingle)) {",
+  "expect": "killed",
+  "why": "a single-quoted string is no longer blanked: the enumerations, the stated rows and the silent-chunk rows with a single-quoted string"
+ },
+ {
+  "name": "B02 blankQuotedStrings: a double quote opens nothing",
+  "file": "src/core/qmd/model.ts",
+  "from": "if ((open !== 34 && open !== 39) || at < (open === 34 ? failsBeforeDouble : failsBeforeSingle)) {",
+  "to": "if (open !== 39 || at < (open === 34 ? failsBeforeDouble : failsBeforeSingle)) {",
+  "expect": "killed",
+  "why": "a double-quoted string is no longer blanked"
+ },
+ {
+  "name": "B03 blankQuotedStrings: the skip needs both a non-quote and a place before the memo (|| to &&)",
+  "file": "src/core/qmd/model.ts",
+  "from": "if ((open !== 34 && open !== 39) || at < (open === 34 ? failsBeforeDouble : failsBeforeSingle)) {",
+  "to": "if ((open !== 34 && open !== 39) && at < (open === 34 ? failsBeforeDouble : failsBeforeSingle)) {",
+  "expect": "killed",
+  "why": "any character at or after the memo is read as an opener of its own kind; on the long rows it reads every character as an opener and does not finish, so the runner reports KILLED (timeout): run it with a short --timeout or a --cmd that stops at the first failure"
+ },
+ {
+  "name": "B04 blankQuotedStrings: the memo skips a start AT the stop too (< to <=)",
+  "file": "src/core/qmd/model.ts",
+  "from": "if ((open !== 34 && open !== 39) || at < (open === 34 ? failsBeforeDouble : failsBeforeSingle)) {",
+  "to": "if ((open !== 34 && open !== 39) || at <= (open === 34 ? failsBeforeDouble : failsBeforeSingle)) {",
+  "expect": "killed",
+  "why": "not equivalent, which reading the code had called it: the memo STARTS at 0, so `<=` skips a start at the first character and a text that opens with a quote is never blanked (Learning 887: a label by reading is wrong in both directions)"
+ },
+ {
+  "name": "B05 blankQuotedStrings: the memo skips the starts AFTER the stop (< to >)",
+  "file": "src/core/qmd/model.ts",
+  "from": "if ((open !== 34 && open !== 39) || at < (open === 34 ? failsBeforeDouble : failsBeforeSingle)) {",
+  "to": "if ((open !== 34 && open !== 39) || at > (open === 34 ? failsBeforeDouble : failsBeforeSingle)) {",
+  "expect": "killed",
+  "why": "a valid string after a failed read of the same kind is skipped, and the failed ones before it are read again; on the long rows it does not finish (KILLED by timeout): run it with a short --timeout or a --cmd that stops at the first failure"
+ },
+ {
+  "name": "B06 blankQuotedStrings: the two kinds read each other's memo",
+  "file": "src/core/qmd/model.ts",
+  "from": "if ((open !== 34 && open !== 39) || at < (open === 34 ? failsBeforeDouble : failsBeforeSingle)) {",
+  "to": "if ((open !== 34 && open !== 39) || at < (open === 34 ? failsBeforeSingle : failsBeforeDouble)) {",
+  "expect": "killed",
+  "why": "a single-quoted string inside the stretch a double-quoted read failed over is skipped (`\"'a'\\` and U+2028); on the long rows it does not finish (KILLED by timeout): run it with a short --timeout or a --cmd that stops at the first failure"
+ },
+ {
+  "name": "B07 blankQuotedStrings: the memo of the double quote is not kept",
+  "file": "src/core/qmd/model.ts",
+  "from": "failsBeforeDouble = -end;",
+  "to": "failsBeforeDouble = 0;",
+  "expect": "killed",
+  "why": "the output is the same but a run of 100,000 escaped double quotes before a failing end is read once for each: the clock rows of the oracle file (13 s against 3 s)"
+ },
+ {
+  "name": "B08 blankQuotedStrings: the memo of the single quote is not kept",
+  "file": "src/core/qmd/model.ts",
+  "from": "failsBeforeSingle = -end;",
+  "to": "failsBeforeSingle = 0;",
+  "expect": "killed",
+  "why": "the same for 100,000 escaped single quotes"
+ },
+ {
+  "name": "B09 blankQuotedStrings: the double memo stops one before the stop (-end - 1)",
+  "file": "src/core/qmd/model.ts",
+  "from": "failsBeforeDouble = -end;",
+  "to": "failsBeforeDouble = -end - 1;",
+  "expect": "survives",
+  "why": "equivalent in answer and in cost: the only start the memo then lets through is the one just before the stop, whose read ends at the stop at once (its first character is the blocking backslash or the end of the text); argued from the code, not run"
+ },
+ {
+  "name": "B11 blankQuotedStrings: a failed double read skips the next character too",
+  "file": "src/core/qmd/model.ts",
+  "from": "failsBeforeDouble = -end;\n      at++;",
+  "to": "failsBeforeDouble = -end;\n      at += 2;",
+  "expect": "killed",
+  "why": "a quote right after a double quote that opened nothing is never read: `\"'x'`"
+ },
+ {
+  "name": "B12 blankQuotedStrings: a failed single read skips the next character too",
+  "file": "src/core/qmd/model.ts",
+  "from": "failsBeforeSingle = -end;\n      at++;",
+  "to": "failsBeforeSingle = -end;\n      at += 2;",
+  "expect": "killed",
+  "why": "the same for a double quote right after a single quote that opened nothing"
+ },
+ {
+  "name": "B13 blankQuotedStrings: the text before a string is dropped",
+  "file": "src/core/qmd/model.ts",
+  "from": "out += text.slice(copied, at) + '\"\"';",
+  "to": "out += '\"\"';",
+  "expect": "killed",
+  "why": "everything between two strings is lost"
+ },
+ {
+  "name": "B14 blankQuotedStrings: the copy resumes where the string began",
+  "file": "src/core/qmd/model.ts",
+  "from": "copied = end;\n      at = end;",
+  "to": "copied = at;\n      at = end;",
+  "expect": "killed",
+  "why": "the blanked string comes back after its blank"
+ },
+ {
+  "name": "B15 blankQuotedStrings: the scan resumes on the closing quote",
+  "file": "src/core/qmd/model.ts",
+  "from": "copied = end;\n      at = end;",
+  "to": "copied = end;\n      at = end - 1;",
+  "expect": "killed",
+  "why": "the closing quote opens a string of its own with the next quote"
+ },
+ {
+  "name": "B16 blankQuotedStrings: the scan resumes one past the string",
+  "file": "src/core/qmd/model.ts",
+  "from": "copied = end;\n      at = end;",
+  "to": "copied = end;\n      at = end + 1;",
+  "expect": "killed",
+  "why": "the first character after a string is never read: `\"a\"\"b\"`"
+ },
+ {
+  "name": "B17 blankQuotedStrings: a read that ended at 0 counts as a string (> to >=)",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (end > 0) {",
+  "to": "if (end >= 0) {",
+  "expect": "survives",
+  "why": "equivalent: a string ends at 2 or later and a failed read returns the negative of an index of at least 1, so the result is never 0; argued from the code, not run"
+ },
+ {
+  "name": "B19 blankQuotedStrings: the tail after the last string is dropped",
+  "file": "src/core/qmd/model.ts",
+  "from": "return out + text.slice(copied);",
+  "to": "return out;",
+  "expect": "killed",
+  "why": "the text after the last string, and a text with no string at all, is lost"
+ },
+ {
+  "name": "B20 blankQuotedStrings: the text comes back unchanged",
+  "file": "src/core/qmd/model.ts",
+  "from": "return out + text.slice(copied);",
+  "to": "return text;",
+  "expect": "killed",
+  "why": "no string is blanked"
+ },
+ {
+  "name": "B21 blankQuotedStrings: the copy starts at 1",
+  "file": "src/core/qmd/model.ts",
+  "from": "let copied = 0;",
+  "to": "let copied = 1;",
+  "expect": "killed",
+  "why": "the first character is dropped from a text with no string"
+ },
+ {
+  "name": "B22 blankQuotedStrings: the scan starts at 1",
+  "file": "src/core/qmd/model.ts",
+  "from": "let at = 0;\n  while (at < text.length) {",
+  "to": "let at = 1;\n  while (at < text.length) {",
+  "expect": "killed",
+  "why": "a string that opens at the first character is never read"
+ },
+ {
+  "name": "B23 blankQuotedStrings: the loop reads one past the end (< to <=)",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (at < text.length) {\n    const open",
+  "to": "while (at <= text.length) {\n    const open",
+  "expect": "survives",
+  "why": "equivalent: past the end charCodeAt answers NaN, which is no quote, so the pass only steps; argued from the code, not run"
+ },
+ {
+  "name": "B24 blankQuotedStrings: the loop stops before the last character (text.length - 1)",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (at < text.length) {\n    const open",
+  "to": "while (at < text.length - 1) {\n    const open",
+  "expect": "survives",
+  "why": "equivalent: a quote at the last index has nothing after it, so its read fails and sets a memo past the end that no later start could use; argued from the code, not run"
+ },
+ {
+  "name": "B25 blankQuotedStrings: the double memo starts at 1",
+  "file": "src/core/qmd/model.ts",
+  "from": "let failsBeforeDouble = 0;",
+  "to": "let failsBeforeDouble = 1;",
+  "expect": "killed",
+  "why": "a double-quoted string at the first character is skipped"
+ },
+ {
+  "name": "B26 blankQuotedStrings: the single memo starts at 1",
+  "file": "src/core/qmd/model.ts",
+  "from": "let failsBeforeSingle = 0;",
+  "to": "let failsBeforeSingle = 1;",
+  "expect": "killed",
+  "why": "a single-quoted string at the first character is skipped"
+ },
+ {
+  "name": "B27 blankQuotedStrings: a string is blanked to two single quotes",
+  "file": "src/core/qmd/model.ts",
+  "from": "out += text.slice(copied, at) + '\"\"';",
+  "to": "out += text.slice(copied, at) + \"''\";",
+  "expect": "killed",
+  "why": "the blank is no longer the empty double-quoted string the unnamed-argument test accepts"
+ },
+ {
+  "name": "B28 blankQuotedStrings: a single start reads the double memo",
+  "file": "src/core/qmd/model.ts",
+  "from": "at < (open === 34 ? failsBeforeDouble : failsBeforeSingle)) {",
+  "to": "at < failsBeforeDouble) {",
+  "expect": "killed",
+  "why": "a single-quoted string inside the stretch a double-quoted read failed over is skipped"
+ },
+ {
+  "name": "Q01 quotedStringEnd: the body starts at the opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "const quote = text.charCodeAt(open);\n  let at = open + 1;",
+  "to": "const quote = text.charCodeAt(open);\n  let at = open;",
+  "expect": "killed",
+  "why": "the opener closes its own string: every quote is blanked alone"
+ },
+ {
+  "name": "Q02 quotedStringEnd: the body starts two past the opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "const quote = text.charCodeAt(open);\n  let at = open + 1;",
+  "to": "const quote = text.charCodeAt(open);\n  let at = open + 2;",
+  "expect": "killed",
+  "why": "the first character of the body is never read: an empty string `\"\"` does not close"
+ },
+ {
+  "name": "Q03 quotedStringEnd: every string closes at a double quote",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (c === quote) {",
+  "to": "if (c === 34) {",
+  "expect": "killed",
+  "why": "a single-quoted string holding a double quote closes early or never"
+ },
+ {
+  "name": "Q04 quotedStringEnd: the end is the closing quote's own index",
+  "file": "src/core/qmd/model.ts",
+  "from": "return at + 1;\n    }\n    if (c !== 92) {",
+  "to": "return at;\n    }\n    if (c !== 92) {",
+  "expect": "killed",
+  "why": "the closing quote stays in the text"
+ },
+ {
+  "name": "Q05 quotedStringEnd: only a backslash steps by one",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (c !== 92) {",
+  "to": "if (c === 92) {",
+  "expect": "killed",
+  "why": "the body is read backwards: plain characters are taken as escapes"
+ },
+ {
+  "name": "Q06 quotedStringEnd: an escape takes one character (at += 1)",
+  "file": "src/core/qmd/model.ts",
+  "from": "at += 2;\n  }\n  return -text.length;",
+  "to": "at += 1;\n  }\n  return -text.length;",
+  "expect": "killed",
+  "why": "the escaped quote closes the string: `\"a\\\"b\"`"
+ },
+ {
+  "name": "Q07 quotedStringEnd: a line feed is no blocker",
+  "file": "src/core/qmd/model.ts",
+  "from": "escaped === 10 ||",
+  "to": "escaped === 11 ||",
+  "expect": "killed",
+  "why": "a backslash before a line feed is an escape: `\"a\\` + LF + `\"` is blanked"
+ },
+ {
+  "name": "Q08 quotedStringEnd: a carriage return is no blocker",
+  "file": "src/core/qmd/model.ts",
+  "from": "escaped === 13 ||",
+  "to": "escaped === 14 ||",
+  "expect": "killed",
+  "why": "a backslash before a carriage return is an escape"
+ },
+ {
+  "name": "Q09 quotedStringEnd: U+2028 is no blocker",
+  "file": "src/core/qmd/model.ts",
+  "from": "escaped === 0x2028 ||",
+  "to": "escaped === 0x2027 ||",
+  "expect": "killed",
+  "why": "a backslash before U+2028 is an escape"
+ },
+ {
+  "name": "Q10 quotedStringEnd: U+2029 is no blocker",
+  "file": "src/core/qmd/model.ts",
+  "from": "escaped === 0x2029)",
+  "to": "escaped === 0x202a)",
+  "expect": "killed",
+  "why": "a backslash before U+2029 is an escape"
+ },
+ {
+  "name": "Q11 quotedStringEnd: a backslash as the last character is not a blocker (>= to >)",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (at + 1 >= text.length ||",
+  "to": "if (at + 1 > text.length ||",
+  "expect": "survives",
+  "why": "equivalent: the read then fails at the end of the text instead of at the backslash, one index later, and no quote sits between; argued from the code, not run"
+ },
+ {
+  "name": "Q12 quotedStringEnd: a blocked read reports the end of the text",
+  "file": "src/core/qmd/model.ts",
+  "from": "return -at;",
+  "to": "return -text.length;",
+  "expect": "killed",
+  "why": "the memo then skips every later start of the kind, including the valid string after the blocker: `\"a\\` + U+2028 + `b\" \"c\"`"
+ },
+ {
+  "name": "Q13 quotedStringEnd: an unterminated read reports a place near the start",
+  "file": "src/core/qmd/model.ts",
+  "from": "return -text.length;\n}",
+  "to": "return -1;\n}",
+  "expect": "killed",
+  "why": "the memo no longer carries over the escaped quotes of an unterminated string: the clock rows of 100,000 pairs that never close"
+ },
+ {
+  "name": "Q15 quotedStringEnd: the escaped character is the backslash itself",
+  "file": "src/core/qmd/model.ts",
+  "from": "const escaped = text.charCodeAt(at + 1);",
+  "to": "const escaped = text.charCodeAt(at);",
+  "expect": "killed",
+  "why": "no line terminator ever blocks: a backslash before U+2028 is taken as an escape"
+ },
+ {
+  "name": "C01 knitrHeaderOptions: the unnamed argument is not blanked",
+  "file": "src/core/qmd/model.ts",
+  "from": "const blank = blankQuotedStrings(segment);",
+  "to": "const blank = segment;",
+  "expect": "killed",
+  "why": "an unnamed string beside `echo=FALSE` is judged unread and the header is declined: the silent-chunk rows of qmd-model.test.ts and the Session 337 rows"
+ },
+ {
+  "name": "C02 knitrHeaderOptions: the untrimmed segment is blanked",
+  "file": "src/core/qmd/model.ts",
+  "from": "const blank = blankQuotedStrings(segment);",
+  "to": "const blank = blankQuotedStrings(segments[k]);",
+  "expect": "killed",
+  "why": "the blank keeps the space before the string, which the unnamed-argument test refuses"
+ },
+ {
+  "name": "T01 rows: the first throw is 8,388,573",
+  "file": "test/unit/s337-knitr-string-mask-rows.test.ts",
+  "from": "const FIRST_THROW = 8_388_574;",
+  "to": "const FIRST_THROW = 8_388_573;",
+  "expect": "killed",
+  "why": "the guard pins the measured figure"
+ },
+ {
+  "name": "T02 rows: the clock limit is 40 s",
+  "file": "test/unit/s337-knitr-string-mask-rows.test.ts",
+  "from": "const LIMIT_MS = 4000;",
+  "to": "const LIMIT_MS = 40_000;",
+  "expect": "killed",
+  "why": "the guard pins the limit; a limit of minutes would pass a quadratic cure"
+ },
+ {
+  "name": "T03 rows: the long run is 8,000,000",
+  "file": "test/unit/s337-knitr-string-mask-rows.test.ts",
+  "from": "const MANY = 16_800_000;",
+  "to": "const MANY = 8_000_000;",
+  "expect": "killed",
+  "why": "the guard pins the size, and every row at 8,000,000 reads on the parent"
+ },
+ {
+  "name": "T04 rows: the short control is three units",
+  "file": "test/unit/s337-knitr-string-mask-rows.test.ts",
+  "from": "const FEW = 4;",
+  "to": "const FEW = 3;",
+  "expect": "killed",
+  "why": "the guard pins the control"
+ },
+ {
+  "name": "T06 rows: the first-slot unit has no blank",
+  "file": "test/unit/s337-knitr-string-mask-rows.test.ts",
+  "from": "unit: \"b c\", many: MANY / 3,",
+  "to": "unit: \"bc\", many: MANY / 3,",
+  "expect": "killed",
+  "why": "the unit guard: the blank is what the first slot's class would refuse unmasked"
+ },
+ {
+  "name": "T07 rows: a label row is read as a throw row",
+  "file": "test/unit/s337-knitr-string-mask-rows.test.ts",
+  "from": "red: \"answer\", build: (run) => hiddenFigure(\"labels knitr\"",
+  "to": "red: \"throws\", build: (run) => hiddenFigure(\"labels knitr\"",
+  "expect": "killed",
+  "why": "the guard lists which rows are red by a throw and which by a wrong answer"
+ },
+ {
+  "name": "E01 oracle: 310,000 seeded texts",
+  "file": "test/unit/knitr-string-mask-equivalence.test.ts",
+  "from": "const SEEDED_COUNT = 300_000;",
+  "to": "const SEEDED_COUNT = 310_000;",
+  "expect": "killed",
+  "why": "the seeded counts are pinned for 300,000 (300,001 is NOT killed: the 300,001st text blanks nothing, so every pinned count stays)"
+ },
+ {
+  "name": "E02 oracle: seed 3371",
+  "file": "test/unit/knitr-string-mask-equivalence.test.ts",
+  "from": "const SEED = 3370;",
+  "to": "const SEED = 3371;",
+  "expect": "killed",
+  "why": "the seeded counts are pinned for seed 3370"
+ },
+ {
+  "name": "E03 oracle: a narrow-enumeration pin is off by one",
+  "file": "test/unit/knitr-string-mask-equivalence.test.ts",
+  "from": "changed: 1_812_084,",
+  "to": "changed: 1_812_085,",
+  "expect": "killed",
+  "why": "the pins are exact"
+ },
+ {
+  "name": "E04 oracle: the narrow alphabet has no U+2028",
+  "file": "test/unit/knitr-string-mask-equivalence.test.ts",
+  "from": "const NARROW = ['\"', \"'\", \"\\\\\", \"a\", LS];",
+  "to": "const NARROW = ['\"', \"'\", \"\\\\\", \"a\"];",
+  "expect": "killed",
+  "why": "the pinned counts are those of five characters"
+ },
+ {
+  "name": "E06 oracle: the sweep drops the template right after a backslash with more body",
+  "file": "test/unit/knitr-string-mask-equivalence.test.ts",
+  "from": "      [q + \"a\\\\\", \"b\" + q],\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the pinned sweep counts are those of 30 templates, and the number of templates is asserted"
+ },
+ {
+  "name": "E07 oracle: a million strings becomes a thousand",
+  "file": "test/unit/knitr-string-mask-equivalence.test.ts",
+  "from": "const text = '\"a\" '.repeat(1_000_000);",
+  "to": "const text = '\"a\" '.repeat(1_000);",
+  "expect": "killed",
+  "why": "the expected text is built from a million"
+ },
+ {
+  "name": "E08 oracle: 100 escaped quotes, not 100,000",
+  "file": "test/unit/knitr-string-mask-equivalence.test.ts",
+  "from": "const ESCAPED_QUOTES = 100_000;",
+  "to": "const ESCAPED_QUOTES = 100;",
+  "expect": "killed",
+  "why": "the text must be longer than 200,000 characters"
+ },
+ {
+  "name": "E09 oracle: the small runs reach 9,000,000",
+  "file": "test/unit/knitr-string-mask-equivalence.test.ts",
+  "from": "const SMALL_RUNS = [1, 2, 3, 100, 4_096, 65_536, 1_000_000, 8_000_000];",
+  "to": "const SMALL_RUNS = [1, 2, 3, 100, 4_096, 65_536, 1_000_000, 9_000_000];",
+  "expect": "killed",
+  "why": "the old pattern overflows from 8,388,574: the guard keeps the compared runs under it"
+ },
+ {
+  "name": "E10 oracle: the long runs start at 8,388,573",
+  "file": "test/unit/knitr-string-mask-equivalence.test.ts",
+  "from": "const LONG_RUNS = [8_388_574, 8_400_000, 16_800_000, 45_000_000];",
+  "to": "const LONG_RUNS = [8_388_573, 8_400_000, 16_800_000, 45_000_000];",
+  "expect": "killed",
+  "why": "the guard keeps the long runs at or past the first throw"
+ },
+ {
+  "name": "E11 oracle: a stated blocker row expects the second string unblanked",
+  "file": "test/unit/knitr-string-mask-equivalence.test.ts",
+  "from": "'b\"\"c\"'],",
+  "to": "'b\" \"c\"'],",
+  "expect": "killed",
+  "why": "the hand-stated answer is checked against the old pattern, the definition and the new function"
+ }
+]
