@@ -247,3 +247,62 @@ describe("Session 336 — attributeKeyValue: the loop accepts a `key=value` toke
     expect(Date.now() - started).toBeLessThan(3000);
   });
 });
+
+// The review round of Session 336 (its mutation lens, 109 new mutants, `tools/mutation-run/mutants/s336-attribute-key-value-review.json`): fifteen edits that made one more character a third quote (`|`, `/`, `+`, `.`, `-`, `,`,
+// `:`, `!`, `^`, `$`, `@`, `%`, `;`, `?`, `&`), four that made a bracket or curly-quote pair one, and one that looked for `}` only in the first and last 4,096 characters of a value all survived: no alphabet, stated row or
+// code-unit edit held an opener and a closer that match and enclose a blank, and no row had a `}` in the middle of a long value. The first row puts EVERY UTF-16 code unit into six places around a blank; the counts are a
+// Python recount of the definition.
+describe("Session 336 review — every code unit as a would-be quote, bracket pairs, and a `}` in the middle of a long value", () => {
+  function* aroundEveryCodeUnit(): Generator<string> {
+    for (let code = 0; code < 0x10000; code++) {
+      const ch = String.fromCharCode(code);
+      yield `a=${ch}b c${ch}`; //  the same character at both ends, a blank inside
+      yield `a=${ch}b${ch}`; //    the same, no blank
+      yield `a=${ch}${ch}`; //     two of it and nothing between
+      yield `a=${ch}`; //          a lone one
+      yield `a=${ch}b c`; //       opened only
+      yield `a=b c${ch}`; //       closed only
+    }
+  }
+  it("a value opened and closed by the same code unit, with and without a blank inside, empty, lone, opened only and closed only", () => {
+    const { disagreements, ...counts } = compareAll(aroundEveryCodeUnit());
+    expect(disagreements).toEqual([]);
+    expect(counts).toEqual({ compared: 6 * 0x10000, accepted: 196_532 });
+  }, HEAVY_ROW_MS);
+
+  const PAIRS: Array<[string, string]> = [
+    ["{", "}"], ["(", ")"], ["[", "]"], ["<", ">"], [String.fromCharCode(0x201c), String.fromCharCode(0x201d)], [String.fromCharCode(0x2018), String.fromCharCode(0x2019)],
+    [String.fromCharCode(0xab), String.fromCharCode(0xbb)], [String.fromCharCode(0x300c), String.fromCharCode(0x300d)], ["`", String.fromCharCode(0xb4)], ["\\", "\\"], ["=", "="], ["#", "#"],
+  ];
+  function* pairTokens(): Generator<string> {
+    for (const [open, close] of PAIRS) {
+      yield `a=${open}b c${close}`;
+      yield `a=${open}b${close}`;
+      yield `a=${open}${close}`;
+      yield `a=${open}b c${close}d`;
+      yield `a=x${open}b c${close}`;
+    }
+  }
+  it("a value opened by one character and closed by its partner: only the two quotes make a quoted value", () => {
+    const { disagreements, ...counts } = compareAll(pairTokens());
+    expect(disagreements).toEqual([]);
+    expect(counts).toEqual({ compared: 60, accepted: 22 });
+  });
+  it.each(['a={b c}', "a=|b c|", "a=/b c/", String.fromCharCode(0x61, 0x3d, 0x201c) + "b c" + String.fromCharCode(0x201d), "a=" + String.fromCharCode(0xab) + "b c" + String.fromCharCode(0xbb)])("%s: a blank inside is a blank in a bare value, and a bare value refuses it", (token) => {
+    expect(OLD_KEY_VALUE.test(token)).toBe(false);
+    expect(definition(token)).toBe(false);
+    expect(attributeKeyValue(token)).toBe(false);
+  });
+
+  // A `}` that is neither near the start nor near the end of a long bare value: the caps of 4,096 (and 65,536 and 2^23) on where a `}` is looked for were not seen by any row.
+  it.each([10_000, 70_000, 9_000_000])("a `}` in the middle of a bare value of %i characters on each side refuses it", (n) => {
+    const run = "b".repeat(n);
+    expect(attributeKeyValue("a=" + run + "}" + run)).toBe(false);
+    expect(attributeKeyValue("a=" + run + " " + run)).toBe(false);
+    expect(attributeKeyValue("a=" + run + "\\ " + run + "}" + run)).toBe(false);
+    expect(attributeKeyValue('a="' + run + "}" + run + '"')).toBe(true); // inside quotes anything goes
+    if (n <= 70_000) {
+      expect(OLD_KEY_VALUE.test("a=" + run + "}" + run)).toBe(false);
+    }
+  }, HEAVY_ROW_MS);
+});

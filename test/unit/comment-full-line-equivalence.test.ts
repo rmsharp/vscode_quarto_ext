@@ -250,3 +250,43 @@ describe("Session 336 — commentFullLine, commentFullLineCol0 and commentThenTe
     expect(Date.now() - started).toBeLessThan(3000);
   });
 });
+
+// The review round of Session 336 (its mutation lens, `tools/mutation-run/mutants/s336-comment-full-line-review.json`): edits that capped the blank run after a closer, the blank gap before the letter of `commentThenText` and
+// the indent before an opener at 4,096, 65,536 or 2^20 characters, and edits that looked for a line terminator only in the first or last 4,096, 65,536 or 2^23 characters of a long body, all survived: no row held a blank run
+// longer than three characters or a terminator that is neither near the opener nor near the closer of a long body. The old patterns read both at any length (a class star, and a body of one character per repetition), so
+// they are compared wherever they still read (below the overflow).
+describe("Session 336 review — long runs of blanks and a line terminator in the middle of a long body", () => {
+  it.each([4_097, 70_000, 1_100_000])("%i blanks after the closer, before the opener, and between the closer and a letter", (n) => {
+    const blanks = " ".repeat(n);
+    const tabs = "\t".repeat(n);
+    for (const run of [blanks, tabs, blanks + tabs]) {
+      for (const [line, full, col0, thenText] of [
+        ["<!-- c -->" + run, true, true, false],
+        ["<!-- c -->" + run + "x", false, false, true],
+        ["<!-- c -->" + run + "1", false, false, false],
+        ["<!-- c -->" + run + "\r", false, false, false],
+        [run + "<!-- c -->", true, false, false],
+        [run + "<!-- c -->" + run, true, false, false],
+        ["   <!-- c -->" + run + "z", false, false, true],
+      ] as Array<[string, boolean, boolean, boolean]>) {
+        expect([commentFullLine(line), commentFullLineCol0(line), commentThenText(line)]).toEqual([full, col0, thenText]);
+        expect([OLD_FULL.test(line), OLD_COL0.test(line), OLD_THEN_TEXT.test(line)]).toEqual([full, col0, thenText]);
+      }
+    }
+  }, HEAVY_ROW_MS);
+
+  // A terminator at the start, in the middle and (the earlier rows) just before the closer of a body; 70,000 puts it outside a window of 65,536 from either end, and two halves of 9,000,000 outside a window of 2^23 from either end.
+  it.each([70_000, 9_000_000])("a line terminator in a body of two halves of %i characters refuses the comment-then-text, wherever it sits", (n) => {
+    const half = "b".repeat(n);
+    for (const terminator of ["\r", "\n", LS, PS]) {
+      expect(commentThenText("<!--" + terminator + half + half + "--> x")).toBe(false);
+      expect(commentThenText("<!--" + half + terminator + half + "--> x")).toBe(false);
+      expect(commentThenText("<!--" + half + half + terminator + "--> x")).toBe(false);
+      if (n === 70_000) {
+        expect(OLD_THEN_TEXT.test("<!--" + half + terminator + half + "--> x")).toBe(false);
+      }
+    }
+    expect(commentThenText("<!--" + half + half + "--> x")).toBe(true);
+    expect(commentFullLine("<!--" + half + "\r" + half + "-->")).toBe(true); // the whole-line comment's body may hold a terminator
+  }, HEAVY_ROW_MS);
+});

@@ -2347,9 +2347,10 @@ describe("Session 336 — a single line of millions of characters that a pattern
   // thrown RangeError answers nothing for the whole document, so the stated answer is the heading (or the label) the line leaves standing, and where the line decides it, the heading it changes.
   () => {
     const S336_FEW = 4;
-    // 10 s, not the 4 s of Session 335's rows: the heading attribute block's tokenizer (`headingAttributeTokens`, which builds a token a character at a time, 61% garbage collection) is linear and takes 1.9 s for a 16.8-million-character
-    // value at a machine load of 30, and 4.9 s in the whole suite; a quadratic reading of that line would take hours, so the limit still tells the two apart.
-    const S336_LIMIT_MS = 10_000;
+    // 4 s for the comment rows (they take 30 to 300 ms), as Session 335's rows have it; 10 s for the attribute rows alone: the heading attribute block's tokenizer (`headingAttributeTokens`, which builds a token a character at a time,
+    // 61% garbage collection) is linear and takes 1.9 s for a 16.8-million-character value at a machine load of 30, and 4.9 s in the whole suite; a quadratic reading of that line would take hours, so the limit still tells the two apart.
+    const S336_LIMIT_MS = 4000;
+    const S336_ATTRIBUTE_LIMIT_MS = 10_000;
     // a long line is its own heading text where it underlines: its first eight characters stand for it
     const headings = (text: string): string[] => findHeadings(text).map((h) => h.text.slice(0, 8));
     const headingIds = (text: string): Array<[string, string | undefined]> => findHeadings(text).map((h) => [h.text.slice(0, 8), h.id]);
@@ -2357,7 +2358,7 @@ describe("Session 336 — a single line of millions of characters that a pattern
     const body = (line: string): string => `Intro.\n\n${line}\n\n# H\n`;
     const underParagraph = (line: string): string => `Intro.\n${line}\n# H\n`;
     const afterParagraph = (line: string): string => `Intro.\n${line}\n\n# H\n`;
-    type S336Row = { site: string; unit: string; many: number; few?: number; build: (run: string) => string; read: (text: string) => unknown; answer: unknown };
+    type S336Row = { site: string; unit: string; many: number; few?: number; limitMs?: number; build: (run: string) => string; read: (text: string) => unknown; answer: unknown };
 
     const S336_ROWS: S336Row[] = [
       // Part (1): a line that opens an HTML comment and holds no `-->`: `COMMENT_FULL_LINE` (the scan of every body line), `COMMENT_FULL_LINE_COL0` (the block boundaries), the simple table header list, `provableProse`.
@@ -2376,21 +2377,28 @@ describe("Session 336 — a single line of millions of characters that a pattern
       { site: "(1) a setext underline and then a dash line: the long line is the heading (provableProse)", unit: "b", many: 16_800_000, build: (run) => `<!--${run}\n====\n---\n`, read: headings, answer: ["<!--bbbb"] },
       { site: "(1) an ATX line and then a dash line: the ATX line is pressed text (provableProse)", unit: "b", many: 16_800_000, build: (run) => `<!--${run}\n# H\n---\n`, read: headings, answer: [] },
       { site: "(1) the Outline: a body line", unit: "b", many: 16_800_000, build: (run) => `Outline.\n\n<!--${run}\n\n# H\n`, read: (text) => buildOutline(text).length, answer: 1 },
+      // The providers read with the RESOLVED engine (the Outline, the workspace symbols, the cross-reference completion and definition): the engine-gated paths of a scan are reached only with the hint (Session 336 review).
+      { site: "(1) the Outline with the knitr hint: a body line", unit: "b", many: 16_800_000, build: (run) => `Knitr hint.\n\n<!--${run}\n\n# H\n`, read: (text) => buildOutline(text, "knitr").length, answer: 1 },
+      { site: "(1) the Outline with the jupyter hint: a body line", unit: "b", many: 16_800_000, build: (run) => `Jupyter hint.\n\n<!--${run}\n\n# H\n`, read: (text) => buildOutline(text, "jupyter").length, answer: 1 },
+      { site: "(1) the label index with the knitr hint: a body line", unit: "b", many: 16_800_000, build: (run) => `Knitr labels.\n\n<!--${run}\n\n![x](y){#fig-a}\n`, read: (text) => indexLabels(text, "knitr").map((l) => [l.id, l.line]), answer: [["fig-a", 4]] },
       { site: "(1) the cells: a body line", unit: "b", many: 16_800_000, build: (run) => `Cells.\n\n<!--${run}\n\n\`\`\`{r}\n1\n\`\`\`\n`, read: (text) => findAllCells(text).length, answer: 1 },
       { site: "(1) the label index: a body line", unit: "b", many: 16_800_000, build: (run) => `Labels.\n\n<!--${run}\n\n![x](y){#fig-a}\n`, read: labelLines, answer: [["fig-a", 4]] },
       { site: "(1) the engine resolver: a body line", unit: "b", many: 16_800_000, build: (run) => `---\nengine: knitr\n---\n\n<!--${run}\n\n# H\n`, read: (text) => resolveDocumentEngine("a.qmd", text), answer: "knitr" },
 
       // Part (2): a bare `key=value` attribute value, `ATTR_KEY_VALUE`'s `(?:\\ |[^\s}])*`, a group per character (the pairs `\ ` count once each).
-      { site: "(2) a heading attribute block: `a=` and n of `b`", unit: "b", many: 16_800_000, build: (run) => `# T {#sec-t a=${run}}\n\nbody\n`, read: headingIds, answer: [["T", "sec-t"]] },
-      { site: "(2) a setext heading's attribute block", unit: "b", many: 16_800_000, build: (run) => `T {#sec-t a=${run}}\n=====\n\nbody\n`, read: headingIds, answer: [["T", "sec-t"]] },
-      { site: "(2) a heading attribute block: `a=` and n of `\\ ` (an escaped blank is one repetition)", unit: "\\ ", many: 16_800_000, build: (run) => `# T {#sec-t a=${run}}\n\nbody\n`, read: headingIds, answer: [["T", "sec-t"]] },
-      { site: "(2) a fence info string through the label index", unit: "b", many: 16_800_000, build: (run) => `\`\`\`{#lst-a a=${run}}\ncode\n\`\`\`\n`, read: labelLines, answer: [["lst-a", 0]] },
-      { site: "(2) a fenced div through the label index", unit: "b", many: 16_800_000, build: (run) => `::: {#fig-d a=${run}}\n![x](y.png)\n\n![cap](y.png)\n:::\n`, read: labelLines, answer: [["fig-d", 0]] },
-      { site: "(2) an image through the label index", unit: "b", many: 16_800_000, build: (run) => `![x](y){#fig-a a=${run}}\n`, read: labelLines, answer: [["fig-a", 0]] },
-      { site: "(2) a span through the label index", unit: "b", many: 16_800_000, build: (run) => `[x]{#fig-s a=${run}}\n`, read: labelLines, answer: [["fig-s", 0]] },
-      { site: "(2) the Outline: a heading attribute block", unit: "b", many: 16_800_000, build: (run) => `# Outline {#sec-o a=${run}}\n\nbody\n`, read: (text) => buildOutline(text).length, answer: 1 },
-      { site: "(2) the cells: a fence info string, then a code cell", unit: "b", many: 16_800_000, build: (run) => `\`\`\`{#lst-b a=${run}}\ncode\n\`\`\`\n\n\`\`\`{r}\n1\n\`\`\`\n`, read: (text) => findAllCells(text).length, answer: 1 },
-      { site: "(2) the engine resolver: a heading attribute block", unit: "b", many: 16_800_000, build: (run) => `---\nengine: knitr\n---\n\n# R {#sec-r a=${run}}\n`, read: (text) => resolveDocumentEngine("a.qmd", text), answer: "knitr" },
+      { limitMs: S336_ATTRIBUTE_LIMIT_MS, site: "(2) a heading attribute block: `a=` and n of `b`", unit: "b", many: 16_800_000, build: (run) => `# T {#sec-t a=${run}}\n\nbody\n`, read: headingIds, answer: [["T", "sec-t"]] },
+      { limitMs: S336_ATTRIBUTE_LIMIT_MS, site: "(2) a setext heading's attribute block", unit: "b", many: 16_800_000, build: (run) => `T {#sec-t a=${run}}\n=====\n\nbody\n`, read: headingIds, answer: [["T", "sec-t"]] },
+      { limitMs: S336_ATTRIBUTE_LIMIT_MS, site: "(2) a heading attribute block: `a=` and n of `\\ ` (an escaped blank is one repetition)", unit: "\\ ", many: 16_800_000, build: (run) => `# T {#sec-t a=${run}}\n\nbody\n`, read: headingIds, answer: [["T", "sec-t"]] },
+      { limitMs: S336_ATTRIBUTE_LIMIT_MS, site: "(2) a fence info string through the label index", unit: "b", many: 16_800_000, build: (run) => `\`\`\`{#lst-a a=${run}}\ncode\n\`\`\`\n`, read: labelLines, answer: [["lst-a", 0]] },
+      { limitMs: S336_ATTRIBUTE_LIMIT_MS, site: "(2) a fenced div through the label index", unit: "b", many: 16_800_000, build: (run) => `::: {#fig-d a=${run}}\n![x](y.png)\n\n![cap](y.png)\n:::\n`, read: labelLines, answer: [["fig-d", 0]] },
+      { limitMs: S336_ATTRIBUTE_LIMIT_MS, site: "(2) an image through the label index", unit: "b", many: 16_800_000, build: (run) => `![x](y){#fig-a a=${run}}\n`, read: labelLines, answer: [["fig-a", 0]] },
+      { limitMs: S336_ATTRIBUTE_LIMIT_MS, site: "(2) a span through the label index", unit: "b", many: 16_800_000, build: (run) => `[x]{#fig-s a=${run}}\n`, read: labelLines, answer: [["fig-s", 0]] },
+      { limitMs: S336_ATTRIBUTE_LIMIT_MS, site: "(2) the Outline: a heading attribute block", unit: "b", many: 16_800_000, build: (run) => `# Outline {#sec-o a=${run}}\n\nbody\n`, read: (text) => buildOutline(text).length, answer: 1 },
+      { limitMs: S336_ATTRIBUTE_LIMIT_MS, site: "(2) the Outline with the knitr hint: a heading attribute block", unit: "b", many: 16_800_000, build: (run) => `# Knitr {#sec-k a=${run}}\n\nbody\n`, read: (text) => buildOutline(text, "knitr").length, answer: 1 },
+      { limitMs: S336_ATTRIBUTE_LIMIT_MS, site: "(2) the Outline with the jupyter hint: a heading attribute block", unit: "b", many: 16_800_000, build: (run) => `# Jupyter {#sec-j a=${run}}\n\nbody\n`, read: (text) => buildOutline(text, "jupyter").length, answer: 1 },
+      { limitMs: S336_ATTRIBUTE_LIMIT_MS, site: "(2) the label index with the knitr hint: an image", unit: "b", many: 16_800_000, build: (run) => `![k](y){#fig-k a=${run}}\n`, read: (text) => indexLabels(text, "knitr").map((l) => [l.id, l.line]), answer: [["fig-k", 0]] },
+      { limitMs: S336_ATTRIBUTE_LIMIT_MS, site: "(2) the cells: a fence info string, then a code cell", unit: "b", many: 16_800_000, build: (run) => `\`\`\`{#lst-b a=${run}}\ncode\n\`\`\`\n\n\`\`\`{r}\n1\n\`\`\`\n`, read: (text) => findAllCells(text).length, answer: 1 },
+      { limitMs: S336_ATTRIBUTE_LIMIT_MS, site: "(2) the engine resolver: a heading attribute block", unit: "b", many: 16_800_000, build: (run) => `---\nengine: knitr\n---\n\n# R {#sec-r a=${run}}\n`, read: (text) => resolveDocumentEngine("a.qmd", text), answer: "knitr" },
     ];
 
     it.each(S336_ROWS.map((row) => [row.site, row] as const))("%s: is read without throwing, in linear time, and the answer is the stated one with 4 units and with the long run", (_site, row) => {
@@ -2401,7 +2409,7 @@ describe("Session 336 — a single line of millions of characters that a pattern
       expect(longText.length).toBeGreaterThan(run.length); // the timed text holds the whole run
       const { result, ms } = timed(() => row.read(longText));
       expect(result).toEqual(row.answer);
-      expect(ms).toBeLessThan(S336_LIMIT_MS);
+      expect(ms).toBeLessThan(row.limitMs ?? S336_LIMIT_MS);
     }, 120_000);
 
     it("builds a different text for every row", () => {
@@ -2410,15 +2418,16 @@ describe("Session 336 — a single line of millions of characters that a pattern
       expect(new Set(small).size).toBe(S336_ROWS.length);
     });
 
-    // A run of 9,000,000 characters, or a limit of 100 s, would pass on the parent too.
+    // The parent THROWS from 8,388,573 repetitions, so no limit passes it there; a run below that, or a unit that is not the throwing one, would pass on it, and a limit of minutes would pass a quadratic cure.
     it("keeps the sizes, the limit and the units the Session 336 rows are built on", () => {
-      expect([S336_FEW, S336_LIMIT_MS]).toEqual([4, 10_000]);
+      expect([S336_FEW, S336_LIMIT_MS, S336_ATTRIBUTE_LIMIT_MS]).toEqual([4, 4000, 10_000]);
+      expect(S336_ROWS.map((row) => row.limitMs ?? 0)).toEqual([...Array.from({ length: 20 }, () => 0), ...Array.from({ length: 13 }, () => 10_000)]);
       expect(S336_ROWS.map((row) => `${row.unit}x${row.many}`)).toEqual([
         ...Array.from({ length: 6 }, () => "bx16800000"),
         "<!-- x3400000", "<!--x4200000",
-        ...Array.from({ length: 9 }, () => "bx16800000"),
+        ...Array.from({ length: 12 }, () => "bx16800000"),
         "bx16800000", "bx16800000", "\\ x16800000",
-        ...Array.from({ length: 7 }, () => "bx16800000"),
+        ...Array.from({ length: 10 }, () => "bx16800000"),
       ]);
     });
   },

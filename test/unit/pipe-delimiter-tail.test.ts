@@ -92,13 +92,13 @@ describe("Session 336 — a pipe-table delimiter row ends in blanks and tabs onl
   it.each<[string, Shape, string[]]>([
     ["a table with no body row", "no body row", SWALLOWED],
     ["a table with no outer pipes", "no outer pipes", SWALLOWED],
-    // a delimiter row indented ONE space is no delimiter row here either, and quarto lists `In` for another reason (the line below the header is paragraph text, the opener a fresh indented code block)
+    // a delimiter row indented ONE space: rendered, no table (0 tables in the HTML) and `In` is listed; WHY it is listed was not investigated, and both builds give the rendered answer
     ["a delimiter row indented one space", "indented delimiter row", LISTED],
   ])("a form feed after the delimiter row of %s", (_label, shape, expected) => {
     expect(headings(probe(FF, shape))).toEqual(expected);
   });
 
-  // Rendered: the table directly under the heading, and the readers. `markdown` and `markdown-line_blocks` keep pandoc's rules; under `gfm` an ATX line interrupts a paragraph, so `In` is a heading with or without a table.
+  // Rendered: the table directly under the heading, and three readers, each with a form feed after the delimiter row (no table in any of the three). `markdown` and `markdown-line_blocks` swallow `In`; under `gfm` quarto lists it (a document with a real table under `gfm` was not rendered).
   it("a form feed after the delimiter row, the table directly under the heading: no table, `In` is swallowed", () => {
     expect(headings(probe(FF, "outer pipes", "heading"))).toEqual(SWALLOWED);
   });
