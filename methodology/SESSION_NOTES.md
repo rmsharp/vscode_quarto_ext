@@ -305,37 +305,3 @@ overflows (4) to (9); `test:integration` NOT run.
 **TDD:** RED before GREEN for the clock rows (`4f4560b` before `a429813`) and for the oracle's seam (import undefined, `2fcd716`); every later row is mutant-RED.
 **Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** 42 agents in 1 workflow (4,692,545 subagent tokens; 1,258 tool calls; 2.1 hours), about 150 runner mutants of mine (36 + 4 + 2 + 15 + 11, with re-runs), a 47-million-string scratch
 enumeration, 0 quarto renders (the oracle ran warm).
-
-## Session 331 Handoff Evaluation (by Session 332)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers (at HEAD `8e03d50`, gap 0), no `pending` receipt (the one grep hit is prose inside an old receipt's gotchas), the
-ratchet citation (2/2, results `bba236856bad`, read from the results file) and the real-document score (2423 of 2438, re-measured at close-out) held, and the picker the plan ranked was accurate: candidate (a) was the S318 item's
-part (9), placed by finishing a feature, and the item's own figures held (`x` x 2,000 / 4,000 / 6,000: 334 / 1,210 / 2,667 ms against the item's 321 / 1,194 / 2,653; `- item` and `===` x 5,000 2,051 against 1,980; `~ a` under
-`commonmark_x` 212 / 763 against 203 / 744).
-**Helped:** gotcha 2 (the harness is gone: rebuild it from tracked files, with the three commands) took five minutes and worked at once; gotcha 3 (the runner tests the COMMITTED source; run `mutation-lists-apply.test.ts` after a
-refactor) caught W29 of the Session 331 list at the first full `npm test`, which I retargeted instead of deleting (Learning 852); gotcha 4 (the pins are incomplete) was true an eighteenth time; the Learning 840 and 739 lines made me
-time the literal shapes and profile before reading code, which found the item's hypothesis right and its cure incomplete; gotchas 1, 7, 8, 9 and 13 held, and I waited at the picker.
-**Missing:** nothing that cost time. The handoff and the BACKLOG item both called the item's cure "UNTESTED" and it was: computing the count only at an underline left a second quadratic shape on the same line (an interrupter far
-down the paragraph, then many underline-shaped lines), which my own timing found at once, and the cure that followed had two faults that only the review found. **Wrong:** nothing I checked, including the `master` claim (22 commits
-ahead of `origin/master`, Sessions 330 and 331). **ROI: high.**
-
-## Session 332 Self-Assessment
-
-**Score: 7/10.**
-**Went right.** I timed the item's shapes in fresh processes at HEAD before reading any code (its figures held), profiled before reading the cure, and found a second quadratic shape on the same line by timing the cure's own residue,
-before any review. The clock rows were RED first, three times, and I read each failure message to confirm it was the clock with the answer already right. The old expression is the oracle, with an exhaustive count recomputed by a
-script that does not use the project's code; a differential against the parent found 0 differences in 12 million documents and saw 9 of 9 deliberate breakages; the mutation runs found a false "equivalent" of mine (G08) and two rows
-I had missed. I ran two review workflows (ten lenses, 2.7 million subagent tokens), and every claim I acted on I reproduced here with my own builders before changing code (the three-line unit, the long first line, the false control
-row), and I kept the lens findings I did not act on in the BACKLOG instead of dropping them. I waited on the logs and on the quiet machine for the final timings.
-**Went wrong.** (1) The cure was incomplete twice and the review found it, not me: the memo keyed on the columns ARRAY (I wrote "the columns of an open paragraph almost never change between two questions" from 412 changes in 400,000
-documents, a count taken WITH the gate; asking at every line it is 136,244), and the whole-paragraph else-branch, which I chose by what an uninterrupted paragraph holds without timing a long first line (17x the parent). (2)
-Statements I wrote were wrong or unsupported in 35 places across the two rounds (20 and 15), among them three claims of equivalence or of no witness (G08, G01, P07) and a "control" row that is quadratic on the parent from 16,000
-lines; I measured it at 4,000 only. (3) My pins were incomplete for the EIGHTEENTH set: the first 35 mutants left 3 contradicting their expectation and the lens's 81 left 11 that no row noticed. (4) Shell slips, four: zsh
-word-splitting twice, an unquoted heredoc three times (a mangled test file, eaten backticks in notes, and a stray empty file named `=` that failed `npm run package` until I removed it), a pin list rebuilt from a runner diff that
-lost 12 entries, and a mutation run that hung for 600 s per clock mutant until the loop read the clock. (5) TDD deviations, disclosed: the oracle was written against a throwing stub (RED shown), but the class, the wiring rows and
-most of the oracle's later rows were written after the first cure, so their RED is a mutant, shown with the runner. (6) The machine ran at a load of 3 to 13 from other projects; the final timings were taken again at 3 to 5.
-**Known residuals (filed or stated):** the Polish item "Session 332 residuals of the paragraph-title scan"; the S318 item's parts (1), (4) to (7); the S311 item's parts (4), (10), (11); the `isAttributeBlock` prefix item; the S322
-item's part (1); the S317 stack overflows (4) to (9); `test:integration` NOT run.
-**TDD:** RED before GREEN for the clock rows (`b8a62a8` before `be9eed7`, `9cde0dc` before `f440341`, `0918c3f` before `944fccb`) and for the oracle's class (stub, then class); the wiring and review rows are mutant-RED.
-**Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** 10 agents in 2 workflows (1,626,651 and 1,039,720 subagent tokens; 569 and 328 tool calls; 2.24 hours and 53 minutes), about 190 runner mutants of mine
-and the lens's 105, a 12-million-document differential, 0 quarto renders (the oracle ran warm).
