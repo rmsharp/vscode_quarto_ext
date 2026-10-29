@@ -1715,20 +1715,20 @@ const HTML_BLOCK_OR_INLINE_OPEN = new RegExp(
  * per-macro arity is beyond a per-line predicate; the residual is a phantom on a shape no real
  * document writes, which is the permitted direction.
  */
-const PANDOC_BLOCK_MACROS_ANY =
+export const PANDOC_BLOCK_MACROS_ANY =
   "bibliographystyle|addcontentsline|addtocontents|listoffigures|addtocounter|listoftables|" +
   "makeglossary|pdfstringdef|usepackage|makeindex|maketitle|markright|hyperdef|markboth|" +
   "markleft|pdfannot|include|special|subfile|ignore";
-const PANDOC_BLOCK_MACROS_ARG =
+export const PANDOC_BLOCK_MACROS_ARG =
   "setdefaultlanguage|lstinputlisting|setmainlanguage|addbibresource|lowertitleback|" +
   "subsubsection\\*|uppertitleback|framesubtitle|subparagraph\\*|subsubsection|bibliography|" +
   "frontispiece|subparagraph|theoremstyle|fancybreak\\*|plainbreak\\*|subsection\\*|blockquote|" +
   "centerline|dedication|extratitle|fancybreak|frametitle|paragraph\\*|plainbreak|publishers|" +
   "subsection|paragraph|signature|titlehead|chapter\\*|section\\*|subtitle|address|caption|" +
   "chapter|closing|opening|section|subject|author|part\\*|title|write|date|part";
-const PANDOC_BLOCK_MACROS_BARE =
+export const PANDOC_BLOCK_MACROS_BARE =
   "raggedright|pfbreak\\*|pfbreak|hrule|strut|item|par";
-const PANDOC_INLINE_MACROS =
+export const PANDOC_INLINE_MACROS =
   "textogonekcentered|MakeTextLowercase|MakeTextUppercase|textquotedblright|textquotedblleft|" +
   "foreignlanguage|includegraphics|textasciicircum|textsuperscript|listfigurename|" +
   "lstlistingname|texorpdfstring|textasciitilde|textquoteright|Footcitetexts|GLSdescplural|" +
@@ -1806,6 +1806,110 @@ const RAW_TEX_BLOCK_MACRO = new RegExp(
     MACRO_ARG_GROUP + "+" + MACRO_LINE_TAIL +
   "|^[ \\t]*\\\\(?:" + PANDOC_BLOCK_MACROS_BARE + ")" + MACRO_NAME_END + MACRO_LINE_TAIL,
 );
+const macroNames = (list: string): ReadonlySet<string> => new Set(list.replace(/\\\*/g, "*").split("|"));
+const BLOCK_MACROS_ANY = macroNames(PANDOC_BLOCK_MACROS_ANY);
+const BLOCK_MACROS_ARG = macroNames(PANDOC_BLOCK_MACROS_ARG);
+const BLOCK_MACROS_BARE = macroNames(PANDOC_BLOCK_MACROS_BARE);
+const INLINE_MACROS = macroNames(PANDOC_INLINE_MACROS);
+/** The end of the argument group that starts at `at` — `[…]` up to the first `]`, or `{…}` holding at most one level of `{…}` — or -1 when none does. */
+function macroArgEnd(line: string, at: number): number {
+  const c = line.charCodeAt(at);
+  if (c === 91) {
+    const close = line.indexOf("]", at + 1);
+    return close < 0 ? -1 : close + 1;
+  }
+  if (c !== 123) {
+    return -1;
+  }
+  for (let i = at + 1; i < line.length; i++) {
+    const d = line.charCodeAt(i);
+    if (d === 125) {
+      return i + 1;
+    }
+    if (d === 123) {
+      let j = i + 1;
+      while (j < line.length && line.charCodeAt(j) !== 123 && line.charCodeAt(j) !== 125) {
+        j++;
+      }
+      if (line.charCodeAt(j) !== 125) {
+        return -1;
+      }
+      i = j;
+    }
+  }
+  return -1;
+}
+/** The end of the run of argument groups that starts at `from` (`from` itself when none does). */
+function macroArgsEnd(line: string, from: number): number {
+  let at = from;
+  for (let end = macroArgEnd(line, at); end >= 0; end = macroArgEnd(line, at)) {
+    at = end;
+  }
+  return at;
+}
+/** Whether the control sequence named `line.slice(start, end)` is class C: in the inline list as it is, or as the name and the `*` after it when that is not followed by a letter. */
+function macroIsInline(line: string, start: number, end: number): boolean {
+  const name = line.slice(start, end);
+  return INLINE_MACROS.has(name) || (line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1)) && INLINE_MACROS.has(`${name}*`));
+}
+/** What may follow a block macro's own arguments: a run of macros that are not class C, each with its arguments and the blanks before it, then only blanks to the end of the line. */
+function macroLineTailOk(line: string, from: number): boolean {
+  let at = from;
+  for (;;) {
+    at = skipBlanks(line, at);
+    if (at === line.length) {
+      return true;
+    }
+    if (line.charCodeAt(at) !== 92) {
+      return false;
+    }
+    let end = at + 1;
+    while (isLetterCode(line.charCodeAt(end))) {
+      end++;
+    }
+    if (end === at + 1 || macroIsInline(line, at + 1, end)) {
+      return false;
+    }
+    at = macroArgsEnd(line, end);
+  }
+}
+/** Whether a macro of this exact `name`, whose arguments start at `from`, makes the line a block under the rule of ITS list: any number of argument groups, at least one, or none. */
+function blockMacroReads(line: string, name: string, from: number): boolean {
+  if (BLOCK_MACROS_ANY.has(name) && macroLineTailOk(line, macroArgsEnd(line, from))) {
+    return true;
+  }
+  if (BLOCK_MACROS_ARG.has(name)) {
+    const args = macroArgsEnd(line, from);
+    if (args > from && macroLineTailOk(line, args)) {
+      return true;
+    }
+  }
+  return BLOCK_MACROS_BARE.has(name) && macroLineTailOk(line, from);
+}
+/**
+ * `RAW_TEX_BLOCK_MACRO.test(line)` read by a loop (Session 335): blanks, a backslash, a block macro named in one of the three lists (the whole run of letters, or the run and a `*` that no letter follows), its argument
+ * groups as its list allows, then a run of macros that are not class C and blanks to the end. The pattern read every argument group and every further macro as a group, and V8 keeps one entry of its regex backtrack
+ * stack per repetition of a group: ` \pdfstringdef[]` and 2,097,487 `\x` threw `RangeError: Maximum call stack size exceeded` (bisected at `c06ee06`; the `[]` groups at 3,356,294 and the `{}` groups at 8,388,781), and
+ * the error reached every reader of the document. Nothing is given back for a later step (an argument group ends at its first closing bracket or its matching brace, a name at its last letter, and a group or a
+ * macro cannot start with a character the next step takes), so the loop is the pattern; `raw-tex-block-macro-equivalence.test.ts` keeps the pattern as the oracle.
+ */
+export function rawTexBlockMacroLine(line: string): boolean {
+  let at = skipBlanks(line, 0);
+  if (line.charCodeAt(at) !== 92) {
+    return false;
+  }
+  at++;
+  let end = at;
+  while (isLetterCode(line.charCodeAt(end))) {
+    end++;
+  }
+  if (end === at) {
+    return false;
+  }
+  const word = line.slice(at, end);
+  const starred = line.charCodeAt(end) === 42 && !isLetterCode(line.charCodeAt(end + 1));
+  return blockMacroReads(line, word, end) || (starred && blockMacroReads(line, `${word}*`, end + 1));
+}
 /**
  * A raw-TeX macro line that is block where NO paragraph is open — classes A and B, i.e.
  * everything EXCEPT class C. Used by `CLOSES_PARAGRAPH` and `OPENS_FRESH_BLOCK`, both of
