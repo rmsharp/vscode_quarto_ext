@@ -66,6 +66,24 @@ export function countStrings(alphabetSize: number, maxLength: number): number {
   return total;
 }
 
+/** Every string made from one of `heads` by putting one UTF-16 code unit at any place of it, or in place of any one of its characters (the sweep that pins a character class no alphabet reached). */
+export function* everyCodeUnitEdit(heads: readonly string[]): Generator<string> {
+  for (const head of heads) {
+    for (let at = 0; at <= head.length; at++) {
+      for (let unit = 0; unit < 0x10000; unit++) {
+        const ch = String.fromCharCode(unit);
+        yield head.slice(0, at) + ch + head.slice(at);
+        if (at < head.length) yield head.slice(0, at) + ch + head.slice(at + 1);
+      }
+    }
+  }
+}
+
+/** How many strings `everyCodeUnitEdit` yields: (2 x length + 1) x 65,536 for each head. */
+export function countCodeUnitEdits(heads: readonly string[]): number {
+  return heads.reduce((sum, head) => sum + (2 * head.length + 1) * 0x10000, 0);
+}
+
 /** Compare two spellings over `lines`: how many were compared, how many the OLD spelling matched, and the first few disagreements. */
 export function compare(oldPattern: RegExp, newPattern: RegExp, lines: Iterable<string>): { compared: number; accepted: number; disagreements: string[] } {
   let compared = 0;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compare, countStrings, everyString, sameMatch, seededRandom, slowestExec } from "./support/regex-equivalence";
+import { compare, countCodeUnitEdits, countStrings, everyCodeUnitEdit, everyString, sameMatch, seededRandom, slowestExec } from "./support/regex-equivalence";
 
 // Session 319 — the helpers that `blank-tail-equivalence.test.ts` stands on. Each comparison there trusts `sameMatch` to see an index, a group and an unset group,
 // `compare` to count, `everyString` to enumerate and `slowestExec` to report a slow line; a helper that quietly stopped doing one of them would turn every row green (the mutation review of Session 319 found six such
@@ -103,5 +103,28 @@ describe("Session 319 — slowestExec", () => {
     const { slowestText, slow } = slowestExec(exponential, ["aaa", "aab", "b"], 50);
     expect(slow).toBe(false);
     expect(slowestText.length).toBeGreaterThan(0);
+  });
+});
+
+// Session 335 review — `everyCodeUnitEdit` is the sweep that pins a character class no alphabet reached (a form feed, a full-width stop, a vertical tab): the oracle files that hold an old spelling put every UTF-16 code unit
+// into each head and in place of each of its characters. A sweep that quietly covered fewer units or fewer positions would turn those rows green.
+describe("Session 335 review — everyCodeUnitEdit and countCodeUnitEdits", () => {
+  it("yields an insertion and a replacement of every code unit at every place, and the count says how many", () => {
+    const edits = [...everyCodeUnitEdit(["ab"])];
+    expect(edits.length).toBe(countCodeUnitEdits(["ab"]));
+    expect(countCodeUnitEdits(["ab", ""])).toBe((2 * 2 + 1) * 0x10000 + 0x10000);
+    const seen = new Set(edits);
+    for (const unit of [0, 0x0c, 0x20, 0x41, 0xff1e, 0xd800, 0xffff]) {
+      const ch = String.fromCharCode(unit);
+      for (const expected of [ch + "ab", "a" + ch + "b", "ab" + ch, ch + "b", "a" + ch]) {
+        expect(seen.has(expected)).toBe(true);
+      }
+    }
+  });
+
+  it("an empty head is only inserted into, and no head is edited in place of a character it has not got", () => {
+    const edits = [...everyCodeUnitEdit([""])];
+    expect(edits.length).toBe(0x10000);
+    expect(edits.every((text) => text.length === 1)).toBe(true);
   });
 });
