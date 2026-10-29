@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-29 · [BL-Three more single-line shapes found by Session 335's review round, none of them in its diff] Session 336 (in progress): claim -- g02 twentieth session
+
+Session claimed. Phase 0 found both ledger frontiers at HEAD (`f31059c`, gap 0), no pending receipt, no merges, the ratchet 2/2 (results bba236856bad, measured at `596d5d5`, the S335 receipt's citation holds), the dashboard at 76/100 "critical" with 18 vulnerabilities (recorded as dev-only in Session 335, not re-checked; the dashboard copy is v2.22.0 against canonical v2.23.0, not synced), and `master` 115 commits ahead of `origin/master`. Operator chose the item at the Phase 0 picker (placed by finishing a feature, g02 being in flight, and by robustness: a reader that throws answers nothing for the whole document): the `<!--` line with no `-->` (`COMMENT_FULL_LINE`, `COMMENT_FULL_LINE_COL0`, `provableProse`), the bare `key=value` attribute value (`ATTR_KEY_VALUE`), and the unwitnessed `pipeDelimiterRow` call of the table opener (mutant W01). In progress; the outcome entry replaces this one at close-out.
+
 ### 2026-10-28 · [ad hoc] Session 335: the quality-gate run cited in the receipt -- 2/2 pass at 596d5d5
 
 `quality_ratchet.py --run`, after the ledger commits (Learning 683): ledger-lag 0 and release-gate 0 (`npm run check-package`), 2 pass, 0 fail, 0 unmeasured, results `bba236856bad`, manifest `334939914945`. The dashboard reads 76/100 "critical" with 18 dev-only vulnerabilities, as at Phase 0 (the dashboard copy is v2.22.0 against canonical v2.23.0, not synced). `context_budget.py`: `SESSION_NOTES.md` 43,768 bytes of 120,000 (ok); `HANDOFFS.md`, `BACKLOG.md` and `PROJECT_LEARNINGS.md` are over their read budgets, as before this session. This entry and the receipt's ratchet line are the only edits of the commit that records them.

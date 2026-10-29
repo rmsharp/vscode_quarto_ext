@@ -43,6 +43,12 @@ in 115 files, clean.
 (13) `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices, edit with a Python script (`python3 -I -`). macOS `sed` rejects `|` as a delimiter and `sed -i` needs `''`. After
 answering a direct question, STOP and wait (memory).
 
+### What Session 336 Did
+**Deliverable:** g02 of the backlog ordering plan, twentieth session: the BACKLOG item "Three more single-line shapes found by Session 335's review round" -- (1) a `<!--` line with no `-->` throws `RangeError` (`COMMENT_FULL_LINE`, `COMMENT_FULL_LINE_COL0`, `provableProse`), (2) a `key=value` attribute with a bare value of millions of characters throws (`ATTR_KEY_VALUE`), (3) the pipe-table opener's `pipeDelimiterRow` call has no witness (mutant W01): find a document or argue the call away (IN PROGRESS)
+**Started:** 2026-10-29
+**Status:** Session claimed. Work beginning. Strict TDD: time each literal shape at HEAD first, one fresh process per probe (Learnings 840 and 871: the item's 8,390,625 is the verifiers' bisect, re-bisect before quoting it), and make the RED row assert the ANSWER (a `RangeError` answers nothing for the whole document). The item says both overflows are the Session 335 class (an index loop, the old pattern kept as the oracle, a code-unit sweep); that is the item's claim and UNTESTED here. Part (3) ends in a document that separates `pipeDelimiterRow` from `tableRuleRow` at that call, or in an argument that none exists.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
 ### What Session 335 Did
 **Deliverable:** g02 of the backlog ordering plan, nineteenth session: the Session 317 item's parts (4) to (9), the regex-stack overflows (`tableRuleRow`/`pipeDelimiterRow`, the front matter `from:` extension lists, the YAML tag and
 anchor group, a run of `#`, a run of `>`, the LaTeX macro argument tail) -- DONE; claim `c06ee06`
