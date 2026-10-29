@@ -925,6 +925,7 @@ describe("Session 319 — a long run of blanks followed by a CR, U+2028 or U+202
 });
 
 describe("Session 320 — a long run of blanks in a rule row or a closing run", () => {
+  // `TABLE_RULE_ROW` and `PIPE_DELIMITER_ROW`, named below as the sites of these rows, are the functions `tableRuleRow` and `pipeDelimiterRow` since Session 335; a row still reads the site through `findHeadings`.
   // The BACKLOG item "Other regexes still quadratic on a long run of blanks, CR or U+2028", part (4). A pattern that reads a run of blanks and then ends the match on a character the run cannot give back
   // is quadratic in two ways: two atoms over overlapping classes with nothing between them (`TABLE_RULE_ROW`'s `[ \t]*` then `\s*`, and `[-+=: ]*` then `\s*`) re-split the run for ANY character that ends
   // the match, and an unanchored search that begins with `[ \t]+` is retried from every blank inside the run. Bare `exec`, 8,000 / 16,000 / 32,000 blanks (Session 320, fresh process, minimum of 5): 38 / 154
@@ -2250,8 +2251,8 @@ describe("Session 334 — a tag line, a link definition, an `options(` argument 
 describe("Session 335 — a single line of millions of characters that a pattern read as a quantified group (parts 4 to 9 of the BACKLOG item \"Nine more single-line overflow and slow-input families, none of them in Session 317's diff\")", () => {
   // V8 keeps one entry of its regex backtrack stack per repetition of a GROUP (and of a counted loop such as `#{7,}`), so a pattern that reads a run as `(?:a|b)*` throws `RangeError: Maximum call stack size exceeded` once the run
   // is long enough, and the RangeError reaches every reader of the document (the Outline, the front matter, the engine resolver, the label index): the same class as Session 317's thematic breaks. The first throw was bisected
-  // at HEAD `c06ee06` in repetitions of each unit (Session 335, fresh process, `findHeadings` unless a row says otherwise): a pipe delimiter row 1,525,300 `|-`; a `from:` extension list 3,356,294 `+_`; a YAML tag or anchor
-  // 2,097,487 `&a `; a run of `#` 5,592,854; a run of `>` 8,388,781; a LaTeX macro tail 2,097,487 `\x`, 3,356,294 `[]`, 8,388,781 `{}`. Every size below is twice its threshold (Learning 775). A line this long is not typed: it is
+  // at HEAD `c06ee06` in repetitions of each unit (Session 335, fresh process, `findHeadings` unless a row says otherwise): a pipe delimiter row 1,525,196 `|-`; a `from:` extension list 3,355,428 `+_`; a YAML tag or anchor
+  // 2,097,144 `&a `; a run of `#` 5,592,382; a run of `>` 8,388,576; a LaTeX macro tail 2,097,143 `\x`, 3,355,429 `[]`, 8,388,572 `{}`. Every size below is twice its threshold (Learning 775). A line this long is not typed: it is
   // a pasted or minified blob, and a thrown RangeError answers nothing for the whole document, so the stated answer is the heading BELOW the line (and, where the line decides it, a heading the line changes).
   const S335_FEW = 4;
   const S335_LIMIT_MS = 4000;
@@ -2263,7 +2264,7 @@ describe("Session 335 — a single line of millions of characters that a pattern
   type S335Row = { site: string; unit: string; many: number; few?: number; build: (run: string) => string; read: (text: string) => unknown; answer: unknown };
 
   const S335_ROWS: S335Row[] = [
-    // Part (4): a pipe table's delimiter row (`PIPE_DELIMITER_ROW`) and a table's rule row (`TABLE_RULE_ROW`), a group per cell.
+    // Part (4): a pipe table's delimiter row and a table's rule row, a group per cell (the patterns `PIPE_DELIMITER_ROW` and `TABLE_RULE_ROW` then; the functions `pipeDelimiterRow` and `tableRuleRow` now).
     { site: "(4) body line: n of `|-` and a closing `|`", unit: "|-", many: 3_100_000, build: (run) => body(`${run}|`), read: headings, answer: ["H"] },
     { site: "(4) body line: n of `-|`", unit: "-|", many: 3_100_000, build: (run) => body(run), read: headings, answer: ["H"] },
     { site: "(4) body line: n of `|:-:` and a closing `|`", unit: "|:-:", many: 3_100_000, build: (run) => body(`${run}|`), read: headings, answer: ["H"] },

@@ -199,7 +199,7 @@ export const ATX_HEADING_TIGHT = /^[ \t]*(#{1,6})(?!#)(?=.*$)[ \t]*(.+)$/;
  * constructs a reader disables, and a last-wins `from:` the resolver reads backwards.
  *
  * ⚠ **THE RUN IS `#{7}#*`, NOT `#{7,}` (Session 335).** V8 keeps one entry of its regex backtrack stack per repetition of a counted loop, so `#{7,}` threw `RangeError: Maximum call stack size exceeded` on a
- * line of 5,592,854 or more `#` (a pasted blob), and the error reached every reader of the document. Seven `#` and a star of the same character accept the same strings and cost the stack nothing; the old spelling
+ * line of 5,592,382 or more `#` (a pasted blob), and the error reached every reader of the document. Seven `#` and a star of the same character accept the same strings and cost the stack nothing; the old spelling
  * is the oracle in `deep-atx-header-equivalence.test.ts`. The tight spelling below has the same fix.
  */
 export const DEEP_ATX_HEADER = /^[ \t]*(#{7}#*)(?:[ \t].*)?$/;
@@ -1871,7 +1871,7 @@ function blockMacroReads(line: string, name: string, from: number): boolean {
  *
  * Read by a loop since Session 335 (it was the pattern `RAW_TEX_BLOCK_MACRO`): blanks, a backslash, a block macro named in one of the three lists (the whole run of letters, or the run and a `*` that no letter follows), its argument
  * groups as its list allows, then a run of macros that are not class C and blanks to the end. The pattern read every argument group and every further macro as a group, and V8 keeps one entry of its regex backtrack
- * stack per repetition of a group: ` \pdfstringdef[]` and 2,097,487 `\x` threw `RangeError: Maximum call stack size exceeded` (bisected at `c06ee06`; the `[]` groups at 3,356,294 and the `{}` groups at 8,388,781), and
+ * stack per repetition of a group: ` \pdfstringdef[]` and 2,097,143 `\x` threw `RangeError: Maximum call stack size exceeded` (bisected at `c06ee06`; the `[]` groups at 3,355,429 and the `{}` groups at 8,388,572), and
  * the error reached every reader of the document. Nothing is given back for a later step (an argument group ends at its first closing bracket or its matching brace, a name at its last letter, and a group or a
  * macro cannot start with a character the next step takes), so the loop is the pattern; `raw-tex-block-macro-equivalence.test.ts` keeps the pattern as the oracle.
  */
@@ -2691,7 +2691,7 @@ const isLetterCode = (c: number): boolean => (c >= 65 && c <= 90) || (c >= 97 &&
 /**
  * Reads a front-matter `from:` line that names a reader — `from:`, an optional quote, a base reader name, an extension list (`+name` and `-name` after one another), the same quote, blanks and an optional YAML
  * comment — or answers `null` for anything else (Session 335). It is the pattern `^from[ \t]*:[ \t]*(["']?)([a-zA-Z][a-zA-Z0-9_]*)((?:[+-][a-zA-Z_]+)*)\1[ \t]*(?:#.*)?$` read by a loop, because V8 keeps one entry of
- * its regex backtrack stack per repetition of a group: an extension list of 3,356,294 or more tokens threw `RangeError: Maximum call stack size exceeded` (bisected at `c06ee06`), and the error reached every reader
+ * its regex backtrack stack per repetition of a group: an extension list of 3,355,428 or more tokens threw `RangeError: Maximum call stack size exceeded` (bisected at `c06ee06`), and the error reached every reader
  * of the document. No step can give anything back for a later one (the base runs to its first sign, a name to the next sign or the end of its letters, the closing quote is one character), so the loop is the
  * pattern, and `from-value-parts-equivalence.test.ts` keeps the pattern as the oracle. The list is returned as the offsets `[extensionStart, extensionEnd)` of `line`, not as a copy of it.
  *
@@ -5193,8 +5193,8 @@ function calloutClassIndex(attrs: string): number {
 const BLOCK_QUOTE_INDENT = /^[ \t]*/;
 /**
  * Where the run of block-quote markers that starts at `start` in `text` ends, or `start` itself when none does: each marker is a `>` and at most ONE space after it, so `>> >  x` ends after `>> > ` and `> >` after
- * the second `>` (Session 335). It was the pattern `^(?:>[ ]?)+`, a quantified group, and V8 keeps one entry of its regex backtrack stack per repetition of a group: a line of 8,388,781 or more `>` threw
- * `RangeError: Maximum call stack size exceeded` (bisected at `c06ee06`), and the error reached every reader of the document. No flat spelling accepts the same strings (`>[>]*` takes two blanks in a row), so
+ * the second `>` (Session 335). It was the pattern `^(?:>[ ]?)+`, a quantified group, and V8 keeps one entry of its regex backtrack stack per repetition of a group: a line of 8,388,576 or more `>` threw
+ * `RangeError: Maximum call stack size exceeded` (bisected at `c06ee06`), and the error reached every reader of the document. No flat spelling accepts the same strings (`>[> ]*` takes two blanks in a row), so
  * this is a loop; `block-quote-markers-equivalence.test.ts` keeps the pattern as the oracle.
  */
 export function blockQuoteMarkerRunEnd(text: string, start: number): number {
@@ -5385,7 +5385,7 @@ function pipeRuleBodyEnd(line: string, from: number): number {
  * `.test` only.
  *
  * Read by a loop since Session 335 (it was the exported pattern `TABLE_RULE_ROW`, `/^ {0,3}(?:\|?[ \t]*:?-+:?(?:[ \t]*\|[ \t]*:?-+:?)*(?:[ \t]*\|)?|\+(?:[-+=: ]*[-+=:])?)\s*$/`): at most three spaces, then a pipe body or a grid body, then white space to the end. It was the pattern above, and V8 keeps one entry of its regex
- * backtrack stack per repetition of a group: a line of 1,525,300 or more cells `|-` threw `RangeError: Maximum call stack size exceeded` (bisected at `c06ee06`), and the error reached every reader of the document.
+ * backtrack stack per repetition of a group: a line of 1,525,196 or more cells `|-` threw `RangeError: Maximum call stack size exceeded` (bisected at `c06ee06`), and the error reached every reader of the document.
  * The grid body is `+` and a run of `-+=: ` that ends in a character other than a space, so the body ends after the LAST character of that run that is not a space and the rest must be white space.
  * `table-rule-row-equivalence.test.ts` keeps the pattern as the oracle.
  */
@@ -13284,7 +13284,7 @@ const isNodePropertyStop = (c: number): boolean => isSpaceCode(c) || c === 44 ||
  * Where the node properties (`&anchor`, `!tag`) at the start of a YAML value end: the offset of the first character past them and the blanks after the last, or 0 when the value starts with none (Session 335). Each
  * property is its `&` or `!`, a NAME that runs to the first white space or c-flow indicator (`,[]{}`) and may hold more `&` and `!`, and the blanks (space and tab only) after it. It was the pattern
  * `^(?:[&!][^\s,[\]{}]*[ \t]*)+`, read by `replace` at four sites (here, the two front matter enumerators and the project file reader), and V8 keeps one entry of its regex backtrack stack per repetition of a group:
- * a value of 2,097,487 or more properties threw `RangeError: Maximum call stack size exceeded` (bisected at `c06ee06`), and the error reached every reader of the document. The pattern cannot give anything back
+ * a value of 2,097,144 or more properties threw `RangeError: Maximum call stack size exceeded` (bisected at `c06ee06`), and the error reached every reader of the document. The pattern cannot give anything back
  * for a later step (a name runs to the first stop, the blanks to the first non-blank, and a repetition needs its `&` or `!`), so the loop is the pattern, and `node-property-end-equivalence.test.ts` keeps it as the
  * oracle. The text after the properties starts at the returned offset: `armToken.slice(nodePropertyEnd(armToken))` is what `armToken.replace(<the pattern>, "")` was.
  */
@@ -14194,7 +14194,7 @@ function tableOrLineBlockEndsAt(b: BlockBoundaries, x: number, nextContinues = f
  * ⚠ **No two blank runs touch (Session 319).** The old spelling gave every cell its own trailing `[ \t]*` and then allowed an optional pipe and one more `[ \t]*`: with no further cell and no pipe the
  * two runs were adjacent, so for n blanks the engine tried all n+1 ways to split them and each split re-read the second run (quadratic, and for ANY character that ends the match, not only a
  * terminator: `-` and 32,000 blanks then `x` took 625 ms in one `exec`, and a document with 100,000 blanks then U+2028 took 6 s). `tableRuleRow` carried the same alternation until Session 320
- * and took this spelling then. Each blank run now sits in front of the pipe it belongs to (`[ \t]*\|`), so the engine meets a run once per position. The strings accepted are the same (`blank-tail-equivalence.test.ts` holds the old spelling as the oracle); the pattern has no group and every caller reads `.test`.
+ * and took this spelling then. Each blank run now sits in front of the pipe it belongs to (`[ \t]*\|`), so the engine meets a run once per position. The strings accepted are the same (`blank-tail-equivalence.test.ts` holds the old spelling as the oracle); the pattern had no group then and every caller read `.test`.
  *
  * Read by a loop since Session 335 (it was the exported pattern `PIPE_DELIMITER_ROW`, `/^ {0,3}\|?[ \t]*:?-+:?(?:[ \t]*\|[ \t]*:?-+:?)*(?:[ \t]*\|)?[ \t]*$/`), for the reason `tableRuleRow` gives: at most three spaces, the pipe body, then blanks to the end. `table-rule-row-equivalence.test.ts` keeps the
  * pattern as the oracle.

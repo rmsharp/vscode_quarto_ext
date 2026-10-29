@@ -12050,7 +12050,7 @@ describe("Session 235 guard — answers around the fresh-block discriminator tha
   });
 
   it("G12: Session 185's own two documents, which only the delimiter separates (`r2/n03`, `r2/n04`)", () => {
-    // Quoted verbatim from `TABLE_RULE_ROW`'s docstring. The first is a line block plus a
+    // Quoted verbatim from `tableRuleRow`'s docstring (the pattern `TABLE_RULE_ROW`'s until Session 335). The first is a line block plus a
     // continuation and renders the heading; the second is a TABLE and renders none.
     expect(names(["| a | b |", "| 1 | 2 |", "  continued", "# ATX Below"])).toEqual([
       "h1:ATX Below",
