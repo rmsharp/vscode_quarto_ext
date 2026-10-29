@@ -1,0 +1,482 @@
+[
+ {
+  "name": "F01 commonmarkTagLine: the indent loop reads up to five spaces",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (lt < 4 && line.charCodeAt(lt) === 32)",
+  "to": "while (lt < 5 && line.charCodeAt(lt) === 32)",
+  "expect": "survives",
+  "why": "equivalent: a fourth space stops the loop at 4 and `lt > 3` refuses it, and a fifth space does the same from 5; no line is read differently (argued by reading, then run in memory against 12,280,240 lines of the oracle corpora with no difference)"
+ },
+ {
+  "name": "F02 commonmarkTagLine: the indent loop reads up to three spaces",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (lt < 4 && line.charCodeAt(lt) === 32)",
+  "to": "while (lt < 3 && line.charCodeAt(lt) === 32)",
+  "expect": "survives",
+  "why": "equivalent, and first labelled killed by reading (Learning 887): with three spaces read the loop stops at index 3, where the `<` stands, and a fourth space is left at index 3 and refused by `charCodeAt(lt) !== 60`; the bound is carried twice. Found by running the mutant against 12,280,240 oracle lines"
+ },
+ {
+  "name": "F03 commonmarkTagLine: four spaces of indent are allowed",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (lt > 3 || line.charCodeAt(lt) !== 60)",
+  "to": "if (lt > 4 || line.charCodeAt(lt) !== 60)",
+  "expect": "killed",
+  "why": "a tag indented four spaces is indented code, not a block: the stated `    <a>`, the control row and the enumeration frames"
+ },
+ {
+  "name": "F04 commonmarkTagLine: the line must NOT start with `<` after the indent",
+  "file": "src/core/qmd/model.ts",
+  "from": "line.charCodeAt(lt) !== 60) {",
+  "to": "line.charCodeAt(lt) === 60) {",
+  "expect": "killed",
+  "why": "every tag is refused: the stated rows"
+ },
+ {
+  "name": "F05 commonmarkTagLine: the closing and the open branch swapped",
+  "file": "src/core/qmd/model.ts",
+  "from": "line.charCodeAt(lt + 1) === 47 ? closingTagEndsLine(line, lt + 2) : openTagEndsLine(line, lt + 1)",
+  "to": "line.charCodeAt(lt + 1) === 47 ? openTagEndsLine(line, lt + 2) : closingTagEndsLine(line, lt + 1)",
+  "expect": "killed",
+  "why": "a closing tag is read as an open one and the reverse: the stated rows"
+ },
+ {
+  "name": "F07 commonmarkTagLine: an open tag name is looked for one character late",
+  "file": "src/core/qmd/model.ts",
+  "from": "openTagEndsLine(line, lt + 1)",
+  "to": "openTagEndsLine(line, lt + 2)",
+  "expect": "killed",
+  "why": "the first letter of every open tag name is skipped: `<a>` loses its name"
+ },
+ {
+  "name": "G01 isTagNameCode: the digit 0 is not a name character",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isTagNameCode = (c: number): boolean => isLetterCode(c) || (c >= 48 && c <= 57) || c === 45;",
+  "to": "const isTagNameCode = (c: number): boolean => isLetterCode(c) || (c >= 49 && c <= 57) || c === 45;",
+  "expect": "killed",
+  "why": "the sweep puts every code unit, the digit 0 among them, into the names of its three heads; `<a0>` is a tag"
+ },
+ {
+  "name": "G02 isTagNameCode: a dash is not a name character",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isTagNameCode = (c: number): boolean => isLetterCode(c) || (c >= 48 && c <= 57) || c === 45;",
+  "to": "const isTagNameCode = (c: number): boolean => isLetterCode(c) || (c >= 48 && c <= 57);",
+  "expect": "killed",
+  "why": "the stated `<a-b>` and `</a-b1 \\t>`"
+ },
+ {
+  "name": "G04 isAttributeNameCode: a dot is not an attribute name character",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeNameCode = (c: number): boolean => isTagNameCode(c) || c === 46 || c === 58 || c === 95;",
+  "to": "const isAttributeNameCode = (c: number): boolean => isTagNameCode(c) || c === 58 || c === 95;",
+  "expect": "killed",
+  "why": "the stated `<a b.c=d>` and `<a _b:c.d-e0>`"
+ },
+ {
+  "name": "G05 isAttributeNameCode: a colon is not an attribute name character",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeNameCode = (c: number): boolean => isTagNameCode(c) || c === 46 || c === 58 || c === 95;",
+  "to": "const isAttributeNameCode = (c: number): boolean => isTagNameCode(c) || c === 46 || c === 95;",
+  "expect": "killed",
+  "why": "the stated `<a _b:c.d-e0>`"
+ },
+ {
+  "name": "G06 isAttributeNameCode: digits and dashes are not attribute name characters",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeNameCode = (c: number): boolean => isTagNameCode(c) || c === 46 || c === 58 || c === 95;",
+  "to": "const isAttributeNameCode = (c: number): boolean => isLetterCode(c) || c === 46 || c === 58 || c === 95;",
+  "expect": "killed",
+  "why": "the stated `<a b-c=d>` and `<a _b:c.d-e0>`"
+ },
+ {
+  "name": "H01 isAttributeStartCode: a colon cannot start an attribute name",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeStartCode = (c: number): boolean => isLetterCode(c) || c === 58 || c === 95;",
+  "to": "const isAttributeStartCode = (c: number): boolean => isLetterCode(c) || c === 95;",
+  "expect": "killed",
+  "why": "the stated `<a :b>`"
+ },
+ {
+  "name": "H02 isAttributeStartCode: an underscore cannot start an attribute name",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeStartCode = (c: number): boolean => isLetterCode(c) || c === 58 || c === 95;",
+  "to": "const isAttributeStartCode = (c: number): boolean => isLetterCode(c) || c === 58;",
+  "expect": "killed",
+  "why": "the stated `<a _>`"
+ },
+ {
+  "name": "H03 isAttributeStartCode: a digit or a dash can start an attribute name",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeStartCode = (c: number): boolean => isLetterCode(c) || c === 58 || c === 95;",
+  "to": "const isAttributeStartCode = (c: number): boolean => isTagNameCode(c) || c === 58 || c === 95;",
+  "expect": "killed",
+  "why": "the stated `<a 1b>`, `<a -b>`"
+ },
+ {
+  "name": "I01 isUnquotedValueCode: a blank is a value character",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isUnquotedValueCode = (c: number): boolean => !(c === 32 || c === 9 || c === 34 || c === 39 || c === 60 || c === 61 || c === 62 || c === 96);",
+  "to": "const isUnquotedValueCode = (c: number): boolean => !(c === 9 || c === 34 || c === 39 || c === 60 || c === 61 || c === 62 || c === 96);",
+  "expect": "killed",
+  "why": "the stated `<a b=c d=e/>`: the value would run on to the `=`"
+ },
+ {
+  "name": "I02 isUnquotedValueCode: a tab is a value character",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isUnquotedValueCode = (c: number): boolean => !(c === 32 || c === 9 || c === 34 || c === 39 || c === 60 || c === 61 || c === 62 || c === 96);",
+  "to": "const isUnquotedValueCode = (c: number): boolean => !(c === 32 || c === 34 || c === 39 || c === 60 || c === 61 || c === 62 || c === 96);",
+  "expect": "killed",
+  "why": "the stated `<a b=c\\td=e>` (a tab after a value, then another attribute)"
+ },
+ {
+  "name": "I03 isUnquotedValueCode: a double quote is a value character",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isUnquotedValueCode = (c: number): boolean => !(c === 32 || c === 9 || c === 34 || c === 39 || c === 60 || c === 61 || c === 62 || c === 96);",
+  "to": "const isUnquotedValueCode = (c: number): boolean => !(c === 32 || c === 9 || c === 39 || c === 60 || c === 61 || c === 62 || c === 96);",
+  "expect": "killed",
+  "why": "the stated `<a b=c\"d>`"
+ },
+ {
+  "name": "I04 isUnquotedValueCode: a single quote is a value character",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isUnquotedValueCode = (c: number): boolean => !(c === 32 || c === 9 || c === 34 || c === 39 || c === 60 || c === 61 || c === 62 || c === 96);",
+  "to": "const isUnquotedValueCode = (c: number): boolean => !(c === 32 || c === 9 || c === 34 || c === 60 || c === 61 || c === 62 || c === 96);",
+  "expect": "killed",
+  "why": "the stated `<a b=c'd>`"
+ },
+ {
+  "name": "I05 isUnquotedValueCode: a `<` is a value character",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isUnquotedValueCode = (c: number): boolean => !(c === 32 || c === 9 || c === 34 || c === 39 || c === 60 || c === 61 || c === 62 || c === 96);",
+  "to": "const isUnquotedValueCode = (c: number): boolean => !(c === 32 || c === 9 || c === 34 || c === 39 || c === 61 || c === 62 || c === 96);",
+  "expect": "killed",
+  "why": "the stated `<a b=c<d>`"
+ },
+ {
+  "name": "I06 isUnquotedValueCode: an `=` is a value character",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isUnquotedValueCode = (c: number): boolean => !(c === 32 || c === 9 || c === 34 || c === 39 || c === 60 || c === 61 || c === 62 || c === 96);",
+  "to": "const isUnquotedValueCode = (c: number): boolean => !(c === 32 || c === 9 || c === 34 || c === 39 || c === 60 || c === 62 || c === 96);",
+  "expect": "killed",
+  "why": "the stated `<a b=c=d>`"
+ },
+ {
+  "name": "I07 isUnquotedValueCode: a `>` is a value character",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isUnquotedValueCode = (c: number): boolean => !(c === 32 || c === 9 || c === 34 || c === 39 || c === 60 || c === 61 || c === 62 || c === 96);",
+  "to": "const isUnquotedValueCode = (c: number): boolean => !(c === 32 || c === 9 || c === 34 || c === 39 || c === 60 || c === 61 || c === 96);",
+  "expect": "killed",
+  "why": "every closed tag with a bare value: the value eats the `>`"
+ },
+ {
+  "name": "I08 isUnquotedValueCode: a backtick is a value character",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isUnquotedValueCode = (c: number): boolean => !(c === 32 || c === 9 || c === 34 || c === 39 || c === 60 || c === 61 || c === 62 || c === 96);",
+  "to": "const isUnquotedValueCode = (c: number): boolean => !(c === 32 || c === 9 || c === 34 || c === 39 || c === 60 || c === 61 || c === 62);",
+  "expect": "killed",
+  "why": "the stated `<a b=c`d>`"
+ },
+ {
+  "name": "I09 isUnquotedValueCode: a slash is not a value character",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isUnquotedValueCode = (c: number): boolean => !(c === 32 || c === 9 || c === 34 || c === 39 || c === 60 || c === 61 || c === 62 || c === 96);",
+  "to": "const isUnquotedValueCode = (c: number): boolean => !(c === 32 || c === 9 || c === 34 || c === 39 || c === 47 || c === 60 || c === 61 || c === 62 || c === 96);",
+  "expect": "killed",
+  "why": "the stated `<a b=c/ d>`: the pattern reads `c/` as the value and then the attribute `d`"
+ },
+ {
+  "name": "J01 tagNameEnd: a tag name must NOT start with a letter",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!isLetterCode(line.charCodeAt(from))) {\n    return -1;",
+  "to": "if (isLetterCode(line.charCodeAt(from))) {\n    return -1;",
+  "expect": "killed",
+  "why": "every tag name is refused"
+ },
+ {
+  "name": "J03 tagNameEnd: a name holds letters only",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (isTagNameCode(line.charCodeAt(end))) {",
+  "to": "while (isLetterCode(line.charCodeAt(end))) {",
+  "expect": "killed",
+  "why": "the stated `<a-b>`, `<a1>`"
+ },
+ {
+  "name": "K01 attributeEnd: the name is read from its first character",
+  "file": "src/core/qmd/model.ts",
+  "from": "let end = from + 1;\n  while (isAttributeNameCode(line.charCodeAt(end))) {",
+  "to": "let end = from;\n  while (isAttributeNameCode(line.charCodeAt(end))) {",
+  "expect": "survives",
+  "why": "equivalent: the first character is a letter, a colon or an underscore, and isAttributeNameCode accepts all three, so the loop steps over it the same way (argued by reading, then run in memory against 12,280,240 lines of the oracle corpora with no difference)"
+ },
+ {
+  "name": "K02 attributeEnd: no blanks are allowed before the `=`",
+  "file": "src/core/qmd/model.ts",
+  "from": "const equals = skipBlanks(line, end);",
+  "to": "const equals = end;",
+  "expect": "killed",
+  "why": "the stated `<a b = c>`"
+ },
+ {
+  "name": "K03 attributeEnd: an attribute with an `=` is refused",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (line.charCodeAt(equals) !== 61) {\n    return end;",
+  "to": "if (line.charCodeAt(equals) === 61) {\n    return end;",
+  "expect": "killed",
+  "why": "a value is never read: `<a b=c>`"
+ },
+ {
+  "name": "K04 attributeEnd: an attribute with no value ends after its blanks",
+  "file": "src/core/qmd/model.ts",
+  "from": "return end;\n  }\n  const value = skipBlanks(line, equals + 1);",
+  "to": "return equals;\n  }\n  const value = skipBlanks(line, equals + 1);",
+  "expect": "killed",
+  "why": "the blank that must stand before the next attribute is eaten: the stated `<a b c>`"
+ },
+ {
+  "name": "K05 attributeEnd: no blanks are allowed after the `=`",
+  "file": "src/core/qmd/model.ts",
+  "from": "const value = skipBlanks(line, equals + 1);",
+  "to": "const value = equals + 1;",
+  "expect": "killed",
+  "why": "the stated `<a b= c d= e>`"
+ },
+ {
+  "name": "K06 attributeEnd: only a double quote opens a quoted value",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (quote === 34 || quote === 39) {",
+  "to": "if (quote === 34) {",
+  "expect": "killed",
+  "why": "the stated `<a b='c'>`: a single quote cannot start an unquoted value"
+ },
+ {
+  "name": "K07 attributeEnd: the closing quote is searched from the opening one",
+  "file": "src/core/qmd/model.ts",
+  "from": "line.indexOf(quote === 34 ? '\"' : \"'\", value + 1)",
+  "to": "line.indexOf(quote === 34 ? '\"' : \"'\", value)",
+  "expect": "killed",
+  "why": "the opening quote closes itself: `<a b=\"c\">`"
+ },
+ {
+  "name": "K08 attributeEnd: an unclosed quote ends the attribute at the start of the line",
+  "file": "src/core/qmd/model.ts",
+  "from": "return closer < 0 ? -1 : closer + 1;",
+  "to": "return closer + 1;",
+  "expect": "survives",
+  "why": "equivalent: -1 + 1 is 0, `openTagEndsLine` restarts at index 0, where the first character that is not a blank is the `<`, which is neither an attribute start, a slash nor a `>`, so it answers false as -1 does (argued by reading; the stated `<a b=\">` and `<a b=\"c>` and the long unclosed quotes pass either way; run in memory against 12,280,240 lines of the oracle corpora with no difference)"
+ },
+ {
+  "name": "K09 attributeEnd: a quoted attribute ends on its closing quote",
+  "file": "src/core/qmd/model.ts",
+  "from": "return closer < 0 ? -1 : closer + 1;",
+  "to": "return closer < 0 ? -1 : closer;",
+  "expect": "killed",
+  "why": "the closing quote is read again as the start of the next attribute: `<a b=\"c\">`"
+ },
+ {
+  "name": "K10 attributeEnd: an empty unquoted value is accepted",
+  "file": "src/core/qmd/model.ts",
+  "from": "return stop > value ? stop : -1;",
+  "to": "return stop;",
+  "expect": "killed",
+  "why": "the stated `<a b=>`"
+ },
+ {
+  "name": "K11 attributeEnd: an unquoted value starts one character late",
+  "file": "src/core/qmd/model.ts",
+  "from": "let stop = value;",
+  "to": "let stop = value + 1;",
+  "expect": "killed",
+  "why": "the first value character is never tested: `<a b=>>` is a tag (found by the enumeration `<a` + a blank, `b`, `=`, `>`, `>`)"
+ },
+ {
+  "name": "K12 attributeEnd: the value loop runs one position past the line",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (stop < line.length && isUnquotedValueCode",
+  "to": "while (stop <= line.length && isUnquotedValueCode",
+  "expect": "survives",
+  "why": "equivalent: a value that runs to the end of the line is refused either way (stop is then line.length or one more, and the tag never finds its `>`); no line is read differently; run in memory against 12,280,240 lines of the oracle corpora with no difference"
+ },
+ {
+  "name": "L01 openTagEndsLine: the loop stops at index 0",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (at >= 0) {",
+  "to": "while (at > 0) {",
+  "expect": "survives",
+  "why": "equivalent: `at` is never 0 here (tagNameEnd answers 3 or more or -1, attributeEnd answers its start plus one or more or -1); run in memory against 12,280,240 lines of the oracle corpora with no difference"
+ },
+ {
+  "name": "L02 openTagEndsLine: an attribute may touch the name or the last attribute",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (gap > at && isAttributeStartCode(line.charCodeAt(gap))) {",
+  "to": "if (isAttributeStartCode(line.charCodeAt(gap))) {",
+  "expect": "killed",
+  "why": "the stated `<a_b>` and `<a b=\"c\"d>`"
+ },
+ {
+  "name": "L03 openTagEndsLine: an attribute starts with a name character",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (gap > at && isAttributeStartCode(line.charCodeAt(gap))) {",
+  "to": "if (gap > at && isAttributeNameCode(line.charCodeAt(gap))) {",
+  "expect": "killed",
+  "why": "the stated `<a 1b>`, `<a -b>`"
+ },
+ {
+  "name": "L04 openTagEndsLine: the next attribute is read one character late",
+  "file": "src/core/qmd/model.ts",
+  "from": "at = attributeEnd(line, gap);",
+  "to": "at = attributeEnd(line, gap) + 1;",
+  "expect": "killed",
+  "why": "the end of every attribute is skipped: `<a b>` loses its `>`"
+ },
+ {
+  "name": "L05 openTagEndsLine: a slash before the `>` is never read",
+  "file": "src/core/qmd/model.ts",
+  "from": "const bracket = line.charCodeAt(gap) === 47 ? gap + 1 : gap;",
+  "to": "const bracket = gap;",
+  "expect": "killed",
+  "why": "the stated `<a/>`, `<a />`"
+ },
+ {
+  "name": "L06 openTagEndsLine: the `>` must NOT follow",
+  "file": "src/core/qmd/model.ts",
+  "from": "return line.charCodeAt(bracket) === 62 && skipBlanks(line, bracket + 1) === line.length;\n  }\n  return false;",
+  "to": "return line.charCodeAt(bracket) !== 62 && skipBlanks(line, bracket + 1) === line.length;\n  }\n  return false;",
+  "expect": "killed",
+  "why": "every tag is refused"
+ },
+ {
+  "name": "L07 openTagEndsLine: no blanks after the `>`",
+  "file": "src/core/qmd/model.ts",
+  "from": "return line.charCodeAt(bracket) === 62 && skipBlanks(line, bracket + 1) === line.length;\n  }\n  return false;",
+  "to": "return line.charCodeAt(bracket) === 62 && bracket + 1 === line.length;\n  }\n  return false;",
+  "expect": "killed",
+  "why": "the stated `<a>  `, `<a>\\t`"
+ },
+ {
+  "name": "L08 openTagEndsLine: a name that fails is a tag",
+  "file": "src/core/qmd/model.ts",
+  "from": "  }\n  return false;\n}\n/** Whether the closing tag",
+  "to": "  }\n  return true;\n}\n/** Whether the closing tag",
+  "expect": "killed",
+  "why": "the stated `<>`, `< a>` and `<1a>`"
+ },
+ {
+  "name": "M01 closingTagEndsLine: the name guard stops at one",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (name < 0) {\n    return false;\n  }\n  const bracket = skipBlanks(line, name);",
+  "to": "if (name < 1) {\n    return false;\n  }\n  const bracket = skipBlanks(line, name);",
+  "expect": "survives",
+  "why": "equivalent: tagNameEnd answers -1 or 3 or more here, never 0; run in memory against 12,280,240 lines of the oracle corpora with no difference"
+ },
+ {
+  "name": "M02 closingTagEndsLine: no blanks between the name and the `>`",
+  "file": "src/core/qmd/model.ts",
+  "from": "const bracket = skipBlanks(line, name);",
+  "to": "const bracket = name;",
+  "expect": "killed",
+  "why": "the stated `</a >`, `</a\\t>`"
+ },
+ {
+  "name": "M03 closingTagEndsLine: no blanks after the `>`",
+  "file": "src/core/qmd/model.ts",
+  "from": "const bracket = skipBlanks(line, name);\n  return line.charCodeAt(bracket) === 62 && skipBlanks(line, bracket + 1) === line.length;",
+  "to": "const bracket = skipBlanks(line, name);\n  return line.charCodeAt(bracket) === 62 && bracket + 1 === line.length;",
+  "expect": "killed",
+  "why": "the stated `</a-b1 \\t>  `"
+ },
+ {
+  "name": "M04 closingTagEndsLine: a missing name is a closing tag",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (name < 0) {\n    return false;\n  }\n  const bracket = skipBlanks(line, name);",
+  "to": "if (name < 0) {\n    return true;\n  }\n  const bracket = skipBlanks(line, name);",
+  "expect": "killed",
+  "why": "the stated `</>`, `</ a>`, `</1>`"
+ },
+ {
+  "name": "C01 computeRegions: a tag line opens a block under an open paragraph too",
+  "file": "src/core/qmd/model.ts",
+  "from": "(!paragraphOpen && commonmarkTagLine(line))",
+  "to": "(commonmarkTagLine(line))",
+  "expect": "killed",
+  "why": "the control row `Intro.` / the tag / `# H`, and qmd-model.test.ts `n_gfm_span_para`"
+ },
+ {
+  "name": "C02 computeRegions: a tag line never opens a block",
+  "file": "src/core/qmd/model.ts",
+  "from": "(!paragraphOpen && commonmarkTagLine(line))",
+  "to": "(!paragraphOpen && false)",
+  "expect": "killed",
+  "why": "every swallowed heading comes back: the rows and the type-7 rows of qmd-model.test.ts"
+ },
+ {
+  "name": "C03 computeRegions: every line opens a block",
+  "file": "src/core/qmd/model.ts",
+  "from": "(!paragraphOpen && commonmarkTagLine(line))",
+  "to": "(!paragraphOpen && true)",
+  "expect": "killed",
+  "why": "the rows that read the default controls and the headings of every CommonMark document"
+ },
+ {
+  "name": "C04 computeRegions: the paragraph test is inverted",
+  "file": "src/core/qmd/model.ts",
+  "from": "(!paragraphOpen && commonmarkTagLine(line))",
+  "to": "(paragraphOpen && commonmarkTagLine(line))",
+  "expect": "killed",
+  "why": "the rows and the type-7 rows of qmd-model.test.ts"
+ },
+ {
+  "name": "C05 computeRegions: the indent is trimmed before the question",
+  "file": "src/core/qmd/model.ts",
+  "from": "(!paragraphOpen && commonmarkTagLine(line))",
+  "to": "(!paragraphOpen && commonmarkTagLine(line.trimStart()))",
+  "expect": "killed",
+  "why": "the controls indented four spaces and by a tab: the tag becomes a block and swallows the heading"
+ },
+ {
+  "name": "R01 rows: the bare-attribute run is under the first throw",
+  "file": "test/unit/s337-type7-open-attrs-rows.test.ts",
+  "from": "const BARE = 4_200_000;",
+  "to": "const BARE = 2_000_000;",
+  "expect": "killed",
+  "why": "the guard pins 4,200,000; the parent reads 2,000,000 bare attributes without throwing, so a row at this size is not RED there"
+ },
+ {
+  "name": "R02 rows: the clock limit is loosened to 400 s",
+  "file": "test/unit/s337-type7-open-attrs-rows.test.ts",
+  "from": "const LIMIT_MS = 4000;",
+  "to": "const LIMIT_MS = 400_000;",
+  "expect": "killed",
+  "why": "the guard pins 4,000"
+ },
+ {
+  "name": "E01 equivalence: the seeded sample has another seed",
+  "file": "test/unit/type7-open-attrs-equivalence.test.ts",
+  "from": "const SEED = 3371;",
+  "to": "const SEED = 3372;",
+  "expect": "killed",
+  "why": "the accepted count of the seeded lines is pinned"
+ },
+ {
+  "name": "E02 equivalence: the below-throw run is over the old pattern's throw",
+  "file": "test/unit/type7-open-attrs-equivalence.test.ts",
+  "from": "const BELOW_BARE = 2_000_000;",
+  "to": "const BELOW_BARE = 2_100_000;",
+  "expect": "killed",
+  "why": "the old pattern throws RangeError on it (the rows that compare it) and the guard pins 2,000,000"
+ },
+ {
+  "name": "E03 equivalence: the heavy rows may run for 1 ms",
+  "file": "test/unit/type7-open-attrs-equivalence.test.ts",
+  "from": "const HEAVY_ROW_MS = 120_000;",
+  "to": "const HEAVY_ROW_MS = 1;",
+  "expect": "killed",
+  "why": "every enumeration, the sweep and the seeded sample time out"
+ },
+ {
+  "name": "E04 equivalence: the sweep count is one more",
+  "file": "test/unit/type7-open-attrs-equivalence.test.ts",
+  "from": "accepted: 853_958",
+  "to": "accepted: 853_959",
+  "expect": "killed",
+  "why": "the pinned count of accepted edits is the Python recount"
+ }
+]

@@ -221,7 +221,7 @@ const STATED: Array<[string, boolean]> = [
   // accepted: the shapes of an open tag
   ["<a>", true], ["<a >", true], ["<a/>", true], ["<a />", true], ["<a\t/>", true], ["<A>", true], ["<a-b>", true], ["<a1>", true], ["<a-1 >", true],
   ["<a b>", true], ["<a b c>", true], ["<a  b\t c  >", true], ["<a b=c>", true], ["<a b=c/>", true], ["<a b=/>", true], ["<a b=c//>", true], ["<a b=c/ >", true], ["<a b=c/ d>", true],
-  ["<a b = c>", true], ["<a b=\tc>", true], ["<a b= c d= e>", true], ["<a b=c d=e/>", true], ["<a b=é>", true], ["<a b=c\nd>", true], ["<a b=c" + NBSP + "d>", true],
+  ["<a b = c>", true], ["<a b=\tc>", true], ["<a b= c d= e>", true], ["<a b=c d=e/>", true], ["<a b=c\td=e>", true], ["<a b=é>", true], ["<a b=c\nd>", true], ["<a b=c" + NBSP + "d>", true],
   ['<a b="c">', true], ["<a b='c'>", true], ['<a b="">', true], ["<a b=''>", true], ['<a b="c d">', true], ['<a b="c" d>', true], ['<a b="c"/>', true], ["<a b='c' />", true],
   ["<a b=\"c\"  d='e'>", true], ['<a b="a>b">', true], ["<a b='\"'>", true], ['<a b="\'">', true], ['<a b="c\nd">', true], ['<a b = "c" >', true],
   ["<a _b:c.d-e0>", true], ["<a :b>", true], ["<a _>", true], ["<a b-c=d>", true], ["<a b.c=d>", true],
@@ -251,8 +251,8 @@ describe("Session 337 — commonmarkTagLine on lines stated by hand", () => {
   });
 
   it("states both answers often enough to mean something", () => {
-    expect(STATED.length).toBe(126);
-    expect(STATED.filter(([, accepted]) => accepted).length).toBe(57);
+    expect(STATED.length).toBe(127);
+    expect(STATED.filter(([, accepted]) => accepted).length).toBe(58);
   });
 });
 
