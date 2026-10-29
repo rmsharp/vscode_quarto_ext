@@ -330,32 +330,3 @@ and 334 items, the S322 item's part (1), the S311 item's parts (4), (10), (11); 
 **TDD:** RED before GREEN for the 30 document rows (`3c0bb60` before the cures) and for each oracle's seam (the import was not a function); every later row is mutant-RED.
 **Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** the review workflow 45 agents (4.2 million subagent tokens; 1,008 tool calls; 87 minutes), 302 runner mutants in six lists, a scratch differential of the
 six functions, shape maps of 488 shapes, the machine at load 4 to 160 from other projects and the workflow.
-
-## Session 333 Handoff Evaluation (by Session 334)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers (at HEAD `39bb039`, gap 0), no `pending` receipt, the ratchet citation (2/2, results `bba236856bad`, at `6152f28`), the real-document score
-(2423 of 2438) and the `master` count (56 commits ahead) all held, and the picker the plan ranked was accurate: candidate (a) was the S318 item's parts (4) to (7), placed by finishing a feature, and the item's figures held (`htmlLineHasText` 256 / 994 ms at
-10,000 / 20,000 against the item's 251 / 981).
-**Helped:** gotcha 2 (the harness is gone: rebuild it from tracked files with three commands) took minutes and worked; gotcha 3 (quoted heredocs, bash loops, wait on a log's end marker) kept me out of the stray-file trap; gotcha 4 (the runner tests the COMMITTED
-source) held; gotcha 5 (the pins are incomplete) was true a twentieth time; Learnings 840 and 739 made me time the literal shape and profile before reading the cure; gotcha 6 named the clock rows that flake.
-**Missing:** nothing that cost time. **Wrong:** nothing I checked (the handoff's warning that the lookahead recipe is NOT equivalent for the YAML alias held: `*a#b,`). **ROI: high.**
-
-## Session 334 Self-Assessment
-
-**Score: 7/10.**
-**Went right.** I timed the four literal shapes in fresh processes at HEAD before reading code (they held) and profiled before the cures; the clock rows were RED on the parent (22 of 32, on the clock alone, `8cbb2d2`) before any cure; each part has a
-seam-and-oracle commit (RED: the import was not a function) and a cure commit; the old spelling is the oracle in a test of its own beside a reading by definition; a scratch differential of 216 million strings found no difference; the mutation runner found four
-incomplete pins of mine on the first run (95 mutants) and I fixed them; the five-lens review reproduced nothing wrong in the cures and I reproduced every claim I acted on with my own builders (the old-function stack overflow, the cap and wiring survivors by a
-mutant-bundle fuzz, the touching-attribute divergence by rendering nine documents with quarto), and filed what I did not fix.
-**Went wrong.** (1) My pins were incomplete a TWENTIETH time, and the review showed how: the answers were pinned only on strings of at most about 260 characters over small alphabets, so caps at 4,096, 65,536 and 2^20, a guard on part of the value, whitespace
-characters no alphabet held, `$`, `&a`, `!a`, the call sites and the `at = close` cost guard were all alive (82 real gaps of 127 survivors). (2) A row of mine claimed quarto's answer without a render and was wrong (link attributes that touch the URL); I replaced
-it with RESIDUAL rows only after the mutation run exposed that my link-wiring rows put a thematic break last and killed nothing. (3) One stated answer of mine was wrong in the first round (`*a` + U+0085 is an alias named `a` + U+0085). (4) Five numbers in commit
-messages are wrong (enumeration sizes quoting the pinned TRUE counts, 32 for 33 failing rows, "within 5%" for a shape 22 to 46% slower, "7 argued equivalent" for 9, 14.3 million for the yaml file); I cannot amend them and corrected them in the CHANGELOG. (5) The
-item's second pattern for part (7) was needless and its "74,160 of 6,725,601" I did not re-count (said so in the comment). (6) Shell traps again: a `cat >` with no stdin hung a call, an `rm -rf *` after a `cd` was blocked (no harm; I used a fresh directory), and
-a detached job's wrapper notification looked like completion. (7) TDD deviations, disclosed: the oracle files, the controls and every review-round row pass on arrival; their RED is a mutant (232 edits across nine lists: 192 killed, 40 argued or without a
-witness), and the first-round link rows were green and wrong.
-**Known residuals (filed or stated):** the BACKLOG Up Next items "Three more slow shapes found by Session 334's review round" and "Two answers where this build and quarto differ", the amended `isAttributeBlock` and Session 319 items, the Session 333 item "Six
-more shapes", the S317 stack overflows (4) to (9), the S322 item's part (1), the S311 item's parts (4), (10), (11); two mutants with no witness (HC04, HC05); `test:integration` NOT run.
-**TDD:** RED before GREEN for the clock rows (`8cbb2d2` before the cures) and for each oracle's seam (the import was not a function: `855e0e0`, `11102a0`, `5917d42`, `6c1417e`); every later row is mutant-RED.
-**Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** 73 agents in 1 workflow (8,213,265 subagent tokens; 2,085 tool calls; 3.6 hours), 232 runner mutants of mine in nine lists (95 + 137, with re-runs), a 216-million-string scratch
-differential, 20 quarto renders (three at a time, `--no-execute`), the machine at load 5 to 250 from other projects and the workflow.
