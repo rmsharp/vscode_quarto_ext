@@ -1,0 +1,170 @@
+[
+ {
+  "name": "H01 DEEP_ATX_HEADER: six hashes are enough",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?:[ \\t].*)?$/;",
+  "to": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{6}#*)(?:[ \\t].*)?$/;",
+  "expect": "killed",
+  "why": "a six-hash run is a heading, not a deep header: the stated rows and the enumeration"
+ },
+ {
+  "name": "H02 DEEP_ATX_HEADER: eight hashes are needed",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?:[ \\t].*)?$/;",
+  "to": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{8}#*)(?:[ \\t].*)?$/;",
+  "expect": "killed",
+  "why": "seven hashes would be refused: the stated rows"
+ },
+ {
+  "name": "H03 DEEP_ATX_HEADER: the run stops at seven",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?:[ \\t].*)?$/;",
+  "to": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7})(?:[ \\t].*)?$/;",
+  "expect": "killed",
+  "why": "eight or more hashes would be refused: the enumeration and the stated rows"
+ },
+ {
+  "name": "H04 DEEP_ATX_HEADER: back to the counted loop #{7,}",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?:[ \\t].*)?$/;",
+  "to": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7,})(?:[ \\t].*)?$/;",
+  "expect": "killed",
+  "why": "same language, one stack entry per hash: only a run past 5,592,854 sees it (the long-run rows and the document rows)"
+ },
+ {
+  "name": "H05 DEEP_ATX_HEADER: a blank is required before the hashes",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?:[ \\t].*)?$/;",
+  "to": "export const DEEP_ATX_HEADER = /^[ \\t]+(#{7}#*)(?:[ \\t].*)?$/;",
+  "expect": "killed",
+  "why": "an unindented run would be refused"
+ },
+ {
+  "name": "H06 DEEP_ATX_HEADER: only a space may follow the run",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?:[ \\t].*)?$/;",
+  "to": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?: .*)?$/;",
+  "expect": "killed",
+  "why": "a tab after the run would be refused: the stated rows"
+ },
+ {
+  "name": "H07 DEEP_ATX_HEADER: a tail is required",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?:[ \\t].*)?$/;",
+  "to": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?:[ \\t].*)$/;",
+  "expect": "killed",
+  "why": "a bare run would be refused"
+ },
+ {
+  "name": "H08 DEEP_ATX_HEADER: any character may follow the run",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?:[ \\t].*)?$/;",
+  "to": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?:.*)?$/;",
+  "expect": "killed",
+  "why": "`#######x` would be a deep header"
+ },
+ {
+  "name": "H09 DEEP_ATX_HEADER: the tail stops at the line end only for LF",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?:[ \\t].*)?$/;",
+  "to": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?:[ \\t][^\\n]*)?$/;",
+  "expect": "killed",
+  "why": "a CR, U+2028 or U+2029 in the tail would be accepted: the enumeration"
+ },
+ {
+  "name": "H10 DEEP_ATX_HEADER: the run is not captured",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?:[ \\t].*)?$/;",
+  "to": "export const DEEP_ATX_HEADER = /^[ \\t]*(?:#{7}#*)(?:[ \\t].*)?$/;",
+  "expect": "killed",
+  "why": "group 1 is gone: sameMatch compares groups"
+ },
+ {
+  "name": "H11 DEEP_ATX_HEADER: only the blanks of the first kind lead",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?:[ \\t].*)?$/;",
+  "to": "export const DEEP_ATX_HEADER = /^ *(#{7}#*)(?:[ \\t].*)?$/;",
+  "expect": "killed",
+  "why": "a tab before the run would be refused"
+ },
+ {
+  "name": "T01 DEEP_ATX_HEADER_TIGHT: six hashes are enough",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7}#*)(?![.)])/;",
+  "to": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{6}#*)(?![.)])/;",
+  "expect": "killed",
+  "why": "the stated rows"
+ },
+ {
+  "name": "T02 DEEP_ATX_HEADER_TIGHT: eight hashes are needed",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7}#*)(?![.)])/;",
+  "to": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{8}#*)(?![.)])/;",
+  "expect": "killed",
+  "why": "the stated rows"
+ },
+ {
+  "name": "T03 DEEP_ATX_HEADER_TIGHT: the run stops at seven",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7}#*)(?![.)])/;",
+  "to": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7})(?![.)])/;",
+  "expect": "killed",
+  "why": "eight or more hashes before a refused character would not give one back"
+ },
+ {
+  "name": "T04 DEEP_ATX_HEADER_TIGHT: back to the counted loop #{7,}",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7}#*)(?![.)])/;",
+  "to": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7,})(?![.)])/;",
+  "expect": "killed",
+  "why": "only a run past 5,592,854 sees it"
+ },
+ {
+  "name": "T05 DEEP_ATX_HEADER_TIGHT: a dot alone is refused",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7}#*)(?![.)])/;",
+  "to": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7}#*)(?![.])/;",
+  "expect": "killed",
+  "why": "`#######)` would be accepted"
+ },
+ {
+  "name": "T06 DEEP_ATX_HEADER_TIGHT: a parenthesis alone is refused",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7}#*)(?![.)])/;",
+  "to": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7}#*)(?!\\))/;",
+  "expect": "killed",
+  "why": "`#######.` would be accepted"
+ },
+ {
+  "name": "T07 DEEP_ATX_HEADER_TIGHT: no refusal at all",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7}#*)(?![.)])/;",
+  "to": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7}#*)/;",
+  "expect": "killed",
+  "why": "`#######.` would be accepted"
+ },
+ {
+  "name": "T08 DEEP_ATX_HEADER_TIGHT: a blank is required before the hashes",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7}#*)(?![.)])/;",
+  "to": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]+(#{7}#*)(?![.)])/;",
+  "expect": "killed",
+  "why": "an unindented run would be refused"
+ },
+ {
+  "name": "T09 DEEP_ATX_HEADER_TIGHT: the run is not captured",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7}#*)(?![.)])/;",
+  "to": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(?:#{7}#*)(?![.)])/;",
+  "expect": "killed",
+  "why": "group 1 is gone"
+ },
+ {
+  "name": "W01 deepAtxHeaderLineIsBlock: the tight pattern is read for the plain reader",
+  "file": "src/core/qmd/model.ts",
+  "from": "(tight ? DEEP_ATX_HEADER_TIGHT : DEEP_ATX_HEADER).test(line)",
+  "to": "(tight ? DEEP_ATX_HEADER : DEEP_ATX_HEADER_TIGHT).test(line)",
+  "expect": "killed",
+  "why": "the two readers swapped: `#######x` is block only without space_in_atx_header (the older qmd-model rows)"
+ }
+]

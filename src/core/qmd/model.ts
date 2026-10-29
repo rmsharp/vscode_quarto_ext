@@ -202,7 +202,7 @@ export const ATX_HEADING_TIGHT = /^[ \t]*(#{1,6})(?!#)(?=.*$)[ \t]*(.+)$/;
  * line of 5,592,854 or more `#` (a pasted blob), and the error reached every reader of the document. Seven `#` and a star of the same character accept the same strings and cost the stack nothing; the old spelling
  * is the oracle in `deep-atx-header-equivalence.test.ts`. The tight spelling below has the same fix.
  */
-export const DEEP_ATX_HEADER =/^[ \t]*(#{7}#*)(?:[ \t].*)?$/;
+export const DEEP_ATX_HEADER = /^[ \t]*(#{7}#*)(?:[ \t].*)?$/;
 /**
  * `DEEP_ATX_HEADER` for a reader without `space_in_atx_header`, where `#######seven` is a header
  * too — measured under `markdown_strict`, `markdown_mmd`, `markdown_phpextra` and

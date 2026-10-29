@@ -1,0 +1,122 @@
+[
+ {
+  "name": "Q01 blockQuoteMarkerRunEnd: the marker is another character",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function blockQuoteMarkerRunEnd(text: string, start: number): number {\n  let end = start;\n  while (text.charCodeAt(end) === 62) {\n    end++;\n    if (text.charCodeAt(end) === 32) {\n      end++;\n    }\n  }\n  return end;\n}",
+  "to": "export function blockQuoteMarkerRunEnd(text: string, start: number): number {\n  let end = start;\n  while (text.charCodeAt(end) === 63) {\n    end++;\n    if (text.charCodeAt(end) === 32) {\n      end++;\n    }\n  }\n  return end;\n}",
+  "expect": "killed",
+  "why": "the marker is `?`"
+ },
+ {
+  "name": "Q02 blockQuoteMarkerRunEnd: one marker only",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function blockQuoteMarkerRunEnd(text: string, start: number): number {\n  let end = start;\n  while (text.charCodeAt(end) === 62) {\n    end++;\n    if (text.charCodeAt(end) === 32) {\n      end++;\n    }\n  }\n  return end;\n}",
+  "to": "export function blockQuoteMarkerRunEnd(text: string, start: number): number {\n  let end = start;\n  if (text.charCodeAt(end) === 62) {\n    end++;\n    if (text.charCodeAt(end) === 32) {\n      end++;\n    }\n  }\n  return end;\n}",
+  "expect": "killed",
+  "why": "only one marker is read"
+ },
+ {
+  "name": "Q03 blockQuoteMarkerRunEnd: the blanks after a marker are all taken",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function blockQuoteMarkerRunEnd(text: string, start: number): number {\n  let end = start;\n  while (text.charCodeAt(end) === 62) {\n    end++;\n    if (text.charCodeAt(end) === 32) {\n      end++;\n    }\n  }\n  return end;\n}",
+  "to": "export function blockQuoteMarkerRunEnd(text: string, start: number): number {\n  let end = start;\n  while (text.charCodeAt(end) === 62) {\n    end++;\n    while (text.charCodeAt(end) === 32) {\n      end++;\n    }\n  }\n  return end;\n}",
+  "expect": "killed",
+  "why": "every blank after a marker is taken"
+ },
+ {
+  "name": "Q04 blockQuoteMarkerRunEnd: the optional blank is a tab",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function blockQuoteMarkerRunEnd(text: string, start: number): number {\n  let end = start;\n  while (text.charCodeAt(end) === 62) {\n    end++;\n    if (text.charCodeAt(end) === 32) {\n      end++;\n    }\n  }\n  return end;\n}",
+  "to": "export function blockQuoteMarkerRunEnd(text: string, start: number): number {\n  let end = start;\n  while (text.charCodeAt(end) === 62) {\n    end++;\n    if (text.charCodeAt(end) === 9) {\n      end++;\n    }\n  }\n  return end;\n}",
+  "expect": "killed",
+  "why": "a tab after the marker is taken, a space is not"
+ },
+ {
+  "name": "Q05 blockQuoteMarkerRunEnd: no optional blank",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function blockQuoteMarkerRunEnd(text: string, start: number): number {\n  let end = start;\n  while (text.charCodeAt(end) === 62) {\n    end++;\n    if (text.charCodeAt(end) === 32) {\n      end++;\n    }\n  }\n  return end;\n}",
+  "to": "export function blockQuoteMarkerRunEnd(text: string, start: number): number {\n  let end = start;\n  while (text.charCodeAt(end) === 62) {\n    end++;\n  }\n  return end;\n}",
+  "expect": "killed",
+  "why": "no blank is taken"
+ },
+ {
+  "name": "Q06 blockQuoteMarkerRunEnd: the first character is skipped",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function blockQuoteMarkerRunEnd(text: string, start: number): number {\n  let end = start;\n  while (text.charCodeAt(end) === 62) {\n    end++;\n    if (text.charCodeAt(end) === 32) {\n      end++;\n    }\n  }\n  return end;\n}",
+  "to": "export function blockQuoteMarkerRunEnd(text: string, start: number): number {\n  let end = start + 1;\n  while (text.charCodeAt(end) === 62) {\n    end++;\n    if (text.charCodeAt(end) === 32) {\n      end++;\n    }\n  }\n  return end;\n}",
+  "expect": "killed",
+  "why": "the run starts one character late"
+ },
+ {
+  "name": "Q07 blockQuoteMarkerRunEnd: ends one early",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function blockQuoteMarkerRunEnd(text: string, start: number): number {\n  let end = start;\n  while (text.charCodeAt(end) === 62) {\n    end++;\n    if (text.charCodeAt(end) === 32) {\n      end++;\n    }\n  }\n  return end;\n}",
+  "to": "export function blockQuoteMarkerRunEnd(text: string, start: number): number {\n  let end = start;\n  while (text.charCodeAt(end) === 62) {\n    end++;\n    if (text.charCodeAt(end) === 32) {\n      end++;\n    }\n  }\n  return end - 1;\n}",
+  "expect": "killed",
+  "why": "the run ends one early"
+ },
+ {
+  "name": "Q08 blockQuoteMarkerRunEnd: answers -1 for no run",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function blockQuoteMarkerRunEnd(text: string, start: number): number {\n  let end = start;\n  while (text.charCodeAt(end) === 62) {\n    end++;\n    if (text.charCodeAt(end) === 32) {\n      end++;\n    }\n  }\n  return end;\n}",
+  "to": "export function blockQuoteMarkerRunEnd(text: string, start: number): number {\n  let end = start;\n  while (text.charCodeAt(end) === 62) {\n    end++;\n    if (text.charCodeAt(end) === 32) {\n      end++;\n    }\n  }\n  return end > start ? end : -1;\n}",
+  "expect": "killed",
+  "why": "nothing found answers -1, which the caller compares with the start"
+ },
+ {
+  "name": "Q09 blockQuoteMarkerRunEnd: a tab is also the optional blank",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function blockQuoteMarkerRunEnd(text: string, start: number): number {\n  let end = start;\n  while (text.charCodeAt(end) === 62) {\n    end++;\n    if (text.charCodeAt(end) === 32) {\n      end++;\n    }\n  }\n  return end;\n}",
+  "to": "export function blockQuoteMarkerRunEnd(text: string, start: number): number {\n  let end = start;\n  while (text.charCodeAt(end) === 62) {\n    end++;\n    if (text.charCodeAt(end) === 32 || text.charCodeAt(end) === 9) {\n      end++;\n    }\n  }\n  return end;\n}",
+  "expect": "killed",
+  "why": "a tab after the marker is also taken"
+ },
+ {
+  "name": "Q10 blockQuoteMarkerRunEnd: the run is capped at 65,536 markers",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function blockQuoteMarkerRunEnd(text: string, start: number): number {\n  let end = start;\n  while (text.charCodeAt(end) === 62) {\n    end++;\n    if (text.charCodeAt(end) === 32) {\n      end++;\n    }\n  }\n  return end;\n}",
+  "to": "export function blockQuoteMarkerRunEnd(text: string, start: number): number {\n  let end = start;\n  while (text.charCodeAt(end) === 62 && end - start < 131072) {\n    end++;\n    if (text.charCodeAt(end) === 32) {\n      end++;\n    }\n  }\n  return end;\n}",
+  "expect": "killed",
+  "why": "a cap on the run (two characters a marker here): only a run past 131,072 characters sees it"
+ },
+ {
+  "name": "Q11 blockQuoteMarkerRunEnd: the run is capped at 2^20 characters",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function blockQuoteMarkerRunEnd(text: string, start: number): number {\n  let end = start;\n  while (text.charCodeAt(end) === 62) {\n    end++;\n    if (text.charCodeAt(end) === 32) {\n      end++;\n    }\n  }\n  return end;\n}",
+  "to": "export function blockQuoteMarkerRunEnd(text: string, start: number): number {\n  let end = start;\n  while (text.charCodeAt(end) === 62 && end - start < 1048576) {\n    end++;\n    if (text.charCodeAt(end) === 32) {\n      end++;\n    }\n  }\n  return end;\n}",
+  "expect": "killed",
+  "why": "only a run past a million characters sees it"
+ },
+ {
+  "name": "W01 blockQuotePrefix: the run is read from the start of the line, not after the indent",
+  "file": "src/core/qmd/model.ts",
+  "from": "const end = blockQuoteMarkerRunEnd(line, indent.length);",
+  "to": "const end = blockQuoteMarkerRunEnd(line, 0);",
+  "expect": "killed",
+  "why": "an indented marker would not be seen: the older qmd-model rows"
+ },
+ {
+  "name": "W02 blockQuotePrefix: no marker is answered as a prefix of the indent",
+  "file": "src/core/qmd/model.ts",
+  "from": "return end === indent.length ? null : line.slice(0, end);",
+  "to": "return end === 0 ? null : line.slice(0, end);",
+  "expect": "killed",
+  "why": "an indented line with no marker would be a quote: the older qmd-model rows"
+ },
+ {
+  "name": "W03 blockQuotePrefix: the prefix drops the indent",
+  "file": "src/core/qmd/model.ts",
+  "from": "return end === indent.length ? null : line.slice(0, end);",
+  "to": "return end === indent.length ? null : line.slice(indent.length, end);",
+  "expect": "killed",
+  "why": "the prefix would not cover the indent: contentStart and offsets move"
+ },
+ {
+  "name": "W04 blockQuotePrefix: the run is read before the code-depth test",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const end = blockQuoteMarkerRunEnd(line, indent.length);\n  return end === indent.length ? null : line.slice(0, end);",
+  "to": "  const end = blockQuoteMarkerRunEnd(line, indent.length);\n  return end === indent.length || end < 0 ? null : line.slice(0, end);",
+  "expect": "survives",
+  "why": "no change in the answer (end is never negative): argued equivalent"
+ }
+]
