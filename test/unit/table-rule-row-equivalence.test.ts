@@ -6,7 +6,7 @@ import { LS, NBSP, countStrings, everyString, seededRandom } from "./support/reg
 const HEAVY_ROW_MS = 120_000;
 
 // Session 335 — the BACKLOG item "Nine more single-line overflow and slow-input families, none of them in Session 317's diff", part (4). `PIPE_DELIMITER_ROW` and `TABLE_RULE_ROW` read a pipe table's delimiter row
-// as a group per cell, `(?:[ \t]*\|[ \t]*:?-+:?)*`, and V8 keeps one entry of its regex backtrack stack per repetition of a group: a row of 1,525,300 or more cells `|-` threw `RangeError: Maximum call stack
+// as a group per cell, `(?:[ \t]*\|[ \t]*:?-+:?)*`, and V8 keeps one entry of its regex backtrack stack per repetition of a group: a row of 1,525,196 or more cells `|-` threw `RangeError: Maximum call stack
 // size exceeded` (bisected at `c06ee06`), and the error reached every reader of the document. `pipeDelimiterRow` and `tableRuleRow` read the same line with a loop. The two patterns are kept below, copied from
 // the parent `c06ee06` (`src/core/qmd/model.ts`), as the oracle (Learning 738); `blank-tail-equivalence.test.ts` holds their two older spellings. The pinned counts (how many strings of each enumeration the
 // OLD patterns accept) come from the old patterns and from a Python port of them (with `\s` spelled out as ECMAScript's set, which Python's is not) and never from the code under test.
@@ -164,9 +164,9 @@ describe("Session 335 — tableRuleRow and pipeDelimiterRow: the loops accept wh
     expect([tableRuleRow(line), pipeDelimiterRow(line)]).toEqual([rule, pipe]);
   });
 
-  // The cure itself: a row past the old overflow (1,525,300 cells) is read. The old patterns are compared only below that, where they still read.
+  // The cure itself: a row past the old overflow (1,525,196 cells) is read. The old patterns are compared only below that, where they still read.
   const SMALL_ROWS = [1, 2, 3, 100, 4_096, 65_536, 1_000_000, 1_500_000];
-  const LONG_ROWS = [1_525_300, 1_600_000, 3_100_000, 6_000_000];
+  const LONG_ROWS = [1_525_196, 1_600_000, 3_100_000, 6_000_000];
   // [unit, closing, whether a `:` after the closing is an alignment colon (it is only after a dash)].
   const UNITS: Array<[string, string, boolean]> = [["|-", "|", false], ["-|", "", false], ["|:-:", "|", false], ["- | ", "-", true]];
   it.each(SMALL_ROWS)("a row of %i cells, each shape, with and without a refused tail, gives the old answer", (n) => {
@@ -220,5 +220,27 @@ describe("Session 335 — the pipe table opener asks tableRuleRow", () => {
 
   it("the same table with a delimiter that is no rule row opens none, and the heading pressed under the paragraph is not a heading", () => {
     expect(headingsOf("| a | b |\n|---|---|x\n| 1 | 2 |\n# H\n")).toEqual([]);
+  });
+});
+
+// The review round of Session 335 (its mutation lens): a cell of more than 2^22 dashes and a run of more than 2^22 blanks were read by no row (the rows above stop at 1,500,000 cells and 3,000,000 blanks), so an edit that
+// capped either at 4,194,304 survived the rows of this file (the other caps, 4,096 and 65,536, are held by `blank-tail-equivalence.test.ts`). The old patterns read a plain class there, so they still answer and are compared.
+describe("Session 335 review — a cell or a run of blanks past 2^22", () => {
+  it.each([4_194_305, 4_300_000])("a cell of %i dashes, and %i blanks after a delimiter row, give the old answers", (n) => {
+    const lines = [
+      "|" + "-".repeat(n) + "|",
+      "|" + ":" + "-".repeat(n) + ":" + "|",
+      "|---|" + " ".repeat(n),
+      "|---|" + " ".repeat(n) + "x",
+      "|---|" + "\t".repeat(n),
+      "|---|" + "\v".repeat(n),
+      "+-" + " ".repeat(n) + "-",
+      "+-" + " ".repeat(n) + "-" + " ".repeat(n),
+      "+" + "-".repeat(n) + "x",
+    ];
+    for (const line of lines) {
+      expect([tableRuleRow(line), pipeDelimiterRow(line)]).toEqual([OLD_TABLE_RULE_ROW.test(line), OLD_PIPE_DELIMITER_ROW.test(line)]);
+    }
+    expect(lines.map((line) => [tableRuleRow(line), pipeDelimiterRow(line)])).toEqual([[true, true], [true, true], [true, true], [false, false], [true, true], [true, false], [true, false], [true, false], [false, false]]);
   });
 });

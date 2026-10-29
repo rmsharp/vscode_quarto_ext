@@ -470,5 +470,101 @@
   "to": "if (!pipeDelimiterRow(line) || !line.includes(\"|\")) {",
   "expect": "killed",
   "why": "a pipe row with a trailing form feed would not open a table"
+ },
+ {
+  "name": "RV01 TG a comma is a grid body character",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;",
+  "to": "    if (c === 45 || c === 43 || c === 61 || c === 58 || c === 44) {\n      run++;\n      bodyEnd = run;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV02 TG a full stop is a grid body character",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;",
+  "to": "    if (c === 45 || c === 43 || c === 61 || c === 58 || c === 46) {\n      run++;\n      bodyEnd = run;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV03 TG a semicolon is a grid body character",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;",
+  "to": "    if (c === 45 || c === 43 || c === 61 || c === 58 || c === 59) {\n      run++;\n      bodyEnd = run;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV04 TG a tilde is a grid body character",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;",
+  "to": "    if (c === 45 || c === 43 || c === 61 || c === 58 || c === 126) {\n      run++;\n      bodyEnd = run;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV05 TG an underscore is a grid body character",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (c === 45 || c === 43 || c === 61 || c === 58) {\n      run++;\n      bodyEnd = run;",
+  "to": "    if (c === 45 || c === 43 || c === 61 || c === 58 || c === 95) {\n      run++;\n      bodyEnd = run;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV06 TG a grid body of at most 65536 spaces in a row",
+  "file": "src/core/qmd/model.ts",
+  "from": "    } else if (c === 32) {\n      run++;\n    } else {\n      break;",
+  "to": "    } else if (c === 32 && run - bodyEnd < 65536) {\n      run++;\n    } else {\n      break;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV07 PC a cell of at most 65536 dashes",
+  "file": "src/core/qmd/model.ts",
+  "from": "  while (line.charCodeAt(at) === 45) {\n    at++;\n  }\n  if (at === dashes) {",
+  "to": "  while (line.charCodeAt(at) === 45 && at - dashes < 65536) {\n    at++;\n  }\n  if (at === dashes) {",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV08 PC a cell of at most 2^22 dashes",
+  "file": "src/core/qmd/model.ts",
+  "from": "  while (line.charCodeAt(at) === 45) {\n    at++;\n  }\n  if (at === dashes) {",
+  "to": "  while (line.charCodeAt(at) === 45 && at - dashes < 4194304) {\n    at++;\n  }\n  if (at === dashes) {",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV09 SK skipBlanks: a form feed is a blank",
+  "file": "src/core/qmd/model.ts",
+  "from": "  while (line.charCodeAt(at) === 32 || line.charCodeAt(at) === 9) {\n    at++;\n  }\n  return at;\n};",
+  "to": "  while (line.charCodeAt(at) === 32 || line.charCodeAt(at) === 9 || line.charCodeAt(at) === 12) {\n    at++;\n  }\n  return at;\n};",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV10 SK skipBlanks: at most 2^22 blanks",
+  "file": "src/core/qmd/model.ts",
+  "from": "  while (line.charCodeAt(at) === 32 || line.charCodeAt(at) === 9) {\n    at++;\n  }\n  return at;\n};",
+  "to": "  while ((line.charCodeAt(at) === 32 || line.charCodeAt(at) === 9) && at - from < 4194304) {\n    at++;\n  }\n  return at;\n};",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV11 ISP32 isSpaceCode: 33 is white space",
+  "file": "src/core/qmd/model.ts",
+  "from": "boolean =>\n  c === 32 ||",
+  "to": "boolean =>\n  (c >= 32 && c <= 33) ||",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV12 ISP31 isSpaceCode: 31 is white space",
+  "file": "src/core/qmd/model.ts",
+  "from": "boolean =>\n  c === 32 ||",
+  "to": "boolean =>\n  (c >= 31 && c <= 32) ||",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
  }
 ]
