@@ -5518,7 +5518,7 @@ function pipeTableOpensHere(
   neighbour: (offset: number) => string | null,
   paragraphOpenAboveHeader: boolean,
 ): boolean {
-  if (!TABLE_RULE_ROW.test(line) || !line.includes("|")) {
+  if (!tableRuleRow(line) || !line.includes("|")) {
     return false;
   }
   const header = neighbour(-1);
@@ -12667,7 +12667,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
       // it can only be OPENED where no paragraph already is. Measured: a line block does not
       // interrupt a paragraph, with or without a continuation, so arming against an open one
       // would close a paragraph quarto keeps open and fabricate the heading below it.
-      if (TABLE_RULE_ROW.test(line)) {
+      if (tableRuleRow(line)) {
         inPipeTable = true;
       }
       lineBlockOpen =
@@ -14081,7 +14081,7 @@ function tableOrLineBlockEndsAt(b: BlockBoundaries, x: number, nextContinues = f
     const k = b.runStartOf("pipe", (l) => l.includes("|"), x);
     if (
       x > k &&
-      PIPE_DELIMITER_ROW.test(lines[k + 1]) &&
+      pipeDelimiterRow(lines[k + 1]) &&
       startsAtBoundary(b, k)
     ) {
       return true;
