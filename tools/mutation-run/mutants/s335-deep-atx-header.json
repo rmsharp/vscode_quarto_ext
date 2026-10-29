@@ -29,7 +29,7 @@
   "from": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?:[ \\t].*)?$/;",
   "to": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7,})(?:[ \\t].*)?$/;",
   "expect": "killed",
-  "why": "same language, one stack entry per hash: only a run past 5,592,854 sees it (the long-run rows and the document rows)"
+  "why": "same language, one stack entry per hash: only a run past 5,592,382 sees it (the long-run rows and the document rows)"
  },
  {
   "name": "H05 DEEP_ATX_HEADER: a blank is required before the hashes",
@@ -117,7 +117,7 @@
   "from": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7}#*)(?![.)])/;",
   "to": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7,})(?![.)])/;",
   "expect": "killed",
-  "why": "only a run past 5,592,854 sees it"
+  "why": "only a run past 5,592,382 sees it"
  },
  {
   "name": "T05 DEEP_ATX_HEADER_TIGHT: a dot alone is refused",
@@ -166,5 +166,101 @@
   "to": "(tight ? DEEP_ATX_HEADER : DEEP_ATX_HEADER_TIGHT).test(line)",
   "expect": "killed",
   "why": "the two readers swapped: `#######x` is block only without space_in_atx_header (the older qmd-model rows)"
+ },
+ {
+  "name": "RV01 DA1 DEEP_ATX_HEADER: a form feed leads the tail",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?:[ \\t].*)?$/;",
+  "to": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?:[ \\t\\f].*)?$/;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV02 DA2 DEEP_ATX_HEADER: a vertical tab leads the tail",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?:[ \\t].*)?$/;",
+  "to": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?:[ \\t\\v].*)?$/;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV03 DA3 DEEP_ATX_HEADER: U+3000 leads the tail",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?:[ \\t].*)?$/;",
+  "to": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?:[ \\t\\u3000].*)?$/;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV04 DA4 DEEP_ATX_HEADER: a form feed leads the line",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?:[ \\t].*)?$/;",
+  "to": "export const DEEP_ATX_HEADER = /^[ \\t\\f]*(#{7}#*)(?:[ \\t].*)?$/;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV05 DA7 DEEP_ATX_HEADER: the lead is at most 4096 blanks",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?:[ \\t].*)?$/;",
+  "to": "export const DEEP_ATX_HEADER = /^[ \\t]{0,4096}(#{7}#*)(?:[ \\t].*)?$/;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV06 DA9 DEEP_ATX_HEADER: a tail of at most 65536 characters",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?:[ \\t].*)?$/;",
+  "to": "export const DEEP_ATX_HEADER = /^[ \\t]*(#{7}#*)(?:[ \\t].{0,65536})?$/;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV07 DT1 DEEP_ATX_HEADER_TIGHT: a closing bracket is refused",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7}#*)(?![.)])/;",
+  "to": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7}#*)(?![.)\\]])/;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV08 DT2 DEEP_ATX_HEADER_TIGHT: a colon is refused",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7}#*)(?![.)])/;",
+  "to": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7}#*)(?![.):])/;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV09 DT3 DEEP_ATX_HEADER_TIGHT: a comma is refused",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7}#*)(?![.)])/;",
+  "to": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7}#*)(?![.),])/;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV10 DT4 DEEP_ATX_HEADER_TIGHT: an exclamation mark is refused",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7}#*)(?![.)])/;",
+  "to": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7}#*)(?![.)!])/;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV11 DT5 DEEP_ATX_HEADER_TIGHT: a full-width stop is refused",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7}#*)(?![.)])/;",
+  "to": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7}#*)(?![.)\\uff0e])/;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV12 DT6 DEEP_ATX_HEADER_TIGHT: a form feed leads the line",
+  "file": "src/core/qmd/model.ts",
+  "from": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t]*(#{7}#*)(?![.)])/;",
+  "to": "export const DEEP_ATX_HEADER_TIGHT = /^[ \\t\\f]*(#{7}#*)(?![.)])/;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
  }
 ]
