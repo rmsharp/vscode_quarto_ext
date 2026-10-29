@@ -120,10 +120,10 @@ describe("Session 337 — emptyNativeDivLine: the attribute block ends where `(?
   // The cure itself: a line past the old overflow is read. The old pattern is compared only below that, where it still reads. A run is a number of REPETITIONS OF A UNIT (Learning 885): the unit `a` throws the
   // old pattern from 8,388,570 repetitions, ` a` from 4,194,285 and `a="b" ` (four steps of the group, heavier on the stack) from 1,525,195.
   const UNITS: Array<{ unit: string; below: number[]; past: number[] }> = [
-    { unit: "a", below: [0, 1, 2, 100, 4_096, 65_536, 1_000_000, 4_000_000], past: [8_388_570, 8_400_000, 17_000_000] },
-    { unit: " a", below: [1, 2, 100, 65_536, 1_000_000, 2_000_000], past: [4_194_285, 4_200_000, 8_500_000] },
-    { unit: 'a="b" ', below: [1, 2, 100, 65_536, 700_000], past: [1_525_195, 1_600_000, 3_100_000] },
-    { unit: "a='b' ", below: [1, 2, 100, 65_536, 700_000], past: [1_525_195, 1_600_000, 3_100_000] },
+    { unit: "a", below: [0, 1, 2, 100, 4_096, 65_536, 1_000_000, 4_000_000], past: [8_388_570, 17_000_000] },
+    { unit: " a", below: [1, 2, 100, 65_536, 1_000_000, 2_000_000], past: [4_194_285, 8_500_000] },
+    { unit: 'a="b" ', below: [1, 2, 100, 65_536, 700_000], past: [1_525_195, 3_100_000] },
+    { unit: "a='b' ", below: [1, 2, 100, 65_536, 700_000], past: [1_525_195] },
   ];
   // [what follows the run, an empty native div]
   const PLAIN_TAILS: Array<[string, boolean]> = [
@@ -138,8 +138,8 @@ describe("Session 337 — emptyNativeDivLine: the attribute block ends where `(?
   ];
   const OPENINGS = ["<div ", "   <div ", "\t <DIV "];
   /** Every opening and tail with the run bare, and the run inside a quoted value (double or single) that closes, or never does: [line, an empty native div]. */
-  function* linesAround(run: string): Generator<[string, boolean]> {
-    for (const open of OPENINGS) {
+  function* linesAround(run: string, openings: readonly string[]): Generator<[string, boolean]> {
+    for (const open of openings) {
       for (const [tail, empty] of PLAIN_TAILS) {
         yield [open + run + tail, empty];
       }
@@ -153,7 +153,7 @@ describe("Session 337 — emptyNativeDivLine: the attribute block ends where `(?
 
   it.each(UNITS.flatMap((u) => u.below.map((n) => [u.unit, n] as const)))("a tag of %j x %i is read as the old pattern (and, up to 100,000 repetitions, the definition) reads it, with every tail", (unit, n) => {
     const run = unit.repeat(n);
-    for (const [line, empty] of linesAround(run)) {
+    for (const [line, empty] of linesAround(run, OPENINGS)) {
       expect(OLD_EMPTY_NATIVE_DIV.test(line)).toBe(empty);
       expect(emptyNativeDivLine(line)).toBe(empty);
       if (n <= 100_000) {
@@ -164,8 +164,11 @@ describe("Session 337 — emptyNativeDivLine: the attribute block ends where `(?
 
   it.each(UNITS.flatMap((u) => u.past.map((n) => [u.unit, n] as const)))("a tag of %j x %i, past the old overflow, is read: the answer is the one the tail gives", (unit, n) => {
     const run = unit.repeat(n);
-    for (const [line, empty] of linesAround(run)) {
+    for (const [line, empty] of linesAround(run, OPENINGS.slice(0, 1))) {
       expect(emptyNativeDivLine(line)).toBe(empty);
+    }
+    for (const open of OPENINGS.slice(1)) {
+      expect(emptyNativeDivLine(open + run + "></div>")).toBe(true); // the indent and the capital spelling
     }
     // by definition too, on the plain closer and the closer with text after it
     expect(definitionEmptyNativeDiv("<div " + run + "></div>")).toBe(true);

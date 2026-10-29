@@ -41,7 +41,7 @@ describe("Session 337 — a single line of millions of characters that the empty
       const found = findLabel(text, "fig-a", hint);
       return found === null ? null : [found.id, found.line];
     };
-    const engine = (text: string): string => resolveDocumentEngine("a.qmd", text);
+    const engine = (text: string): string | undefined => resolveDocumentEngine("a.qmd", text);
 
     // the line, and what stands directly below it (the two places the pattern is asked)
     const aboveDash = (lead: string) => (line: string): string => `${FRONT}${lead}\n\n${line}\n---\n\n# H\n`;

@@ -14535,7 +14535,7 @@ function endsHtmlBlock(line: string, beganFresh: boolean, againstParagraph: bool
   }
   const m = HTML_ELEMENT_COMPLETES.exec(line);
   // An EMPTY native div opened and closed on one line (`<div></div>`) is a closed Div whatever `raw_html` says; `<div>x</div>` is not (the text swallows the closer without raw HTML; rendered `review1/r1_002`).
-  if (!rawHtml && nativeDivs && /^[ \t]*<div\b(?:[^>"']|"[^"]*"|'[^']*')*>[ \t]*<\/div>[ \t]*$/i.test(line)) {
+  if (!rawHtml && nativeDivs && emptyNativeDivLine(line)) {
     return true;
   }
   // Without raw HTML a closing tag is text, EXCEPT the `</div>` that closes an open native div (a container, not raw HTML).
@@ -14543,6 +14543,61 @@ function endsHtmlBlock(line: string, beganFresh: boolean, againstParagraph: bool
     return false;
   }
   return beganFresh || ![m[1], m[2], m[3]].some((name) => name !== undefined && HTML_EITHER_NAME.test(name));
+}
+/** The code unit at `at` with an ASCII capital folded to its small letter: how the flag `i` of a pattern without `u` compares letters (it folds no other character into an ASCII letter; the sweep of every code unit pins it). `NaN` past the end. */
+function smallLetterAt(text: string, at: number): number {
+  const unit = text.charCodeAt(at);
+  return unit >= 0x41 && unit <= 0x5a ? unit + 0x20 : unit;
+}
+/**
+ * Whether `line` is an EMPTY NATIVE DIV opened and closed on one line (Session 337): blanks, `<div` in either case with no word character right after it (`<divx>` is another element), an attribute block, a `>`, blanks,
+ * `</div>` in either case and blanks to the end. It is what `endsHtmlBlock` asked of `^[ \t]*<div\b(?:[^>"']|"[^"]*"|'[^']*')*>[ \t]*<\/div>[ \t]*$` (flag `i`), a group per character of the attribute block: V8 keeps one
+ * entry of its regex backtrack stack per repetition of a group, so a line of 8,388,570 repetitions of `a` after `<div ` threw `RangeError: Maximum call stack size exceeded` (bisected at `8ebce73`, a fresh process per probe)
+ * and the error reached every reader of the document. The attribute block is read by code unit: a unit that is not `>`, `"` or `'` is one step, a quote runs to the next quote of its own kind (and a quote that never closes
+ * refuses the line), and the first `>` outside a quotation ends the block, because the block cannot hold one. Only that `>` can be the one the pattern wants, so the rest is read once, from there.
+ * `test/unit/empty-native-div-equivalence.test.ts` keeps the pattern as the oracle.
+ */
+export function emptyNativeDivLine(line: string): boolean {
+  const end = line.length;
+  let at = 0;
+  while (line.charCodeAt(at) === 0x20 || line.charCodeAt(at) === 0x09) {
+    at++;
+  }
+  if (line.charCodeAt(at) !== 0x3c || smallLetterAt(line, at + 1) !== 0x64 || smallLetterAt(line, at + 2) !== 0x69 || smallLetterAt(line, at + 3) !== 0x76) {
+    return false;
+  }
+  at += 4;
+  const afterName = smallLetterAt(line, at);
+  if ((afterName >= 0x61 && afterName <= 0x7a) || (afterName >= 0x30 && afterName <= 0x39) || afterName === 0x5f) {
+    return false; // `\b`: a word character right after `div` makes it another name
+  }
+  for (; at < end; at++) {
+    const unit = line.charCodeAt(at);
+    if (unit === 0x3e) {
+      break;
+    }
+    if (unit === 0x22 || unit === 0x27) {
+      at = line.indexOf(unit === 0x22 ? '"' : "'", at + 1);
+      if (at < 0) {
+        return false;
+      }
+    }
+  }
+  if (at >= end) {
+    return false;
+  }
+  at++;
+  while (line.charCodeAt(at) === 0x20 || line.charCodeAt(at) === 0x09) {
+    at++;
+  }
+  if (line.charCodeAt(at) !== 0x3c || line.charCodeAt(at + 1) !== 0x2f || smallLetterAt(line, at + 2) !== 0x64 || smallLetterAt(line, at + 3) !== 0x69 || smallLetterAt(line, at + 4) !== 0x76 || line.charCodeAt(at + 5) !== 0x3e) {
+    return false;
+  }
+  at += 6;
+  while (line.charCodeAt(at) === 0x20 || line.charCodeAt(at) === 0x09) {
+    at++;
+  }
+  return at === end;
 }
 /**
  * The tag names pandoc's markdown reader is block-level for, as a CLOSER (Session 295): `PANDOC_BLOCK_CLOSE_TAGS` plus `PANDOC_EITHER_TAGS`. The line
