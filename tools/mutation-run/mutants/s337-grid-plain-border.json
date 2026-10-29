@@ -1,0 +1,474 @@
+[
+ {
+  "name": "G01 gridPlainBorder: the first character must be a dash",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 45) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "no border starts with a plus sign any more, and `-+` is no border either way: the enumerations and the stated rows see it"
+ },
+ {
+  "name": "G02 gridPlainBorder: the first-character test inverted",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) === 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "a border answers false and a line that does not begin with a plus sign is read as one"
+ },
+ {
+  "name": "G03 gridPlainBorder: the first character is not asked",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (false) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "`=-+` or `x-+` reads as a border: the wide enumeration holds `=` and `x`, the seeded lines hold `=` and `x`"
+ },
+ {
+  "name": "G04 gridPlainBorder: a vertical bar also opens a border",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43 && line.charCodeAt(0) !== 124) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "`|-+` is a border: no enumeration alphabet holds a bar, the code-unit sweep replaces the first character of `+-+` by every code unit and the seeded pieces hold `|`"
+ },
+ {
+  "name": "G05 gridPlainBorder: the walk starts at 0",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 0;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "the plus sign is not a dash: no cell is read and every line answers false"
+ },
+ {
+  "name": "G07 gridPlainBorder: one cell at most (outer while is an if)",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  if (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "`+-+-+` stops after its first cell and the rest of the line is not blank"
+ },
+ {
+  "name": "G08 gridPlainBorder: one dash at most in a cell (inner while is an if)",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    if (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "`+--+` is read as a dash and then a dash that no plus sign closes"
+ },
+ {
+  "name": "G09 gridPlainBorder: the outer loop looks for a plus sign",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 43) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "no cell is ever entered: every line answers false"
+ },
+ {
+  "name": "G10 gridPlainBorder: the inner loop eats plus signs instead of dashes",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 43) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "a cell with a dash in it is not closed any more"
+ },
+ {
+  "name": "G11 gridPlainBorder: the inner loop eats everything up to a dash code",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) <= 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "the dash run swallows the plus sign that closes it (and blanks), so `+-+` fails its closer"
+ },
+ {
+  "name": "G12 gridPlainBorder: the inner loop eats any character that is not a plus sign",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) !== 43 && at < line.length) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "`+-x+` and `+-=+` are borders (the wide enumeration holds `=` and `x`)"
+ },
+ {
+  "name": "G14 gridPlainBorder: the closer is not asked",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (false) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "`+-x` and `+-=` read as borders: the character that should close the cell is stepped over"
+ },
+ {
+  "name": "G15 gridPlainBorder: a vertical bar also closes a cell",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43 && line.charCodeAt(at) !== 124) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "`+-|` is a border: no enumeration alphabet holds a bar, the sweep puts every code unit in place of the closing plus sign and the seeded pieces hold `|`"
+ },
+ {
+  "name": "G16 gridPlainBorder: an equals sign also closes a cell",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43 && line.charCodeAt(at) !== 61) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "`+-=` is a border: the wide enumeration holds `=`"
+ },
+ {
+  "name": "G18 gridPlainBorder: the outer loop also enters on an equals sign",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45 || line.charCodeAt(at) === 61) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "survives",
+  "why": "equivalent: on an `=` the inner loop reads no dash and the closer test refuses it, so the call answers false where the original left the loop and found the `=` where blanks must be (also false); looked at by hand and against the old pattern on the wide enumeration, which holds `=`"
+ },
+ {
+  "name": "G19 gridPlainBorder: the cell count goes up by two",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells += 2;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "survives",
+  "why": "equivalent: the count is only compared with 0"
+ },
+ {
+  "name": "G20 gridPlainBorder: the cell count goes down",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells--;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "a border has a negative count and answers false"
+ },
+ {
+  "name": "G21 gridPlainBorder: the cell count never goes up",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "every border has no cell and answers false"
+ },
+ {
+  "name": "G22 gridPlainBorder: the count starts at 1",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 1;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "a lone plus sign, or a plus sign and blanks, is a border"
+ },
+ {
+  "name": "G23 gridPlainBorder: the count is not asked",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "a lone plus sign, or a plus sign and blanks, is a border"
+ },
+ {
+  "name": "G24 gridPlainBorder: two cells at least",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 1 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "`+-+` has one cell"
+ },
+ {
+  "name": "G26 gridPlainBorder: the closing plus sign is not stepped over",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "the walk stays on the plus sign, which is not a blank, so every border answers false"
+ },
+ {
+  "name": "G27 gridPlainBorder: the end test inverted",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) !== line.length;\n}",
+  "expect": "killed",
+  "why": "a border with nothing after it answers false and a border with text after it answers true"
+ },
+ {
+  "name": "G28 gridPlainBorder: the end is reached or passed",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) >= line.length;\n}",
+  "expect": "survives",
+  "why": "equivalent: skipBlanks stops at the first character that is not a space or a tab and at the end of the string, so it never answers past the length"
+ },
+ {
+  "name": "G29 gridPlainBorder: no blank is allowed after the last cell",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && at === line.length;\n}",
+  "expect": "killed",
+  "why": "`+-+ ` and `+-+\\t` are borders (the stated rows, the blank enumeration)"
+ },
+ {
+  "name": "G30 gridPlainBorder: one character after the last cell is skipped",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at + 1) === line.length;\n}",
+  "expect": "killed",
+  "why": "`+-+x` is a border"
+ },
+ {
+  "name": "G31 gridPlainBorder: the blanks are skipped from the closing plus sign",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at - 1) === line.length;\n}",
+  "expect": "killed",
+  "why": "the plus sign is no blank, so every border answers false"
+ },
+ {
+  "name": "G32 gridPlainBorder: any white space may end the line (trim)",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && line.slice(at).trim() === \"\";\n}",
+  "expect": "killed",
+  "why": "`+-+\\n`, a no-break space, a form feed and U+2028 after the last cell are blanks (the stated rows, the wide enumeration holds `\\n` and the no-break space)"
+ },
+ {
+  "name": "G34 gridPlainBorder: spaces only after the last cell",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && line.slice(at).split(\" \").join(\"\") === \"\";\n}",
+  "expect": "killed",
+  "why": "`+-+\\t` is not a border"
+ },
+ {
+  "name": "G36 gridPlainBorder: the first character is read as a string",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line[0] !== \"+\") {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "survives",
+  "why": "equivalent: the character at 0 is the plus sign in both spellings, and an empty line gives NaN in the first and undefined in the second, both different from the plus sign"
+ },
+ {
+  "name": "G37 gridPlainBorder: a dash run is read to 65,535 characters",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45 && at < 65536) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "`+` and 100,000 dashes and `+` is a border (the dash-run rows hold 1,000, 100,000 and 1,000,000)"
+ },
+ {
+  "name": "G38 gridPlainBorder: 4,096 cells at most",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45 && cells < 4096) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "the 65,536-cell and 1,000,000-cell rows answer false"
+ },
+ {
+  "name": "G39 gridPlainBorder: 1,048,576 cells at most",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45 && cells < 1048576) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "the 3,000,000-cell row answers false"
+ },
+ {
+  "name": "G40 gridPlainBorder: 4,194,304 cells at most",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45 && cells < 4194304) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "the 6,800,000-cell rows (the document rows and the oracle) answer false"
+ },
+ {
+  "name": "G41 gridPlainBorder: 16,777,216 cells at most",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45 && cells < 16777216) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "the 20,000,000-cell linear-time row answers false (the 12,000,000-cell row is below the cap)"
+ },
+ {
+  "name": "G42 gridPlainBorder: a line of 8,388,608 characters at most",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "to": "export function gridPlainBorder(line: string): boolean {\n  if (line.charCodeAt(0) !== 43 || line.length > 8388608) {\n    return false;\n  }\n  let at = 1;\n  let cells = 0;\n  while (line.charCodeAt(at) === 45) {\n    while (line.charCodeAt(at) === 45) {\n      at++;\n    }\n    if (line.charCodeAt(at) !== 43) {\n      return false;\n    }\n    at++;\n    cells++;\n  }\n  return cells > 0 && skipBlanks(line, at) === line.length;\n}",
+  "expect": "killed",
+  "why": "every document row of 13.6 million characters answers false, the rows' stated headings change"
+ },
+ {
+  "name": "C01 tableOrLineBlockEndsAt: the loop stops at a line that is a border",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (k < x && !gridPlainBorder(lines[k])) {",
+  "to": "while (k < x && gridPlainBorder(lines[k])) {",
+  "expect": "killed",
+  "why": "the table is taken to begin at the wrong line, or not at all: the grid-table rows of qmd-model.test.ts, the line-block rows and the markdown-hint document rows"
+ },
+ {
+  "name": "C02 tableOrLineBlockEndsAt: the loop looks at the last line only",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (k < x && !gridPlainBorder(lines[k])) {",
+  "to": "while (k < x && !gridPlainBorder(lines[x])) {",
+  "expect": "killed",
+  "why": "a line block above the border is not skipped (the rows with a `| lb` line above the border)"
+ },
+ {
+  "name": "C03 tableOrLineBlockEndsAt: the loop runs one line further",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (k < x && !gridPlainBorder(lines[k])) {",
+  "to": "while (k <= x && !gridPlainBorder(lines[k])) {",
+  "expect": "killed",
+  "why": "a first guess of equivalence was wrong: with no border in the run the loop ends one line past it, and when that line is a border `startsAtBoundary(b, k)` asks this function for the line above again, an unbounded recursion (RangeError: Maximum call stack size exceeded, found by the random corpus); a document with a border directly under a run that holds none"
+ },
+ {
+  "name": "C04 tableOrLineBlockEndsAt: the loop never advances",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (k < x && !gridPlainBorder(lines[k])) {",
+  "to": "while (false) {",
+  "expect": "killed",
+  "why": "a line block above the border is not skipped, so the table begins at the line block"
+ },
+ {
+  "name": "C05 tableOrLineBlockEndsAt: the border of the run is not asked",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (gridPlainBorder(lines[k]) && startsAtBoundary(b, k)) {",
+  "to": "if (startsAtBoundary(b, k)) {",
+  "expect": "survives",
+  "why": "equivalent: the loop above leaves k on a border (k < x) or on x; on x the borders loop counts at most one line, and one border is not two, so the answer is false whether or not the test runs; the lone-border document rows exist to reach THIS call and throw if it were a pattern again"
+ },
+ {
+  "name": "C06 tableOrLineBlockEndsAt: the border of the run or the boundary",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (gridPlainBorder(lines[k]) && startsAtBoundary(b, k)) {",
+  "to": "if (gridPlainBorder(lines[k]) || startsAtBoundary(b, k)) {",
+  "expect": "killed",
+  "why": "a first guess of equivalence was wrong: a plain border no longer needs a block boundary above it, so a table that begins under a paragraph line ends a block (killed by the same older row of qmd-model.test.ts as C07; the two new files alone do not kill it)"
+ },
+ {
+  "name": "C07 tableOrLineBlockEndsAt: the boundary is not asked",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (gridPlainBorder(lines[k]) && startsAtBoundary(b, k)) {",
+  "to": "if (gridPlainBorder(lines[k])) {",
+  "expect": "killed",
+  "why": "a table whose first border is not at a block boundary (`+-+` directly under a paragraph line) ends a block: killed by one older row of qmd-model.test.ts, `MUTATION KILLER: a grid table directly under a raw TeX environment` (the two new files alone do NOT kill it: measured by hand, 0 failed of 92)"
+ },
+ {
+  "name": "C08 tableOrLineBlockEndsAt: the border call is negated",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (gridPlainBorder(lines[k]) && startsAtBoundary(b, k)) {",
+  "to": "if (!gridPlainBorder(lines[k]) && startsAtBoundary(b, k)) {",
+  "expect": "killed",
+  "why": "a table whose first border is a plain border answers false (the markdown-hint document rows with a `## In` inside the opener, and the grid-table rows of qmd-model.test.ts)"
+ },
+ {
+  "name": "T01 rows: the long run is 3,000,000 cells (below the first throw)",
+  "file": "test/unit/s337-grid-plain-border-rows.test.ts",
+  "from": "const MANY = 6_800_000;",
+  "to": "const MANY = 3_000_000;",
+  "expect": "killed",
+  "why": "the guard row pins the size: a run under 3,355,430 cells would pass on the parent"
+ },
+ {
+  "name": "T03 rows: the control holds 3 cells",
+  "file": "test/unit/s337-grid-plain-border-rows.test.ts",
+  "from": "const FEW = 4;",
+  "to": "const FEW = 3;",
+  "expect": "killed",
+  "why": "the guard row pins the control size"
+ },
+ {
+  "name": "T04 rows: the unit is three characters",
+  "file": "test/unit/s337-grid-plain-border-rows.test.ts",
+  "from": "const UNIT = \"-+\";",
+  "to": "const UNIT = \"--+\";",
+  "expect": "killed",
+  "why": "the guard row pins the unit"
+ },
+ {
+  "name": "T05 rows: the limit is 400 ms",
+  "file": "test/unit/s337-grid-plain-border-rows.test.ts",
+  "from": "const LIMIT_MS = 4000;",
+  "to": "const LIMIT_MS = 400;",
+  "expect": "killed",
+  "why": "a read of the 13.6-million-character documents takes 0.4 to 0.6 s with the cure, so the clock rows fail, and the guard row sees it too"
+ },
+ {
+  "name": "T07 rows: two rows share a text",
+  "file": "test/unit/s337-grid-plain-border-rows.test.ts",
+  "from": "build: withCell(\"a2\")",
+  "to": "build: withCell(\"a1\")",
+  "expect": "killed",
+  "why": "the row that asserts a different text for every row sees the repeat"
+ },
+ {
+  "name": "T08 rows: two more rows share a text",
+  "file": "test/unit/s337-grid-plain-border-rows.test.ts",
+  "from": "build: withHeadingCell(\"c2\")",
+  "to": "build: withHeadingCell(\"c1\")",
+  "expect": "killed",
+  "why": "the same row"
+ },
+ {
+  "name": "O01 oracle: the seed is 3372",
+  "file": "test/unit/grid-plain-border-equivalence.test.ts",
+  "from": "const SEED = 3371;",
+  "to": "const SEED = 3372;",
+  "expect": "killed",
+  "why": "the pinned count of the seeded lines and the guard row change"
+ },
+ {
+  "name": "O03 oracle: the tiny enumeration stops at 19 characters",
+  "file": "test/unit/grid-plain-border-equivalence.test.ts",
+  "from": "alphabet: TINY, maxLength: 20,",
+  "to": "alphabet: TINY, maxLength: 19,",
+  "expect": "killed",
+  "why": "the compared count changes"
+ },
+ {
+  "name": "O04 oracle: a head of the sweep is left out",
+  "file": "test/unit/grid-plain-border-equivalence.test.ts",
+  "from": "const HEADS = [\"+-+\", \"+--+-+ \", \"+-+\\t\", \"+-+-+\", \"+-\", \"+\", \"-+\", \"+ -+\", \"+--+x\"];",
+  "to": "const HEADS = [\"+-+\", \"+--+-+ \", \"+-+\\t\", \"+-+-+\", \"+-\", \"+\", \"-+\", \"+ -+\"];",
+  "expect": "killed",
+  "why": "the pinned count of code-unit edits changes"
+ },
+ {
+  "name": "O06 oracle: the long run below the old limit is dropped",
+  "file": "test/unit/grid-plain-border-equivalence.test.ts",
+  "from": "const SMALL_RUNS = [1, 2, 3, 100, 4_096, 65_536, 1_000_000, 3_000_000];",
+  "to": "const SMALL_RUNS = [1, 2, 3, 100, 4_096, 65_536, 1_000_000];",
+  "expect": "killed",
+  "why": "the guard row pins the list"
+ },
+ {
+  "name": "O07 oracle: the first long run is one below the first throw",
+  "file": "test/unit/grid-plain-border-equivalence.test.ts",
+  "from": "const LONG_RUNS = [3_355_430, 3_400_000, 6_800_000, 12_000_000];",
+  "to": "const LONG_RUNS = [3_355_429, 3_400_000, 6_800_000, 12_000_000];",
+  "expect": "killed",
+  "why": "the guard row pins the list"
+ },
+ {
+  "name": "O08 oracle: the linear-time run is a tenth",
+  "file": "test/unit/grid-plain-border-equivalence.test.ts",
+  "from": "const LINEAR_RUN = 20_000_000;",
+  "to": "const LINEAR_RUN = 2_000_000;",
+  "expect": "killed",
+  "why": "the guard row pins it, and G41 needs a run above 16,777,216 cells"
+ },
+ {
+  "name": "O10 oracle: the dash runs lose their largest",
+  "file": "test/unit/grid-plain-border-equivalence.test.ts",
+  "from": "const DASH_RUNS = [1_000, 100_000, 1_000_000];",
+  "to": "const DASH_RUNS = [1_000, 100_000];",
+  "expect": "killed",
+  "why": "the guard row pins it, and G37 needs the 100,000"
+ },
+ {
+  "name": "O11 oracle: the definition takes the body to begin with a plus sign",
+  "file": "test/unit/grid-plain-border-equivalence.test.ts",
+  "from": "body[0] !== \"-\"",
+  "to": "body[0] !== \"+\"",
+  "expect": "killed",
+  "why": "the reading by definition then disagrees with the old pattern and with every stated row"
+ },
+ {
+  "name": "O12 oracle: the old pattern's blanks are one or more",
+  "file": "test/unit/grid-plain-border-equivalence.test.ts",
+  "from": "const OLD_GRID_PLAIN_BORDER = /^\\+(?:-+\\+)+[ \\t]*$/;",
+  "to": "const OLD_GRID_PLAIN_BORDER = /^\\+(?:-+\\+)+[ \\t]+$/;",
+  "expect": "killed",
+  "why": "the oracle then refuses `+-+`, and the stated rows and the enumerations disagree with the new function"
+ }
+]
