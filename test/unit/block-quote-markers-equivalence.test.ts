@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { blockQuoteMarkerRunEnd } from "../../src/core/qmd/model";
-import { LS, NBSP, countStrings, everyString, seededRandom } from "./support/regex-equivalence";
+import { LS, NBSP, countCodeUnitEdits, countStrings, everyCodeUnitEdit, everyString, seededRandom } from "./support/regex-equivalence";
 
 // The enumerations take several seconds each on a loaded machine; the sibling equivalence files give their heavy rows the same ceiling.
 const HEAVY_ROW_MS = 120_000;
 
 // Session 335 — the BACKLOG item "Nine more single-line overflow and slow-input families, none of them in Session 317's diff", part (8). `blockQuotePrefix` read the run of block-quote markers with `BLOCK_QUOTE_MARKERS`,
-// `/^(?:>[ ]?)+/`, and V8 keeps one entry of its regex backtrack stack per repetition of a group: a line of 8,388,781 or more `>` threw `RangeError: Maximum call stack size exceeded` (bisected at `c06ee06`), and the
+// `/^(?:>[ ]?)+/`, and V8 keeps one entry of its regex backtrack stack per repetition of a group: a line of 8,388,576 or more `>` threw `RangeError: Maximum call stack size exceeded` (bisected at `c06ee06`), and the
 // error reached every reader of the document. No flat spelling accepts the same strings, so `blockQuoteMarkerRunEnd` is a loop. The old pattern is kept below, copied from the parent `c06ee06`, as the oracle (Learning
 // 738), beside a reading by definition that uses no regex; the pinned counts (how many strings of each enumeration the OLD pattern matches) come from the old pattern and from a Python port of it and never from the code
 // under test.
@@ -142,9 +142,9 @@ describe("Session 335 — blockQuoteMarkerRunEnd: the loop ends the marker run w
     expect(blockQuoteMarkerRunEnd("", 0)).toBe(0);
   });
 
-  // The cure itself: a run past the old overflow (8,388,781 for `>`) is read, and the whole run is the marker run. The old pattern is compared only below that, where it still reads.
+  // The cure itself: a run past the old overflow (8,388,576 for `>`) is read, and the whole run is the marker run. The old pattern is compared only below that, where it still reads.
   const SMALL_RUNS = [1, 2, 3, 100, 4_096, 65_536, 1_048_576, 4_194_304];
-  const LONG_RUNS = [8_388_781, 9_000_000, 16_777_216, 45_000_000];
+  const LONG_RUNS = [8_388_576, 9_000_000, 16_777_216, 45_000_000];
   it.each(SMALL_RUNS)("a run of %i `>` and of %i `> ` pairs ends the same as the old pattern", (n) => {
     expect(blockQuoteMarkerRunEnd(">".repeat(n), 0)).toBe(oldRunLength(">".repeat(n)));
     expect(blockQuoteMarkerRunEnd("> ".repeat(n), 0)).toBe(oldRunLength("> ".repeat(n)));
@@ -163,5 +163,37 @@ describe("Session 335 — blockQuoteMarkerRunEnd: the loop ends the marker run w
     const started = Date.now();
     expect(blockQuoteMarkerRunEnd(text, 0)).toBe(45_000_000);
     expect(Date.now() - started).toBeLessThan(2000);
+  });
+});
+
+// The review round of Session 335 (its mutation lens): five edits of `blockQuoteMarkerRunEnd` survived every row above, because the alphabets hold `>`, a space, a tab, a letter, a no-break space and U+2028 and nothing else.
+// A form feed, a vertical tab or a CR taken as the optional blank after a marker, an ideographic space taken the same way, and the full-width `>` taken as a marker each change the Outline ('>\f# Quoted' is no quote,
+// the heading below it is the document's first). Every UTF-16 code unit is put into each head and in place of each of its characters, as `blank-tail-equivalence.test.ts` does for its sites.
+describe("Session 335 review — blockQuoteMarkerRunEnd on every code unit", () => {
+  const SWEEP_HEADS = [">", "> ", ">> x", "> > ", ">  >", "a>"];
+  it("every head with one code unit put into it, or in place of one of its characters, ends its run where the old pattern did", () => {
+    const result = compareAll(everyCodeUnitEdit(SWEEP_HEADS));
+    expect(result.disagreements).toEqual([]);
+    expect(result.compared).toBe(countCodeUnitEdits(SWEEP_HEADS));
+    expect(result.matched).toBe(1_638_412); // recounted by a Python port of the old pattern and of the sweep: 2,621,440 strings
+  }, HEAVY_ROW_MS);
+
+  const IDEOGRAPHIC_SPACE = String.fromCharCode(0x3000);
+  const FULL_WIDTH_GT = String.fromCharCode(0xff1e);
+  const REVIEW_STATED: Array<[string, number]> = [
+    [">\f", 1],
+    [">\f# H", 1],
+    [">\v", 1],
+    [">\r", 1],
+    [">" + IDEOGRAPHIC_SPACE, 1],
+    ["> " + IDEOGRAPHIC_SPACE, 2],
+    [FULL_WIDTH_GT, 0],
+    [">" + FULL_WIDTH_GT, 1],
+    ["> " + FULL_WIDTH_GT + " x", 2],
+  ];
+  it.each(REVIEW_STATED.map(([text, end]) => [JSON.stringify(text), text, end] as const))("%s ends its marker run at %i by hand, by the old pattern, by the definition and by the new function", (_label, text, end) => {
+    expect(oldRunLength(text)).toBe(end);
+    expect(definitionRunLength(text)).toBe(end);
+    expect(blockQuoteMarkerRunEnd(text, 0)).toBe(end);
   });
 });

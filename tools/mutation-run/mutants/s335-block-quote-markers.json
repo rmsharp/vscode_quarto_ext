@@ -118,5 +118,45 @@
   "to": "  const end = blockQuoteMarkerRunEnd(line, indent.length);\n  return end === indent.length || end < 0 ? null : line.slice(0, end);",
   "expect": "survives",
   "why": "no change in the answer (end is never negative): argued equivalent"
+ },
+ {
+  "name": "RV01 BQ2 blockQuoteMarkerRunEnd: a form feed is also the optional blank",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (text.charCodeAt(end) === 32) {\n      end++;",
+  "to": "    if (text.charCodeAt(end) === 32 || text.charCodeAt(end) === 12) {\n      end++;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV02 BQ3 blockQuoteMarkerRunEnd: a vertical tab is also the optional blank",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (text.charCodeAt(end) === 32) {\n      end++;",
+  "to": "    if (text.charCodeAt(end) === 32 || text.charCodeAt(end) === 11) {\n      end++;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV03 BQ4 blockQuoteMarkerRunEnd: a CR is also the optional blank",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (text.charCodeAt(end) === 32) {\n      end++;",
+  "to": "    if (text.charCodeAt(end) === 32 || text.charCodeAt(end) === 13) {\n      end++;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV04 BQ5 blockQuoteMarkerRunEnd: U+3000 is also the optional blank",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (text.charCodeAt(end) === 32) {\n      end++;",
+  "to": "    if (text.charCodeAt(end) === 32 || text.charCodeAt(end) === 0x3000) {\n      end++;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV05 BQ9 blockQuoteMarkerRunEnd: the full-width > is a marker",
+  "file": "src/core/qmd/model.ts",
+  "from": "  while (text.charCodeAt(end) === 62) {\n    end++;",
+  "to": "  while (text.charCodeAt(end) === 62 || text.charCodeAt(end) === 0xff1e) {\n    end++;",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
  }
 ]
