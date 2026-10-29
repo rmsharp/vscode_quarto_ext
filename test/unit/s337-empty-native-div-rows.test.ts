@@ -108,6 +108,17 @@ describe("Session 337 — a single line of millions of characters that the empty
       expect(ms).toBeLessThan(row.limitMs ?? S337_LIMIT_MS);
     }, 120_000);
 
+    // The reader gate in front of the question is not a RED row (the parent answers the same, and so does `emptyNativeDivLine` for a short line): an empty native div ends its block where raw HTML is off and native divs are
+    // ON, and where native divs are off too it is raw text that runs on (the same lines through the parent `8ebce73` and through the cure give the same headings, Session 337; not read against pandoc: the answers are the parent's).
+    it.each<[string, string[]]>([
+      ["markdown-raw_html", LISTED],
+      ["markdown-raw_html-native_divs", SWALLOWED],
+      ["markdown_strict-raw_html", SWALLOWED],
+    ])("the empty native div above an indent-4 opener under `from: %s`: the heading inside the opener is %j", (reader, expected) => {
+      const text = `---\nfrom: ${reader}\n---\n\n## Before\n\nProse before.\n\n<div a="b>c"></div>\n${OPENER}## In\nx = 1\n${CLOSER}\n## After\n`;
+      expect(headings("jupyter")(text)).toEqual(expected);
+    });
+
     it("builds a different text for every row", () => {
       // The TEXT alone: `scanRegions` keeps the last two scans by text, so a row whose text another row read just before it is served from the cache and cannot be RED.
       const small = S337_ROWS.map((row) => row.build(row.unit.repeat(row.few ?? S337_FEW)));

@@ -1,0 +1,482 @@
+[
+ {
+  "name": "A01 smallLetterAt: no folding",
+  "file": "src/core/qmd/model.ts",
+  "from": "return unit >= 0x41 && unit <= 0x5a ? unit + 0x20 : unit;",
+  "to": "return unit >= 0x41 && unit <= 0x5a ? unit : unit;",
+  "expect": "killed",
+  "why": "`<DIV></DIV>` and every capital after `div` stop being read as the old flag i read them"
+ },
+ {
+  "name": "A02 smallLetterAt: 'A' is not folded",
+  "file": "src/core/qmd/model.ts",
+  "from": "return unit >= 0x41 && unit <= 0x5a ? unit + 0x20 : unit;",
+  "to": "return unit > 0x41 && unit <= 0x5a ? unit + 0x20 : unit;",
+  "expect": "killed",
+  "why": "a capital A right after `div` is a word character to the pattern; the sweep puts every code unit there"
+ },
+ {
+  "name": "A03 smallLetterAt: 'Z' is not folded",
+  "file": "src/core/qmd/model.ts",
+  "from": "return unit >= 0x41 && unit <= 0x5a ? unit + 0x20 : unit;",
+  "to": "return unit >= 0x41 && unit < 0x5a ? unit + 0x20 : unit;",
+  "expect": "killed",
+  "why": "a capital Z right after `div` is a word character to the pattern; the sweep puts every code unit there"
+ },
+ {
+  "name": "A05 smallLetterAt: the capitals reach '['",
+  "file": "src/core/qmd/model.ts",
+  "from": "return unit >= 0x41 && unit <= 0x5a ? unit + 0x20 : unit;",
+  "to": "return unit >= 0x41 && unit <= 0x5b ? unit + 0x20 : unit;",
+  "expect": "survives",
+  "why": "equivalent by argument: '[' (0x5b) would become '{' (0x7b), which no comparison of the function accepts ('{' is none of d, i, v, a to z, 0 to 9, _) and is no word character either, exactly like '['; looked at the five comparison sites (opener d i v, the word check, the closer d i v) and ran no document SCREENED: the mutated function agrees with the old pattern on every string of the five sets of the oracle (dense 6, seeded, framed, sweep, tag 6; about 19.5 million) and was not run through the test files; looked once, by that screen."
+ },
+ {
+  "name": "A06 smallLetterAt: the capitals start at '@'",
+  "file": "src/core/qmd/model.ts",
+  "from": "return unit >= 0x41 && unit <= 0x5a ? unit + 0x20 : unit;",
+  "to": "return unit >= 0x40 && unit <= 0x5a ? unit + 0x20 : unit;",
+  "expect": "survives",
+  "why": "equivalent by argument: '@' (0x40) would become '`' (0x60), which is below 'a' and so no word character, and is none of d, i, v; the same answer as '@' itself at every comparison SCREENED: the mutated function agrees with the old pattern on every string of the five sets of the oracle (dense 6, seeded, framed, sweep, tag 6; about 19.5 million) and was not run through the test files; looked once, by that screen."
+ },
+ {
+  "name": "B01 open: a tab is no indent",
+  "file": "src/core/qmd/model.ts",
+  "from": "let at = 0;\n  while (line.charCodeAt(at) === 0x20 || line.charCodeAt(at) === 0x09) {",
+  "to": "let at = 0;\n  while (line.charCodeAt(at) === 0x20 || line.charCodeAt(at) === 0x0a) {",
+  "expect": "killed",
+  "why": "`\\t<div></div>` is read by the pattern (the stated row)"
+ },
+ {
+  "name": "B02 open: a space is no indent",
+  "file": "src/core/qmd/model.ts",
+  "from": "let at = 0;\n  while (line.charCodeAt(at) === 0x20 || line.charCodeAt(at) === 0x09) {",
+  "to": "let at = 0;\n  while (line.charCodeAt(at) === 0x21 || line.charCodeAt(at) === 0x09) {",
+  "expect": "killed",
+  "why": "`  <div></div>  ` is read by the pattern (the stated row)"
+ },
+ {
+  "name": "B04 open: the angle is '='",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (line.charCodeAt(at) !== 0x3c || smallLetterAt(line, at + 1) !== 0x64 || smallLetterAt(line, at + 2) !== 0x69 || smallLetterAt(line, at + 3) !== 0x76) {",
+  "to": "if (line.charCodeAt(at) !== 0x3d || smallLetterAt(line, at + 1) !== 0x64 || smallLetterAt(line, at + 2) !== 0x69 || smallLetterAt(line, at + 3) !== 0x76) {",
+  "expect": "killed",
+  "why": "`<div></div>` is not read"
+ },
+ {
+  "name": "B06 open: d is compared with a capital",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (line.charCodeAt(at) !== 0x3c || smallLetterAt(line, at + 1) !== 0x64 || smallLetterAt(line, at + 2) !== 0x69 || smallLetterAt(line, at + 3) !== 0x76) {",
+  "to": "if (line.charCodeAt(at) !== 0x3c || smallLetterAt(line, at + 1) !== 0x44 || smallLetterAt(line, at + 2) !== 0x69 || smallLetterAt(line, at + 3) !== 0x76) {",
+  "expect": "killed",
+  "why": "the folded unit is a small letter, so no name matches"
+ },
+ {
+  "name": "B07 open: i is compared with j",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (line.charCodeAt(at) !== 0x3c || smallLetterAt(line, at + 1) !== 0x64 || smallLetterAt(line, at + 2) !== 0x69 || smallLetterAt(line, at + 3) !== 0x76) {",
+  "to": "if (line.charCodeAt(at) !== 0x3c || smallLetterAt(line, at + 1) !== 0x64 || smallLetterAt(line, at + 2) !== 0x6a || smallLetterAt(line, at + 3) !== 0x76) {",
+  "expect": "killed",
+  "why": "`<div` stops being the name"
+ },
+ {
+  "name": "B08 open: v is compared with u",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (line.charCodeAt(at) !== 0x3c || smallLetterAt(line, at + 1) !== 0x64 || smallLetterAt(line, at + 2) !== 0x69 || smallLetterAt(line, at + 3) !== 0x76) {",
+  "to": "if (line.charCodeAt(at) !== 0x3c || smallLetterAt(line, at + 1) !== 0x64 || smallLetterAt(line, at + 2) !== 0x69 || smallLetterAt(line, at + 3) !== 0x75) {",
+  "expect": "killed",
+  "why": "`<div` stops being the name"
+ },
+ {
+  "name": "B09 open: the name check is skipped for the angle alone",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (line.charCodeAt(at) !== 0x3c || smallLetterAt(line, at + 1) !== 0x64 || smallLetterAt(line, at + 2) !== 0x69 || smallLetterAt(line, at + 3) !== 0x76) {",
+  "to": "if (line.charCodeAt(at) !== 0x3c || smallLetterAt(line, at + 1) !== 0x64 || smallLetterAt(line, at + 2) !== 0x69) {",
+  "expect": "killed",
+  "why": "`<di></div>` and `<dix>` would be read as divs (the stated rows and the sweep)"
+ },
+ {
+  "name": "B10 open: the name is four units, not three",
+  "file": "src/core/qmd/model.ts",
+  "from": "at += 4;\n  const afterName",
+  "to": "at += 3;\n  const afterName",
+  "expect": "killed",
+  "why": "the `v` becomes the unit after the name, a word character: nothing is read"
+ },
+ {
+  "name": "B12 word: 'a' is no word character",
+  "file": "src/core/qmd/model.ts",
+  "from": "if ((afterName >= 0x61 && afterName <= 0x7a) || (afterName >= 0x30 && afterName <= 0x39) || afterName === 0x5f) {",
+  "to": "if ((afterName > 0x61 && afterName <= 0x7a) || (afterName >= 0x30 && afterName <= 0x39) || afterName === 0x5f) {",
+  "expect": "killed",
+  "why": "`<diva></div>` is another element to the pattern; the sweep puts 'a' right after `div`"
+ },
+ {
+  "name": "B14 word: '0' is no word character",
+  "file": "src/core/qmd/model.ts",
+  "from": "if ((afterName >= 0x61 && afterName <= 0x7a) || (afterName >= 0x30 && afterName <= 0x39) || afterName === 0x5f) {",
+  "to": "if ((afterName >= 0x61 && afterName <= 0x7a) || (afterName > 0x30 && afterName <= 0x39) || afterName === 0x5f) {",
+  "expect": "killed",
+  "why": "`<div0></div>` is another element to the pattern; the sweep puts '0' right after `div`"
+ },
+ {
+  "name": "B16 word: the underscore is no word character",
+  "file": "src/core/qmd/model.ts",
+  "from": "if ((afterName >= 0x61 && afterName <= 0x7a) || (afterName >= 0x30 && afterName <= 0x39) || afterName === 0x5f) {",
+  "to": "if ((afterName >= 0x61 && afterName <= 0x7a) || (afterName >= 0x30 && afterName <= 0x39) || afterName === 0x5e) {",
+  "expect": "killed",
+  "why": "`<div_></div>` is another element to the pattern (the stated row)"
+ },
+ {
+  "name": "B18 word: no word check",
+  "file": "src/core/qmd/model.ts",
+  "from": "if ((afterName >= 0x61 && afterName <= 0x7a) || (afterName >= 0x30 && afterName <= 0x39) || afterName === 0x5f) {",
+  "to": "if (false) {",
+  "expect": "killed",
+  "why": "`<divx></div>` is another element to the pattern (the stated row)"
+ },
+ {
+  "name": "B19 word: the check reads the unit unfolded",
+  "file": "src/core/qmd/model.ts",
+  "from": "const afterName = smallLetterAt(line, at);",
+  "to": "const afterName = line.charCodeAt(at);",
+  "expect": "killed",
+  "why": "a capital right after `div` is a word character to the pattern; the sweep puts every capital there"
+ },
+ {
+  "name": "C01 block: '>' does not end the block",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (unit === 0x3e) {\n      break;",
+  "to": "if (unit === 0x3d) {\n      break;",
+  "expect": "killed",
+  "why": "no tag is ever closed"
+ },
+ {
+  "name": "C02 block: only double quotes quote",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (unit === 0x22 || unit === 0x27) {",
+  "to": "if (unit === 0x22) {",
+  "expect": "killed",
+  "why": "a '>' inside single quotes ends the block (the stated row)"
+ },
+ {
+  "name": "C03 block: only single quotes quote",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (unit === 0x22 || unit === 0x27) {",
+  "to": "if (unit === 0x27) {",
+  "expect": "killed",
+  "why": "a '>' inside double quotes ends the block (the stated row)"
+ },
+ {
+  "name": "C04 block: the quote search starts at the quote",
+  "file": "src/core/qmd/model.ts",
+  "from": "'\"' : \"'\", at + 1);",
+  "to": "'\"' : \"'\", at + 0);",
+  "expect": "killed",
+  "why": "the opening quote is found as its own closer, so a quoted '>' ends the block"
+ },
+ {
+  "name": "C05 block: the quote search starts two units on",
+  "file": "src/core/qmd/model.ts",
+  "from": "'\"' : \"'\", at + 1);",
+  "to": "'\"' : \"'\", at + 2);",
+  "expect": "killed",
+  "why": "the empty value `\"\"` is not closed"
+ },
+ {
+  "name": "C06 block: the closer of a quote is the other quote",
+  "file": "src/core/qmd/model.ts",
+  "from": "unit === 0x22 ? '\"' : \"'\"",
+  "to": "unit === 0x22 ? \"'\" : '\"'",
+  "expect": "killed",
+  "why": "a value is closed by the wrong quote (the stated rows with both)"
+ },
+ {
+  "name": "C07 block: a quote that never closes is accepted",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (at < 0) {\n        return false;",
+  "to": "if (at < 0) {\n        return true;",
+  "expect": "killed",
+  "why": "`<div a=\"b></div>` is no tag to the pattern (the stated row)"
+ },
+ {
+  "name": "C08 block: the end is not tested",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (at >= end) {\n    return false;\n  }\n  at++;",
+  "to": "if (false) {\n    return false;\n  }\n  at++;",
+  "expect": "survives",
+  "why": "equivalent by argument: at the end `at` is end, the next unit is NaN and the closer check below reads `<` against NaN and returns false; looked at every statement after it SCREENED: the mutated function agrees with the old pattern on every string of the five sets of the oracle (dense 6, seeded, framed, sweep, tag 6; about 19.5 million) and was not run through the test files; looked once, by that screen."
+ },
+ {
+  "name": "C09 block: the end test is past the end",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (at >= end) {\n    return false;\n  }\n  at++;",
+  "to": "if (at > end) {\n    return false;\n  }\n  at++;",
+  "expect": "survives",
+  "why": "equivalent by argument: at === end only when no '>' was found, and then the closer check reads NaN and returns false; the same argument as C08 SCREENED: the mutated function agrees with the old pattern on every string of the five sets of the oracle (dense 6, seeded, framed, sweep, tag 6; about 19.5 million) and was not run through the test files; looked once, by that screen."
+ },
+ {
+  "name": "C10 block: the loop reads one unit past the end",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (; at < end; at++) {\n    const unit = line.charCodeAt(at);",
+  "to": "for (; at <= end; at++) {\n    const unit = line.charCodeAt(at);",
+  "expect": "survives",
+  "why": "equivalent by argument: the unit at end is NaN, which is none of '>', '\"', \"'\", so the loop only moves on to end + 1 and the end test below refuses; looked, ran no document SCREENED: the mutated function agrees with the old pattern on every string of the five sets of the oracle (dense 6, seeded, framed, sweep, tag 6; about 19.5 million) and was not run through the test files; looked once, by that screen."
+ },
+ {
+  "name": "C11 block: the '>' is not consumed",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (at >= end) {\n    return false;\n  }\n  at++;",
+  "to": "if (at >= end) {\n    return false;\n  }\n  at += 0;",
+  "expect": "killed",
+  "why": "the blanks and the closer are read from the '>' itself: nothing is read"
+ },
+ {
+  "name": "D01 tail: a tab between '>' and the closer is no blank",
+  "file": "src/core/qmd/model.ts",
+  "from": "at++;\n  while (line.charCodeAt(at) === 0x20 || line.charCodeAt(at) === 0x09) {\n    at++;\n  }\n  if (line.charCodeAt(at) !== 0x3c",
+  "to": "at++;\n  while (line.charCodeAt(at) === 0x20 || line.charCodeAt(at) === 0x0a) {\n    at++;\n  }\n  if (line.charCodeAt(at) !== 0x3c",
+  "expect": "killed",
+  "why": "`<div>\\t</div>` is read by the pattern (the stated row)"
+ },
+ {
+  "name": "D02 tail: a space between '>' and the closer is no blank",
+  "file": "src/core/qmd/model.ts",
+  "from": "at++;\n  while (line.charCodeAt(at) === 0x20 || line.charCodeAt(at) === 0x09) {\n    at++;\n  }\n  if (line.charCodeAt(at) !== 0x3c",
+  "to": "at++;\n  while (line.charCodeAt(at) === 0x21 || line.charCodeAt(at) === 0x09) {\n    at++;\n  }\n  if (line.charCodeAt(at) !== 0x3c",
+  "expect": "killed",
+  "why": "`<div>  </div>` is read by the pattern (the stated row)"
+ },
+ {
+  "name": "D06 tail: the closer's d is compared with e",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (line.charCodeAt(at) !== 0x3c || line.charCodeAt(at + 1) !== 0x2f || smallLetterAt(line, at + 2) !== 0x64 || smallLetterAt(line, at + 3) !== 0x69 || smallLetterAt(line, at + 4) !== 0x76 || line.charCodeAt(at + 5) !== 0x3e) {",
+  "to": "if (line.charCodeAt(at) !== 0x3c || line.charCodeAt(at + 1) !== 0x2f || smallLetterAt(line, at + 2) !== 0x65 || smallLetterAt(line, at + 3) !== 0x69 || smallLetterAt(line, at + 4) !== 0x76 || line.charCodeAt(at + 5) !== 0x3e) {",
+  "expect": "killed",
+  "why": "no closer matches"
+ },
+ {
+  "name": "D07 tail: the closer's i is compared with h",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (line.charCodeAt(at) !== 0x3c || line.charCodeAt(at + 1) !== 0x2f || smallLetterAt(line, at + 2) !== 0x64 || smallLetterAt(line, at + 3) !== 0x69 || smallLetterAt(line, at + 4) !== 0x76 || line.charCodeAt(at + 5) !== 0x3e) {",
+  "to": "if (line.charCodeAt(at) !== 0x3c || line.charCodeAt(at + 1) !== 0x2f || smallLetterAt(line, at + 2) !== 0x64 || smallLetterAt(line, at + 3) !== 0x68 || smallLetterAt(line, at + 4) !== 0x76 || line.charCodeAt(at + 5) !== 0x3e) {",
+  "expect": "killed",
+  "why": "no closer matches"
+ },
+ {
+  "name": "D08 tail: the closer's v is compared with w",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (line.charCodeAt(at) !== 0x3c || line.charCodeAt(at + 1) !== 0x2f || smallLetterAt(line, at + 2) !== 0x64 || smallLetterAt(line, at + 3) !== 0x69 || smallLetterAt(line, at + 4) !== 0x76 || line.charCodeAt(at + 5) !== 0x3e) {",
+  "to": "if (line.charCodeAt(at) !== 0x3c || line.charCodeAt(at + 1) !== 0x2f || smallLetterAt(line, at + 2) !== 0x64 || smallLetterAt(line, at + 3) !== 0x69 || smallLetterAt(line, at + 4) !== 0x77 || line.charCodeAt(at + 5) !== 0x3e) {",
+  "expect": "killed",
+  "why": "no closer matches"
+ },
+ {
+  "name": "D10 tail: the closer's last unit is not read",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (line.charCodeAt(at) !== 0x3c || line.charCodeAt(at + 1) !== 0x2f || smallLetterAt(line, at + 2) !== 0x64 || smallLetterAt(line, at + 3) !== 0x69 || smallLetterAt(line, at + 4) !== 0x76 || line.charCodeAt(at + 5) !== 0x3e) {",
+  "to": "if (line.charCodeAt(at) !== 0x3c || line.charCodeAt(at + 1) !== 0x2f || smallLetterAt(line, at + 2) !== 0x64 || smallLetterAt(line, at + 3) !== 0x69 || smallLetterAt(line, at + 4) !== 0x76) {",
+  "expect": "killed",
+  "why": "`<div></div` and `<div></div x` read as divs (the stated row)"
+ },
+ {
+  "name": "D11 tail: the closer is five units",
+  "file": "src/core/qmd/model.ts",
+  "from": "at += 6;\n  while (line.charCodeAt(at) === 0x20 || line.charCodeAt(at) === 0x09) {",
+  "to": "at += 5;\n  while (line.charCodeAt(at) === 0x20 || line.charCodeAt(at) === 0x09) {",
+  "expect": "killed",
+  "why": "the '>' of the closer is left unread: nothing ends at the end"
+ },
+ {
+  "name": "D12 tail: a tab after the closer is no blank",
+  "file": "src/core/qmd/model.ts",
+  "from": "at += 6;\n  while (line.charCodeAt(at) === 0x20 || line.charCodeAt(at) === 0x09) {",
+  "to": "at += 6;\n  while (line.charCodeAt(at) === 0x20 || line.charCodeAt(at) === 0x0a) {",
+  "expect": "killed",
+  "why": "`<div>\\t</div>\\t` is read by the pattern (the stated row)"
+ },
+ {
+  "name": "D14 tail: text after the closer is accepted",
+  "file": "src/core/qmd/model.ts",
+  "from": "return at === end;\n}",
+  "to": "return at <= end;\n}",
+  "expect": "killed",
+  "why": "`<div></div>x` is no empty div to the pattern (the stated row)"
+ },
+ {
+  "name": "E01 site: the reader gate is inverted",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!rawHtml && nativeDivs && emptyNativeDivLine(line)) {",
+  "to": "if (rawHtml && nativeDivs && emptyNativeDivLine(line)) {",
+  "expect": "killed",
+  "why": "the rows of qmd-stacked-enders for `<div></div>` under -raw_html"
+ },
+ {
+  "name": "E02 site: the native divs gate is dropped",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!rawHtml && nativeDivs && emptyNativeDivLine(line)) {",
+  "to": "if (!rawHtml && emptyNativeDivLine(line)) {",
+  "expect": "killed",
+  "why": "run before the rows below existed: qmd-stacked-enders, html-line-text-equivalence and the 31 tests of the rows file all stayed green (435 tests in the three files), so it was a gap; the reader-gate rows of the rows file (`from: markdown-raw_html-native_divs` and `markdown_strict-raw_html` swallow the opener below `<div a=\"b>c\"></div>`) kill it"
+ },
+ {
+  "name": "E03 site: every line passing the gates is an empty div",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!rawHtml && nativeDivs && emptyNativeDivLine(line)) {",
+  "to": "if (!rawHtml && nativeDivs && true) {",
+  "expect": "killed",
+  "why": "`<div>x</div>` under -raw_html is not an empty div (rendered, review1/r1_002)"
+ },
+ {
+  "name": "E04 site: no line is an empty div",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!rawHtml && nativeDivs && emptyNativeDivLine(line)) {",
+  "to": "if (!rawHtml && nativeDivs && false) {",
+  "expect": "killed",
+  "why": "the slice 21 row of qmd-stacked-enders and the Session 337 rows"
+ },
+ {
+  "name": "F01 rows: the limit is 40 s",
+  "file": "test/unit/s337-empty-native-div-rows.test.ts",
+  "from": "const S337_LIMIT_MS = 4000;",
+  "to": "const S337_LIMIT_MS = 40000;",
+  "expect": "killed",
+  "why": "the guard pins [4, 4000]"
+ },
+ {
+  "name": "F02 rows: the limit is 1 ms",
+  "file": "test/unit/s337-empty-native-div-rows.test.ts",
+  "from": "const S337_LIMIT_MS = 4000;",
+  "to": "const S337_LIMIT_MS = 1;",
+  "expect": "killed",
+  "why": "every long read takes more than 1 ms"
+ },
+ {
+  "name": "F04 rows: the long run is 8,000,000 units",
+  "file": "test/unit/s337-empty-native-div-rows.test.ts",
+  "from": "const MANY = 16_800_000;",
+  "to": "const MANY = 8_000_000;",
+  "expect": "killed",
+  "why": "the guard pins the sizes: 8,000,000 is below the first throw 8,388,570 and passes the parent"
+ },
+ {
+  "name": "F06 rows: the double-quoted unit at 1,000,000",
+  "file": "test/unit/s337-empty-native-div-rows.test.ts",
+  "from": "'a=\"b\" ', 3_100_000)",
+  "to": "'a=\"b\" ', 1_000_000)",
+  "expect": "killed",
+  "why": "the guard pins the sizes: 1,000,000 is below the first throw 1,525,195"
+ },
+ {
+  "name": "F07 rows: the LISTED answer lacks 'In'",
+  "file": "test/unit/s337-empty-native-div-rows.test.ts",
+  "from": "const LISTED = [\"Before\", \"In\", \"After\"];",
+  "to": "const LISTED = [\"Before\", \"After\"];",
+  "expect": "killed",
+  "why": "the jupyter-hinted rows see the heading inside the opener"
+ },
+ {
+  "name": "F08 rows: the SWALLOWED answer holds 'In'",
+  "file": "test/unit/s337-empty-native-div-rows.test.ts",
+  "from": "const SWALLOWED = [\"Before\", \"After\"];",
+  "to": "const SWALLOWED = [\"Before\", \"In\", \"After\"];",
+  "expect": "killed",
+  "why": "the knitr-hinted and the text-after rows swallow it"
+ },
+ {
+  "name": "F09 rows: the distinct-text check is weakened",
+  "file": "test/unit/s337-empty-native-div-rows.test.ts",
+  "from": "expect(new Set(small).size).toBe(S337_ROWS.length);",
+  "to": "expect(new Set(small).size).toBeGreaterThan(0);",
+  "expect": "survives",
+  "why": "a guard for future edits: no row builds a duplicate text now, so no run can tell; looked at the 29 builders by hand, not at a duplicated pair"
+ },
+ {
+  "name": "F10 rows: the timing assertion is dropped",
+  "file": "test/unit/s337-empty-native-div-rows.test.ts",
+  "from": "expect(ms).toBeLessThan(row.limitMs ?? S337_LIMIT_MS);",
+  "to": "expect(ms).toBeGreaterThan(-1);",
+  "expect": "survives",
+  "why": "only a slow cure would show: every long read takes 0.3 to 0.5 s with the cure and the limit constant is itself pinned by the guard (F01, F02); the assertion is the only thing that applies it, argued, not exercised"
+ },
+ {
+  "name": "G01 equivalence: a miscount of the dense enumeration",
+  "file": "test/unit/empty-native-div-equivalence.test.ts",
+  "from": "alphabet: DENSE_PIECES, maxLength: 6, accepted: 756",
+  "to": "alphabet: DENSE_PIECES, maxLength: 6, accepted: 757",
+  "expect": "killed",
+  "why": "the pinned count of accepted lines"
+ },
+ {
+  "name": "G02 equivalence: the seed",
+  "file": "test/unit/empty-native-div-equivalence.test.ts",
+  "from": "const SEED = 3371;",
+  "to": "const SEED = 3372;",
+  "expect": "killed",
+  "why": "the pinned counts of the seeded lines"
+ },
+ {
+  "name": "G04 equivalence: the sweep count",
+  "file": "test/unit/empty-native-div-equivalence.test.ts",
+  "from": "const SWEEP = { compared: 14_745_600, accepted: 2_883_064 };",
+  "to": "const SWEEP = { compared: 14_745_600, accepted: 2_883_065 };",
+  "expect": "killed",
+  "why": "the pinned count of accepted lines"
+ },
+ {
+  "name": "G05 equivalence: a stated row is wrong",
+  "file": "test/unit/empty-native-div-equivalence.test.ts",
+  "from": "[\"<divé></div>\", true], // `\\b` is ASCII: a letter with an accent is no word character after `div`",
+  "to": "[\"<divé></div>\", false], // `\\b` is ASCII: a letter with an accent is no word character after `div`",
+  "expect": "killed",
+  "why": "the old pattern reads it as a div"
+ },
+ {
+  "name": "G06 equivalence: the long runs past the overflow stop at the first throw",
+  "file": "test/unit/empty-native-div-equivalence.test.ts",
+  "from": "past: [8_388_570, 17_000_000] },",
+  "to": "past: [8_388_570] },",
+  "expect": "killed",
+  "why": "the guard pins the sizes"
+ },
+ {
+  "name": "G07 equivalence: the linear-time limit",
+  "file": "test/unit/empty-native-div-equivalence.test.ts",
+  "from": "expect(Date.now() - started).toBeLessThan(3000);",
+  "to": "expect(Date.now() - started).toBeLessThan(1);",
+  "expect": "killed",
+  "why": "a 45,000,000-character line takes more than 1 ms"
+ },
+ {
+  "name": "G08 oracle: the old pattern without the flag i",
+  "file": "test/unit/support/empty-native-div-oracle.ts",
+  "from": "export const OLD_EMPTY_NATIVE_DIV = /^[ \\t]*<div\\b(?:[^>\"']|\"[^\"]*\"|'[^']*')*>[ \\t]*<\\/div>[ \\t]*$/i;",
+  "to": "export const OLD_EMPTY_NATIVE_DIV = /^[ \\t]*<div\\b(?:[^>\"']|\"[^\"]*\"|'[^']*')*>[ \\t]*<\\/div>[ \\t]*$/;",
+  "expect": "killed",
+  "why": "the pinned counts and the capital stated rows are the old pattern's"
+ },
+ {
+  "name": "G09 oracle: the old pattern without the word boundary",
+  "file": "test/unit/support/empty-native-div-oracle.ts",
+  "from": "export const OLD_EMPTY_NATIVE_DIV = /^[ \\t]*<div\\b(?:",
+  "to": "export const OLD_EMPTY_NATIVE_DIV = /^[ \\t]*<div(?:",
+  "expect": "killed",
+  "why": "`<divx></div>` is read by the pattern and the pinned counts shift"
+ },
+ {
+  "name": "G10 oracle: the definition ignores the word boundary",
+  "file": "test/unit/support/empty-native-div-oracle.ts",
+  "from": "if (isWordUnit(line[start])) {\n    return false; // `\\b` after `v`: a word character may not follow\n  }",
+  "to": "if (false) {\n    return false; // `\\b` after `v`: a word character may not follow\n  }",
+  "expect": "killed",
+  "why": "the definition and the pattern disagree on `<divx></div>`"
+ },
+ {
+  "name": "G11 oracle: a quote of the definition may close at any later quote",
+  "file": "test/unit/support/empty-native-div-oracle.ts",
+  "from": "if (line[j] === unit) {\n          reach[j + 1] = 1;\n          break;",
+  "to": "if (line[j] === unit) {\n          reach[j + 1] = 1;",
+  "expect": "killed",
+  "why": "`[^\"]*` cannot cross a quote, so a value closes at the FIRST later quote: `<div\"\"\"></div>` (six pieces of the dense enumeration) is no div to the old pattern and would be one to the definition"
+ }
+]

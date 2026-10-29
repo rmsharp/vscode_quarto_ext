@@ -175,6 +175,18 @@ describe("Session 337 — emptyNativeDivLine: the attribute block ends where `(?
     expect(definitionEmptyNativeDiv("<div " + run + "></div>x")).toBe(false);
   }, HEAVY_ROW_MS);
 
+  // The old pattern threw from 8,388,570 repetitions of `a`, 4,194,285 of ` a` and 1,525,195 of either quoted unit (bisected at `8ebce73`): the runs past the overflow must reach each of them and twice the first, and the runs
+  // below must stay under it, or the rows would pass for a reason that has nothing to do with the cure.
+  it("keeps the units and the sizes the long-run rows are built on", () => {
+    expect(UNITS.map((u) => [u.unit, u.below, u.past])).toEqual([
+      ["a", [0, 1, 2, 100, 4_096, 65_536, 1_000_000, 4_000_000], [8_388_570, 17_000_000]],
+      [" a", [1, 2, 100, 65_536, 1_000_000, 2_000_000], [4_194_285, 8_500_000]],
+      ['a="b" ', [1, 2, 100, 65_536, 700_000], [1_525_195, 3_100_000]],
+      ["a='b' ", [1, 2, 100, 65_536, 700_000], [1_525_195]],
+    ]);
+    expect([OPENINGS, PLAIN_TAILS.length]).toEqual([["<div ", "   <div ", "\t <DIV "], 8]);
+  });
+
   it("a line of 45,000,000 characters is read in linear time", () => {
     const run = "a".repeat(45_000_000);
     const started = Date.now();
