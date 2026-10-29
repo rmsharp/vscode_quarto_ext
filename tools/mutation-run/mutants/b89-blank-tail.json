@@ -232,22 +232,6 @@
   "why": "no answer changes, so cost tells it: the near-miss clock rows at 50,000 characters and the document rows at 100,000 fail (and the guard-text row, when the guard text goes)"
  },
  {
-  "name": "J01 jupyter KEY_LINE: no guard",
-  "file": "src/core/qmd/jupyter-kernel.ts",
-  "from": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
-  "to": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(.*)|)$/;",
-  "expect": "killed",
-  "why": "no answer changes, so cost tells it: the near-miss clock rows at 50,000 characters and the document rows at 100,000 fail (and the guard-text row, when the guard text goes)"
- },
- {
-  "name": "J02 jupyter KEY_LINE: the blank run is optional",
-  "file": "src/core/qmd/jupyter-kernel.ts",
-  "from": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
-  "to": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]*(?![ \\t])(.*)|)$/;",
-  "expect": "killed",
-  "why": "`k:x` starts matching: the enumeration"
- },
- {
   "name": "N01 INDENTED_LINE: no guard",
   "file": "src/core/yaml-context.ts",
   "from": "export const INDENTED_LINE = /^([ \\t]+)(?![ \\t])(.*)$/;",

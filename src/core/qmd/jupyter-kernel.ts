@@ -127,20 +127,113 @@ function flowKernelspecLanguage(kernelspec: string): string | null {
   return language === undefined ? null : languageOf(scalarOf(language));
 }
 
+/** Whether `code` is a space or a tab: the two blanks of YAML. */
+function isBlankUnit(code: number): boolean {
+  return code === 32 || code === 9;
+}
+
+/** Whether `code` is one of `[A-Za-z0-9_]`. */
+function isWordUnit(code: number): boolean {
+  return (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95;
+}
+
+/** Whether `code` ends a line for `.`: LF, CR, U+2028 or U+2029. */
+function isLineEndUnit(code: number): boolean {
+  return code === 10 || code === 13 || code === 0x2028 || code === 0x2029;
+}
+
 /**
- * `key:` at the start of a line (plain or simply quoted, no escapes), with the rest of the line captured.
+ * Where the dash prefix of `line` ends: its blanks, and then every `-` that has a blank behind it with the blanks that follow (the language `[ \t]*(?:-[ \t]+)*`, Session 337).
  *
- * ⚠ A plain key ENDS on a non-space character: `[A-Za-z0-9_. -]*[A-Za-z0-9_.-]`, not `[...]*?` followed by `[ \t]*`. The overlapping classes
- * backtracked quadratically on a long run of spaces (30,000 spaces cost about 550 ms through `findHeadings`, Session 294).
- *
- * ⚠ The blank run after the colon ends in a lookahead, `(?![ \t])` (Session 319): a CR, U+2028 or U+2029 after it makes `(.*)$` fail, and the engine retried it once per way of splitting the run
- * (6 s on 100,000). Exact, because `(.*)` may be empty and may itself start with a blank. Group 1 is unset for a colon with nothing after it and `""` for blanks only, and `leavesOpen` reads the difference.
+ * It was the pattern: V8 keeps one entry of its regex backtrack stack per repetition of a GROUP, so a front matter line of 3,355,428 or more `- ` threw `RangeError: Maximum call stack size exceeded`
+ * (bisected at `8ebce73`, a fresh process per probe, the unit `-\t` and `-  ` the same), and the error reached every reader of the document that the engine resolver calls jupyter. The loop takes what the
+ * greedy pattern took: no key starts at a blank or at a `-`, so no shorter prefix can be followed by one, and the prefix is never given back.
  */
-export const KEY_LINE = /^[ \t]*(?:-[ \t]+)*(?:"[^"\\]*"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \t]*:(?:[ \t]+(?![ \t])(.*)|)$/;
+export function dashPrefixEnd(line: string): number {
+  let at = 0;
+  while (isBlankUnit(line.charCodeAt(at))) {
+    at++;
+  }
+  while (line.charCodeAt(at) === 45 && isBlankUnit(line.charCodeAt(at + 1))) {
+    at += 2;
+    while (isBlankUnit(line.charCodeAt(at))) {
+      at++;
+    }
+  }
+  return at;
+}
+
+/** What {@link readKeyLine} found after the colon: `undefined` for a colon with nothing after it, `""` for blanks only, else the rest of the line from its first non-blank character. */
+export interface KeyLineRead {
+  value: string | undefined;
+}
+
+/**
+ * `key:` at the start of a line (plain or simply quoted, no escapes), with the rest of the line as `value`; `null` when the line is no key line. It was the pattern
+ * `^[ \t]*(?:-[ \t]+)*(?:"[^"\\]*"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \t]*:(?:[ \t]+(?![ \t])(.*)|)$` (`KEY_LINE`) until Session 337, when its dash group overflowed the regex stack; the pattern is the oracle of
+ * `test/unit/key-line-equivalence.test.ts`.
+ *
+ * ⚠ A plain key ENDS on a non-space character: the pattern wrote `[A-Za-z0-9_. -]*[A-Za-z0-9_.-]`, not `[...]*?` followed by `[ \t]*`. The overlapping classes backtracked quadratically on a long run of spaces
+ * (30,000 spaces cost about 550 ms through `findHeadings`, Session 294). Here the key is the longest run of its class and the blanks before the colon are read after it, which is the same line: the colon is in neither class.
+ *
+ * ⚠ The blank run after the colon is the WHOLE run (Session 319: the pattern ended it in the lookahead `(?![ \t])`, because a CR, U+2028 or U+2029 after it makes `(.*)$` fail and the engine retried it once per way
+ * of splitting the run, 6 s on 100,000). Exact, because the value may be empty and may itself start with a blank. `value` is `undefined` for a colon with nothing after it and `""` for blanks only,
+ * and `leavesOpen` reads the difference. The value holds no line terminator (`.` takes none), so a line with one after the colon is no key line.
+ */
+export function readKeyLine(line: string): KeyLineRead | null {
+  let at = dashPrefixEnd(line);
+  const first = line.charCodeAt(at);
+  if (first === 34) {
+    // `"[^"\\]*"`: the first `"` closes it, and a backslash before it makes the line no key line
+    at++;
+    while (at < line.length && line.charCodeAt(at) !== 34 && line.charCodeAt(at) !== 92) {
+      at++;
+    }
+    if (line.charCodeAt(at) !== 34) {
+      return null;
+    }
+    at++;
+  } else if (first === 39) {
+    const close = line.indexOf("'", at + 1);
+    if (close < 0) {
+      return null;
+    }
+    at = close + 1;
+  } else if (isWordUnit(first)) {
+    at++;
+    while (isWordUnit(line.charCodeAt(at)) || line.charCodeAt(at) === 46 || line.charCodeAt(at) === 32 || line.charCodeAt(at) === 45) {
+      at++;
+    }
+  } else {
+    return null;
+  }
+  while (isBlankUnit(line.charCodeAt(at))) {
+    at++;
+  }
+  if (line.charCodeAt(at) !== 58) {
+    return null;
+  }
+  at++;
+  if (at === line.length) {
+    return { value: undefined };
+  }
+  if (!isBlankUnit(line.charCodeAt(at))) {
+    return null;
+  }
+  while (isBlankUnit(line.charCodeAt(at))) {
+    at++;
+  }
+  for (let i = at; i < line.length; i++) {
+    if (isLineEndUnit(line.charCodeAt(i))) {
+      return null;
+    }
+  }
+  return { value: line.slice(at) };
+}
 
 /** Whether the value written on `line` opens a quoted scalar or a flow collection that the same line does not close. */
 function leavesOpen(line: string): boolean {
-  const value = (KEY_LINE.exec(line)?.[1] ?? line.replace(/^[ \t]*(?:-[ \t]+)*/, "")).trim();
+  const value = (readKeyLine(line)?.value ?? line.slice(dashPrefixEnd(line))).trim();
   let depth = 0;
   let quote: string | null = null;
   for (let i = 0; i < value.length; i++) {
@@ -178,7 +271,7 @@ function seesThrough(frontMatter: readonly string[]): boolean {
       continue;
     }
     if (indent === 0 || first) {
-      if (indent !== 0 || !KEY_LINE.test(line)) {
+      if (indent !== 0 || readKeyLine(line) === null) {
         return false;
       }
       if (JUPYTER_KEY.test(line)) {

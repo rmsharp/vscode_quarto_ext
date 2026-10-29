@@ -208,54 +208,6 @@
   "why": "ARGUED EQUIVALENT by the Session 319 review: `$` forces it to the end of the same rest"
  },
  {
-  "name": "R-JK01 jupyter KEY_LINE: the dash prefixes are capped at 4096",
-  "file": "src/core/qmd/jupyter-kernel.ts",
-  "from": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
-  "to": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+){0,4096}(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
-  "expect": "killed",
-  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no head has more than one `- `"
- },
- {
-  "name": "R-JK02 jupyter KEY_LINE: a quoted key may hold a backslash",
-  "file": "src/core/qmd/jupyter-kernel.ts",
-  "from": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
-  "to": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
-  "expect": "killed",
-  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no alphabet holds a backslash"
- },
- {
-  "name": "R-JK03 jupyter KEY_LINE: a plain key may end in a blank (the Session 294 quadratic)",
-  "file": "src/core/qmd/jupyter-kernel.ts",
-  "from": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
-  "to": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_][A-Za-z0-9_. -]*)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
-  "expect": "killed",
-  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. answers equal (a blank before the colon is taken by either run); `k` + a long run + `x` is quadratic"
- },
- {
-  "name": "R-JK04 jupyter KEY_LINE: two blank runs before the colon",
-  "file": "src/core/qmd/jupyter-kernel.ts",
-  "from": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
-  "to": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
-  "expect": "killed",
-  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. `k` + a long run + a letter is quadratic; every head has the colon"
- },
- {
-  "name": "R-JK05 jupyter KEY_LINE: the blank run before the colon is capped at 4096",
-  "file": "src/core/qmd/jupyter-kernel.ts",
-  "from": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
-  "to": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]{0,4096}:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
-  "expect": "killed",
-  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no head has more than one blank before the colon"
- },
- {
-  "name": "R-JK06 jupyter KEY_LINE: the plain key is capped at 4096",
-  "file": "src/core/qmd/jupyter-kernel.ts",
-  "from": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
-  "to": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]{0,4096}[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
-  "expect": "killed",
-  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no head is longer than 8"
- },
- {
   "name": "R-IN03 INDENTED_LINE: the rest is lazy",
   "file": "src/core/yaml-context.ts",
   "from": "export const INDENTED_LINE = /^([ \\t]+)(?![ \\t])(.*)$/;",
@@ -414,22 +366,6 @@
   "to": "export const TOP_LEVEL_ANCHOR_DECL = /^([\"']?)(?:(?<=^[\"'])[^:]*\\1[ \\t]*:|(?<!^[\"'])[^:]*:)[ \\t]*&([^\\s,\\]{}]+)[ \\t]+(?![ \\t])(.*)$/;",
   "expect": "killed",
   "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no bracket in any alphabet"
- },
- {
-  "name": "R-CX12 jupyter KEY_LINE: a single-quoted key may not hold a backslash",
-  "file": "src/core/qmd/jupyter-kernel.ts",
-  "from": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
-  "to": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^'\\\\]*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
-  "expect": "killed",
-  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no backslash in any alphabet"
- },
- {
-  "name": "R-CX13 jupyter KEY_LINE: the first plain character has no underscore",
-  "file": "src/core/qmd/jupyter-kernel.ts",
-  "from": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
-  "to": "export const KEY_LINE = /^[ \\t]*(?:-[ \\t]+)*(?:\"[^\"\\\\]*\"|'[^']*'|[A-Za-z0-9](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \\t]*:(?:[ \\t]+(?![ \\t])(.*)|)$/;",
-  "expect": "killed",
-  "why": "a survivor of the first 51 and the first tests, killed by the rows added after the Session 319 review. no underscore in any alphabet"
  },
  {
   "name": "R-CX14 BIBLIOGRAPHY_ITEM_LINE: a star is an item marker too",

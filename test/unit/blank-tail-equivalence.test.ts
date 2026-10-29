@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BIBLIOGRAPHY_ITEM_LINE } from "../../src/core/frontmatter";
 import { cutHashComment } from "../../src/core/hash-comment";
 import { SEQUENCE_ITEM_LINE } from "../../src/core/preview-format";
-import { KEY_LINE } from "../../src/core/qmd/jupyter-kernel";
+import { readKeyLine } from "../../src/core/qmd/jupyter-kernel";
 import { INDENTED_LINE } from "../../src/core/yaml-context";
 import { isWrongValue } from "../../src/core/yaml-value-check";
 import {
@@ -85,8 +85,20 @@ const sevenHashes = (n: number): string[] => ["#######", "####### x", "#######x"
  */
 const asPattern = (accepts: (line: string) => boolean): RegExp =>
   ({ exec: (text: string) => (accepts(text) ? Object.assign([text], { index: 0, input: text }) : null), test: accepts }) as unknown as RegExp;
+/**
+ * `readKeyLine` answers `exec` as `KEY_LINE` did (Session 337): the whole line as the match and the text after the colon as group 1 (unset for a colon with nothing after it, `""` for blanks only). The pattern's dash
+ * group overflowed V8's regex stack on a line of 3,355,428 or more `- `; `key-line-equivalence.test.ts` compares the function with the pattern as it stood, and the enumerations here still run it.
+ */
+const asKeyLinePattern = (): RegExp =>
+  ({
+    exec: (text: string) => {
+      const read = readKeyLine(text);
+      return read === null ? null : Object.assign([text, read.value], { index: 0, input: text });
+    },
+    test: (text: string) => readKeyLine(text) !== null,
+  }) as unknown as RegExp;
 /** The sites whose `now` is a function, so it has no source to hold a guard. */
-const FUNCTION_SITES: ReadonlySet<string> = new Set(["PIPE_DELIMITER_ROW", "TABLE_RULE_ROW"]);
+const FUNCTION_SITES: ReadonlySet<string> = new Set(["PIPE_DELIMITER_ROW", "TABLE_RULE_ROW", "JUPYTER_KEY_LINE"]);
 
 // ⚠ APPEND a new site at the END: each site's seeded sample is seeded with 319 plus its position here, so an entry put in the middle moves every later site's seed and its pinned `seeded` count
 // (Session 320 put TABLE_RULE_ROW mid-table first and five later sites failed their seeded rows).
@@ -125,7 +137,7 @@ const SITES: Record<string, Site> = {
   SEQUENCE_ITEM_LINE: { old: /^-[ \t]+(.*)$/, now: SEQUENCE_ITEM_LINE, guard: "(?![ \\t])", marks: ["-"], foils: ["*", "+"], heads: ["-"], blanks: [" ", "\t"], indents: [], shortLength: 7 },
   JUPYTER_KEY_LINE: {
     old: /^[ \t]*(?:-[ \t]+)*(?:"[^"\\]*"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \t]*:(?:[ \t]+(.*)|)$/,
-    now: KEY_LINE,
+    now: asKeyLinePattern(),
     guard: "(?![ \\t])",
     marks: ["k", ":", "-", '"', "'"],
     heads: ["k:", "- k:", '"k":', "'k':", "a b:", "k.1 :"],

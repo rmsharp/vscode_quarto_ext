@@ -25,8 +25,11 @@ import { indexLabels } from "../../src/core/refs";
 // a refused line makes the kernel unknown and that heading is swallowed by the opener (Session 294). So a cure that refuses a line the pattern accepted, or accepts one it refused, changes these answers.
 
 const FEW = 4;
-/** 4 s: the post-cure read of these texts is a linear pass (the parent reads the same document with no hint in about 100 ms at 7,000,000 repetitions); the limit is not a measure of the cure, it tells linear from quadratic. */
-const LIMIT_MS = 4000;
+/**
+ * 6 s, chosen from the cured reads of these texts (13.6 million characters, a fresh process each, machine load about 10): `findHeadings` 0.24 to 0.37 s, the Outline 0.30 s and once 1.08 s (the worst of a dozen), the same document
+ * read with no hint 0.19 to 0.25 s. A limit is at least five times the worst, and a reading of this line that is quadratic in its length takes minutes, so it still tells the two apart.
+ */
+const LIMIT_MS = 6000;
 const MANY = 6_800_000;
 
 const timed = <T>(run: () => T): { result: T; ms: number } => {
@@ -126,7 +129,7 @@ describe("Session 337 -- a front matter line of millions of dashes that the jupy
 
   // The parent THROWS from 3,355,428 repetitions, so no limit passes it there; a run below that, or a unit that is not the throwing one, would pass on it, and a limit of minutes would pass a quadratic cure.
   it("keeps the sizes, the limit and the units the Session 337 rows are built on", () => {
-    expect([FEW, LIMIT_MS, MANY]).toEqual([4, 4000, 6_800_000]);
+    expect([FEW, LIMIT_MS, MANY]).toEqual([4, 6000, 6_800_000]);
     expect(MANY).toBeGreaterThanOrEqual(2 * 3_355_428);
     expect(ROWS.length).toBe(24);
     expect(ROWS.map((row) => `${JSON.stringify(row.unit)}x${row.many}`)).toEqual([
