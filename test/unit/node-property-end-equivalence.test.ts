@@ -7,7 +7,7 @@ const HEAVY_ROW_MS = 120_000;
 
 // Session 335 — the BACKLOG item "Nine more single-line overflow and slow-input families, none of them in Session 317's diff", part (6). The text after the node properties (`&anchor`, `!tag`) of a YAML value was
 // found with `armToken.replace(/^(?:[&!][^\s,[\]{}]*[ \t]*)+/, "")` at four sites (the cell option reader in `qmd/model.ts`, the two front matter enumerators, the project file reader), and V8 keeps one entry of its
-// regex backtrack stack per repetition of a group: a value of 2,097,487 or more properties threw `RangeError: Maximum call stack size exceeded` (bisected at `c06ee06`), and the error reached every reader of the
+// regex backtrack stack per repetition of a group: a value of 2,097,144 or more properties threw `RangeError: Maximum call stack size exceeded` (bisected at `c06ee06`), and the error reached every reader of the
 // document. `nodePropertyEnd` is the same question read by a loop. The old pattern is kept below, copied from the parent `c06ee06`, as the oracle (Learning 738), beside a reading by definition that uses no regex;
 // the pinned counts come from the old pattern and from a Python port of it (with `\s` spelled out as ECMAScript's set, which Python's is not) and never from the code under test.
 
@@ -154,9 +154,9 @@ describe("Session 335 — nodePropertyEnd: the loop finds the end of the node pr
     expect(token.slice(nodePropertyEnd(token))).toBe(oldStrip(token));
   });
 
-  // The cure itself: a value past the old overflow (2,097,487 properties) is read. The old pattern is compared only below that, where it still reads.
+  // The cure itself: a value past the old overflow (2,097,144 properties) is read. The old pattern is compared only below that, where it still reads.
   const SMALL_RUNS = [1, 2, 3, 100, 4_096, 65_536, 1_000_000, 2_000_000];
-  const LONG_RUNS = [2_097_487, 2_100_000, 4_200_000, 45_000_000];
+  const LONG_RUNS = [2_097_144, 2_100_000, 4_200_000, 45_000_000];
   it.each(SMALL_RUNS)("a value of %i properties `&a ` and of `!t ` ends where the old pattern did, with and without a tail", (n) => {
     for (const unit of ["&a ", "!t "]) {
       for (const tail of ["", "x", "[one,", "{", "'", "&", "  y"]) {
@@ -181,5 +181,21 @@ describe("Session 335 — nodePropertyEnd: the loop finds the end of the node pr
     const started = Date.now();
     expect(nodePropertyEnd(token)).toBe(token.length);
     expect(Date.now() - started).toBeLessThan(3000);
+  });
+});
+
+// The review round of Session 335 (its mutation lens): a property followed by more than 4,096 blanks and then a flow opener survived every row above (the cell option reader then sees the opener, `&a` and 5,000 blanks
+// and `[one,`, and the option's continuation line is not an option line of its own). The old pattern reads a plain class there, so it still answers at every size and is compared.
+describe("Session 335 review — a property followed by a long run of blanks", () => {
+  it.each([4_097, 5_000, 70_000, 4_300_000])("%i blanks after a property end where the old pattern did, whatever follows", (n) => {
+    for (const blank of [" ", "\t"]) {
+      for (const tail of ["", "[x", "{", "'a", "x", "&b", "!t " + blank.repeat(3) + "y", "," + blank]) {
+        const token = "&a" + blank.repeat(n) + tail;
+        expect(nodePropertyEnd(token)).toBe(oldEnd(token));
+        expect(nodePropertyEnd(token)).toBe(definitionEnd(token));
+      }
+    }
+    expect(nodePropertyEnd("&a" + " ".repeat(n) + "[x")).toBe(2 + n);
+    expect(nodePropertyEnd("!t" + " ".repeat(n) + "&b" + " ".repeat(n) + "{")).toBe(2 + n + 2 + n);
   });
 });

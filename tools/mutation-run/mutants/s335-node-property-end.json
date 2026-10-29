@@ -278,5 +278,21 @@
   "to": "      const opener = armToken[0];",
   "expect": "killed",
   "why": "an anchored flow opener would not arm"
+ },
+ {
+  "name": "RV01 NP13 nodePropertyEnd: blanks of at most 4096 after a property",
+  "file": "src/core/qmd/model.ts",
+  "from": "    while (token.charCodeAt(at) === 32 || token.charCodeAt(at) === 9) {\n      at++;\n    }\n  }\n}",
+  "to": "    for (const limit = at + 4096; at < limit && (token.charCodeAt(at) === 32 || token.charCodeAt(at) === 9); ) {\n      at++;\n    }\n  }\n}",
+  "expect": "killed",
+  "why": "found by the review round of Session 335 (its mutation lens): it survived the first round's rows and is killed by the rows added after it"
+ },
+ {
+  "name": "RV02 NP32 isSpaceCode: 33 is white space",
+  "file": "src/core/qmd/model.ts",
+  "from": "boolean =>\n  c === 32 ||",
+  "to": "boolean =>\n  (c >= 32 && c <= 33) ||",
+  "expect": "survives",
+  "why": "found by the review round of Session 335 (its mutation lens): isSpaceCode is shared with the table reader, and this edit is the one the table list calls ISP32, killed there by blank-tail-equivalence.test.ts. Among the node properties it is equivalent: a ! after a property name starts another property that ends at the same index"
  }
 ]
