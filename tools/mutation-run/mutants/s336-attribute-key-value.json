@@ -1,0 +1,450 @@
+[
+ {
+  "name": "K01 attributeKeyValue: `A` does not start a key",
+  "file": "src/core/qmd/model.ts",
+  "from": "const first = token.charCodeAt(0);\n  if (!((first >= 65 && first <= 90) || (first >= 97 && first <= 122))) {\n    return false;\n  }\n  let at = 1;",
+  "to": "const first = token.charCodeAt(0);\n  if (!((first > 65 && first <= 90) || (first >= 97 && first <= 122))) {\n    return false;\n  }\n  let at = 1;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "K02 attributeKeyValue: `Z` does not start a key",
+  "file": "src/core/qmd/model.ts",
+  "from": "const first = token.charCodeAt(0);\n  if (!((first >= 65 && first <= 90) || (first >= 97 && first <= 122))) {\n    return false;\n  }\n  let at = 1;",
+  "to": "const first = token.charCodeAt(0);\n  if (!((first >= 65 && first < 90) || (first >= 97 && first <= 122))) {\n    return false;\n  }\n  let at = 1;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "K03 attributeKeyValue: `a` does not start a key",
+  "file": "src/core/qmd/model.ts",
+  "from": "const first = token.charCodeAt(0);\n  if (!((first >= 65 && first <= 90) || (first >= 97 && first <= 122))) {\n    return false;\n  }\n  let at = 1;",
+  "to": "const first = token.charCodeAt(0);\n  if (!((first >= 65 && first <= 90) || (first > 97 && first <= 122))) {\n    return false;\n  }\n  let at = 1;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "K04 attributeKeyValue: `z` does not start a key",
+  "file": "src/core/qmd/model.ts",
+  "from": "const first = token.charCodeAt(0);\n  if (!((first >= 65 && first <= 90) || (first >= 97 && first <= 122))) {\n    return false;\n  }\n  let at = 1;",
+  "to": "const first = token.charCodeAt(0);\n  if (!((first >= 65 && first <= 90) || (first >= 97 && first < 122))) {\n    return false;\n  }\n  let at = 1;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "K05 attributeKeyValue: `@` starts a key",
+  "file": "src/core/qmd/model.ts",
+  "from": "const first = token.charCodeAt(0);\n  if (!((first >= 65 && first <= 90) || (first >= 97 && first <= 122))) {\n    return false;\n  }\n  let at = 1;",
+  "to": "const first = token.charCodeAt(0);\n  if (!((first >= 64 && first <= 90) || (first >= 97 && first <= 122))) {\n    return false;\n  }\n  let at = 1;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "K06 attributeKeyValue: `[` starts a key",
+  "file": "src/core/qmd/model.ts",
+  "from": "const first = token.charCodeAt(0);\n  if (!((first >= 65 && first <= 90) || (first >= 97 && first <= 122))) {\n    return false;\n  }\n  let at = 1;",
+  "to": "const first = token.charCodeAt(0);\n  if (!((first >= 65 && first <= 91) || (first >= 97 && first <= 122))) {\n    return false;\n  }\n  let at = 1;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "K07 attributeKeyValue: a backtick starts a key",
+  "file": "src/core/qmd/model.ts",
+  "from": "const first = token.charCodeAt(0);\n  if (!((first >= 65 && first <= 90) || (first >= 97 && first <= 122))) {\n    return false;\n  }\n  let at = 1;",
+  "to": "const first = token.charCodeAt(0);\n  if (!((first >= 65 && first <= 90) || (first >= 96 && first <= 122))) {\n    return false;\n  }\n  let at = 1;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "K08 attributeKeyValue: `{` starts a key",
+  "file": "src/core/qmd/model.ts",
+  "from": "const first = token.charCodeAt(0);\n  if (!((first >= 65 && first <= 90) || (first >= 97 && first <= 122))) {\n    return false;\n  }\n  let at = 1;",
+  "to": "const first = token.charCodeAt(0);\n  if (!((first >= 65 && first <= 90) || (first >= 97 && first <= 123))) {\n    return false;\n  }\n  let at = 1;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "K09 attributeKeyValue: the two letter ranges are joined with `&&`",
+  "file": "src/core/qmd/model.ts",
+  "from": "const first = token.charCodeAt(0);\n  if (!((first >= 65 && first <= 90) || (first >= 97 && first <= 122))) {\n    return false;\n  }\n  let at = 1;",
+  "to": "const first = token.charCodeAt(0);\n  if (!((first >= 65 && first <= 90) && (first >= 97 && first <= 122))) {\n    return false;\n  }\n  let at = 1;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "K10 attributeKeyValue: the first character is not tested",
+  "file": "src/core/qmd/model.ts",
+  "from": "const first = token.charCodeAt(0);\n  if (!((first >= 65 && first <= 90) || (first >= 97 && first <= 122))) {\n    return false;\n  }\n  let at = 1;",
+  "to": "const first = token.charCodeAt(0);\n  if (false) {\n    return false;\n  }\n  let at = 1;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "K11 attributeKeyValue: the key is scanned from the first character",
+  "file": "src/core/qmd/model.ts",
+  "from": "const first = token.charCodeAt(0);\n  if (!((first >= 65 && first <= 90) || (first >= 97 && first <= 122))) {\n    return false;\n  }\n  let at = 1;",
+  "to": "const first = token.charCodeAt(0);\n  if (!((first >= 65 && first <= 90) || (first >= 97 && first <= 122))) {\n    return false;\n  }\n  let at = 0;",
+  "expect": "survives",
+  "why": "equivalent: the first character is a letter, which is not a key stop, so scanning from 0 skips it just as starting at 1 does"
+ },
+ {
+  "name": "K12 attributeKeyValue: the key is scanned from the third character",
+  "file": "src/core/qmd/model.ts",
+  "from": "const first = token.charCodeAt(0);\n  if (!((first >= 65 && first <= 90) || (first >= 97 && first <= 122))) {\n    return false;\n  }\n  let at = 1;",
+  "to": "const first = token.charCodeAt(0);\n  if (!((first >= 65 && first <= 90) || (first >= 97 && first <= 122))) {\n    return false;\n  }\n  let at = 2;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "K13 attributeKeyValue: a key must NOT end at `=`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (token.charCodeAt(at) !== 61) {\n    return false;\n  }\n  const value = at + 1;",
+  "to": "  if (token.charCodeAt(at) === 61) {\n    return false;\n  }\n  const value = at + 1;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "K14 attributeKeyValue: the key ends at `<`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (token.charCodeAt(at) !== 61) {\n    return false;\n  }\n  const value = at + 1;",
+  "to": "  if (token.charCodeAt(at) !== 60) {\n    return false;\n  }\n  const value = at + 1;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "K15 attributeKeyValue: the key ends at `>`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (token.charCodeAt(at) !== 61) {\n    return false;\n  }\n  const value = at + 1;",
+  "to": "  if (token.charCodeAt(at) !== 62) {\n    return false;\n  }\n  const value = at + 1;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "K16 attributeKeyValue: the value starts at the `=`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (token.charCodeAt(at) !== 61) {\n    return false;\n  }\n  const value = at + 1;",
+  "to": "  if (token.charCodeAt(at) !== 61) {\n    return false;\n  }\n  const value = at;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "K17 attributeKeyValue: the value starts two past the `=`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (token.charCodeAt(at) !== 61) {\n    return false;\n  }\n  const value = at + 1;",
+  "to": "  if (token.charCodeAt(at) !== 61) {\n    return false;\n  }\n  const value = at + 2;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "Q01 attributeKeyValue: a double quote does not open a quoted value",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {\n    return true;\n  }",
+  "to": "  if ((quote === 33 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {\n    return true;\n  }",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "Q02 attributeKeyValue: a single quote does not open a quoted value",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {\n    return true;\n  }",
+  "to": "  if ((quote === 34 || quote === 38) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {\n    return true;\n  }",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "Q03 attributeKeyValue: a backtick opens a quoted value",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {\n    return true;\n  }",
+  "to": "  if ((quote === 34 || quote === 39 || quote === 96) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {\n    return true;\n  }",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "Q04 attributeKeyValue: a quoted value of one character",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {\n    return true;\n  }",
+  "to": "  if ((quote === 34 || quote === 39) && last >= value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {\n    return true;\n  }",
+  "expect": "survives",
+  "why": "equivalent: for a lone quote last equals value, the first quote after it is not found (-1), the condition fails and the bare loop accepts the quote, which is the answer the strict test gave"
+ },
+ {
+  "name": "Q05 attributeKeyValue: the last character is not compared with the opening quote",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {\n    return true;\n  }",
+  "to": "  if ((quote === 34 || quote === 39) && last > value && token.indexOf(token[value], value + 1) === last) {\n    return true;\n  }",
+  "expect": "survives",
+  "why": "equivalent: indexOf returning last means the character at last IS that quote, so the comparison repeats what the search proved"
+ },
+ {
+  "name": "Q06 attributeKeyValue: the closing quote is searched from the opening one",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {\n    return true;\n  }",
+  "to": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value) === last) {\n    return true;\n  }",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "Q07 attributeKeyValue: the closing quote is searched from two past the opening one",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {\n    return true;\n  }",
+  "to": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 2) === last) {\n    return true;\n  }",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "Q08 attributeKeyValue: any quote after the opening one will do",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {\n    return true;\n  }",
+  "to": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) >= value) {\n    return true;\n  }",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "Q09 attributeKeyValue: the first quote found must be at or before the last character",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {\n    return true;\n  }",
+  "to": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) <= last) {\n    return true;\n  }",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "Q10 attributeKeyValue: the other kind of quote is searched",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {\n    return true;\n  }",
+  "to": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(quote === 34 ? \"'\" : '\"', value + 1) === last) {\n    return true;\n  }",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "L01 attributeKeyValue: the first character of the value is not read",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",
+  "to": "  for (let i = value + 1; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "L02 attributeKeyValue: the last character of the value is not read",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",
+  "to": "  for (let i = value; i < last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "L03 attributeKeyValue: the value is read from the `=`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",
+  "to": "  for (let i = value - 1; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",
+  "expect": "survives",
+  "why": "equivalent: the character before the value is the `=`, which is neither `}` nor white space"
+ },
+ {
+  "name": "L04 attributeKeyValue: `}` is `~`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",
+  "to": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 126 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "L05 attributeKeyValue: `}` is `|`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",
+  "to": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 124 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "L06 attributeKeyValue: `}` is allowed",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",
+  "to": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if ((isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "L07 attributeKeyValue: white space is allowed",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",
+  "to": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || false) {\n      return false;\n    }\n  }\n  return true;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "L08 attributeKeyValue: a space is allowed after anything",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",
+  "to": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && c !== 32)) {\n      return false;\n    }\n  }\n  return true;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "L09 attributeKeyValue: a tab is allowed after a backslash",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",
+  "to": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !((c === 32 || c === 9) && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "L10 attributeKeyValue: a no-break space is allowed after a backslash",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",
+  "to": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !((c === 32 || c === 160) && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "L11 attributeKeyValue: a space is allowed after a slash",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",
+  "to": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 47))) {\n      return false;\n    }\n  }\n  return true;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "L12 attributeKeyValue: a space is allowed after the character before the backslash",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",
+  "to": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 93))) {\n      return false;\n    }\n  }\n  return true;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "L13 attributeKeyValue: the backslash before a space is read at the space",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",
+  "to": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i) === 92))) {\n      return false;\n    }\n  }\n  return true;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "L14 attributeKeyValue: a space is allowed after a backslash or at the start of the value",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",
+  "to": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && (i === value || token.charCodeAt(i - 1) === 92)))) {\n      return false;\n    }\n  }\n  return true;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "L15 attributeKeyValue: every white space but a space ends the value (a space needs no backslash)",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",
+  "to": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && c !== 32)) {\n      return false;\n    }\n  }\n  return true;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "L16 attributeKeyValue: the loop returns false at the end",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",
+  "to": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return false;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "S01 isAttributeKeyStop: white space does not end a key",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61;",
+  "to": "const isAttributeKeyStop = (c: number): boolean => c === 125 || c === 35 || c === 92 || c === 61;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "S02 isAttributeKeyStop: `}` does not end a key",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61;",
+  "to": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 35 || c === 92 || c === 61;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "S03 isAttributeKeyStop: `#` does not end a key",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61;",
+  "to": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 92 || c === 61;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "S04 isAttributeKeyStop: a backslash does not end a key",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61;",
+  "to": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 61;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "S05 isAttributeKeyStop: `=` does not end a key",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61;",
+  "to": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "S06 isAttributeKeyStop: `~` ends a key",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61;",
+  "to": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 126 || c === 35 || c === 92 || c === 61;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "S07 isAttributeKeyStop: `|` ends a key",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61;",
+  "to": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 124 || c === 35 || c === 92 || c === 61;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "S08 isAttributeKeyStop: `\"` ends a key",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61;",
+  "to": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61 || c === 34;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "S09 isAttributeKeyStop: a hyphen ends a key",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61;",
+  "to": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61 || c === 45;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "S10 isAttributeKeyStop: `$` instead of `#`",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61;",
+  "to": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 36 || c === 92 || c === 61;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "S11 isAttributeKeyStop: `\"` instead of `#`",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61;",
+  "to": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 34 || c === 92 || c === 61;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "S12 isAttributeKeyStop: `]` instead of a backslash",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61;",
+  "to": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 93 || c === 61;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "S13 isAttributeKeyStop: `<` instead of `=`",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61;",
+  "to": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 60;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ }
+]

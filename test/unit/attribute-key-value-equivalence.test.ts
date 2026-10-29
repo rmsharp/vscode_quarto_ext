@@ -146,6 +146,16 @@ const STATED: Array<[string, boolean]> = [
   ["a=b" + LS, false],
   ['a=b "c"', false],
   ["a=\\ b\\ c\\ ", true],
+  // only the two quotes open a quoted value: another bracket or quote-like character opens nothing, so a blank inside is a blank in a bare value (Session 336 review of the mutation list: a backtick as a third quote survived every row)
+  ["a=`b c`", false],
+  ["a=`b`", true],
+  ["a=`", true],
+  ["a=(b c)", false],
+  ["a=[b c]", false],
+  ["a=<b c>", false],
+  ["a=*b c*", false],
+  ["a=~b c~", false],
+  ["a=_b c_", false],
 ];
 
 describe("Session 336 — attributeKeyValue: the loop accepts a `key=value` token where `^[A-Za-z][^\\s}#\\\\=]*=(?:\"[^\"]*\"|'[^']*'|(?:\\\\ |[^\\s}])*)$` did", () => {
