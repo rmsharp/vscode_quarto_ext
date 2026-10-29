@@ -313,32 +313,3 @@ more shapes", the S317 stack overflows (4) to (9), the S322 item's part (1), the
 **TDD:** RED before GREEN for the clock rows (`8cbb2d2` before the cures) and for each oracle's seam (the import was not a function: `855e0e0`, `11102a0`, `5917d42`, `6c1417e`); every later row is mutant-RED.
 **Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** 73 agents in 1 workflow (8,213,265 subagent tokens; 2,085 tool calls; 3.6 hours), 232 runner mutants of mine in nine lists (95 + 137, with re-runs), a 216-million-string scratch
 differential, 20 quarto renders (three at a time, `--no-execute`), the machine at load 5 to 250 from other projects and the workflow.
-
-## Session 332 Handoff Evaluation (by Session 333)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers (at HEAD `03f9696`, gap 0), no `pending` receipt, the ratchet citation (2/2, results `bba236856bad`, at `8efa6ac`) and the real-document score
-(2423 of 2438, re-measured at close-out) held, and the picker the plan ranked was accurate: candidate (a) was the S318 item's part (1), placed by finishing a feature, and the item's figures held (`+` + dashes + ` -` 374 / 1,507 ms at 10,000 / 20,000
-against the item's 354 / 1,394).
-**Helped:** gotcha 2 (the harness is gone: rebuild it from tracked files with the three commands) took five minutes and worked; gotcha 3 (quoted heredocs, bash for loops) kept me out of the stray-file trap; gotcha 4 (the runner tests the COMMITTED source)
-held; gotcha 5 (the pins are incomplete) was true a nineteenth time; Learnings 840 and 739 made me time the literal shape and profile before reading the cure; gotcha 6 named the clock rows that flake, and two did under the review's load.
-**Missing:** nothing that cost time except the `master` count: the handoff said 37 commits ahead and Orient measured 42 (three commits were made after the count was written, and two were not in it). **Wrong:** nothing else I checked. **ROI: high.**
-
-## Session 333 Self-Assessment
-
-**Score: 7/10.**
-**Went right.** I timed the item's shape in fresh processes at HEAD before reading code (it held), profiled before reading the cure, and showed the clock rows RED first (16, on the clock alone, answers already right). The old spelling is the oracle in a test of its
-own, with four enumerations (4,819,915 strings, counts recounted by a Python port of the definition), a reading by definition with no regex, a scratch run of 47,079,208 strings and wrong cures the comparator must see. The runner found two incomplete pins of mine
-(G01 killed only by its 600 s timeout, C04 alive at 599 ms) and I fixed both. The five-lens review found 0 semantic differences and I reproduced every claim I acted on with my own builders before changing a file (the ungated tail beside a border, the long
-line at the third site by a counting bundle, the S03 and S04 row counts, the 346,476 control, the two document-level differences for R06 and R07), and I filed what I did not fix instead of dropping it.
-**Went wrong.** (1) Three records, a Learning and a test comment said an `x` tail never reaches the pattern and the third call site never sees a long line; both were claims about my probes (about 100 documents, none with the third site's trigger, and no `x` tail
-beside a border), and the review corrected them. (2) My pins were incomplete a NINETEENTH time: 12 of the review's 15 new mutants were alive on my rows (a `+` star after the class star and a tab star after the blank star, which I should have found by listing every
-adjacent pair of stars; the old spelling at the third site alone; a class widened to `|`, a form feed or a no-break space; repetition caps), and my alphabet had none of those characters. (3) Twelve statements were wrong or too wide (the 5,094 control attached to the
-wrong run in four places, G21's note, S03 and S04 "4 rows" against 17 and 14, the 18% of the wrong denominator, "a 30,000-space control" that was a never-committed draft, "both against a reading by definition", the 2 ms and 6 ms figures on different bases); I had also
-drafted "about 590 ms" before I measured 599. (4) The cure reads an accepted run twice (1.9x the old spelling on a long accepted line) and a one-pass spelling exists; I did not find it, did not adopt it once the review did (microseconds a call; the mutants naming the lookahead
-would be rewritten) and filed it. (5) TDD deviations, disclosed: the oracle file, the added controls, the C04 and G01 fixes and the review round's rows all pass on arrival; their RED is a mutant (12 of 15 alive on the tests as committed, 14 killed after, run with the
-runner). (6) The machine ran at a load of 3 to 20 from other projects, and 15 to 240 during the review lenses, so I re-ran every cited timing at 6 to 10.
-**Known residuals (filed or stated):** the Up Next item "Six more shapes found by Session 333's review round"; the S318 item's parts (4) to (7); the S311 item's parts (4), (10), (11); the `isAttributeBlock` prefix item; the S322 item's part (1); the S317 stack
-overflows (4) to (9); `test:integration` NOT run.
-**TDD:** RED before GREEN for the clock rows (`4f4560b` before `a429813`) and for the oracle's seam (import undefined, `2fcd716`); every later row is mutant-RED.
-**Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** 42 agents in 1 workflow (4,692,545 subagent tokens; 1,258 tool calls; 2.1 hours), about 150 runner mutants of mine (36 + 4 + 2 + 15 + 11, with re-runs), a 47-million-string scratch
-enumeration, 0 quarto renders (the oracle ran warm).
