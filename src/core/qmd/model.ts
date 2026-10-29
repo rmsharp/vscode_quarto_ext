@@ -5011,7 +5011,22 @@ function calloutClassIndex(attrs: string): number {
  * false and `atxHeadingMatch` sees the ordinary `[0, ...contentColumns]`.
  */
 const BLOCK_QUOTE_INDENT = /^[ \t]*/;
-const BLOCK_QUOTE_MARKERS = /^(?:>[ ]?)+/;
+/**
+ * Where the run of block-quote markers that starts at `start` in `text` ends, or `start` itself when none does: each marker is a `>` and at most ONE space after it, so `>> >  x` ends after `>> > ` and `> >` after
+ * the second `>` (Session 335). It was the pattern `^(?:>[ ]?)+`, a quantified group, and V8 keeps one entry of its regex backtrack stack per repetition of a group: a line of 8,388,781 or more `>` threw
+ * `RangeError: Maximum call stack size exceeded` (bisected at `c06ee06`), and the error reached every reader of the document. No flat spelling accepts the same strings (`>[>]*` takes two blanks in a row), so
+ * this is a loop; `block-quote-markers-equivalence.test.ts` keeps the pattern as the oracle.
+ */
+export function blockQuoteMarkerRunEnd(text: string, start: number): number {
+  let end = start;
+  while (text.charCodeAt(end) === 62) {
+    end++;
+    if (text.charCodeAt(end) === 32) {
+      end++;
+    }
+  }
+  return end;
+}
 /**
  * The whole marker run `line` opens a block quote with, or `null` when it opens none — the ONE
  * definition of "is this a block-quote marker HERE", read by every row that used to spell it as
@@ -5024,8 +5039,8 @@ function blockQuotePrefix(line: string, columns: readonly number[] | null): stri
   if (columnIsCodeDepth(indentColumn(line), columns)) {
     return null;
   }
-  const m = BLOCK_QUOTE_MARKERS.exec(line.slice(indent.length));
-  return m === null ? null : indent + m[0];
+  const end = blockQuoteMarkerRunEnd(line, indent.length);
+  return end === indent.length ? null : line.slice(0, end);
 }
 /**
  * The offset at which a block quote's own content begins on `line`, or `null` when the line
