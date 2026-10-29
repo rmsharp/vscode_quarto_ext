@@ -1,0 +1,82 @@
+[
+ {
+  "name": "W01 the scan of body lines: no line is a whole-line comment",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (commentFullLine(line)) {\n      consecutiveBody = 0;",
+  "to": "    if (false) {\n      consecutiveBody = 0;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "W02 the scan of body lines: every line is a whole-line comment",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (commentFullLine(line)) {\n      consecutiveBody = 0;",
+  "to": "    if (true) {\n      consecutiveBody = 0;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "W03 the scan of body lines: only a column-0 comment is skipped",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (commentFullLine(line)) {\n      consecutiveBody = 0;",
+  "to": "    if (commentFullLineCol0(line)) {\n      consecutiveBody = 0;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "W04 a fresh comment ends a block: the indented full-line rule",
+  "file": "src/core/qmd/model.ts",
+  "from": "return b.readers.rawHtml && commentFullLineCol0(b.lines[x]) && startsAtBoundary(b, x);",
+  "to": "return b.readers.rawHtml && commentFullLine(b.lines[x]) && startsAtBoundary(b, x);",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "W05 a fresh comment ends a block: never",
+  "file": "src/core/qmd/model.ts",
+  "from": "return b.readers.rawHtml && commentFullLineCol0(b.lines[x]) && startsAtBoundary(b, x);",
+  "to": "return b.readers.rawHtml && false && startsAtBoundary(b, x);",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "W06 a fresh comment ends a block: without the boundary test",
+  "file": "src/core/qmd/model.ts",
+  "from": "return b.readers.rawHtml && commentFullLineCol0(b.lines[x]) && startsAtBoundary(b, x);",
+  "to": "return b.readers.rawHtml && commentFullLineCol0(b.lines[x]);",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "W07 the simple table header list: the whole-line comment entry is gone",
+  "file": "src/core/qmd/model.ts",
+  "from": "  { test: commentFullLine },\n  COMMENT_OPEN,\n];",
+  "to": "  COMMENT_OPEN,\n];",
+  "expect": "survives",
+  "why": "equivalent: every line commentFullLine accepts starts with blanks and `<!--`, which COMMENT_OPEN, the next entry of the same list, accepts, so the entry never decides; it was in the pattern list before this session (as COMMENT_FULL_LINE) and is kept, not removed, to leave the list as it was"
+ },
+ {
+  "name": "W08 the simple table header list: the entry asks the column-0 rule",
+  "file": "src/core/qmd/model.ts",
+  "from": "  { test: commentFullLine },\n  COMMENT_OPEN,\n];",
+  "to": "  { test: commentFullLineCol0 },\n  COMMENT_OPEN,\n];",
+  "expect": "survives",
+  "why": "equivalent: COMMENT_OPEN, the next entry, accepts every line either function accepts (see W07), so which of the two the entry asks is never seen"
+ },
+ {
+  "name": "W09 provableProse: a comment with text after it is not prose",
+  "file": "src/core/qmd/model.ts",
+  "from": "    commentThenText(line)\n",
+  "to": "    false\n",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "W10 provableProse: any whole-line comment is prose",
+  "file": "src/core/qmd/model.ts",
+  "from": "    commentThenText(line)\n",
+  "to": "    commentFullLine(line)\n",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ }
+]

@@ -1,0 +1,34 @@
+[
+ {
+  "name": "V01 headingAttributesValid: a key=value token is never valid",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return tokens.every((t) => ATTR_ATOM_RUN.test(t) || attributeKeyValue(t));",
+  "to": "  return tokens.every((t) => ATTR_ATOM_RUN.test(t) || false);",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "V02 headingAttributesValid: a key=value token is always valid",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return tokens.every((t) => ATTR_ATOM_RUN.test(t) || attributeKeyValue(t));",
+  "to": "  return tokens.every((t) => ATTR_ATOM_RUN.test(t) || true);",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "V03 headingAttributesValid: the CommonMark key=value test is asked (the dialect-blind spelling)",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return tokens.every((t) => ATTR_ATOM_RUN.test(t) || attributeKeyValue(t));",
+  "to": "  return tokens.every((t) => ATTR_ATOM_RUN.test(t) || ATTR_KEY_VALUE_COMMONMARK.test(t));",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ },
+ {
+  "name": "V04 headingAttributesValid: an atom run is never valid",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return tokens.every((t) => ATTR_ATOM_RUN.test(t) || attributeKeyValue(t));",
+  "to": "  return tokens.every((t) => false || attributeKeyValue(t));",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file must notice"
+ }
+]
