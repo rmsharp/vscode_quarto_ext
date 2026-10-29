@@ -1,0 +1,58 @@
+[
+ {
+  "name": "G1 computeRegions: the type-7 tag line is asked with its end trimmed",
+  "file": "src/core/qmd/model.ts",
+  "from": "(!paragraphOpen && commonmarkTagLine(line))",
+  "to": "(!paragraphOpen && commonmarkTagLine(line.trimEnd()))",
+  "expect": "killed",
+  "why": "a no-break space, form feed, vertical tab, byte order mark or U+2028 after the tag would be read as blank: `<a>` + NBSP then `# H` swallows the heading"
+ },
+ {
+  "name": "G2 readChunkLabelToken: the first-slot class has no colon",
+  "file": "src/core/qmd/model.ts",
+  "from": "firstSlot ? /^[\\p{L}\\p{N}_:.-]+$/u.test(text)",
+  "to": "firstSlot ? /^[\\p{L}\\p{N}_.-]+$/u.test(text)",
+  "expect": "killed",
+  "why": "`{r fig-a:b}` loses its label"
+ },
+ {
+  "name": "G3 readChunkLabelToken: the first-slot class has no underscore",
+  "file": "src/core/qmd/model.ts",
+  "from": "firstSlot ? /^[\\p{L}\\p{N}_:.-]+$/u.test(text)",
+  "to": "firstSlot ? /^[\\p{L}\\p{N}:.-]+$/u.test(text)",
+  "expect": "killed",
+  "why": "`{r fig-a_b}` and `{r tbl-x_y}` lose their labels"
+ },
+ {
+  "name": "G4 readChunkLabelToken: the first-slot pattern has no start anchor",
+  "file": "src/core/qmd/model.ts",
+  "from": "firstSlot ? /^[\\p{L}\\p{N}_:.-]+$/u.test(text)",
+  "to": "firstSlot ? /[\\p{L}\\p{N}_:.-]+$/u.test(text)",
+  "expect": "killed",
+  "why": "`knitrChunkHeaderLabel` accepts `{r fig-a$b}` (only the exported reader shows it; `indexLabels` validates the id again)"
+ },
+ {
+  "name": "S4-01 endsHtmlBlock: the empty native div is asked with its end trimmed",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!rawHtml && nativeDivs && emptyNativeDivLine(line)) {",
+  "to": "if (!rawHtml && nativeDivs && emptyNativeDivLine(line.trimEnd())) {",
+  "expect": "survives",
+  "why": "NO WITNESS: the mutant reads `<div></div>` + a no-break space (or form feed, vertical tab, byte order mark, U+2028) as an empty div, which the old pattern's `[ \\t]*$` does not. 25,920 documents (five `from:` readers, eight lines above, nine below, eight blanks, three tails, three engine hints) show no difference in findHeadings or buildOutline, so the block end it moves is not visible to a heading; Session 335 found the witness of W01 by rendering, and so can a later session"
+ },
+ {
+  "name": "S4-02 endsHtmlBlock: the empty native div is asked with its line trimmed",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!rawHtml && nativeDivs && emptyNativeDivLine(line)) {",
+  "to": "if (!rawHtml && nativeDivs && emptyNativeDivLine(line.trim())) {",
+  "expect": "survives",
+  "why": "NO WITNESS, as S4-01: the leading blank is read by the pattern's own `[ \\t]*` and every other leading blank fails the `<` test above the call"
+ },
+ {
+  "name": "S4-03 endsHtmlBlock: the empty native div is asked in lower case",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!rawHtml && nativeDivs && emptyNativeDivLine(line)) {",
+  "to": "if (!rawHtml && nativeDivs && emptyNativeDivLine(line.toLowerCase())) {",
+  "expect": "survives",
+  "why": "EQUIVALENT: the function folds the case of the tag name itself (the pattern had the `i` flag), and a lower-cased attribute block reads the same"
+ }
+]
