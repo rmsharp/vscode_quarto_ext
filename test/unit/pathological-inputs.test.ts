@@ -2246,3 +2246,94 @@ describe("Session 334 — a tag line, a link definition, an `options(` argument 
     ]);
   });
 });
+
+describe("Session 335 — a single line of millions of characters that a pattern read as a quantified group (parts 4 to 9 of the BACKLOG item \"Nine more single-line overflow and slow-input families, none of them in Session 317's diff\")", () => {
+  // V8 keeps one entry of its regex backtrack stack per repetition of a GROUP (and of a counted loop such as `#{7,}`), so a pattern that reads a run as `(?:a|b)*` throws `RangeError: Maximum call stack size exceeded` once the run
+  // is long enough, and the RangeError reaches every reader of the document (the Outline, the front matter, the engine resolver, the label index): the same class as Session 317's thematic breaks. The first throw was bisected
+  // at HEAD `c06ee06` in repetitions of each unit (Session 335, fresh process, `findHeadings` unless a row says otherwise): a pipe delimiter row 1,525,300 `|-`; a `from:` extension list 3,356,294 `+_`; a YAML tag or anchor
+  // 2,097,487 `&a `; a run of `#` 5,592,854; a run of `>` 8,388,781; a LaTeX macro tail 2,097,487 `\x`, 3,356,294 `[]`, 8,388,781 `{}`. Every size below is twice its threshold (Learning 775). A line this long is not typed: it is
+  // a pasted or minified blob, and a thrown RangeError answers nothing for the whole document, so the stated answer is the heading BELOW the line (and, where the line decides it, a heading the line changes).
+  const S335_FEW = 4;
+  const S335_LIMIT_MS = 4000;
+  const headings = (text: string): string[] => findHeadings(text).map((h) => h.text);
+  const body = (line: string): string => `Intro.\n\n${line}\n\n# H\n`;
+  const underParagraph = (line: string): string => `Intro.\n${line}\n# H\n`;
+  const afterParagraph = (line: string): string => `Intro.\n${line}\n\n# H\n`;
+  const withFrom = (value: string): string => `---\nfrom: ${value}\n---\n\nIntro\n# pressed\n\n# H\n`;
+  type S335Row = { site: string; unit: string; many: number; few?: number; build: (run: string) => string; read: (text: string) => unknown; answer: unknown };
+
+  const S335_ROWS: S335Row[] = [
+    // Part (4): a pipe table's delimiter row (`PIPE_DELIMITER_ROW`) and a table's rule row (`TABLE_RULE_ROW`), a group per cell.
+    { site: "(4) body line: n of `|-` and a closing `|`", unit: "|-", many: 3_100_000, build: (run) => body(`${run}|`), read: headings, answer: ["H"] },
+    { site: "(4) body line: n of `-|`", unit: "-|", many: 3_100_000, build: (run) => body(run), read: headings, answer: ["H"] },
+    { site: "(4) body line: n of `|:-:` and a closing `|`", unit: "|:-:", many: 3_100_000, build: (run) => body(`${run}|`), read: headings, answer: ["H"] },
+    { site: "(4) pipe table: a header row, a delimiter row of n `|-` cells, a body row", unit: "|-", many: 3_100_000, build: (run) => `| a | b |\n${run}|\n| 1 | 2 |\n\n# H\n`, read: headings, answer: ["H"] },
+    { site: "(4) directly under a paragraph: n of `|-` and a closing `|`", unit: "|-", many: 3_100_000, build: (run) => afterParagraph(`${run}|`), read: headings, answer: ["H"] },
+
+    // Part (5): a front matter `from:` value, `markdown` and then an extension list, `(?:[+-][a-zA-Z_]+)*`. The list decides `blank_before_header`, so a heading pressed against a paragraph is, or is not, one.
+    { site: "(5) from: markdown and n of `+_`: a pressed heading is refused", unit: "+_", many: 6_800_000, build: (run) => withFrom(`markdown${run}`), read: headings, answer: ["H"] },
+    { site: "(5) from: markdown, n of `+_` and -blank_before_header: the last token wins and the heading is one", unit: "+_", many: 6_800_000, build: (run) => withFrom(`markdown${run}-blank_before_header`), read: headings, answer: ["pressed", "H"] },
+    { site: "(5) from: markdown-blank_before_header and n of `+_`", unit: "+_", many: 6_800_000, build: (run) => withFrom(`markdown-blank_before_header${run}`), read: headings, answer: ["pressed", "H"] },
+    { site: "(5) from: markdown_mmd and n of `+_`: the variant keeps no blank_before_header", unit: "+_", many: 6_800_000, build: (run) => withFrom(`markdown_mmd${run}`), read: headings, answer: ["pressed", "H"] },
+    { site: "(5) from: markdown_mmd, n of `+_` and +blank_before_header", unit: "+_", many: 6_800_000, build: (run) => withFrom(`markdown_mmd${run}+blank_before_header`), read: headings, answer: ["H"] },
+    { site: "(5) from: markdown and n of `-Z`", unit: "-Z", many: 6_800_000, build: (run) => withFrom(`markdown${run}`), read: headings, answer: ["H"] },
+    { site: "(5) from: \"markdown\" (quoted) and n of `+_`", unit: "+_", many: 6_800_000, build: (run) => withFrom(`"markdown${run}"`), read: headings, answer: ["H"] },
+    { site: "(5) from: markdown, n of `+_` and a character that ends the list (the reader is not resolved)", unit: "+_", many: 6_800_000, build: (run) => withFrom(`markdown${run}!`), read: headings, answer: ["pressed", "H"] },
+
+    // Part (6): the node properties (`&anchor`, `!tag`) in front of a value, `(?:[&!][^\s,[\]{}]*[ \t]*)+`, at the four places that strip them.
+    { site: "(6) front matter: a title of n `&a `, then engine: knitr (findFrontMatterTopLevelLines)", unit: "&a ", many: 4_200_000, build: (run) => `---\ntitle: ${run}\nengine: knitr\n---\n`, read: (text) => findFrontMatterTopLevelLines(text).map((l) => l.key), answer: ["title", "engine"] },
+    { site: "(6) the same front matter through the engine resolver", unit: "&a ", many: 4_200_000, build: (run) => `---\ntitle: ${run}\nengine: knitr\n---\n\n# H\n`, read: (text) => resolveDocumentEngine("a.qmd", text), answer: "knitr" },
+    { site: "(6) front matter: a title of n `!t `, then engine: knitr", unit: "!t ", many: 4_200_000, build: (run) => `---\ntitle: ${run}\nengine: knitr\n---\n\n# H\n`, read: (text) => resolveDocumentEngine("a.qmd", text), answer: "knitr" },
+    { site: "(6) nested front matter: format / html / toc-title of n `&a `, then theme (findNestedFrontMatterValueLines)", unit: "&a ", many: 4_200_000, build: (run) => `---\nformat:\n  html:\n    toc-title: ${run}\n    theme: cosmo\n---\n`, read: (text) => findNestedFrontMatterValueLines(text).map((l) => l.key), answer: ["toc-title", "theme"] },
+    { site: "(6) a project file: project / title of n `&a `, then type (findProjectConfigValueLines)", unit: "&a ", many: 4_200_000, build: (run) => `project:\n  title: ${run}\n  type: website\n`, read: (text) => findProjectConfigValueLines(text).map((l) => l.key), answer: ["title", "type"] },
+    { site: "(6) a cell: `#| fig-cap:` of n `&a `, then `#| label: fig-a` (findCellOptionLines)", unit: "&a ", many: 4_200_000, build: (run) => `\`\`\`{r}\n#| fig-cap: ${run}\n#| label: fig-a\n1\n\`\`\`\n`, read: (text) => findCellOptionLines(text).map((o) => o.line), answer: [1, 2] },
+    { site: "(6) a cell: the same, through the label index", unit: "!t ", many: 4_200_000, build: (run) => `\`\`\`{r}\n#| fig-cap: ${run}\n#| label: fig-a\n1\n\`\`\`\n`, read: (text) => indexLabels(text).map((l) => [l.id, l.line]), answer: [["fig-a", 2]] },
+
+    // Part (7): a run of `#`, `#{7,}`, at the two call sites of the deep-header test (the default reader and a reader without `space_in_atx_header`).
+    { site: "(7) body line: n of `#`", unit: "#", many: 11_200_000, few: 8, build: (run) => body(run), read: headings, answer: ["H"] },
+    { site: "(7) directly under a paragraph: n of `#`", unit: "#", many: 11_200_000, few: 8, build: (run) => afterParagraph(run), read: headings, answer: ["H"] },
+    { site: "(7) from: markdown_strict, a body line of n of `#`", unit: "#", many: 11_200_000, few: 8, build: (run) => `---\nfrom: markdown_strict\n---\n\nIntro.\n\n${run}\n\n# H\n`, read: headings, answer: ["H"] },
+
+    // Part (8): a run of `>`, `(?:>[ ]?)+`.
+    { site: "(8) body line: n of `>`", unit: ">", many: 16_800_000, build: (run) => body(run), read: headings, answer: ["H"] },
+    { site: "(8) body line: n of `> `", unit: "> ", many: 16_800_000, build: (run) => body(run), read: headings, answer: ["H"] },
+    { site: "(8) n of `>` and a heading in the quote", unit: ">", many: 16_800_000, build: (run) => `${run} # Quoted\n\n# H\n`, read: headings, answer: ["Quoted", "H"] },
+
+    // Part (9): the argument and the tail of a block macro line, `ARG*` and `(?:[ \t]*\\name ARG*)*`.
+    { site: "(9) a block macro line: `\\pdfstringdef[]` and n of `\\x`, directly under a paragraph (the line closes it)", unit: "\\x", many: 4_200_000, build: (run) => underParagraph(` \t\\pdfstringdef[]${run}  `), read: headings, answer: ["H"] },
+    { site: "(9) the same with prose after the tail: the line is not a block and the heading is pressed", unit: "\\x", many: 4_200_000, build: (run) => underParagraph(` \t\\pdfstringdef[]${run} prose`), read: headings, answer: [] },
+    { site: "(9) a block macro line: `\\pdfstringdef` and n of `[]`", unit: "[]", many: 6_800_000, build: (run) => body(` \t\\pdfstringdef${run}  `), read: headings, answer: ["H"] },
+    { site: "(9) a block macro line: `\\pdfstringdef` and n of `{}`", unit: "{}", many: 16_800_000, build: (run) => body(` \t\\pdfstringdef${run}  `), read: headings, answer: ["H"] },
+  ];
+
+  it.each(S335_ROWS.map((row) => [row.site, row] as const))("%s: is read without throwing, in linear time, and the answer is the stated one with 4 units and with the long run", (_site, row) => {
+    const short = row.build(row.unit.repeat(row.few ?? S335_FEW));
+    expect(row.read(short)).toEqual(row.answer);
+    const run = row.unit.repeat(row.many);
+    const longText = row.build(run);
+    expect(longText.length).toBeGreaterThan(run.length); // the timed text holds the whole run
+    const { result, ms } = timed(() => row.read(longText));
+    expect(result).toEqual(row.answer);
+    expect(ms).toBeLessThan(S335_LIMIT_MS);
+  }, 120_000);
+
+  it("builds a different text for every row", () => {
+    // The TEXT alone: `scanRegions` keeps the last two scans by text, so a row whose text another row read just before it is served from the cache and cannot be RED.
+    // A long text is its row's builder applied to `unit x many`, so distinct small texts and distinct (unit, many) pairs make the long ones distinct without holding thirty megabytes of each.
+    const small = S335_ROWS.map((row) => row.build(row.unit.repeat(row.few ?? S335_FEW)));
+    expect(new Set(small).size).toBe(S335_ROWS.length);
+  });
+
+  // A run of 3,000,000 characters, or a limit of 100 s, would pass on the parent too.
+  it("keeps the sizes, the limit and the units the Session 335 rows are built on", () => {
+    expect([S335_FEW, S335_LIMIT_MS]).toEqual([4, 4000]);
+    expect(S335_ROWS.map((row) => `${row.unit}x${row.many}`)).toEqual([
+      "|-x3100000", "-|x3100000", "|:-:x3100000", "|-x3100000", "|-x3100000",
+      "+_x6800000", "+_x6800000", "+_x6800000", "+_x6800000", "+_x6800000", "-Zx6800000", "+_x6800000", "+_x6800000",
+      "&a x4200000", "&a x4200000", "!t x4200000", "&a x4200000", "&a x4200000", "&a x4200000", "!t x4200000",
+      "#x11200000", "#x11200000", "#x11200000",
+      ">x16800000", "> x16800000", ">x16800000",
+      "\\xx4200000", "\\xx4200000", "[]x6800000", "{}x16800000",
+    ]);
+  });
+});
