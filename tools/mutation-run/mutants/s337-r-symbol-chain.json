@@ -1,0 +1,482 @@
+[
+ {
+  "name": "S01 readChunkLabelToken: every non-first-slot token is a symbol chain",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^[\\p{L}\\p{N}_:.-]+$/u.test(text) : isRSymbolChain(text);",
+  "to": "/^[\\p{L}\\p{N}_:.-]+$/u.test(text) : true;",
+  "expect": "killed",
+  "why": "killed by the Session 303 header rows of refs.test.ts (the conservative declines: `fig-x-100000`, `fig-x-12345`, `fig-x-1e3`, `fig-x-.5`); run by hand on refs, refs-no-target, refs-cell-kinds and qmd-model: 12 failed of 6,354"
+ },
+ {
+  "name": "S02 readChunkLabelToken: no non-first-slot token is a symbol chain",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^[\\p{L}\\p{N}_:.-]+$/u.test(text) : isRSymbolChain(text);",
+  "to": "/^[\\p{L}\\p{N}_:.-]+$/u.test(text) : false;",
+  "expect": "killed",
+  "why": "killed by the Session 303 header rows of refs.test.ts (`label=fig-x`, `fig-x.b`, `fig-x:c`, `fig-x_d` stop defining); run by hand on refs, refs-no-target, refs-cell-kinds and qmd-model: 65 failed"
+ },
+ {
+  "name": "S03 readChunkLabelToken: the non-first slots read the first slot's class",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^[\\p{L}\\p{N}_:.-]+$/u.test(text) : isRSymbolChain(text);",
+  "to": "/^[\\p{L}\\p{N}_:.-]+$/u.test(text) : /^[\\p{L}\\p{N}_:.-]+$/u.test(text);",
+  "expect": "killed",
+  "why": "killed by the Session 303 header rows of refs.test.ts (the conservative declines: `fig-x-100000`, `fig-x-12345`, `fig-x-1e3` become labels); run by hand on the same four files: 10 failed"
+ },
+ {
+  "name": "S04 R_SYMBOL_LETTER_AT: no unicode flag",
+  "file": "src/core/qmd/model.ts",
+  "from": "const R_SYMBOL_LETTER_AT = /\\p{L}/uy;",
+  "to": "const R_SYMBOL_LETTER_AT = /\\p{L}/y;",
+  "expect": "killed",
+  "why": "`\\p{L}` without the u flag is the text `p{L}`"
+ },
+ {
+  "name": "S05 R_SYMBOL_LETTER_AT: not sticky",
+  "file": "src/core/qmd/model.ts",
+  "from": "const R_SYMBOL_LETTER_AT = /\\p{L}/uy;",
+  "to": "const R_SYMBOL_LETTER_AT = /\\p{L}/u;",
+  "expect": "killed",
+  "why": "a read that ignores lastIndex finds a letter anywhere in the text"
+ },
+ {
+  "name": "S06 R_SYMBOL_LETTER_AT: only capital letters",
+  "file": "src/core/qmd/model.ts",
+  "from": "const R_SYMBOL_LETTER_AT = /\\p{L}/uy;",
+  "to": "const R_SYMBOL_LETTER_AT = /\\p{Lu}/uy;",
+  "expect": "killed",
+  "why": "a non-ASCII lower-case letter can no longer start a symbol"
+ },
+ {
+  "name": "S07 R_SYMBOL_LETTER_OR_NUMBER_AT: letters only",
+  "file": "src/core/qmd/model.ts",
+  "from": "const R_SYMBOL_LETTER_OR_NUMBER_AT = /[\\p{L}\\p{N}]/uy;",
+  "to": "const R_SYMBOL_LETTER_OR_NUMBER_AT = /\\p{L}/uy;",
+  "expect": "killed",
+  "why": "a non-ASCII number (an Arabic-Indic digit, a superscript) can no longer go on a symbol"
+ },
+ {
+  "name": "S08 R_SYMBOL_LETTER_OR_NUMBER_AT: decimal digits only",
+  "file": "src/core/qmd/model.ts",
+  "from": "const R_SYMBOL_LETTER_OR_NUMBER_AT = /[\\p{L}\\p{N}]/uy;",
+  "to": "const R_SYMBOL_LETTER_OR_NUMBER_AT = /[\\p{L}\\p{Nd}]/uy;",
+  "expect": "killed",
+  "why": "a superscript two (No) can no longer go on a symbol"
+ },
+ {
+  "name": "S09 R_SYMBOL_LETTER_OR_NUMBER_AT: combining marks too",
+  "file": "src/core/qmd/model.ts",
+  "from": "const R_SYMBOL_LETTER_OR_NUMBER_AT = /[\\p{L}\\p{N}]/uy;",
+  "to": "const R_SYMBOL_LETTER_OR_NUMBER_AT = /[\\p{L}\\p{N}\\p{M}]/uy;",
+  "expect": "killed",
+  "why": "`a` and a combining acute is no symbol for the old pattern"
+ },
+ {
+  "name": "S10 R_SYMBOL_LETTER_OR_NUMBER_AT: not sticky",
+  "file": "src/core/qmd/model.ts",
+  "from": "const R_SYMBOL_LETTER_OR_NUMBER_AT = /[\\p{L}\\p{N}]/uy;",
+  "to": "const R_SYMBOL_LETTER_OR_NUMBER_AT = /[\\p{L}\\p{N}]/u;",
+  "expect": "killed",
+  "why": "a HANG, killed by the runner's timeout: a read that ignores lastIndex finds a letter at the head of the text for any position, so past the end of the text `rSymbolEnd` never stops (checked by hand: a differential of this build against the old pattern did not finish in 180 s)"
+ },
+ {
+  "name": "S11 isAsciiLetterCode: `@` is a letter",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAsciiLetterCode = (c: number): boolean => (c >= 65 && c <= 90) || (c >= 97 && c <= 122);",
+  "to": "const isAsciiLetterCode = (c: number): boolean => (c >= 64 && c <= 90) || (c >= 97 && c <= 122);",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file (r-symbol-chain-equivalence.test.ts) and the refs tests must notice"
+ },
+ {
+  "name": "S12 isAsciiLetterCode: `[` is a letter",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAsciiLetterCode = (c: number): boolean => (c >= 65 && c <= 90) || (c >= 97 && c <= 122);",
+  "to": "const isAsciiLetterCode = (c: number): boolean => (c >= 65 && c <= 91) || (c >= 97 && c <= 122);",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file (r-symbol-chain-equivalence.test.ts) and the refs tests must notice"
+ },
+ {
+  "name": "S13 isAsciiLetterCode: a backtick is a letter",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAsciiLetterCode = (c: number): boolean => (c >= 65 && c <= 90) || (c >= 97 && c <= 122);",
+  "to": "const isAsciiLetterCode = (c: number): boolean => (c >= 65 && c <= 90) || (c >= 96 && c <= 122);",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file (r-symbol-chain-equivalence.test.ts) and the refs tests must notice"
+ },
+ {
+  "name": "S14 isAsciiLetterCode: `{` is a letter",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAsciiLetterCode = (c: number): boolean => (c >= 65 && c <= 90) || (c >= 97 && c <= 122);",
+  "to": "const isAsciiLetterCode = (c: number): boolean => (c >= 65 && c <= 90) || (c >= 97 && c <= 123);",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file (r-symbol-chain-equivalence.test.ts) and the refs tests must notice"
+ },
+ {
+  "name": "S15 isAsciiDigitCode: `:` is a digit",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAsciiDigitCode = (c: number): boolean => c >= 48 && c <= 57;",
+  "to": "const isAsciiDigitCode = (c: number): boolean => c >= 48 && c <= 58;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file (r-symbol-chain-equivalence.test.ts) and the refs tests must notice"
+ },
+ {
+  "name": "S16 rSymbolStartsAt: every code point goes through the sticky read",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (c < 128) {\n    return isAsciiLetterCode(c);\n  }",
+  "to": "if (c < 0) {\n    return isAsciiLetterCode(c);\n  }",
+  "expect": "survives",
+  "why": "equivalent in the answer: the sticky `\\p{L}` read says for an ASCII character what the code says (letters only), so only the cost changes (a read per character); the 20,000,000-part clock row is the one place that could see it, and a part is read once, not per character"
+ },
+ {
+  "name": "S17 rSymbolStartsAt: Latin-1 goes through the code, not the property",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (c < 128) {\n    return isAsciiLetterCode(c);\n  }",
+  "to": "if (c < 256) {\n    return isAsciiLetterCode(c);\n  }",
+  "expect": "killed",
+  "why": "an accented letter (U+00AA, U+00B5, U+00BA, U+00C0 and on) is no letter by the ASCII code"
+ },
+ {
+  "name": "S18 rSymbolStartsAt: the read starts one place on",
+  "file": "src/core/qmd/model.ts",
+  "from": "R_SYMBOL_LETTER_AT.lastIndex = at;\n  return R_SYMBOL_LETTER_AT.test(text);",
+  "to": "R_SYMBOL_LETTER_AT.lastIndex = at + 1;\n  return R_SYMBOL_LETTER_AT.test(text);",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file (r-symbol-chain-equivalence.test.ts) and the refs tests must notice"
+ },
+ {
+  "name": "S19 rSymbolStartsAt: a digit starts a symbol",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (c < 128) {\n    return isAsciiLetterCode(c);\n  }",
+  "to": "if (c < 128) {\n    return isAsciiLetterCode(c) || isAsciiDigitCode(c);\n  }",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file (r-symbol-chain-equivalence.test.ts) and the refs tests must notice"
+ },
+ {
+  "name": "S20 rSymbolContinuesAt: a digit does not go on a symbol",
+  "file": "src/core/qmd/model.ts",
+  "from": "return isAsciiLetterCode(c) || isAsciiDigitCode(c) || c === 95 || c === 46;",
+  "to": "return isAsciiLetterCode(c) || c === 95 || c === 46;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file (r-symbol-chain-equivalence.test.ts) and the refs tests must notice"
+ },
+ {
+  "name": "S21 rSymbolContinuesAt: an underscore does not go on a symbol",
+  "file": "src/core/qmd/model.ts",
+  "from": "return isAsciiLetterCode(c) || isAsciiDigitCode(c) || c === 95 || c === 46;",
+  "to": "return isAsciiLetterCode(c) || isAsciiDigitCode(c) || c === 46;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file (r-symbol-chain-equivalence.test.ts) and the refs tests must notice"
+ },
+ {
+  "name": "S22 rSymbolContinuesAt: a dot does not go on a symbol",
+  "file": "src/core/qmd/model.ts",
+  "from": "return isAsciiLetterCode(c) || isAsciiDigitCode(c) || c === 95 || c === 46;",
+  "to": "return isAsciiLetterCode(c) || isAsciiDigitCode(c) || c === 95;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file (r-symbol-chain-equivalence.test.ts) and the refs tests must notice"
+ },
+ {
+  "name": "S23 rSymbolContinuesAt: the read starts one place on",
+  "file": "src/core/qmd/model.ts",
+  "from": "R_SYMBOL_LETTER_OR_NUMBER_AT.lastIndex = at;",
+  "to": "R_SYMBOL_LETTER_OR_NUMBER_AT.lastIndex = at + 1;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file (r-symbol-chain-equivalence.test.ts) and the refs tests must notice"
+ },
+ {
+  "name": "S24 rSymbolEnd: a part that does not start with a letter is an empty symbol",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!rSymbolStartsAt(text, from)) {\n    return -1;\n  }",
+  "to": "if (!rSymbolStartsAt(text, from)) {\n    return from;\n  }",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file (r-symbol-chain-equivalence.test.ts) and the refs tests must notice"
+ },
+ {
+  "name": "S25 rSymbolEnd: the first character after the head is not read",
+  "file": "src/core/qmd/model.ts",
+  "from": "let at = from;\n  do {",
+  "to": "let at = from + 1;\n  do {",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file (r-symbol-chain-equivalence.test.ts) and the refs tests must notice"
+ },
+ {
+  "name": "S26 rSymbolEnd: a code point is two units from U+8000",
+  "file": "src/core/qmd/model.ts",
+  "from": "> 0xffff ? 2 : 1;",
+  "to": "> 0x7fff ? 2 : 1;",
+  "expect": "killed",
+  "why": "a Hangul syllable (U+AC00 and on) is stepped over as a surrogate pair, together with the next unit"
+ },
+ {
+  "name": "S27 rSymbolEnd: U+FFFF is a pair too",
+  "file": "src/core/qmd/model.ts",
+  "from": "> 0xffff ? 2 : 1;",
+  "to": ">= 0xffff ? 2 : 1;",
+  "expect": "survives",
+  "why": "equivalent: only a letter or a number is ever stepped over, and U+FFFF is a noncharacter (category Cn), so the width of that one code point is never asked; looked at the property of U+FFFF and of the whole BMP in the sweep (every code unit at 20 positions: no difference)"
+ },
+ {
+  "name": "S28 rSymbolEnd: a part ends at the first character it can NOT hold",
+  "file": "src/core/qmd/model.ts",
+  "from": "} while (rSymbolContinuesAt(text, at));",
+  "to": "} while (!rSymbolContinuesAt(text, at));",
+  "expect": "killed",
+  "why": "a HANG, killed by the runner's timeout: past the end of the text nothing can continue the part, so the inverted loop never stops (checked by hand: a differential of this build against the old pattern did not finish in 180 s)"
+ },
+ {
+  "name": "S29 rIntegerEnd: the lone integer is 1",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (first === 48) {\n    return from + 1;",
+  "to": "if (first === 49) {\n    return from + 1;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file (r-symbol-chain-equivalence.test.ts) and the refs tests must notice"
+ },
+ {
+  "name": "S30 rIntegerEnd: the first digit is 2 to 9",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!(first >= 49 && first <= 57)) {",
+  "to": "if (!(first >= 50 && first <= 57)) {",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file (r-symbol-chain-equivalence.test.ts) and the refs tests must notice"
+ },
+ {
+  "name": "S31 rIntegerEnd: a colon starts an integer",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!(first >= 49 && first <= 57)) {",
+  "to": "if (!(first >= 49 && first <= 58)) {",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file (r-symbol-chain-equivalence.test.ts) and the refs tests must notice"
+ },
+ {
+  "name": "S32 rIntegerEnd: the first digit may be 0 again",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (!(first >= 49 && first <= 57)) {",
+  "to": "if (!(first >= 48 && first <= 57)) {",
+  "expect": "survives",
+  "why": "equivalent: a zero returned two lines above, so 48 never reaches this test"
+ },
+ {
+  "name": "S33 rIntegerEnd: a part that is no integer is an empty one",
+  "file": "src/core/qmd/model.ts",
+  "from": "return -1;\n  }\n  let at = from + 1;",
+  "to": "return from;\n  }\n  let at = from + 1;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file (r-symbol-chain-equivalence.test.ts) and the refs tests must notice"
+ },
+ {
+  "name": "S34 rIntegerEnd: the digit loop starts at the first digit",
+  "file": "src/core/qmd/model.ts",
+  "from": "let at = from + 1;\n  while (at < from + 4 &&",
+  "to": "let at = from;\n  while (at < from + 4 &&",
+  "expect": "survives",
+  "why": "equivalent: the first digit is a digit, so the loop counts it and stops at the same four-digit end as before"
+ },
+ {
+  "name": "S35 rIntegerEnd: up to five digits",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (at < from + 4 &&",
+  "to": "while (at < from + 5 &&",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file (r-symbol-chain-equivalence.test.ts) and the refs tests must notice"
+ },
+ {
+  "name": "S36 rIntegerEnd: the following digits are letters",
+  "file": "src/core/qmd/model.ts",
+  "from": "isAsciiDigitCode(text.charCodeAt(at))) {",
+  "to": "isAsciiLetterCode(text.charCodeAt(at))) {",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file (r-symbol-chain-equivalence.test.ts) and the refs tests must notice"
+ },
+ {
+  "name": "S37 isRSymbolChain: the head is read from the second character",
+  "file": "src/core/qmd/model.ts",
+  "from": "let at = rSymbolEnd(text, 0);",
+  "to": "let at = rSymbolEnd(text, 1);",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file (r-symbol-chain-equivalence.test.ts) and the refs tests must notice"
+ },
+ {
+  "name": "S38 isRSymbolChain: the loop also runs at the end of the text",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (at >= 0 && at < text.length) {",
+  "to": "while (at >= 0 && at <= text.length) {",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file (r-symbol-chain-equivalence.test.ts) and the refs tests must notice"
+ },
+ {
+  "name": "S39 isRSymbolChain: the loop guard asks for a positive offset",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (at >= 0 && at < text.length) {",
+  "to": "while (at > 0 && at < text.length) {",
+  "expect": "survives",
+  "why": "equivalent: inside the loop `at` is -1 (refused) or at least 1 (rSymbolEnd and rIntegerEnd answer an offset past the first character), never 0"
+ },
+ {
+  "name": "S40 isRSymbolChain: the loop guard does not ask whether the last part was refused",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (at >= 0 && at < text.length) {",
+  "to": "while (at < text.length) {",
+  "expect": "survives",
+  "why": "equivalent: with `at` -1 the separator is `charCodeAt(-1)`, NaN, which is neither 45 nor 58, so the loop returns false, the answer a refused part gives"
+ },
+ {
+  "name": "S41 isRSymbolChain: a part may follow either separator or neither",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (separator !== 45 && separator !== 58) {",
+  "to": "if (separator !== 45 || separator !== 58) {",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file (r-symbol-chain-equivalence.test.ts) and the refs tests must notice"
+ },
+ {
+  "name": "S42 isRSymbolChain: a comma is a separator for a hyphen",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (separator !== 45 && separator !== 58) {",
+  "to": "if (separator !== 44 && separator !== 58) {",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file (r-symbol-chain-equivalence.test.ts) and the refs tests must notice"
+ },
+ {
+  "name": "S43 isRSymbolChain: the separator is read again as the part",
+  "file": "src/core/qmd/model.ts",
+  "from": "    at++;\n    const symbolEnd = rSymbolEnd(text, at);",
+  "to": "    const symbolEnd = rSymbolEnd(text, at);",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file (r-symbol-chain-equivalence.test.ts) and the refs tests must notice"
+ },
+ {
+  "name": "S44 isRSymbolChain: any ending at or past 0 is a chain",
+  "file": "src/core/qmd/model.ts",
+  "from": "return at === text.length;",
+  "to": "return at >= 0;",
+  "expect": "survives",
+  "why": "equivalent: the loop ends with `at` below 0 (a refused part) or at the end of the text (no answer is past it, and a refusal is -1), so `at >= 0` and `at === text.length` agree"
+ },
+ {
+  "name": "S45 isRSymbolChain: every text is a chain once the loop ends",
+  "file": "src/core/qmd/model.ts",
+  "from": "return at === text.length;",
+  "to": "return true;",
+  "expect": "killed",
+  "why": "an edit of the function that its oracle file (r-symbol-chain-equivalence.test.ts) and the refs tests must notice"
+ },
+ {
+  "name": "T01 rows: the name run is below twice the first throw",
+  "file": "test/unit/s337-r-symbol-chain-rows.test.ts",
+  "from": "const S337_NAME_MANY = 6_720_000;",
+  "to": "const S337_NAME_MANY = 3_360_000;",
+  "expect": "killed",
+  "why": "a size just over the first throw passes on a stack that is a little bigger: the guard row pins the size and its ratio to the figure"
+ },
+ {
+  "name": "T02 rows: the number run is below twice the first throw",
+  "file": "test/unit/s337-r-symbol-chain-rows.test.ts",
+  "from": "const S337_NUMBER_MANY = 16_800_000;",
+  "to": "const S337_NUMBER_MANY = 8_400_000;",
+  "expect": "killed",
+  "why": "the guard row pins the size"
+ },
+ {
+  "name": "T03 rows: the clock limit is ten times longer",
+  "file": "test/unit/s337-r-symbol-chain-rows.test.ts",
+  "from": "const S337_LIMIT_MS = 4000;",
+  "to": "const S337_LIMIT_MS = 40_000;",
+  "expect": "killed",
+  "why": "the guard row pins the limit: a limit of minutes would pass a quadratic cure"
+ },
+ {
+  "name": "T04 rows: the number rows' clock limit is ten times longer",
+  "file": "test/unit/s337-r-symbol-chain-rows.test.ts",
+  "from": "const S337_NUMBER_LIMIT_MS = 10_000;",
+  "to": "const S337_NUMBER_LIMIT_MS = 100_000;",
+  "expect": "killed",
+  "why": "the guard row pins the limit"
+ },
+ {
+  "name": "T05 rows: the clock is read against nothing",
+  "file": "test/unit/s337-r-symbol-chain-rows.test.ts",
+  "from": "expect(ms).toBeLessThan(row.limitMs ?? S337_LIMIT_MS);",
+  "to": "expect(ms).toBeLessThan(row.limitMs ?? 0);",
+  "expect": "killed",
+  "why": "every row without its own limit fails on the clock"
+ },
+ {
+  "name": "T06 rows: the leading-zero near miss ends in a valid integer",
+  "file": "test/unit/s337-r-symbol-chain-rows.test.ts",
+  "from": "head: \"fig-z\", unit: \"-a\", tail: \"-01\", ...NAME },\n    { site: \"indexLabels: a trailing",
+  "to": "head: \"fig-z\", unit: \"-a\", tail: \"-0\", ...NAME },\n    { site: \"indexLabels: a trailing",
+  "expect": "killed",
+  "why": "the token becomes a chain and the row's stated answer (nothing) is wrong"
+ },
+ {
+  "name": "T07 rows: two index rows read the same text",
+  "file": "test/unit/s337-r-symbol-chain-rows.test.ts",
+  "from": "column: 13, unit: \":a\", ...NAME },\n    { site: \"indexLabels: `label=` in the first slot",
+  "to": "column: 13, unit: \"-a\", ...NAME },\n    { site: \"indexLabels: `label=` in the first slot",
+  "expect": "killed",
+  "why": "the row shares its text with the first one: the distinct-texts row sees it"
+ },
+ {
+  "name": "T08 equivalence: the seed moves",
+  "file": "test/unit/r-symbol-chain-equivalence.test.ts",
+  "from": "const SEED = 3370;",
+  "to": "const SEED = 3371;",
+  "expect": "killed",
+  "why": "the pinned counts belong to the seed"
+ },
+ {
+  "name": "T09 equivalence: the wide enumeration's pin moves",
+  "file": "test/unit/r-symbol-chain-equivalence.test.ts",
+  "from": "accepted: 42_045,",
+  "to": "accepted: 42_046,",
+  "expect": "killed",
+  "why": "the Python port's count is the pin"
+ },
+ {
+  "name": "T10 equivalence: the ASCII pin of the first position moves",
+  "file": "test/unit/r-symbol-chain-equivalence.test.ts",
+  "from": "const ASCII_ACCEPTED = [52, 52, 64,",
+  "to": "const ASCII_ACCEPTED = [53, 52, 64,",
+  "expect": "killed",
+  "why": "the Python port's count is the pin"
+ },
+ {
+  "name": "T11 equivalence: the astral bound is ten times higher",
+  "file": "test/unit/r-symbol-chain-equivalence.test.ts",
+  "from": "expect(accepted).toBeGreaterThan(60_000);",
+  "to": "expect(accepted).toBeGreaterThan(600_000);",
+  "expect": "killed",
+  "why": "the bound is live"
+ },
+ {
+  "name": "T12 equivalence: the astral sample takes every 17th code point",
+  "file": "test/unit/r-symbol-chain-equivalence.test.ts",
+  "from": "everyAstralAt(build, 16)",
+  "to": "everyAstralAt(build, 17)",
+  "expect": "killed",
+  "why": "the sample is pinned at 65,536"
+ },
+ {
+  "name": "T13 equivalence: the wrong-reader control for a leading zero is the old pattern",
+  "file": "test/unit/r-symbol-chain-equivalence.test.ts",
+  "from": "|[0-9]{1,4}))*$/u.test(token)]",
+  "to": "|(?:0|[1-9][0-9]{0,3})))*$/u.test(token)]",
+  "expect": "killed",
+  "why": "a control that agrees with the old pattern is caught by nothing: the control row fails"
+ },
+ {
+  "name": "T14 equivalence: the clock row of the 20,000,000-part token allows no time",
+  "file": "test/unit/r-symbol-chain-equivalence.test.ts",
+  "from": "toBeLessThan(5000); // it takes about half a second",
+  "to": "toBeLessThan(1); // it takes about half a second",
+  "expect": "killed",
+  "why": "the row measures a read of tens of milliseconds at least"
+ },
+ {
+  "name": "T15 equivalence: a five-digit integer is stated as accepted",
+  "file": "test/unit/r-symbol-chain-equivalence.test.ts",
+  "from": "[\"a-12345\", false],",
+  "to": "[\"a-12345\", true],",
+  "expect": "killed",
+  "why": "the old pattern, the definition and the new function all say false"
+ }
+]
