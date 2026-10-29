@@ -452,8 +452,8 @@
   "file": "src/core/qmd/model.ts",
   "from": "pipeDelimiterRow(lines[k + 1]) &&",
   "to": "tableRuleRow(lines[k + 1]) &&",
-  "expect": "survives",
-  "why": "NO WITNESS: 77,040 documents over table, reader, container and heading grammars (a delimiter row followed by a form feed, a vertical tab, a no-break space or a CR in front of a pressed heading) separate it from the real build; recorded as a gap, filed in BACKLOG.md"
+  "expect": "killed",
+  "why": "Session 336 found the witness Session 335 lacked: a delimiter row that ends in a form feed, a vertical tab, a no-break space or another white space that is not a blank or a tab, followed by an indent-4 `{bash}` opener DIRECTLY below the table (the Session 295 free case; Session 335's 77,040 documents put a pressed heading there instead). Quarto 1.7.33 draws no table for it and swallows the heading inside the opener; the real build agrees on all 22 rendered documents, this mutant disagrees on 16. Killed by test/unit/pipe-delimiter-tail.test.ts."
  },
  {
   "name": "W02 the body-line arm asks for the pipe delimiter row",
