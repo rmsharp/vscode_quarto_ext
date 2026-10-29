@@ -44,6 +44,14 @@ argued equivalent or recorded as gaps; three call-site edits of `endsHtmlBlock` 
 `origin/master` when the close-out began (Phase 0 of this session: 131); the dashboard copy is v2.22.0 against canonical v2.23.0 (not synced). (14) `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are
 past the read refusal: read in slices, edit with a Python script (`python3 -I -`). After answering a direct question, STOP and wait (memory).
 
+### What Session 338 Did
+**Deliverable:** g02 of the backlog ordering plan, twenty-second session: the BACKLOG item "Eleven more places that throw `RangeError` on a long line or a long list" (nine class patterns under the `u` flag,
+two array spreads, found by Session 337's review round) (IN PROGRESS)
+**Started:** 2026-10-29
+**Status:** Session claimed. Work beginning. Strict TDD: time each literal shape at HEAD first, one fresh process per probe (Learnings 840, 871, 885), rows RED on the parent, the old pattern kept as each cure's
+oracle, every row read with the engine hint and on a line with a character above U+00FF as well as one without (Learnings 886, 890).
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
 ### What Session 337 Did
 **Deliverable:** g02 of the backlog ordering plan, twenty-first session: the BACKLOG item "Eight more single-line RangeError shapes and three more quadratic ones, found by Session 336's own probes and its review round, none
 of them in its diff" -- parts (1) to (8), the eight single-line `RangeError` shapes -- DONE; claim `8ebce73`

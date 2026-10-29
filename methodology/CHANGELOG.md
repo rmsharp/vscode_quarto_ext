@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-10
 
+### 2026-10-29 · [BL-Eleven more places that throw `RangeError` on a long line or a long list: nine class patterns under the `u` flag and two array spreads, found by Session 337's review round, none of them in its diff] Session 338 (in progress): claim -- g02 twenty-second session
+
+Session claimed. Phase 0 found both ledger frontiers at HEAD (`79b7b86`, gap 0), no open receipt, no merges, the ratchet 2/2 (results `bba236856bad`; the S337 receipt's citation holds), the dashboard at 76/100 "critical" with 18 vulnerabilities (dev-only per Session 335, not re-checked; the dashboard copy is v2.22.0 against canonical v2.23.0, not synced), and `master` level with `origin/master` (pushed between sessions: the Session 337 note's "173 commits ahead" is stale). Operator chose the item at the Phase 0 picker (placed by finishing a feature, g02 being in flight, and by robustness: a reader that throws answers nothing for the whole document). The close-out replaces this entry with the outcome.
+
 ### 2026-10-29 · [ad hoc] Session 337: the quality-gate run cited in the receipt -- 2/2 pass at c51db7e
 
 `quality_ratchet.py --run`, after the ledger commits (Learning 683): ledger-lag 0 and release-gate 0 (`npm run check-package`), 2 pass, 0 fail, 0 unmeasured, results `bba236856bad`, manifest `334939914945`. The dashboard reads 76/100 "critical" with 18 vulnerabilities (dev-only per Session 335, not re-checked; the dashboard copy is v2.22.0 against canonical v2.23.0, not synced). `context_budget.py`: `SESSION_NOTES.md` ok (332 lines, 46,947 B, no line over 280 B), `HANDOFFS.md`, `BACKLOG.md` and `PROJECT_LEARNINGS.md` over the 65,536 B ceiling as before, exit 2. `master` is 177 commits ahead of `origin/master`, unpushed. The worker worktrees and branches of this session were removed after `git cherry` showed all 35 of their commits on `master`; the foreign worktree `wf_f559ba89-653-5` is untouched.
