@@ -55,6 +55,9 @@ function compareAll(texts: Iterable<string>): Count {
         note(`${JSON.stringify(indent + text)} from ${indent.length}: expected ${indent.length + expected}, got ${behind}`);
       }
     }
+    if (disagreements.length >= 5) {
+      break; // five are reported; the rest of the enumeration would only find more of the same
+    }
   }
   return { compared, matched, disagreements };
 }

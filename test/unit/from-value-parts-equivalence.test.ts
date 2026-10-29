@@ -86,6 +86,9 @@ function compareAll(lines: Iterable<string>): Count {
         }
       }
     }
+    if (count.disagreements.length >= 5) {
+      break; // five are reported; the rest of the enumeration would only find more of the same
+    }
   }
   return count;
 }
@@ -169,6 +172,15 @@ const STATED: Array<[string, string | null, string | null, boolean, boolean]> = 
   ["fromm: markdown", null, null, false, false],
   [" from: markdown", null, null, false, false],
   ["from", null, null, false, false],
+  // Heads the enumeration does not build (the mutation run of Session 335 found them): any fourth character, several blanks on both sides of the colon, a line feed inside a comment.
+  ["froX: markdown", null, null, false, false],
+  ["fro: markdown", null, null, false, false],
+  ["from  : markdown", "markdown", "", true, false],
+  ["from \t :markdown", "markdown", "", true, false],
+  ["from:  \t markdown", "markdown", "", true, false],
+  ["from: markdown # c\n", null, null, false, false],
+  ["from: markdown # c\nx", null, null, false, false],
+  ["from: markdown   \t  # c", "markdown", "", true, false],
 ];
 
 describe("Session 335 — fromValueParts: the loop reads a front matter `from:` line as the three old patterns did", () => {
@@ -219,6 +231,27 @@ describe("Session 335 — fromValueParts: the loop reads a front matter `from:` 
   });
 
   // The last answer is kept, and a kept answer must not outlive its line: interleave other lines, ask for the same text as a different string object, and ask again.
+  it("an extension name is looked for only in the list: not in the key, the base or the quote", () => {
+    expect(fromExtensionState("from: markdown+a", "rom: markdown")).toBeNull();
+    expect(fromExtensionState("from: markdown+a", "from: markdown")).toBeNull();
+    expect(fromExtensionState("from: markdown+a", "markdown")).toBeNull();
+    expect(fromExtensionState('from: "markdown+a"', "a")).toBe(true);
+    expect(fromExtensionState("from: markdown+a", "a")).toBe(true);
+  });
+
+  // The kept answer is also what keeps a scan linear: one scan asks about the same line from some thirty places, and a value of 13.6 million characters read that often costs seconds (124 ms a read, 28 reads,
+  // 3.5 s in the Outline of Session 335's first build). The same line asked 30 times must cost one read.
+  it("the same 13.6 million character line asked about 30 times is read once", () => {
+    const line = `from: markdown${"+_".repeat(6_800_000)}`;
+    const started = Date.now();
+    for (let i = 0; i < 10; i++) {
+      expect(fromIsMarkdownBase(line)).toBe(true);
+      expect(fromIsMarkdownVariant(line)).toBe(false);
+      expect(fromReaderBase(line)).toBe("markdown");
+    }
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+
   it("a kept answer is never served for another line", () => {
     const lines = ["from: gfm", "from: markdown+a", "from: gfm", "from: markdown_mmd-b", "from: markdown_mmd-b", "from: markdown_mmd-c", "not from", "from: markdown+a"];
     for (const line of lines) {

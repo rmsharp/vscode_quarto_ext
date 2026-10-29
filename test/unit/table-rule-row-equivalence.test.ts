@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pipeDelimiterRow, tableRuleRow } from "../../src/core/qmd/model";
+import { findHeadings, pipeDelimiterRow, tableRuleRow } from "../../src/core/qmd/model";
 import { LS, NBSP, countStrings, everyString, seededRandom } from "./support/regex-equivalence";
 
 // The enumerations take several seconds each on a loaded machine; the sibling equivalence files give their heavy rows the same ceiling.
@@ -31,6 +31,9 @@ function compareAll(lines: Iterable<string>): Count {
     }
     if ((tableRuleRow(line) !== rule || pipeDelimiterRow(line) !== pipe) && count.disagreements.length < 5) {
       count.disagreements.push(`${JSON.stringify(line)}: rule old ${rule} now ${tableRuleRow(line)}, pipe old ${pipe} now ${pipeDelimiterRow(line)}`);
+    }
+    if (count.disagreements.length >= 5) {
+      break; // five are reported; the rest of the enumeration would only find more of the same
     }
   }
   return count;
@@ -202,5 +205,20 @@ describe("Session 335 — tableRuleRow and pipeDelimiterRow: the loops accept wh
     expect(pipeDelimiterRow(`${blanky}x`)).toBe(false);
     expect(tableRuleRow(`+${" ".repeat(3_000_000)}x`)).toBe(false);
     expect(Date.now() - started).toBeLessThan(3000);
+  });
+});
+
+// The wiring: the callers read the functions, and a call whose answer is the only difference between two outcomes needs a document (Learning 865). The answers below are the build's at the parent `c06ee06` (the
+// pattern gave them), not renders of quarto. The table opener reads `tableRuleRow`, which takes any white space after the row, a form feed included; `pipeDelimiterRow` takes blanks only. Found by the mutation
+// run of Session 335 (W03: the opener asking `pipeDelimiterRow` lost the table and the heading below it).
+describe("Session 335 — the pipe table opener asks tableRuleRow", () => {
+  const headingsOf = (text: string): string[] => findHeadings(text).map((h) => h.text);
+
+  it.each(["\f", "\v", NBSP, "\t", " "])("a delimiter row followed by %j still opens a table: the heading pressed below its body is a heading", (tail) => {
+    expect(headingsOf(`| a | b |\n|---|---|${tail}\n| 1 | 2 |\n# H\n`)).toEqual(["H"]);
+  });
+
+  it("the same table with a delimiter that is no rule row opens none, and the heading pressed under the paragraph is not a heading", () => {
+    expect(headingsOf("| a | b |\n|---|---|x\n| 1 | 2 |\n# H\n")).toEqual([]);
   });
 });

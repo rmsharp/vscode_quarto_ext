@@ -50,6 +50,9 @@ function compareAll(tokens: Iterable<string>): Count {
     if ((now !== expected || byDefinition !== expected || token.slice(now) !== oldStrip(token)) && count.disagreements.length < 5) {
       count.disagreements.push(`${JSON.stringify(token)}: old ${expected}, now ${now}, by definition ${byDefinition}`);
     }
+    if (count.disagreements.length >= 5) {
+      break; // five are reported; the rest of the enumeration would only find more of the same
+    }
   }
   return count;
 }

@@ -37,6 +37,9 @@ function compareAll(lines: Iterable<string>): Count {
     if (rawTexBlockMacroLine(line) !== expected && count.disagreements.length < 5) {
       count.disagreements.push(`${JSON.stringify(line)}: old ${expected}`);
     }
+    if (count.disagreements.length >= 5) {
+      break; // five are reported; the rest of the enumeration would only find more of the same
+    }
   }
   return count;
 }
