@@ -155,8 +155,12 @@ describe("Session 337 — gridPlainBorder: the loop reads a plain top border whe
 
   // The cure itself: a border past the old overflow (3,355,430 cells) is read. The old pattern is compared only below that, where it still reads.
   const SMALL_RUNS = [1, 2, 3, 100, 4_096, 65_536, 1_000_000, 3_000_000];
-  const LONG_RUNS = [3_355_430, 3_400_000, 6_800_000, 45_000_000];
+  const LONG_RUNS = [3_355_430, 3_400_000, 6_800_000, 12_000_000];
   const TAILS = ["", " ", "\t", " \t ", "x", "+", "-", "-+", "+-", " x", "=", "\n", NBSP];
+  const DEFINITION_RUN = 6_800_000;
+  const LINEAR_RUN = 45_000_000;
+  const LINEAR_LIMIT_MS = 3000;
+  const DASH_RUNS = [1_000, 100_000, 1_000_000];
   it.each(SMALL_RUNS)("a border of %i cells `-+` ends where the old pattern did, with and without a tail", (n) => {
     const run = "-+".repeat(n);
     for (const tail of n > 65_536 ? ["", " ", "x", "-"] : TAILS) {
@@ -190,7 +194,7 @@ describe("Session 337 — gridPlainBorder: the loop reads a plain top border whe
   }, HEAVY_ROW_MS);
 
   it("a border of 6,800,000 cells agrees with the reading by definition, whole and with each kind of break", () => {
-    const n = 6_800_000;
+    const n = DEFINITION_RUN;
     const run = "-+".repeat(n);
     for (const line of ["+" + run, "+" + run + "x", "+" + run + "  ", "+" + run + "-", "+" + run.slice(0, n) + "+" + run.slice(n), "+" + run.slice(0, n) + " " + run.slice(n)]) {
       expect(gridPlainBorder(line)).toBe(definitionBorder(line));
@@ -198,18 +202,28 @@ describe("Session 337 — gridPlainBorder: the loop reads a plain top border whe
   }, HEAVY_ROW_MS);
 
   it("a border of 45,000,000 cells (90 million characters) is read in linear time", () => {
-    const line = "+" + "-+".repeat(45_000_000);
+    const line = "+" + "-+".repeat(LINEAR_RUN);
     const started = Date.now();
     expect(gridPlainBorder(line)).toBe(true);
     expect(gridPlainBorder(line + "x")).toBe(false);
-    expect(Date.now() - started).toBeLessThan(3000);
+    expect(Date.now() - started).toBeLessThan(LINEAR_LIMIT_MS);
   }, HEAVY_ROW_MS);
 
   it("a long run of dashes in one cell, and a long run of pluses, answer as the old pattern does", () => {
-    for (const n of [1_000, 100_000, 1_000_000]) {
+    for (const n of DASH_RUNS) {
       for (const line of ["+" + "-".repeat(n) + "+", "+" + "-".repeat(n) + "+x", "+" + "-".repeat(n) + "x", "+" + "+".repeat(n), "+" + "-".repeat(n) + "+".repeat(n), "+" + "-+".repeat(n) + " ".repeat(n), "+" + "-+".repeat(n) + " ".repeat(n) + "x"]) {
         expect(gridPlainBorder(line)).toBe(OLD_GRID_PLAIN_BORDER.test(line));
       }
     }
   }, HEAVY_ROW_MS);
+
+  // The parent THROWS from 3,355,430 cells, so the old pattern is compared only below that and the cells above it are checked against the definition and by hand; a list that lost its large entries, or a limit of
+  // minutes, would pass a function that caps or restarts its loop.
+  it("keeps the sizes and the limit the long-run rows are built on", () => {
+    expect(SMALL_RUNS).toEqual([1, 2, 3, 100, 4_096, 65_536, 1_000_000, 3_000_000]);
+    expect(Math.max(...SMALL_RUNS)).toBeLessThan(3_355_430);
+    expect(LONG_RUNS).toEqual([3_355_430, 3_400_000, 6_800_000, 12_000_000]);
+    expect([DEFINITION_RUN, LINEAR_RUN, LINEAR_LIMIT_MS, DASH_RUNS]).toEqual([6_800_000, 45_000_000, 3000, [1_000, 100_000, 1_000_000]]);
+    expect([SEEDED_COUNT, SEED, HEAVY_ROW_MS]).toEqual([300_000, 3371, 120_000]);
+  });
 });

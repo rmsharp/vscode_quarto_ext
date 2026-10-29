@@ -19,9 +19,9 @@ describe("Session 337, part 2: a grid table's top border of millions of `-+` cel
   const FEW = 4;
   const MANY = 6_800_000;
   const UNIT = "-+";
-  // 3 s: the parent reads the 3,355,429-cell border (6.7 million characters) in 0.2 s of scan, so the 13.6-million-character documents below take about 0.4 s a row when nothing throws; 3 s is 7 times that
+  // 4 s: with the cure each read of a 13.6-million-character document takes 0.41 to 0.61 s (a fresh process per probe at the cure commit: 7 entries and hints on 5 shapes; the rest is the scan of the document, which was always linear), so 4 s is 6.5 times the slowest
   // and still tells a linear reading from a quadratic one (a quadratic one takes minutes on 6.8 million cells).
-  const LIMIT_MS = 3000;
+  const LIMIT_MS = 4000;
 
   const flatten = (symbols: OutlineSymbol[]): string[] => symbols.flatMap((s) => [`${s.kind}:${s.name.slice(0, 12)}`, ...flatten(s.children)]);
   const headings = (hint?: "knitr" | "jupyter" | "markdown") => (text: string): string[] => findHeadings(text, hint).map((h) => h.text.slice(0, 8));
@@ -109,7 +109,7 @@ describe("Session 337, part 2: a grid table's top border of millions of `-+` cel
 
   // The parent THROWS from 3,355,430 cells, so no limit passes it there; a run below that, or a unit that is not the throwing one, would pass on it, and a limit of minutes would pass a quadratic cure.
   it("keeps the sizes, the limit and the unit the Session 337 part 2 rows are built on", () => {
-    expect([FEW, MANY, UNIT, LIMIT_MS, ROWS.length]).toEqual([4, 6_800_000, "-+", 3000, 34]);
+    expect([FEW, MANY, UNIT, LIMIT_MS, ROWS.length]).toEqual([4, 6_800_000, "-+", 4000, 34]);
     expect(MANY).toBeGreaterThanOrEqual(2 * 3_355_430);
   });
 });

@@ -14454,10 +14454,10 @@ function tableOrLineBlockEndsAt(b: BlockBoundaries, x: number, nextContinues = f
   if (b.readers.gridTables && /^[|+]/.test(line)) {
     let k = b.runStartOf("bars", (l) => /^[|+]/.test(l), x);
     // The table BEGINS at its first border line: a line block (or a pipe row) above it is no part of it (Session 298, rendered `wb_lb1__grid`).
-    while (k < x && !GRID_PLAIN_BORDER.test(lines[k])) {
+    while (k < x && !gridPlainBorder(lines[k])) {
       k++;
     }
-    if (GRID_PLAIN_BORDER.test(lines[k]) && startsAtBoundary(b, k)) {
+    if (gridPlainBorder(lines[k]) && startsAtBoundary(b, k)) {
       let borders = 0;
       for (let j = k; j <= x; j++) {
         if (GRID_TABLE_BORDER.test(lines[j])) {
@@ -14488,8 +14488,32 @@ export function pipeDelimiterRow(line: string): boolean {
   const end = pipeRuleBodyEnd(line, at);
   return end >= 0 && skipBlanks(line, end) === line.length;
 }
-/** The top border of a grid table: dashes only between the plus signs (a `+====+` first border is no table). */
-const GRID_PLAIN_BORDER = /^\+(?:-+\+)+[ \t]*$/;
+/**
+ * The top border of a grid table: dashes only between the plus signs (a `+====+` first border is no table). A plus sign, one or more cells (a run of dashes and then a plus sign), then blanks to the end of the line.
+ *
+ * Read by a loop since Session 337 (it was the pattern `GRID_PLAIN_BORDER`, `/^\+(?:-+\+)+[ \t]*$/`, tested twice in `tableOrLineBlockEndsAt`): V8 keeps one entry of its regex backtrack stack per repetition of a GROUP,
+ * so a border of 3,355,430 or more `-+` cells threw `RangeError: Maximum call stack size exceeded` (bisected at `8ebce73`), and the error reached every reader of the document. A cell ends at its plus sign and the next
+ * one starts with a dash, so the cells cannot be split another way: the first dash run that no plus sign closes fails the line, and what follows the last cell must be blanks. `grid-plain-border-equivalence.test.ts`
+ * keeps the pattern as the oracle.
+ */
+export function gridPlainBorder(line: string): boolean {
+  if (line.charCodeAt(0) !== 43) {
+    return false;
+  }
+  let at = 1;
+  let cells = 0;
+  while (line.charCodeAt(at) === 45) {
+    while (line.charCodeAt(at) === 45) {
+      at++;
+    }
+    if (line.charCodeAt(at) !== 43) {
+      return false;
+    }
+    at++;
+    cells++;
+  }
+  return cells > 0 && skipBlanks(line, at) === line.length;
+}
 
 /**
  * Whether the contiguous run of non-blank lines ending at `x` BEGINS with a tag line (Session 295). A run start is a boundary by construction (the line
