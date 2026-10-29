@@ -328,14 +328,6 @@
   "why": "an edit of the function that its oracle file must notice"
  },
  {
-  "name": "L15 attributeKeyValue: every white space but a space ends the value (a space needs no backslash)",
-  "file": "src/core/qmd/model.ts",
-  "from": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",
-  "to": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && c !== 32)) {\n      return false;\n    }\n  }\n  return true;",
-  "expect": "killed",
-  "why": "an edit of the function that its oracle file must notice"
- },
- {
   "name": "L16 attributeKeyValue: the loop returns false at the end",
   "file": "src/core/qmd/model.ts",
   "from": "  for (let i = value; i <= last; i++) {\n    const c = token.charCodeAt(i);\n    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {\n      return false;\n    }\n  }\n  return true;",

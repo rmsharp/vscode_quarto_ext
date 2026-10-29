@@ -1,0 +1,394 @@
+[
+ {
+  "name": "N01 commentEndsLine: `skipBlanks(line, close + 3` -> `Math.min(skipBlanks(line, close + 3), close + 3 + 4096`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return close >= 0 && skipBlanks(line, close + 3) === line.length;",
+  "to": "  return close >= 0 && Math.min(skipBlanks(line, close + 3), close + 3 + 4096) === line.length;",
+  "expect": "killed",
+  "why": "blank tail capped at 4,096"
+ },
+ {
+  "name": "N02 commentEndsLine: `skipBlanks(line, close + 3` -> `Math.min(skipBlanks(line, close + 3), close + 3 + 65536`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return close >= 0 && skipBlanks(line, close + 3) === line.length;",
+  "to": "  return close >= 0 && Math.min(skipBlanks(line, close + 3), close + 3 + 65536) === line.length;",
+  "expect": "killed",
+  "why": "blank tail capped at 65,536"
+ },
+ {
+  "name": "N03 commentEndsLine: `skipBlanks(line, close + 3` -> `Math.min(skipBlanks(line, close + 3), close + 3 + 1048576`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return close >= 0 && skipBlanks(line, close + 3) === line.length;",
+  "to": "  return close >= 0 && Math.min(skipBlanks(line, close + 3), close + 3 + 1048576) === line.length;",
+  "expect": "killed",
+  "why": "blank tail capped at 1,048,576"
+ },
+ {
+  "name": "N04 commentEndsLine: `=== line.length` -> `>= Math.min(line.length, close + 3 + 4096)`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return close >= 0 && skipBlanks(line, close + 3) === line.length;",
+  "to": "  return close >= 0 && skipBlanks(line, close + 3) >= Math.min(line.length, close + 3 + 4096);",
+  "expect": "killed",
+  "why": "only the first 4,096 characters of the tail are read"
+ },
+ {
+  "name": "N05 commentFullLine: `skipBlanks(line, 0` -> `Math.min(skipBlanks(line, 0), 4096`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const open = skipBlanks(line, 0);\n  return line.startsWith(\"<!--\", open) && commentEndsLine(line, open);",
+  "to": "  const open = Math.min(skipBlanks(line, 0), 4096);\n  return line.startsWith(\"<!--\", open) && commentEndsLine(line, open);",
+  "expect": "killed",
+  "why": "indent of commentFullLine capped at 4,096"
+ },
+ {
+  "name": "N06 commentFullLine: `skipBlanks(line, 0` -> `Math.min(skipBlanks(line, 0), 65536`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const open = skipBlanks(line, 0);\n  return line.startsWith(\"<!--\", open) && commentEndsLine(line, open);",
+  "to": "  const open = Math.min(skipBlanks(line, 0), 65536);\n  return line.startsWith(\"<!--\", open) && commentEndsLine(line, open);",
+  "expect": "killed",
+  "why": "indent of commentFullLine capped at 65,536"
+ },
+ {
+  "name": "N07 commentThenText: `skipBlanks(line, close + 3` -> `Math.min(skipBlanks(line, close + 3), close + 3 + 4096`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const text = line.charCodeAt(skipBlanks(line, close + 3));",
+  "to": "  const text = line.charCodeAt(Math.min(skipBlanks(line, close + 3), close + 3 + 4096));",
+  "expect": "killed",
+  "why": "commentThenText: blanks before the text capped at 4,096"
+ },
+ {
+  "name": "N08 commentThenText: `skipBlanks(line, close + 3` -> `Math.min(skipBlanks(line, close + 3), close + 3 + 65536`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const text = line.charCodeAt(skipBlanks(line, close + 3));",
+  "to": "  const text = line.charCodeAt(Math.min(skipBlanks(line, close + 3), close + 3 + 65536));",
+  "expect": "killed",
+  "why": "commentThenText: blanks before the text capped at 65,536"
+ },
+ {
+  "name": "N09 commentThenText: `close` -> `Math.min(close, open + 4 + 65536)`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4, close))) {",
+  "to": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4, Math.min(close, open + 4 + 65536)))) {",
+  "expect": "killed",
+  "why": "terminator looked for in the first 65,536 characters of the body only"
+ },
+ {
+  "name": "N10 commentThenText: `open + 4` -> `Math.max(open + 4, close - 65536)`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4, close))) {",
+  "to": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(Math.max(open + 4, close - 65536), close))) {",
+  "expect": "killed",
+  "why": "terminator looked for in the last 65,536 characters of the body only"
+ },
+ {
+  "name": "N11 commentThenText: insert `open + 4 + 4096) + line.slice(Math.max(open + 4 + 4096, close - 409...`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4, close))) {",
+  "to": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4, open + 4 + 4096) + line.slice(Math.max(open + 4 + 4096, close - 4096), close))) {",
+  "expect": "killed",
+  "why": "terminator looked for in the first and last 4,096 characters of the body only"
+ },
+ {
+  "name": "N12 commentThenText: insert `.slice(0, 8388608)`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4, close))) {",
+  "to": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4, close).slice(0, 8388608))) {",
+  "expect": "killed",
+  "why": "terminator looked for in the first 8,388,608 characters of the body only"
+ },
+ {
+  "name": "N13 commentThenText: insert `.slice(-8388608)`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4, close))) {",
+  "to": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4, close).slice(-8388608))) {",
+  "expect": "killed",
+  "why": "terminator looked for in the last 8,388,608 characters of the body only"
+ },
+ {
+  "name": "T10 commentThenText: insert `g`",
+  "file": "src/core/qmd/model.ts",
+  "from": "const LINE_TERMINATOR = /[\\n\\r\\u2028\\u2029]/;",
+  "to": "const LINE_TERMINATOR = /[\\n\\r\\u2028\\u2029]/g;",
+  "expect": "killed",
+  "why": "a global flag: .test() keeps lastIndex between calls"
+ },
+ {
+  "name": "T11 commentThenText: insert `y`",
+  "file": "src/core/qmd/model.ts",
+  "from": "const LINE_TERMINATOR = /[\\n\\r\\u2028\\u2029]/;",
+  "to": "const LINE_TERMINATOR = /[\\n\\r\\u2028\\u2029]/y;",
+  "expect": "killed",
+  "why": "a sticky flag: .test() must match at index 0"
+ },
+ {
+  "name": "T12 commentThenText: insert `^(?:[^\\n\\r\\u2028\\u2029])*`",
+  "file": "src/core/qmd/model.ts",
+  "from": "const LINE_TERMINATOR = /[\\n\\r\\u2028\\u2029]/;",
+  "to": "const LINE_TERMINATOR = /^(?:[^\\n\\r\\u2028\\u2029])*[\\n\\r\\u2028\\u2029]/;",
+  "expect": "survives",
+  "why": "equivalent in answer and, measured on this engine, in cost: V8 compiles a non-capturing group of one character class like the class itself, so the quantified group does not overflow at 17 and 45 million characters; no row can see the spelling"
+ },
+ {
+  "name": "T13 commentThenText: insert `u`",
+  "file": "src/core/qmd/model.ts",
+  "from": "const LINE_TERMINATOR = /[\\n\\r\\u2028\\u2029]/;",
+  "to": "const LINE_TERMINATOR = /[\\n\\r\\u2028\\u2029]/u;",
+  "expect": "survives",
+  "why": "a unicode flag: the class holds only BMP code units"
+ },
+ {
+  "name": "T14 commentThenText: insert `m`",
+  "file": "src/core/qmd/model.ts",
+  "from": "const LINE_TERMINATOR = /[\\n\\r\\u2028\\u2029]/;",
+  "to": "const LINE_TERMINATOR = /[\\n\\r\\u2028\\u2029]/m;",
+  "expect": "survives",
+  "why": "a multiline flag: no anchors"
+ },
+ {
+  "name": "T15 commentThenText: insert `-`",
+  "file": "src/core/qmd/model.ts",
+  "from": "const LINE_TERMINATOR = /[\\n\\r\\u2028\\u2029]/;",
+  "to": "const LINE_TERMINATOR = /[\\n\\r\\u2028-\\u2029]/;",
+  "expect": "survives",
+  "why": "the two separators as a range"
+ },
+ {
+  "name": "R01 COMMENT_CLOSE: `indexOf(\"-->\", open + 4` -> `slice(open + 4).indexOf(\"-->\"`",
+  "file": "src/core/qmd/model.ts",
+  "from": "function commentEndsLine(line: string, open: number): boolean {\n  const close = line.indexOf(\"-->\", open + 4);",
+  "to": "function commentEndsLine(line: string, open: number): boolean {\n  const close = line.slice(open + 4).indexOf(\"-->\");",
+  "expect": "killed",
+  "why": "indexOf on a slice without adding the offset back"
+ },
+ {
+  "name": "R02 COMMENT_CLOSE: `indexOf(\"-->\", open + 4` -> `lastIndexOf(\"-->\"`",
+  "file": "src/core/qmd/model.ts",
+  "from": "function commentEndsLine(line: string, open: number): boolean {\n  const close = line.indexOf(\"-->\", open + 4);",
+  "to": "function commentEndsLine(line: string, open: number): boolean {\n  const close = line.lastIndexOf(\"-->\");",
+  "expect": "killed",
+  "why": "the LAST closer"
+ },
+ {
+  "name": "R03 commentThenText: `indexOf(\"-->\", open + 4` -> `lastIndexOf(\"-->\"`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4, close))) {",
+  "to": "  const close = line.lastIndexOf(\"-->\");\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4, close))) {",
+  "expect": "killed",
+  "why": "commentThenText: the LAST closer"
+ },
+ {
+  "name": "R04 commentThenText: `open + 4, close` -> `close, open + 4`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4, close))) {",
+  "to": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(close, open + 4))) {",
+  "expect": "killed",
+  "why": "slice arguments swapped"
+ },
+ {
+  "name": "R05 commentThenText: `, close` -> ``",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4, close))) {",
+  "to": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4))) {",
+  "expect": "killed",
+  "why": "terminator searched from the body to the end of the line"
+ },
+ {
+  "name": "R06 commentThenText: `.slice(open + 4, close)` -> ``",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4, close))) {",
+  "to": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line)) {",
+  "expect": "killed",
+  "why": "terminator searched in the whole line"
+ },
+ {
+  "name": "R07 commentThenText: `open + 4` -> `0`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4, close))) {",
+  "to": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(0, close))) {",
+  "expect": "survives",
+  "why": "terminator searched from the start of the line to the closer"
+ },
+ {
+  "name": "R08 commentThenText: ` + 4` -> ``",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4, close))) {",
+  "to": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open, close))) {",
+  "expect": "survives",
+  "why": "terminator searched from the opener"
+ },
+ {
+  "name": "R09 commentThenText: insert ` + 3`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4, close))) {",
+  "to": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4, close + 3))) {",
+  "expect": "survives",
+  "why": "terminator searched through the closer"
+ },
+ {
+  "name": "R10 commentEndsLine: insert `trimEnd().`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return close >= 0 && skipBlanks(line, close + 3) === line.length;",
+  "to": "  return close >= 0 && skipBlanks(line, close + 3) === line.trimEnd().length;",
+  "expect": "killed",
+  "why": "tail may hold any trailing white space"
+ },
+ {
+  "name": "R11 commentEndsLine: insert ` && line.indexOf(\"-->\", close + 1) < 0`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return close >= 0 && skipBlanks(line, close + 3) === line.length;",
+  "to": "  return close >= 0 && skipBlanks(line, close + 3) === line.length && line.indexOf(\"-->\", close + 1) < 0;",
+  "expect": "survives",
+  "why": "equivalent: the extra condition (no further `-->` from close + 1 on) is true whenever the tail after the closer is blanks, which is the only case the function returns true for: a blank cannot begin or hold a `-->`, and the `-` and `>` of the closer itself cannot make one (`->` is not `-->`)"
+ },
+ {
+  "name": "R12 commentEndsLine: insert ` && !LINE_TERMINATOR.test(line.slice(open + 4, close))`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return close >= 0 && skipBlanks(line, close + 3) === line.length;",
+  "to": "  return close >= 0 && skipBlanks(line, close + 3) === line.length && !LINE_TERMINATOR.test(line.slice(open + 4, close));",
+  "expect": "killed",
+  "why": "a terminator in the body refuses the whole-line comment (`.` of the third pattern)"
+ },
+ {
+  "name": "R13 commentEndsLine: insert ` && close > open + 4`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return close >= 0 && skipBlanks(line, close + 3) === line.length;",
+  "to": "  return close >= 0 && skipBlanks(line, close + 3) === line.length && close > open + 4;",
+  "expect": "killed",
+  "why": "an empty comment `<!---->` is refused"
+ },
+ {
+  "name": "R14 commentEndsLine: insert ` && close - open >= 6`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return close >= 0 && skipBlanks(line, close + 3) === line.length;",
+  "to": "  return close >= 0 && skipBlanks(line, close + 3) === line.length && close - open >= 6;",
+  "expect": "killed",
+  "why": "a comment of fewer than two body characters is refused"
+ },
+ {
+  "name": "R15 commentFullLine: insert ` && open <= 3`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const open = skipBlanks(line, 0);\n  return line.startsWith(\"<!--\", open) && commentEndsLine(line, open);",
+  "to": "  const open = skipBlanks(line, 0);\n  return line.startsWith(\"<!--\", open) && commentEndsLine(line, open) && open <= 3;",
+  "expect": "killed",
+  "why": "commentFullLine refuses an indent of four or more"
+ },
+ {
+  "name": "R16 commentFullLine: insert ` && line.charCodeAt(open - 1) !== 9`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const open = skipBlanks(line, 0);\n  return line.startsWith(\"<!--\", open) && commentEndsLine(line, open);",
+  "to": "  const open = skipBlanks(line, 0);\n  return line.startsWith(\"<!--\", open) && commentEndsLine(line, open) && line.charCodeAt(open - 1) !== 9;",
+  "expect": "killed",
+  "why": "a tab directly before the opener is refused"
+ },
+ {
+  "name": "R17 commentFullLineCol0: `startsWith(\"<!--\")` -> `charCodeAt(0) === 60`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return line.startsWith(\"<!--\") && commentEndsLine(line, 0);",
+  "to": "  return line.charCodeAt(0) === 60 && commentEndsLine(line, 0);",
+  "expect": "killed",
+  "why": "only the `<` of the opener is tested at column 0"
+ },
+ {
+  "name": "R18 commentFullLineCol0: insert ` && line.length > 7`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return line.startsWith(\"<!--\") && commentEndsLine(line, 0);",
+  "to": "  return line.startsWith(\"<!--\") && commentEndsLine(line, 0) && line.length > 7;",
+  "expect": "killed",
+  "why": "a line of 7 characters or fewer is refused"
+ },
+ {
+  "name": "R19 commentFullLineCol0: insert ` && !line.endsWith(\"\\t\")`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return line.startsWith(\"<!--\") && commentEndsLine(line, 0);",
+  "to": "  return line.startsWith(\"<!--\") && commentEndsLine(line, 0) && !line.endsWith(\"\\t\");",
+  "expect": "killed",
+  "why": "a trailing tab is refused at column 0"
+ },
+ {
+  "name": "R20 commentFullLineCol0: insert ` && !LINE_TERMINATOR.test(line)`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return line.startsWith(\"<!--\") && commentEndsLine(line, 0);",
+  "to": "  return line.startsWith(\"<!--\") && commentEndsLine(line, 0) && !LINE_TERMINATOR.test(line);",
+  "expect": "killed",
+  "why": "a terminator anywhere refuses the column-0 comment"
+ },
+ {
+  "name": "R21 commentThenText: insert ` + (line.charCodeAt(close + 3) === 45 ? 1 : 0)`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const text = line.charCodeAt(skipBlanks(line, close + 3));",
+  "to": "  const text = line.charCodeAt(skipBlanks(line, close + 3) + (line.charCodeAt(close + 3) === 45 ? 1 : 0));",
+  "expect": "killed",
+  "why": "a dash right after the closer is skipped"
+ },
+ {
+  "name": "R22 commentThenText: insert ` | 32`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const text = line.charCodeAt(skipBlanks(line, close + 3));",
+  "to": "  const text = line.charCodeAt(skipBlanks(line, close + 3)) | 32;",
+  "expect": "survives",
+  "why": "OR 32 before the letter test (folds the case): same language"
+ },
+ {
+  "name": "R23 commentThenText: `3` -> `4`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const text = line.charCodeAt(skipBlanks(line, close + 3));",
+  "to": "  const text = line.charCodeAt(skipBlanks(line, close + 4));",
+  "expect": "killed",
+  "why": "the blanks are skipped from the second character after the closer"
+ },
+ {
+  "name": "R24 commentThenText: `text >= 65 && text <= 90) || (text >= 97 && text` -> `(text | 32) >= 97 && (text | 32)`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return (text >= 65 && text <= 90) || (text >= 97 && text <= 122);\n}\n/** A character the pattern",
+  "to": "  return ((text | 32) >= 97 && (text | 32) <= 122);\n}\n/** A character the pattern",
+  "expect": "survives",
+  "why": "the letter test written with OR 32"
+ },
+ {
+  "name": "R25 commentThenText: insert ` || text === 95`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return (text >= 65 && text <= 90) || (text >= 97 && text <= 122);\n}\n/** A character the pattern",
+  "to": "  return (text >= 65 && text <= 90) || (text >= 97 && text <= 122) || text === 95;\n}\n/** A character the pattern",
+  "expect": "killed",
+  "why": "an underscore is a letter"
+ },
+ {
+  "name": "R27 commentThenText: insert ` || text >= 128`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return (text >= 65 && text <= 90) || (text >= 97 && text <= 122);\n}\n/** A character the pattern",
+  "to": "  return (text >= 65 && text <= 90) || (text >= 97 && text <= 122) || text >= 128;\n}\n/** A character the pattern",
+  "expect": "killed",
+  "why": "any non-ASCII character is a letter"
+ },
+ {
+  "name": "R28 commentThenText: insert `if (line.length > 16777216) {     return false;   }   `",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (open > 3 || !line.startsWith(\"<!--\", open)) {\n    return false;\n  }\n  const close = line.indexOf(\"-->\", open + 4);",
+  "to": "  if (open > 3 || !line.startsWith(\"<!--\", open)) {\n    return false;\n  }\n  if (line.length > 16777216) {\n    return false;\n  }\n  const close = line.indexOf(\"-->\", open + 4);",
+  "expect": "killed",
+  "why": "a line over 16,777,216 characters is no comment-then-text"
+ },
+ {
+  "name": "N11b commentThenText: insert `Math.min(close, open + 4 + 4096)) + line.slice(Math.max(open + 4 + ...`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4, close))) {",
+  "to": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4, Math.min(close, open + 4 + 4096)) + line.slice(Math.max(open + 4 + 4096, close - 4096), close))) {",
+  "expect": "killed",
+  "why": "terminator looked for in the first and last 4,096 characters of the body only"
+ },
+ {
+  "name": "N11c commentThenText: insert `Math.min(close, open + 4 + 65536)) + line.slice(Math.max(open + 4 +...`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4, close))) {",
+  "to": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4, Math.min(close, open + 4 + 65536)) + line.slice(Math.max(open + 4 + 65536, close - 65536), close))) {",
+  "expect": "killed",
+  "why": "terminator looked for in the first and last 65,536 characters of the body only"
+ },
+ {
+  "name": "N11d commentThenText: insert `Math.min(close, open + 4 + 8388608)) + line.slice(Math.max(open + 4...`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4, close))) {",
+  "to": "  const close = line.indexOf(\"-->\", open + 4);\n  if (close < 0 || LINE_TERMINATOR.test(line.slice(open + 4, Math.min(close, open + 4 + 8388608)) + line.slice(Math.max(open + 4 + 8388608, close - 8388608), close))) {",
+  "expect": "killed",
+  "why": "terminator looked for in the first and last 8,388,608 characters of the body only"
+ }
+]

@@ -1,0 +1,482 @@
+[
+ {
+  "name": "Q11 attributeKeyValue: insert ` || quote === 124`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if ((quote === 34 || quote === 39 || quote === 124) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "expect": "killed",
+  "why": "a vertical bar opens a quoted value"
+ },
+ {
+  "name": "Q12 attributeKeyValue: insert ` || quote === 47`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if ((quote === 34 || quote === 39 || quote === 47) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "expect": "killed",
+  "why": "a slash opens a quoted value"
+ },
+ {
+  "name": "Q13 attributeKeyValue: insert ` || quote === 43`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if ((quote === 34 || quote === 39 || quote === 43) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "expect": "killed",
+  "why": "a plus sign opens a quoted value"
+ },
+ {
+  "name": "Q14 attributeKeyValue: insert ` || quote === 46`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if ((quote === 34 || quote === 39 || quote === 46) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "expect": "killed",
+  "why": "a full stop opens a quoted value"
+ },
+ {
+  "name": "Q15 attributeKeyValue: insert ` || quote === 45`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if ((quote === 34 || quote === 39 || quote === 45) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "expect": "killed",
+  "why": "a hyphen opens a quoted value"
+ },
+ {
+  "name": "Q16 attributeKeyValue: insert ` || quote === 44`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if ((quote === 34 || quote === 39 || quote === 44) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "expect": "killed",
+  "why": "a comma opens a quoted value"
+ },
+ {
+  "name": "Q17 attributeKeyValue: insert ` || quote === 58`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if ((quote === 34 || quote === 39 || quote === 58) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "expect": "killed",
+  "why": "a colon opens a quoted value"
+ },
+ {
+  "name": "Q18 attributeKeyValue: insert ` || quote === 33`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if ((quote === 34 || quote === 39 || quote === 33) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "expect": "killed",
+  "why": "an exclamation mark opens a quoted value"
+ },
+ {
+  "name": "Q19 attributeKeyValue: insert ` || quote === 94`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if ((quote === 34 || quote === 39 || quote === 94) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "expect": "killed",
+  "why": "a caret opens a quoted value"
+ },
+ {
+  "name": "Q20 attributeKeyValue: insert ` || quote === 36`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if ((quote === 34 || quote === 39 || quote === 36) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "expect": "killed",
+  "why": "a dollar sign opens a quoted value"
+ },
+ {
+  "name": "Q21 attributeKeyValue: insert ` || quote === 64`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if ((quote === 34 || quote === 39 || quote === 64) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "expect": "killed",
+  "why": "an at sign opens a quoted value"
+ },
+ {
+  "name": "Q22 attributeKeyValue: insert ` || quote === 37`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if ((quote === 34 || quote === 39 || quote === 37) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "expect": "killed",
+  "why": "a percent sign opens a quoted value"
+ },
+ {
+  "name": "Q23 attributeKeyValue: insert ` || quote === 59`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if ((quote === 34 || quote === 39 || quote === 59) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "expect": "killed",
+  "why": "a semicolon opens a quoted value"
+ },
+ {
+  "name": "Q24 attributeKeyValue: insert ` || quote === 63`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if ((quote === 34 || quote === 39 || quote === 63) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "expect": "killed",
+  "why": "a question mark opens a quoted value"
+ },
+ {
+  "name": "Q25 attributeKeyValue: insert ` || quote === 38`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if ((quote === 34 || quote === 39 || quote === 38) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "expect": "killed",
+  "why": "an ampersand opens a quoted value"
+ },
+ {
+  "name": "Q26 attributeKeyValue: insert ` || (quote >= 40 && quote <= 47)`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if ((quote === 34 || quote === 39 || (quote >= 40 && quote <= 47)) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "expect": "killed",
+  "why": "any of ( ) * + , - . / opens a quoted value"
+ },
+ {
+  "name": "Q27 attributeKeyValue: insert ` || (quote >= 123 && quote <= 126)`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if ((quote === 34 || quote === 39 || (quote >= 123 && quote <= 126)) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "expect": "killed",
+  "why": "any of { | } ~ opens a quoted value"
+ },
+ {
+  "name": "Q28 attributeKeyValue: insert ` || quote > 127`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if ((quote === 34 || quote === 39 || quote > 127) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "expect": "killed",
+  "why": "any non-ASCII character opens a quoted value"
+ },
+ {
+  "name": "P01 attributeKeyValue: insert `quote === 123 && last > value && token.charCodeAt(last) === 125) { ...`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if (quote === 123 && last > value && token.charCodeAt(last) === 125) {\n    return true;\n  }\n  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "expect": "killed",
+  "why": "`{` and `}` quote a value"
+ },
+ {
+  "name": "P02 attributeKeyValue: insert `quote === 0x201c && last > value && token.charCodeAt(last) === 0x20...`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if (quote === 0x201c && last > value && token.charCodeAt(last) === 0x201d) {\n    return true;\n  }\n  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "expect": "killed",
+  "why": "U+201C and U+201D quote a value"
+ },
+ {
+  "name": "P03 attributeKeyValue: insert `quote === 0x2018 && last > value && token.charCodeAt(last) === 0x20...`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if (quote === 0x2018 && last > value && token.charCodeAt(last) === 0x2019) {\n    return true;\n  }\n  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "expect": "killed",
+  "why": "U+2018 and U+2019 quote a value"
+ },
+ {
+  "name": "P04 attributeKeyValue: insert `quote === 0xab && last > value && token.charCodeAt(last) === 0xbb) ...`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if (quote === 0xab && last > value && token.charCodeAt(last) === 0xbb) {\n    return true;\n  }\n  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "expect": "killed",
+  "why": "U+00AB and U+00BB quote a value"
+ },
+ {
+  "name": "P05 attributeKeyValue: `token.charCodeAt(last) === quote` -> `(token.charCodeAt(last) === quote || (quote === 34 && token.charCod...`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if ((quote === 34 || quote === 39) && last > value && (token.charCodeAt(last) === quote || (quote === 34 && token.charCodeAt(last) === 39)) && token.indexOf(token[value], value + 1) === last) {",
+  "expect": "survives",
+  "why": "a double-quoted value may end in a single quote (the search for the double quote then cannot find it at the last place)"
+ },
+ {
+  "name": "P06 attributeKeyValue: insert ` && token.indexOf(token[value], last + 1) < 0`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last && token.indexOf(token[value], last + 1) < 0) {",
+  "expect": "survives",
+  "why": "the closing-quote search is extended past the last character"
+ },
+ {
+  "name": "P07 attributeKeyValue: `indexOf(token[value], value + 1) === last` -> `lastIndexOf(token[value], last - 1) === value`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.lastIndexOf(token[value], last - 1) === value) {",
+  "expect": "survives",
+  "why": "the unquoted middle read from the other end"
+ },
+ {
+  "name": "P08 attributeKeyValue: insert ` && token.indexOf(token[value] === '\"' ? \"'\" : '\"', value + 1) < 0`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last && token.indexOf(token[value] === '\"' ? \"'\" : '\"', value + 1) < 0) {",
+  "expect": "killed",
+  "why": "the other kind of quote must not occur in a quoted value"
+ },
+ {
+  "name": "A01 attributeKeyValue: insert `at < 65536 && `",
+  "file": "src/core/qmd/model.ts",
+  "from": "  while (at < token.length && !isAttributeKeyStop(token.charCodeAt(at))) {",
+  "to": "  while (at < token.length && at < 65536 && !isAttributeKeyStop(token.charCodeAt(at))) {",
+  "expect": "killed",
+  "why": "key scan capped at 65,536"
+ },
+ {
+  "name": "A02 attributeKeyValue: insert ` && i < value + 65536`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let i = value; i <= last; i++) {",
+  "to": "  for (let i = value; i <= last && i < value + 65536; i++) {",
+  "expect": "killed",
+  "why": "bare value scan capped at 65,536"
+ },
+ {
+  "name": "A03 attributeKeyValue: `++` -> ` = i === value + 4095 && last - 4096 > i ? last - 4095 : i + 1`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let i = value; i <= last; i++) {",
+  "to": "  for (let i = value; i <= last; i = i === value + 4095 && last - 4096 > i ? last - 4095 : i + 1) {",
+  "expect": "killed",
+  "why": "bare value read in its first and last 4,096 characters only"
+ },
+ {
+  "name": "A04 attributeKeyValue: `++` -> ` = i === value + 8388607 && last - 8388608 > i ? last - 8388607 : i...`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let i = value; i <= last; i++) {",
+  "to": "  for (let i = value; i <= last; i = i === value + 8388607 && last - 8388608 > i ? last - 8388607 : i + 1) {",
+  "expect": "killed",
+  "why": "bare value read in its first and last 8,388,608 characters only"
+ },
+ {
+  "name": "A05 attributeKeyValue: `c === 125` -> `(c === 125 && (i < value + 4096 || i > last - 4096))`",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {",
+  "to": "    if ((c === 125 && (i < value + 4096 || i > last - 4096)) || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {",
+  "expect": "killed",
+  "why": "a `}` is looked for in the first and last 4,096 characters only"
+ },
+ {
+  "name": "A06 attributeKeyValue: insert ` && (i < value + 4096 || i > last - 4096)`",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {",
+  "to": "    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92) && (i < value + 4096 || i > last - 4096))) {",
+  "expect": "killed",
+  "why": "white space is looked for in the first and last 4,096 characters only"
+ },
+ {
+  "name": "A07 attributeKeyValue: insert `< 16777216 && last `",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((quote === 34 || quote === 39) && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "to": "  if ((quote === 34 || quote === 39) && last < 16777216 && last > value && token.charCodeAt(last) === quote && token.indexOf(token[value], value + 1) === last) {",
+  "expect": "killed",
+  "why": "a quoted value of 16,777,216 characters or more is read as bare"
+ },
+ {
+  "name": "A08 attributeKeyValue: `token.length` -> `Math.min(token.length, 33554432)`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const last = token.length - 1;",
+  "to": "  const last = Math.min(token.length, 33554432) - 1;",
+  "expect": "killed",
+  "why": "the value read to 33,554,432 characters"
+ },
+ {
+  "name": "S20 attributeKeyValue: insert ` || first === 95`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (!((first >= 65 && first <= 90) || (first >= 97 && first <= 122))) {",
+  "to": "  if (!((first >= 65 && first <= 90) || (first >= 97 && first <= 122) || first === 95)) {",
+  "expect": "killed",
+  "why": "an underscore starts a key"
+ },
+ {
+  "name": "S21 attributeKeyValue: insert ` || first > 127`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (!((first >= 65 && first <= 90) || (first >= 97 && first <= 122))) {",
+  "to": "  if (!((first >= 65 && first <= 90) || (first >= 97 && first <= 122) || first > 127)) {",
+  "expect": "killed",
+  "why": "a non-ASCII character starts a key"
+ },
+ {
+  "name": "S22 attributeKeyValue: `first >= 65 && first <= 90) || (first >= 97 && first` -> `(first | 32) >= 97 && (first | 32)`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (!((first >= 65 && first <= 90) || (first >= 97 && first <= 122))) {",
+  "to": "  if (!(((first | 32) >= 97 && (first | 32) <= 122))) {",
+  "expect": "survives",
+  "why": "the letter test with OR 32"
+ },
+ {
+  "name": "S23 attributeKeyValue: insert ` || token.length < 2`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (!((first >= 65 && first <= 90) || (first >= 97 && first <= 122))) {",
+  "to": "  if (!((first >= 65 && first <= 90) || (first >= 97 && first <= 122)) || token.length < 2) {",
+  "expect": "survives",
+  "why": "a one-character token is refused up front (it has no `=`)"
+ },
+ {
+  "name": "S24 attributeKeyValue: insert `- 1 `",
+  "file": "src/core/qmd/model.ts",
+  "from": "  while (at < token.length && !isAttributeKeyStop(token.charCodeAt(at))) {",
+  "to": "  while (at < token.length - 1 && !isAttributeKeyStop(token.charCodeAt(at))) {",
+  "expect": "survives",
+  "why": "key scan stops one character early"
+ },
+ {
+  "name": "S25 attributeKeyValue: insert `at >= token.length || `",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (token.charCodeAt(at) !== 61) {",
+  "to": "  if (at >= token.length || token.charCodeAt(at) !== 61) {",
+  "expect": "survives",
+  "why": "an explicit end-of-token test before the `=`"
+ },
+ {
+  "name": "S26 attributeKeyValue: insert ` || at === 1`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (token.charCodeAt(at) !== 61) {",
+  "to": "  if (token.charCodeAt(at) !== 61 || at === 1) {",
+  "expect": "killed",
+  "why": "a one-letter key is refused"
+ },
+ {
+  "name": "S27 attributeKeyValue: insert ` || at > 255`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (token.charCodeAt(at) !== 61) {",
+  "to": "  if (token.charCodeAt(at) !== 61 || at > 255) {",
+  "expect": "killed",
+  "why": "a key of more than 255 characters is refused"
+ },
+ {
+  "name": "S28 attributeKeyValue: insert ` || at > 4096`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (token.charCodeAt(at) !== 61) {",
+  "to": "  if (token.charCodeAt(at) !== 61 || at > 4096) {",
+  "expect": "killed",
+  "why": "a key of more than 4,096 characters is refused"
+ },
+ {
+  "name": "S29 attributeKeyValue: insert ` && token.charCodeAt(i - 2) !== 92`",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {",
+  "to": "    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92 && token.charCodeAt(i - 2) !== 92))) {",
+  "expect": "killed",
+  "why": "an escaped blank needs an odd run of backslashes (parity)"
+ },
+ {
+  "name": "S30 attributeKeyValue: insert ` && i + 1 <= last`",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {",
+  "to": "    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92 && i + 1 <= last))) {",
+  "expect": "killed",
+  "why": "an escaped blank at the very end of the value is refused"
+ },
+ {
+  "name": "S31 attributeKeyValue: insert ` && i - 1 >= value`",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {",
+  "to": "    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92 && i - 1 >= value))) {",
+  "expect": "survives",
+  "why": "the backslash before an escaped blank must lie inside the value"
+ },
+ {
+  "name": "S32 attributeKeyValue: insert `c === 123 || `",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {",
+  "to": "    if (c === 125 || c === 123 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {",
+  "expect": "killed",
+  "why": "an opening brace is refused in a bare value"
+ },
+ {
+  "name": "S33 attributeKeyValue: insert `c === 34 || `",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {",
+  "to": "    if (c === 125 || c === 34 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {",
+  "expect": "killed",
+  "why": "a double quote is refused in a bare value"
+ },
+ {
+  "name": "S34 attributeKeyValue: insert `c === 92 && i === last || `",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {",
+  "to": "    if (c === 125 || c === 92 && i === last || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {",
+  "expect": "killed",
+  "why": "a bare value ending in a backslash is refused"
+ },
+ {
+  "name": "S35 attributeKeyValue: insert ` || (c === 61 && i === value)`",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {",
+  "to": "    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92)) || (c === 61 && i === value)) {",
+  "expect": "killed",
+  "why": "a value that starts with `=` is refused"
+ },
+ {
+  "name": "S36 attributeKeyValue: insert ` || (c === 35 && i === value)`",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {",
+  "to": "    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92)) || (c === 35 && i === value)) {",
+  "expect": "killed",
+  "why": "a value that starts with `#` is refused"
+ },
+ {
+  "name": "S37 attributeKeyValue: insert ` || (c === 92 && i === value && i === last)`",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92))) {",
+  "to": "    if (c === 125 || (isSpaceCode(c) && !(c === 32 && token.charCodeAt(i - 1) === 92)) || (c === 92 && i === value && i === last)) {",
+  "expect": "killed",
+  "why": "a value that is a lone backslash is refused"
+ },
+ {
+  "name": "S39 attributeKeyValue: `isSpaceCode(c)` -> `c <= 32`",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61;",
+  "to": "const isAttributeKeyStop = (c: number): boolean => c <= 32 || c === 125 || c === 35 || c === 92 || c === 61;",
+  "expect": "killed",
+  "why": "every control character ends a key and the Unicode spaces do not"
+ },
+ {
+  "name": "S40 attributeKeyValue: insert ` || c === 123`",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61;",
+  "to": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61 || c === 123;",
+  "expect": "killed",
+  "why": "an opening brace ends a key"
+ },
+ {
+  "name": "S41 attributeKeyValue: insert ` || c === 0`",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61;",
+  "to": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61 || c === 0;",
+  "expect": "killed",
+  "why": "a NUL ends a key"
+ },
+ {
+  "name": "S42 attributeKeyValue: `==` -> `>`",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61;",
+  "to": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c >= 125 || c === 35 || c === 92 || c === 61;",
+  "expect": "killed",
+  "why": "everything from `}` up ends a key"
+ },
+ {
+  "name": "S43 attributeKeyValue: `==` -> `<`",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61;",
+  "to": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c <= 35 || c === 92 || c === 61;",
+  "expect": "killed",
+  "why": "everything up to `#` ends a key"
+ },
+ {
+  "name": "S44 attributeKeyValue: `=== 61` -> `>= 61 && c <= 62`",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61;",
+  "to": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c >= 61 && c <= 62;",
+  "expect": "killed",
+  "why": "`>` ends a key as well"
+ },
+ {
+  "name": "S45 attributeKeyValue: insert ` || (c >= 0xd800 && c <= 0xdfff)`",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61;",
+  "to": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61 || (c >= 0xd800 && c <= 0xdfff);",
+  "expect": "killed",
+  "why": "a surrogate half ends a key"
+ },
+ {
+  "name": "S46 attributeKeyValue: `c === 92` -> `(c === 92 && false)`",
+  "file": "src/core/qmd/model.ts",
+  "from": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || c === 92 || c === 61;",
+  "to": "const isAttributeKeyStop = (c: number): boolean => isSpaceCode(c) || c === 125 || c === 35 || (c === 92 && false) || c === 61;",
+  "expect": "killed",
+  "why": "a backslash does not end a key (spelled with a dead conjunct)"
+ }
+]

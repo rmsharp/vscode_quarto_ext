@@ -1,6 +1,6 @@
 [
  {
-  "name": "A01 commentEndsLine: the closer is searched from open + 3 (the `-->` of `<!-->` counts)",
+  "name": "A01 commentEndsLine: the closer is searched from open + 3 (the `-->` of `<!--->` counts)",
   "file": "src/core/qmd/model.ts",
   "from": "const close = line.indexOf(\"-->\", open + 4);\n  return close >= 0 && skipBlanks(line, close + 3) === line.length;",
   "to": "const close = line.indexOf(\"-->\", open + 3);\n  return close >= 0 && skipBlanks(line, close + 3) === line.length;",
@@ -88,7 +88,7 @@
   "why": "an edit of the function that its oracle file must notice"
  },
  {
-  "name": "B03 commentFullLine: the closer is searched from the start of the line, not the opener",
+  "name": "B03 commentFullLine: the closer is searched as if the opener were at 0 (the search starts at 4)",
   "file": "src/core/qmd/model.ts",
   "from": "const open = skipBlanks(line, 0);\n  return line.startsWith(\"<!--\", open) && commentEndsLine(line, open);",
   "to": "const open = skipBlanks(line, 0);\n  return line.startsWith(\"<!--\", open) && commentEndsLine(line, 0);",
@@ -112,7 +112,7 @@
   "why": "an edit of the function that its oracle file must notice"
  },
  {
-  "name": "C02 commentFullLineCol0: the closer is searched from 1",
+  "name": "C02 commentFullLineCol0: the closer is searched as if the opener were at 1 (the search starts at 5)",
   "file": "src/core/qmd/model.ts",
   "from": "return line.startsWith(\"<!--\") && commentEndsLine(line, 0);",
   "to": "return line.startsWith(\"<!--\") && commentEndsLine(line, 1);",
@@ -128,7 +128,7 @@
   "why": "an edit of the function that its oracle file must notice"
  },
  {
-  "name": "D01 commentThenText: at most two spaces are counted",
+  "name": "D01 commentThenText: at most three spaces are counted",
   "file": "src/core/qmd/model.ts",
   "from": "while (open < 4 && line.charCodeAt(open) === 32) {\n    open++;\n  }\n  if (open > 3 || !line.startsWith(\"<!--\", open)) {\n    return false;\n  }",
   "to": "while (open < 3 && line.charCodeAt(open) === 32) {\n    open++;\n  }\n  if (open > 3 || !line.startsWith(\"<!--\", open)) {\n    return false;\n  }",
@@ -136,7 +136,7 @@
   "why": "equivalent: with four or more leading spaces the count stops at 3 and the opener test then meets the fourth space and fails, where the original counts 4 and refuses at the limit; with three or fewer both agree"
  },
  {
-  "name": "D02 commentThenText: up to four spaces are counted before the limit",
+  "name": "D02 commentThenText: up to five spaces are counted before the limit",
   "file": "src/core/qmd/model.ts",
   "from": "while (open < 4 && line.charCodeAt(open) === 32) {\n    open++;\n  }\n  if (open > 3 || !line.startsWith(\"<!--\", open)) {\n    return false;\n  }",
   "to": "while (open < 5 && line.charCodeAt(open) === 32) {\n    open++;\n  }\n  if (open > 3 || !line.startsWith(\"<!--\", open)) {\n    return false;\n  }",
