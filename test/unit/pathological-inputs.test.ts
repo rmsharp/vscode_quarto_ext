@@ -4,7 +4,7 @@ import { bibliographyPaths } from "../../src/core/frontmatter";
 import { findMathRegions } from "../../src/core/math-regions";
 import { parseDeclaredFormats } from "../../src/core/preview-format";
 import { parseOutputPath } from "../../src/core/render-args";
-import { findAllCells, findCellOptionLines, findCodeFenceOpeners, findHeadings, headingContentRefused, knitrChunkHeaderLabel, maskInlineCode, plainFrontMatter } from "../../src/core/qmd/model";
+import { buildOutline, findAllCells, findCellOptionLines, findCodeFenceOpeners, findHeadings, headingContentRefused, knitrChunkHeaderLabel, maskInlineCode, plainFrontMatter } from "../../src/core/qmd/model";
 import { jupyterKernelLanguage } from "../../src/core/qmd/jupyter-kernel";
 import { quartoYamlRegions } from "../../src/core/qmd/quarto-yaml-regions";
 import { findLabel, indexLabels } from "../../src/core/refs";
@@ -2338,3 +2338,83 @@ describe("Session 335 — a single line of millions of characters that a pattern
     ]);
   });
 });
+
+describe("Session 336 — a single line of millions of characters that a pattern read as a quantified group, again (the BACKLOG item \"Three more single-line shapes found by Session 335's review round, none of them in its diff\", parts 1 and 2)",
+  // The class of Session 335's rows above: V8 keeps one entry of its regex backtrack stack per repetition of a GROUP, so a pattern that reads a line as `(?:(?!-->)[\s\S])*` (an HTML comment opener that never closes) or as
+  // `(?:\\ |[^\s}])*` (a bare `key=value` attribute value) throws `RangeError: Maximum call stack size exceeded` once the line is long enough, and the RangeError reaches every reader of the document. The first throw was
+  // bisected at HEAD `aea22f6` (Session 336, one fresh process per probe, `findHeadings`): 8,388,573 repetitions of the unit for the comment opener (`<!--` and then `b`), for the bare value (`a=` and then `b`) and for the escaped
+  // blank (`a=` and then `\ `, one repetition a pair). Every size below is twice that (Learning 775), and the item's own figure, 8,390,625, is 2,052 high (Learning 871). A line this long is a pasted or minified blob, and a
+  // thrown RangeError answers nothing for the whole document, so the stated answer is the heading (or the label) the line leaves standing, and where the line decides it, the heading it changes.
+  () => {
+    const S336_FEW = 4;
+    const S336_LIMIT_MS = 4000;
+    // a long line is its own heading text where it underlines: its first eight characters stand for it
+    const headings = (text: string): string[] => findHeadings(text).map((h) => h.text.slice(0, 8));
+    const headingIds = (text: string): Array<[string, string | undefined]> => findHeadings(text).map((h) => [h.text.slice(0, 8), h.id]);
+    const labelLines = (text: string): Array<[string, number]> => indexLabels(text).map((l) => [l.id, l.line]);
+    const body = (line: string): string => `Intro.\n\n${line}\n\n# H\n`;
+    const underParagraph = (line: string): string => `Intro.\n${line}\n# H\n`;
+    const afterParagraph = (line: string): string => `Intro.\n${line}\n\n# H\n`;
+    type S336Row = { site: string; unit: string; many: number; few?: number; build: (run: string) => string; read: (text: string) => unknown; answer: unknown };
+
+    const S336_ROWS: S336Row[] = [
+      // Part (1): a line that opens an HTML comment and holds no `-->`: `COMMENT_FULL_LINE` (the scan of every body line), `COMMENT_FULL_LINE_COL0` (the block boundaries), the simple table header list, `provableProse`.
+      { site: "(1) body line: `<!--` and n of `b`", unit: "b", many: 16_800_000, build: (run) => body(`<!--${run}`), read: headings, answer: ["H"] },
+      { site: "(1) directly under a paragraph: the next line is pressed text", unit: "b", many: 16_800_000, build: (run) => underParagraph(`<!--${run}`), read: headings, answer: [] },
+      { site: "(1) after a paragraph and a blank line", unit: "b", many: 16_800_000, build: (run) => afterParagraph(`<!--${run}`), read: headings, answer: ["H"] },
+      { site: "(1) in a block quote", unit: "b", many: 16_800_000, build: (run) => `> <!--${run}\n\n# H\n`, read: headings, answer: ["H"] },
+      { site: "(1) in a fenced div", unit: "b", many: 16_800_000, build: (run) => `::: {.callout-note}\n<!--${run}\n:::\n\n# H\n`, read: headings, answer: ["H"] },
+      { site: "(1) indented three spaces", unit: "b", many: 16_800_000, build: (run) => body(`   <!--${run}`), read: headings, answer: ["H"] },
+      { site: "(1) n of `<!-- `", unit: "<!-- ", many: 3_400_000, build: (run) => body(run), read: headings, answer: ["H"] },
+      { site: "(1) n of `<!--`", unit: "<!--", many: 4_200_000, build: (run) => body(run), read: headings, answer: ["H"] },
+      { site: "(1) the line over a dash run is a setext heading of its own", unit: "b", many: 16_800_000, build: (run) => `<!--${run}\n---------\n\n# H\n`, read: headings, answer: ["<!--bbbb", "H"] },
+      { site: "(1) the header line of a simple table's dash rules", unit: "b", many: 16_800_000, build: (run) => `<!--${run}\n---------\nrow\n---------\n\n# H\n`, read: headings, answer: ["<!--bbbb", "row", "H"] },
+      { site: "(1) an ATX line directly under it is pressed text", unit: "b", many: 16_800_000, build: (run) => `<!--${run}\n# H\n\ntext\n`, read: headings, answer: [] },
+      { site: "(1) the Outline: a body line", unit: "b", many: 16_800_000, build: (run) => `Outline.\n\n<!--${run}\n\n# H\n`, read: (text) => buildOutline(text).length, answer: 1 },
+      { site: "(1) the cells: a body line", unit: "b", many: 16_800_000, build: (run) => `Cells.\n\n<!--${run}\n\n\`\`\`{r}\n1\n\`\`\`\n`, read: (text) => findAllCells(text).length, answer: 1 },
+      { site: "(1) the label index: a body line", unit: "b", many: 16_800_000, build: (run) => `Labels.\n\n<!--${run}\n\n![x](y){#fig-a}\n`, read: labelLines, answer: [["fig-a", 4]] },
+      { site: "(1) the engine resolver: a body line", unit: "b", many: 16_800_000, build: (run) => `---\nengine: knitr\n---\n\n<!--${run}\n\n# H\n`, read: (text) => resolveDocumentEngine("a.qmd", text), answer: "knitr" },
+
+      // Part (2): a bare `key=value` attribute value, `ATTR_KEY_VALUE`'s `(?:\\ |[^\s}])*`, a group per character (the pairs `\ ` count once each).
+      { site: "(2) a heading attribute block: `a=` and n of `b`", unit: "b", many: 16_800_000, build: (run) => `# T {#sec-t a=${run}}\n\nbody\n`, read: headingIds, answer: [["T", "sec-t"]] },
+      { site: "(2) a setext heading's attribute block", unit: "b", many: 16_800_000, build: (run) => `T {#sec-t a=${run}}\n=====\n\nbody\n`, read: headingIds, answer: [["T", "sec-t"]] },
+      { site: "(2) a heading attribute block: `a=` and n of `\\ ` (an escaped blank is one repetition)", unit: "\\ ", many: 16_800_000, build: (run) => `# T {#sec-t a=${run}}\n\nbody\n`, read: headingIds, answer: [["T", "sec-t"]] },
+      { site: "(2) a fence info string through the label index", unit: "b", many: 16_800_000, build: (run) => `\`\`\`{#lst-a a=${run}}\ncode\n\`\`\`\n`, read: labelLines, answer: [["lst-a", 0]] },
+      { site: "(2) a fenced div through the label index", unit: "b", many: 16_800_000, build: (run) => `::: {#fig-d a=${run}}\n![x](y.png)\n\n![cap](y.png)\n:::\n`, read: labelLines, answer: [["fig-d", 0]] },
+      { site: "(2) an image through the label index", unit: "b", many: 16_800_000, build: (run) => `![x](y){#fig-a a=${run}}\n`, read: labelLines, answer: [["fig-a", 0]] },
+      { site: "(2) a span through the label index", unit: "b", many: 16_800_000, build: (run) => `[x]{#fig-s a=${run}}\n`, read: labelLines, answer: [["fig-s", 0]] },
+      { site: "(2) the Outline: a heading attribute block", unit: "b", many: 16_800_000, build: (run) => `# Outline {#sec-o a=${run}}\n\nbody\n`, read: (text) => buildOutline(text).length, answer: 1 },
+      { site: "(2) the cells: a fence info string, then a code cell", unit: "b", many: 16_800_000, build: (run) => `\`\`\`{#lst-b a=${run}}\ncode\n\`\`\`\n\n\`\`\`{r}\n1\n\`\`\`\n`, read: (text) => findAllCells(text).length, answer: 1 },
+      { site: "(2) the engine resolver: a heading attribute block", unit: "b", many: 16_800_000, build: (run) => `---\nengine: knitr\n---\n\n# R {#sec-r a=${run}}\n`, read: (text) => resolveDocumentEngine("a.qmd", text), answer: "knitr" },
+    ];
+
+    it.each(S336_ROWS.map((row) => [row.site, row] as const))("%s: is read without throwing, in linear time, and the answer is the stated one with 4 units and with the long run", (_site, row) => {
+      const short = row.build(row.unit.repeat(row.few ?? S336_FEW));
+      expect(row.read(short)).toEqual(row.answer);
+      const run = row.unit.repeat(row.many);
+      const longText = row.build(run);
+      expect(longText.length).toBeGreaterThan(run.length); // the timed text holds the whole run
+      const { result, ms } = timed(() => row.read(longText));
+      expect(result).toEqual(row.answer);
+      expect(ms).toBeLessThan(S336_LIMIT_MS);
+    }, 120_000);
+
+    it("builds a different text for every row", () => {
+      // The TEXT alone: `scanRegions` keeps the last two scans by text, so a row whose text another row read just before it is served from the cache and cannot be RED.
+      const small = S336_ROWS.map((row) => row.build(row.unit.repeat(row.few ?? S336_FEW)));
+      expect(new Set(small).size).toBe(S336_ROWS.length);
+    });
+
+    // A run of 9,000,000 characters, or a limit of 100 s, would pass on the parent too.
+    it("keeps the sizes, the limit and the units the Session 336 rows are built on", () => {
+      expect([S336_FEW, S336_LIMIT_MS]).toEqual([4, 4000]);
+      expect(S336_ROWS.map((row) => `${row.unit}x${row.many}`)).toEqual([
+        ...Array.from({ length: 6 }, () => "bx16800000"),
+        "<!-- x3400000", "<!--x4200000",
+        ...Array.from({ length: 7 }, () => "bx16800000"),
+        "bx16800000", "bx16800000", "\\ x16800000",
+        ...Array.from({ length: 7 }, () => "bx16800000"),
+      ]);
+    });
+  },
+);
