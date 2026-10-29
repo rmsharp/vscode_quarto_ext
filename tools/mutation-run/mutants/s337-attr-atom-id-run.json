@@ -1,0 +1,474 @@
+[
+ {
+  "name": "F01 attributeAtomRun: the empty token is accepted",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return length > 0;",
+  "to": "  return true;",
+  "expect": "killed",
+  "why": "the empty token is refused (a run is one or more atoms): the stated row and every enumeration start at the empty string"
+ },
+ {
+  "name": "F02 attributeAtomRun: a token of one character is refused",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return length > 0;",
+  "to": "  return length > 1;",
+  "expect": "killed",
+  "why": "a lone dash is a token: the stated row `-`"
+ },
+ {
+  "name": "F03 attributeAtomRun: at most one dash",
+  "file": "src/core/qmd/model.ts",
+  "from": "  while (at < length && token.charCodeAt(at) === 45) {",
+  "to": "  if (at < length && token.charCodeAt(at) === 45) {",
+  "expect": "killed",
+  "why": "dashes concatenate: the stated row `--`"
+ },
+ {
+  "name": "F05 attributeAtomRun: the scan starts at the second character",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const length = token.length;\n  let at = 0;",
+  "to": "  const length = token.length;\n  let at = 1;",
+  "expect": "killed",
+  "why": "the first character is never judged: every stated row"
+ },
+ {
+  "name": "F07 attributeAtomRun: a class only at the start of the token",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (at < length && token.charCodeAt(at) === 46) {",
+  "to": "  if (at < length && token.charCodeAt(at) === 46 && at === 0) {",
+  "expect": "killed",
+  "why": "a class after dashes: the stated row `-.A`"
+ },
+ {
+  "name": "F08 attributeAtomRun: the letter is looked for at the dot",
+  "file": "src/core/qmd/model.ts",
+  "from": "    const afterLetter = attributeLetterEnd(token, at + 1);",
+  "to": "    const afterLetter = attributeLetterEnd(token, at);",
+  "expect": "killed",
+  "why": "the dot is no letter, so no class is ever read: the stated row `.A`"
+ },
+ {
+  "name": "F10 attributeAtomRun: a failed letter lets the class go on",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (afterLetter < 0) {",
+  "to": "    if (afterLetter < -1) {",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT: with afterLetter -1 the tail scan starts at -1, reads no character (charCodeAt(-1) is NaN and the sticky pattern at index 0 meets the token's first character, a dash or a dot) and answers -1, and the id loop then reads NaN and refuses: the same false. Checked by reading only (Learning 887)."
+ },
+ {
+  "name": "F11 attributeAtomRun: the class tail is not read",
+  "file": "src/core/qmd/model.ts",
+  "from": "    at = attributeIdentifierEnd(token, afterLetter);",
+  "to": "    at = afterLetter;",
+  "expect": "killed",
+  "why": "the class's tail: the stated row `.a1_b:c.d-e`"
+ },
+ {
+  "name": "F13 attributeAtomRun: an id opens on a dollar sign",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (token.charCodeAt(at) !== 35) {",
+  "to": "    if (token.charCodeAt(at) !== 36) {",
+  "expect": "killed",
+  "why": "the hash opens an id: the stated row `#a`"
+ },
+ {
+  "name": "F15 attributeAtomRun: the id's characters start one late",
+  "file": "src/core/qmd/model.ts",
+  "from": "    const idEnd = attributeIdentifierEnd(token, at + 1);",
+  "to": "    const idEnd = attributeIdentifierEnd(token, at + 2);",
+  "expect": "killed",
+  "why": "a hash with nothing after it is refused: the stated row `#`"
+ },
+ {
+  "name": "F16 attributeAtomRun: an empty id is allowed",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (idEnd === at + 1) {",
+  "to": "    if (idEnd === at) {",
+  "expect": "killed",
+  "why": "the stated rows `#`, `#a#` and `##`"
+ },
+ {
+  "name": "F17 attributeAtomRun: an id needs two characters",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (idEnd === at + 1) {",
+  "to": "    if (idEnd <= at + 2) {",
+  "expect": "killed",
+  "why": "the stated row `#a`"
+ },
+ {
+  "name": "F18 attributeAtomRun: the character after an id is skipped",
+  "file": "src/core/qmd/model.ts",
+  "from": "    at = idEnd;",
+  "to": "    at = idEnd + 1;",
+  "expect": "killed",
+  "why": "the hash of the next id is skipped: the stated row `#a#b`"
+ },
+ {
+  "name": "F20 attributeAtomRun: the length is one short",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const length = token.length;",
+  "to": "  const length = token.length - 1;",
+  "expect": "killed",
+  "why": "the last character is never judged: the stated rows ending in a bang"
+ },
+ {
+  "name": "L01 attributeLetterEnd: the end guard lets the end through",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (at >= token.length) {",
+  "to": "  if (at > token.length) {",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT: at the end of the token charCodeAt answers NaN, every comparison is false, and the sticky pattern at the end meets no character: -1 either way. Checked by reading only."
+ },
+ {
+  "name": "L02 attributeLetterEnd: a missing letter at the end of the token is a letter",
+  "file": "src/core/qmd/model.ts",
+  "from": "    return -1;\n  }\n  const c = token.charCodeAt(at);\n  if ((c >= 65",
+  "to": "    return at;\n  }\n  const c = token.charCodeAt(at);\n  if ((c >= 65",
+  "expect": "killed",
+  "why": "a dot alone is refused: the stated row `.`"
+ },
+ {
+  "name": "L03 attributeLetterEnd: Z is no letter",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122)) {",
+  "to": "  if ((c >= 65 && c <= 89) || (c >= 97 && c <= 122)) {",
+  "expect": "killed",
+  "why": "the code unit sweep puts every code unit in the class's letter place of `.Ab`"
+ },
+ {
+  "name": "L05 attributeLetterEnd: a left brace is a letter",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122)) {",
+  "to": "  if ((c >= 65 && c <= 90) || (c >= 97 && c <= 123)) {",
+  "expect": "killed",
+  "why": "the code unit sweep puts every code unit in the class's letter place of `.Ab`"
+ },
+ {
+  "name": "L06 attributeLetterEnd: the letter is not consumed",
+  "file": "src/core/qmd/model.ts",
+  "from": "    return at + 1;",
+  "to": "    return at;",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT: a letter is itself an identifier character, so the tail scan that starts at the letter reads it again and ends where it would have ended after it. Only the sign of the answer decides anything."
+ },
+ {
+  "name": "L07 attributeLetterEnd: the ASCII shortcut for a non-letter is dropped",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (c < 128) {\n    return -1;\n  }\n  NON_ASCII_LETTER.lastIndex = at;",
+  "to": "  if (c < 0) {\n    return -1;\n  }\n  NON_ASCII_LETTER.lastIndex = at;",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT: the sticky letter pattern refuses every ASCII character that is no letter, so the shortcut only saves the pattern a call (cost, not an answer)."
+ },
+ {
+  "name": "L09 attributeLetterEnd: the sticky pattern looks one code unit on",
+  "file": "src/core/qmd/model.ts",
+  "from": "  NON_ASCII_LETTER.lastIndex = at;",
+  "to": "  NON_ASCII_LETTER.lastIndex = at + 1;",
+  "expect": "killed",
+  "why": "a class that starts with a non-ASCII letter: the stated row `.é` and the second enumeration"
+ },
+ {
+  "name": "L10 attributeLetterEnd: the end of an astral letter is one code unit on",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return NON_ASCII_LETTER.test(token) ? NON_ASCII_LETTER.lastIndex : -1;",
+  "to": "  return NON_ASCII_LETTER.test(token) ? at + 1 : -1;",
+  "expect": "survives",
+  "why": "EQUIVALENT, found by running it (the first label was killed, by reading: Learning 887): for an astral letter at + 1 is the index of its LOW half, and the tail scan that follows starts a sticky unicode pattern there, which backs up to the start of the pair, matches the letter again and ends after it: the index the lastIndex would have given. A BMP letter ends at at + 1 either way. 180 tests of the two equivalence files pass."
+ },
+ {
+  "name": "L11 attributeLetterEnd: a non-letter is a letter",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return NON_ASCII_LETTER.test(token) ? NON_ASCII_LETTER.lastIndex : -1;",
+  "to": "  return NON_ASCII_LETTER.test(token) ? NON_ASCII_LETTER.lastIndex : at;",
+  "expect": "killed",
+  "why": "a class must start with a letter: `.²#é` is refused (the second enumeration builds it)"
+ },
+ {
+  "name": "N01 NON_ASCII_LETTER: capitals only",
+  "file": "src/core/qmd/model.ts",
+  "from": "const NON_ASCII_LETTER = /\\p{L}/uy;",
+  "to": "const NON_ASCII_LETTER = /\\p{Lu}/uy;",
+  "expect": "killed",
+  "why": "a class that starts with a lowercase non-ASCII letter: the stated row `.é`"
+ },
+ {
+  "name": "N02 NON_ASCII_LETTER: a number may start a class",
+  "file": "src/core/qmd/model.ts",
+  "from": "const NON_ASCII_LETTER = /\\p{L}/uy;",
+  "to": "const NON_ASCII_LETTER = /[\\p{L}\\p{N}]/uy;",
+  "expect": "killed",
+  "why": "a class must start with a letter: the stated rows `.²` and `.٣`"
+ },
+ {
+  "name": "N04 NON_ASCII_LETTER_OR_NUMBER: letters only",
+  "file": "src/core/qmd/model.ts",
+  "from": "const NON_ASCII_LETTER_OR_NUMBER = /[\\p{L}\\p{N}]/uy;",
+  "to": "const NON_ASCII_LETTER_OR_NUMBER = /[\\p{L}]/uy;",
+  "expect": "killed",
+  "why": "an id of a number that is no digit: the stated rows `#²` and `#٣`"
+ },
+ {
+  "name": "N05 NON_ASCII_LETTER_OR_NUMBER: decimal digits only",
+  "file": "src/core/qmd/model.ts",
+  "from": "const NON_ASCII_LETTER_OR_NUMBER = /[\\p{L}\\p{N}]/uy;",
+  "to": "const NON_ASCII_LETTER_OR_NUMBER = /[\\p{L}\\p{Nd}]/uy;",
+  "expect": "killed",
+  "why": "U+00B2 is a number but no decimal digit (No): the stated row `#²`"
+ },
+ {
+  "name": "N06 NON_ASCII_LETTER_OR_NUMBER: no unicode flag",
+  "file": "src/core/qmd/model.ts",
+  "from": "const NON_ASCII_LETTER_OR_NUMBER = /[\\p{L}\\p{N}]/uy;",
+  "to": "const NON_ASCII_LETTER_OR_NUMBER = /[\\p{L}\\p{N}]/y;",
+  "expect": "killed",
+  "why": "without the flag the class is the characters p { L } N: the stated row `#sec-café`"
+ },
+ {
+  "name": "D01 attributeIdentifierEnd: the loop may read the end",
+  "file": "src/core/qmd/model.ts",
+  "from": "  let at = from;\n  while (at < token.length) {",
+  "to": "  let at = from;\n  while (at <= token.length) {",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT: at the end charCodeAt answers NaN, the ASCII test is skipped and the sticky pattern meets no character, so the loop breaks with the same index."
+ },
+ {
+  "name": "D02 attributeIdentifierEnd: the last character is never read",
+  "file": "src/core/qmd/model.ts",
+  "from": "  let at = from;\n  while (at < token.length) {",
+  "to": "  let at = from;\n  while (at < token.length - 1) {",
+  "expect": "killed",
+  "why": "an id of one character is an id: the stated row `#a`"
+ },
+ {
+  "name": "D03 attributeIdentifierEnd: the run starts one late",
+  "file": "src/core/qmd/model.ts",
+  "from": "function attributeIdentifierEnd(token: string, from: number): number {\n  let at = from;",
+  "to": "function attributeIdentifierEnd(token: string, from: number): number {\n  let at = from + 1;",
+  "expect": "killed",
+  "why": "an id of one character is an id: the stated row `#a`"
+ },
+ {
+  "name": "D04 attributeIdentifierEnd: z is no identifier character",
+  "file": "src/core/qmd/model.ts",
+  "from": "      if (!((c >= 97 && c <= 122) || (c >= 65 && c <= 90) || (c >= 48 && c <= 58) || c === 95 || c === 46 || c === 45)) {",
+  "to": "      if (!((c >= 97 && c <= 121) || (c >= 65 && c <= 90) || (c >= 48 && c <= 58) || c === 95 || c === 46 || c === 45)) {",
+  "expect": "killed",
+  "why": "the code unit sweep puts every code unit in the id's places of `#a#b`"
+ },
+ {
+  "name": "D05 attributeIdentifierEnd: a colon is no identifier character",
+  "file": "src/core/qmd/model.ts",
+  "from": "      if (!((c >= 97 && c <= 122) || (c >= 65 && c <= 90) || (c >= 48 && c <= 58) || c === 95 || c === 46 || c === 45)) {",
+  "to": "      if (!((c >= 97 && c <= 122) || (c >= 65 && c <= 90) || (c >= 48 && c <= 57) || c === 95 || c === 46 || c === 45)) {",
+  "expect": "killed",
+  "why": "the stated row `#:`"
+ },
+ {
+  "name": "D08 attributeIdentifierEnd: an underscore is no identifier character",
+  "file": "src/core/qmd/model.ts",
+  "from": "      if (!((c >= 97 && c <= 122) || (c >= 65 && c <= 90) || (c >= 48 && c <= 58) || c === 95 || c === 46 || c === 45)) {",
+  "to": "      if (!((c >= 97 && c <= 122) || (c >= 65 && c <= 90) || (c >= 48 && c <= 58) || c === 94 || c === 46 || c === 45)) {",
+  "expect": "killed",
+  "why": "the stated row `#_`"
+ },
+ {
+  "name": "D10 attributeIdentifierEnd: a dash is no identifier character",
+  "file": "src/core/qmd/model.ts",
+  "from": "      if (!((c >= 97 && c <= 122) || (c >= 65 && c <= 90) || (c >= 48 && c <= 58) || c === 95 || c === 46 || c === 45)) {",
+  "to": "      if (!((c >= 97 && c <= 122) || (c >= 65 && c <= 90) || (c >= 48 && c <= 58) || c === 95 || c === 46 || c === 44)) {",
+  "expect": "killed",
+  "why": "the stated row `#-`"
+ },
+ {
+  "name": "D11 attributeIdentifierEnd: an ASCII character is read two at a time",
+  "file": "src/core/qmd/model.ts",
+  "from": "      at++;\n      continue;",
+  "to": "      at += 2;\n      continue;",
+  "expect": "killed",
+  "why": "a bang after a one-character id is not skipped: the stated row `#a!`"
+ },
+ {
+  "name": "D12 attributeIdentifierEnd: the sticky pattern looks one code unit on",
+  "file": "src/core/qmd/model.ts",
+  "from": "    NON_ASCII_LETTER_OR_NUMBER.lastIndex = at;",
+  "to": "    NON_ASCII_LETTER_OR_NUMBER.lastIndex = at + 1;",
+  "expect": "killed",
+  "why": "an id of a non-ASCII letter: the stated row `#sec-café`"
+ },
+ {
+  "name": "D13 attributeIdentifierEnd: a non-ASCII character advances one code unit",
+  "file": "src/core/qmd/model.ts",
+  "from": "    at = NON_ASCII_LETTER_OR_NUMBER.lastIndex;",
+  "to": "    at = at + 1;",
+  "expect": "survives",
+  "why": "EQUIVALENT, found by running it (the first label was killed, by reading: Learning 887): after an astral letter the loop stands on its LOW half, where the sticky unicode pattern backs up to the start of the pair, matches the letter a second time and ends after it, so the pair costs two turns and ends at the same index. A pair that is no letter ends the run at the first turn, and a lone low half matches nothing. 180 tests of the two equivalence files pass."
+ },
+ {
+  "name": "D14 attributeIdentifierEnd: the run ends where it started",
+  "file": "src/core/qmd/model.ts",
+  "from": "    at = NON_ASCII_LETTER_OR_NUMBER.lastIndex;\n  }\n  return at;",
+  "to": "    at = NON_ASCII_LETTER_OR_NUMBER.lastIndex;\n  }\n  return from;",
+  "expect": "killed",
+  "why": "an id of any length: the stated row `#a`"
+ },
+ {
+  "name": "D15 attributeIdentifierEnd: the ASCII shortcut reaches into the Latin-1 letters",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (c < 128) {\n      if (!((c >= 97",
+  "to": "    if (c < 200) {\n      if (!((c >= 97",
+  "expect": "killed",
+  "why": "U+00AA is a letter (Lo): the code unit sweep puts it in the id's places"
+ },
+ {
+  "name": "D16 attributeIdentifierEnd: the ASCII shortcut ends at DEL",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (c < 128) {\n      if (!((c >= 97",
+  "to": "    if (c < 127) {\n      if (!((c >= 97",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT: U+007F is no letter and no number, so the sticky pattern refuses it and the run ends where the ASCII test ended it."
+ },
+ {
+  "name": "W01 headingAttributeId: the two readers' atoms are swapped",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (!(commonmarkDialect ? ATTR_ATOM_COMMONMARK.test(token) : attributeAtomRun(token))) {",
+  "to": "    if (!(commonmarkDialect ? attributeAtomRun(token) : ATTR_ATOM_COMMONMARK.test(token))) {",
+  "expect": "killed",
+  "why": "Session 219's reader split (commonmark_x takes the first id and refuses concatenation): `qmd-model.test.ts` and `refs.test.ts`"
+ },
+ {
+  "name": "W02 headingAttributeId: every reader takes the pandoc atom run",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (!(commonmarkDialect ? ATTR_ATOM_COMMONMARK.test(token) : attributeAtomRun(token))) {",
+  "to": "    if (!attributeAtomRun(token)) {",
+  "expect": "survives",
+  "why": "EQUIVALENT given the caller's precondition, found by running it (the first label was killed, by reading: Learning 887): headingAttributeId is only asked of a block that headingAttributesValid accepted, so under commonmark_x every token is already one `#id`, one `.class` or a key=value; the pandoc run accepts every `#id` the CommonMark atom does, refuses the key=value as it does, and the classes the CommonMark atom takes and it does not (`.1cls`) hold no `#`, so they give no id either way. qmd-model.test.ts and refs.test.ts: 3,808 pass."
+ },
+ {
+  "name": "W03 headingAttributeId: every reader takes the CommonMark atom",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (!(commonmarkDialect ? ATTR_ATOM_COMMONMARK.test(token) : attributeAtomRun(token))) {",
+  "to": "    if (!ATTR_ATOM_COMMONMARK.test(token)) {",
+  "expect": "killed",
+  "why": "the pandoc family reads `{#sec-p20a#sec-p20b}` as one block: Session 218's rows of `qmd-model.test.ts`"
+ },
+ {
+  "name": "W04 headingAttributesValid: one invalid token is enough",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return tokens.every((t) => attributeAtomRun(t) || attributeKeyValue(t));",
+  "to": "  return tokens.some((t) => attributeAtomRun(t) || attributeKeyValue(t));",
+  "expect": "killed",
+  "why": "`{#sec-x bareword}` is no attribute block: Session 218's rows of `qmd-model.test.ts`"
+ },
+ {
+  "name": "W05 headingAttributesValid: a token must be an atom run and a key=value",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return tokens.every((t) => attributeAtomRun(t) || attributeKeyValue(t));",
+  "to": "  return tokens.every((t) => attributeAtomRun(t) && attributeKeyValue(t));",
+  "expect": "killed",
+  "why": "every attribute block of `qmd-model.test.ts` and `refs.test.ts`"
+ },
+ {
+  "name": "W06 headingAttributesValid: the key=value test is asked first",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return tokens.every((t) => attributeAtomRun(t) || attributeKeyValue(t));",
+  "to": "  return tokens.every((t) => attributeKeyValue(t) || attributeAtomRun(t));",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT: two pure yes-or-no functions under `||`; the order changes the cost of an accepted token and no answer."
+ },
+ {
+  "name": "T01 rows: the run is under the pattern's limit",
+  "file": "test/unit/s337-attr-atom-id-run-rows.test.ts",
+  "from": "const S337_MANY = 6_720_000;",
+  "to": "const S337_MANY = 3_000_000;",
+  "expect": "killed",
+  "why": "the guard pins the size; the rows would pass on the parent at this size, which is the defect the guard is for"
+ },
+ {
+  "name": "T02 rows: the run is the first throw and not twice it",
+  "file": "test/unit/s337-attr-atom-id-run-rows.test.ts",
+  "from": "const S337_MANY = 6_720_000;",
+  "to": "const S337_MANY = 3_355_430;",
+  "expect": "killed",
+  "why": "the guard asks for twice the first throw (Learning 775)"
+ },
+ {
+  "name": "T03 rows: the clock is loosened",
+  "file": "test/unit/s337-attr-atom-id-run-rows.test.ts",
+  "from": "const S337_LIMIT_MS = 10_000;",
+  "to": "const S337_LIMIT_MS = 100_000;",
+  "expect": "killed",
+  "why": "the guard pins the limit (a quadratic cure takes hours, so 100 s would pass it)"
+ },
+ {
+  "name": "T05 rows: the answer of a refused token claims an id",
+  "file": "test/unit/s337-attr-atom-id-run-rows.test.ts",
+  "from": "answer: [[\"H06 {#a#a#a#\", undefined, 2]] }",
+  "to": "answer: [[\"H06 {#a#a#a#\", \"a\", 2]] }",
+  "expect": "killed",
+  "why": "the short run (4 units) is asserted first: a refused block has no id"
+ },
+ {
+  "name": "T06 rows: the loosening of the clock assertion itself",
+  "file": "test/unit/s337-attr-atom-id-run-rows.test.ts",
+  "from": "    expect(ms).toBeLessThan(S337_LIMIT_MS);",
+  "to": "    expect(ms).toBeLessThan(S337_LIMIT_MS * 1000);",
+  "expect": "survives",
+  "why": "A passing run is under any bound, and the guard pins the constant, not its use: only a quadratic cure would notice (the same hole in every rows file of the set). Checked by reading only."
+ },
+ {
+  "name": "T07 labels: the column of the found id is one more",
+  "file": "test/unit/s337-attr-atom-id-run-rows-labels.test.ts",
+  "from": "7 + run.length + 1]] },\n    { site: \"findLabel with the knitr hint",
+  "to": "7 + run.length + 2]] },\n    { site: \"findLabel with the knitr hint",
+  "expect": "killed",
+  "why": "the short run (4 units) is asserted first: the id's text begins one character after its hash"
+ },
+ {
+  "name": "T08 hosts: the div's label is on another line",
+  "file": "test/unit/s337-attr-atom-id-run-rows-hosts.test.ts",
+  "from": "answer: [[\"fig-d\", 0]] },",
+  "to": "answer: [[\"fig-d\", 1]] },",
+  "expect": "killed",
+  "why": "the short run (4 units) is asserted first"
+ },
+ {
+  "name": "T10 outline: the knitr row asks no hint",
+  "file": "test/unit/s337-attr-atom-id-run-rows-outline.test.ts",
+  "from": "read: (text) => outline(text, \"knitr\"), answer: [[\"H12\", 2, 2]] },",
+  "to": "read: (text) => outline(text), answer: [[\"H12\", 2, 2]] },",
+  "expect": "survives",
+  "why": "The hint changes no answer of this document; the row exists to reach the engine-gated path of the scan, where the parent threw (Learning 886). Cured, the row cannot tell the two apart. Checked by reading only."
+ },
+ {
+  "name": "T12 oracle: the near-miss sizes are small",
+  "file": "test/unit/attr-atom-id-run-equivalence.test.ts",
+  "from": "const NEAR_MISS_SIZES = [20_000, 50_000, 1_000_000];",
+  "to": "const NEAR_MISS_SIZES = [20, 50, 100];",
+  "expect": "killed",
+  "why": "the guard pins the sizes"
+ },
+ {
+  "name": "T16 oracle: another seed",
+  "file": "test/unit/attr-atom-id-run-equivalence.test.ts",
+  "from": "const SEED = 337;",
+  "to": "const SEED = 338;",
+  "expect": "killed",
+  "why": "the accepted count of the seeded row (19,719 for seed 337, recounted by the Python port) and the guard"
+ },
+ {
+  "name": "T17 oracle: one accepted count is off by one",
+  "file": "test/unit/attr-atom-id-run-equivalence.test.ts",
+  "from": "const ACCEPTED = { d1: 86_023, d2: 10_206, d3: 6_769, seeded: 19_719 };",
+  "to": "const ACCEPTED = { d1: 86_024, d2: 10_206, d3: 6_769, seeded: 19_719 };",
+  "expect": "killed",
+  "why": "the enumeration row for D1 compares the count the Python port printed"
+ },
+ {
+  "name": "T18 oracle: the last head of the sweep is dropped",
+  "file": "test/unit/attr-atom-id-run-equivalence.test.ts",
+  "from": "const heads = [\"--.Ab.c-#de_#f1\", \"-#a#b\", \"#a\", \".Ab\", \"-\"];",
+  "to": "const heads = [\"--.Ab.c-#de_#f1\", \"-#a#b\", \"#a\", \".Ab\"];",
+  "expect": "killed",
+  "why": "the sweep's compared count is pinned at 57 x 65,536"
+ }
+]
