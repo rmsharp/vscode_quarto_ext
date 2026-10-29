@@ -104,7 +104,7 @@ export function compareEmptyNativeDiv(texts: Iterable<string>, candidate: (line:
 export const DENSE_PIECES: readonly string[] = ["<div", "</div>", ">", " ", "\t", "a", '"', "'"];
 /** Ten pieces of the tag: `<`, the name in two cases, `>`, `</`, `/`, the quotes, a blank and a letter (`<div></div>` is six of them). */
 export const TAG_PIECES: readonly string[] = ["<", "div", "DIV", ">", "</", "/", '"', "'", " ", "a"];
-/** Seven pieces, longer lines: the opener, the name, both angles, a double quote, a blank and a letter (`<div a></div>` is eight of them and `<div "a"></div>` nine). */
+/** Seven pieces, longer lines: the opener, the name, both angles, a double quote, a blank and a letter (`<div a></div>` is eight of them and `<div "a"></div>` ten). */
 export const ATTR_PIECES: readonly string[] = ["<", "div", ">", "</", '"', " ", "a"];
 
 export const FRAME_LEADS: readonly string[] = ["", " ", "\t", " \t", "    "];

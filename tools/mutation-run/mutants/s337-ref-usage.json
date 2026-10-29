@@ -128,7 +128,7 @@
   "why": "equivalent: past the end `charCodeAt` is NaN, `NaN < 128` is false, and a sticky test at or beyond the end fails and answers 0 (read the function; the tests read lines up to their last character)"
  },
  {
-  "name": "S17 regchar length: the ASCII branch also takes 127",
+  "name": "S17 regchar length: the ASCII branch no longer takes 127",
   "file": "src/core/refs.ts",
   "from": "  if (unit < 128) {",
   "to": "  if (unit < 127) {",

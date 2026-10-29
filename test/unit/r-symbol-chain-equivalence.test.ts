@@ -362,8 +362,8 @@ describe("Session 337 — isRSymbolChain: the loop reads the language `^\\p{L}[\
     }
   }, HEAVY_ROW_MS);
 
-  // The old pattern's CLASS star `[\p{L}\p{N}_.]*` throws too, under the `u` flag, on a name of 4,194,288 or more astral letters (bisected at `8ebce73`, a fresh process per probe, a name of n copies of U+1D400); a name of
-  // any number of BMP letters reads. The chunk header never reaches `isRSymbolChain` with such a name: the pattern that splits its arguments and the one that finds `label=` overflow first (filed as a residual).
+  // The old pattern's CLASS star `[\p{L}\p{N}_.]*` throws too, under the `u` flag, on a name of 4,194,288 or more letters above U+00FF (bisected at `8ebce73`, a fresh process per probe, a name of n copies of U+1D400; the review round found U+4E2D and U+044F the same, and U+00E9 reads at
+  // 6,000,000: the subject string is stored with two bytes a character once it holds one above U+00FF); a name of letters up to U+00FF reads. The chunk header never reaches `isRSymbolChain` with such a name: the pattern that splits its arguments and the one that finds `label=` overflow first (filed as a residual).
   it("a name of millions of non-ASCII letters, BMP and astral, is read in linear time", () => {
     const started = Date.now();
     expect(isRSymbolChain(E_ACUTE.repeat(6_000_000))).toBe(true);

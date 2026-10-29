@@ -5,7 +5,7 @@
 comparison could pass by both readings being wrong the same way. This script shares no code with the TypeScript: it splits a token at its `-` and `:` and judges each piece (the first
 piece must be a name; each later piece a name or a canonical integer), using Python's `unicodedata` for the letter and number kinds and no `re` at all.
 
-    python3 -I tools/r-symbol-chain-count/count_accepted.py            # every count, about a minute
+    python3 -I tools/r-symbol-chain-count/count_accepted.py            # every count, about 6 seconds
     python3 -I tools/r-symbol-chain-count/count_accepted.py "NARROW"   # one of them
 
 The seeded count reproduces the test's generator: Mulberry32 from `test/unit/support/regex-equivalence.ts` seeded with 3370, then the same piece list and draws as the seeded row. If the test's

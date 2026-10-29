@@ -104,7 +104,7 @@ describe("Session 337 -- a front matter line of millions of dashes that the jupy
   }, 120_000);
 
   // The shape reaches the pattern only through the jupyter hint (the rows above), and these reads are GREEN on the parent: they pin where the shape does NOT throw, so a later change that moves the reach is seen.
-  it("the same line read with no hint, with the knitr hint and through the label index does not throw, and answers what a reader that never asks the kernel answers", () => {
+  it("control (GREEN on the parent): the same line read with no hint, with the knitr hint and through the label index does not throw, and answers what a reader that never asks the kernel answers", () => {
     const text = front("M", "jupyter: python3", `${"- ".repeat(MANY)}k: v`);
     const { result, ms } = timed(() => ({
       none: findHeadings(text).map((h) => h.text),
@@ -115,7 +115,7 @@ describe("Session 337 -- a front matter line of millions of dashes that the jupy
     expect(ms).toBeLessThan(LIMIT_MS);
   }, 120_000);
 
-  it("the resolver calls the long-line documents jupyter, the engine the providers hand to the Outline", () => {
+  it("control (GREEN on the parent): the resolver calls the long-line documents jupyter, the engine the providers hand to the Outline", () => {
     for (const lines of [["jupyter: python3"], ["engine: jupyter"], ["title: T"]]) {
       expect(resolveDocumentEngine("a.qmd", front("R", ...lines, `${"- ".repeat(MANY)}k: v`))).toBe("jupyter");
     }

@@ -15,7 +15,7 @@ describe("Session 337 — a single line of millions of characters that the empty
   // line) with `^[ \t]*<div\b(?:[^>"']|"[^"]*"|'[^']*')*>[ \t]*<\/div>[ \t]*$`, a group per character of the attribute block. Under a reader that turns raw HTML off and leaves native divs on
   // (`from: markdown-raw_html`) the question is asked of the line above a `---` line and above an indent-4 `{bash}` opener, and a line of 8,388,570 repetitions of `a` after `<div ` threw `RangeError: Maximum call stack size
   // exceeded` in every scan-based entry. Bisected at HEAD `8ebce73` (Session 337, Node 22.23.3, one fresh process per probe, lower bound verified OK first, Learning 885): `findHeadings` of `<div ` + `a` x N reads at 8,388,569 and throws at
-  // 8,388,570 (the item's figure holds); the unit ` a` throws from 4,194,285 (the item said 4,194,286); a unit `a="b" ` (four repetitions of the group, the quoted string heavier on the stack) from 1,525,195; the same in all twelve
+  // 8,388,570 (the item's figure holds); the unit ` a` throws from 4,194,286 straight after `<div` (the row's own text; the item's figure) and from 4,194,285 behind `<div `; a unit `a="b" ` (four repetitions of the group, the quoted string heavier on the stack) from 1,525,195; the same in all twelve
   // entries below, and with a heading or a blank line below the line the pattern is not asked. Every size here is twice that (Learning 775), counted in REPETITIONS OF THE UNIT, and a line this long is a pasted or minified blob.
   // Only the jupyter-hinted `findHeadings` and `buildOutline` can SEE the answer of the question (an indented `{bash}` opener is code to the kernel's own-indent rule, so `In` is listed or swallowed by it); every other entry
   // answers the same either way, so those rows state "no throw, the same answer as the short run", and the rows built on a line that does NOT match (text after the closer) pin the other branch.
@@ -114,7 +114,7 @@ describe("Session 337 — a single line of millions of characters that the empty
       ["markdown-raw_html", LISTED],
       ["markdown-raw_html-native_divs", SWALLOWED],
       ["markdown_strict-raw_html", SWALLOWED],
-    ])("the empty native div above an indent-4 opener under `from: %s`: the heading inside the opener is %j", (reader, expected) => {
+    ])("control (GREEN on the parent, the reader gate): the empty native div above an indent-4 opener under `from: %s`: the heading inside the opener is %j", (reader, expected) => {
       const text = `---\nfrom: ${reader}\n---\n\n## Before\n\nProse before.\n\n<div a="b>c"></div>\n${OPENER}## In\nx = 1\n${CLOSER}\n## After\n`;
       expect(headings("jupyter")(text)).toEqual(expected);
     });
@@ -125,7 +125,7 @@ describe("Session 337 — a single line of millions of characters that the empty
       expect(new Set(small).size).toBe(S337_ROWS.length);
     });
 
-    // The parent THROWS from 8,388,570 repetitions of `a` (4,194,285 of ` a`, 1,525,195 of `a="b" `), so no limit passes it there; a run below that, or a unit that is not the throwing one, would pass on it, and a limit of
+    // The parent THROWS from 8,388,570 repetitions of `a` (4,194,286 of ` a` straight after `<div`, 1,525,195 of `a="b" `), so no limit passes it there; a run below that, or a unit that is not the throwing one, would pass on it, and a limit of
     // minutes would pass a quadratic cure.
     it("keeps the sizes, the limit and the units the Session 337 rows are built on", () => {
       expect([S337_FEW, S337_LIMIT_MS]).toEqual([4, 4000]);

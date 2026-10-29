@@ -322,7 +322,7 @@ const REF_ID_REGCHAR = String.raw`[\p{L}\p{N}_]`;
 const REF_ID_PUNCT = String.raw`[:.#$%&+?<>~/-]`;
 /** The five cross-reference kind prefixes, each with the `-` that ends it. They begin with five different letters, so at most one of them can follow an `@`. */
 const REF_USAGE_KINDS = ["fig-", "tbl-", "sec-", "eq-", "lst-"];
-/** The twelve characters of {@link REF_ID_PUNCT}, spelled as a string for {@link refUsageEnd}'s loop; the equivalence sweep of every code unit pins the two together. */
+/** The thirteen characters of {@link REF_ID_PUNCT}, spelled as a string for {@link refUsageEnd}'s loop; the equivalence sweep of every code unit pins the two together. */
 const REF_ID_PUNCT_MARKS = ":.#$%&+?<>~/-";
 /**
  * {@link REF_ID_REGCHAR} as a STICKY single-character pattern, for the code points beyond ASCII: a test at an index reads the whole code point there (an astral letter is one, a lone

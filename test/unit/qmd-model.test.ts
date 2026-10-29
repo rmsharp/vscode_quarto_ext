@@ -9504,7 +9504,7 @@ describe("WHICH id a block with more than one defines is a reader split (Session
     // `{#sec-t05a#sec-t05b}` renders `id="sec-t05b"` under the pandoc three. `ATTR_ID`'s class
     // was "anything but whitespace or `}`", which swallows the second `#` and indexed the
     // literal `sec-t05a#sec-t05b` — a label no reader ever defines, in a document where the
-    // heading text is stripped correctly. Session 218's `ATTR_ATOM_RUN` already breaks a token
+    // heading text is stripped correctly. Session 218's `ATTR_ATOM_RUN` (now the function `attributeAtomRun`) already breaks a token
     // into atoms at `#` and NOT at `.`; the id extraction has to use that same set or it
     // re-opens the character-set defect that session closed (decision rule 3).
     const t = withFrom("markdown", "# Cal T05 Cat2 {#sec-t05a#sec-t05b}");

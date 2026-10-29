@@ -6,7 +6,7 @@ import { LS, PS, countStrings, everyString, seededRandom } from "./support/regex
 const HEAVY_ROW_MS = 120_000;
 
 // Session 337 — the BACKLOG item "Eight more single-line RangeError shapes and three more quadratic ones", part (7). `knitrHeaderOptions` judges each UNNAMED argument of a knitr chunk header (a label, a number, a string, a
-// call) after blanking its strings, with the global replace `segment.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '""')` (`model.ts`, near line 8805), and V8 keeps one entry of its regex backtrack stack per repetition
+// call) after blanking its strings, with the global replace `segment.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '""')` (`model.ts` at `8ebce73`, near line 8805), and V8 keeps one entry of its regex backtrack stack per repetition
 // of a group: a string of 8,388,574 or more characters (or `\a` pairs: one repetition a pair) threw `RangeError: Maximum call stack size exceeded` (bisected at `8ebce73`, a fresh process per probe, the lower bound
 // 8,388,573 verified to read), and the error reached every reader of the document that was handed the knitr engine. `blankQuotedStrings` is the same replacement read by a loop over the UTF-16 code units. The old
 // pattern is kept below, copied from the parent `8ebce73`, as the oracle (Learning 738), beside a reading by definition that uses no regex; the pinned counts come from the old pattern, from a Python port of it and

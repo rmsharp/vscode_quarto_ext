@@ -157,7 +157,7 @@
   "from": "  while (line.charCodeAt(at) === 45 && isBlankUnit(line.charCodeAt(at + 1))) {\n    at += 2;\n    while (isBlankUnit(line.charCodeAt(at))) {\n      at++;\n    }\n  }\n  return at;",
   "to": "  while (line.charCodeAt(at) === 45 && isBlankUnit(line.charCodeAt(at + 1))) {\n    at += 1;\n    while (isBlankUnit(line.charCodeAt(at))) {\n      at++;\n    }\n  }\n  return at;",
   "expect": "survives",
-  "why": "equivalent: the guard has shown the character after the dash is a blank, which the loop that follows reads as its first iteration, so the same index is reached; argued from the code and checked by running the mutant against the retired patterns over 6,332,624 lines (the enumerations, the code-unit sweep, 100,000 seeded): no difference"
+  "why": "equivalent: the guard has shown the character after the dash is a blank, which the loop that follows reads as its first iteration, so the same index is reached; argued from the code and checked by running the mutant against the retired patterns over the enumerations, the code-unit sweep and the seeded sample of key-line-equivalence.test.ts (the count was taken in a scratch harness that is not kept): no difference"
  },
  {
   "name": "K21 dashPrefixEnd: the blanks behind a dash are not skipped",
@@ -237,7 +237,7 @@
   "from": "if (close < 0) {",
   "to": "if (close <= 0) {",
   "expect": "survives",
-  "why": "equivalent: the search starts at the character after the opener, which is at index 1 or more, so a found closer is never at 0; also run against the retired patterns over 6,332,624 lines with no difference"
+  "why": "equivalent: the search starts at the character after the opener, which is at index 1 or more, so a found closer is never at 0; also run against the retired patterns over the same corpora (scratch harness, not kept) with no difference"
  },
  {
   "name": "K31 readKeyLine: the colon is read at the closing single quote",
@@ -285,7 +285,7 @@
   "from": "} else if (isWordUnit(first)) {\n    at++;\n    while (",
   "to": "} else if (isWordUnit(first)) {\n    while (",
   "expect": "survives",
-  "why": "equivalent: the first character is a key character, so the loop that follows takes it as its first iteration and stops at the same index; also run against the retired patterns over 6,332,624 lines with no difference"
+  "why": "equivalent: the first character is a key character, so the loop that follows takes it as its first iteration and stops at the same index; also run against the retired patterns over the same corpora (scratch harness, not kept) with no difference"
  },
  {
   "name": "K37 readKeyLine: the blanks before the colon are not skipped",
@@ -317,7 +317,7 @@
   "from": "if (at === line.length) {",
   "to": "if (at >= line.length) {",
   "expect": "survives",
-  "why": "equivalent: the colon was found at an index below the length, so the index after it is at most the length; also run against the retired patterns over 6,332,624 lines with no difference"
+  "why": "equivalent: the colon was found at an index below the length, so the index after it is at most the length; also run against the retired patterns over the same corpora (scratch harness, not kept) with no difference"
  },
  {
   "name": "K41 readKeyLine: a colon needs no blank after it",

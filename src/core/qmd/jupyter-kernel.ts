@@ -146,7 +146,7 @@ function isLineEndUnit(code: number): boolean {
  * Where the dash prefix of `line` ends: its blanks, and then every `-` that has a blank behind it with the blanks that follow (the language `[ \t]*(?:-[ \t]+)*`, Session 337).
  *
  * It was the pattern: V8 keeps one entry of its regex backtrack stack per repetition of a GROUP, so a front matter line of 3,355,428 or more `- ` threw `RangeError: Maximum call stack size exceeded`
- * (bisected at `8ebce73`, a fresh process per probe, the unit `-\t` and `-  ` the same), and the error reached every reader of the document that the engine resolver calls jupyter. The loop takes what the
+ * (bisected at `8ebce73`, a fresh process per probe, the unit `-\t` and `-  ` the same), and the error reached `findHeadings` and `buildOutline` with the jupyter hint (and `jupyterKernelLanguage` itself) for a document the engine resolver calls jupyter. The loop takes what the
  * greedy pattern took: no key starts at a blank or at a `-`, so no shorter prefix can be followed by one, and the prefix is never given back.
  */
 export function dashPrefixEnd(line: string): number {

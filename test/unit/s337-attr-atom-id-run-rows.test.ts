@@ -23,7 +23,7 @@ const S337_UNIT = "#a";
 const S337_FEW = 4;
 const S337_MANY = 6_720_000;
 // 10 s, the ceiling of these rows. Cured, a row takes 1.9 to 2.1 s (measured at 6,710,860 units with four workers loading the machine: the heading attribute tokenizer builds a token a character at a time and
-// the collector takes 54% of it, `attrAtomRun` itself 0.2 s), so 10 s is five times the cost; the three rows that refuse a token take 0.9 s. A quadratic reading of a 13-million-character line takes hours, so the limit still
+// the collector takes 54% of it, `attributeAtomRun` itself 0.2 s), so 10 s is five times the cost; the three rows that refuse a token take 0.9 s. A quadratic reading of a 13-million-character line takes hours, so the limit still
 // tells the two apart. It is never loosened to pass: a row that flakes under load is run alone first.
 const S337_LIMIT_MS = 10_000;
 

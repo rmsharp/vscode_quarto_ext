@@ -6,7 +6,7 @@ under test, or a comparison could pass by both being wrong the same way. This sc
 more atoms, `-`, or `#` and one or more identifier characters, or `.` and a letter and any identifier characters) by a memoised parse over every start position, a different
 algorithm from the single pass of `attributeAtomRun`, using Python's `unicodedata` for the letter and number kinds and no `re` at all.
 
-    python3 -I tools/attr-atom-count/count_id_run.py              # all four counts, about 15 seconds
+    python3 -I tools/attr-atom-count/count_id_run.py              # all four counts, about 10 seconds
     python3 -I tools/attr-atom-count/count_id_run.py "D1 len 8"   # one of them
 
 JavaScript strings are UTF-16: an alphabet member may be one code unit, a lone surrogate, or two code units that pair, and two members that sit side by side can pair (a high

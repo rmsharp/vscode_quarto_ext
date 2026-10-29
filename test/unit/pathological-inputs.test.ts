@@ -844,7 +844,7 @@ describe("Session 319 — a long run of blanks followed by a CR, U+2028 or U+202
       read: (text) => parseDeclaredFormats(text),
     },
     {
-      site: "KEY_LINE in the jupyter reader (`k:` and blanks in a front matter line)",
+      site: "`readKeyLine` (the pattern `KEY_LINE` until Session 337) in the jupyter reader (`k:` and blanks in a front matter line)",
       terminators: [CR_AND_LETTER, LINE_SEPARATOR, PARAGRAPH_SEPARATOR],
       build: (blanks, terminator) => `title: a\nk:${blanks}${terminator}`,
       read: (text) => jupyterKernelLanguage(text.split("\n"), []),
@@ -1172,7 +1172,7 @@ describe("Session 323 — a front matter container nested thousands of levels de
 });
 
 describe("Session 324 — an attribute block whose atoms can be split many ways and whose last character is refused", () => {
-  // The BACKLOG item "Nine more single-line overflow and slow-input families, none of them in Session 317's diff", part (1). `ATTR_ATOM_RUN` judges one whitespace-separated token of an attribute block as a run of `-`, `#id`
+  // The BACKLOG item "Nine more single-line overflow and slow-input families, none of them in Session 317's diff", part (1). `ATTR_ATOM_RUN` (retired in Session 337: `attributeAtomRun` reads the same language with a loop, and this comment describes the pattern) judges one whitespace-separated token of an attribute block as a run of `-`, `#id`
   // and `.class` atoms, and the tail of an id or of a class holds a `.` and a `-` itself, so `.A.A.A` is one class or three, and the engine tries every split before it refuses a token whose last character is wrong
   // (`!`): exponential in the number of atoms, on a 68-byte line. A valid block matches at once, so the cost needs an INVALID tail, such as a heading mid-edit. Every route that judges an attribute block reaches the
   // pattern: a heading, a fence's info string, and the inline, span and div blocks of the cross-reference index. The same pattern is QUADRATIC when an id or a class is followed by a long run of dashes (the end of the id

@@ -29,7 +29,7 @@
   "from": "return unit >= 0x41 && unit <= 0x5a ? unit + 0x20 : unit;",
   "to": "return unit >= 0x41 && unit <= 0x5b ? unit + 0x20 : unit;",
   "expect": "survives",
-  "why": "equivalent by argument: '[' (0x5b) would become '{' (0x7b), which no comparison of the function accepts ('{' is none of d, i, v, a to z, 0 to 9, _) and is no word character either, exactly like '['; looked at the five comparison sites (opener d i v, the word check, the closer d i v) and ran no document SCREENED: the mutated function agrees with the old pattern on every string of the five sets of the oracle (dense 6, seeded, framed, sweep, tag 6; about 19.5 million) and was not run through the test files; looked once, by that screen."
+  "why": "equivalent by argument: '[' (0x5b) would become '{' (0x7b), which no comparison of the function accepts ('{' is none of d, i, v, a to z, 0 to 9, _) and is no word character either, exactly like '['; looked at the five comparison sites (opener d i v, the word check, the closer d i v) and ran no document SCREENED: the mutated function agrees with the old pattern on every string of the five sets of the oracle (dense 6, seeded, framed, sweep, tag 6; 19,442,224 strings) and was not run through the test files; looked once, by that screen."
  },
  {
   "name": "A06 smallLetterAt: the capitals start at '@'",
@@ -37,7 +37,7 @@
   "from": "return unit >= 0x41 && unit <= 0x5a ? unit + 0x20 : unit;",
   "to": "return unit >= 0x40 && unit <= 0x5a ? unit + 0x20 : unit;",
   "expect": "survives",
-  "why": "equivalent by argument: '@' (0x40) would become '`' (0x60), which is below 'a' and so no word character, and is none of d, i, v; the same answer as '@' itself at every comparison SCREENED: the mutated function agrees with the old pattern on every string of the five sets of the oracle (dense 6, seeded, framed, sweep, tag 6; about 19.5 million) and was not run through the test files; looked once, by that screen."
+  "why": "equivalent by argument: '@' (0x40) would become '`' (0x60), which is below 'a' and so no word character, and is none of d, i, v; the same answer as '@' itself at every comparison SCREENED: the mutated function agrees with the old pattern on every string of the five sets of the oracle (dense 6, seeded, framed, sweep, tag 6; 19,442,224 strings) and was not run through the test files; looked once, by that screen."
  },
  {
   "name": "B01 open: a tab is no indent",
@@ -205,7 +205,7 @@
   "from": "if (at >= end) {\n    return false;\n  }\n  at++;",
   "to": "if (false) {\n    return false;\n  }\n  at++;",
   "expect": "survives",
-  "why": "equivalent by argument: at the end `at` is end, the next unit is NaN and the closer check below reads `<` against NaN and returns false; looked at every statement after it SCREENED: the mutated function agrees with the old pattern on every string of the five sets of the oracle (dense 6, seeded, framed, sweep, tag 6; about 19.5 million) and was not run through the test files; looked once, by that screen."
+  "why": "equivalent by argument: at the end `at` is end, the next unit is NaN and the closer check below reads `<` against NaN and returns false; looked at every statement after it SCREENED: the mutated function agrees with the old pattern on every string of the five sets of the oracle (dense 6, seeded, framed, sweep, tag 6; 19,442,224 strings) and was not run through the test files; looked once, by that screen."
  },
  {
   "name": "C09 block: the end test is past the end",
@@ -213,7 +213,7 @@
   "from": "if (at >= end) {\n    return false;\n  }\n  at++;",
   "to": "if (at > end) {\n    return false;\n  }\n  at++;",
   "expect": "survives",
-  "why": "equivalent by argument: at === end only when no '>' was found, and then the closer check reads NaN and returns false; the same argument as C08 SCREENED: the mutated function agrees with the old pattern on every string of the five sets of the oracle (dense 6, seeded, framed, sweep, tag 6; about 19.5 million) and was not run through the test files; looked once, by that screen."
+  "why": "equivalent by argument: at === end only when no '>' was found, and then the closer check reads NaN and returns false; the same argument as C08 SCREENED: the mutated function agrees with the old pattern on every string of the five sets of the oracle (dense 6, seeded, framed, sweep, tag 6; 19,442,224 strings) and was not run through the test files; looked once, by that screen."
  },
  {
   "name": "C10 block: the loop reads one unit past the end",
@@ -221,7 +221,7 @@
   "from": "for (; at < end; at++) {\n    const unit = line.charCodeAt(at);",
   "to": "for (; at <= end; at++) {\n    const unit = line.charCodeAt(at);",
   "expect": "survives",
-  "why": "equivalent by argument: the unit at end is NaN, which is none of '>', '\"', \"'\", so the loop only moves on to end + 1 and the end test below refuses; looked, ran no document SCREENED: the mutated function agrees with the old pattern on every string of the five sets of the oracle (dense 6, seeded, framed, sweep, tag 6; about 19.5 million) and was not run through the test files; looked once, by that screen."
+  "why": "equivalent by argument: the unit at end is NaN, which is none of '>', '\"', \"'\", so the loop only moves on to end + 1 and the end test below refuses; looked, ran no document SCREENED: the mutated function agrees with the old pattern on every string of the five sets of the oracle (dense 6, seeded, framed, sweep, tag 6; 19,442,224 strings) and was not run through the test files; looked once, by that screen."
  },
  {
   "name": "C11 block: the '>' is not consumed",
