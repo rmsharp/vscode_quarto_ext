@@ -1,0 +1,482 @@
+[
+ {
+  "name": "S01 kinds: lst- dropped",
+  "file": "src/core/refs.ts",
+  "from": "const REF_USAGE_KINDS = [\"fig-\", \"tbl-\", \"sec-\", \"eq-\", \"lst-\"];",
+  "to": "const REF_USAGE_KINDS = [\"fig-\", \"tbl-\", \"sec-\", \"eq-\"];",
+  "expect": "killed",
+  "why": "`@lst-a` stops being a usage: the stated row and every enumeration that holds `lst-`"
+ },
+ {
+  "name": "S02 kinds: eq- dropped",
+  "file": "src/core/refs.ts",
+  "from": "const REF_USAGE_KINDS = [\"fig-\", \"tbl-\", \"sec-\", \"eq-\", \"lst-\"];",
+  "to": "const REF_USAGE_KINDS = [\"fig-\", \"tbl-\", \"sec-\", \"lst-\"];",
+  "expect": "killed",
+  "why": "`@eq-a` stops being a usage"
+ },
+ {
+  "name": "S03 kinds: fig- without its dash",
+  "file": "src/core/refs.ts",
+  "from": "const REF_USAGE_KINDS = [\"fig-\", \"tbl-\", \"sec-\", \"eq-\", \"lst-\"];",
+  "to": "const REF_USAGE_KINDS = [\"fig\", \"tbl-\", \"sec-\", \"eq-\", \"lst-\"];",
+  "expect": "killed",
+  "why": "the dash would be the first id character, and it is no regchar: `@fig-a` stops being a usage"
+ },
+ {
+  "name": "S04 kinds: an extra cor-",
+  "file": "src/core/refs.ts",
+  "from": "const REF_USAGE_KINDS = [\"fig-\", \"tbl-\", \"sec-\", \"eq-\", \"lst-\"];",
+  "to": "const REF_USAGE_KINDS = [\"fig-\", \"tbl-\", \"sec-\", \"eq-\", \"lst-\", \"cor-\"];",
+  "expect": "killed",
+  "why": "`@cor-a` becomes a usage; the stated row says it is not"
+ },
+ {
+  "name": "S05 marks: ~ dropped",
+  "file": "src/core/refs.ts",
+  "from": "const REF_ID_PUNCT_MARKS = \":.#$%&+?<>~/-\";",
+  "to": "const REF_ID_PUNCT_MARKS = \":.#$%&+?<>/-\";",
+  "expect": "killed",
+  "why": "the per-mark row: `@fig-a~b` stops joining its two letters"
+ },
+ {
+  "name": "S06 marks: - dropped",
+  "file": "src/core/refs.ts",
+  "from": "const REF_ID_PUNCT_MARKS = \":.#$%&+?<>~/-\";",
+  "to": "const REF_ID_PUNCT_MARKS = \":.#$%&+?<>~/\";",
+  "expect": "killed",
+  "why": "the per-mark row and every enumeration with a dash after an id"
+ },
+ {
+  "name": "S07 marks: a comma added",
+  "file": "src/core/refs.ts",
+  "from": "const REF_ID_PUNCT_MARKS = \":.#$%&+?<>~/-\";",
+  "to": "const REF_ID_PUNCT_MARKS = \":.#$%&+?<>~/-,\";",
+  "expect": "killed",
+  "why": "`@fig-a,b` becomes one id; the stated row says the comma ends it"
+ },
+ {
+  "name": "S08 marks: an underscore added",
+  "file": "src/core/refs.ts",
+  "from": "const REF_ID_PUNCT_MARKS = \":.#$%&+?<>~/-\";",
+  "to": "const REF_ID_PUNCT_MARKS = \":.#$%&+?<>~/-_\";",
+  "expect": "survives",
+  "why": "equivalent: `_` is a regchar and the loop asks for a regchar before it asks for a mark, so the mark list never sees it (looked at the loop and at the 65,536-unit sweep: no line differs)"
+ },
+ {
+  "name": "S09 sticky pattern: the sticky flag dropped",
+  "file": "src/core/refs.ts",
+  "from": "const REGCHAR_AT = new RegExp(REF_ID_REGCHAR, \"uy\");",
+  "to": "const REGCHAR_AT = new RegExp(REF_ID_REGCHAR, \"u\");",
+  "expect": "killed",
+  "why": "a test from `lastIndex` finds a LATER letter and the length is wrong: a combining mark before a letter (the third enumeration)"
+ },
+ {
+  "name": "S10 sticky pattern: numbers dropped",
+  "file": "src/core/refs.ts",
+  "from": "const REGCHAR_AT = new RegExp(REF_ID_REGCHAR, \"uy\");",
+  "to": "const REGCHAR_AT = new RegExp(\"[\\\\p{L}_]\", \"uy\");",
+  "expect": "killed",
+  "why": "the Arabic-Indic digit and the superscript two stop being id characters (stated rows, the third enumeration)"
+ },
+ {
+  "name": "S11 sticky pattern: the underscore dropped",
+  "file": "src/core/refs.ts",
+  "from": "const REGCHAR_AT = new RegExp(REF_ID_REGCHAR, \"uy\");",
+  "to": "const REGCHAR_AT = new RegExp(\"[\\\\p{L}\\\\p{N}]\", \"uy\");",
+  "expect": "survives",
+  "why": "equivalent: the pattern only ever sees code points above 127 (the ASCII fast path decides every smaller one) and `_` is U+005F"
+ },
+ {
+  "name": "S12 ascii word: z is not a letter",
+  "file": "src/core/refs.ts",
+  "from": "return (unit >= 97 && unit <= 122) || (unit >= 65 && unit <= 90) || (unit >= 48 && unit <= 57) || unit === 95;",
+  "to": "return (unit >= 97 && unit < 122) || (unit >= 65 && unit <= 90) || (unit >= 48 && unit <= 57) || unit === 95;",
+  "expect": "killed",
+  "why": "the code-unit sweep puts `z` in an id"
+ },
+ {
+  "name": "S13 ascii word: { is a letter",
+  "file": "src/core/refs.ts",
+  "from": "return (unit >= 97 && unit <= 122) || (unit >= 65 && unit <= 90) || (unit >= 48 && unit <= 57) || unit === 95;",
+  "to": "return (unit >= 97 && unit <= 123) || (unit >= 65 && unit <= 90) || (unit >= 48 && unit <= 57) || unit === 95;",
+  "expect": "killed",
+  "why": "the sweep puts `{` after an id"
+ },
+ {
+  "name": "S14 ascii word: Z is not a letter",
+  "file": "src/core/refs.ts",
+  "from": "return (unit >= 97 && unit <= 122) || (unit >= 65 && unit <= 90) || (unit >= 48 && unit <= 57) || unit === 95;",
+  "to": "return (unit >= 97 && unit <= 122) || (unit >= 65 && unit < 90) || (unit >= 48 && unit <= 57) || unit === 95;",
+  "expect": "killed",
+  "why": "the stated row `Z@fig-a` and the sweep"
+ },
+ {
+  "name": "S15 ascii word: : is a digit",
+  "file": "src/core/refs.ts",
+  "from": "return (unit >= 97 && unit <= 122) || (unit >= 65 && unit <= 90) || (unit >= 48 && unit <= 57) || unit === 95;",
+  "to": "return (unit >= 97 && unit <= 122) || (unit >= 65 && unit <= 90) || (unit >= 48 && unit <= 58) || unit === 95;",
+  "expect": "killed",
+  "why": "`@fig-a:` would end after the colon; the per-mark row says a colon with nothing after it is no part of the id"
+ },
+ {
+  "name": "S16 regchar length: the past-the-end guard removed",
+  "file": "src/core/refs.ts",
+  "from": "  if (at >= lineText.length) {\n    return 0;\n  }\n",
+  "to": "",
+  "expect": "survives",
+  "why": "equivalent: past the end `charCodeAt` is NaN, `NaN < 128` is false, and a sticky test at or beyond the end fails and answers 0 (read the function; the tests read lines up to their last character)"
+ },
+ {
+  "name": "S17 regchar length: the ASCII branch also takes 127",
+  "file": "src/core/refs.ts",
+  "from": "  if (unit < 128) {",
+  "to": "  if (unit < 127) {",
+  "expect": "survives",
+  "why": "equivalent: U+007F is no letter or number, so the sticky test answers 0 for it as the ASCII branch does"
+ },
+ {
+  "name": "S18 regchar length: the ASCII branch takes up to U+00AA",
+  "file": "src/core/refs.ts",
+  "from": "  if (unit < 128) {",
+  "to": "  if (unit < 171) {",
+  "expect": "killed",
+  "why": "the feminine ordinal indicator (U+00AA, a letter), the superscripts and the micro sign stop being regchars: the sweep"
+ },
+ {
+  "name": "S19 regchar length: every ASCII character is a regchar",
+  "file": "src/core/refs.ts",
+  "from": "    return isAsciiWordUnit(unit) ? 1 : 0;",
+  "to": "    return 1;",
+  "expect": "killed",
+  "why": "a blank or a dot would continue an id"
+ },
+ {
+  "name": "S20 regchar length: the sticky test starts wherever it was left",
+  "file": "src/core/refs.ts",
+  "from": "  REGCHAR_AT.lastIndex = at;\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the shared pattern's `lastIndex` is the end of the last test or 0, not `at`: any id with a letter beyond ASCII after other characters"
+ },
+ {
+  "name": "S21 regchar length: an astral letter is three units",
+  "file": "src/core/refs.ts",
+  "from": "REGCHAR_AT.test(lineText) ? REGCHAR_AT.lastIndex - at : 0;",
+  "to": "REGCHAR_AT.test(lineText) ? 3 : 0;",
+  "expect": "killed",
+  "why": "every regchar, ASCII or not, that goes through the sticky test is three units: the id ends a unit too far after an astral letter (the third enumeration)"
+ },
+ {
+  "name": "S22 regchar length: a non-regchar is one unit",
+  "file": "src/core/refs.ts",
+  "from": "REGCHAR_AT.test(lineText) ? REGCHAR_AT.lastIndex - at : 0;",
+  "to": "REGCHAR_AT.test(lineText) ? REGCHAR_AT.lastIndex - at : 1;",
+  "expect": "killed",
+  "why": "a combining mark or an emoji continues the id"
+ },
+ {
+  "name": "S23 usage end: any index may start a usage",
+  "file": "src/core/refs.ts",
+  "from": "if (lineText[at] !== \"@\" || (at > 0 && isAsciiWordUnit(lineText.charCodeAt(at - 1)))) {",
+  "to": "if ((at > 0 && isAsciiWordUnit(lineText.charCodeAt(at - 1)))) {",
+  "expect": "killed",
+  "why": "`refUsageEnd(\"afig-a\", 0)` reads a kind after the first character and answers 6: the three usage-end rows with a letter or a blank before `fig-`"
+ },
+ {
+  "name": "S24 usage end: the lookbehind is skipped at index 1",
+  "file": "src/core/refs.ts",
+  "from": "if (lineText[at] !== \"@\" || (at > 0 && isAsciiWordUnit(lineText.charCodeAt(at - 1)))) {",
+  "to": "if (lineText[at] !== \"@\" || (at > 1 && isAsciiWordUnit(lineText.charCodeAt(at - 1)))) {",
+  "expect": "killed",
+  "why": "`a@fig-a` becomes a usage (an email shape): the stated row and the enumerations"
+ },
+ {
+  "name": "S25 usage end: the lookbehind also looks at index 0",
+  "file": "src/core/refs.ts",
+  "from": "if (lineText[at] !== \"@\" || (at > 0 && isAsciiWordUnit(lineText.charCodeAt(at - 1)))) {",
+  "to": "if (lineText[at] !== \"@\" || (at >= 0 && isAsciiWordUnit(lineText.charCodeAt(at - 1)))) {",
+  "expect": "survives",
+  "why": "equivalent: at index 0 the lookbehind reads `charCodeAt(-1)`, which is NaN, and NaN is no letter (checked the function by hand; no line differs in 36 x 65,536 sweep lines)"
+ },
+ {
+  "name": "S26 usage end: the lookbehind reads the `@` itself",
+  "file": "src/core/refs.ts",
+  "from": "if (lineText[at] !== \"@\" || (at > 0 && isAsciiWordUnit(lineText.charCodeAt(at - 1)))) {",
+  "to": "if (lineText[at] !== \"@\" || (at > 0 && isAsciiWordUnit(lineText.charCodeAt(at)))) {",
+  "expect": "killed",
+  "why": "an email shape is never refused"
+ },
+ {
+  "name": "S27 usage end: the lookbehind reads two units back",
+  "file": "src/core/refs.ts",
+  "from": "if (lineText[at] !== \"@\" || (at > 0 && isAsciiWordUnit(lineText.charCodeAt(at - 1)))) {",
+  "to": "if (lineText[at] !== \"@\" || (at > 0 && isAsciiWordUnit(lineText.charCodeAt(at - 2)))) {",
+  "expect": "killed",
+  "why": "`a @fig-a` is refused for the `a` two back"
+ },
+ {
+  "name": "S28 usage end: the kind is looked for at the `@`",
+  "file": "src/core/refs.ts",
+  "from": "if (lineText.startsWith(kind, at + 1)) {",
+  "to": "if (lineText.startsWith(kind, at)) {",
+  "expect": "killed",
+  "why": "no kind ever matches"
+ },
+ {
+  "name": "S29 usage end: the id starts at the kind's dash",
+  "file": "src/core/refs.ts",
+  "from": "pos = at + 1 + kind.length;",
+  "to": "pos = at + kind.length;",
+  "expect": "killed",
+  "why": "the first id character is the dash, which is no regchar: every usage is refused"
+ },
+ {
+  "name": "S30 usage end: the id starts a unit late",
+  "file": "src/core/refs.ts",
+  "from": "pos = at + 1 + kind.length;",
+  "to": "pos = at + 2 + kind.length;",
+  "expect": "killed",
+  "why": "the first id character is skipped: `@fig-a` is refused"
+ },
+ {
+  "name": "S31 usage end: the kind search goes on after a match",
+  "file": "src/core/refs.ts",
+  "from": "      pos = at + 1 + kind.length;\n      break;\n",
+  "to": "      pos = at + 1 + kind.length;\n",
+  "expect": "survives",
+  "why": "equivalent: the five kinds begin with five different letters, so after one matches no later one can, and `pos` is not set again"
+ },
+ {
+  "name": "S32 usage end: no kind found starts the id at the line start",
+  "file": "src/core/refs.ts",
+  "from": "let pos = -1;",
+  "to": "let pos = 0;",
+  "expect": "killed",
+  "why": "`a @a` has no kind, and the id is read from index 0: the first enumeration holds `a`, a blank, `@`, `a`"
+ },
+ {
+  "name": "S33 usage end: an id may start at index 0 of the kind test",
+  "file": "src/core/refs.ts",
+  "from": "if (pos < 0 || regcharLengthAt(lineText, pos) === 0) {",
+  "to": "if (pos <= 0 || regcharLengthAt(lineText, pos) === 0) {",
+  "expect": "survives",
+  "why": "equivalent: `pos` is -1 or at least 5 (an `@`, a kind of at least three characters and its dash)"
+ },
+ {
+  "name": "S34 usage end: the first id character is not required",
+  "file": "src/core/refs.ts",
+  "from": "if (pos < 0 || regcharLengthAt(lineText, pos) === 0) {",
+  "to": "if (pos < 0) {",
+  "expect": "killed",
+  "why": "`@fig-` and `@fig-.a` become usages: the stated rows"
+ },
+ {
+  "name": "S35 usage end: a regchar of one unit does not continue the id",
+  "file": "src/core/refs.ts",
+  "from": "    if (width > 0) {\n      pos += width;",
+  "to": "    if (width > 1) {\n      pos += width;",
+  "expect": "killed",
+  "why": "ASCII letters no longer extend the id"
+ },
+ {
+  "name": "S36 usage end: a regchar always takes one unit",
+  "file": "src/core/refs.ts",
+  "from": "      pos += width;",
+  "to": "      pos += 1;",
+  "expect": "survives",
+  "why": "equivalent, firsthand: the specification reads a `lastIndex` inside a surrogate pair of a unicode-mode pattern as the pair, so the step of one unit lands on the low surrogate, the next call matches the whole pair again and answers 1, and the position ends after the pair as before (the same holds for `REGCHAR_AT.test(lineText) ? 1 : 0` in place of `lastIndex - at`: run by hand against the oracle, the per-mark rows and the rows file, 0 failing)"
+ },
+ {
+  "name": "S37 usage end: the mark test without the end-of-line guard",
+  "file": "src/core/refs.ts",
+  "from": "} else if (pos < lineText.length && REF_ID_PUNCT_MARKS.includes(lineText[pos]) && regcharLengthAt(lineText, pos + 1) > 0) {\n      pos++;",
+  "to": "} else if (REF_ID_PUNCT_MARKS.includes(lineText[pos]) && regcharLengthAt(lineText, pos + 1) > 0) {\n      pos++;",
+  "expect": "survives",
+  "why": "equivalent: `lineText[pos]` is then undefined at the end and `\"...\".includes(undefined)` looks for the text \"undefined\" and answers false"
+ },
+ {
+  "name": "S38 usage end: a mark needs no follower",
+  "file": "src/core/refs.ts",
+  "from": "} else if (pos < lineText.length && REF_ID_PUNCT_MARKS.includes(lineText[pos]) && regcharLengthAt(lineText, pos + 1) > 0) {\n      pos++;",
+  "to": "} else if (pos < lineText.length && REF_ID_PUNCT_MARKS.includes(lineText[pos])) {\n      pos++;",
+  "expect": "killed",
+  "why": "a trailing `.` joins the id: `@fig-a.` ends at 7"
+ },
+ {
+  "name": "S39 usage end: a mark skips itself and two units more",
+  "file": "src/core/refs.ts",
+  "from": "} else if (pos < lineText.length && REF_ID_PUNCT_MARKS.includes(lineText[pos]) && regcharLengthAt(lineText, pos + 1) > 0) {\n      pos++;",
+  "to": "} else if (pos < lineText.length && REF_ID_PUNCT_MARKS.includes(lineText[pos]) && regcharLengthAt(lineText, pos + 1) > 0) {\n      pos += 3;",
+  "expect": "killed",
+  "why": "after a mark and its follower the position is a unit too far: `@fig-a.b ` ends after the blank"
+ },
+ {
+  "name": "S40 refIdAt: the first `@` of the line is skipped",
+  "file": "src/core/refs.ts",
+  "from": "for (let at = lineText.indexOf(\"@\"); at >= 0;",
+  "to": "for (let at = lineText.indexOf(\"@\", 1); at >= 0;",
+  "expect": "killed",
+  "why": "`@fig-a` at index 0 is never read"
+ },
+ {
+  "name": "S41 refIdAt: the next `@` is looked for two units on",
+  "file": "src/core/refs.ts",
+  "from": "at = lineText.indexOf(\"@\", at + 1)",
+  "to": "at = lineText.indexOf(\"@\", at + 2)",
+  "expect": "killed",
+  "why": "`@@fig-a`: the second `@` is skipped"
+ },
+ {
+  "name": "S42 refIdAt: a usage that ends at 0",
+  "file": "src/core/refs.ts",
+  "from": "if (end >= 0 && column >= at && column <= end) {",
+  "to": "if (end > 0 && column >= at && column <= end) {",
+  "expect": "survives",
+  "why": "equivalent: a usage ends at least 6 units after the start of the line it is on, never at 0"
+ },
+ {
+  "name": "S43 refIdAt: the cursor on the `@` is outside",
+  "file": "src/core/refs.ts",
+  "from": "if (end >= 0 && column >= at && column <= end) {",
+  "to": "if (end >= 0 && column > at && column <= end) {",
+  "expect": "killed",
+  "why": "the stated row at column 0"
+ },
+ {
+  "name": "S44 refIdAt: the cursor one past the end is outside",
+  "file": "src/core/refs.ts",
+  "from": "if (end >= 0 && column >= at && column <= end) {",
+  "to": "if (end >= 0 && column >= at && column < end) {",
+  "expect": "killed",
+  "why": "the stated row at column 6 of `@fig-a`"
+ },
+ {
+  "name": "S45 refIdAt: the cursor two past the end is inside",
+  "file": "src/core/refs.ts",
+  "from": "if (end >= 0 && column >= at && column <= end) {",
+  "to": "if (end >= 0 && column >= at && column <= end + 1) {",
+  "expect": "killed",
+  "why": "the stated row at column 7 of `@fig-a` and every enumeration"
+ },
+ {
+  "name": "S46 refIdAt: the answer includes the `@`",
+  "file": "src/core/refs.ts",
+  "from": "return lineText.slice(at + 1, end);",
+  "to": "return lineText.slice(at, end);",
+  "expect": "killed",
+  "why": "every answer"
+ },
+ {
+  "name": "T01 rows: 3 units for the short control",
+  "file": "test/unit/s337-ref-usage-rows.test.ts",
+  "from": "  const FEW = 4;",
+  "to": "  const FEW = 3;",
+  "expect": "killed",
+  "why": "the sizes guard pins [FEW, LIMIT_MS]"
+ },
+ {
+  "name": "T02 rows: a limit of 40 s",
+  "file": "test/unit/s337-ref-usage-rows.test.ts",
+  "from": "  const LIMIT_MS = 4000;",
+  "to": "  const LIMIT_MS = 40000;",
+  "expect": "killed",
+  "why": "the sizes guard pins the limit; a limit past a quadratic cure's time would pass it"
+ },
+ {
+  "name": "T03 rows: the first row below the first throw",
+  "file": "test/unit/s337-ref-usage-rows.test.ts",
+  "from": "unit: \"a\", many: 16_800_000, build: (run) => ({ line: `@fig-${run}`, column: 2 })",
+  "to": "unit: \"a\", many: 8_388_572, build: (run) => ({ line: `@fig-${run}`, column: 2 })",
+  "expect": "killed",
+  "why": "the sizes guard pins every size and unit"
+ },
+ {
+  "name": "T04 rows: the two-byte letters row under the two-byte first throw",
+  "file": "test/unit/s337-ref-usage-rows.test.ts",
+  "from": "unit: \"a\", many: 6_000_000, build: (run) => ({ line: `\\u{1f600} @fig-${run}`",
+  "to": "unit: \"a\", many: 4_000_000, build: (run) => ({ line: `\\u{1f600} @fig-${run}`",
+  "expect": "killed",
+  "why": "4,000,000 reads on a two-byte line: the guard pins the size and the inequality"
+ },
+ {
+  "name": "T05 rows: the two-byte pairs row under the two-byte first throw",
+  "file": "test/unit/s337-ref-usage-rows.test.ts",
+  "from": "unit: \".a\", many: 3_000_000,",
+  "to": "unit: \".a\", many: 2_000_000,",
+  "expect": "killed",
+  "why": "2,000,000 pairs read on a two-byte line: the guard pins the size and the inequality"
+ },
+ {
+  "name": "T06 rows: the `.a` row at half its size",
+  "file": "test/unit/s337-ref-usage-rows.test.ts",
+  "from": "unit: \".a\", many: 8_400_000, build: (run) => ({ line: `Dotted",
+  "to": "unit: \".a\", many: 4_000_000, build: (run) => ({ line: `Dotted",
+  "expect": "killed",
+  "why": "the sizes guard"
+ },
+ {
+  "name": "T07 rows: the cursor of the two-byte letters row before the `@`",
+  "file": "test/unit/s337-ref-usage-rows.test.ts",
+  "from": "line: `\\u{1f600} @fig-${run}`, column: 5 }",
+  "to": "line: `\\u{1f600} @fig-${run}`, column: 0 }",
+  "expect": "killed",
+  "why": "the answer would be null, not the id"
+ },
+ {
+  "name": "T08 rows: the cursor of the before-the-`@` row on it",
+  "file": "test/unit/s337-ref-usage-rows.test.ts",
+  "from": "line: `See @fig-${run}`, column: 3 }",
+  "to": "line: `See @fig-${run}`, column: 4 }",
+  "expect": "killed",
+  "why": "the answer would be the id, not null"
+ },
+ {
+  "name": "T09 rows: the clock assertion of a row removed",
+  "file": "test/unit/s337-ref-usage-rows.test.ts",
+  "from": "    expect(result === want).toBe(true);\n    expect(ms).toBeLessThan(LIMIT_MS);\n",
+  "to": "    expect(result === want).toBe(true);\n",
+  "expect": "survives",
+  "why": "an assertion removed cannot fail a test on a correct cure; only a quadratic cure would fail it, and none exists to run it against (the limit itself is pinned by T02)"
+ },
+ {
+  "name": "T10 equivalence: 99,999 seeded lines",
+  "file": "test/unit/ref-usage-equivalence.test.ts",
+  "from": "const SEEDED_COUNT = 100_000;",
+  "to": "const SEEDED_COUNT = 99_999;",
+  "expect": "killed",
+  "why": "the pinned counts of the seeded row and the sizes guard"
+ },
+ {
+  "name": "T11 equivalence: the first enumeration to length 6",
+  "file": "test/unit/ref-usage-equivalence.test.ts",
+  "from": "maxLength: 7, usages: 72_030, answered: 643_713",
+  "to": "maxLength: 6, usages: 72_030, answered: 643_713",
+  "expect": "killed",
+  "why": "the pinned counts, and the sizes guard"
+ },
+ {
+  "name": "T12 equivalence: the second long run below the old first throw",
+  "file": "test/unit/ref-usage-equivalence.test.ts",
+  "from": "  const LONG_RUNS = [8_388_573, 16_800_000];",
+  "to": "  const LONG_RUNS = [8_388_573, 8_388_572];",
+  "expect": "killed",
+  "why": "the sizes guard pins the long runs"
+ },
+ {
+  "name": "T13 equivalence: the ASCII sweep's usage count off by one",
+  "file": "test/unit/ref-usage-equivalence.test.ts",
+  "from": "expect(counts).toEqual({ strings: 4_608, usages: 2_122, answered: 8_488 });",
+  "to": "expect(counts).toEqual({ strings: 4_608, usages: 2_123, answered: 8_488 });",
+  "expect": "killed",
+  "why": "the count pinned from the Python recount"
+ },
+ {
+  "name": "T14 equivalence: the small runs without the million",
+  "file": "test/unit/ref-usage-equivalence.test.ts",
+  "from": "const SMALL_RUNS = [1, 2, 3, 100, 4_096, 65_536, 1_000_000];",
+  "to": "const SMALL_RUNS = [1, 2, 3, 100, 4_096, 65_536, 100_000];",
+  "expect": "killed",
+  "why": "the sizes guard pins the small runs"
+ }
+]
