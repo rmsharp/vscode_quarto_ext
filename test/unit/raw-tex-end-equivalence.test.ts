@@ -278,3 +278,39 @@ describe("Session 339 — the two rawTexEndNames call sites on documents the old
     expect(texts(text)).toEqual(expected);
   });
 });
+
+// The mutation lens of Session 339 (`tools/mutation-run/mutants/s339-raw-tex-end.json`, run against the rows above before these were added): 14 of the 22 edits of the two call sites survived, because every earlier
+// document puts the ATX line under the `\end{}` line (so it asks only whether THAT line closes something) or under a `body` line that opens a paragraph again. The rows below put the ATX line directly under the
+// `\begin{}` line, so the heading is found only if the index has seen a delimiter of the name (the index half), or put a second `\end{}` line after the stack was changed (the probe half). Every answer is what the
+// PARENT (`4d1944c`) gives for the same document: these rows PASS there.
+describe("Session 339 review — the index and the probe on documents that ask about the line itself and about the stack that is left", () => {
+  const texts = (text: string): string[] => findHeadings(text).map((heading) => heading.text);
+  it.each([
+    // The index (`lastRawTexEnvEnd`): the ATX line sits directly under a `\begin{a}` that interrupts the paragraph above only when an `\end{a}` is on its line or below.
+    ["a one-line environment on the first line of the document is closed where it stands", "\\begin{a}\\end{a}\n# H\n", ["H"]],
+    ["an `\\end{a}` on the last line, with no final line feed, closes the `\\begin{a}` above", "para\n\\begin{a}\n# H\n\\end{a}", ["H"]],
+    ["an `\\end{a}` ABOVE a `\\begin{a}` closes nothing", "para\n\\end{a}\n\\begin{a}\n# H\n", []],
+    ["an `\\end{a}` above and another below: the one below counts", "para\n\\end{a}\n\\begin{a}\n# H\n\\end{a}\n", ["H"]],
+    ["`\\end{ a}` is not `a`", "para\n\\begin{a}\n# H\n\\end{ a}\n", []],
+    ["`\\end{a }` is not `a`", "para\n\\begin{a}\n# H\n\\end{a }\n", []],
+    ["`\\end{a<no-break space>}` is not `a`", "para\n\\begin{a}\n# H\n\\end{a" + NBSP + "}\n", []],
+    ["`\\end{A}` is not `a`", "para\n\\begin{a}\n# H\n\\end{A}\n", []],
+    ["the first of three names on the line closes its environment", "para\n\\begin{b}\n# H\n\\end{b}\\end{a}\n", ["H"]],
+    ["the last of two names on the line closes its environment", "para\n\\begin{a}\n# H\n\\end{b}\\end{a}\n", ["H"]],
+    ["the middle of three names on the line closes its environment", "para\n\\begin{c}\n# H\n\\end{b}\\end{c}\\end{a}\n", ["H"]],
+    ["the middle of three names, on a line that does not start with a delimiter", "para\n\\begin{c}\n# H\nx \\end{b} y \\end{c} z \\end{a}\n", ["H"]],
+    ["an `\\end{a}` behind a block quote marker counts (the index is not anchored)", "para\n\\begin{a}\n# H\n> \\end{a}\n", ["H"]],
+    ["an `\\end{a}` inside a code fence below counts (the index reads every line)", "para\n\\begin{a}\n# H\n```\n\\end{a}\n```\n", ["H"]],
+    ["an `\\end{a}` indented three spaces counts", "para\n\\begin{a}\nbody\n   \\end{a}\n# H\n", ["H"]],
+    ["an `\\end{a}` indented four spaces is paragraph text to the probe, so the ATX line below it stays hidden, although the index counts it", "para\n\\begin{a}\nbody\n    \\end{a}\n# H\n", []],
+    // The probe (the LIFO pop in `computeRegions`): a second `\end{}` line after the line that changed the stack.
+    ["`\\end{b}\\end{a}` over [a, b] closes both: a later `\\end{a}` closes nothing", "para\n\\begin{a}\n\\begin{b}\nbody\n\\end{b}\\end{a}\ntext\n\\end{a}\n# H\n", []],
+    ["`\\end{a}\\end{a}` over [b, a] closes one: a later `\\end{b}` still closes `b`", "para\n\\begin{b}\n\\begin{a}\nbody\n\\end{a}\\end{a}\ntext\n\\end{b}\n# H\n", ["H"]],
+    ["`\\end{a}` over [b, a] closes one: a later `\\end{b}` still closes `b`", "para\n\\begin{b}\n\\begin{a}\nbody\n\\end{a}\ntext\n\\end{b}\n# H\n", ["H"]],
+    ["`\\end{a}` over [a, b] closes nothing, although `a` is open further down", "para\n\\begin{a}\n\\begin{b}\nbody\n\\end{a}\n# H\n\\end{b}\n", []],
+    ["`\\end{a}\\end{b}` over [a, b] closes `b` only: a later `\\end{a}` closes `a`", "para\n\\begin{a}\n\\begin{b}\nbody\n\\end{a}\\end{b}\ntext\n\\end{a}\n# H\n", ["H"]],
+    ["two names that open nothing, then the real closer on a line below", "para\n\\begin{a}\nbody\n\\end{b}\\end{c}\ntext\n\\end{a}\n# H\n", ["H"]],
+  ] as Array<[string, string, string[]]>)("%s", (_label, text, expected) => {
+    expect(texts(text)).toEqual(expected);
+  });
+});
