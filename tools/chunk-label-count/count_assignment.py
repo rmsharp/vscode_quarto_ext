@@ -10,7 +10,7 @@ and this script derives the counts from its GRAMMAR by listing EVERY way to cut 
 optional value that starts and ends with a non-blank, blanks), a different algorithm from the single pass of the TypeScript cure. The grammar is unambiguous: a string that parses has exactly one cut, and this
 script stops with an error if it ever finds two (a count that depended on which one the pattern's backtracking took would not be a count). Python's `unicodedata` gives the letter and number kinds, and no `re` is used.
 
-    python3 -I tools/chunk-label-count/count_assignment.py            # every count, about 40 seconds
+    python3 -I tools/chunk-label-count/count_assignment.py            # every count, about 4 seconds
     python3 -I tools/chunk-label-count/count_assignment.py E1         # one of them
 
 JavaScript strings are UTF-16: an alphabet member may be one code unit, a lone surrogate, or two code units that pair, and two members that sit side by side can pair (a high surrogate then a low one is ONE astral
