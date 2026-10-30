@@ -10,7 +10,7 @@
 // read and 4,194,288 throw. A token whose characters are all up to U+00FF reads 60,000,000 letters (no throw to be found), so the all-up-to-U+00FF form of a row is a CONTROL that passes on the parent.
 // The rows are sized at twice the first throw (Learning 775) and every row asserts the ANSWER the short document gives, not only that nothing throws.
 //
-// ⚠ WHICH BUILD EACH ROW IS RED ON (Learning 882; the cured `model.ts` with one site put back to its old pattern, the ten `s338-attr-id-rows-*.test.ts` files run on each): the parent `fe6aaec` fails 50 of the 143
+// ⚠ WHICH BUILD EACH ROW IS RED ON (Learning 882; the cured `model.ts` with one site put back to its old pattern, the eleven `s338-attr-id-rows-*.test.ts` files run on each): the parent `fe6aaec` fails 50 of the 143
 // tests, all by RangeError. With site 2 (`ATTR_ATOM_COMMONMARK`) cured and site 1 (`ATTR_ID_ALL`) old the same 50 fail. With site 1 cured and site 2 old 24 fail, the rows of the `commonmark` files, and the
 // 26 default-reader rows pass. So the default-reader rows reach site 1 ALONE, and under `from: commonmark_x` site 2 is tested before site 1 is read and HIDES it: curing site 2 alone leaves every row red.
 
