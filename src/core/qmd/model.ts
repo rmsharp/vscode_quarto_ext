@@ -5224,6 +5224,41 @@ interface DivSpecReading {
 function divTailMayBePrepassed(tail: string): boolean {
   return tail.includes("{{<") || /[ \t]=|=[ \t]/.test(tail);
 }
+/**
+ * Whether a `class=` is followed, before the next `}`, by a backslash or an ampersand — the test `divSpecReading` makes before it trusts the classes pandoc's tokens gave: a `class=` value that holds one is not
+ * decoded, so its words may not be the classes quarto reads (and the test is deliberately broader than the value: it also fires on an escape in a LATER attribute's value, as long as no `}` comes between).
+ *
+ * ⚠ **IT IS ONE PASS BECAUSE THE PATTERN IT REPLACES WAS QUADRATIC (Session 339).** The test was `/class=[^}]*[\\&]/.test(tail)`: unanchored, so it restarted at EVERY `class=` and read on to the next `}` (or the
+ * end of the line) looking for the escape, and a well-formed opener that repeats `class=` and holds none cost n squared. Measured at HEAD `4d1944c`, one fresh process per probe, the opener `::: {k="` + n `class=`
+ * + `"}` (6 characters a repeat): 400.8 ms at n = 8,000, 1,573.1 ms at 16,000 and 6,256.8 ms at 32,000; `::: {` + n `class=a ` + `}`: 525.9 ms at 8,000 and 2,659.3 ms at 16,000. (An UNTERMINATED opener is refused by
+ * `divOpenerVerdict` before this test is asked, which is why `{k="class=class=...` with no closing quote cost nothing.)
+ *
+ * ⚠ **IT READS WHAT THE PATTERN READ.** True iff there are positions p and q with `class=` at p, q at least p + 6, a backslash or an ampersand at q, and no `}` in `tail.slice(p + 6, q)`: `[^}]*` crosses every
+ * character but `}` (a carriage return, U+2028, U+2029 and a `{` included), and the key is matched in lower case only. A flag says "a `class=` has ended in the brace-free stretch behind this character": the
+ * first `class=` of a stretch sets it (a later one adds nothing), a `}` clears it, and the first backslash or ampersand met while it is set answers true. The text is read by UTF-16 code unit with no recursion,
+ * so a character above U+00FF, a surrogate pair and a lone surrogate are all read as characters that are neither a brace nor an escape. Measured on the working tree of this session, one fresh process per probe: the
+ * function alone takes 1.3 ms on a tail of 100,002 characters, 4.55 ms on 1,000,002 and 37.63 ms on 10,000,002 (`{k="` + n `class=` + `"}`), with no `RangeError`, and `findHeadings` on the opener above takes
+ * 14 ms at n = 16,000. `test/unit/div-class-escape-equivalence.test.ts` keeps the old pattern verbatim as the oracle, beside a reading by definition, and compares them over every string of five alphabets,
+ * 300,000 seeded texts and every code unit at every place of three heads; `test/unit/s339-div-class-rows.test.ts` holds the clock rows through every entry that reads a document.
+ */
+export function classValueMayHoldEscape(tail: string): boolean {
+  let classEnded = false;
+  for (let i = 0; i < tail.length; i++) {
+    const code = tail.charCodeAt(i);
+    if (code === 0x7d) {
+      classEnded = false;
+    } else if (code === 0x5c || code === 0x26) {
+      if (classEnded) {
+        return true;
+      }
+    } else if (code === 0x63 && tail.startsWith("class=", i)) {
+      classEnded = true;
+      // `class=` cannot overlap itself and holds no brace or escape, so its other five characters are skipped.
+      i += 5;
+    }
+  }
+  return false;
+}
 function divSpecReading(tail: string, reader: AttributeBlockReader): DivSpecReading | null {
   if (reader.commonmarkDialect || divTailMayBePrepassed(tail)) {
     return null;
@@ -5235,7 +5270,7 @@ function divSpecReading(tail: string, reader: AttributeBlockReader): DivSpecRead
   if (verdict.kind !== "attr") {
     return null;
   }
-  if (/class=[^}]*[\\&]/.test(tail)) {
+  if (classValueMayHoldEscape(tail)) {
     return null;
   }
   const title = verdict.attr.kvs.find((kv) => kv.key === "title");
