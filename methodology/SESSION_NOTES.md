@@ -352,34 +352,3 @@ variant (disclosed). (8) A sentence copied from Session 335's rows ("a run of 9,
 **Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** the review workflow 67 agents (6,080,530 subagent tokens; 1,528 tool calls; 78 minutes), about 230 runner mutants in six lists, 22 quarto renders (one at a time,
 markdown engine, no kernel), differentials of
 20,736 probes and 300,000 documents, the machine at load 7 to 30.
-
-## Session 334 Handoff Evaluation (by Session 335)
-
-**Score: 9/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers (at HEAD `42fc73f`, gap 0), no `pending` receipt, the ratchet citation (2/2, results `bba236856bad`), the baseline
-(13,458 tests in 109 files), the real-document score
-(2423 of 2438) and the picker all held; `master` was 85 commits ahead at Phase 0 (the note said 81 when the close-out began, and the close-out commits followed). Candidate (a), the S317 item's parts (4) to (9), was placed by finishing
-a feature and took the whole session.
-**Helped:** gotcha 2 (the harness is gone: rebuild it from tracked files) took minutes and worked; gotcha 3 (quoted heredocs, a detached job, Monitor on a DONE file, a blocked `sleep`) kept me out of the stray-file trap; gotcha 4 (the
-runner tests the COMMITTED source) bit once more when a support helper was uncommitted; gotcha 5 (the pins are incomplete) was true a twenty-first time; Learnings 840, 739, 866 and 870 shaped the rows; gotcha 13 (read in slices, edit
-with Python) saved time on four large files.
-**Missing:** the item's thresholds are Session 317's AGENT-MEASURED figures ("about 1.7M" for `|-`; 1,525,196 measured here); they held as magnitudes and the handoff did not say that a first-throw figure has to be re-bisected before it
-is quoted (Learning 871). **Wrong:** nothing I checked. **ROI: high.**
-
-## Session 335 Self-Assessment
-
-**Score: 7/10.**
-**Went right.** I timed the shapes in fresh processes before reading code; the 30 document rows were RED by RangeError on the parent before any cure (`3c0bb60`); each part has a seam-and-oracle commit and a cure commit, the old pattern
-kept as the oracle beside a reading by definition; every pinned count was recounted by a Python port that shares no code with the TypeScript; 360 shapes at 4.5 million characters and 128 at 45 million found no anomaly; 233 mutants
-found incomplete pins of mine on the first run and I fixed them; the five-lens review reproduced nothing wrong in the cures, and I re-ran every claim I acted on (the thresholds in fresh processes, the survivors with the reviewers' own
-mutants, the table survivors against the list's full test set) and filed what I did not fix.
-**Went wrong.** (1) My pins were incomplete a TWENTY-FIRST time: 48 class-edge, cap and name-list edits passed every row because the alphabets held no form feed, vertical tab, NUL, `@`, `[`, `z` or lower case and no run beyond a few
-thousand. (2) Eight first-throw figures were wrong in about twenty places (104 to 866 repetitions high, quoted as bisected in fresh processes); I do not know why my first bisect read high, and the second (one process per probe) agrees
-with two independent re-runs. (3) A commit message and a list entry said W01 was "filed in BACKLOG.md" before I filed it. (4) The Edit tool dropped a space in `export const DEEP_ATX_HEADER = /.../` (`ef74ed4`; Learning 778 again),
-found three commits later by the list generator's gate. (5) Records: a docstring example that takes no blank (`>[>]*`), docstrings and comments naming the retired patterns, a comment above the wrong test, F01's `why`, a title that
-asserted less than it claimed, three README rows stale after the retirement. (6) About seven stated answers were wrong and caught only because each row also asserts the old pattern's answer. (7) The runner's baseline was red once (an
-uncommitted support helper). (8) TDD deviations, disclosed: the oracle files, the controls and every review-round row pass on arrival; their RED is a mutant (the reviewers' runs, each reproduced by two refuters or by me).
-**Known residuals (filed or stated):** the BACKLOG Up Next item "Three more single-line shapes found by Session 335's review round" (two overflows and W01), 22 mutants that survive on purpose, two recorded trade-offs, the Session 333
-and 334 items, the S322 item's part (1), the S311 item's parts (4), (10), (11); `test:integration` NOT run.
-**TDD:** RED before GREEN for the 30 document rows (`3c0bb60` before the cures) and for each oracle's seam (the import was not a function); every later row is mutant-RED.
-**Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** the review workflow 45 agents (4.2 million subagent tokens; 1,008 tool calls; 87 minutes), 302 runner mutants in six lists, a scratch differential of the
-six functions, shape maps of 488 shapes, the machine at load 4 to 160 from other projects and the workflow.
