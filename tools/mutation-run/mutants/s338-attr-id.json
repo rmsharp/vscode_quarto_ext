@@ -1,0 +1,482 @@
+[
+ {
+  "name": "A01 attributeIds: the search for the first hash starts at index 1",
+  "file": "src/core/qmd/model.ts",
+  "from": "  let at = token.indexOf(\"#\");\n  while (at !== -1) {",
+  "to": "  let at = token.indexOf(\"#\", 1);\n  while (at !== -1) {",
+  "expect": "killed",
+  "why": "an id at index 0 is lost: `#a` gives no id (oracle rows and the label index). Run: KILLED at stage 1 by `Session 338 — attributeIds reads what ATTR_ID_ALL found > one id: \"#a\"`"
+ },
+ {
+  "name": "A02 attributeIds: the loop stops at index 0",
+  "file": "src/core/qmd/model.ts",
+  "from": "  while (at !== -1) {\n    const end = runEnd(token, at + 1, IDENTIFIER_RUN);",
+  "to": "  while (at > 0) {\n    const end = runEnd(token, at + 1, IDENTIFIER_RUN);",
+  "expect": "killed",
+  "why": "`#a` is never read: the oracle's every short string. Run: KILLED at stage 1 by `Session 338 — attributeIds reads what ATTR_ID_ALL found > one id: \"#a\"`"
+ },
+ {
+  "name": "A03 attributeIds: the run starts two characters after the hash",
+  "file": "src/core/qmd/model.ts",
+  "from": "const end = runEnd(token, at + 1, IDENTIFIER_RUN);",
+  "to": "const end = runEnd(token, at + 2, IDENTIFIER_RUN);",
+  "expect": "killed",
+  "why": "`#!` gives the id `!` (the run is empty, the end is the start): a refused character is taken. Run: KILLED at stage 1 by `Session 338 — attributeIds reads what ATTR_ID_ALL found > a hash alone: \"#\"`"
+ },
+ {
+  "name": "A04 attributeIds: the run is the class without the dot",
+  "file": "src/core/qmd/model.ts",
+  "from": "const end = runEnd(token, at + 1, IDENTIFIER_RUN);\n    if (end > at + 1) {",
+  "to": "const end = runEnd(token, at + 1, COMMONMARK_CLASS_RUN);\n    if (end > at + 1) {",
+  "expect": "killed",
+  "why": "an id holds dots (`#a.b`, Session 219's `{#sec-q10.cls}`): the oracle's every short string over a dot. Run: KILLED at stage 1 by `Session 338 — attributeIds reads what ATTR_ID_ALL found > an id holds letters, digits, underscore, colon, dot and dash: \"#a1_b:c.d-e\"`"
+ },
+ {
+  "name": "A05 attributeIds: a hash with nothing after it makes an empty id",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (end > at + 1) {\n      ids.push(",
+  "to": "    if (end >= at + 1) {\n      ids.push(",
+  "expect": "killed",
+  "why": "`#` and `##a` give empty ids: the oracle's every short string. Run: KILLED at stage 1 by `Session 338 — attributeIds reads what ATTR_ID_ALL found > a hash alone: \"#\"`"
+ },
+ {
+  "name": "A06 attributeIds: an id of one character is dropped",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (end > at + 1) {\n      ids.push(",
+  "to": "    if (end > at + 2) {\n      ids.push(",
+  "expect": "killed",
+  "why": "`#a` gives no id: the oracle's every short string. Run: KILLED at stage 1 by `Session 338 — attributeIds reads what ATTR_ID_ALL found > one id: \"#a\"`"
+ },
+ {
+  "name": "A07 attributeIds: the id test is `!==` where the end can only be larger",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (end > at + 1) {\n      ids.push(",
+  "to": "    if (end !== at + 1) {\n      ids.push(",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT: `runEnd` returns its `from` or more, so `end` is never below `at + 1` and `end > at + 1` and `end !== at + 1` are the same test. Run: SURVIVES all 2 stages. Differential: 300,000 generated tokens (seeded, 0 to 16 pieces drawn from 30: hashes, dots, dashes, letters, digits, a bang, a blank, an equals sign, a line feed, a letter above ASCII, a letter above U+00FF, two numbers, both surrogate halves, an astral letter, an emoji), `attributeIds` and `commonmarkAttributeAtom` both compared with the committed functions: 0 differences. The same harness finds 1,328 differences for B07, so it can see one."
+ },
+ {
+  "name": "A08 attributeIds: the id keeps its hash",
+  "file": "src/core/qmd/model.ts",
+  "from": "ids.push(token.slice(at + 1, end));",
+  "to": "ids.push(token.slice(at, end));",
+  "expect": "killed",
+  "why": "the id `#a` is not `a`. Run: KILLED at stage 1 by `Session 338 — attributeIds reads what ATTR_ID_ALL found > one id: \"#a\"`"
+ },
+ {
+  "name": "A09 attributeIds: the id loses its last character",
+  "file": "src/core/qmd/model.ts",
+  "from": "ids.push(token.slice(at + 1, end));",
+  "to": "ids.push(token.slice(at + 1, end - 1));",
+  "expect": "killed",
+  "why": "`#ab` gives `a`. Run: KILLED at stage 1 by `Session 338 — attributeIds reads what ATTR_ID_ALL found > one id: \"#a\"`"
+ },
+ {
+  "name": "A10 attributeIds: the next search skips the character where the run ended",
+  "file": "src/core/qmd/model.ts",
+  "from": "    at = token.indexOf(\"#\", end);\n  }\n  return ids;",
+  "to": "    at = token.indexOf(\"#\", end + 1);\n  }\n  return ids;",
+  "expect": "killed",
+  "why": "`#a#b` loses `b`: a hash directly after a run starts the next id. Run: KILLED at stage 1 by `Session 338 — attributeIds reads what ATTR_ID_ALL found > two ids: \"#a#b\"`"
+ },
+ {
+  "name": "A11 attributeIds: the next search starts after the hash, not at the end of the run",
+  "file": "src/core/qmd/model.ts",
+  "from": "    at = token.indexOf(\"#\", end);\n  }\n  return ids;",
+  "to": "    at = token.indexOf(\"#\", at + 1);\n  }\n  return ids;",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT: the run that ends at `end` holds no `#` (a hash is no identifier character), so the first hash after `at` is at `end` or later, and the search finds the same one; it only scans the run once more in native code. Run: SURVIVES all 2 stages. Differential: 300,000 generated tokens (seeded, 0 to 16 pieces drawn from 30: hashes, dots, dashes, letters, digits, a bang, a blank, an equals sign, a line feed, a letter above ASCII, a letter above U+00FF, two numbers, both surrogate halves, an astral letter, an emoji), `attributeIds` and `commonmarkAttributeAtom` both compared with the committed functions: 0 differences. The same harness finds 1,328 differences for B07, so it can see one."
+ },
+ {
+  "name": "A12 attributeIds: the search starts from the last hash",
+  "file": "src/core/qmd/model.ts",
+  "from": "  let at = token.indexOf(\"#\");\n  while (at !== -1) {",
+  "to": "  let at = token.lastIndexOf(\"#\");\n  while (at !== -1) {",
+  "expect": "killed",
+  "why": "`#a#b` gives only `b`. Run: KILLED at stage 1 by `Session 338 — attributeIds reads what ATTR_ID_ALL found > two ids: \"#a#b\"`"
+ },
+ {
+  "name": "A13 attributeIds: the ids come back in reverse",
+  "file": "src/core/qmd/model.ts",
+  "from": "    at = token.indexOf(\"#\", end);\n  }\n  return ids;",
+  "to": "    at = token.indexOf(\"#\", end);\n  }\n  return ids.reverse();",
+  "expect": "killed",
+  "why": "`#a#b` gives `b`, `a`: the last id wins for the pandoc family, so the order is the answer. Run: KILLED at stage 1 by `Session 338 — attributeIds reads what ATTR_ID_ALL found > two ids: \"#a#b\"`"
+ },
+ {
+  "name": "A14 attributeIds: only the first id is read",
+  "file": "src/core/qmd/model.ts",
+  "from": "  while (at !== -1) {\n    const end = runEnd(token, at + 1, IDENTIFIER_RUN);",
+  "to": "  while (at !== -1 && ids.length < 1) {\n    const end = runEnd(token, at + 1, IDENTIFIER_RUN);",
+  "expect": "killed",
+  "why": "`#a#b` gives `a`. Run: KILLED at stage 1 by `Session 338 — attributeIds reads what ATTR_ID_ALL found > two ids: \"#a#b\"`"
+ },
+ {
+  "name": "A15 attributeIds: the id is lower-cased",
+  "file": "src/core/qmd/model.ts",
+  "from": "ids.push(token.slice(at + 1, end));",
+  "to": "ids.push(token.slice(at + 1, end).toLowerCase());",
+  "expect": "killed",
+  "why": "the sweep of every UTF-16 code unit puts a capital letter in an id: `#A` is `A`, and no short alphabet has one. Run: KILLED at stage 1 by `Session 338 — both functions against both old patterns and the definitions > agrees with the pattern on every UTF-16 code unit at every pl`"
+ },
+ {
+  "name": "B01 commonmarkAttributeAtom: a token of one character may be an atom",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (token.length < 2) {\n    return false;",
+  "to": "  if (token.length < 1) {\n    return false;",
+  "expect": "killed",
+  "why": "`#` and `.` alone are no atom. Run: KILLED at stage 1 by `Session 338 — commonmarkAttributeAtom accepts what ATTR_ATOM_COMMONMARK accepted > a hash alone: \"#\"`"
+ },
+ {
+  "name": "B02 commonmarkAttributeAtom: a token of two characters is too short",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (token.length < 2) {\n    return false;",
+  "to": "  if (token.length < 3) {\n    return false;",
+  "expect": "killed",
+  "why": "`#a` and `.a` are atoms. Run: KILLED at stage 1 by `Session 338 — commonmarkAttributeAtom accepts what ATTR_ATOM_COMMONMARK accepted > an id: \"#a\"`"
+ },
+ {
+  "name": "B03 commonmarkAttributeAtom: the first character is read from index 1",
+  "file": "src/core/qmd/model.ts",
+  "from": "const first = token.charCodeAt(0);\n  if (first === 35) {\n    return runEnd(token, 1, IDENTIFIER_RUN)",
+  "to": "const first = token.charCodeAt(1);\n  if (first === 35) {\n    return runEnd(token, 1, IDENTIFIER_RUN)",
+  "expect": "killed",
+  "why": "the first character decides the kind of atom. Run: KILLED at stage 1 by `Session 338 — commonmarkAttributeAtom accepts what ATTR_ATOM_COMMONMARK accepted > an id: \"#a\"`"
+ },
+ {
+  "name": "B04 commonmarkAttributeAtom: the id is opened by `$`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (first === 35) {\n    return runEnd(token, 1, IDENTIFIER_RUN)",
+  "to": "  if (first === 36) {\n    return runEnd(token, 1, IDENTIFIER_RUN)",
+  "expect": "killed",
+  "why": "`#a` is an atom. Run: KILLED at stage 1 by `Session 338 — commonmarkAttributeAtom accepts what ATTR_ATOM_COMMONMARK accepted > an id: \"#a\"`"
+ },
+ {
+  "name": "B05 commonmarkAttributeAtom: the class is opened by `-`",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (first === 46) {\n    return runEnd(token, 1, COMMONMARK_CLASS_RUN)",
+  "to": "  if (first === 45) {\n    return runEnd(token, 1, COMMONMARK_CLASS_RUN)",
+  "expect": "killed",
+  "why": "`.a` is an atom. Run: KILLED at stage 1 by `Session 338 — commonmarkAttributeAtom accepts what ATTR_ATOM_COMMONMARK accepted > a class: \".a\"`"
+ },
+ {
+  "name": "B06 commonmarkAttributeAtom: an id is the class without the dot",
+  "file": "src/core/qmd/model.ts",
+  "from": "return runEnd(token, 1, IDENTIFIER_RUN) === token.length;",
+  "to": "return runEnd(token, 1, COMMONMARK_CLASS_RUN) === token.length;",
+  "expect": "killed",
+  "why": "`#a.b` is an atom: an id holds dots. Run: KILLED at stage 1 by `Session 338 — commonmarkAttributeAtom accepts what ATTR_ATOM_COMMONMARK accepted > an id of one dot: \"#.\"`"
+ },
+ {
+  "name": "B07 commonmarkAttributeAtom: a class holds the dot",
+  "file": "src/core/qmd/model.ts",
+  "from": "return runEnd(token, 1, COMMONMARK_CLASS_RUN) === token.length;",
+  "to": "return runEnd(token, 1, IDENTIFIER_RUN) === token.length;",
+  "expect": "killed",
+  "why": "`.a.b` is no atom: a class holds no dot (Session 218's `{.c1.c2}`). Run: KILLED at stage 1 by `Session 338 — commonmarkAttributeAtom accepts what ATTR_ATOM_COMMONMARK accepted > a class holds NO dot: \".a.b\"`"
+ },
+ {
+  "name": "B08 commonmarkAttributeAtom: an id need not reach the end of the token",
+  "file": "src/core/qmd/model.ts",
+  "from": "return runEnd(token, 1, IDENTIFIER_RUN) === token.length;",
+  "to": "return runEnd(token, 1, IDENTIFIER_RUN) <= token.length;",
+  "expect": "killed",
+  "why": "`#a!` is no atom. Run: KILLED at stage 1 by `Session 338 — commonmarkAttributeAtom accepts what ATTR_ATOM_COMMONMARK accepted > two ids: a hash is no identifier character: \"#a#b\"`"
+ },
+ {
+  "name": "B09 commonmarkAttributeAtom: the end of the id is compared with `>=`",
+  "file": "src/core/qmd/model.ts",
+  "from": "return runEnd(token, 1, IDENTIFIER_RUN) === token.length;",
+  "to": "return runEnd(token, 1, IDENTIFIER_RUN) >= token.length;",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT: `runEnd` never answers more than the length of the text, so `=== token.length` and `>= token.length` are the same test. Run: SURVIVES all 2 stages. Differential: 300,000 generated tokens (seeded, 0 to 16 pieces drawn from 30: hashes, dots, dashes, letters, digits, a bang, a blank, an equals sign, a line feed, a letter above ASCII, a letter above U+00FF, two numbers, both surrogate halves, an astral letter, an emoji), `attributeIds` and `commonmarkAttributeAtom` both compared with the committed functions: 0 differences. The same harness finds 1,328 differences for B07, so it can see one."
+ },
+ {
+  "name": "B10 commonmarkAttributeAtom: the id run starts at index 2",
+  "file": "src/core/qmd/model.ts",
+  "from": "return runEnd(token, 1, IDENTIFIER_RUN) === token.length;",
+  "to": "return runEnd(token, 2, IDENTIFIER_RUN) === token.length;",
+  "expect": "killed",
+  "why": "`#!a` is an atom: the character at index 1 is not read. Run: KILLED at stage 1 by `Session 338 — commonmarkAttributeAtom accepts what ATTR_ATOM_COMMONMARK accepted > a lone high half is nothing: \"#\\ud835\"`"
+ },
+ {
+  "name": "B11 commonmarkAttributeAtom: the class run starts at index 0",
+  "file": "src/core/qmd/model.ts",
+  "from": "return runEnd(token, 1, COMMONMARK_CLASS_RUN) === token.length;",
+  "to": "return runEnd(token, 0, COMMONMARK_CLASS_RUN) === token.length;",
+  "expect": "killed",
+  "why": "the dot is no class member, so the run is empty and `.a` is refused. Run: KILLED at stage 1 by `Session 338 — commonmarkAttributeAtom accepts what ATTR_ATOM_COMMONMARK accepted > a class: \".a\"`"
+ },
+ {
+  "name": "B12 commonmarkAttributeAtom: any other first character makes an atom",
+  "file": "src/core/qmd/model.ts",
+  "from": "    return runEnd(token, 1, COMMONMARK_CLASS_RUN) === token.length;\n  }\n  return false;",
+  "to": "    return runEnd(token, 1, COMMONMARK_CLASS_RUN) === token.length;\n  }\n  return true;",
+  "expect": "killed",
+  "why": "`a` and `-` are no atom. Run: KILLED at stage 1 by `Session 338 — commonmarkAttributeAtom accepts what ATTR_ATOM_COMMONMARK accepted > a dash before the id: \"-#a\"`"
+ },
+ {
+  "name": "B13 commonmarkAttributeAtom: a dash opens an id too",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (first === 35) {\n    return runEnd(token, 1, IDENTIFIER_RUN)",
+  "to": "  if (first === 35 || first === 45) {\n    return runEnd(token, 1, IDENTIFIER_RUN)",
+  "expect": "killed",
+  "why": "`-a` is no atom here (the pandoc family's dash is not this reader's). Run: KILLED at stage 1 by `Session 338 — both functions against both old patterns and the definitions > agrees on every string of up to seven characters over a hash,`"
+ },
+ {
+  "name": "B14 commonmarkAttributeAtom: the class lacks the dash",
+  "file": "src/core/qmd/model.ts",
+  "from": "const COMMONMARK_CLASS_RUN = runClass(\"_:-\");",
+  "to": "const COMMONMARK_CLASS_RUN = runClass(\"_:\");",
+  "expect": "killed",
+  "why": "`.a-b` is an atom. Run: KILLED at stage 1 by `Session 338 — commonmarkAttributeAtom accepts what ATTR_ATOM_COMMONMARK accepted > a class may start with a dash: \".-\"`"
+ },
+ {
+  "name": "B15 commonmarkAttributeAtom: the class lacks the colon",
+  "file": "src/core/qmd/model.ts",
+  "from": "const COMMONMARK_CLASS_RUN = runClass(\"_:-\");",
+  "to": "const COMMONMARK_CLASS_RUN = runClass(\"_-\");",
+  "expect": "killed",
+  "why": "`.a:b` is an atom. Run: KILLED at stage 1 by `Session 338 — commonmarkAttributeAtom accepts what ATTR_ATOM_COMMONMARK accepted > a class may start with a colon: \".:\"`"
+ },
+ {
+  "name": "B16 commonmarkAttributeAtom: the class lacks the underscore",
+  "file": "src/core/qmd/model.ts",
+  "from": "const COMMONMARK_CLASS_RUN = runClass(\"_:-\");",
+  "to": "const COMMONMARK_CLASS_RUN = runClass(\":-\");",
+  "expect": "killed",
+  "why": "`._` is an atom. Run: KILLED at stage 1 by `Session 338 — commonmarkAttributeAtom accepts what ATTR_ATOM_COMMONMARK accepted > a class may start with an underscore: \"._\"`"
+ },
+ {
+  "name": "B17 commonmarkAttributeAtom: the class holds the dot",
+  "file": "src/core/qmd/model.ts",
+  "from": "const COMMONMARK_CLASS_RUN = runClass(\"_:-\");",
+  "to": "const COMMONMARK_CLASS_RUN = runClass(\"_:-.\");",
+  "expect": "killed",
+  "why": "`.a.b` is no atom. Run: KILLED at stage 1 by `Session 338 — commonmarkAttributeAtom accepts what ATTR_ATOM_COMMONMARK accepted > a class holds NO dot: \".a.b\"`"
+ },
+ {
+  "name": "B18 commonmarkAttributeAtom: the class holds the hash",
+  "file": "src/core/qmd/model.ts",
+  "from": "const COMMONMARK_CLASS_RUN = runClass(\"_:-\");",
+  "to": "const COMMONMARK_CLASS_RUN = runClass(\"_:-#\");",
+  "expect": "killed",
+  "why": "`.a#b` is no atom. Run: KILLED at stage 1 by `Session 338 — commonmarkAttributeAtom accepts what ATTR_ATOM_COMMONMARK accepted > a class then an id: \".a#b\"`"
+ },
+ {
+  "name": "B19 commonmarkAttributeAtom: the class is spelled in another order",
+  "file": "src/core/qmd/model.ts",
+  "from": "const COMMONMARK_CLASS_RUN = runClass(\"_:-\");",
+  "to": "const COMMONMARK_CLASS_RUN = runClass(\"-:_\");",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT: `runClass` sets one table entry for each character it is given, so the order of the punctuation does not matter. Run: SURVIVES all 2 stages. Differential: 300,000 generated tokens (seeded, 0 to 16 pieces drawn from 30: hashes, dots, dashes, letters, digits, a bang, a blank, an equals sign, a line feed, a letter above ASCII, a letter above U+00FF, two numbers, both surrogate halves, an astral letter, an emoji), `attributeIds` and `commonmarkAttributeAtom` both compared with the committed functions: 0 differences. The same harness finds 1,328 differences for B07, so it can see one."
+ },
+ {
+  "name": "C01 headingAttributeId: the two readers' atoms are swapped",
+  "file": "src/core/qmd/model.ts",
+  "from": "commonmarkDialect ? commonmarkAttributeAtom(token) : attributeAtomRun(token)",
+  "to": "commonmarkDialect ? attributeAtomRun(token) : commonmarkAttributeAtom(token)",
+  "expect": "killed",
+  "why": "Session 219's reader split (commonmark_x takes the first id and refuses concatenation): `qmd-model.test.ts` and `refs.test.ts`. Run: KILLED at stage 1 by `a trailing brace group is a heading attribute block only when it is VALID (Session 218) > GUARD — accepted blocks the validity predicate m`"
+ },
+ {
+  "name": "C02 headingAttributeId: the ids are spread into the list",
+  "file": "src/core/qmd/model.ts",
+  "from": "    for (const id of attributeIds(token)) {\n      found.push(id);\n    }",
+  "to": "    found.push(...attributeIds(token));",
+  "expect": "killed",
+  "why": "a spread of 125,700 or more ids throws RangeError: the 200,002-id row of the headings file. Run: KILLED at stage 2 by `Session 338 part A: one heading attribute block of 200,002 ids (the ids are pushed in a loop, not spread) > keeps the last id of the block`"
+ },
+ {
+  "name": "C03 headingAttributeId: only the first id of a token is kept",
+  "file": "src/core/qmd/model.ts",
+  "from": "      found.push(id);\n    }",
+  "to": "      found.push(id);\n      break;\n    }",
+  "expect": "killed",
+  "why": "a token `#a#b` holds two ids and the last wins for the pandoc family. Run: KILLED at stage 1 by `a trailing brace group is a heading attribute block only when it is VALID (Session 218) > GUARD — accepted blocks the validity predicate m`"
+ },
+ {
+  "name": "C04 headingAttributeId: the ids of a token are kept in reverse",
+  "file": "src/core/qmd/model.ts",
+  "from": "      found.push(id);\n    }",
+  "to": "      found.unshift(id);\n    }",
+  "expect": "killed",
+  "why": "the first and the last id are told apart by the order. Run: KILLED at stage 1 by `a trailing brace group is a heading attribute block only when it is VALID (Session 218) > GUARD — accepted blocks the validity predicate m`"
+ },
+ {
+  "name": "C05 headingAttributesValid: a token must be an atom AND a key=value",
+  "file": "src/core/qmd/model.ts",
+  "from": "commonmarkAttributeAtom(t) || ATTR_KEY_VALUE_COMMONMARK.test(t)",
+  "to": "commonmarkAttributeAtom(t) && ATTR_KEY_VALUE_COMMONMARK.test(t)",
+  "expect": "killed",
+  "why": "no block is valid. Run: KILLED at stage 1 by `the heading ATTRIBUTE block is stripped only where the reader honours it (Session 216) > the extension list outranks the base, and the LAS`"
+ },
+ {
+  "name": "C06 headingAttributesValid: no token is an atom under commonmark_x",
+  "file": "src/core/qmd/model.ts",
+  "from": "commonmarkAttributeAtom(t) || ATTR_KEY_VALUE_COMMONMARK.test(t)",
+  "to": "false || ATTR_KEY_VALUE_COMMONMARK.test(t)",
+  "expect": "killed",
+  "why": "`{#sec-a}` is an attribute block for commonmark_x. Run: KILLED at stage 1 by `the heading ATTRIBUTE block is stripped only where the reader honours it (Session 216) > the extension list outranks the base, and the LAS`"
+ },
+ {
+  "name": "C07 headingAttributesValid: every token is an atom under commonmark_x",
+  "file": "src/core/qmd/model.ts",
+  "from": "commonmarkAttributeAtom(t) || ATTR_KEY_VALUE_COMMONMARK.test(t)",
+  "to": "true || ATTR_KEY_VALUE_COMMONMARK.test(t)",
+  "expect": "killed",
+  "why": "`{alpha beta}` is heading text for commonmark_x. Run: KILLED at stage 1 by `a trailing brace group is a heading attribute block only when it is VALID (Session 218) > VALIDITY IS PER READER — `commonmark_x` and the`"
+ },
+ {
+  "name": "C08 headingAttributeId: a token that is no atom ends the scan",
+  "file": "src/core/qmd/model.ts",
+  "from": "      continue;\n    }\n    // A loop and not",
+  "to": "      break;\n    }\n    // A loop and not",
+  "expect": "killed",
+  "why": "a key=value token before the id hides it. Run: KILLED at stage 1 by `GUARD — the id substitution moves NOTHING it must not (Session 219) > (b) ⚠ `commonmark_x` takes the FIRST id and must not move — nine mea`"
+ },
+ {
+  "name": "T01 rows: twice the first throw becomes 8,400,001",
+  "file": "test/unit/support/attr-id-rows.ts",
+  "from": "export const S338_MANY = 8_400_000;",
+  "to": "export const S338_MANY = 8_400_001;",
+  "expect": "killed",
+  "why": "the pinned sizes. Run: KILLED at stage 1 by `Session 338 part A: one heading attribute id of millions of letters (findHeadings, findAllCells, resolveDocumentEngine; default reader) >`"
+ },
+ {
+  "name": "T02 rows: the control size becomes 1,000,001",
+  "file": "test/unit/support/attr-id-rows.ts",
+  "from": "export const S338_BYTE_MANY = 1_000_000;",
+  "to": "export const S338_BYTE_MANY = 1_000_001;",
+  "expect": "killed",
+  "why": "the pinned sizes. Run: KILLED at stage 1 by `Session 338 part A: one heading attribute id of millions of letters (findHeadings, findAllCells, resolveDocumentEngine; default reader) >`"
+ },
+ {
+  "name": "T03 rows: the short run is five letters",
+  "file": "test/unit/support/attr-id-rows.ts",
+  "from": "export const S338_FEW = 4;",
+  "to": "export const S338_FEW = 5;",
+  "expect": "killed",
+  "why": "the pinned sizes and the short run of each form. Run: KILLED at stage 1 by `Session 338 part A: one heading attribute id of millions of letters (findHeadings, findAllCells, resolveDocumentEngine; default reader) >`"
+ },
+ {
+  "name": "T04 rows: the limit is a hundred seconds",
+  "file": "test/unit/support/attr-id-rows.ts",
+  "from": "export const S338_LIMIT_MS = 10_000;",
+  "to": "export const S338_LIMIT_MS = 100_000;",
+  "expect": "killed",
+  "why": "the pinned limit. Run: KILLED at stage 1 by `Session 338 part A: one heading attribute id of millions of letters (findHeadings, findAllCells, resolveDocumentEngine; default reader) >`"
+ },
+ {
+  "name": "T05 rows: the commonmark reader's front matter names another reader",
+  "file": "test/unit/support/attr-id-rows.ts",
+  "from": "prefix: \"---\\nfrom: commonmark_x\\n---\\n\\n\", shift: 4",
+  "to": "prefix: \"---\\nfrom: markdown\\n---\\n\\n\", shift: 4",
+  "expect": "killed",
+  "why": "the guard that shows the prefix selects the reader. Run: KILLED at stage 1 by `Session 338 part A: one attribute id of 8,400,000 letters, every letter U+4E2D (from: commonmark_x) > selects the reader it names`"
+ },
+ {
+  "name": "T06 rows: the commonmark reader's front matter is four lines but the shift is three",
+  "file": "test/unit/support/attr-id-rows.ts",
+  "from": "prefix: \"---\\nfrom: commonmark_x\\n---\\n\\n\", shift: 4",
+  "to": "prefix: \"---\\nfrom: commonmark_x\\n---\\n\\n\", shift: 3",
+  "expect": "killed",
+  "why": "every line of every answer is off by one. Run: KILLED at stage 1 by `Session 338 part A: one attribute id of 8,400,000 letters, every letter U+4E2D (from: commonmark_x) > findHeadings: an ATX heading's attri`"
+ },
+ {
+  "name": "T07 rows: the intro is one line",
+  "file": "test/unit/support/attr-id-rows.ts",
+  "from": "const INTRO = \"Intro.\\n\\n\";",
+  "to": "const INTRO = \"Intro.\\n\";",
+  "expect": "killed",
+  "why": "every line of every answer is off by one. Run: KILLED at stage 1 by `Session 338 part A: one attribute id of 8,400,000 letters, every letter U+4E2D (default reader) > findHeadings: an ATX heading's attribute`"
+ },
+ {
+  "name": "T08 rows: the label index answers the line after",
+  "file": "test/unit/support/attr-id-rows.ts",
+  "from": "    answer: (shift) => [[MARK, 2 + shift]],",
+  "to": "    answer: (shift) => [[MARK, 3 + shift]],",
+  "expect": "killed",
+  "why": "the stated line of the label rows. Run: KILLED at stage 1 by `Session 338 part A: one attribute id of 8,400,000 letters, every letter U+4E2D (default reader) > indexLabels: a fenced div's `fig-` id (t`"
+ },
+ {
+  "name": "T09 rows: the wide form's letters are one more",
+  "file": "test/unit/support/attr-id-rows.ts",
+  "from": "letters: (n) => `${\"a\".repeat(n - 1)}中`, many: S338_MANY };",
+  "to": "letters: (n) => `${\"a\".repeat(n)}中`, many: S338_MANY };",
+  "expect": "killed",
+  "why": "the pinned short run of the form. Run: KILLED at stage 1 by `Session 338 part A: one attribute id of millions of letters (findLabel, a div, an image, a span; default reader) > keeps the sizes, the li`"
+ },
+ {
+  "name": "T10 rows: the wide form ends in a letter up to U+00FF",
+  "file": "test/unit/support/attr-id-rows.ts",
+  "from": "letters: (n) => `${\"a\".repeat(n - 1)}中`, many: S338_MANY };",
+  "to": "letters: (n) => `${\"a\".repeat(n - 1)}é`, many: S338_MANY };",
+  "expect": "killed",
+  "why": "the pinned short run of the form (the form would no longer be wide). Run: KILLED at stage 1 by `Session 338 part A: one attribute id of millions of letters (findLabel, a div, an image, a span; default reader) > keeps the sizes, the li`"
+ },
+ {
+  "name": "T11 rows: the all-wide form is up to U+00FF",
+  "file": "test/unit/support/attr-id-rows.ts",
+  "from": "letters: (n) => \"中\".repeat(n), many: S338_MANY };",
+  "to": "letters: (n) => \"é\".repeat(n), many: S338_MANY };",
+  "expect": "killed",
+  "why": "the pinned short run of the form. Run: KILLED at stage 1 by `Session 338 part A: one attribute id of 8,400,000 letters, every letter U+4E2D (default reader) > keeps the sizes, the limit, the forms an`"
+ },
+ {
+  "name": "T12 rows: the astral form is ASCII",
+  "file": "test/unit/support/attr-id-rows.ts",
+  "from": "String.fromCodePoint(0x1d400).repeat(n)",
+  "to": "String.fromCodePoint(0x61).repeat(n)",
+  "expect": "killed",
+  "why": "the pinned short run of the form. Run: KILLED at stage 1 by `Session 338 part A: one attribute id of 8,400,000 astral letters (default reader) > keeps the sizes, the limit, the forms and the row coun`"
+ },
+ {
+  "name": "E01 oracle: the lengths of the first alphabet",
+  "file": "test/unit/attr-id-run-equivalence.test.ts",
+  "from": "const D1_LENGTH = 7;",
+  "to": "const D1_LENGTH = 6;",
+  "expect": "killed",
+  "why": "the string count and the pinned counts. Run: KILLED at stage 1 by `Session 338 — both functions against both old patterns and the definitions > agrees on every string of up to seven characters over a hash,`"
+ },
+ {
+  "name": "E02 oracle: the seed",
+  "file": "test/unit/attr-id-run-equivalence.test.ts",
+  "from": "const SEED = 338;",
+  "to": "const SEED = 339;",
+  "expect": "killed",
+  "why": "the seeded counts come from the Python port of seed 338. Run: KILLED at stage 1 by `Session 338 — both functions against both old patterns and the definitions > agrees on 100,000 seeded tokens of up to twelve pieces`"
+ },
+ {
+  "name": "E03 oracle: a class by definition holds the dash's neighbour, not the dot",
+  "file": "test/unit/attr-id-run-equivalence.test.ts",
+  "from": "isIdentifier(p) && p !== 46;",
+  "to": "isIdentifier(p) && p !== 45;",
+  "expect": "killed",
+  "why": "the reading by definition disagrees with the pattern. Run: KILLED at stage 1 by `Session 338 — commonmarkAttributeAtom accepts what ATTR_ATOM_COMMONMARK accepted > a class may start with a dash: \".-\"`"
+ },
+ {
+  "name": "E04 oracle: an id by definition follows a character that is not the hash",
+  "file": "test/unit/attr-id-run-equivalence.test.ts",
+  "from": "if (i > 0 && points[i - 1] === 35) ids.push(",
+  "to": "if (i > 0 && points[i - 1] === 36) ids.push(",
+  "expect": "killed",
+  "why": "the reading by definition disagrees with the pattern. Run: KILLED at stage 1 by `Session 338 — attributeIds reads what ATTR_ID_ALL found > one id: \"#a\"`"
+ },
+ {
+  "name": "E05 oracle: the first alphabet holds a question mark in place of the bang",
+  "file": "test/unit/attr-id-run-equivalence.test.ts",
+  "from": "const ALPHABET_D1 = [\"#\", \"a\", \"_\", \":\", \".\", \"-\", \"!\"];",
+  "to": "const ALPHABET_D1 = [\"#\", \"a\", \"_\", \":\", \".\", \"-\", \"?\"];",
+  "expect": "killed",
+  "why": "the counts do not move (both are refused characters), the pinned code points do. Run: KILLED at stage 1 by `Session 338 — long tokens, past the pattern's first throw > keeps the limits, the sizes, the seed, the lengths and the alphabets the rows`"
+ },
+ {
+  "name": "E06 oracle: the old atom pattern lets a class hold the dot",
+  "file": "test/unit/attr-id-run-equivalence.test.ts",
+  "from": "const OLD_ATTR_ATOM_COMMONMARK = /^(?:#[\\p{L}\\p{N}_:.-]+|\\.[\\p{L}\\p{N}_:-]+)$/u;",
+  "to": "const OLD_ATTR_ATOM_COMMONMARK = /^(?:#[\\p{L}\\p{N}_:.-]+|\\.[\\p{L}\\p{N}_:.-]+)$/u;",
+  "expect": "killed",
+  "why": "the oracle is the old pattern verbatim: the function disagrees with a changed copy. Run: KILLED at stage 1 by `Session 338 — commonmarkAttributeAtom accepts what ATTR_ATOM_COMMONMARK accepted > a class holds NO dot: \".a.b\"`"
+ }
+]
