@@ -8,49 +8,59 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 337 closed out.** g02's twenty-first session is done: the Session 336 item's parts (1) to (8), the eight single-line `RangeError` shapes (`ATTR_ATOM_RUN`'s id group, `GRID_PLAIN_BORDER`, the
-CommonMark type-7 tag's attribute group, the empty native div, `R_SYMBOL_CHAIN`, `REF_USAGE`, the knitr string mask, `KEY_LINE`'s dash group). Each is an index loop now (`attributeAtomRun`, `gridPlainBorder`,
-`commonmarkTagLine`, `emptyNativeDivLine`, `isRSymbolChain`, `refUsageEnd`, `blankQuotedStrings`, `readKeyLine`) with the old pattern kept as the oracle of its own test file. Eight workers in isolated worktrees
-(`wf_aae03494-884`); 35 commits cherry-picked with no conflict (`820b6d4` to `0709a1d`) and the merge fix `f94b258`; the review round (`wf_8650bf5a-af9`, 54 agents) `fe271ed` to `aaf17a9`; then the records. `BACKLOG.md`
-"Active" is empty: present candidates via AskUserQuestion at Phase 0, ranked by the plan, each saying which rule placed it.
-**What's next (derived from the plan, not a promise):** g02 is still in flight; its items are taken in the plan's table order. Candidates (the picker shows three and a catch-all): (a) the new Up Next item "Eleven more places
-that throw `RangeError` on a long line or a long list" (nine class patterns under the `u` flag from 4,194,288 letters above U+00FF, two array spreads from about 125,700 elements; the recipe is written and every row needs a
-character above U+00FF; it finishes the same feature; estimate two sessions); (b) the Up Next item "Three more quadratic single-line shapes" with the Session 318 and 319 quadratic items; (c) the S322 item's part (1) and the
-S311 item's parts (4), (10), (11); (d) the Up Next items "Three more slow shapes found by Session 334's review round", the amended `isAttributeBlock` item and "Six more shapes found by Session 333's review round". The Polish
-item "`npm test` exits 1 with every test green" (split `pathological-inputs.test.ts` and `table-rule-row-equivalence.test.ts` below 40 s) is cheap and makes every later baseline readable: offer it and say which rule places it
-(robustness: a red exit code hides a real failure). "Two answers where this build and quarto differ" belongs to g22 and g14. Time the literal shape at HEAD FIRST (Learning 840). After those, the terminal bounded session files
-ONE RESIDUAL record, owns the sweep's unrun 68% (rule P5; the operator's decision of Session 325) and stops. Decisions as the plan says: D2, D3 before g03.
-**⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in a close-out commit).
-(2) No harness of this session is in the repo except the Python recounts (`tools/*-count`) and the oracle files. Rebuild (Learning 848): `git worktree add --detach <dir> <sha>`, a `node_modules` symlink, esbuild's `buildSync`
-on `src/core/qmd/model.ts` and `src/core/refs.ts` (`bundle`, `platform: 'node'`, `format: 'cjs'`, `outdir`); one fresh process per probe and per bisect step; VERIFY the lower bound is OK first (Learning 885). A first-throw
-figure depends on the line's byte width (a character above U+00FF halves it), on the unit and on the tail: say which (Learnings 889, 890).
-(3) SHELL (zsh): an unmatched glob is an error (`rm -f x_*.log`), `echo =====` is not found, `for a in "x 1"; do set -- $a` does NOT split (use `${=a}`), an unquoted heredoc eats backticks, and a leading `sleep` is blocked:
-wait with a foreground `for i in $(seq 1 58); do [ -f done ] && break; sleep 10; done` loop. The Write and Edit tools drop a trailing space (Learning 778): edit with a Python replace and assert the occurrence count.
-(4) The mutation runner tests the COMMITTED source and copies only the `--tests` files from the working tree: commit source first, use each list's README row for its `--tests` set and `--cmd 'npx vitest run --bail 1
---maxWorkers=2'`, run ONE list at a time. This session's lists: the eight `s337-*` (416 killed, 60 survive, 6 to 22 minutes each) and `s337-review.json` (4 killed, 3 survive). Label an expectation by running the mutant
-(Learning 887); `mutation-lists-apply` goes red when a new function repeats an old list's anchor (Learnings 883, 891: start the anchor one line earlier).
-(5) ISOLATED WORKTREES START AT AN OLD COMMIT (`24fa414`, 132 behind): every worker brief must begin with `git rev-parse HEAD` against the stated base and a reset of the empty branch (Learning 891). The merge of eight
-branches was conflict-free because each part owned its functions and its new test files.
-(6) BASELINE `npm test`: 139 files and 15,252 tests pass, `Errors 1 error` (`Timeout calling "onTaskUpdate"`, `pathological-inputs.test.ts` at 79.6 s) and EXIT CODE 1 (Learning 892); the Session 336 handoff's "clean" was
-wrong. Under another project's load (here 40) 180 clock rows fail in the same suite: read `uptime` first, rerun on a quiet machine, never loosen a limit. Every new test file must run under 25 s alone.
-(7) Rows must read WITH the engine hint and, from now on, on a line with one character above U+00FF as well as one without (Learnings 886, 890). Pins were incomplete a TWENTY-THIRD time: the mutation lens found four real gaps
-among 204 new mutants, three in the first-slot class the cure sat beside (Learning 895).
-(8) Residuals: the BACKLOG items above (Up Next: eleven more places, three quadratic; Polish: the cures' constant factor and deoptimization, the `npm test` exit code, the heading tokenizer's garbage); 60 plus 41 mutants
-argued equivalent or recorded as gaps; three call-site edits of `endsHtmlBlock` have no witness (S4-01 to S4-03 of `s337-review.json`: a render may find one, as for W01).
-(9) The foreign worktree `.claude/worktrees/wf_f559ba89-653-5` is still not mine: ask before removing it. The eight `wf_aae03494-884-N` worktrees and their `s337-p*` branches were removed at close-out (their commits are on
-`master`). (10) `test:integration` NOT run for twenty-seven sessions (takes the screen: ask first).
-(11) Real-document score: `REALDOC_DATA=scratchpad/s265 REALDOC_ORDINALS=scratchpad/s251/realfiles.txt tools/realdoc-score/run.sh head` prints 2423 of 2438 (99.38%), 15 divergent; unchanged by this session.
-(12) The plan: update its status column AND its in-flight, next-group and g02 order-table rows at each close-out (done this session: "twenty-one sessions done"). (13) `master` is NOT pushed: 173 commits ahead of
-`origin/master` when the close-out began (Phase 0 of this session: 131); the dashboard copy is v2.22.0 against canonical v2.23.0 (not synced). (14) `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are
-past the read refusal: read in slices, edit with a Python script (`python3 -I -`). After answering a direct question, STOP and wait (memory).
+**Task:** **NONE -- Session 338 closed out.** g02's twenty-second session is done: the Session 337 review item "Eleven more places that throw `RangeError` on a long line or a long list" is cured and left
+`BACKLOG.md`. Nine class patterns under the `u` flag and two push spreads are index loops and push loops over one shared reader, `src/core/qmd/unicode-run.ts` (`runEnd`, `isRun`, `IDENTIFIER_RUN`), each
+old pattern kept as the oracle of its own test file. Five workers (`wf_513ca8be-f49`), 29 commits cherry-picked (`5f73e23` to `f3107b6`), the review round (`wf_1ea1e28c-cba`, 70 agents) `75e49e0` to
+`4fd4a48`, then the records. `BACKLOG.md` "Active" is empty: present candidates via AskUserQuestion at Phase 0, ranked by the plan, each saying which rule placed it.
+**What's next (derived from the plan, not a promise):** g02 is still in flight; its items are taken in the plan's table order. Candidates (the picker shows three and a catch-all): (a) the Up Next item
+"Three more quadratic single-line shapes" (`\end{` repeated, `class=` in a div opener, `<pre ` and its family) with the Session 318 and 319 quadratic items; (b) the new Up Next item "Nothing in the
+repository notices a twelfth class-plus under the `u` flag or a twelfth call with a spread argument" (a standing guard: a test that walks `src/` with the TypeScript API; estimate one session; it finishes
+the feature by keeping the result true); (c) the S322 item's part (1) and the S311 item's parts (4), (10), (11); (d) the Up Next items "Three more slow shapes found by Session 334's review round", the
+amended `isAttributeBlock` item and "Six more shapes found by Session 333's review round". Two cheap Polish items: "`npm test` exits 1 with every test green" (split `pathological-inputs.test.ts` and
+`table-rule-row-equivalence.test.ts` below 40 s; robustness: a red exit code hides a real failure) and the new "Residuals of Session 338's eleven cures". "Two answers where this build and quarto differ"
+belongs to g22 and g14. Time the literal shape at HEAD FIRST (Learning 840). After those, the terminal bounded session files ONE RESIDUAL record, owns the sweep's unrun 68% (rule P5; the operator's
+decision of Session 325) and stops. Decisions as the plan says: D2, D3 before g03.
+**⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in
+a close-out commit).
+(2) No harness of this session is in the repo except the Python recounts (`tools/*-count`) and the oracle files. Rebuild (Learning 848): `git worktree add --detach <dir> <sha>` or `git archive <sha> src |
+tar -x`, a `node_modules` symlink, esbuild on the entry (`bundle`, `platform: 'node'`, `format: 'cjs'`); one fresh process per probe and per bisect step; VERIFY the lower bound is OK first (Learning 885).
+A first-throw figure depends on the line's byte width (Learnings 889, 890; a line up to U+00FF never throws, Learning 896) and, for a call spread, on the stack under the call: measure it at the site
+(Learning 898).
+(3) SHELL (zsh): an unmatched glob is an error (`rm -f x_*.log`), `echo =====` is not found, `set -- $var` does NOT split (use `${=var}`: it turned a per-part vitest filter into the whole suite this
+session), an unquoted heredoc eats backticks, and a leading `sleep` is blocked: wait with a Monitor `until grep -q '^exit ' log; do sleep 5; done` or a foreground `for` loop of `sleep 10`. The Write and
+Edit tools drop a trailing space (Learning 778): edit with a Python replace and assert the occurrence count. A Python f-string chokes on a literal `{`: use a placeholder and `.replace`.
+(4) The mutation runner tests the COMMITTED source and copies only the `--tests` files from the working tree: commit source first, use each list's README row for its `--tests` set and `--cmd 'npx vitest
+run --bail 1 --maxWorkers=2'`, run ONE list at a time. This session's lists: the five `s338-*` part lists and the helper's (295 killed, 27 survive, 6 to 11 minutes each) and `s338-review.json` (20 killed).
+Label an expectation by running the mutant (Learning 887). RUN `mutation-lists-apply` RIGHT AFTER CHERRY-PICKING: a merge made an anchor ambiguous again (Learnings 883, 891, 901).
+(5) ISOLATED WORKTREES START AT AN OLD COMMIT: every worker brief must begin with `git rev-parse HEAD` against the stated base and a reset of the empty branch (Learning 891). The five parts owned their
+functions and test files, so 29 commits merged with two import-line conflicts in `model.ts`.
+(6) BASELINE `npm test`: 170 files and 16,399 tests pass, `Errors 1 error` (`Timeout calling "onTaskUpdate"`) and EXIT CODE 1 (Learning 892; 139 files and 15,252 tests at this session's Phase 0). Under
+another project's load read `uptime` first and rerun on a quiet machine; never loosen a clock limit to pass. Every new test file must run under 25 s alone.
+(7) Rows must read WITH the engine hint and on a line with one character above U+00FF as well as one without (Learnings 886, 890); the narrow form is a control (Learning 896). Sites that hide each other
+need rows that reach each alone (Learning 897). Pins were incomplete a TWENTY-FOURTH time: the mutation lens found fourteen survivors that were real gaps among 131 new mutants (Learning 899).
+(8) Residuals: the BACKLOG items (Up Next: the standing guard, three quadratic; Polish: Session 338's residuals, the cures' constant factor, the `npm test` exit code, the heading tokenizer's garbage); 27
+plus 21 mutants argued equivalent; the review's nits left alone (twelve of the thirteen new exports are test-only; the 3,000 ms limits are 15 times the cost).
+(9) The foreign worktree `.claude/worktrees/wf_f559ba89-653-5` is still not mine: ask before removing it. The five `wf_513ca8be-f49-N` worktrees, the 70 review worktrees and their branches (`s338-*`,
+`worktree-wf_*`) were removed at close-out (their commits are on `master`).
+(10) `test:integration` NOT run for twenty-eight sessions (takes the screen: ask first). This session moved the citation adapter's loop into `readCitations`: the adapter is one call, covered in the unit
+suite by a source-shape gate and by `citations-read.test.ts` on the function itself; `test/integration/suite/citation.test.ts` is its only real run.
+(11) Real-document score: `REALDOC_DATA=scratchpad/s265 REALDOC_ORDINALS=scratchpad/s251/realfiles.txt tools/realdoc-score/run.sh head` prints 2423 of 2438 (99.38%), 15 divergent; unchanged by this
+session.
+(12) The plan: update its status column AND its in-flight, next-group and g02 order-table rows at each close-out (done this session: "twenty-two sessions done"). (13) `master` is NOT pushed: 38
+commits ahead of `origin/master` when the close-out began (level at Phase 0 of this session); the dashboard copy is v2.22.0 against canonical v2.23.0 (not synced). (14) `BACKLOG.md`, `HANDOFFS.md`,
+`CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices, edit with a Python script (`python3 -I -`). After answering a direct question, STOP and wait (memory).
 
 ### What Session 338 Did
-**Deliverable:** g02 of the backlog ordering plan, twenty-second session: the BACKLOG item "Eleven more places that throw `RangeError` on a long line or a long list" (nine class patterns under the `u` flag,
-two array spreads, found by Session 337's review round) (IN PROGRESS)
-**Started:** 2026-10-29
-**Status:** Session claimed. Work beginning. Strict TDD: time each literal shape at HEAD first, one fresh process per probe (Learnings 840, 871, 885), rows RED on the parent, the old pattern kept as each cure's
-oracle, every row read with the engine hint and on a line with a character above U+00FF as well as one without (Learnings 886, 890).
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Deliverable:** g02 of the backlog ordering plan, twenty-second session: the BACKLOG item "Eleven more places that throw `RangeError` on a long line or a long list" (nine class patterns under the `u`
+flag, two array spreads, found by Session 337's review round) -- DONE; claim `4f92d34`
+**Started:** 2026-10-29 (closed 2026-10-30)
+**Status:** Closed out. Re-bisected the sites at `fe6aaec` in fresh processes (a line up to U+00FF never throws; the item's spread figures did not reproduce); a shared reader and its 21 tests and 29
+mutants first; five workers in isolated worktrees, strict TDD (247 of 499 new rows and 484 of 663 oracle tests fail on the parent, the rest are labelled controls); 29 commits cherry-picked, one anchor
+collision fixed (`f3107b6`); the six lists run alone (295 killed, 27 equivalent, 0 contradict); the review round (70 agents): 0 differences in 200,000 documents, 32 findings of which 25 stood, the citation
+loop moved into the core as `readCitations`, fourteen mutation survivors pinned (`s338-review.json`, 20 killed), a provider gate, limits raised, figures corrected; the standing guard and one Polish item
+filed. `npm test` 16,399 passing in 170 files (exit 1 from the known worker timeout); `npm run package` 44 files; real-document score unchanged (2423 of 2438).
+**Ledger:** `CHANGELOG.md` 2026-10-30 -- one entry per action (the claim entry replaced by the outcome entry; one each for the review round, the SESSION_NOTES trim and the quality-gate run), recorded in
+the close-out commits.
 
 ### What Session 337 Did
 **Deliverable:** g02 of the backlog ordering plan, twenty-first session: the BACKLOG item "Eight more single-line RangeError shapes and three more quadratic ones, found by Session 336's own probes and its review round, none
@@ -246,6 +256,41 @@ One new item filed (eight regexes and a paragraph reader). `npm test` 11,403 pas
 **Status:** Closed out. Five patterns respelled (`4627675d`), exhaustive proof plus near-miss and gap-grid rows, 51 + 4 mutants (49 + 3 killed, 3 argued equivalent), a five-lens review round that closed three test gaps.
 Nine more families filed. `npm test` 11,347 passing plus one load-flake clock row (11,348 in 85 files); `npm run package` 44 files; real-document score unchanged.
 **Ledger:** `CHANGELOG.md` 2026-10-16 -- one entry per action (the claim entry replaced), recorded in the close-out commit.
+
+## Session 337 Handoff Evaluation (by Session 338)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers (at HEAD `79b7b86`, gap 0), no `pending` receipt, the ratchet citation (2/2, results
+`bba236856bad`), the real-document score (2423 of 2438, re-run at the end), the baseline (139 files, 15,252 tests, exit 1) and the picker all held. Candidate (a), the new Up Next item, was placed by
+finishing a feature, and it took the whole session; its estimate of two sessions was one, with five workers.
+**Helped:** the written recipe (an index loop, the old pattern as the oracle, a code-unit sweep, rows on both byte widths) and the Session 337 files as templates let five workers start from one brief;
+gotcha 4 (the runner tests the COMMITTED source) and gotcha 5 (reset the worktree's empty branch) held; gotcha 7 (rows with the engine hint and a character above U+00FF) was the right instruction for every
+part; the siblings lens's method (a syntax-tree walk with a control on the parent) was reusable as it stood.
+**Missing:** the item's figures were not all re-measured before they were written down: "reads 60,000,000" was a probe limit (a one-byte line never throws), the spread figures 125,742 and 125,770 did not
+reproduce (110,383 to 110,560; 106,319 through the real adapter), and `buildOutline` and `findHeadings` also reach the chunk header's label. Nothing said that the sites hide each other (four chains), which
+decides whether a row can reach a site at all. **Wrong:** the "173 commits ahead" of `origin/master` in gotcha 13 was stale (level at Phase 0). I still hit one zsh trap named in gotcha 3 (`set -- $var`).
+**ROI: high.**
+
+## Session 338 Self-Assessment
+
+**Score: 8/10.**
+**Went right.** Had each site bisected at the parent first, in fresh processes with the lower bound verified, and re-measured every first-throw figure myself, which found what the item had wrong; built the shared reader and its tests and mutants
+myself first so that five workers did not write the same sticky pattern five times; briefed five workers with the clean-room rule repeated in every prompt (the reviewers' too), one part and its own files
+each; checked the workers from my side instead of trusting their reports (RED numbers re-run on `fe6aaec`, which caught the "passes on the parent" claim, the 143 for 145 and the oracle's three assertion
+failures; every first-throw figure re-measured; the five lists run alone, one at a time; the whole suite on the merged tree, which found the one anchor collision); ran a six-lens review and acted on what
+stood (the citation loop moved into the core and tested with a fake reader, six survivors of the mutation lens pinned and killed, a provider gate, limits and figures corrected, the guard and the residuals
+filed rather than fixed: 1 and done); re-measured the heading-spread figure myself (110,038, not the claims lens's 110,076 or the comment's 125,700).
+**Went wrong.** (1) A merge made a mutation anchor ambiguous again (Learnings 883, 891); four worker commits say the lists apply and on the merged tree they did not (Learning 901). (2) The claims lens
+raised eleven findings on the workers' commits and comments, ten of which stood against both refuters (Learning 901), and my own first provider gate failed on the committed provider because of a
+comment-stripping regexp (Learning 900) before it
+passed. (3) Part A's decision to push in a loop (`7a14505`) was committed before the only test that sees it (`99537a1`): a TDD deviation by a worker, disclosed. (4) I used `set -- $var` in zsh once; it ran
+the whole suite where a part was meant. (5) The two workflows ran for hours with few status lines from me and the harness nudged me several times. (6) The summary I carried across the context break lost
+the exact review counts; I re-read the journal instead of trusting it. (7) The retired constants' names stayed in three test comments and three BACKLOG items until the review round found them.
+**Known residuals (filed or stated):** the BACKLOG Up Next items (the standing guard, three quadratic), four Polish items, 27 plus 21 mutants argued equivalent, the review's nits left alone, the Session
+333 and 334 items, the S322 item's part (1), the S311 item's parts (4), (10), (11); `test:integration` and `test:lsp` NOT run.
+**TDD:** RED before GREEN for every cure (rows and oracle committed RED first on the parent; re-run from my side) and for `readCitations` (ten rows RED with "readCitations is not a function" before the
+function existed); the review's six survivor rows and the provider gate are green on arrival, their RED is a mutant (20 mutants, all killed); one worker deviation in part A (above).
+**Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** two workflows (5 workers; 70 agents, 7.6 million subagent tokens, 3,012 tool calls, about 2 h 45 min), six lists of 6 to 11
+minutes and a 3-minute review list, no quarto renders, the machine at load 8 to 16.
 
 ## Session 336 Handoff Evaluation (by Session 337)
 
