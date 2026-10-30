@@ -1,0 +1,194 @@
+[
+ {
+  "name": "F01 classValueMayHoldEscape: the key is found with indexOf(...) === i",
+  "file": "src/core/qmd/model.ts",
+  "from": "code === 0x63 && tail.startsWith(\"class=\", i)",
+  "to": "code === 0x63 && tail.indexOf(\"class=\", i) === i",
+  "expect": "killed",
+  "why": "same answers, quadratic on a run of `c`, of `clas` or of `class` (indexOf runs on to the end of the line from every `c`); a line of 10,000,000 characters takes hours, so the clock rows call the function under the vm watchdog and fail at the limit; run alone, killed by: classValueMayHoldEscape on lines of 10,000,000 characters `class=`, then 10,000,000 `c` (and 2 more)"
+ },
+ {
+  "name": "F02 classValueMayHoldEscape: the key is found with lastIndexOf(...) === i",
+  "file": "src/core/qmd/model.ts",
+  "from": "code === 0x63 && tail.startsWith(\"class=\", i)",
+  "to": "code === 0x63 && tail.lastIndexOf(\"class=\", i) === i",
+  "expect": "killed",
+  "why": "same answers, quadratic on a run of `c`, of `clas` or of `class` (lastIndexOf runs back to the start of the line from every `c`); see F01 for the watchdog; run alone, killed by: classValueMayHoldEscape on lines of 10,000,000 characters `class=`, then 10,000,000 `c` (and 2 more)"
+ },
+ {
+  "name": "F21 classValueMayHoldEscape: the key is found by a `class` prefix and a later `=`",
+  "file": "src/core/qmd/model.ts",
+  "from": "code === 0x63 && tail.startsWith(\"class=\", i)",
+  "to": "code === 0x63 && tail.startsWith(\"class\", i) && tail.indexOf(\"=\", i) === i + 5",
+  "expect": "killed",
+  "why": "same answers, quadratic on a run of `class` with no `=` behind it (indexOf of the `=` runs on to the end of the line from every `class`); only the run of `class` reaches it, a run of `c` or of `clas` does not; run alone, killed by: classValueMayHoldEscape on lines of 10,000,000 characters `class=`, then `class` x 2,000,000"
+ },
+ {
+  "name": "G09 divSpecReading: the tail up to its first closing brace",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (classValueMayHoldEscape(tail)) {",
+  "to": "  if (classValueMayHoldEscape(tail.slice(0, tail.indexOf(\"}\") + 1))) {",
+  "expect": "killed",
+  "why": "an escape behind a later `class=` is lost when a `}` stands inside an earlier value: only an opener with a `}` in front of the `class=` that carries the escape tells; run alone, killed by: the call site: an opener whose class value holds an escape is read by the regex reader \"::: {data-x=\\\"}\\\" class=\\\"callout-note a&b\\\"}\" (and 3 more)"
+ },
+ {
+  "name": "G15 divSpecReading: declines only where the reader decodes every escape",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (classValueMayHoldEscape(tail)) {",
+  "to": "  if (reader.pandocEscapes && classValueMayHoldEscape(tail)) {",
+  "expect": "killed",
+  "why": "the default reader decodes every escape, so only the rows under `from: markdown-all_symbols_escapable` (pandocEscapes false) see a reader that must still decline on an escape; run alone, killed by: the call site under a reader that does not decode every escape (`reader.pandocEscapes` false) \"::: {class=\\\"callout-note a&b\\\"}\" (and 3 more)"
+ },
+ {
+  "name": "G16 divSpecReading: always declines where the reader does not decode every escape",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (classValueMayHoldEscape(tail)) {",
+  "to": "  if (!reader.pandocEscapes || classValueMayHoldEscape(tail)) {",
+  "expect": "killed",
+  "why": "the same rows: a class value with no escape under `from: markdown-all_symbols_escapable` is read from the tokens, and this declines it; run alone, killed by: the call site under a reader that does not decode every escape (`reader.pandocEscapes` false) \"::: {class=\\\"callout-note\\\"}\" (and 1 more)"
+ },
+ {
+  "name": "P1a classValueMayHoldEscape guard: the early exit also takes a key at index 0",
+  "file": "src/core/qmd/model.ts",
+  "from": "const first = tail.indexOf(\"class=\");\n  if (first < 0) {",
+  "to": "const first = tail.indexOf(\"class=\");\n  if (first <= 0) {",
+  "expect": "killed",
+  "why": "a `class=` at index 0 takes the early exit: `class=&` is no longer true; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6 (and 30 more)"
+ },
+ {
+  "name": "P1b classValueMayHoldEscape guard: the early exit is never taken",
+  "file": "src/core/qmd/model.ts",
+  "from": "const first = tail.indexOf(\"class=\");\n  if (first < 0) {",
+  "to": "const first = tail.indexOf(\"class=\");\n  if (first < -1) {",
+  "expect": "survives",
+  "why": "NO WITNESS, equivalent: with no key the pass starts at -1 (charCodeAt(-1) is NaN, equal to nothing the pass tests), reads the whole tail, sets no flag and answers false; only the cost differs (about 110 ns against 15 on an ordinary opener tail), which no row can pin"
+ },
+ {
+  "name": "P1c classValueMayHoldEscape guard: a tail with no key answers true",
+  "file": "src/core/qmd/model.ts",
+  "from": "const first = tail.indexOf(\"class=\");\n  if (first < 0) {\n    return false;\n  }",
+  "to": "const first = tail.indexOf(\"class=\");\n  if (first < 0) {\n    return true;\n  }",
+  "expect": "killed",
+  "why": "every tail without `class=` is refused; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6 (and 19 more)"
+ },
+ {
+  "name": "P1d classValueMayHoldEscape guard: the pass starts one character after the key",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let i = first; i < tail.length; i++) {",
+  "to": "for (let i = first + 1; i < tail.length; i++) {",
+  "expect": "killed",
+  "why": "the first key never sets the flag: `class=&` is false; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6 (and 49 more)"
+ },
+ {
+  "name": "P1e classValueMayHoldEscape guard: the pass starts behind the key",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let i = first; i < tail.length; i++) {",
+  "to": "for (let i = first + 6; i < tail.length; i++) {",
+  "expect": "killed",
+  "why": "the first key never sets the flag, and the character right behind it is read as if no key stood there; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6 (and 49 more)"
+ },
+ {
+  "name": "P1f classValueMayHoldEscape guard: the pass starts at 0 again",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let i = first; i < tail.length; i++) {",
+  "to": "for (let i = 0; i < tail.length; i++) {",
+  "expect": "survives",
+  "why": "NO WITNESS, equivalent: the shape before the guard; a character in front of the first `class=` can neither set the flag nor use it (cost only)"
+ },
+ {
+  "name": "P1g classValueMayHoldEscape guard: the search is for class, without the equals sign",
+  "file": "src/core/qmd/model.ts",
+  "from": "const first = tail.indexOf(\"class=\");",
+  "to": "const first = tail.indexOf(\"class\");",
+  "expect": "survives",
+  "why": "NO WITNESS, equivalent: `class` stands at or before the first `class=`, so the pass starts there or earlier and meets the same key (cost only)"
+ },
+ {
+  "name": "P1h classValueMayHoldEscape guard: the pass starts at the last key",
+  "file": "src/core/qmd/model.ts",
+  "from": "const first = tail.indexOf(\"class=\");",
+  "to": "const first = tail.lastIndexOf(\"class=\");",
+  "expect": "killed",
+  "why": "an escape between two keys is lost: `class=&class=` is false; run alone, killed by: controls: an escape in reach of the scan is linear on the parent and stays so a `\\` between two runs of `class=` (and 7 more)"
+ },
+ {
+  "name": "P1i classValueMayHoldEscape guard: the search starts at index 1",
+  "file": "src/core/qmd/model.ts",
+  "from": "const first = tail.indexOf(\"class=\");",
+  "to": "const first = tail.indexOf(\"class=\", 1);",
+  "expect": "killed",
+  "why": "a key at index 0 is not found: `class=&` is false; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6 (and 24 more)"
+ },
+ {
+  "name": "P1j classValueMayHoldEscape guard: the pass starts one character before the key",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let i = first; i < tail.length; i++) {",
+  "to": "for (let i = first - 1; i < tail.length; i++) {",
+  "expect": "survives",
+  "why": "NO WITNESS, equivalent: the character before the first key is not a key (and at index -1 charCodeAt is NaN), and with the flag unset a brace or an escape changes nothing"
+ },
+ {
+  "name": "P1k classValueMayHoldEscape guard: the search reads the first 65,536 characters",
+  "file": "src/core/qmd/model.ts",
+  "from": "const first = tail.indexOf(\"class=\");",
+  "to": "const first = tail.slice(0, 65536).indexOf(\"class=\");",
+  "expect": "killed",
+  "why": "a first key behind the cap is not found; only the two rows that put it behind 10,000,000 letters reach it; run alone, killed by: classValueMayHoldEscape on lines of 10,000,000 characters 10,000,000 letters, then `class=` and an ampersand (and 1 more)"
+ },
+ {
+  "name": "P1l classValueMayHoldEscape guard: the search reads the first 2^20 characters",
+  "file": "src/core/qmd/model.ts",
+  "from": "const first = tail.indexOf(\"class=\");",
+  "to": "const first = tail.slice(0, 1048576).indexOf(\"class=\");",
+  "expect": "killed",
+  "why": "a first key behind the cap is not found; only the two rows that put it behind 10,000,000 letters reach it; run alone, killed by: classValueMayHoldEscape on lines of 10,000,000 characters 10,000,000 letters, then `class=` and an ampersand (and 1 more)"
+ },
+ {
+  "name": "P1m classValueMayHoldEscape guard: the search is for lass=",
+  "file": "src/core/qmd/model.ts",
+  "from": "const first = tail.indexOf(\"class=\");",
+  "to": "const first = tail.indexOf(\"lass=\");",
+  "expect": "killed",
+  "why": "the pass starts one character after the first key, so it never sets the flag: `class=&` is false; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6 (and 49 more)"
+ },
+ {
+  "name": "W01 rows: the watchdog waits 100 s",
+  "file": "test/unit/div-class-escape-equivalence.test.ts",
+  "from": "{ timeout: LIMIT_MS }",
+  "to": "{ timeout: 100_000 }",
+  "expect": "killed",
+  "why": "a call that spins for 5 s is no longer stopped at the limit; only the row that proves the watchdog can fail sees it (the right function never reaches the watchdog); run alone, killed by: classValueMayHoldEscape on lines of 10,000,000 characters the watchdog row can fail: a call that spins for 5 s is stopped at the limit and the row throws"
+ },
+ {
+  "name": "W02 rows: the watchdog's error is not recognised",
+  "file": "test/unit/div-class-escape-equivalence.test.ts",
+  "from": "=== \"ERR_SCRIPT_EXECUTION_TIMEOUT\"",
+  "to": "=== \"ERR_X\"",
+  "expect": "killed",
+  "why": "the vm's own error comes through, with another message; only the row that proves the watchdog can fail reads it; run alone, killed by: classValueMayHoldEscape on lines of 10,000,000 characters the watchdog row can fail: a call that spins for 5 s is stopped at the limit and the row throws"
+ },
+ {
+  "name": "S01 rows: the run of `c` is 10,000 characters",
+  "file": "test/unit/div-class-escape-equivalence.test.ts",
+  "from": "const RUN_OF_C = \"c\".repeat(BIG);",
+  "to": "const RUN_OF_C = \"c\".repeat(10_000);",
+  "expect": "killed",
+  "why": "too short for F02 to cross the limit; only the sizes row sees it; run alone, killed by: classValueMayHoldEscape on lines of 10,000,000 characters keeps the sizes, the limit and the floor the clock rows above are built on"
+ },
+ {
+  "name": "S02 rows: the run of `class` is 20,000 repeats",
+  "file": "test/unit/div-class-escape-equivalence.test.ts",
+  "from": "const RUN_OF_CLASS = \"class\".repeat(2_000_000);",
+  "to": "const RUN_OF_CLASS = \"class\".repeat(20_000);",
+  "expect": "killed",
+  "why": "too short for F21 to cross the limit; only the sizes row sees it; run alone, killed by: classValueMayHoldEscape on lines of 10,000,000 characters keeps the sizes, the limit and the floor the clock rows above are built on"
+ },
+ {
+  "name": "S03 rows: the run of `clas` is 25,000 repeats",
+  "file": "test/unit/div-class-escape-equivalence.test.ts",
+  "from": "const RUN_OF_CLAS = \"clas\".repeat(2_500_000);",
+  "to": "const RUN_OF_CLAS = \"clas\".repeat(25_000);",
+  "expect": "killed",
+  "why": "too short for F02 to cross the limit; only the sizes row sees it; run alone, killed by: classValueMayHoldEscape on lines of 10,000,000 characters keeps the sizes, the limit and the floor the clock rows above are built on"
+ }
+]
