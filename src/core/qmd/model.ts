@@ -10411,7 +10411,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
   // The line at which a CommonMark fence was ended by its list item ending (Session 296): that line closes the containers deeper than itself even where the line
   // above is not blank, which is the one case where the container stack would otherwise outlive the item.
   let boundEndedLine = -1;
-  // How many raw-content elements (`HTML_RAW_CONTENT_TAG`) are open above, counted over ordinary body lines only (fences and comments are skipped by the
+  // How many raw-content elements (`rawContentTags`) are open above, counted over ordinary body lines only (fences and comments are skipped by the
   // scanner before they reach the count), floored at zero.
   let rawContentDepth = 0;
   // How many native HTML divs (`<div>` opened at the start of a body line, `</div>` anywhere) are open above, floored at zero: a `</div>` that closes one ends the block even with `-raw_html`
@@ -12958,11 +12958,11 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
         } else if (/^ {0,3}<\/div\s*>/i.test(line)) {
           nativeDivDepth = Math.max(0, nativeDivDepth - 1);
         }
-        for (const tag of line.matchAll(HTML_RAW_CONTENT_TAG)) {
-          if (tag[3] === "/") {
+        for (const tag of rawContentTags(line)) {
+          if (tag.selfClosing) {
             continue; // self-closing: opens nothing
           }
-          if (tag[1] === "/") {
+          if (tag.closing) {
             rawContentDepth = Math.max(0, rawContentDepth - 1);
           } else if (/^ {0,3}$/.test(line.slice(0, tag.index))) {
             rawContentDepth += 1;
@@ -14919,8 +14919,63 @@ const HTML_EITHER_NAME = new RegExp("^(?:" + PANDOC_EITHER_TAGS + ")$", "i");
  * `<div>x</div>` is raw text, so the opener below it is swallowed with the rest (`scratchpad/s295/ob`, `ob_below_pre_in_div` and three siblings),
  * where inside a `table`, `ul`, `details` or `section` — whose content is markdown — the same line ends the block. An OPEN tag counts only at the
  * start of a line (a block position); a closer counts anywhere.
+ *
+ * The tags of one line, as `computeRegions` counts them (Session 339): `<` and an optional `/`, one of the four names in either ASCII case, a word boundary, then everything up to the FIRST `>`. It is what
+ * `/<(\/?)(pre|script|style|textarea)\b[^>]*?(\/?)>/gi` found with `matchAll`, and it replaces that pattern, whose lazy `[^>]*?` read on to the first `>` from every opener: a line of `<pre ` repeated
+ * with no `>` restarted a scan to the end of the line at each one, n squared (`<pre ` x 10,000 / 20,000 / 40,000 took 152.6 / 599.2 / 2,335.6 ms and `<script ` x 40,000 3,762.1 ms in `findHeadings`, a fresh process each, at `4d1944c`).
+ * Here the `>` is looked for once per tag with `indexOf`, and the first opener that has no `>` after its name ends the scan, because no later opener can have one either (`<pre ` repeated to 100,000, 1,000,000 and 10,000,000
+ * characters took 3.6, 6.8 and 33.6 ms in `findHeadings`; 2,000,000 `<pre>` tags in one line, 253.7 ms). The next search starts just after the `>`, so a
+ * `<pre` inside the span of an earlier tag is swallowed by it, as `matchAll` continued after the end of a match.
+ * ⚠ A name is compared without regard to ASCII case ONLY (the pattern has no `u` flag: U+017F is no `s` and U+0131 no `i`), and the word boundary after it is "not an ASCII letter, digit or underscore" (`<pre-x>` and `<pre` + e acute
+ * are tags, `<prefix>`, `<pre_>` and `<pre1>` are not). A tag is self-closing when the character just before the `>` is a `/`: the name ends in a letter, so that `/` is never part of it (`<pre/>`, `<pre />` and `<pre//>`
+ * are self-closing, `<pre/ >` is not). `test/unit/raw-content-tag-equivalence.test.ts` keeps the pattern as the oracle, beside a reading by definition with no regular expression.
  */
-const HTML_RAW_CONTENT_TAG = /<(\/?)(pre|script|style|textarea)\b[^>]*?(\/?)>/gi;
+export interface RawContentTag {
+  /** The index of the tag's `<` in the line. */
+  index: number;
+  /** Whether it is a closing tag, `</…>`. */
+  closing: boolean;
+  /** Whether the character before its `>` is a `/`. */
+  selfClosing: boolean;
+}
+export function rawContentTags(line: string): RawContentTag[] {
+  const tags: RawContentTag[] = [];
+  let from = 0;
+  for (;;) {
+    const lt = line.indexOf("<", from);
+    if (lt < 0) {
+      return tags;
+    }
+    const closing = line.charCodeAt(lt + 1) === 0x2f;
+    const nameEnd = rawContentNameEnd(line, closing ? lt + 2 : lt + 1);
+    if (nameEnd < 0) {
+      from = lt + 1;
+      continue;
+    }
+    const gt = line.indexOf(">", nameEnd);
+    if (gt < 0) {
+      return tags; // no `>` after this name, so none after any later one either
+    }
+    tags.push({ index: lt, closing, selfClosing: line.charCodeAt(gt - 1) === 0x2f });
+    from = gt + 1;
+  }
+}
+const RAW_CONTENT_NAMES = ["pre", "script", "style", "textarea"] as const;
+/** Where the name of a raw-content element that starts at `at` ends, just after its last letter, or -1 when none starts there or no word boundary follows it. No name is a prefix of another, so a name that fails its boundary leaves nothing else to try. */
+function rawContentNameEnd(line: string, at: number): number {
+  for (const name of RAW_CONTENT_NAMES) {
+    let k = 0;
+    while (k < name.length && smallLetterAt(line, at + k) === name.charCodeAt(k)) {
+      k++;
+    }
+    if (k === name.length) {
+      const next = line.charCodeAt(at + k);
+      const wordUnit = (next >= 0x30 && next <= 0x39) || (next >= 0x41 && next <= 0x5a) || (next >= 0x61 && next <= 0x7a) || next === 0x5f;
+      return wordUnit ? -1 : at + k;
+    }
+  }
+  return -1;
+}
 
 /** The run of whitespace a line starts with — `\s*`, the same class both cell regexes use. */
 function indentRun(line: string): string {
