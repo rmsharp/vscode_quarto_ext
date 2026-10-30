@@ -356,34 +356,3 @@ witness; the Session 333 and 334 items, the S322 item's part (1), the S311 item'
 **TDD:** RED before GREEN for every cure (rows and oracle committed RED first on the parent); the review's rows are mutant-RED.
 **Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** two workflows (8 and 54 agents; 8.3 million subagent tokens; 2,500 tool calls; about 5 hours), nine mutation runs of 90 minutes in all, no
 quarto renders, the machine at load 3 to 54 (another project's load of 40 during one suite run).
-
-## Session 335 Handoff Evaluation (by Session 336)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers (at HEAD `f31059c`, gap 0), no `pending` receipt, the ratchet citation (2/2, results `bba236856bad`), the baseline
-(13,898 tests in 115 files), the real-document score (2423 of 2438) and the picker all held; `master` was 115 commits ahead at Phase 0 (the note said 110 when the close-out began, and five close-out commits followed). Candidate (a), the
-new Up Next item, was placed by finishing a feature and took the whole session.
-**Helped:** gotcha 2 (rebuild the harness from tracked files; re-bisect a first-throw figure in a fresh process) took minutes and was right to insist: the item's 8,390,625 was 2,052 high; gotcha 3 (quoted heredocs, a detached job, Monitor on a DONE
-file) kept me out of the stray-file trap for the mutation runs; gotcha 4 (the runner tests the COMMITTED source, the README's `--tests` set) held; gotcha 5 (the pins are incomplete) was true a twenty-second time; the item's recipe (a loop, the old
-pattern as the oracle, a code-unit sweep) and `node-property-end-equivalence.test.ts` as a template saved the most time.
-**Missing:** part (3) said "finds a document or argues the call away" and not that the function has a SECOND caller whose own tests are the generator to extend (Learning 880): an hour went on a pressed-heading family before whole-function mutants named
-the follower. The zsh traps beyond word splitting (an unmatched glob is an error, `echo =====` is not found). **Wrong:** gotcha 11 said the plan's in-flight, next-group and g02 order-table rows were updated; the order-table row still read "eighteen
-sessions done" and ended at Session 334 (fixed here); the item's first-throw figure (the handoff itself warned it needs a re-bisect). **ROI: high.**
-
-## Session 336 Self-Assessment
-
-**Score: 7/10.**
-**Went right.** I timed the three shapes in fresh processes at HEAD before reading code (they held, except the item's figure) and showed 25 document rows RED by RangeError before any cure (`e48a43d`); each part has a seam-and-oracle commit
-(RED: the import was not a function) and a cure commit; every pinned count was recounted by a Python port that shares no code with the TypeScript; the four functions agree with the old patterns on about 187 million strings and 2.9 million documents.
-Part (3): whole-function mutants named the follower, a forced-true/forced-false control showed my first families were blind, and 22 documents were rendered with quarto (one at a time) before any row stated an answer. The review's refuters reproduced all 31
-findings, I re-ran every claim I acted on, and I filed the eleven outside shapes instead of fixing them (1 and done).
-**Went wrong.** (1) My pins were incomplete a TWENTY-SECOND time: 33 of the review's 109 new mutants were alive (fifteen more characters and four pairs as a quote, caps on long blank runs, a terminator in the middle of a long body, a `}` in the middle of a value);
-seven mutant labels I had written by reading were wrong, both ways. (2) Five numbers in commit messages were wrong (12 against 14.26 million strings, 105 mutants with 14 argued against 12, the 22 rendered documents' antecedent, two rows against three, a 10 s limit
-on 27 rows and not 10); I cannot amend and corrected them in the CHANGELOG. (3) A probe of mine bypassed the production call path and reported `KEY_LINE` safe, and I wrote that into the siblings brief as "known not to throw" (the lens corrected it).
-(4) My rows, like Session 335's, read with no engine hint; three of the eight filed overflows were invisible to them (rows added). (5) A bisect with an unverified lower bound collapsed to "last ok 8,000,000, first throw 8,000,001"; I caught it by reading the output.
-(6) Shell traps again: zsh unmatched glob and `echo =====`, and an unquoted heredoc let the shell eat the backticks of a mutant name. (7) The third comment site could not be reached by a document row until the first throw was gone, so its RED exists only on a
-variant (disclosed). (8) A sentence copied from Session 335's rows ("a run of 9,000,000 would pass on the parent") was false here. (9) TDD deviations, disclosed: the oracle files, W01's rows and the review's rows pass on arrival; their RED is a mutant (W01: 16 failing).
-**Known residuals (filed or stated):** the BACKLOG Up Next item (8 overflows, 3 quadratic), two Polish items, 32 mutants argued equivalent, the Session 333 and 334 items, the S322 item's part (1), the S311 item's parts (4), (10), (11); `test:integration` NOT run.
-**TDD:** RED before GREEN for the 25 document rows (`e48a43d` before `45dafc7`) and for each oracle's seam; every later row is mutant-RED.
-**Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** the review workflow 67 agents (6,080,530 subagent tokens; 1,528 tool calls; 78 minutes), about 230 runner mutants in six lists, 22 quarto renders (one at a time,
-markdown engine, no kernel), differentials of
-20,736 probes and 300,000 documents, the machine at load 7 to 30.
