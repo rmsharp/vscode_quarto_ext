@@ -1,0 +1,402 @@
+[
+ {
+  "name": "R01 rawContentTags: the search starts at 1",
+  "file": "src/core/qmd/model.ts",
+  "from": "  let from = 0;\n  for (;;) {\n    const lt = line.indexOf(\"<\", from);",
+  "to": "  let from = 1;\n  for (;;) {\n    const lt = line.indexOf(\"<\", from);",
+  "expect": "killed",
+  "why": "a tag whose `<` is the first character of the line is never found; run alone, killed by 90 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every string"
+ },
+ {
+  "name": "R02 rawContentTags: the search for `<` skips a character",
+  "file": "src/core/qmd/model.ts",
+  "from": "const lt = line.indexOf(\"<\", from);",
+  "to": "const lt = line.indexOf(\"<\", from + 1);",
+  "expect": "killed",
+  "why": "the character right after the previous tag (or the first one) is skipped, so a tag that touches the end of the one before it is lost; run alone, killed by 90 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every string"
+ },
+ {
+  "name": "R03 rawContentTags: the closing mark is negated",
+  "file": "src/core/qmd/model.ts",
+  "from": "const closing = line.charCodeAt(lt + 1) === 0x2f;",
+  "to": "const closing = line.charCodeAt(lt + 1) !== 0x2f;",
+  "expect": "killed",
+  "why": "an opener is read as a closer and a closer as an opener; run alone, killed by 94 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every string"
+ },
+ {
+  "name": "R04 rawContentTags: a closer's name is read from the slash",
+  "file": "src/core/qmd/model.ts",
+  "from": "rawContentNameEnd(line, closing ? lt + 2 : lt + 1)",
+  "to": "rawContentNameEnd(line, closing ? lt + 1 : lt + 1)",
+  "expect": "killed",
+  "why": "the name of a closing tag is looked for at the slash, so no closer is found; run alone, killed by 29 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every string"
+ },
+ {
+  "name": "R05 rawContentTags: an opener's name is read one character late",
+  "file": "src/core/qmd/model.ts",
+  "from": "rawContentNameEnd(line, closing ? lt + 2 : lt + 1)",
+  "to": "rawContentNameEnd(line, closing ? lt + 2 : lt + 2)",
+  "expect": "killed",
+  "why": "the name of an opening tag is looked for one character late, so no opener is found; run alone, killed by 90 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every string"
+ },
+ {
+  "name": "R06 rawContentTags: nameEnd <= 0 for nameEnd < 0 (equivalent)",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (nameEnd < 0) {",
+  "to": "if (nameEnd <= 0) {",
+  "expect": "survives",
+  "why": "equivalent: `rawContentNameEnd` answers -1 or an index at least 4 (a `<`, an optional slash and a name of three letters or more), never 0; run alone, survives: no row of the two S339 files, qmd-model.test.ts or qmd-stacked-enders.test.ts fails"
+ },
+ {
+  "name": "R07 rawContentTags: the `>` is looked for one character late",
+  "file": "src/core/qmd/model.ts",
+  "from": "line.indexOf(\">\", nameEnd)",
+  "to": "line.indexOf(\">\", nameEnd + 1)",
+  "expect": "killed",
+  "why": "a tag whose `>` follows its name directly (`<pre>`) has its `>` skipped, and the tag is lost or ends at a later `>`; run alone, killed by 53 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every string"
+ },
+ {
+  "name": "R08 rawContentTags: the `>` is looked for from the `<` (equivalent)",
+  "file": "src/core/qmd/model.ts",
+  "from": "line.indexOf(\">\", nameEnd)",
+  "to": "line.indexOf(\">\", lt)",
+  "expect": "survives",
+  "why": "equivalent: between the `<` and the end of the name there is a slash and letters, never a `>`, so the first `>` from the `<` is the first `>` from the end of the name; run alone, survives: no row of the two S339 files, qmd-model.test.ts or qmd-stacked-enders.test.ts fails"
+ },
+ {
+  "name": "R09 rawContentTags: the `>` is looked for from the previous search's start",
+  "file": "src/core/qmd/model.ts",
+  "from": "line.indexOf(\">\", nameEnd)",
+  "to": "line.indexOf(\">\", from)",
+  "expect": "killed",
+  "why": "a `>` that lies between the end of the last tag and this `<` is taken as the end of this tag, which then ends before it starts; run alone, killed by 6 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every string"
+ },
+ {
+  "name": "R10 rawContentTags: gt <= 0 for gt < 0 (equivalent)",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (gt < 0) {",
+  "to": "if (gt <= 0) {",
+  "expect": "survives",
+  "why": "equivalent: a `>` found from `nameEnd` is at an index of at least 4, never 0; run alone, survives: no row of the two S339 files, qmd-model.test.ts or qmd-stacked-enders.test.ts fails"
+ },
+ {
+  "name": "R11 rawContentTags: the first opener without a `>` is skipped, not final (the quadratic spelling)",
+  "file": "src/core/qmd/model.ts",
+  "from": "      return tags; // no `>` after this name, so none after any later one either",
+  "to": "      from = lt + 1;\n      continue;",
+  "expect": "killed",
+  "why": "every answer is the same and the scan restarts at each of the openers that has no `>` after it: n squared, killed by the clock rows alone; run alone, killed by 8 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched `<pre ` x 40"
+ },
+ {
+  "name": "R12 rawContentTags: the tag's index is its `>`",
+  "file": "src/core/qmd/model.ts",
+  "from": "tags.push({ index: lt, closing, selfClosing:",
+  "to": "tags.push({ index: gt, closing, selfClosing:",
+  "expect": "killed",
+  "why": "the index the loop slices the line at is the end of the tag, not its start; run alone, killed by 94 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every string"
+ },
+ {
+  "name": "R13 rawContentTags: the closing flag is never set",
+  "file": "src/core/qmd/model.ts",
+  "from": "tags.push({ index: lt, closing, selfClosing:",
+  "to": "tags.push({ index: lt, closing: false, selfClosing:",
+  "expect": "killed",
+  "why": "a closing tag is counted as an opener or ignored; run alone, killed by 33 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every string"
+ },
+ {
+  "name": "R14 rawContentTags: the self-closing test is negated",
+  "file": "src/core/qmd/model.ts",
+  "from": "selfClosing: line.charCodeAt(gt - 1) === 0x2f",
+  "to": "selfClosing: line.charCodeAt(gt - 1) !== 0x2f",
+  "expect": "killed",
+  "why": "every tag but a self-closing one is self-closing; run alone, killed by 103 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every string"
+ },
+ {
+  "name": "R15 rawContentTags: the next search starts on the `>` (equivalent)",
+  "file": "src/core/qmd/model.ts",
+  "from": "    from = gt + 1;",
+  "to": "    from = gt;",
+  "expect": "survives",
+  "why": "equivalent: the character at `gt` is a `>`, which `indexOf(\"<\", gt)` steps over to the same next `<`; run alone, survives: no row of the two S339 files, qmd-model.test.ts or qmd-stacked-enders.test.ts fails"
+ },
+ {
+  "name": "R16 rawContentTags: the next search starts just after this tag's `<`",
+  "file": "src/core/qmd/model.ts",
+  "from": "    from = gt + 1;",
+  "to": "    from = lt + 1;",
+  "expect": "killed",
+  "why": "a `<pre` inside the span of the tag before it is found again, where the pattern swallowed it (`from = nameEnd` was tried first and loops for ever: the same tag is found again and again); run alone, killed by 15 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every string"
+ },
+ {
+  "name": "N01 rawContentNameEnd: pre is not a name",
+  "file": "src/core/qmd/model.ts",
+  "from": "const RAW_CONTENT_NAMES = [\"pre\", \"script\", \"style\", \"textarea\"] as const;",
+  "to": "const RAW_CONTENT_NAMES = [\"script\", \"style\", \"textarea\"] as const;",
+  "expect": "killed",
+  "why": "no `<pre>` is a tag; run alone, killed by 80 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every string"
+ },
+ {
+  "name": "N02 rawContentNameEnd: script is not a name",
+  "file": "src/core/qmd/model.ts",
+  "from": "const RAW_CONTENT_NAMES = [\"pre\", \"script\", \"style\", \"textarea\"] as const;",
+  "to": "const RAW_CONTENT_NAMES = [\"pre\", \"style\", \"textarea\"] as const;",
+  "expect": "killed",
+  "why": "no `<script>` is a tag; run alone, killed by 19 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every string"
+ },
+ {
+  "name": "N03 rawContentNameEnd: style is not a name",
+  "file": "src/core/qmd/model.ts",
+  "from": "const RAW_CONTENT_NAMES = [\"pre\", \"script\", \"style\", \"textarea\"] as const;",
+  "to": "const RAW_CONTENT_NAMES = [\"pre\", \"script\", \"textarea\"] as const;",
+  "expect": "killed",
+  "why": "no `<style>` is a tag; run alone, killed by 15 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every string"
+ },
+ {
+  "name": "N04 rawContentNameEnd: textarea is not a name",
+  "file": "src/core/qmd/model.ts",
+  "from": "const RAW_CONTENT_NAMES = [\"pre\", \"script\", \"style\", \"textarea\"] as const;",
+  "to": "const RAW_CONTENT_NAMES = [\"pre\", \"script\", \"style\"] as const;",
+  "expect": "killed",
+  "why": "no `<textarea>` is a tag; run alone, killed by 14 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every string"
+ },
+ {
+  "name": "N05 rawContentNameEnd: the first letter is not compared",
+  "file": "src/core/qmd/model.ts",
+  "from": "    let k = 0;\n    while (k < name.length && smallLetterAt",
+  "to": "    let k = 1;\n    while (k < name.length && smallLetterAt",
+  "expect": "killed",
+  "why": "any letter in the first place of a name is accepted (`<xre>` is a `pre`); run alone, killed by 7 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every string"
+ },
+ {
+  "name": "N06 rawContentNameEnd: the last letter is not compared",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (k < name.length && smallLetterAt",
+  "to": "while (k < name.length - 1 && smallLetterAt",
+  "expect": "killed",
+  "why": "`k` stops one short of the name's length, so no name is ever complete; run alone, killed by 94 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every string"
+ },
+ {
+  "name": "N07 rawContentNameEnd: the comparison is case-sensitive",
+  "file": "src/core/qmd/model.ts",
+  "from": "smallLetterAt(line, at + k) === name.charCodeAt(k)",
+  "to": "line.charCodeAt(at + k) === name.charCodeAt(k)",
+  "expect": "killed",
+  "why": "`<PRE>` is no tag; run alone, killed by 18 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every string"
+ },
+ {
+  "name": "N08 rawContentNameEnd: the comparison folds case with Unicode lower-casing",
+  "file": "src/core/qmd/model.ts",
+  "from": "smallLetterAt(line, at + k) === name.charCodeAt(k)",
+  "to": "String.fromCharCode(line.charCodeAt(at + k)).toLowerCase().charCodeAt(0) === name.charCodeAt(k)",
+  "expect": "killed",
+  "why": "U+0130 (capital I with a dot) lower-cases to `i` and reads as the `i` of `script`, where the pattern without the `u` flag folds ASCII letters only; run alone, killed by 1 row of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every UTF-16"
+ },
+ {
+  "name": "N09 rawContentNameEnd: the boundary is read one character late",
+  "file": "src/core/qmd/model.ts",
+  "from": "const next = line.charCodeAt(at + k);",
+  "to": "const next = line.charCodeAt(at + k + 1);",
+  "expect": "killed",
+  "why": "`<pre_>`, `<pre1>` and `<prefix>` are tags (the character after the name is read past), and the boundary after a name that ends the line is read past the end; run alone, killed by 26 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every string"
+ },
+ {
+  "name": "N10 rawContentNameEnd: the digit 0 is no word character",
+  "file": "src/core/qmd/model.ts",
+  "from": "next >= 0x30 &&",
+  "to": "next >= 0x31 &&",
+  "expect": "killed",
+  "why": "`<pre0>` is a tag; only the sweep of every code unit after a name reaches a digit; run alone, killed by 2 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every UTF-16"
+ },
+ {
+  "name": "N11 rawContentNameEnd: the digit 9 is no word character",
+  "file": "src/core/qmd/model.ts",
+  "from": "next <= 0x39)",
+  "to": "next <= 0x38)",
+  "expect": "killed",
+  "why": "`<pre9>` is a tag; run alone, killed by 2 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every UTF-16"
+ },
+ {
+  "name": "N12 rawContentNameEnd: the capital A is no word character",
+  "file": "src/core/qmd/model.ts",
+  "from": "next >= 0x41 &&",
+  "to": "next >= 0x42 &&",
+  "expect": "killed",
+  "why": "`<preA>` is a tag; run alone, killed by 2 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every UTF-16"
+ },
+ {
+  "name": "N13 rawContentNameEnd: the small a is no word character",
+  "file": "src/core/qmd/model.ts",
+  "from": "next >= 0x61 &&",
+  "to": "next >= 0x62 &&",
+  "expect": "killed",
+  "why": "`<prea>` is a tag; run alone, killed by 4 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched 200,000 seed"
+ },
+ {
+  "name": "N14 rawContentNameEnd: the small z is no word character",
+  "file": "src/core/qmd/model.ts",
+  "from": "next <= 0x7a)",
+  "to": "next <= 0x79)",
+  "expect": "killed",
+  "why": "`<prez>` is a tag; run alone, killed by 2 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every UTF-16"
+ },
+ {
+  "name": "N15 rawContentNameEnd: the underscore is another character",
+  "file": "src/core/qmd/model.ts",
+  "from": "next === 0x5f;",
+  "to": "next === 0x5e;",
+  "expect": "killed",
+  "why": "`<pre_>` is a tag; run alone, killed by 8 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every string"
+ },
+ {
+  "name": "N16 rawContentNameEnd: the boundary answer is inverted",
+  "file": "src/core/qmd/model.ts",
+  "from": "return wordUnit ? -1 : at + k;",
+  "to": "return wordUnit ? at + k : -1;",
+  "expect": "killed",
+  "why": "only a name followed by a word character is a tag; run alone, killed by 102 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every string"
+ },
+ {
+  "name": "N17 rawContentNameEnd: no boundary is asked",
+  "file": "src/core/qmd/model.ts",
+  "from": "return wordUnit ? -1 : at + k;",
+  "to": "return at + k;",
+  "expect": "killed",
+  "why": "`<prefix>` and `<scripts>` are tags; run alone, killed by 19 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every string"
+ },
+ {
+  "name": "N18 rawContentNameEnd: the end of the name is its start (equivalent)",
+  "file": "src/core/qmd/model.ts",
+  "from": "return wordUnit ? -1 : at + k;",
+  "to": "return wordUnit ? -1 : at;",
+  "expect": "survives",
+  "why": "equivalent: only the `>` search starts there, and between the start of the name and its end there is no `>`; run alone, survives: no row of the two S339 files, qmd-model.test.ts or qmd-stacked-enders.test.ts fails"
+ },
+ {
+  "name": "N19 rawContentNameEnd: the end of the name is one too far",
+  "file": "src/core/qmd/model.ts",
+  "from": "return wordUnit ? -1 : at + k;",
+  "to": "return wordUnit ? -1 : at + k + 1;",
+  "expect": "killed",
+  "why": "the `>` search skips the character right after the name, so `<pre>` is lost; run alone, killed by 53 rows of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched every string"
+ },
+ {
+  "name": "W01 computeRegions raw-content count: the self-closing test is negated",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (tag.selfClosing) {\n            continue;",
+  "to": "if (!tag.selfClosing) {\n            continue;",
+  "expect": "killed",
+  "why": "only a self-closing tag counts; run alone, killed by 48 rows of the two S339 files, first: Session 339 — `<pre `, `<script `, `<style ` and `<textarea ` openers with no `>` on one line are read in line"
+ },
+ {
+  "name": "W02 computeRegions raw-content count: a self-closing tag counts",
+  "file": "src/core/qmd/model.ts",
+  "from": "continue; // self-closing: opens nothing",
+  "to": "// self-closing: opens nothing",
+  "expect": "killed",
+  "why": "`<pre/>` opens an element; run alone, killed by 9 rows of the two S339 files, first: Session 339 — `<pre `, `<script `, `<style ` and `<textarea ` openers with no `>` on one line are read in line"
+ },
+ {
+  "name": "W03 computeRegions raw-content count: the closing test is negated",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (tag.closing) {\n            rawContentDepth",
+  "to": "if (!tag.closing) {\n            rawContentDepth",
+  "expect": "killed",
+  "why": "a closer opens and an opener closes; run alone, killed by 39 rows of the two S339 files, first: Session 339 — `<pre `, `<script `, `<style ` and `<textarea ` openers with no `>` on one line are read in line"
+ },
+ {
+  "name": "W04 computeRegions raw-content count: the count has no floor",
+  "file": "src/core/qmd/model.ts",
+  "from": "rawContentDepth = Math.max(0, rawContentDepth - 1);",
+  "to": "rawContentDepth = rawContentDepth - 1;",
+  "expect": "killed",
+  "why": "a closer with nothing open takes the count below 0, and the opener after it no longer opens; run alone, killed by 7 rows of the two S339 files, first: Session 339 — `<pre `, `<script `, `<style ` and `<textarea ` openers with no `>` on one line are read in line"
+ },
+ {
+  "name": "W05 computeRegions raw-content count: a closer takes two",
+  "file": "src/core/qmd/model.ts",
+  "from": "rawContentDepth = Math.max(0, rawContentDepth - 1);",
+  "to": "rawContentDepth = Math.max(0, rawContentDepth - 2);",
+  "expect": "killed",
+  "why": "a closer ends two open elements; run alone, killed by 6 rows of the two S339 files, first: Session 339 review — elements opened and closed on several lines: the count goes past one (part 11) two opener"
+ },
+ {
+  "name": "W06 computeRegions raw-content count: an opener adds two",
+  "file": "src/core/qmd/model.ts",
+  "from": "rawContentDepth += 1;",
+  "to": "rawContentDepth += 2;",
+  "expect": "killed",
+  "why": "one closer leaves an element open; run alone, killed by 6 rows of the two S339 files, first: Session 339 — one opener line in each template: what the parent answered for the raw-content count (part 11) c"
+ },
+ {
+  "name": "W07 computeRegions raw-content count: an opener may sit at indent 4",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}$/.test(line.slice(0, tag.index))",
+  "to": "/^ {0,4}$/.test(line.slice(0, tag.index))",
+  "expect": "killed",
+  "why": "`    <pre>` is code, not an element; run alone, killed by 1 row of the two S339 files, first: Session 339 — one opener line in each template: what the parent answered for the raw-content count (part 11) i"
+ },
+ {
+  "name": "W08 computeRegions raw-content count: the indent test reads one character too far",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}$/.test(line.slice(0, tag.index))",
+  "to": "/^ {0,3}$/.test(line.slice(0, tag.index + 1))",
+  "expect": "killed",
+  "why": "the `<` itself is part of the indent, so no opener opens; run alone, killed by 39 rows of the two S339 files, first: Session 339 — `<pre `, `<script `, `<style ` and `<textarea ` openers with no `>` on one line are read in line"
+ },
+ {
+  "name": "W09 computeRegions raw-content count: every opener counts",
+  "file": "src/core/qmd/model.ts",
+  "from": "} else if (/^ {0,3}$/.test(line.slice(0, tag.index))) {",
+  "to": "} else {",
+  "expect": "killed",
+  "why": "`x <pre>` and `    <pre>` open an element; run alone, killed by 6 rows of the two S339 files, first: Session 339 — one opener line in each template: what the parent answered for the raw-content count (part 11) t"
+ },
+ {
+  "name": "W10 computeRegions raw-content count: the line is searched whether or not it holds a `<` (equivalent)",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (line.includes(\"<\")) {\n        // A native div is opened by a line that STARTS with",
+  "to": "if (line.length >= 0) {\n        // A native div is opened by a line that STARTS with",
+  "expect": "survives",
+  "why": "equivalent: the native-div tests and the tag reader all need a `<`, so a line without one changes nothing (the guard is only a saving); run alone, survives: no row of the two S339 files, qmd-model.test.ts or qmd-stacked-enders.test.ts fails"
+ },
+ {
+  "name": "W11 computeRegions raw-content count: only the first tag of a line counts",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (const tag of rawContentTags(line)) {",
+  "to": "for (const tag of rawContentTags(line).slice(0, 1)) {",
+  "expect": "killed",
+  "why": "`<pre></pre>` opens and never closes; run alone, killed by 5 rows of the two S339 files, first: Session 339 — `<pre `, `<script `, `<style ` and `<textarea ` openers with no `>` on one line are read in line"
+ },
+ {
+  "name": "W12 computeRegions raw-content count: the tags are taken last to first",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (const tag of rawContentTags(line)) {",
+  "to": "for (const tag of rawContentTags(line).reverse()) {",
+  "expect": "killed",
+  "why": "`<pre></pre>` closes at the floor and then opens; run alone, killed by 5 rows of the two S339 files, first: Session 339 — `<pre `, `<script `, `<style ` and `<textarea ` openers with no `>` on one line are read in line"
+ },
+ {
+  "name": "T01 rows file: the limit is 100 s",
+  "file": "test/unit/s339-raw-content-tag-rows.test.ts",
+  "from": "const LIMIT_MS = 1000;",
+  "to": "const LIMIT_MS = 100000;",
+  "expect": "killed",
+  "why": "no clock row could fail on the parent; the pin row of sizes and limits; run alone, killed by 2 rows of the two S339 files, first: Session 339 — `<pre `, `<script `, `<style ` and `<textarea ` openers with no `>` on one line are read in line"
+ },
+ {
+  "name": "T02 oracle file: the native-speed limit is 100 s",
+  "file": "test/unit/raw-content-tag-equivalence.test.ts",
+  "from": "const NATIVE_LIMIT_MS = 1000;",
+  "to": "const NATIVE_LIMIT_MS = 100000;",
+  "expect": "killed",
+  "why": "no native-speed row could fail on the quadratic spelling; the pin row of limits and sizes; run alone, killed by 1 row of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched keeps the li"
+ },
+ {
+  "name": "T03 oracle file: the native-speed run is 4,000 openers",
+  "file": "test/unit/raw-content-tag-equivalence.test.ts",
+  "from": "const NATIVE_PRE_RUN = 400_000;",
+  "to": "const NATIVE_PRE_RUN = 4_000;",
+  "expect": "killed",
+  "why": "the native-speed rows read 20,000 characters, which the quadratic spelling reads in a millisecond; the pin row of limits and sizes; run alone, killed by 1 row of the two S339 files, first: Session 339 — rawContentTags: the new function reads the tags the old raw-content pattern matched keeps the li"
+ }
+]
