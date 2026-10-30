@@ -330,15 +330,15 @@
  {
   "name": "W01 headingAttributeId: the two readers' atoms are swapped",
   "file": "src/core/qmd/model.ts",
-  "from": "    if (!(commonmarkDialect ? ATTR_ATOM_COMMONMARK.test(token) : attributeAtomRun(token))) {",
-  "to": "    if (!(commonmarkDialect ? attributeAtomRun(token) : ATTR_ATOM_COMMONMARK.test(token))) {",
+  "from": "    if (!(commonmarkDialect ? commonmarkAttributeAtom(token) : attributeAtomRun(token))) {",
+  "to": "    if (!(commonmarkDialect ? attributeAtomRun(token) : commonmarkAttributeAtom(token))) {",
   "expect": "killed",
   "why": "Session 219's reader split (commonmark_x takes the first id and refuses concatenation): `qmd-model.test.ts` and `refs.test.ts`"
  },
  {
   "name": "W02 headingAttributeId: every reader takes the pandoc atom run",
   "file": "src/core/qmd/model.ts",
-  "from": "    if (!(commonmarkDialect ? ATTR_ATOM_COMMONMARK.test(token) : attributeAtomRun(token))) {",
+  "from": "    if (!(commonmarkDialect ? commonmarkAttributeAtom(token) : attributeAtomRun(token))) {",
   "to": "    if (!attributeAtomRun(token)) {",
   "expect": "survives",
   "why": "EQUIVALENT given the caller's precondition, found by running it (the first label was killed, by reading: Learning 887): headingAttributeId is only asked of a block that headingAttributesValid accepted, so under commonmark_x every token is already one `#id`, one `.class` or a key=value; the pandoc run accepts every `#id` the CommonMark atom does, refuses the key=value as it does, and the classes the CommonMark atom takes and it does not (`.1cls`) hold no `#`, so they give no id either way. qmd-model.test.ts and refs.test.ts: 3,808 pass."
@@ -346,8 +346,8 @@
  {
   "name": "W03 headingAttributeId: every reader takes the CommonMark atom",
   "file": "src/core/qmd/model.ts",
-  "from": "    if (!(commonmarkDialect ? ATTR_ATOM_COMMONMARK.test(token) : attributeAtomRun(token))) {",
-  "to": "    if (!ATTR_ATOM_COMMONMARK.test(token)) {",
+  "from": "    if (!(commonmarkDialect ? commonmarkAttributeAtom(token) : attributeAtomRun(token))) {",
+  "to": "    if (!commonmarkAttributeAtom(token)) {",
   "expect": "killed",
   "why": "the pandoc family reads `{#sec-p20a#sec-p20b}` as one block: Session 218's rows of `qmd-model.test.ts`"
  },

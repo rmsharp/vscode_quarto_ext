@@ -435,8 +435,34 @@ export function headingAttributeStart(text: string): number {
  *
  * Both dialects share this set; they differ only in WHICH of the atoms wins — see
  * `headingAttributeId`.
+ *
+ * ⚠ **IT IS A LOOP BECAUSE THE PATTERN WAS A CLASS-PLUS UNDER THE `u` FLAG, AND V8 KEEPS ONE REGEX BACKTRACK ENTRY PER CHARACTER OF ONE (Session 338).**
+ * `/#([\p{L}\p{N}_:.-]+)/gu`, read with `token.matchAll(...)`, threw `RangeError: Maximum call stack size exceeded` on an id of 4,194,288 letters above
+ * U+00FF (4,194,287 read; Node 22.23, `# T {#` + letters + `}` through `findHeadings`, `buildOutline`, `indexLabels`, `findLabel`, `findAllCells` and
+ * `resolveDocumentEngine`, with no engine hint, `knitr` and `jupyter`), the entry being twice as large once the token holds one character above U+00FF (the
+ * subject is then stored with two bytes a character); a token of characters up to U+00FF read 60,000,000 letters. A fenced div, an image and a span reach it
+ * through `attributeBlockId` and throw out of `indexLabels` and `findLabel` the same. A thrown `RangeError` answers NOTHING for the whole document (Learnings
+ * 889, 890). This reads the same language in one pass with no stack: each `#`, then the run of identifier characters after it by {@link runEnd}, again and
+ * again; a `#` with no identifier character after it makes no id, and the next search starts where the run ended.
+ * ⚠ The run holds no `#`, so the ids are the maximal runs that have a `#` right before them: the shape the reading by definition in
+ * `test/unit/attr-id-run-equivalence.test.ts` uses, beside the old pattern copied verbatim (the oracle: every string of up to 7, 6 and 8 characters over three
+ * alphabets, every UTF-16 code unit at every place of three heads, 100,000 seeded tokens). ⚠ A letter or a number outside ASCII is one CODE POINT, as the `u`
+ * flag read it: a high surrogate followed by a low one is one letter and a surrogate on its own is neither a letter nor a number. ⚠ Under `commonmark_x` the
+ * token is judged by `commonmarkAttributeAtom` BEFORE it is read here, and that was a class-plus too, so the two sites hid each other: curing one alone leaves
+ * the throw (`test/unit/s338-attr-id-rows-commonmark*.test.ts`). Do not respell it as the pattern.
  */
-const ATTR_ID_ALL = /#([\p{L}\p{N}_:.-]+)/gu;
+export function attributeIds(token: string): string[] {
+  const ids: string[] = [];
+  let at = token.indexOf("#");
+  while (at !== -1) {
+    const end = runEnd(token, at + 1, IDENTIFIER_RUN);
+    if (end > at + 1) {
+      ids.push(token.slice(at + 1, end));
+    }
+    at = token.indexOf("#", end);
+  }
+  return ids;
+}
 /**
  * WHICH id a block carrying more than one of them defines, **per reader** (Session 219).
  *
@@ -484,11 +510,12 @@ function headingAttributeId(
   // same escaped-space branch.
   const found: string[] = [];
   for (const token of headingAttributeTokens(content, pandocEscapes)) {
-    if (!(commonmarkDialect ? ATTR_ATOM_COMMONMARK.test(token) : attributeAtomRun(token))) {
+    if (!(commonmarkDialect ? commonmarkAttributeAtom(token) : attributeAtomRun(token))) {
       continue;
     }
-    for (const m of token.matchAll(ATTR_ID_ALL)) {
-      found.push(m[1]);
+    // A loop and not `found.push(...attributeIds(token))`: a spread of 125,700 or more elements throws `RangeError` too, and a token of `#a` repeated holds that many ids.
+    for (const id of attributeIds(token)) {
+      found.push(id);
     }
   }
   if (found.length === 0) {
@@ -856,8 +883,34 @@ function attributeIdentifierEnd(token: string, from: number): number {
  * ⚠ `{-}` alone would justify the split: it is pandoc's documented shorthand for `.unnumbered`
  * and a shape quarto authors write constantly, so a predicate tuned to the pandoc family deletes
  * the braces from every `{-}` heading in a `commonmark_x` document.
+ *
+ * ⚠ **IT IS A LOOP BECAUSE THE PATTERN WAS A CLASS-PLUS UNDER THE `u` FLAG, AND V8 KEEPS ONE REGEX BACKTRACK ENTRY PER CHARACTER OF ONE (Session 338).**
+ * `/^(?:#[\p{L}\p{N}_:.-]+|\.[\p{L}\p{N}_:-]+)$/u` threw `RangeError: Maximum call stack size exceeded` on a token of `#` and 4,194,288 letters above U+00FF
+ * (4,194,287 read; Node 22.23) from `headingAttributesValid` and `headingAttributeId`, under `from: commonmark_x`, for a heading, a div, an image and a span: the
+ * entry is twice as large once the token holds one character above U+00FF, and a token of characters up to U+00FF read 60,000,000 letters. A thrown `RangeError`
+ * answers NOTHING for the whole document (Learnings 889, 890). This reads the same language in one pass with no stack: the first character, then ONE run of
+ * members by {@link runEnd} that must reach the end of the token, over the identifier characters after a `#` and over the same without the dot after a `.`
+ * (a class holds no dot: `.a.b` is no atom). A token of one character is no atom (`#` and `.` alone), and a first character that is neither is none.
+ * ⚠ A letter or a number outside ASCII is one CODE POINT, as the `u` flag read it: a high surrogate followed by a low one is one letter and a surrogate on its own
+ * is neither a letter nor a number. ⚠ The old pattern is the oracle in `test/unit/attr-id-run-equivalence.test.ts` (copied verbatim, beside a reading by
+ * definition with no regular expression). ⚠ This site is tested BEFORE `attributeIds` reads the ids, so it hid that site: curing either alone leaves the
+ * throw under `commonmark_x`. Do not respell it as the pattern.
  */
-const ATTR_ATOM_COMMONMARK = /^(?:#[\p{L}\p{N}_:.-]+|\.[\p{L}\p{N}_:-]+)$/u;
+export function commonmarkAttributeAtom(token: string): boolean {
+  if (token.length < 2) {
+    return false;
+  }
+  const first = token.charCodeAt(0);
+  if (first === 35) {
+    return runEnd(token, 1, IDENTIFIER_RUN) === token.length;
+  }
+  if (first === 46) {
+    return runEnd(token, 1, COMMONMARK_CLASS_RUN) === token.length;
+  }
+  return false;
+}
+/** `[\p{L}\p{N}_:-]`: the characters of a class under `commonmark_x`, an identifier's without the dot. */
+const COMMONMARK_CLASS_RUN = runClass("_:-");
 /**
  * `commonmark_x`'s `KEY=VALUE`: no single-quoted value, and a bare value that may hold neither
  * quote and may not be EMPTY (Session 218). `{key=}` and `{key='a b'}` and `{key=v"al}` are all
@@ -959,7 +1012,7 @@ function headingAttributesValid(
   if (commonmarkDialect) {
     return (
       tokens.length > 0 &&
-      tokens.every((t) => ATTR_ATOM_COMMONMARK.test(t) || ATTR_KEY_VALUE_COMMONMARK.test(t))
+      tokens.every((t) => commonmarkAttributeAtom(t) || ATTR_KEY_VALUE_COMMONMARK.test(t))
     );
   }
   return tokens.every((t) => attributeAtomRun(t) || attributeKeyValue(t));
