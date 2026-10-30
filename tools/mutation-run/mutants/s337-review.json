@@ -10,24 +10,24 @@
  {
   "name": "G2 readChunkLabelToken: the first-slot class has no colon",
   "file": "src/core/qmd/model.ts",
-  "from": "firstSlot ? /^[\\p{L}\\p{N}_:.-]+$/u.test(text)",
-  "to": "firstSlot ? /^[\\p{L}\\p{N}_.-]+$/u.test(text)",
+  "from": "firstSlot ? isRun(text, IDENTIFIER_RUN)",
+  "to": "firstSlot ? isRun(text, runClass(\"_.-\"))",
   "expect": "killed",
   "why": "`{r fig-a:b}` loses its label"
  },
  {
   "name": "G3 readChunkLabelToken: the first-slot class has no underscore",
   "file": "src/core/qmd/model.ts",
-  "from": "firstSlot ? /^[\\p{L}\\p{N}_:.-]+$/u.test(text)",
-  "to": "firstSlot ? /^[\\p{L}\\p{N}:.-]+$/u.test(text)",
+  "from": "firstSlot ? isRun(text, IDENTIFIER_RUN)",
+  "to": "firstSlot ? isRun(text, runClass(\":.-\"))",
   "expect": "killed",
   "why": "`{r fig-a_b}` and `{r tbl-x_y}` lose their labels"
  },
  {
   "name": "G4 readChunkLabelToken: the first-slot pattern has no start anchor",
   "file": "src/core/qmd/model.ts",
-  "from": "firstSlot ? /^[\\p{L}\\p{N}_:.-]+$/u.test(text)",
-  "to": "firstSlot ? /[\\p{L}\\p{N}_:.-]+$/u.test(text)",
+  "from": "firstSlot ? isRun(text, IDENTIFIER_RUN)",
+  "to": "firstSlot ? isRun(text.slice(-1), IDENTIFIER_RUN)",
   "expect": "killed",
   "why": "`knitrChunkHeaderLabel` accepts `{r fig-a$b}` (only the exported reader shows it; `indexLabels` validates the id again)"
  },

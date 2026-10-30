@@ -2,24 +2,24 @@
  {
   "name": "S01 readChunkLabelToken: every non-first-slot token is a symbol chain",
   "file": "src/core/qmd/model.ts",
-  "from": "/^[\\p{L}\\p{N}_:.-]+$/u.test(text) : isRSymbolChain(text);",
-  "to": "/^[\\p{L}\\p{N}_:.-]+$/u.test(text) : true;",
+  "from": "isRun(text, IDENTIFIER_RUN) : isRSymbolChain(text);",
+  "to": "isRun(text, IDENTIFIER_RUN) : true;",
   "expect": "killed",
   "why": "killed by the Session 303 header rows of refs.test.ts (the conservative declines: `fig-x-100000`, `fig-x-12345`, `fig-x-1e3`, `fig-x-.5`); run by hand on refs, refs-no-target, refs-cell-kinds and qmd-model: 12 failed of 6,354"
  },
  {
   "name": "S02 readChunkLabelToken: no non-first-slot token is a symbol chain",
   "file": "src/core/qmd/model.ts",
-  "from": "/^[\\p{L}\\p{N}_:.-]+$/u.test(text) : isRSymbolChain(text);",
-  "to": "/^[\\p{L}\\p{N}_:.-]+$/u.test(text) : false;",
+  "from": "isRun(text, IDENTIFIER_RUN) : isRSymbolChain(text);",
+  "to": "isRun(text, IDENTIFIER_RUN) : false;",
   "expect": "killed",
   "why": "killed by the Session 303 header rows of refs.test.ts (`label=fig-x`, `fig-x.b`, `fig-x:c`, `fig-x_d` stop defining); run by hand on refs, refs-no-target, refs-cell-kinds and qmd-model: 65 failed"
  },
  {
   "name": "S03 readChunkLabelToken: the non-first slots read the first slot's class",
   "file": "src/core/qmd/model.ts",
-  "from": "/^[\\p{L}\\p{N}_:.-]+$/u.test(text) : isRSymbolChain(text);",
-  "to": "/^[\\p{L}\\p{N}_:.-]+$/u.test(text) : /^[\\p{L}\\p{N}_:.-]+$/u.test(text);",
+  "from": "isRun(text, IDENTIFIER_RUN) : isRSymbolChain(text);",
+  "to": "isRun(text, IDENTIFIER_RUN) : isRun(text, IDENTIFIER_RUN);",
   "expect": "killed",
   "why": "killed by the Session 303 header rows of refs.test.ts (the conservative declines: `fig-x-100000`, `fig-x-12345`, `fig-x-1e3` become labels); run by hand on the same four files: 10 failed"
  },

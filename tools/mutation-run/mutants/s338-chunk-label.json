@@ -1,0 +1,458 @@
+[
+ {
+  "name": "A01 knitrHeaderAssignment: the leading blanks are not skipped",
+  "file": "src/core/qmd/model.ts",
+  "from": "const nameStart = skipBlanks(segment, 0);",
+  "to": "const nameStart = 0;",
+  "expect": "killed",
+  "why": "`  label  =  fig-x  ` (blanks before the name) is no assignment, so the table rows and every enumeration with a leading space disagree with the pattern; killed by: eaderLabel answered blanks all around are dropped from the value and kept in the prefix: \"  label  =  fig-x  \""
+ },
+ {
+  "name": "A02 knitrHeaderAssignment: only a double quote opens a quoted name",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (first === 34 || first === 39) {",
+  "to": "if (first === 34) {",
+  "expect": "killed",
+  "why": "`'a b'=1` is no assignment; killed by: the groups the argument pattern of knitrChunkHeaderLabel answered a single-quoted name holds blanks: \"'a b'=1\""
+ },
+ {
+  "name": "A04 knitrHeaderAssignment: a backslash does not end a quoted name's content",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (c === 34 || c === 39 || c === 92) {",
+  "to": "if (c === 34 || c === 39) {",
+  "expect": "killed",
+  "why": "`\"a\\b\"=1` is read as an assignment with a quoted name that holds a backslash; killed by: s the groups the argument pattern of knitrChunkHeaderLabel answered a backslash in a quoted name: \"\\\"a\\\\b\\\"=1\""
+ },
+ {
+  "name": "A05 knitrHeaderAssignment: the other quote does not end a quoted name's content",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (c === 34 || c === 39 || c === 92) {",
+  "to": "if (c === 34 || c === 92) {",
+  "expect": "killed",
+  "why": "`\"a'b\"=1` is read as an assignment; killed by: the groups the argument pattern of knitrChunkHeaderLabel answered a single-quoted name holds blanks: \"'a b'=1\""
+ },
+ {
+  "name": "A07 knitrHeaderAssignment: a quoted name must close with a double quote",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (segment.charCodeAt(close) !== first) {",
+  "to": "if (segment.charCodeAt(close) !== 34) {",
+  "expect": "killed",
+  "why": "`'a b'=1` is refused; killed by: the groups the argument pattern of knitrChunkHeaderLabel answered a single-quoted name holds blanks: \"'a b'=1\""
+ },
+ {
+  "name": "A10 knitrHeaderAssignment: the name ends at its closing quote, not past it",
+  "file": "src/core/qmd/model.ts",
+  "from": "nameEnd = close + 1;",
+  "to": "nameEnd = close;",
+  "expect": "killed",
+  "why": "the closing quote is read where the equals sign belongs: every quoted name is refused; killed by: ignment answers the groups the argument pattern of knitrChunkHeaderLabel answered a quoted name: \"\\\"label\\\"=x\""
+ },
+ {
+  "name": "A11 knitrHeaderAssignment: a comma, not a dot, may start a bare name",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (first === 46) {",
+  "to": "if (first === 44) {",
+  "expect": "killed",
+  "why": "`.x=1` is refused and `,x=1` accepted; killed by:  answers the groups the argument pattern of knitrChunkHeaderLabel answered a name may start with a dot: \".x=1\""
+ },
+ {
+  "name": "A12 knitrHeaderAssignment: a digit or an underscore may start a bare name",
+  "file": "src/core/qmd/model.ts",
+  "from": "} else if (rSymbolStartsAt(segment, nameStart)) {",
+  "to": "} else if (rSymbolContinuesAt(segment, nameStart)) {",
+  "expect": "killed",
+  "why": "`1a=2` and `_a=2` become assignments; killed by: rs the groups the argument pattern of knitrChunkHeaderLabel answered a name may not start with a digit: \"1a=2\""
+ },
+ {
+  "name": "A13 knitrHeaderAssignment: a letter of two code units is read one code unit wide",
+  "file": "src/core/qmd/model.ts",
+  "from": "nameEnd = nameStart + ((segment.codePointAt(nameStart) as number) > 0xffff ? 2 : 1);",
+  "to": "nameEnd = nameStart + 1;",
+  "expect": "survives",
+  "why": "EQUIVALENT: the name run then starts in the middle of the letter's surrogate pair, and a sticky unicode test whose `lastIndex` is inside a pair re-matches the whole pair (the matcher steps back to the lead surrogate), so `runEnd` still reads the letter: `𝐀=1` and every name that starts with an astral letter read as before. Differential against the committed function: 1,113,616 generated cases, 0 differ."
+ },
+ {
+  "name": "A14 knitrHeaderAssignment: a letter above U+0FFF is read two code units wide",
+  "file": "src/core/qmd/model.ts",
+  "from": "nameEnd = nameStart + ((segment.codePointAt(nameStart) as number) > 0xffff ? 2 : 1);",
+  "to": "nameEnd = nameStart + ((segment.codePointAt(nameStart) as number) > 0xfff ? 2 : 1);",
+  "expect": "killed",
+  "why": "the CJK letter U+4E2D at the start of a name takes the equals sign with it: `中=1` is refused; killed by: ignment answers the groups the argument pattern of knitrChunkHeaderLabel answered a letter above U+00FF: \"中=1\""
+ },
+ {
+  "name": "A15 knitrHeaderAssignment: the rest of the name is not read",
+  "file": "src/core/qmd/model.ts",
+  "from": "nameEnd = runEnd(segment, nameEnd, KNITR_ARGUMENT_NAME);",
+  "to": "nameEnd = nameEnd + 0;",
+  "expect": "killed",
+  "why": "`a.b_1=2` and every bare name of more than one character are refused; killed by: derAssignment answers the groups the argument pattern of knitrChunkHeaderLabel answered a label: \"label=fig-x\""
+ },
+ {
+  "name": "A16 knitrHeaderAssignment: the name has no underscore",
+  "file": "src/core/qmd/model.ts",
+  "from": "const KNITR_ARGUMENT_NAME = runClass(\"._\");",
+  "to": "const KNITR_ARGUMENT_NAME = runClass(\".\");",
+  "expect": "killed",
+  "why": "`a.b_1=2` is refused; killed by: ument pattern of knitrChunkHeaderLabel answered a name holds letters, numbers, dots and underscores: \"a.b_1=2\""
+ },
+ {
+  "name": "A17 knitrHeaderAssignment: the name has no dot after its first character",
+  "file": "src/core/qmd/model.ts",
+  "from": "const KNITR_ARGUMENT_NAME = runClass(\"._\");",
+  "to": "const KNITR_ARGUMENT_NAME = runClass(\"_\");",
+  "expect": "killed",
+  "why": "`a.b_1=2` is refused; killed by: ument pattern of knitrChunkHeaderLabel answered a name holds letters, numbers, dots and underscores: \"a.b_1=2\""
+ },
+ {
+  "name": "A18 knitrHeaderAssignment: the name may hold a dash",
+  "file": "src/core/qmd/model.ts",
+  "from": "const KNITR_ARGUMENT_NAME = runClass(\"._\");",
+  "to": "const KNITR_ARGUMENT_NAME = runClass(\"._-\");",
+  "expect": "killed",
+  "why": "`a-b=1` is read as an assignment; killed by: gnment answers the groups the argument pattern of knitrChunkHeaderLabel answered a name holds no dash: \"a-b=1\""
+ },
+ {
+  "name": "A20 knitrHeaderAssignment: no blanks are skipped before the equals sign",
+  "file": "src/core/qmd/model.ts",
+  "from": "let at = skipBlanks(segment, nameEnd);",
+  "to": "let at = nameEnd;",
+  "expect": "killed",
+  "why": "`label\\t=\\tfig-x\\t` and every `a =` is refused; killed by: eaderLabel answered blanks all around are dropped from the value and kept in the prefix: \"  label  =  fig-x  \""
+ },
+ {
+  "name": "A21 knitrHeaderAssignment: an equals sign may be followed by another",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (segment.charCodeAt(at) !== 61 || segment.charCodeAt(at + 1) === 61) {",
+  "to": "if (segment.charCodeAt(at) !== 61) {",
+  "expect": "killed",
+  "why": "`a==b` and `a===` become assignments; killed by: s the groups the argument pattern of knitrChunkHeaderLabel answered two equals signs are no assignment: \"a==b\""
+ },
+ {
+  "name": "A22 knitrHeaderAssignment: the equals sign is not required",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (segment.charCodeAt(at) !== 61 || segment.charCodeAt(at + 1) === 61) {",
+  "to": "if (segment.charCodeAt(at + 1) === 61) {",
+  "expect": "killed",
+  "why": "a bare name `a` is an assignment with no value; killed by: gnment answers the groups the argument pattern of knitrChunkHeaderLabel answered a name holds no dash: \"a-b=1\""
+ },
+ {
+  "name": "A24 knitrHeaderAssignment: no blanks are skipped after the equals sign",
+  "file": "src/core/qmd/model.ts",
+  "from": "at = skipBlanks(segment, at + 1);",
+  "to": "at = at + 1;",
+  "expect": "killed",
+  "why": "`label  =  fig-x` has a value that starts with blanks, and the prefix is shorter; killed by: eaderLabel answered blanks all around are dropped from the value and kept in the prefix: \"  label  =  fig-x  \""
+ },
+ {
+  "name": "A25 knitrHeaderAssignment: an empty value is an empty string",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (at < length) {",
+  "to": "if (at <= length) {",
+  "expect": "killed",
+  "why": "group 5 of `a=` is `\"\"`, not unset; killed by: knitrHeaderAssignment answers the groups the argument pattern of knitrChunkHeaderLabel answered no value: \"a=\""
+ },
+ {
+  "name": "A26 knitrHeaderAssignment: a tab is no trailing blank",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (segment.charCodeAt(end - 1) === 32 || segment.charCodeAt(end - 1) === 9) {",
+  "to": "while (segment.charCodeAt(end - 1) === 32) {",
+  "expect": "killed",
+  "why": "the value of `label\\t=\\tfig-x\\t` keeps its trailing tab; killed by: nswers the groups the argument pattern of knitrChunkHeaderLabel answered a tab is a blank: \"label\\t=\\tfig-x\\t\""
+ },
+ {
+  "name": "A28 knitrHeaderAssignment: the trailing blanks stay in the value",
+  "file": "src/core/qmd/model.ts",
+  "from": "value = segment.slice(at, end);",
+  "to": "value = segment.slice(at);",
+  "expect": "killed",
+  "why": "the value of `a=x ` is `x `; killed by: eaderLabel answered blanks all around are dropped from the value and kept in the prefix: \"  label  =  fig-x  \""
+ },
+ {
+  "name": "A29 knitrHeaderAssignment: the value loses its last character",
+  "file": "src/core/qmd/model.ts",
+  "from": "value = segment.slice(at, end);",
+  "to": "value = segment.slice(at, end - 1);",
+  "expect": "killed",
+  "why": "the value of `a=b` is empty; killed by: rs the groups the argument pattern of knitrChunkHeaderLabel answered a name, an equals sign and a value: \"a=b\""
+ },
+ {
+  "name": "A30 knitrHeaderAssignment: the prefix stops at the name",
+  "file": "src/core/qmd/model.ts",
+  "from": "return Object.assign([segment, segment.slice(0, at), bareName, quote, quotedName, value] as",
+  "to": "return Object.assign([segment, segment.slice(0, nameEnd), bareName, quote, quotedName, value] as",
+  "expect": "killed",
+  "why": "group 1 of `label=fig-x` is `label`: the label's column is wrong; killed by: rs the groups the argument pattern of knitrChunkHeaderLabel answered a name, an equals sign and a value: \"a=b\""
+ },
+ {
+  "name": "A32 knitrHeaderAssignment: the match does not start at index 0",
+  "file": "src/core/qmd/model.ts",
+  "from": "{ index: 0 as const }",
+  "to": "{ index: 1 as const }",
+  "expect": "killed",
+  "why": "`sameMatch` compares the index of the old match, 0; killed by: rs the groups the argument pattern of knitrChunkHeaderLabel answered a name, an equals sign and a value: \"a=b\""
+ },
+ {
+  "name": "C01 knitrChunkHeaderLabel: every segment is an assignment",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (assignment === null) {",
+  "to": "if (assignment !== null) {",
+  "expect": "killed",
+  "why": "an unnamed label is read as an option and a named one as a label: every header row changes; killed by: unkHeaderLabel: blanks before the equals sign: is read without throwing and the answer is the short document's"
+ },
+ {
+  "name": "C02 knitrChunkHeaderLabel: the name of a quoted argument is its quote",
+  "file": "src/core/qmd/model.ts",
+  "from": "const name = (assignment[2] ?? assignment[4]) as string;",
+  "to": "const name = (assignment[2] ?? assignment[3]) as string;",
+  "expect": "killed",
+  "why": "`\"label\"=fig-x` is no label, and `\"child\"=` no longer declines; killed by: ents with Unicode identifiers and with strings: {r \"label\"=\"fig-x\"} — a string-literal `label` is label= (g40)"
+ },
+ {
+  "name": "C03 knitrChunkHeaderLabel: the label's column is where the segment starts",
+  "file": "src/core/qmd/model.ts",
+  "from": "named.push({ value, start: start + assignment[1].length });",
+  "to": "named.push({ value, start });",
+  "expect": "killed",
+  "why": "the column of `label=fig-x` is that of `label`; killed by: unkHeaderLabel: blanks before the equals sign: is read without throwing and the answer is the short document's"
+ },
+ {
+  "name": "R01 readChunkLabelToken: the first slot has no colon",
+  "file": "src/core/qmd/model.ts",
+  "from": "const written = firstSlot ? isRun(text, IDENTIFIER_RUN) : isRSymbolChain(text);",
+  "to": "const written = firstSlot ? isRun(text, runClass(\"_.-\")) : isRSymbolChain(text);",
+  "expect": "killed",
+  "why": "`{r fig-a:b}` loses its label; killed by:  answered a colon, an underscore, a dot, a dash and digits are of the class: \"fig-a:b_c.d-1\" in the first slot"
+ },
+ {
+  "name": "R02 readChunkLabelToken: the first slot has no underscore",
+  "file": "src/core/qmd/model.ts",
+  "from": "const written = firstSlot ? isRun(text, IDENTIFIER_RUN) : isRSymbolChain(text);",
+  "to": "const written = firstSlot ? isRun(text, runClass(\":.-\")) : isRSymbolChain(text);",
+  "expect": "killed",
+  "why": "`{r fig-a_b}` loses its label; killed by:  answered a colon, an underscore, a dot, a dash and digits are of the class: \"fig-a:b_c.d-1\" in the first slot"
+ },
+ {
+  "name": "R04 readChunkLabelToken: the first slot has no dash",
+  "file": "src/core/qmd/model.ts",
+  "from": "const written = firstSlot ? isRun(text, IDENTIFIER_RUN) : isRSymbolChain(text);",
+  "to": "const written = firstSlot ? isRun(text, runClass(\"_:.\")) : isRSymbolChain(text);",
+  "expect": "killed",
+  "why": "`fig-x` in the first slot is refused: no figure label is read; killed by: answers what the first-slot test and the quoted test of the parent answered a label: \"fig-x\" in the first slot"
+ },
+ {
+  "name": "R05 readChunkLabelToken: the first slot takes a dollar",
+  "file": "src/core/qmd/model.ts",
+  "from": "const written = firstSlot ? isRun(text, IDENTIFIER_RUN) : isRSymbolChain(text);",
+  "to": "const written = firstSlot ? isRun(text, runClass(\"_:.-$\")) : isRSymbolChain(text);",
+  "expect": "killed",
+  "why": "`fig-a$` in the first slot is a label; killed by: est and the quoted test of the parent answered a dollar is no identifier character: \"fig-a$\" in the first slot"
+ },
+ {
+  "name": "R06 readChunkLabelToken: only the start of the first-slot token is read",
+  "file": "src/core/qmd/model.ts",
+  "from": "const written = firstSlot ? isRun(text, IDENTIFIER_RUN) : isRSymbolChain(text);",
+  "to": "const written = firstSlot ? runEnd(text, 0, IDENTIFIER_RUN) > 0 : isRSymbolChain(text);",
+  "expect": "killed",
+  "why": "`fig-a$` and `fig-a b` in the first slot are labels; killed by: est and the quoted test of the parent answered a space is no identifier character: \"fig-a b\" in the first slot"
+ },
+ {
+  "name": "R08 readChunkLabelToken: the slots are swapped",
+  "file": "src/core/qmd/model.ts",
+  "from": "const written = firstSlot ? isRun(text, IDENTIFIER_RUN) : isRSymbolChain(text);",
+  "to": "const written = !firstSlot ? isRun(text, IDENTIFIER_RUN) : isRSymbolChain(text);",
+  "expect": "killed",
+  "why": "the first slot reads a symbol chain and the others the class; killed by: e first-slot test and the quoted test of the parent answered a digit may start a token: \"1a\" in the first slot"
+ },
+ {
+  "name": "R09 readChunkLabelToken: a quoted label starts at its first character",
+  "file": "src/core/qmd/model.ts",
+  "from": "return { value: quoted[2], offset: 1 };",
+  "to": "return { value: quoted[2], offset: 0 };",
+  "expect": "killed",
+  "why": "the column of `label=\"fig-x\"` is that of the quote; killed by: d test of the parent answered a double-quoted string is the text written inside: \"\\\"fig-x\\\"\" in the first slot"
+ },
+ {
+  "name": "R10 readChunkLabelToken: a bare label starts after its first character",
+  "file": "src/core/qmd/model.ts",
+  "from": "return written ? { value: text, offset: 0 } : null;",
+  "to": "return written ? { value: text, offset: 1 } : null;",
+  "expect": "killed",
+  "why": "the column of `{r fig-x}` is one too far; killed by: en answers what the first-slot test and the quoted test of the parent answered a letter: \"a\" in the first slot"
+ },
+ {
+  "name": "H01 headerLabelKind: the figure prefix has no dash",
+  "file": "src/core/refs.ts",
+  "from": "const kind = label.startsWith(\"fig-\") ? \"fig\" : label.startsWith(\"tbl-\") ? \"tbl\" : null;",
+  "to": "const kind = label.startsWith(\"fig\") ? \"fig\" : label.startsWith(\"tbl-\") ? \"tbl\" : null;",
+  "expect": "killed",
+  "why": "`figx` and `fig` followed by a letter define a figure; killed by: out their dash, a dash, a letter, a colon, a dollar, a non-ASCII letter and the two halves of an astral letter"
+ },
+ {
+  "name": "H03 headerLabelKind: a table is a figure",
+  "file": "src/core/refs.ts",
+  "from": "const kind = label.startsWith(\"fig-\") ? \"fig\" : label.startsWith(\"tbl-\") ? \"tbl\" : null;",
+  "to": "const kind = label.startsWith(\"fig-\") ? \"fig\" : label.startsWith(\"tbl-\") ? \"fig\" : null;",
+  "expect": "killed",
+  "why": "`tbl-x` defines a figure; killed by: Session 338 — headerLabelKind answers what HEADER_LABEL_ID answered a table: \"tbl-x\""
+ },
+ {
+  "name": "H04 headerLabelKind: a table prefix is not read",
+  "file": "src/core/refs.ts",
+  "from": "const kind = label.startsWith(\"fig-\") ? \"fig\" : label.startsWith(\"tbl-\") ? \"tbl\" : null;",
+  "to": "const kind = label.startsWith(\"fig-\") ? \"fig\" : null;",
+  "expect": "killed",
+  "why": "`tbl-x` defines nothing; killed by: Session 338 — headerLabelKind answers what HEADER_LABEL_ID answered a table: \"tbl-x\""
+ },
+ {
+  "name": "H05 headerLabelKind: a kind and a dash alone are a label",
+  "file": "src/core/refs.ts",
+  "from": "return kind !== null && label.length > 4 && runEnd(label, 4, IDENTIFIER_RUN) === label.length ? kind : null;",
+  "to": "return kind !== null && label.length > 3 && runEnd(label, 4, IDENTIFIER_RUN) === label.length ? kind : null;",
+  "expect": "killed",
+  "why": "`fig-` and `tbl-` define a label with no name; killed by: Session 338 — headerLabelKind answers what HEADER_LABEL_ID answered the kind and a dash and nothing: \"fig-\""
+ },
+ {
+  "name": "H06 headerLabelKind: a label of one character is no label",
+  "file": "src/core/refs.ts",
+  "from": "return kind !== null && label.length > 4 && runEnd(label, 4, IDENTIFIER_RUN) === label.length ? kind : null;",
+  "to": "return kind !== null && label.length > 5 && runEnd(label, 4, IDENTIFIER_RUN) === label.length ? kind : null;",
+  "expect": "killed",
+  "why": "`fig-x` defines nothing; killed by: Session 338 — headerLabelKind answers what HEADER_LABEL_ID answered a figure: \"fig-x\""
+ },
+ {
+  "name": "H07 headerLabelKind: the name is read from its second character",
+  "file": "src/core/refs.ts",
+  "from": "return kind !== null && label.length > 4 && runEnd(label, 4, IDENTIFIER_RUN) === label.length ? kind : null;",
+  "to": "return kind !== null && label.length > 4 && runEnd(label, 5, IDENTIFIER_RUN) === label.length ? kind : null;",
+  "expect": "killed",
+  "why": "`fig-$a` is a figure; killed by: Session 338 — headerLabelKind answers what HEADER_LABEL_ID answered a lone high half: \"fig-\\ud835\""
+ },
+ {
+  "name": "H08 headerLabelKind: any name is accepted",
+  "file": "src/core/refs.ts",
+  "from": "return kind !== null && label.length > 4 && runEnd(label, 4, IDENTIFIER_RUN) === label.length ? kind : null;",
+  "to": "return kind !== null && label.length > 4 && runEnd(label, 4, IDENTIFIER_RUN) <= label.length ? kind : null;",
+  "expect": "killed",
+  "why": "`fig-a$` and `fig-a b` are figures; killed by: Session 338 — headerLabelKind answers what HEADER_LABEL_ID answered a dollar at the end: \"fig-a$\""
+ },
+ {
+  "name": "W01 indexLabels: a header label is indexed whether or not the cell makes a target",
+  "file": "src/core/refs.ts",
+  "from": "if (header !== null && headerKind !== null && !makesNoTarget(headerKind, header.value)) {",
+  "to": "if (header !== null && headerKind !== null) {",
+  "expect": "killed",
+  "why": "a cell that makes no target still defines its header label (needs refs-no-target.test.ts: none of the new files has such a cell); killed by: ines no figure label a header option that stops the figure eval=FALSE: nothing runs, so no figure exists (a15)"
+ },
+ {
+  "name": "W02 indexLabels: a header label is indexed only when the cell makes no target",
+  "file": "src/core/refs.ts",
+  "from": "if (header !== null && headerKind !== null && !makesNoTarget(headerKind, header.value)) {",
+  "to": "if (header !== null && headerKind !== null && makesNoTarget(headerKind, header.value)) {",
+  "expect": "killed",
+  "why": "every labelled figure cell is lost; killed by: m, indexLabels: blanks before the equals sign: is read without throwing and the answer is the short document's"
+ },
+ {
+  "name": "W03 indexLabels: every header label is a figure",
+  "file": "src/core/refs.ts",
+  "from": "labels.push({ id: header.value, kind: headerKind, line: cell.startLine, column: header.column });",
+  "to": "labels.push({ id: header.value, kind: \"fig\", line: cell.startLine, column: header.column });",
+  "expect": "killed",
+  "why": "a `tbl-` label in a chunk header is indexed as a figure; killed by:  a knitr chunk HEADER carries the cell's label a `tbl-` header label defines a table, at its column (b01, b05)"
+ },
+ {
+  "name": "T01 token rows: the run is below the first throw",
+  "file": "test/unit/s338-chunk-label-rows-token.test.ts",
+  "from": "const N = 8_400_000;",
+  "to": "const N = 800_000;",
+  "expect": "killed",
+  "why": "the sizes row says the run is twice the parent's first throw; killed by: angeError on a long line or a long list\", site 6, place a) keeps the sizes and the limit the rows are built on"
+ },
+ {
+  "name": "T05 name rows: the label= rows sit below the throw of the kind reader",
+  "file": "test/unit/s338-chunk-label-rows-name.test.ts",
+  "from": "const N_BETWEEN = 6_000_000;",
+  "to": "const N_BETWEEN = 3_000_000;",
+  "expect": "killed",
+  "why": "the sizes row says N_BETWEEN is past the first throw of the kind reader; killed by: or on a long line or a long list\", site 6, places b and c) keeps the sizes and the limit the rows are built on"
+ },
+ {
+  "name": "T07 value rows: the long rows are below twice the value's first throw",
+  "file": "test/unit/s338-chunk-label-rows-value.test.ts",
+  "from": "const N = 16_800_000;",
+  "to": "const N = 12_000_000;",
+  "expect": "killed",
+  "why": "the sizes row says the run is twice the first throw; killed by: angeError on a long line or a long list\", site 6, place b) keeps the sizes and the limit the rows are built on"
+ },
+ {
+  "name": "T09 rows support: the wide option holds no character above U+00FF",
+  "file": "test/unit/support/chunk-label-rows.ts",
+  "from": "export const WIDE_OPTION = ', x=\"中\"';",
+  "to": "export const WIDE_OPTION = ', x=\"a\"';",
+  "expect": "killed",
+  "why": "the wide form is a one-byte line: the sizes rows pin the option; killed by: angeError on a long line or a long list\", site 6, place b) keeps the sizes and the limit the rows are built on"
+ },
+ {
+  "name": "T11 assignment oracle: the first enumeration's accepted count is one too many",
+  "file": "test/unit/knitr-header-assignment-equivalence.test.ts",
+  "from": "const COUNTS = {\n  e1: { accepted: 59_904, quoted: 0, valued: 53_496 },",
+  "to": "const COUNTS = {\n  e1: { accepted: 59_905, quoted: 0, valued: 53_496 },",
+  "expect": "killed",
+  "why": "the pinned count is the Python port's; killed by: very string of up to seven characters over a letter, a digit, a dot, an underscore, an equals sign and a space"
+ },
+ {
+  "name": "T13 assignment oracle: an alphabet member is replaced",
+  "file": "test/unit/knitr-header-assignment-equivalence.test.ts",
+  "from": "const ALPHABET_E1 = [\"a\", \"1\", \".\", \"_\", \"=\", \" \"];",
+  "to": "const ALPHABET_E1 = [\"a\", \"1\", \".\", \"-\", \"=\", \" \"];",
+  "expect": "killed",
+  "why": "the enumeration's accepted count changes; killed by: very string of up to seven characters over a letter, a digit, a dot, an underscore, an equals sign and a space"
+ },
+ {
+  "name": "T15 token oracle: the long rows are a tenth of the size",
+  "file": "test/unit/chunk-label-token-equivalence.test.ts",
+  "from": "const BEYOND = 8_500_000;",
+  "to": "const BEYOND = 850_000;",
+  "expect": "killed",
+  "why": "the pin row says the run is twice the first throw; killed by: el readers on long tokens keeps the limits, the sizes, the seeds and the alphabets the rows above are built on"
+ },
+ {
+  "name": "T16 token oracle: a header kind count is one too few",
+  "file": "test/unit/chunk-label-token-equivalence.test.ts",
+  "from": "const COUNTS = {\n  t1: { quoted: 0, plain: 55_986 },\n  t2: { quoted: 242, plain: 1_092 },\n  t3: { quoted: 0, plain: 23_408 },\n  k1: { fig: 5_491, tbl: 5_491 },",
+  "to": "const COUNTS = {\n  t1: { quoted: 0, plain: 55_986 },\n  t2: { quoted: 242, plain: 1_092 },\n  t3: { quoted: 0, plain: 23_408 },\n  k1: { fig: 5_490, tbl: 5_491 },",
+  "expect": "killed",
+  "why": "the pinned count is the Python port's; killed by: out their dash, a dash, a letter, a colon, a dollar, a non-ASCII letter and the two halves of an astral letter"
+ },
+ {
+  "name": "E01 headerLabelKind: the name is read from the dash (a dash is a member)",
+  "file": "src/core/refs.ts",
+  "from": "return kind !== null && label.length > 4 && runEnd(label, 4, IDENTIFIER_RUN) === label.length ? kind : null;",
+  "to": "return kind !== null && label.length > 4 && runEnd(label, 3, IDENTIFIER_RUN) === label.length ? kind : null;",
+  "expect": "survives",
+  "why": "EQUIVALENT: `-` is a member of IDENTIFIER_RUN and `fig-` / `tbl-` end in it, so reading the run from the dash (index 3) ends where reading it from index 4 does, for every label of more than four characters (the length guard keeps `fig-` alone out). Differential against the committed function: 1,113,616 generated cases, 0 differ."
+ },
+ {
+  "name": "E02 knitrHeaderAssignment: the quoted-name scan may step one past the end",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (close < length) {",
+  "to": "while (close <= length) {",
+  "expect": "survives",
+  "why": "EQUIVALENT: the scan may step one past the end, where `charCodeAt` answers NaN, which is none of the stop characters, and the test of the closing quote then fails on NaN as it did at `length`. Differential against the committed function: 1,113,616 generated cases, 0 differ."
+ },
+ {
+  "name": "E03 knitrHeaderAssignment: a value is looked for unless the blanks reach exactly the end",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (at < length) {",
+  "to": "if (at !== length) {",
+  "expect": "survives",
+  "why": "EQUIVALENT: `at` is never past `length` (`skipBlanks` stops at the end), so `at !== length` is `at < length`. Differential against the committed function: 1,113,616 generated cases, 0 differ."
+ },
+ {
+  "name": "E05 knitrHeaderAssignment: the name class lists the underscore first",
+  "file": "src/core/qmd/model.ts",
+  "from": "const KNITR_ARGUMENT_NAME = runClass(\"._\");",
+  "to": "const KNITR_ARGUMENT_NAME = runClass(\"_.\");",
+  "expect": "survives",
+  "why": "EQUIVALENT: the order of the punctuation handed to `runClass` does not matter. Differential against the committed function: 1,113,616 generated cases, 0 differ."
+ }
+]
