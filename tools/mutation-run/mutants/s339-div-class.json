@@ -1,0 +1,474 @@
+[
+ {
+  "name": "A01 classValueMayHoldEscape: the loop starts at 1",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let i = 0; i < tail.length; i++) {\n    const code",
+  "to": "for (let i = 1; i < tail.length; i++) {\n    const code",
+  "expect": "killed",
+  "why": "a `class=` at index 0 is never seen; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "A02 classValueMayHoldEscape: the loop stops one character short",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let i = 0; i < tail.length; i++) {\n    const code",
+  "to": "for (let i = 0; i < tail.length - 1; i++) {\n    const code",
+  "expect": "killed",
+  "why": "an escape in the last character is never seen; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "A03 classValueMayHoldEscape: the loop reads one position past the end",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let i = 0; i < tail.length; i++) {\n    const code",
+  "to": "for (let i = 0; i <= tail.length; i++) {\n    const code",
+  "expect": "survives",
+  "why": "NO WITNESS, equivalent: charCodeAt(length) is NaN, which equals no code the loop tests, and startsWith is not reached"
+ },
+ {
+  "name": "A04 classValueMayHoldEscape: the loop steps by two",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let i = 0; i < tail.length; i++) {\n    const code",
+  "to": "for (let i = 0; i < tail.length; i += 2) {\n    const code",
+  "expect": "killed",
+  "why": "every other character is never read; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "A05 classValueMayHoldEscape: the code unit is cut to its low byte",
+  "file": "src/core/qmd/model.ts",
+  "from": "const code = tail.charCodeAt(i);",
+  "to": "const code = tail.charCodeAt(i) & 0xff;",
+  "expect": "killed",
+  "why": "U+017D, U+015C, U+0126 and U+0163 read as a brace, a backslash, an ampersand and a `c`: only the code-unit sweep puts them in; run alone, killed by: classValueMayHoldEscape: seeded texts, runs and every code unit every UTF-16 code unit at every place of `class=&`, also by definition"
+ },
+ {
+  "name": "A06 classValueMayHoldEscape: the code point is read in place of the code unit",
+  "file": "src/core/qmd/model.ts",
+  "from": "const code = tail.charCodeAt(i);",
+  "to": "const code = tail.codePointAt(i) ?? 0;",
+  "expect": "survives",
+  "why": "NO WITNESS, equivalent: a code point above U+FFFF is never a brace, a backslash, an ampersand or a `c`, and the index still steps by one code unit, so the low half of a pair is read alone (as it was) and matches nothing"
+ },
+ {
+  "name": "A07 classValueMayHoldEscape: a cap of 4,096 characters",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let i = 0; i < tail.length; i++) {\n    const code",
+  "to": "for (let i = 0; i < Math.min(tail.length, 4096); i++) {\n    const code",
+  "expect": "killed",
+  "why": "an escape past the cap is never seen; run alone, killed by: classValueMayHoldEscape: seeded texts, runs and every code unit a grid of runs of the token, its near misses and a `}`, behind six leads and in front of ten endings"
+ },
+ {
+  "name": "A08 classValueMayHoldEscape: a cap of 65,536 characters",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let i = 0; i < tail.length; i++) {\n    const code",
+  "to": "for (let i = 0; i < Math.min(tail.length, 65536); i++) {\n    const code",
+  "expect": "killed",
+  "why": "an escape past the cap is never seen; run alone, killed by: classValueMayHoldEscape on lines of 10,000,000 characters 1,700,000 `class=` and an ampersand"
+ },
+ {
+  "name": "A09 classValueMayHoldEscape: a cap of 2^20 characters",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let i = 0; i < tail.length; i++) {\n    const code",
+  "to": "for (let i = 0; i < Math.min(tail.length, 1048576); i++) {\n    const code",
+  "expect": "killed",
+  "why": "an escape past the cap is never seen: only the rows of 10,000,000 characters reach it; run alone, killed by: classValueMayHoldEscape on lines of 10,000,000 characters 1,700,000 `class=` and an ampersand"
+ },
+ {
+  "name": "B01 classValueMayHoldEscape: the brace is U+007C",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (code === 0x7d) {",
+  "to": "if (code === 0x7c) {",
+  "expect": "killed",
+  "why": "a `}` no longer ends the stretch; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "B02 classValueMayHoldEscape: a brace sets the flag",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (code === 0x7d) {\n      classEnded = false;",
+  "to": "if (code === 0x7d) {\n      classEnded = true;",
+  "expect": "killed",
+  "why": "`class=}&` is no longer refused; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "B03 classValueMayHoldEscape: a brace clears nothing",
+  "file": "src/core/qmd/model.ts",
+  "from": "      classEnded = false;\n    } else if (code === 0x5c",
+  "to": "      classEnded = classEnded;\n    } else if (code === 0x5c",
+  "expect": "killed",
+  "why": "`class=}&` is no longer refused; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "B04 classValueMayHoldEscape: a brace answers false at once",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (code === 0x7d) {\n      classEnded = false;",
+  "to": "if (code === 0x7d) {\n      return false;",
+  "expect": "killed",
+  "why": "a `class=` after the first brace is never seen; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "B05 classValueMayHoldEscape: a `{` also ends the stretch",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (code === 0x7d) {",
+  "to": "if (code === 0x7d || code === 0x7b) {",
+  "expect": "killed",
+  "why": "`class={&` is the old pattern's match: `[^}]*` crosses a `{`; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "B06 classValueMayHoldEscape: a carriage return also ends the stretch",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (code === 0x7d) {",
+  "to": "if (code === 0x7d || code === 0x0d) {",
+  "expect": "killed",
+  "why": "`[^}]*` crosses a carriage return; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "B07 classValueMayHoldEscape: a line separator also ends the stretch",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (code === 0x7d) {",
+  "to": "if (code === 0x7d || code === 0x2028) {",
+  "expect": "killed",
+  "why": "`[^}]*` crosses U+2028; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "B08 classValueMayHoldEscape: a line feed also ends the stretch",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (code === 0x7d) {",
+  "to": "if (code === 0x7d || code === 0x0a) {",
+  "expect": "killed",
+  "why": "`[^}]*` crosses a line feed; run alone, killed by: classValueMayHoldEscape: seeded texts, runs and every code unit 300,000 seeded texts (seed 3391)"
+ },
+ {
+  "name": "B09 classValueMayHoldEscape: a `]` also ends the stretch",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (code === 0x7d) {",
+  "to": "if (code === 0x7d || code === 0x5d) {",
+  "expect": "killed",
+  "why": "only the code-unit sweep puts a `]` between `class=` and `&`; run alone, killed by: classValueMayHoldEscape: seeded texts, runs and every code unit every UTF-16 code unit at every place of `class=&`, also by definition"
+ },
+ {
+  "name": "B10 classValueMayHoldEscape: a quote also ends the stretch",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (code === 0x7d) {",
+  "to": "if (code === 0x7d || code === 0x22) {",
+  "expect": "killed",
+  "why": "`class=\"a&b\"`: the value's own quote is crossed by `[^}]*`; run alone, killed by: classValueMayHoldEscape: seeded texts, runs and every code unit every UTF-16 code unit at every place of `class=&`, also by definition"
+ },
+ {
+  "name": "C01 classValueMayHoldEscape: the backslash is no escape",
+  "file": "src/core/qmd/model.ts",
+  "from": "code === 0x5c || code === 0x26",
+  "to": "code === 0x26",
+  "expect": "killed",
+  "why": "`class=\\\\` is no longer accepted; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "C02 classValueMayHoldEscape: the ampersand is no escape",
+  "file": "src/core/qmd/model.ts",
+  "from": "code === 0x5c || code === 0x26",
+  "to": "code === 0x5c",
+  "expect": "killed",
+  "why": "`class=&` is no longer accepted; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "C03 classValueMayHoldEscape: the backslash is U+005B",
+  "file": "src/core/qmd/model.ts",
+  "from": "code === 0x5c || code === 0x26",
+  "to": "code === 0x5b || code === 0x26",
+  "expect": "killed",
+  "why": "`class=\\\\` is no longer accepted; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "C04 classValueMayHoldEscape: the ampersand is U+0025",
+  "file": "src/core/qmd/model.ts",
+  "from": "code === 0x5c || code === 0x26",
+  "to": "code === 0x5c || code === 0x25",
+  "expect": "killed",
+  "why": "`class=&` is no longer accepted; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "C05 classValueMayHoldEscape: a semicolon is also an escape",
+  "file": "src/core/qmd/model.ts",
+  "from": "code === 0x5c || code === 0x26",
+  "to": "code === 0x5c || code === 0x26 || code === 0x3b",
+  "expect": "killed",
+  "why": "only the code-unit sweep puts a `;` after `class=`; run alone, killed by: classValueMayHoldEscape: seeded texts, runs and every code unit every UTF-16 code unit at every place of `class=&`, also by definition"
+ },
+ {
+  "name": "C06 classValueMayHoldEscape: a slash is also an escape",
+  "file": "src/core/qmd/model.ts",
+  "from": "code === 0x5c || code === 0x26",
+  "to": "code === 0x5c || code === 0x26 || code === 0x2f",
+  "expect": "killed",
+  "why": "only the code-unit sweep puts a `/` after `class=`; run alone, killed by: classValueMayHoldEscape: seeded texts, runs and every code unit every UTF-16 code unit at every place of `class=&`, also by definition"
+ },
+ {
+  "name": "C07 classValueMayHoldEscape: an escape counts without a `class=` before it",
+  "file": "src/core/qmd/model.ts",
+  "from": "      if (classEnded) {\n        return true;",
+  "to": "      if (!classEnded) {\n        return true;",
+  "expect": "killed",
+  "why": "the flag is read inverted; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "C08 classValueMayHoldEscape: any escape answers true",
+  "file": "src/core/qmd/model.ts",
+  "from": "      if (classEnded) {\n        return true;",
+  "to": "      if (true) {\n        return true;",
+  "expect": "killed",
+  "why": "`&class=` is the old pattern's refusal; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "C09 classValueMayHoldEscape: an escape after a `class=` answers false",
+  "file": "src/core/qmd/model.ts",
+  "from": "      if (classEnded) {\n        return true;",
+  "to": "      if (classEnded) {\n        return false;",
+  "expect": "killed",
+  "why": "`class=&` is no longer accepted; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "C10 classValueMayHoldEscape: an escape after a `class=` clears the flag and goes on",
+  "file": "src/core/qmd/model.ts",
+  "from": "      if (classEnded) {\n        return true;\n      }",
+  "to": "      if (classEnded) {\n        classEnded = false;\n      }",
+  "expect": "killed",
+  "why": "`class=&` is no longer accepted; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "D01 classValueMayHoldEscape: the first letter is C",
+  "file": "src/core/qmd/model.ts",
+  "from": "code === 0x63 && tail.startsWith",
+  "to": "code === 0x43 && tail.startsWith",
+  "expect": "killed",
+  "why": "no key is ever read; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "D02 classValueMayHoldEscape: the key is Class=",
+  "file": "src/core/qmd/model.ts",
+  "from": "tail.startsWith(\"class=\", i)",
+  "to": "tail.startsWith(\"Class=\", i)",
+  "expect": "killed",
+  "why": "no key is ever read; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "D03 classValueMayHoldEscape: the key is class without its equals sign",
+  "file": "src/core/qmd/model.ts",
+  "from": "tail.startsWith(\"class=\", i)",
+  "to": "tail.startsWith(\"class\", i)",
+  "expect": "killed",
+  "why": "`class&=` and `classa&` are read as keys; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 8 near-miss tokens, up to 7"
+ },
+ {
+  "name": "D04 classValueMayHoldEscape: the key is looked for one place late",
+  "file": "src/core/qmd/model.ts",
+  "from": "tail.startsWith(\"class=\", i)",
+  "to": "tail.startsWith(\"class=\", i + 1)",
+  "expect": "killed",
+  "why": "no key is ever read; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "D05 classValueMayHoldEscape: the key is looked for without its first letter",
+  "file": "src/core/qmd/model.ts",
+  "from": "tail.startsWith(\"class=\", i)",
+  "to": "tail.startsWith(\"lass=\", i)",
+  "expect": "killed",
+  "why": "no key is ever read; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "D06 classValueMayHoldEscape: the rest of the key is matched in either case",
+  "file": "src/core/qmd/model.ts",
+  "from": "tail.startsWith(\"class=\", i)",
+  "to": "tail.slice(i, i + 6).toLowerCase() === \"class=\"",
+  "expect": "killed",
+  "why": "`cLASS=&` reads as a key; the old pattern is case-sensitive: only the code-unit sweep puts an upper-case letter inside the key; run alone, killed by: classValueMayHoldEscape: seeded texts, runs and every code unit every UTF-16 code unit at every place of `class=&`, also by definition"
+ },
+ {
+  "name": "D07 classValueMayHoldEscape: the flag is never set",
+  "file": "src/core/qmd/model.ts",
+  "from": "      classEnded = true;\n      // ",
+  "to": "      classEnded = false;\n      // ",
+  "expect": "killed",
+  "why": "`class=&` is no longer accepted; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "D08 classValueMayHoldEscape: the flag starts set",
+  "file": "src/core/qmd/model.ts",
+  "from": "let classEnded = false;",
+  "to": "let classEnded = true;",
+  "expect": "killed",
+  "why": "`&` alone is accepted; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "D09 classValueMayHoldEscape: four characters are skipped after a key",
+  "file": "src/core/qmd/model.ts",
+  "from": "      i += 5;",
+  "to": "      i += 4;",
+  "expect": "survives",
+  "why": "NO WITNESS, equivalent: the fifth character of `class=` is `=`, which is no brace, escape or `c`"
+ },
+ {
+  "name": "D10 classValueMayHoldEscape: the characters of a key are not skipped",
+  "file": "src/core/qmd/model.ts",
+  "from": "      i += 5;",
+  "to": "      i += 0;",
+  "expect": "survives",
+  "why": "NO WITNESS, equivalent: `lass=` holds no brace, no escape and no `c`, so reading it changes nothing"
+ },
+ {
+  "name": "D11 classValueMayHoldEscape: six characters are skipped after a key",
+  "file": "src/core/qmd/model.ts",
+  "from": "      i += 5;",
+  "to": "      i += 6;",
+  "expect": "killed",
+  "why": "the character right behind `class=` is never read: `class=&`; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "D12 classValueMayHoldEscape: the answer after the loop is true",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return false;\n}\nfunction divSpecReading",
+  "to": "  return true;\n}\nfunction divSpecReading",
+  "expect": "killed",
+  "why": "a tail with no escape is accepted; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+ },
+ {
+  "name": "D13 classValueMayHoldEscape: the key is looked for on every character",
+  "file": "src/core/qmd/model.ts",
+  "from": "code === 0x63 && tail.startsWith",
+  "to": "tail.startsWith",
+  "expect": "survives",
+  "why": "NO WITNESS, equivalent: `startsWith(\"class=\", i)` is true only where the character is a `c`, so the test of the code before it only saves the call"
+ },
+ {
+  "name": "E01 divSpecReading: the escape test never declines",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (classValueMayHoldEscape(tail)) {",
+  "to": "if (false) {",
+  "expect": "killed",
+  "why": "an opener whose class value holds an escape is read from the tokens; run alone, killed by: the call site: an opener whose class value holds an escape is read by the regex reader \"::: {class=\\\"callout-note a&b\\\"}\""
+ },
+ {
+  "name": "E02 divSpecReading: the escape test is negated",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (classValueMayHoldEscape(tail)) {",
+  "to": "if (!classValueMayHoldEscape(tail)) {",
+  "expect": "killed",
+  "why": "an opener without an escape is declined; run alone, killed by: the call site: an opener whose class value holds an escape is read by the regex reader \"::: {class=\\\"callout-note\\\"}\""
+ },
+ {
+  "name": "E03 divSpecReading: the escape test always declines",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (classValueMayHoldEscape(tail)) {",
+  "to": "if (true) {",
+  "expect": "killed",
+  "why": "every well-formed opener is read by the regex reader; run alone, killed by: the call site: an opener whose class value holds an escape is read by the regex reader \"::: {class=\\\"callout-note\\\"}\""
+ },
+ {
+  "name": "E04 divSpecReading: the escape test reads the first 65,536 characters",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (classValueMayHoldEscape(tail)) {",
+  "to": "if (classValueMayHoldEscape(tail.slice(0, 65536))) {",
+  "expect": "killed",
+  "why": "an escape past the cap is never seen; run alone, killed by: controls: an escape in reach of the scan is linear on the parent and stays so an `&` after the last `class=` in a quoted value"
+ },
+ {
+  "name": "E05 divSpecReading: the escape test reads the first 2^20 characters",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (classValueMayHoldEscape(tail)) {",
+  "to": "if (classValueMayHoldEscape(tail.slice(0, 1048576))) {",
+  "expect": "killed",
+  "why": "an escape past the cap is never seen; run alone, killed by: an escape behind the first megabyte of an opener is seen by the call site an opener of 200,000 `class=` and an ampersand, one-byte: the reader declines and `## T` is a he"
+ },
+ {
+  "name": "E06 divSpecReading: the escape test reads the tail without its first character",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (classValueMayHoldEscape(tail)) {",
+  "to": "if (classValueMayHoldEscape(tail.slice(1))) {",
+  "expect": "survives",
+  "why": "NO WITNESS, equivalent: a well-formed (`attr`) tail opens with `{`, so no `class=` can start at index 0"
+ },
+ {
+  "name": "F01 divCalloutTitleSlot: a declined reading answers false",
+  "file": "src/core/qmd/model.ts",
+  "from": "return legacyDivCalloutTitleSlot(attrs, reader.commonmarkDialect);",
+  "to": "return false;",
+  "expect": "killed",
+  "why": "the regex reader's answer for a dotted `.callout-note` beside an escaped `class=` value is dropped; run alone, killed by: the call site: an opener whose class value holds an escape is read by the regex reader \"::: {.callout-note class=\\\"x\\\" data-x=\\\"a&b\\\"}\""
+ },
+ {
+  "name": "F02 divPanelTabset: a declined reading answers false",
+  "file": "src/core/qmd/model.ts",
+  "from": "return legacyDivPanelTabset(attrs);",
+  "to": "return false;",
+  "expect": "killed",
+  "why": "the regex reader's answer for a dotted `.panel-tabset` beside an escaped `class=` value is dropped; run alone, killed by: the call site: an opener whose class value holds an escape is read by the regex reader \"::: {.panel-tabset class=\\\"x\\\" data-x=\\\"a&b\\\"}\""
+ },
+ {
+  "name": "T01 rows: the limit is 100 s",
+  "file": "test/unit/s339-div-class-rows.test.ts",
+  "from": "const LIMIT_MS = 1000;",
+  "to": "const LIMIT_MS = 100_000;",
+  "expect": "killed",
+  "why": "the sizes-and-limit row; run alone, killed by: the sizes and the limit the clock rows are built on keeps them"
+ },
+ {
+  "name": "T02 rows: the quoted run is 2,400",
+  "file": "test/unit/s339-div-class-rows.test.ts",
+  "from": "const QUOTED_N = 24_000;",
+  "to": "const QUOTED_N = 2_400;",
+  "expect": "killed",
+  "why": "the sizes-and-limit row; run alone, killed by: the sizes and the limit the clock rows are built on keeps them"
+ },
+ {
+  "name": "T03 rows: the bare run is 2,000",
+  "file": "test/unit/s339-div-class-rows.test.ts",
+  "from": "const BARE_N = 20_000;",
+  "to": "const BARE_N = 2_000;",
+  "expect": "killed",
+  "why": "the sizes-and-limit row; run alone, killed by: the sizes and the limit the clock rows are built on keeps them"
+ },
+ {
+  "name": "T09 rows: the megabyte run is 20,000",
+  "file": "test/unit/s339-div-class-rows.test.ts",
+  "from": "const MEGA_N = 200_000;",
+  "to": "const MEGA_N = 20_000;",
+  "expect": "killed",
+  "why": "the opener no longer reaches past 2^20 characters; run alone, killed by: an escape behind the first megabyte of an opener is seen by the call site an opener of 200,000 `class=` and an ampersand, one-byte: the reader declines and `## T` is a he"
+ },
+ {
+  "name": "T04 oracle: the old-pattern run is 2,400",
+  "file": "test/unit/div-class-escape-equivalence.test.ts",
+  "from": "const OLD_RUN = 24_000;",
+  "to": "const OLD_RUN = 2_400;",
+  "expect": "killed",
+  "why": "the old pattern no longer takes a second; run alone, killed by: classValueMayHoldEscape on lines of 10,000,000 characters the clock row can fail: the old pattern takes over a second on `k=\"` + 24,000 `class=` + `\"}`"
+ },
+ {
+  "name": "T05 oracle: the old-pattern floor is 1 ms",
+  "file": "test/unit/div-class-escape-equivalence.test.ts",
+  "from": "const OLD_FLOOR_MS = 1000;",
+  "to": "const OLD_FLOOR_MS = 1;",
+  "expect": "killed",
+  "why": "the sizes row; run alone, killed by: classValueMayHoldEscape on lines of 10,000,000 characters keeps the sizes, the limit and the floor the clock rows above are built on"
+ },
+ {
+  "name": "T06 oracle: the limit is 100 s",
+  "file": "test/unit/div-class-escape-equivalence.test.ts",
+  "from": "  const LIMIT_MS = 1000;",
+  "to": "  const LIMIT_MS = 100_000;",
+  "expect": "killed",
+  "why": "the sizes row; run alone, killed by: classValueMayHoldEscape on lines of 10,000,000 characters keeps the sizes, the limit and the floor the clock rows above are built on"
+ },
+ {
+  "name": "T07 oracle: the big line is 1,000,000 characters",
+  "file": "test/unit/div-class-escape-equivalence.test.ts",
+  "from": "  const BIG = 10_000_000;",
+  "to": "  const BIG = 1_000_000;",
+  "expect": "killed",
+  "why": "the sizes row; run alone, killed by: classValueMayHoldEscape on lines of 10,000,000 characters keeps the sizes, the limit and the floor the clock rows above are built on"
+ },
+ {
+  "name": "T08 oracle: the run is 170,000 `class=`",
+  "file": "test/unit/div-class-escape-equivalence.test.ts",
+  "from": "  const RUN = \"class=\".repeat(1_700_000);",
+  "to": "  const RUN = \"class=\".repeat(170_000);",
+  "expect": "killed",
+  "why": "the sizes row; run alone, killed by: classValueMayHoldEscape on lines of 10,000,000 characters keeps the sizes, the limit and the floor the clock rows above are built on"
+ }
+]
