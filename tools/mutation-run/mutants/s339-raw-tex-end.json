@@ -21,7 +21,7 @@
   "from": "    const open = line.indexOf(\"\\\\end{\", from);",
   "to": "    const open = line.lastIndexOf(\"\\\\end{\", from);",
   "expect": "killed",
-  "why": "only an opener at or before `from` is found: a second delimiter on the line is never read; run alone, killed by non-clock rows of the rows file (a tail behind the `\\begin{x}` line)"
+  "why": "only an opener at or before `from` is found, so on a line that holds a delimiter at or before the search start (`\\end{a}`, or any line that starts with one) the same opener is found again at every turn and the loop pushes its name until the ENGINE refuses the array (nothing else ends it): `RangeError: Invalid array length` after 112,813,858 names, 3,670 to 3,933 ms in four fresh node 22 processes at load 9 (1.95 to 2.59 GB resident); a line whose delimiter lies after the search start, `x\\end{a}`, returns [] at once. It is killed by rows that FAIL or THROW, not by a timeout: run alone with `--bail 1 --testTimeout=60000` it ends in 5 s, on the enumeration of 6 characters (the RangeError) and on the `\\begin{x}\\end{x}` tail row of the rows file (a wrong answer, [] for ['Hb03']). Without the bail every looping row costs seconds (12.4 s per call in a reviewer's run at a load of about 170), and a runner timeout counts as a KILL that a loaded machine can fake: run it alone, with the bail"
  },
  {
   "name": "E04 rawTexEndNames: the opener test is `<= -1`",

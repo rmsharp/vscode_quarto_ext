@@ -247,7 +247,7 @@ describe("Session 339 — rawTexEndNames on long lines", () => {
     expect(ms).toBeGreaterThan(OLD_FLOOR_MS);
   });
 
-  // A run of 3,000 openers, a limit of 100 s or a floor of 1 ms would pass on the parent too (the old pattern takes about 10 ms on 3,000).
+  // A run of 3,000 openers, a limit of 100 s or a floor of 1 ms would pass on the parent too (the old pattern, run to exhaustion, takes 21.3 to 21.8 ms on 3,000: nine runs in three fresh processes, load 9).
   it("keeps the sizes, the limit and the floor the clock rows above are built on", () => {
     expect([LIMIT_MS, OLD_RUN, OLD_FLOOR_MS]).toEqual([1000, 30_000, 1000]);
   });
