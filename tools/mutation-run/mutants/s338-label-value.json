@@ -1,0 +1,458 @@
+[
+ {
+  "name": "C01 cellLabelValue: the double quote is the wrong character",
+  "file": "src/core/refs.ts",
+  "from": "first === 0x22 || first === 0x27 ? 1 : 0;",
+  "to": "first === 0x21 || first === 0x27 ? 1 : 0;",
+  "expect": "killed",
+  "why": "a double-quoted value is read from its quote: the quote becomes the id's first character and the id is empty"
+ },
+ {
+  "name": "C02 cellLabelValue: the single quote is the wrong character",
+  "file": "src/core/refs.ts",
+  "from": "first === 0x22 || first === 0x27 ? 1 : 0;",
+  "to": "first === 0x22 || first === 0x28 ? 1 : 0;",
+  "expect": "killed",
+  "why": "a single-quoted value is read from its quote"
+ },
+ {
+  "name": "C03 cellLabelValue: the single quote skips two characters",
+  "file": "src/core/refs.ts",
+  "from": "first === 0x27 ? 1 : 0;",
+  "to": "first === 0x27 ? 2 : 0;",
+  "expect": "killed",
+  "why": "the id of a single-quoted value loses its first character"
+ },
+ {
+  "name": "C04 cellLabelValue: a quote only when both quotes are there at once",
+  "file": "src/core/refs.ts",
+  "from": "first === 0x22 || first === 0x27 ? 1 : 0;",
+  "to": "first === 0x22 && first === 0x27 ? 1 : 0;",
+  "expect": "killed",
+  "why": "no value is ever quoted"
+ },
+ {
+  "name": "C05 cellLabelValue: a colon may start the id",
+  "file": "src/core/refs.ts",
+  "from": "if (start === 0x3a || start === 0x2e || start === 0x2d) {",
+  "to": "if (start === 0x3b || start === 0x2e || start === 0x2d) {",
+  "expect": "killed",
+  "why": "`:x` is read as an id; the pattern refused it"
+ },
+ {
+  "name": "C06 cellLabelValue: a dot may start the id",
+  "file": "src/core/refs.ts",
+  "from": "if (start === 0x3a || start === 0x2e || start === 0x2d) {",
+  "to": "if (start === 0x3a || start === 0x2f || start === 0x2d) {",
+  "expect": "killed",
+  "why": "`.x` is read as an id; the pattern refused it"
+ },
+ {
+  "name": "C07 cellLabelValue: a dash may start the id",
+  "file": "src/core/refs.ts",
+  "from": "if (start === 0x3a || start === 0x2e || start === 0x2d) {",
+  "to": "if (start === 0x3a || start === 0x2e || start === 0x2c) {",
+  "expect": "killed",
+  "why": "`-x` and a quoted `\"-a\"` are read as ids; the pattern refused them"
+ },
+ {
+  "name": "C08 cellLabelValue: the start guard can never fire",
+  "file": "src/core/refs.ts",
+  "from": "if (start === 0x3a || start === 0x2e || start === 0x2d) {",
+  "to": "if (start === 0x3a && start === 0x2e && start === 0x2d) {",
+  "expect": "killed",
+  "why": "no punctuation is refused at the start of the id"
+ },
+ {
+  "name": "C09 cellLabelValue: the length does not count the quote",
+  "file": "src/core/refs.ts",
+  "from": "length: end };",
+  "to": "length: end - from };",
+  "expect": "killed",
+  "why": "the id's column of a quoted value is one too far left"
+ },
+ {
+  "name": "C10 cellLabelValue: the id keeps the opening quote",
+  "file": "src/core/refs.ts",
+  "from": "value.slice(from, end)",
+  "to": "value.slice(0, end)",
+  "expect": "killed",
+  "why": "a quoted value's id starts with its quote"
+ },
+ {
+  "name": "C11 cellLabelValue: the run starts at the first character, not past the quote",
+  "file": "src/core/refs.ts",
+  "from": "const end = runEnd(value, from, IDENTIFIER_RUN);",
+  "to": "const end = runEnd(value, 0, IDENTIFIER_RUN);",
+  "expect": "killed",
+  "why": "a quoted value's run stops at its own quote"
+ },
+ {
+  "name": "C12 cellLabelValue: no ASCII character is a member of the run",
+  "file": "src/core/refs.ts",
+  "from": "const end = runEnd(value, from, IDENTIFIER_RUN);",
+  "to": "const end = runEnd(value, from, new Uint8Array(128));",
+  "expect": "killed",
+  "why": "no ASCII id is read at all"
+ },
+ {
+  "name": "C13 cellLabelValue: a one-character id is refused",
+  "file": "src/core/refs.ts",
+  "from": "return end === from ? null :",
+  "to": "return end === from + 1 ? null :",
+  "expect": "killed",
+  "why": "`a`, `_` and `\"a\"` define nothing"
+ },
+ {
+  "name": "C14 cellLabelValue: an empty id is an answer",
+  "file": "src/core/refs.ts",
+  "from": "return end === from ? null :",
+  "to": "return end < from ? null :",
+  "expect": "killed",
+  "why": "a lone quote and two quotes answer an empty id"
+ },
+ {
+  "name": "C15 cellLabelValue: <= for === on the empty id",
+  "file": "src/core/refs.ts",
+  "from": "return end === from ? null :",
+  "to": "return end <= from ? null :",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT: `runEnd` answers its start or more, never less, so `end <= from` is `end === from`. Differential: 2,878,306 strings (the four exhaustive alphabets of the oracle test and 300,000 seeded strings that also hold the CJK letter, the emoji and the kind prefixes) answered the same by this edit and by the committed function, 0 differences."
+ },
+ {
+  "name": "C16 cellLabelValue: the two quotes tested in the other order",
+  "file": "src/core/refs.ts",
+  "from": "first === 0x22 || first === 0x27 ? 1 : 0;",
+  "to": "first === 0x27 || first === 0x22 ? 1 : 0;",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT: an `||` of two comparisons of one value does not depend on their order. Differential: 2,878,306 strings (the four exhaustive alphabets of the oracle test and 300,000 seeded strings that also hold the CJK letter, the emoji and the kind prefixes) answered the same by this edit and by the committed function, 0 differences."
+ },
+ {
+  "name": "C17 cellLabelValue: the three punctuation marks of the guard in the other order",
+  "file": "src/core/refs.ts",
+  "from": "if (start === 0x3a || start === 0x2e || start === 0x2d) {",
+  "to": "if (start === 0x2d || start === 0x2e || start === 0x3a) {",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT: an `||` of three comparisons of one value does not depend on their order. Differential: 2,878,306 strings (the four exhaustive alphabets of the oracle test and 300,000 seeded strings that also hold the CJK letter, the emoji and the kind prefixes) answered the same by this edit and by the committed function, 0 differences."
+ },
+ {
+  "name": "N01 narrowLabel: the hash test is inverted",
+  "file": "src/core/refs.ts",
+  "from": "if (content.charCodeAt(0) !== 0x23) {",
+  "to": "if (content.charCodeAt(0) === 0x23) {",
+  "expect": "killed",
+  "why": "every group that begins with a hash is refused"
+ },
+ {
+  "name": "N02 narrowLabel: the hash is the wrong character",
+  "file": "src/core/refs.ts",
+  "from": "if (content.charCodeAt(0) !== 0x23) {",
+  "to": "if (content.charCodeAt(0) !== 0x24) {",
+  "expect": "killed",
+  "why": "no group begins with the hash it needs"
+ },
+ {
+  "name": "N03 narrowLabel: no `fig-`",
+  "file": "src/core/refs.ts",
+  "from": "const NARROW_KIND_PREFIXES: readonly string[] = [\"fig-\", \"tbl-\", \"eq-\", \"lst-\"];",
+  "to": "const NARROW_KIND_PREFIXES: readonly string[] = [\"tbl-\", \"eq-\", \"lst-\"];",
+  "expect": "killed",
+  "why": "a figure id of a bare group defines nothing"
+ },
+ {
+  "name": "N04 narrowLabel: no `tbl-`",
+  "file": "src/core/refs.ts",
+  "from": "const NARROW_KIND_PREFIXES: readonly string[] = [\"fig-\", \"tbl-\", \"eq-\", \"lst-\"];",
+  "to": "const NARROW_KIND_PREFIXES: readonly string[] = [\"fig-\", \"eq-\", \"lst-\"];",
+  "expect": "killed",
+  "why": "a table caption's id defines nothing"
+ },
+ {
+  "name": "N05 narrowLabel: no `eq-`",
+  "file": "src/core/refs.ts",
+  "from": "const NARROW_KIND_PREFIXES: readonly string[] = [\"fig-\", \"tbl-\", \"eq-\", \"lst-\"];",
+  "to": "const NARROW_KIND_PREFIXES: readonly string[] = [\"fig-\", \"tbl-\", \"lst-\"];",
+  "expect": "killed",
+  "why": "a display equation's id defines nothing"
+ },
+ {
+  "name": "N06 narrowLabel: no `lst-`",
+  "file": "src/core/refs.ts",
+  "from": "const NARROW_KIND_PREFIXES: readonly string[] = [\"fig-\", \"tbl-\", \"eq-\", \"lst-\"];",
+  "to": "const NARROW_KIND_PREFIXES: readonly string[] = [\"fig-\", \"tbl-\", \"eq-\"];",
+  "expect": "killed",
+  "why": "a listing's id defines nothing"
+ },
+ {
+  "name": "N07 narrowLabel: the equation prefix has no dash",
+  "file": "src/core/refs.ts",
+  "from": "const NARROW_KIND_PREFIXES: readonly string[] = [\"fig-\", \"tbl-\", \"eq-\", \"lst-\"];",
+  "to": "const NARROW_KIND_PREFIXES: readonly string[] = [\"fig-\", \"tbl-\", \"eq\", \"lst-\"];",
+  "expect": "killed",
+  "why": "`#eqa` and `#eq` are read as equation ids"
+ },
+ {
+  "name": "N08 narrowLabel: the kind prefix is looked for at the start of the group, not after the hash",
+  "file": "src/core/refs.ts",
+  "from": "if (content.startsWith(prefix, 1)) {",
+  "to": "if (content.startsWith(prefix, 0)) {",
+  "expect": "killed",
+  "why": "every group is refused"
+ },
+ {
+  "name": "N09 narrowLabel: the run starts at the dash",
+  "file": "src/core/refs.ts",
+  "from": "const start = 1 + prefix.length;",
+  "to": "const start = prefix.length;",
+  "expect": "killed",
+  "why": "`#fig-` and `#eq-` (a kind prefix with nothing after its dash) answer an id"
+ },
+ {
+  "name": "N10 narrowLabel: an empty run is an answer",
+  "file": "src/core/refs.ts",
+  "from": "return end === start ? null : content.slice(1, end);",
+  "to": "return end < start ? null : content.slice(1, end);",
+  "expect": "killed",
+  "why": "`#fig-`, `#fig- a` and `#fig-$a` answer a bare kind prefix"
+ },
+ {
+  "name": "N11 narrowLabel: the id keeps the hash",
+  "file": "src/core/refs.ts",
+  "from": "return end === start ? null : content.slice(1, end);",
+  "to": "return end === start ? null : content.slice(0, end);",
+  "expect": "killed",
+  "why": "every id starts with a hash"
+ },
+ {
+  "name": "N12 narrowLabel: the id has no kind prefix",
+  "file": "src/core/refs.ts",
+  "from": "return end === start ? null : content.slice(1, end);",
+  "to": "return end === start ? null : content.slice(start, end);",
+  "expect": "killed",
+  "why": "every id is its name alone"
+ },
+ {
+  "name": "N13 narrowLabel: a group of another kind answers the empty string",
+  "file": "src/core/refs.ts",
+  "from": "  return null;\n}\n/** The kinds {@link narrowLabel} reads",
+  "to": "  return \"\";\n}\n/** The kinds {@link narrowLabel} reads",
+  "expect": "killed",
+  "why": "`#sec-a` and `#Fig-a` answer an empty id and not null"
+ },
+ {
+  "name": "N14 narrowLabel: no ASCII character is a member of the run",
+  "file": "src/core/refs.ts",
+  "from": "const end = runEnd(content, start, IDENTIFIER_RUN);",
+  "to": "const end = runEnd(content, start, new Uint8Array(128));",
+  "expect": "killed",
+  "why": "no ASCII name is read at all"
+ },
+ {
+  "name": "N15 narrowLabel: <= for === on the empty run",
+  "file": "src/core/refs.ts",
+  "from": "return end === start ? null : content.slice(1, end);",
+  "to": "return end <= start ? null : content.slice(1, end);",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT: `runEnd` answers its start or more, never less, so `end <= start` is `end === start`. Differential: 2,878,306 strings (the four exhaustive alphabets of the oracle test and 300,000 seeded strings that also hold the CJK letter, the emoji and the kind prefixes) answered the same by this edit and by the committed function, 0 differences."
+ },
+ {
+  "name": "N16 narrowLabel: the four kind prefixes in the other order",
+  "file": "src/core/refs.ts",
+  "from": "const NARROW_KIND_PREFIXES: readonly string[] = [\"fig-\", \"tbl-\", \"eq-\", \"lst-\"];",
+  "to": "const NARROW_KIND_PREFIXES: readonly string[] = [\"lst-\", \"eq-\", \"tbl-\", \"fig-\"];",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT: the four kind prefixes begin with four different letters, so at most one of them can follow the hash and the order of the loop does not matter. Differential: 2,878,306 strings (the four exhaustive alphabets of the oracle test and 300,000 seeded strings that also hold the CJK letter, the emoji and the kind prefixes) answered the same by this edit and by the committed function, 0 differences."
+ },
+ {
+  "name": "N17 narrowLabel: the hash is tested as a character",
+  "file": "src/core/refs.ts",
+  "from": "if (content.charCodeAt(0) !== 0x23) {",
+  "to": "if (content[0] !== \"#\") {",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT: `content[0] !== \"#\"` is `content.charCodeAt(0) !== 0x23` (an empty string gives `undefined` and NaN, both unequal to the hash). Differential: 2,878,306 strings (the four exhaustive alphabets of the oracle test and 300,000 seeded strings that also hold the CJK letter, the emoji and the kind prefixes) answered the same by this edit and by the committed function, 0 differences."
+ },
+ {
+  "name": "N18 narrowLabel: the prefix is looked for in a copy of the rest",
+  "file": "src/core/refs.ts",
+  "from": "if (content.startsWith(prefix, 1)) {",
+  "to": "if (content.slice(1).startsWith(prefix)) {",
+  "expect": "survives",
+  "why": "ARGUED EQUIVALENT: `content.slice(1).startsWith(prefix)` is `content.startsWith(prefix, 1)`. Differential: 2,878,306 strings (the four exhaustive alphabets of the oracle test and 300,000 seeded strings that also hold the CJK letter, the emoji and the kind prefixes) answered the same by this edit and by the committed function, 0 differences."
+ },
+ {
+  "name": "W01 indexLabels: a value that is no label is read",
+  "file": "src/core/refs.ts",
+  "from": "if (m === null) {\n        continue;\n      }\n      const value = m.id;",
+  "to": "if (m !== null) {\n        continue;\n      }\n      const value = m.id;",
+  "expect": "killed",
+  "why": "every cell label is skipped"
+ },
+ {
+  "name": "W02 indexLabels: the column ignores the quote",
+  "file": "src/core/refs.ts",
+  "from": "valueSlot.startCol + m.length - value.length,",
+  "to": "valueSlot.startCol + m.id.length - value.length,",
+  "expect": "killed",
+  "why": "a quoted label's column is one too far left"
+ },
+ {
+  "name": "W03 indexLabels: the column one too far right",
+  "file": "src/core/refs.ts",
+  "from": "valueSlot.startCol + m.length - value.length,",
+  "to": "valueSlot.startCol + m.length - value.length + 1,",
+  "expect": "killed",
+  "why": "every cell label's column moves"
+ },
+ {
+  "name": "W04 indexLabels: the value span ends a character early",
+  "file": "src/core/refs.ts",
+  "from": "lineText.slice(valueSlot.startCol, valueSlot.endCol));",
+  "to": "lineText.slice(valueSlot.startCol, valueSlot.endCol - 1));",
+  "expect": "killed",
+  "why": "the last character of every cell label is cut"
+ },
+ {
+  "name": "W05 indexLabels: the cell label loses its first character",
+  "file": "src/core/refs.ts",
+  "from": "const value = m.id;",
+  "to": "const value = m.id.slice(1);",
+  "expect": "killed",
+  "why": "every cell label reads `ig-a`"
+ },
+ {
+  "name": "W06 indexLabels: the bare group's content is trimmed",
+  "file": "src/core/refs.ts",
+  "from": "narrowLabel(group.content);",
+  "to": "narrowLabel(group.content.trim());",
+  "expect": "killed",
+  "why": "`{ #fig-a}` and `{ #eq-n02}` mint labels"
+ },
+ {
+  "name": "W07 indexLabels: a group that is no label is read",
+  "file": "src/core/refs.ts",
+  "from": "if (narrowId === null) {",
+  "to": "if (narrowId !== null) {",
+  "expect": "killed",
+  "why": "every bare group is skipped"
+ },
+ {
+  "name": "W08 indexLabels: the bare group's column is one too far left",
+  "file": "src/core/refs.ts",
+  "from": "labels.push({ id: narrowId, kind, line, column: group.start + 2 });",
+  "to": "labels.push({ id: narrowId, kind, line, column: group.start + 1 });",
+  "expect": "killed",
+  "why": "the id's column is on the brace's hash"
+ },
+ {
+  "name": "W09 indexLabels: the bare group's id loses its first character",
+  "file": "src/core/refs.ts",
+  "from": "labels.push({ id: narrowId, kind, line, column: group.start + 2 });",
+  "to": "labels.push({ id: narrowId.slice(1), kind, line, column: group.start + 2 });",
+  "expect": "killed",
+  "why": "every id reads `ig-a`"
+ },
+ {
+  "name": "T01 cell rows: the long run is 8,000 letters",
+  "file": "test/unit/s338-label-value-rows-cell.test.ts",
+  "from": "const MANY = 8_400_000;",
+  "to": "const MANY = 8_000;",
+  "expect": "killed",
+  "why": "the sizes guard pins the long run (a row of 8,000 letters passes on the old pattern too)"
+ },
+ {
+  "name": "T02 cell rows: the time limit is 100 s",
+  "file": "test/unit/s338-label-value-rows-cell.test.ts",
+  "from": "const LIMIT_MS = 10_000;",
+  "to": "const LIMIT_MS = 100_000;",
+  "expect": "killed",
+  "why": "the sizes guard pins the limit"
+ },
+ {
+  "name": "T03 cell rows: the wide letter is below U+00FF",
+  "file": "test/unit/s338-label-value-rows-cell.test.ts",
+  "from": "const WIDE_LETTER = \"中\";",
+  "to": "const WIDE_LETTER = \"é\";",
+  "expect": "killed",
+  "why": "the sizes guard pins the code of the wide letter (a line without one never throws)"
+ },
+ {
+  "name": "T04 narrow rows: the long run is 8,000 letters",
+  "file": "test/unit/s338-label-value-rows-narrow.test.ts",
+  "from": "const MANY = 8_400_000;",
+  "to": "const MANY = 8_000;",
+  "expect": "killed",
+  "why": "the sizes guard pins the long run"
+ },
+ {
+  "name": "T05 narrow rows: the time limit is 100 s",
+  "file": "test/unit/s338-label-value-rows-narrow.test.ts",
+  "from": "const LIMIT_MS = 10_000;",
+  "to": "const LIMIT_MS = 100_000;",
+  "expect": "killed",
+  "why": "the sizes guard pins the limit"
+ },
+ {
+  "name": "T06 oracle: the huge run is 80,000 letters",
+  "file": "test/unit/label-value-equivalence.test.ts",
+  "from": "const HUGE_LETTERS = 8_400_000;",
+  "to": "const HUGE_LETTERS = 80_000;",
+  "expect": "killed",
+  "why": "the constants guard pins the huge run"
+ },
+ {
+  "name": "T07 oracle: the old cell pattern has no underscore start",
+  "file": "test/unit/label-value-equivalence.test.ts",
+  "from": "String.raw`[\\p{L}\\p{N}_]` +",
+  "to": "String.raw`[\\p{L}\\p{N}]` +",
+  "expect": "killed",
+  "why": "the oracle no longer starts an id with an underscore: the function and the reading by definition disagree with it"
+ },
+ {
+  "name": "T08 oracle: the old group pattern is a star",
+  "file": "test/unit/label-value-equivalence.test.ts",
+  "from": "String.raw`+)`,",
+  "to": "String.raw`*)`,",
+  "expect": "killed",
+  "why": "the oracle accepts a kind prefix with nothing after its dash"
+ },
+ {
+  "name": "T09 oracle: the stated letters lack the non-ASCII letter",
+  "file": "test/unit/label-value-equivalence.test.ts",
+  "from": "c === E_ACUTE || c === CJK_LETTER || c === ASTRAL_LETTER;",
+  "to": "c === CJK_LETTER || c === ASTRAL_LETTER;",
+  "expect": "killed",
+  "why": "the reading by definition no longer reads `é` as a letter"
+ },
+ {
+  "name": "T10 oracle: the first cell count off by one",
+  "file": "test/unit/label-value-equivalence.test.ts",
+  "from": "const CELL_COUNTS = {\n  a1: { accepted: 243_576,",
+  "to": "const CELL_COUNTS = {\n  a1: { accepted: 243_577,",
+  "expect": "killed",
+  "why": "the count pinned from the Python recount"
+ },
+ {
+  "name": "T11 oracle: the first cell alphabet has a letter for the underscore",
+  "file": "test/unit/label-value-equivalence.test.ts",
+  "from": "const CELL_A1 = ['\"', \"'\", \"a\", \"1\", \"_\", \":\", \".\", \"-\", \"$\"];",
+  "to": "const CELL_A1 = ['\"', \"'\", \"a\", \"1\", \"b\", \":\", \".\", \"-\", \"$\"];",
+  "expect": "killed",
+  "why": "the counts and the code points of the alphabet are pinned"
+ },
+ {
+  "name": "T12 oracle: the cell self-check function never disagrees",
+  "file": "test/unit/label-value-equivalence.test.ts",
+  "from": "return text.startsWith('\"') || text.startsWith(\"'\") ? null : answer;",
+  "to": "return answer;",
+  "expect": "killed",
+  "why": "the row that shows the comparison loop can fail would pass nothing"
+ },
+ {
+  "name": "T13 oracle: the cell sweep heads lack the empty head",
+  "file": "test/unit/label-value-equivalence.test.ts",
+  "from": "const CELL_SWEEP_HEADS = ['\"fig-a.b', \"'x_1\", \"a\", \"\"];",
+  "to": "const CELL_SWEEP_HEADS = ['\"fig-a.b', \"'x_1\", \"a\"];",
+  "expect": "killed",
+  "why": "the sweep's string count and the head guard are pinned"
+ }
+]
