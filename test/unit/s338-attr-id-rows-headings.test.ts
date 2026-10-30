@@ -1,3 +1,6 @@
+import { describe, expect, it } from "vitest";
+import { attributeIds, findHeadings } from "../../src/core/qmd/model";
+import { indexLabels } from "../../src/core/refs";
 import { DEFAULT_READER, ONE_WIDE, S338_BYTE_MANY, S338_MANY, defineRows, oneByte } from "./support/attr-id-rows";
 
 // Session 338, part A of the BACKLOG item "Eleven more places that throw `RangeError` on a long line or a long list" (group g02): the heading readers.
@@ -15,3 +18,26 @@ defineRows({
   rowCount: 6,
 });
 
+
+// A token of MANY short ids, which is not a long id: `headingAttributeId` pushes the ids of `attributeIds` into its list, and `found.push(...attributeIds(token))` would throw `RangeError` from about 125,700 elements (an
+// array spread puts one stack slot per element). The parent read the ids with `matchAll` and a loop, so this row PASSES on `fe6aaec` (a guard for the cure's own loop, not a row that was RED); it is RED under the spread.
+describe("Session 338 part A: one heading attribute block of 200,002 ids (the ids are pushed in a loop, not spread)", () => {
+  const MANY_IDS = 200_000;
+  const SPREAD_LIMIT = 125_700;
+  const LIMIT_MS = 3000;
+
+  it("keeps the last id of the block (the pandoc family's) and finds it in the label index", () => {
+    const token = `#x${"#a".repeat(MANY_IDS)}#sec-z`;
+    expect(attributeIds(token).length).toBe(MANY_IDS + 2);
+    expect(attributeIds(token).length).toBeGreaterThan(SPREAD_LIMIT);
+    const text = `Intro.\n\n# H {${token}}\n`;
+    const started = performance.now();
+    expect(findHeadings(text).map((h) => [h.text, h.id, h.line])).toEqual([["H", "sec-z", 2]]);
+    expect(indexLabels(text).map((l) => [l.id, l.line])).toEqual([["sec-z", 2]]);
+    expect(performance.now() - started).toBeLessThan(LIMIT_MS);
+  });
+
+  it("keeps the sizes and the limit this guard is built on", () => {
+    expect([MANY_IDS, SPREAD_LIMIT, LIMIT_MS]).toEqual([200_000, 125_700, 3000]);
+  });
+});
