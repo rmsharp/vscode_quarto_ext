@@ -12,7 +12,7 @@ import { type FlatOutlineSymbol, flattenOutline } from "../../src/core/workspace
 //
 // Measured at HEAD `fe6aaec` (Session 338, Node 22.23.3, one fresh process per probe, `buildOutline(doc, engine, "execute")` and then `flattenOutline(outline)` as the provider calls them; the lower bound was run and
 // was OK before each bisect; 16 bisections: shape x engine x width): `# Top` followed by N lines `## h`, or by N cells, throws from 110,360 descendants (last OK 110,359) in 14 of the 16 bisections; the other two moved by
-// about 15 between processes (110,346 and a last OK that did not repeat), because the optimizing compiler changes the size of a frame. The stage that throws is `flattenOutline` every time, never `buildOutline`.
+// about 15 between processes (110,346 and a last OK that did not repeat), because the optimizing compiler changes the size of a frame. The stage that threw is `flattenOutline` in the 15 bisections that reported one (the sixteenth did not repeat its throw), never `buildOutline`.
 // THE WIDTH OF THE LINE DOES NOT MATTER HERE (unlike a regex over a line): a document of characters up to U+00FF and one with the CJK letter U+4E2D in the Top heading threw at the same count. Neither does the
 // engine hint (undefined, "knitr", "jupyter", or the resolver's answer) nor the shape (headings or cells). The BACKLOG item says 125,742: that figure came from another process and the first throw moves with the stack
 // the process starts with, so the size below is 250,000 descendants, about twice the first throw (Learning 775): 2.27 times the figure measured here and 1.99 times the BACKLOG's.
