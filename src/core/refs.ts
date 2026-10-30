@@ -46,6 +46,7 @@ import {
   quartoFenceTagRewrite,
   trimEndBlanks,
 } from "./qmd/model";
+import { IDENTIFIER_RUN, runEnd } from "./qmd/unicode-run";
 
 /** The cross-reference kinds Quarto recognizes that this index supports. */
 export type RefKind = "fig" | "tbl" | "sec" | "eq" | "lst";
@@ -181,8 +182,8 @@ const CELL_LABEL_VALUE = new RegExp(
  */
 const CELL_NEVER_DEFINES: ReadonlySet<RefKind> = new Set<RefKind>(["sec", "eq"]);
 /**
- * A knitr chunk-HEADER label that defines a cross-reference: `fig-` or `tbl-` and a name, and NOTHING else
- * in the slot (Session 303).
+ * The cross-reference kind a knitr chunk-HEADER label defines: `fig` or `tbl` when the label is `fig-` or `tbl-` and a name, and NOTHING else
+ * in the slot (Session 303), or `null` when it defines none.
  *
  * ⚠ **A KNITR CHUNK HEADER DEFINES FIGURES AND TABLES ONLY.** `{r lst-x}`, `{r sec-x}` and `{r eq-x}` define nothing in
  * quarto 1.7.33 (`scratchpad/s303/hdr`, b02-b04, k05, k06; `hdr7`, v03). Nor does a `#| label: lst-x` on a KNITR chunk
@@ -197,8 +198,17 @@ const CELL_NEVER_DEFINES: ReadonlySet<RefKind> = new Set<RefKind>(["sec", "eq"])
  * (the same measurement {@link CELL_LABEL_VALUE} records for the pipe path). A bare `{r fig-}` was not rendered
  * (the reference `@fig-` cannot be written as a probe): it is declined as a name-less id. The label must also
  * START with the kind, so an ordinary chunk label that merely contains one (`{r a-fig-x}`) defines nothing.
+ *
+ * ⚠ **WHY AN INDEX LOOP (Session 338).** This was the pattern `^(fig|tbl)-[\p{L}\p{N}_:.-]+$` under the `u` flag, and V8 keeps one entry of its regex backtrack stack per character of a class-plus under
+ * that flag, twice as large once the line holds a character above U+00FF (the subject is then stored with two bytes a character): `{r echo=FALSE, fig-` and 4,194,288 letters or more, on a line with a character above U+00FF in it, threw `RangeError:
+ * Maximum call stack size exceeded` (bisected at `fe6aaec`, Node 22.23.3, one fresh process per probe), a thrown `RangeError` answers NOTHING for the whole document, and `indexLabels` reached it for
+ * every label the header reader answered. With every character up to U+00FF the same line reads at 60,000,000. The name is read by {@link runEnd} over {@link IDENTIFIER_RUN}, the shared reader of the
+ * `[\p{L}\p{N}_:.-]` family, which reads a character above ASCII as ONE code point, as the `u` flag did. `test/unit/chunk-label-token-equivalence.test.ts` keeps the old pattern as the oracle.
  */
-const HEADER_LABEL_ID = new RegExp(String.raw`^(fig|tbl)-` + DEFINED_ID_CHAR_CLASS + String.raw`+$`, "u");
+export function headerLabelKind(label: string): "fig" | "tbl" | null {
+  const kind = label.startsWith("fig-") ? "fig" : label.startsWith("tbl-") ? "tbl" : null;
+  return kind !== null && label.length > 4 && runEnd(label, 4, IDENTIFIER_RUN) === label.length ? kind : null;
+}
 /**
  * Cell languages quarto reads as a cell ONLY when the fence starts at column 0 — its three handler
  * languages (`mermaid`, `dot`, `ojs`).
@@ -619,9 +629,9 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
       documentEngine === "knitr" && !pipeNamesLabel && !COLUMN_ZERO_ONLY_LANGUAGES.has(cell.lang.toLowerCase())
         ? knitrChunkHeaderLabel(sourceLines[cell.startLine], COLUMN_ZERO_ONLY_LANGUAGES)
         : null;
-    const headerId = header === null ? null : HEADER_LABEL_ID.exec(header.value);
-    if (header !== null && headerId !== null && !makesNoTarget(headerId[1] as RefKind, header.value)) {
-      labels.push({ id: header.value, kind: headerId[1] as RefKind, line: cell.startLine, column: header.column });
+    const headerKind = header === null ? null : headerLabelKind(header.value);
+    if (header !== null && headerKind !== null && !makesNoTarget(headerKind, header.value)) {
+      labels.push({ id: header.value, kind: headerKind, line: cell.startLine, column: header.column });
     }
   }
 

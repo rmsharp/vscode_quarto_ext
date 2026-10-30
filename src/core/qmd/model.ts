@@ -46,6 +46,7 @@ import { divOpenerVerdict } from "./attribute-block";
 import { ColumnStack } from "./column-stack";
 import { jupyterKernelLanguage } from "./jupyter-kernel";
 import { quartoYamlRegions } from "./quarto-yaml-regions";
+import { IDENTIFIER_RUN, isRun, runClass, runEnd } from "./unicode-run";
 
 /**
  * What the caller knows about the document's execution engine, or `undefined` when it does not
@@ -9096,13 +9097,20 @@ function splitRHeaderArguments(tail: string): string[] | null {
  *    `1.5`, `1e3` to `1000`, `100000` to `1e+05`). So there only a token whose every part after the first is a
  *    symbol or a canonical integer is read; anything else is declined, because its normalised id is not
  *    the one written (a phantom) and this does not model R's number printing.
+ *
+ * ⚠ **THE FIRST SLOT IS READ BY INDEX, NOT BY A CLASS-PLUS (Session 338).** It was `/^[\p{L}\p{N}_:.-]+$/u`, and V8 keeps one entry of its regex backtrack stack per character of a class-plus under the `u`
+ * flag, twice as large once the line holds a character above U+00FF (the subject is then stored with two bytes a character): `{r fig-` and 4,194,284 letters or more, on a line with a character above U+00FF
+ * in it, threw `RangeError: Maximum call stack size exceeded` (bisected at `fe6aaec`, Node 22.23.3, one fresh process per probe), and a thrown `RangeError` answers NOTHING for the whole document: not the
+ * label index, nor the Outline of a document that calls `read_chunk`. With every character up to U+00FF the same line reads at 60,000,000. {@link isRun} reads the same language over {@link IDENTIFIER_RUN}
+ * (a character above ASCII is ONE code point, as the `u` flag read it). `test/unit/chunk-label-token-equivalence.test.ts` keeps the old pattern as the oracle; the function is exported for it. The quoted test
+ * above has no `u` flag, and it read a quoted label of 16,800,000 characters on a line with a character above U+00FF in it (`s338-chunk-label-rows-value.test.ts`), so it stays a pattern.
  */
-function readChunkLabelToken(text: string, firstSlot: boolean): { value: string; offset: number } | null {
+export function readChunkLabelToken(text: string, firstSlot: boolean): { value: string; offset: number } | null {
   const quoted = /^(["'])([^"'\\]*)\1$/.exec(text);
   if (quoted !== null) {
     return { value: quoted[2], offset: 1 };
   }
-  const written = firstSlot ? /^[\p{L}\p{N}_:.-]+$/u.test(text) : isRSymbolChain(text);
+  const written = firstSlot ? isRun(text, IDENTIFIER_RUN) : isRSymbolChain(text);
   return written ? { value: text, offset: 0 } : null;
 }
 /** One sticky read at `lastIndex`: in unicode mode a surrogate pair is ONE code point and a lone surrogate is none, which is how the old pattern's `\p{L}` read the text. */
@@ -9186,6 +9194,76 @@ const KNITR_HEADER_LEAD = /^[ \t]*,*(?:[ \t]*,)?[ \t]*/;
 function isBlankSlot(text: string): boolean {
   return /^[ \t]*$/.test(text);
 }
+/** `[\p{L}\p{N}._]`: the characters of an R argument name after its first. */
+const KNITR_ARGUMENT_NAME = runClass("._");
+/** The groups of the argument pattern, at the pattern's own indices (group 0 is the whole segment): the prefix up to the value, the bare name, the quote, the quoted name, the value. An unset group is `undefined`. */
+export type KnitrHeaderAssignment = [string, string, string | undefined, string | undefined, string | undefined, string | undefined] & { index: 0 };
+/**
+ * One argument of a knitr chunk header read as `name = value`: blanks, a NAME (a letter or `.` and then letters, numbers, `.` and `_`; or a string in single or double quotes that holds no quote and no
+ * backslash), blanks, an equals sign that no equals sign follows, blanks, an optional VALUE that starts and ends with a character that is no blank and holds anything between, and blanks to the end. It answers
+ * the groups of the pattern it replaced, at the same indices (see {@link KnitrHeaderAssignment}), or `null` when the segment is no assignment.
+ *
+ * ⚠ **IT IS A LOOP BECAUSE THE PATTERN THREW (Session 338).** It was `^([ \t]*(?:([\p{L}.][\p{L}\p{N}._]*)|(["'])([^"'\\]*)\3)[ \t]*=(?!=)[ \t]*)([^ \t](?:[\s\S]*[^ \t])?)?[ \t]*$` under the `u` flag,
+ * and V8 keeps one entry of its regex backtrack stack per character of a class-star under that flag, twice as large once the line holds a character above U+00FF (the subject is then stored with two bytes a
+ * character). Bisected at `fe6aaec` (Node 22.23.3, one fresh process per probe, through `indexLabels(text, "knitr")`, the lower bound verified OK first), on a line with a character above U+00FF in it, it threw
+ * `RangeError: Maximum call stack size exceeded` from 4,194,287 letters of the bare name and from 8,388,562 characters of the value, 8,388,570 of a quoted name and 8,388,557 of a blank run before or after the
+ * equals sign or after the value; with every character up to U+00FF the same lines read at 60,000,000. A thrown `RangeError` answers NOTHING for the whole document: no label index, nor the Outline of a
+ * document that calls `read_chunk`. The pattern never has a choice to take back: a name ends at the first character it cannot hold, which no blank or equals sign is; the blanks and the equals sign are no
+ * member of any class before them; and a value that starts and ends with a non-blank is the rest of the segment less its trailing blanks, so the match is the one a single pass over the segment finds.
+ * `test/unit/knitr-header-assignment-equivalence.test.ts` keeps the old pattern as the oracle, every group compared.
+ *
+ * It reads the name's first character by {@link rSymbolStartsAt} (a letter, one code point, as `\p{L}` under `u` read it) beside the dot, and the rest of the name by {@link runEnd} over `[\p{L}\p{N}._]`; the shared
+ * helper has no class of "a letter first".
+ */
+export function knitrHeaderAssignment(segment: string): KnitrHeaderAssignment | null {
+  const length = segment.length;
+  const nameStart = skipBlanks(segment, 0);
+  const first = segment.charCodeAt(nameStart);
+  let nameEnd: number;
+  let bareName: string | undefined;
+  let quote: string | undefined;
+  let quotedName: string | undefined;
+  if (first === 34 || first === 39) {
+    let close = nameStart + 1;
+    while (close < length) {
+      const c = segment.charCodeAt(close);
+      if (c === 34 || c === 39 || c === 92) {
+        break;
+      }
+      close++;
+    }
+    if (segment.charCodeAt(close) !== first) {
+      return null;
+    }
+    quote = segment[nameStart];
+    quotedName = segment.slice(nameStart + 1, close);
+    nameEnd = close + 1;
+  } else {
+    if (first === 46) {
+      nameEnd = nameStart + 1;
+    } else if (rSymbolStartsAt(segment, nameStart)) {
+      nameEnd = nameStart + ((segment.codePointAt(nameStart) as number) > 0xffff ? 2 : 1);
+    } else {
+      return null;
+    }
+    nameEnd = runEnd(segment, nameEnd, KNITR_ARGUMENT_NAME);
+    bareName = segment.slice(nameStart, nameEnd);
+  }
+  let at = skipBlanks(segment, nameEnd);
+  if (segment.charCodeAt(at) !== 61 || segment.charCodeAt(at + 1) === 61) {
+    return null;
+  }
+  at = skipBlanks(segment, at + 1);
+  let value: string | undefined;
+  if (at < length) {
+    let end = length;
+    while (segment.charCodeAt(end - 1) === 32 || segment.charCodeAt(end - 1) === 9) {
+      end--;
+    }
+    value = segment.slice(at, end);
+  }
+  return Object.assign([segment, segment.slice(0, at), bareName, quote, quotedName, value] as [string, string, string | undefined, string | undefined, string | undefined, string | undefined], { index: 0 as const });
+}
 /**
  * The label a knitr chunk HEADER carries — `{r fig-x}` or `{r, label="fig-x"}` — and the column its text
  * starts at in `openerLine`, or `null` when the header holds none (Session 303).
@@ -9245,13 +9323,12 @@ export function knitrChunkHeaderLabel(
     if (isBlankSlot(segment)) {
       continue; // an empty slot is read once the label slot is known (below)
     }
-    const assignment =
-      /^([ \t]*(?:([\p{L}.][\p{L}\p{N}._]*)|(["'])([^"'\\]*)\3)[ \t]*=(?!=)[ \t]*)([^ \t](?:[\s\S]*[^ \t])?)?[ \t]*$/u.exec(segment);
+    const assignment = knitrHeaderAssignment(segment);
     if (assignment === null) {
       unnamed.push({ text: segment, start, index });
       continue;
     }
-    const name = assignment[2] ?? assignment[4];
+    const name = (assignment[2] ?? assignment[4]) as string; // one of the two name groups is always set
     const value = assignment[5] ?? "";
     if (name === "label") {
       named.push({ value, start: start + assignment[1].length });
