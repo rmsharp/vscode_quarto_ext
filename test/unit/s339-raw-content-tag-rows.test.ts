@@ -11,7 +11,7 @@ import { indexLabels } from "../../src/core/refs";
 //
 // THE ANSWERS DEPEND ON THE COUNT, so the rows are documents whose headings, outline names, cells and labels change with it. Two templates, both taken from rows that already exist in `qmd-model.test.ts` (the Session 295 "GUARD: a
 // complete <div> inside an open <pre> keeps the opener swallowed" family and the Session 296 "pre blank fence" family), and both checked by switching the loop off (the pattern replaced by one that never matches): the
-// first fails 3 rows of the older suite and the second 3 more.
+// first family fails 4 rows of the older suite (one per element) and the second 3 more, 7 in all (`qmd-model.test.ts`, run with the loop switched off).
 //   A. `engine: markdown`, an opener line, `<div>x</div>`, an indented `{bash}` opener: with a raw-content element open the opener is swallowed (headings Before, After); with none open it is indented code (Before, In, After).
 //   G. `from: commonmark_x`, an opener line, a blank line, an unclosed plain fence: with an element open the fence ends where the element does (Before, After, and the label `sec-after`); with none open the fence runs to the end
 //      of the document (Before only, no label).
@@ -169,5 +169,39 @@ describe("Session 339 — one opener line in each template: what the parent answ
     expect(new Set(TABLE.map((row) => row[1])).size).toBe(TABLE.length);
     expect(TABLE.some((row) => row[2] === OPEN_A) && TABLE.some((row) => row[2] === SHUT_A)).toBe(true);
     expect(TABLE.length).toBe(49);
+  });
+});
+
+// THE REVIEW ROUND (Session 339, mutation lens): an opener counts only at the start of a LINE, so `<pre><pre>` opens one element, and the table above never takes the count past one. A closer that took two (R05 of
+// `tools/mutation-run/mutants/s339-raw-content-tag.json`: `Math.max(0, rawContentDepth - 2)`) therefore passed every row of both templates and of the older suites. These documents open an element on one line and another on the
+// next, and close one: the opener below is still inside the first. Every answer is the parent `4d1944c`'s for the same two builders (the loop switched off gives the shut answer on 10 of the 13).
+const MULTILINE: Array<[string, string, string[], string[], string[]]> = [
+  ["two openers on two lines", "<pre>\n<pre>", OPEN_A, OPEN_G, ["sec-after"]],
+  ["two openers and a closer", "<pre>\n<pre>\n</pre>", OPEN_A, ["Before", "In", "After"], ["sec-after"]],
+  ["two openers and two closers", "<pre>\n<pre>\n</pre>\n</pre>", SHUT_A, SHUT_G, []],
+  ["two openers, two closers and an opener", "<pre>\n<pre>\n</pre>\n</pre>\n<pre>", OPEN_A, ["Before", "In", "After"], ["sec-after"]],
+  ["an opener, then a pair on one line", "<script>\n<pre></pre>", OPEN_A, ["Before", "In", "After"], ["sec-after"]],
+  ["two names open, the first closes", "<pre>\n<script>\n</pre>", OPEN_A, ["Before", "In", "After"], ["sec-after"]],
+  ["two names open, the second closes", "<pre>\n<script>\n</script>", OPEN_A, ["Before", "In", "After"], ["sec-after"]],
+  ["an opener, a pair on one line", "<pre>\n<pre></pre>", OPEN_A, ["Before", "In", "After"], ["sec-after"]],
+  ["a closer too many", "<pre>\n</pre>\n</pre>", SHUT_A, SHUT_G, []],
+  ["a closer then an opener", "</pre>\n<pre>", OPEN_A, ["Before", "In", "After"], ["sec-after"]],
+  ["a pair then an opener", "<pre>\n</pre>\n<pre>", OPEN_A, OPEN_G, ["sec-after"]],
+  ["style and textarea", "<style>\n<textarea>\n</textarea>", OPEN_A, ["Before", "In", "After"], ["sec-after"]],
+  ["a textarea around a script", "<textarea>\n<script>\n</script>\n</textarea>", SHUT_A, SHUT_G, []],
+];
+
+describe("Session 339 review — elements opened and closed on several lines: the count goes past one (part 11)", () => {
+  it.each(MULTILINE.map(([label, line, a, g, l]) => [label, line, a, g, l] as const))("%s", (_label, line, answerA, answerG, answerLabels) => {
+    expect(headings(docA(line))).toEqual(answerA);
+    expect(headings(docG(line))).toEqual(answerG);
+    expect(labels(docG(line))).toEqual(answerLabels);
+  });
+
+  it("the table holds each line once, every line is on several lines, and both answers of each kind are there", () => {
+    expect(new Set(MULTILINE.map((row) => row[1])).size).toBe(MULTILINE.length);
+    expect(MULTILINE.every((row) => row[1].includes("\n"))).toBe(true);
+    expect(MULTILINE.some((row) => row[2] === OPEN_A) && MULTILINE.some((row) => row[2] === SHUT_A)).toBe(true);
+    expect(MULTILINE.length).toBe(13);
   });
 });

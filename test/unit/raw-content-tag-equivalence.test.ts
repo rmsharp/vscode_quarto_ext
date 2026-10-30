@@ -377,53 +377,97 @@ describe("Session 339 — rawContentTags: the new function reads the tags the ol
     expect(rawContentTags(line)).toEqual(stated);
   });
 
-  // The old pattern is quadratic on the first of these, and every one of them is a line of the length the BACKLOG item names: the new function reads 10,000,000 characters without a stack or a spread (`RangeError`) and in linear time.
+  // Lines of 10,000,000 characters (the length the BACKLOG item names): the new function reads them without a stack or a spread (`RangeError`) and in linear time. The old pattern is quadratic on the first of them.
   const LONG_LIMIT_MS = 3000;
+  const LONG_RUN = 2_000_000; // `<pre ` and `<pre>` are 5 characters
+  const PAIR_RUN = 900_000; // `<pre></pre>` is 11
+  const SCRIPT_RUN = 1_250_000; // `<script ` is 8
+  const ANGLE_RUN = 10_000_000;
+  // ⚠ A SCAN THAT IS QUADRATIC AT NATIVE SPEED KEEPS EVERY ANSWER AND IS STILL QUADRATIC (Session 339 review, R12 of tools/mutation-run/mutants/s339-raw-content-tag.json: the `return` at the first opener with no `>` respelled as "go on to the
+  // next `<`", every `indexOf(">")` then reading to the end of the line). `<pre ` x 100,000 / 200,000 / 400,000 (500,000 / 1,000,000 / 2,000,000 characters) took 565.7 / 2,252.4 / 8,941.8 ms that way, `<script ` x 250,000 5,685.1 ms
+  // and `<pre ` x 200,000 and a CJK letter (a two-byte string) 4,503.2 ms; the cure takes 0.3 to 0.4 ms on the 2,000,000-character lines (fresh processes, scratch copies of the cure and of the mutant). The 10,000,000-character rows
+  // below would not come back from that mutant in hours, so they ask first whether a native row was slow and fail at once if one was.
+  const NATIVE_LIMIT_MS = 1000;
+  const NATIVE_PRE_RUN = 400_000;
+  const NATIVE_SCRIPT_RUN = 250_000;
+  const NATIVE_TWO_BYTE_RUN = 200_000;
+  let nativeRowWasSlow = false;
   const clock = <T,>(run: () => T): { result: T; ms: number } => {
     const started = performance.now();
     const result = run();
     return { result, ms: performance.now() - started };
   };
+  const native = <T,>(run: () => T): T => {
+    const { result, ms } = clock(run);
+    nativeRowWasSlow = nativeRowWasSlow || ms >= NATIVE_LIMIT_MS;
+    expect(ms).toBeLessThan(NATIVE_LIMIT_MS);
+    return result;
+  };
+  it("`<pre ` x 400,000 (2,000,000 characters, no `>`) holds no tag in linear time", () => {
+    expect(native(() => rawContentTags("<pre ".repeat(NATIVE_PRE_RUN)))).toEqual([]);
+  });
+  it("`<script ` x 250,000 (2,000,000 characters, no `>`) holds no tag in linear time", () => {
+    expect(native(() => rawContentTags("<script ".repeat(NATIVE_SCRIPT_RUN)))).toEqual([]);
+  });
+  it("`<pre ` x 200,000 and a CJK letter (a two-byte string) holds no tag in linear time", () => {
+    expect(native(() => rawContentTags("<pre ".repeat(NATIVE_TWO_BYTE_RUN) + CJK))).toEqual([]);
+  });
+  it("an opener then `<pre ` x 400,000 is one tag, and the run behind it is not read again", () => {
+    expect(native(() => rawContentTags("<pre>" + "<pre ".repeat(NATIVE_PRE_RUN)))).toEqual([{ index: 0, closing: false, selfClosing: false }]);
+  });
+  it("`<pre ` x 400,000, a closer and `<pre ` x 400,000 is one opener at 0 that swallows the closer", () => {
+    expect(native(() => rawContentTags("<pre ".repeat(NATIVE_PRE_RUN) + "</pre>" + "<pre ".repeat(NATIVE_PRE_RUN)))).toEqual([{ index: 0, closing: false, selfClosing: false }]);
+  });
   it("`<pre ` x 2,000,000 (10,000,000 characters, no `>`) holds no tag", () => {
-    const { result, ms } = clock(() => rawContentTags("<pre ".repeat(2_000_000)));
+    expect(nativeRowWasSlow, "a native-speed row above was slow: this row would run for hours").toBe(false);
+    const { result, ms } = clock(() => rawContentTags("<pre ".repeat(LONG_RUN)));
     expect(result).toEqual([]);
     expect(ms).toBeLessThan(LONG_LIMIT_MS);
   });
   it("`<pre ` x 2,000,000 and one `>` at the very end is ONE tag at 0, and `/>` at the end makes it self-closing", () => {
-    const one = clock(() => rawContentTags("<pre ".repeat(2_000_000) + ">"));
+    expect(nativeRowWasSlow, "a native-speed row above was slow: this row would run for hours").toBe(false);
+    const one = clock(() => rawContentTags("<pre ".repeat(LONG_RUN) + ">"));
     expect(one.result).toEqual([{ index: 0, closing: false, selfClosing: false }]);
     expect(one.ms).toBeLessThan(LONG_LIMIT_MS);
-    const self = clock(() => rawContentTags("<pre ".repeat(2_000_000) + "/>"));
+    const self = clock(() => rawContentTags("<pre ".repeat(LONG_RUN) + "/>"));
     expect(self.result).toEqual([{ index: 0, closing: false, selfClosing: true }]);
     expect(self.ms).toBeLessThan(LONG_LIMIT_MS);
   });
   it("`<pre>` x 2,000,000 (10,000,000 characters) is 2,000,000 openers, one every 5 characters", () => {
-    const { result, ms } = clock(() => rawContentTags("<pre>".repeat(2_000_000)));
-    expect(result.length).toBe(2_000_000);
+    const { result, ms } = clock(() => rawContentTags("<pre>".repeat(LONG_RUN)));
+    expect(result.length).toBe(LONG_RUN);
     expect(result[0]).toEqual({ index: 0, closing: false, selfClosing: false });
-    expect(result[1_999_999]).toEqual({ index: 9_999_995, closing: false, selfClosing: false });
+    expect(result[LONG_RUN - 1]).toEqual({ index: 5 * (LONG_RUN - 1), closing: false, selfClosing: false });
     expect(result.every((tag, i) => tag.index === 5 * i && !tag.closing && !tag.selfClosing)).toBe(true);
     expect(ms).toBeLessThan(LONG_LIMIT_MS);
   });
   it("`<pre></pre>` x 900,000 alternates openers and closers, and a line of 10,000,000 `<` or `x` holds none", () => {
-    const pairs = clock(() => rawContentTags("<pre></pre>".repeat(900_000)));
-    expect(pairs.result.length).toBe(1_800_000);
+    const pairs = clock(() => rawContentTags("<pre></pre>".repeat(PAIR_RUN)));
+    expect(pairs.result.length).toBe(2 * PAIR_RUN);
     expect(pairs.result.every((tag, i) => tag.index === (i % 2 === 0 ? 11 * (i / 2) : 11 * ((i - 1) / 2) + 5) && tag.closing === (i % 2 === 1) && !tag.selfClosing)).toBe(true);
     expect(pairs.ms).toBeLessThan(LONG_LIMIT_MS);
-    const angles = clock(() => rawContentTags("<".repeat(10_000_000)));
+    const angles = clock(() => rawContentTags("<".repeat(ANGLE_RUN)));
     expect(angles.result).toEqual([]);
     expect(angles.ms).toBeLessThan(LONG_LIMIT_MS);
-    const letters = clock(() => rawContentTags("x".repeat(10_000_000)));
+    const letters = clock(() => rawContentTags("x".repeat(ANGLE_RUN)));
     expect(letters.result).toEqual([]);
     expect(letters.ms).toBeLessThan(LONG_LIMIT_MS);
   });
   it("a two-byte line of 10,000,000 characters: `<script ` x 1,250,000 and a CJK letter holds no tag, and a `>` after the letter makes one", () => {
-    const none = clock(() => rawContentTags("<script ".repeat(1_250_000) + CJK));
+    expect(nativeRowWasSlow, "a native-speed row above was slow: this row would run for hours").toBe(false);
+    const none = clock(() => rawContentTags("<script ".repeat(SCRIPT_RUN) + CJK));
     expect(none.result).toEqual([]);
     expect(none.ms).toBeLessThan(LONG_LIMIT_MS);
-    const one = clock(() => rawContentTags("<script ".repeat(1_250_000) + CJK + ">"));
+    const one = clock(() => rawContentTags("<script ".repeat(SCRIPT_RUN) + CJK + ">"));
     expect(one.result).toEqual([{ index: 0, closing: false, selfClosing: false }]);
     expect(one.ms).toBeLessThan(LONG_LIMIT_MS);
+  });
+  // A limit of 100 s, a run of 20 or a shorter line passes the quadratic spellings too.
+  it("keeps the limits and the sizes of the long-line rows above", () => {
+    expect([LONG_LIMIT_MS, NATIVE_LIMIT_MS]).toEqual([3000, 1000]);
+    expect([LONG_RUN, PAIR_RUN, SCRIPT_RUN, ANGLE_RUN]).toEqual([2_000_000, 900_000, 1_250_000, 10_000_000]);
+    expect([NATIVE_PRE_RUN, NATIVE_SCRIPT_RUN, NATIVE_TWO_BYTE_RUN]).toEqual([400_000, 250_000, 200_000]);
+    expect([5 * LONG_RUN, 11 * PAIR_RUN, 8 * SCRIPT_RUN, 5 * NATIVE_PRE_RUN, 8 * NATIVE_SCRIPT_RUN, 5 * NATIVE_TWO_BYTE_RUN]).toEqual([10_000_000, 9_900_000, 10_000_000, 2_000_000, 2_000_000, 1_000_000]);
   });
   // The old pattern meets the same lines at the size it can: 3,000 openers is about 15,000 characters and a millisecond or two.
   it("the old pattern and the new function agree on the long-line shapes at a size the old one can read", () => {
