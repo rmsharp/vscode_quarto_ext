@@ -24,6 +24,7 @@ const LIMIT_MS = 1000;
 const ROW_TIMEOUT_MS = 120_000;
 const QUOTED_N = 24_000;
 const BARE_N = 20_000;
+const MEGA_N = 200_000;
 const WIDE = "Ā";
 
 type Kind = "quoted" | "quoted-amp-end" | "quoted-bs-mid" | "braced" | "bare" | "bare-amp-end" | "tabset" | "tabset-amp" | "plain-quoted";
@@ -171,9 +172,26 @@ describe("Session 339 — the small shapes pin the answers the large rows expect
   });
 });
 
+// The review round (the mutation lens): the call of `classValueMayHoldEscape` in `divSpecReading` could read only the first 65,536 or 2^20 characters of the opener and every row above would pass but one: an escape
+// BEHIND the first megabyte. An opener of 200,000 `class=` and an ampersand is 1,200,011 characters; the parent is linear on it (its first `class=` finds the ampersand at the end of its one backtrack), so these rows pass on
+// the parent, and the reader must decline: `## T` is a heading.
+describe("Session 339 review — an escape behind the first megabyte of an opener is seen by the call site", () => {
+  it.each([
+    ["one-byte", ""],
+    ["two-byte (a character above U+00FF in front of the run)", WIDE],
+  ] as Array<[string, string]>)("an opener of 200,000 `class=` and an ampersand, %s: the reader declines and `## T` is a heading", (_label, w) => {
+    const id = `mega${w === "" ? "N" : "W"}`;
+    const text = documentOf("quoted-amp-end", MEGA_N, w, id);
+    expect(text.indexOf("&")).toBeGreaterThan(1_048_576);
+    const { result, ms } = timed(() => headings(text));
+    expect(result).toEqual(LISTED(id));
+    expect(ms).toBeLessThan(LIMIT_MS);
+  }, ROW_TIMEOUT_MS);
+});
+
 describe("Session 339 — the sizes and the limit the clock rows are built on", () => {
-  // A limit of 100 s, or a run of 2,400 `class=`, would pass the parent too.
+  // A limit of 100 s, or a run of 2,400 `class=`, would pass the parent too; 20,000 `class=` would not reach past 2^20 characters.
   it("keeps them", () => {
-    expect([LIMIT_MS, QUOTED_N, BARE_N]).toEqual([1000, 24_000, 20_000]);
+    expect([LIMIT_MS, QUOTED_N, BARE_N, MEGA_N]).toEqual([1000, 24_000, 20_000, 200_000]);
   });
 });

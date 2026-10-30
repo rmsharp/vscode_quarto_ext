@@ -238,6 +238,9 @@ const OPENERS: Array<[string, string[]]> = [
   ['::: {class="a&b callout-note"}', LISTED],
   ["::: {class=callout-note data-x=a\\b}", LISTED],
   ["::: {class='callout-note' data-x='" + ABOVE_FF + "&'}", LISTED],
+  // A dotted class AND an escape in the value of `class=`: the reader declines and the regex reader finds the dotted class, so the heading is consumed all the same (a fallback that answered false would list it).
+  ['::: {.callout-note class="x" data-x="a&b"}', HIDDEN],
+  ['::: {.panel-tabset class="x" data-x="a&b"}', HIDDEN],
   ['::: {class="panel-tabset" data-x="&"}', LISTED],
   ['::: {data-x="&" class="panel-tabset"}', HIDDEN],
   ['::: {class="panel-tabset" data-x="}&"}', HIDDEN],
