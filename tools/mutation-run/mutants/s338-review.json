@@ -1,0 +1,162 @@
+[
+ {
+  "name": "D06 callout: the type is lower-cased before the lookup",
+  "file": "src/core/qmd/model.ts",
+  "from": "    return attrs === \"callout\" || (attrs.startsWith(\"callout-\") && CALLOUT_TYPES.has(attrs.slice(8)));",
+  "to": "    return attrs === \"callout\" || (attrs.startsWith(\"callout-\") && CALLOUT_TYPES.has(attrs.slice(8).toLowerCase()));",
+  "expect": "killed",
+  "why": "`callout-NOTE` would lift a heading into a title bar that quarto keeps: the case row of `s338-div-word-rows.test.ts`"
+ },
+ {
+  "name": "D11 callout: the bare word `callout` is compared lower-cased",
+  "file": "src/core/qmd/model.ts",
+  "from": "    return attrs === \"callout\" || (attrs.startsWith(\"callout-\") && CALLOUT_TYPES.has(attrs.slice(8)));",
+  "to": "    return attrs.toLowerCase() === \"callout\" || (attrs.startsWith(\"callout-\") && CALLOUT_TYPES.has(attrs.slice(8)));",
+  "expect": "killed",
+  "why": "`Callout` and `CALLOUT` become callouts: the case row of `s338-div-word-rows.test.ts`"
+ },
+ {
+  "name": "D12 callout: the prefix `callout-` is matched lower-cased",
+  "file": "src/core/qmd/model.ts",
+  "from": "    return attrs === \"callout\" || (attrs.startsWith(\"callout-\") && CALLOUT_TYPES.has(attrs.slice(8)));",
+  "to": "    return attrs === \"callout\" || (attrs.toLowerCase().startsWith(\"callout-\") && CALLOUT_TYPES.has(attrs.slice(8)));",
+  "expect": "killed",
+  "why": "`Callout-note` becomes a callout: the case row of `s338-div-word-rows.test.ts`"
+ },
+ {
+  "name": "T14 header: the option name `engine` is matched lower-cased",
+  "file": "src/core/qmd/model.ts",
+  "from": "    } else if (name === \"engine\") {",
+  "to": "    } else if (name.toLowerCase() === \"engine\") {",
+  "expect": "killed",
+  "why": "`ENGINE=ojs` would decline the whole header: the ENGINE=/CHILD= row of `refs.test.ts`"
+ },
+ {
+  "name": "T17 header: the option name `child` is matched lower-cased",
+  "file": "src/core/qmd/model.ts",
+  "from": "    } else if (name.startsWith(\"label\") || name === \"child\") {",
+  "to": "    } else if (name.startsWith(\"label\") || name.toLowerCase() === \"child\") {",
+  "expect": "killed",
+  "why": "`CHILD=x` would decline the whole header: the ENGINE=/CHILD= row of `refs.test.ts`"
+ },
+ {
+  "name": "T07 header: the engine= value is read as an R symbol, not a first slot",
+  "file": "src/core/qmd/model.ts",
+  "from": "      const read = readChunkLabelToken(value, true);",
+  "to": "      const read = readChunkLabelToken(value, false);",
+  "expect": "killed",
+  "why": "`engine=1a` is no R symbol, so the header would be declined: the engine= row of `refs.test.ts`"
+ },
+ {
+  "name": "L10 kinds: the kind prefix test ignores case",
+  "file": "src/core/refs.ts",
+  "from": "const KIND_PREFIX = /^(fig|tbl|sec|eq|lst)-/;",
+  "to": "const KIND_PREFIX = /^(fig|tbl|sec|eq|lst)-/i;",
+  "expect": "killed",
+  "why": "`Fig-x` would be a label of the kind `Fig`: the upper-case row of `refs.test.ts`"
+ },
+ {
+  "name": "L11 cell label: the value slot is trimmed with Unicode blanks",
+  "file": "src/core/refs.ts",
+  "from": "cellLabelValue(lineText.slice(valueSlot.startCol, valueSlot.endCol))",
+  "to": "cellLabelValue(lineText.slice(valueSlot.startCol, valueSlot.endCol).trim())",
+  "expect": "killed",
+  "why": "`#| label:<NBSP>fig-a` would define a label: the Unicode-blank rows of `refs.test.ts`"
+ },
+ {
+  "name": "P01 readCitations: the list is emptied after each file",
+  "file": "src/core/citations.ts",
+  "from": "      appendCitations(all, parseCitations(content));",
+  "to": "      appendCitations(all, parseCitations(content));\n      all.length = 0;",
+  "expect": "killed",
+  "why": "nothing is offered: the first row of `citations-read.test.ts`"
+ },
+ {
+  "name": "P01b readCitations: the list is emptied before each file",
+  "file": "src/core/citations.ts",
+  "from": "      appendCitations(all, parseCitations(content));",
+  "to": "      all.length = 0;\n      appendCitations(all, parseCitations(content));",
+  "expect": "killed",
+  "why": "only the last file survives: the several-files rows of `citations-read.test.ts`"
+ },
+ {
+  "name": "P02 readCitations: only the first declared file is read",
+  "file": "src/core/citations.ts",
+  "from": "  for (const rel of relPaths) {",
+  "to": "  for (const rel of relPaths.slice(0, 1)) {",
+  "expect": "killed",
+  "why": "the second bibliography is never read: the several-files rows of `citations-read.test.ts`"
+ },
+ {
+  "name": "P03 readCitations: the append never runs",
+  "file": "src/core/citations.ts",
+  "from": "      appendCitations(all, parseCitations(content));",
+  "to": "      if (relPaths.length < 0) {\n        appendCitations(all, parseCitations(content));\n      }",
+  "expect": "killed",
+  "why": "nothing is offered: the first row of `citations-read.test.ts`"
+ },
+ {
+  "name": "P04 readCitations: the duplicates are kept",
+  "file": "src/core/citations.ts",
+  "from": "  return dedupeByKey(all);",
+  "to": "  return all;",
+  "expect": "killed",
+  "why": "a key declared twice is listed twice: the de-duplication rows of `citations-read.test.ts`"
+ },
+ {
+  "name": "P05 readCitations: the files are reversed before de-duplicating",
+  "file": "src/core/citations.ts",
+  "from": "  return dedupeByKey(all);",
+  "to": "  return dedupeByKey(all.slice().reverse());",
+  "expect": "killed",
+  "why": "the LAST citation of a key wins and the order is reversed: the order rows of `citations-read.test.ts`"
+ },
+ {
+  "name": "P06 readCitations: a path is resolved against the working directory",
+  "file": "src/core/citations.ts",
+  "from": "await readFile(path.resolve(dir, rel))",
+  "to": "await readFile(path.resolve(rel))",
+  "expect": "killed",
+  "why": "the document's directory is ignored: the path rows of `citations-read.test.ts`"
+ },
+ {
+  "name": "P08 readCitations: a file that cannot be read stops the loop",
+  "file": "src/core/citations.ts",
+  "from": "    } catch {\n      // Missing/unreadable bib file — skip it; offer what we can.\n    }",
+  "to": "    } catch (error) {\n      throw error;\n    }",
+  "expect": "killed",
+  "why": "a missing bibliography breaks completion: the skip row of `citations-read.test.ts`"
+ },
+ {
+  "name": "P09 readCitations: the dedupe keeps the LAST citation of a key",
+  "file": "src/core/citations.ts",
+  "from": "    if (seen.has(c.key)) {\n      return false;\n    }\n    seen.add(c.key);\n    return true;",
+  "to": "    if (seen.has(c.key)) {\n      seen.delete(c.key);\n      return true;\n    }\n    seen.add(c.key);\n    return false;",
+  "expect": "killed",
+  "why": "the first citation of a key is dropped: the duplicate rows of `citations-read.test.ts`"
+ },
+ {
+  "name": "W01 adapter: the directory handed to readCitations is the working directory",
+  "file": "src/providers/citation.ts",
+  "from": "readCitations(relPaths, path.dirname(document.uri.fsPath), (file) =>",
+  "to": "readCitations(relPaths, process.cwd(), (file) =>",
+  "expect": "killed",
+  "why": "the wiring gate of `s338-spreads-rows-citations.test.ts` reads the call"
+ },
+ {
+  "name": "V01 provider: a result is pushed with a spread",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "      if (token.isCancellationRequested) break;",
+  "to": "      if (token.isCancellationRequested) break;\n      results.push(...[]);",
+  "expect": "killed",
+  "why": "the gate of `s338-spreads-rows.test.ts` finds a call with a spread argument"
+ },
+ {
+  "name": "V02 provider: flattenOutline is a local function",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "import {\n  flattenOutline,\n  matchesWorkspaceQuery,\n} from \"../core/workspace-symbols\";",
+  "to": "import { matchesWorkspaceQuery } from \"../core/workspace-symbols\";\nconst flattenOutline = (outline: never[]): never[] => outline;",
+  "expect": "killed",
+  "why": "the gate finds no import of the core function and a local flatten"
+ }
+]
