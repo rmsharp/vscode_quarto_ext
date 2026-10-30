@@ -55,8 +55,8 @@ describe("Session 338 — the short control: what a plain div, a callout and a t
     }
   });
 
-  it("commonmark_x: a word that only STARTS like them is a plain div (`callout-bogus`, `callout-notes`, `panel-tabsets`, `calloutnote`, `Panel-Tabset`)", () => {
-    for (const word of ["callout-bogus", "callout-notes", "panel-tabsets", "calloutnote", "Panel-Tabset", "callout-note-2"]) {
+  it("commonmark_x: a word that only STARTS like them is a plain div (`callout-bogus`, `callout-notes`, `panel-tabsets`, `calloutnote`, `Panel-Tabset`, `callout_note`, `panel_tabset`)", () => {
+    for (const word of ["callout-bogus", "callout-notes", "panel-tabsets", "calloutnote", "Panel-Tabset", "callout-note-2", "callout_note", "panel_tabset"]) {
       expect(names(doc("sx", word, "commonmark_x")), word).toEqual(["Hsx", "Ksx", "Aftersx"]);
     }
   });
@@ -96,7 +96,14 @@ describe("Session 338 — legacyDivCalloutTitleSlot on its own", () => {
 
   it("a short word is read as before: `callout` and `callout-note` are callouts, the rest of the types too, and `callout-bogus` is not", () => {
     expect(["callout", "callout-note", "callout-tip", "callout-warning", "callout-important", "callout-caution"].map((w) => legacyDivCalloutTitleSlot(w, true))).toEqual([true, true, true, true, true, true]);
-    expect(["callout-bogus", "callouts", "panel-tabset", "abcd", "callout-"].map((w) => legacyDivCalloutTitleSlot(w, false))).toEqual([false, false, false, false, false]);
+    expect(["callout-bogus", "callouts", "panel-tabset", "abcd", "callout-", "callout_note", "calloutnote", "Callout-Note"].map((w) => legacyDivCalloutTitleSlot(w, false))).toEqual([false, false, false, false, false, false, false, false]);
+  });
+
+  // A spec that is no bare word goes on to the attribute-block reading, which the word test must not take for its own: `{` is no member of the class.
+  it("an attribute block is still read as one: a callout class is a callout, a title or a tabset written first is not", () => {
+    expect(["{.callout-note}", "{.callout}", "{.callout-tip #a}", "{.callout-note .panel-tabset}"].map((a) => legacyDivCalloutTitleSlot(a, false))).toEqual([true, true, true, true]);
+    expect(["{.callout-note title=\"x\"}", "{.panel-tabset .callout-note}", "{.callout-bogus}", "{.note}", "{}"].map((a) => legacyDivCalloutTitleSlot(a, false))).toEqual([false, false, false, false, false]);
+    expect([legacyDivCalloutTitleSlot("", true), legacyDivCalloutTitleSlot("callout-note ", true), legacyDivCalloutTitleSlot(" callout-note", true)]).toEqual([false, false, false]);
   });
 });
 
@@ -110,5 +117,32 @@ describe("Session 338 — legacyDivPanelTabset on its own", () => {
 
   it("a short word is read as before: `panel-tabset` is a tabset, `panel-tabsets` and `Panel-Tabset` are not", () => {
     expect([legacyDivPanelTabset("panel-tabset"), legacyDivPanelTabset("panel-tabsets"), legacyDivPanelTabset("Panel-Tabset"), legacyDivPanelTabset("callout-note"), legacyDivPanelTabset("")]).toEqual([true, false, false, false, false]);
+    expect([legacyDivPanelTabset("panel_tabset"), legacyDivPanelTabset("panel-tabset-"), legacyDivPanelTabset("xpanel-tabset"), legacyDivPanelTabset("panel-tabset "), legacyDivPanelTabset(" panel-tabset")]).toEqual([false, false, false, false, false]);
+  });
+
+  it("an attribute block is still read as one: a tabset class is a tabset, a callout written first is not", () => {
+    expect(["{.panel-tabset}", "{.panel-tabset #a}", "{.panel-tabset .callout-note}", "{.foo .panel-tabset}"].map((a) => legacyDivPanelTabset(a))).toEqual([true, true, true, true]);
+    expect(["{.callout-note .panel-tabset}", "{.panel-tabsets}", "{.tabset}", "{data-x=\".panel-tabset\"}", "{}"].map((a) => legacyDivPanelTabset(a))).toEqual([false, false, false, false, false]);
+  });
+});
+
+// What the rows above are built on, pinned: a size under the first throw, a form that is not the form it names, or a reader that is no CommonMark-family reader would leave every document row green on the parent.
+describe("Session 338 — the sizes, forms and readers of the document rows", () => {
+  it("keeps a size past the first throw (4,194,288 letters), the limit, the three readers and the three forms with their widths", () => {
+    expect(LONG).toBe(4_300_000);
+    expect(LONG).toBeGreaterThan(4_194_288);
+    expect(LIMIT_MS).toBe(15_000);
+    expect(READERS.map((r) => [r.from, r.key])).toEqual([["gfm", "g"], ["commonmark", "c"], ["commonmark_x", "x"]]);
+    expect(FORMS.map((f) => f.key)).toEqual(["1", "2", "3"]);
+    const widths = FORMS.map((form) => {
+      const word = form.word();
+      let above = 0;
+      for (let i = 0; i < word.length; i++) {
+        if (word.charCodeAt(i) > 0xff) above++;
+      }
+      return [word.length, above];
+    });
+    expect(widths).toEqual([[LONG, 0], [LONG, 1], [LONG, LONG]]);
+    expect(doc("p", "w", "gfm")).toBe("---\nfrom: gfm\n---\n\n::: w\n\n# Hp\n\n## Kp\n\n:::\n\n![x](y){#fig-p}\n\n```{r}\n#| label: tbl-cp\n1\n```\n\n## Afterp\n");
   });
 });
