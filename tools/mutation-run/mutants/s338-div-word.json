@@ -1,0 +1,474 @@
+[
+ {
+  "name": "B-01 divBareWord: the class has no underscore",
+  "file": "src/core/qmd/model.ts",
+  "from": "runClass(\"_-\")",
+  "to": "runClass(\"-\")",
+  "expect": "killed",
+  "why": "`a_b` and `callout_note` are no longer words"
+ },
+ {
+  "name": "B-02 divBareWord: the class has no dash",
+  "file": "src/core/qmd/model.ts",
+  "from": "runClass(\"_-\")",
+  "to": "runClass(\"_\")",
+  "expect": "killed",
+  "why": "`callout-note` and `panel-tabset` are no longer words"
+ },
+ {
+  "name": "B-03 divBareWord: the class has a colon",
+  "file": "src/core/qmd/model.ts",
+  "from": "runClass(\"_-\")",
+  "to": "runClass(\"_:-\")",
+  "expect": "killed",
+  "why": "`a:b` becomes a word (the attribute identifier class holds one)"
+ },
+ {
+  "name": "B-04 divBareWord: the class has a dot",
+  "file": "src/core/qmd/model.ts",
+  "from": "runClass(\"_-\")",
+  "to": "runClass(\"_.-\")",
+  "expect": "killed",
+  "why": "`a.b` becomes a word"
+ },
+ {
+  "name": "B-05 divBareWord: the class is the attribute identifier class",
+  "file": "src/core/qmd/model.ts",
+  "from": "runClass(\"_-\")",
+  "to": "runClass(\"_:.-\")",
+  "expect": "killed",
+  "why": "`a:b` and `a.b` become words"
+ },
+ {
+  "name": "B-06 divBareWord: the class has only letters and numbers",
+  "file": "src/core/qmd/model.ts",
+  "from": "runClass(\"_-\")",
+  "to": "runClass(\"\")",
+  "expect": "killed",
+  "why": "`callout-note` and `a_b` are no longer words"
+ },
+ {
+  "name": "B-07 divBareWord: the class has a blank",
+  "file": "src/core/qmd/model.ts",
+  "from": "runClass(\"_-\")",
+  "to": "runClass(\"_- \")",
+  "expect": "killed",
+  "why": "`a b` becomes a word"
+ },
+ {
+  "name": "B-08 divBareWord: the class has a hash",
+  "file": "src/core/qmd/model.ts",
+  "from": "runClass(\"_-\")",
+  "to": "runClass(\"_-#\")",
+  "expect": "killed",
+  "why": "`#a` becomes a word"
+ },
+ {
+  "name": "B-09 divBareWord: the class has the braces",
+  "file": "src/core/qmd/model.ts",
+  "from": "runClass(\"_-\")",
+  "to": "runClass(\"_-{}\")",
+  "expect": "killed",
+  "why": "`{a}`, an attribute block, becomes a word"
+ },
+ {
+  "name": "B-10 divBareWord: the answer is negated",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return isRun(attrs, DIV_WORD_RUN);",
+  "to": "  return !isRun(attrs, DIV_WORD_RUN);",
+  "expect": "killed",
+  "why": "every word is refused and every non-word accepted"
+ },
+ {
+  "name": "B-11 divBareWord: the text is trimmed",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return isRun(attrs, DIV_WORD_RUN);",
+  "to": "  return isRun(attrs.trim(), DIV_WORD_RUN);",
+  "expect": "killed",
+  "why": "`a ` and ` a` become words"
+ },
+ {
+  "name": "B-12 divBareWord: the end of the text is trimmed",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return isRun(attrs, DIV_WORD_RUN);",
+  "to": "  return isRun(attrs.trimEnd(), DIV_WORD_RUN);",
+  "expect": "killed",
+  "why": "`a ` and `a\\n` become words"
+ },
+ {
+  "name": "B-13 divBareWord: the empty text is a word",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return isRun(attrs, DIV_WORD_RUN);",
+  "to": "  return isRun(attrs, DIV_WORD_RUN) || attrs === \"\";",
+  "expect": "killed",
+  "why": "the empty word is accepted"
+ },
+ {
+  "name": "B-14 divBareWord: the text is lower-cased",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return isRun(attrs, DIV_WORD_RUN);",
+  "to": "  return isRun(attrs.toLowerCase(), DIV_WORD_RUN);",
+  "expect": "killed",
+  "why": "U+0130 lower-cases to a letter and a combining mark, so a word holding it is refused"
+ },
+ {
+  "name": "B-15 divBareWord: the text is upper-cased",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return isRun(attrs, DIV_WORD_RUN);",
+  "to": "  return isRun(attrs.toUpperCase(), DIV_WORD_RUN);",
+  "expect": "killed",
+  "why": "a letter whose upper case holds a combining mark is refused"
+ },
+ {
+  "name": "B-16 divBareWord: the text is normalised to NFKC",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return isRun(attrs, DIV_WORD_RUN);",
+  "to": "  return isRun(attrs.normalize(\"NFKC\"), DIV_WORD_RUN);",
+  "expect": "killed",
+  "why": "a circled letter or a compatibility form that is no letter becomes one"
+ },
+ {
+  "name": "B-17 divBareWord: only the first four million characters are read",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return isRun(attrs, DIV_WORD_RUN);",
+  "to": "  return isRun(attrs.slice(0, 4_000_000), DIV_WORD_RUN);",
+  "expect": "killed",
+  "why": "a word of 8,400,000 letters and a dot at its end is accepted"
+ },
+ {
+  "name": "B-18 divBareWord: only the first character is read",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return isRun(attrs, DIV_WORD_RUN);",
+  "to": "  return isRun(attrs.slice(0, 1), DIV_WORD_RUN);",
+  "expect": "killed",
+  "why": "`a.b` is accepted"
+ },
+ {
+  "name": "B-19 divBareWord: the first character is skipped",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return isRun(attrs, DIV_WORD_RUN);",
+  "to": "  return isRun(attrs.slice(1), DIV_WORD_RUN);",
+  "expect": "killed",
+  "why": "a one-character word is refused and `.a` accepted"
+ },
+ {
+  "name": "B-20 divBareWord: the last character is skipped",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return isRun(attrs, DIV_WORD_RUN);",
+  "to": "  return isRun(attrs.slice(0, -1), DIV_WORD_RUN);",
+  "expect": "killed",
+  "why": "a one-character word is refused and `a.` accepted"
+ },
+ {
+  "name": "B-21 divBareWord: the text is read by code unit pairs reversed",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return isRun(attrs, DIV_WORD_RUN);",
+  "to": "  return isRun([...attrs].reverse().join(\"\"), DIV_WORD_RUN);",
+  "expect": "killed",
+  "why": "a pair of halves is reversed into two lone halves"
+ },
+ {
+  "name": "B-22 legacyDivCalloutTitleSlot: the bare-word test is negated",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (divBareWord(attrs)) {\n    return attrs === \"callout\" ||",
+  "to": "  if (!divBareWord(attrs)) {\n    return attrs === \"callout\" ||",
+  "expect": "killed",
+  "why": "`callout-note` is no callout, and an attribute block is read as a word"
+ },
+ {
+  "name": "B-23 legacyDivCalloutTitleSlot: the bare-word test is the old pattern",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (divBareWord(attrs)) {\n    return attrs === \"callout\" ||",
+  "to": "  if (/^[\\p{L}\\p{N}_-]+$/u.test(attrs)) {\n    return attrs === \"callout\" ||",
+  "expect": "killed",
+  "why": "the parent: a word of 4,194,288 letters above U+00FF throws"
+ },
+ {
+  "name": "B-24 legacyDivCalloutTitleSlot: every non-empty spec is a bare word",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (divBareWord(attrs)) {\n    return attrs === \"callout\" ||",
+  "to": "  if (attrs !== \"\") {\n    return attrs === \"callout\" ||",
+  "expect": "killed",
+  "why": "an attribute block is compared with the class name and is no callout"
+ },
+ {
+  "name": "B-25 legacyDivCalloutTitleSlot: the masked spec is tested",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (divBareWord(attrs)) {\n    return attrs === \"callout\" ||",
+  "to": "  if (divBareWord(spec)) {\n    return attrs === \"callout\" ||",
+  "expect": "survives",
+  "why": "EQUIVALENT: `spec` is `maskQuotedValues(attrs)`, which replaces only the characters BETWEEN a pair of quotes and keeps the quotes, and a quote is no member of the class, so a text is a bare word before the mask exactly when it is one after it. 400,000 generated attribute texts (callout and tabset names, blocks, quotes, titles, blanks, surrogate halves; 2,501 true for the callout reader, 963 for the tabset reader, 17,918 bare words) and 1,111,111 strings up to six characters over ten word characters (63,687 words) show no difference in legacyDivCalloutTitleSlot under either dialect flag, legacyDivPanelTabset or divBareWord against the committed functions (scratchpad differential, bundles of the committed source and of the edited copy)"
+ },
+ {
+  "name": "B-26 legacyDivPanelTabset: the bare-word test is negated",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (divBareWord(attrs)) {\n    return attrs === \"panel-tabset\";",
+  "to": "  if (!divBareWord(attrs)) {\n    return attrs === \"panel-tabset\";",
+  "expect": "killed",
+  "why": "`panel-tabset` is no tabset, and an attribute block is read as a word"
+ },
+ {
+  "name": "B-27 legacyDivPanelTabset: the bare-word test is the old pattern",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (divBareWord(attrs)) {\n    return attrs === \"panel-tabset\";",
+  "to": "  if (/^[\\p{L}\\p{N}_-]+$/u.test(attrs)) {\n    return attrs === \"panel-tabset\";",
+  "expect": "killed",
+  "why": "the parent: a word of 4,194,288 letters above U+00FF throws, and it hid behind the callout reader"
+ },
+ {
+  "name": "B-28 legacyDivPanelTabset: every non-empty spec is a bare word",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (divBareWord(attrs)) {\n    return attrs === \"panel-tabset\";",
+  "to": "  if (attrs !== \"\") {\n    return attrs === \"panel-tabset\";",
+  "expect": "killed",
+  "why": "an attribute block is compared with the class name and is no tabset"
+ },
+ {
+  "name": "B-29 legacyDivCalloutTitleSlot: the bare `callout` is no callout",
+  "file": "src/core/qmd/model.ts",
+  "from": "return attrs === \"callout\" || (attrs.startsWith(\"callout-\")",
+  "to": "return false || (attrs.startsWith(\"callout-\")",
+  "expect": "killed",
+  "why": "`::: callout` stops lifting its title"
+ },
+ {
+  "name": "B-30 legacyDivCalloutTitleSlot: the type is read from one character earlier",
+  "file": "src/core/qmd/model.ts",
+  "from": "CALLOUT_TYPES.has(attrs.slice(8))",
+  "to": "CALLOUT_TYPES.has(attrs.slice(7))",
+  "expect": "killed",
+  "why": "`callout-note` reads `-note`"
+ },
+ {
+  "name": "B-31 legacyDivCalloutTitleSlot: the prefix has no dash",
+  "file": "src/core/qmd/model.ts",
+  "from": "attrs.startsWith(\"callout-\") && CALLOUT_TYPES.has(attrs.slice(8))",
+  "to": "attrs.startsWith(\"callout\") && CALLOUT_TYPES.has(attrs.slice(8))",
+  "expect": "killed",
+  "why": "`callout_note` is read as the type `note`"
+ },
+ {
+  "name": "B-32 legacyDivPanelTabset: any word that starts like the class is a tabset",
+  "file": "src/core/qmd/model.ts",
+  "from": "return attrs === \"panel-tabset\";",
+  "to": "return attrs.startsWith(\"panel-tabset\");",
+  "expect": "killed",
+  "why": "`panel-tabsets` is a tabset"
+ },
+ {
+  "name": "B-33 legacyDivPanelTabset: the class is matched without case",
+  "file": "src/core/qmd/model.ts",
+  "from": "return attrs === \"panel-tabset\";",
+  "to": "return attrs.toLowerCase() === \"panel-tabset\";",
+  "expect": "killed",
+  "why": "`Panel-Tabset` is a tabset"
+ },
+ {
+  "name": "B-57 divBareWord: the class lists the dash before the underscore",
+  "file": "src/core/qmd/model.ts",
+  "from": "runClass(\"_-\")",
+  "to": "runClass(\"-_\")",
+  "expect": "survives",
+  "why": "EQUIVALENT: runClass fills a table of 128 entries from the characters it is given, so the order of the punctuation does not change the table. Differential as B-25: 400,000 generated texts and 1,111,111 strings, no difference"
+ },
+ {
+  "name": "B-58 divBareWord: the class names the dash twice",
+  "file": "src/core/qmd/model.ts",
+  "from": "runClass(\"_-\")",
+  "to": "runClass(\"_--\")",
+  "expect": "survives",
+  "why": "EQUIVALENT: a repeated punctuation character sets the same table entry twice. Differential as B-25: 400,000 generated texts and 1,111,111 strings, no difference"
+ },
+ {
+  "name": "B-59 divBareWord: the empty text is refused before the loop",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return isRun(attrs, DIV_WORD_RUN);",
+  "to": "  return attrs.length > 0 && isRun(attrs, DIV_WORD_RUN);",
+  "expect": "survives",
+  "why": "EQUIVALENT: isRun already returns false for the empty text (`text.length > 0 &&`), so the guard repeats it. Differential as B-25: 400,000 generated texts and 1,111,111 strings, no difference"
+ },
+ {
+  "name": "B-34 oracle: the old pattern has no underscore",
+  "file": "test/unit/div-word-equivalence.test.ts",
+  "from": "const OLD_BARE_WORD = /^[\\p{L}\\p{N}_-]+$/u;",
+  "to": "const OLD_BARE_WORD = /^[\\p{L}\\p{N}-]+$/u;",
+  "expect": "killed",
+  "why": "the pattern, the reading by definition and the function disagree on `a_b`"
+ },
+ {
+  "name": "B-35 oracle: the reading by definition has no dash",
+  "file": "test/unit/div-word-equivalence.test.ts",
+  "from": "return points.every((p) => isLetter(p) || isNumber(p) || p === 95 || p === 45);",
+  "to": "return points.every((p) => isLetter(p) || isNumber(p) || p === 95);",
+  "expect": "killed",
+  "why": "the reading by definition refuses `a-b`"
+ },
+ {
+  "name": "B-36 oracle: the reading by definition accepts the empty word",
+  "file": "test/unit/div-word-equivalence.test.ts",
+  "from": "  if (points.length === 0) return false;\n  const isLetter",
+  "to": "  const isLetter",
+  "expect": "killed",
+  "why": "`every` of nothing is true"
+ },
+ {
+  "name": "B-37 oracle: the reading by definition does not know the CJK letter",
+  "file": "test/unit/div-word-equivalence.test.ts",
+  "from": "p === 0xe9 || p === 0x4e2d || p === 0x1d400;",
+  "to": "p === 0xe9 || p === 0x1d400;",
+  "expect": "killed",
+  "why": "the reading by definition refuses U+4E2D"
+ },
+ {
+  "name": "B-38 oracle: the accepted count of the second alphabet is one more",
+  "file": "test/unit/div-word-equivalence.test.ts",
+  "from": "const ACCEPTED = { d1: 21_844, d2: 63_687, d3: 53, seeded: 15_556, asciiSweep: 1_344 };",
+  "to": "const ACCEPTED = { d1: 21_844, d2: 63_688, d3: 53, seeded: 15_556, asciiSweep: 1_344 };",
+  "expect": "killed",
+  "why": "the pinned count is not what the pattern accepts"
+ },
+ {
+  "name": "B-39 oracle: the seed is another",
+  "file": "test/unit/div-word-equivalence.test.ts",
+  "from": "const SEED = 338;",
+  "to": "const SEED = 339;",
+  "expect": "killed",
+  "why": "another set of words, another accepted count"
+ },
+ {
+  "name": "B-40 oracle: 1,000 seeded words",
+  "file": "test/unit/div-word-equivalence.test.ts",
+  "from": "const SEEDED_STRINGS = 100_000;",
+  "to": "const SEEDED_STRINGS = 1_000;",
+  "expect": "killed",
+  "why": "the count of words compared is pinned"
+ },
+ {
+  "name": "B-41 oracle: the near-miss sizes are tiny",
+  "file": "test/unit/div-word-equivalence.test.ts",
+  "from": "const NEAR_MISS_SIZES = [20_000, 50_000, 1_000_000];",
+  "to": "const NEAR_MISS_SIZES = [20, 50, 1_000];",
+  "expect": "killed",
+  "why": "the sizes are pinned"
+ },
+ {
+  "name": "B-42 oracle: the huge word is under the first throw",
+  "file": "test/unit/div-word-equivalence.test.ts",
+  "from": "const HUGE_LETTERS = 8_400_000;",
+  "to": "const HUGE_LETTERS = 4_000_000;",
+  "expect": "killed",
+  "why": "the pattern would read it, and the size is pinned"
+ },
+ {
+  "name": "B-43 oracle: the near-miss limit is 300 s",
+  "file": "test/unit/div-word-equivalence.test.ts",
+  "from": "const NEAR_MISS_LIMIT_MS = 3000;",
+  "to": "const NEAR_MISS_LIMIT_MS = 300_000;",
+  "expect": "killed",
+  "why": "the limit is pinned"
+ },
+ {
+  "name": "B-44 oracle: the ASCII sweep has three heads",
+  "file": "test/unit/div-word-equivalence.test.ts",
+  "from": "const ASCII_HEADS = [\"ab-c_9\", \"a\", \"-\", ASTRAL_LETTER];",
+  "to": "const ASCII_HEADS = [\"ab-c_9\", \"a\", \"-\"];",
+  "expect": "killed",
+  "why": "the count of strings and the heads are pinned"
+ },
+ {
+  "name": "B-45 oracle: the first alphabet has no colon",
+  "file": "test/unit/div-word-equivalence.test.ts",
+  "from": "const ALPHABET_D1 = [\"a\", \"9\", \"_\", \"-\", \":\", \".\", \" \"];",
+  "to": "const ALPHABET_D1 = [\"a\", \"9\", \"_\", \"-\", \".\", \" \"];",
+  "expect": "killed",
+  "why": "the alphabet is pinned by its code points"
+ },
+ {
+  "name": "B-46 oracle: the third alphabet has no U+2028",
+  "file": "test/unit/div-word-equivalence.test.ts",
+  "from": "const ALPHABET_D3 = [\"a\", \"\\n\", NBSP, HIGH_HALF, LOW_HALF, LS];",
+  "to": "const ALPHABET_D3 = [\"a\", \"\\n\", NBSP, HIGH_HALF, LOW_HALF];",
+  "expect": "killed",
+  "why": "the alphabet is pinned by its code points"
+ },
+ {
+  "name": "B-47 oracle: the accepted strings are not counted",
+  "file": "test/unit/div-word-equivalence.test.ts",
+  "from": "    if (expected) accepted++;\n    if (accepts(text) !== expected && disagreements.length < 5) disagreements.push(JSON.stringify(text));",
+  "to": "    if (accepts(text) !== expected && disagreements.length < 5) disagreements.push(JSON.stringify(text));",
+  "expect": "killed",
+  "why": "every pinned accepted count is zero"
+ },
+ {
+  "name": "B-48 oracle: the ASCII sweep stops at DEL minus one",
+  "file": "test/unit/div-word-equivalence.test.ts",
+  "from": "for (let unit = 0; unit < 128; unit++) {\n        const ch = String.fromCharCode(unit);\n        yield head.slice(0, at) + ch + head.slice(at);\n        if (at < head.length) yield",
+  "to": "for (let unit = 0; unit < 127; unit++) {\n        const ch = String.fromCharCode(unit);\n        yield head.slice(0, at) + ch + head.slice(at);\n        if (at < head.length) yield",
+  "expect": "killed",
+  "why": "the count of strings is pinned"
+ },
+ {
+  "name": "B-49 rows: the long word is under the first throw",
+  "file": "test/unit/support/s338-div-word.ts",
+  "from": "export const LONG = 4_300_000;",
+  "to": "export const LONG = 4_000_000;",
+  "expect": "killed",
+  "why": "the parent reads it, so no row would be red"
+ },
+ {
+  "name": "B-50 rows: the time limit is 150 s",
+  "file": "test/unit/support/s338-div-word.ts",
+  "from": "export const LIMIT_MS = 15_000;",
+  "to": "export const LIMIT_MS = 150_000;",
+  "expect": "killed",
+  "why": "the limit is pinned"
+ },
+ {
+  "name": "B-51 rows: the mixed form has no character above U+00FF",
+  "file": "test/unit/support/s338-div-word.ts",
+  "from": "word: () => \"a\".repeat(LONG - 1) + CJK },",
+  "to": "word: () => \"a\".repeat(LONG - 1) + \"a\" },",
+  "expect": "killed",
+  "why": "the line would be stored with one byte a character, which the parent reads"
+ },
+ {
+  "name": "B-52 rows: the third form is ASCII",
+  "file": "test/unit/support/s338-div-word.ts",
+  "from": "word: () => CJK.repeat(LONG) },",
+  "to": "word: () => \"b\".repeat(LONG) },",
+  "expect": "killed",
+  "why": "the line would be stored with one byte a character, which the parent reads"
+ },
+ {
+  "name": "B-53 rows: the commonmark reader is the markdown reader",
+  "file": "test/unit/support/s338-div-word.ts",
+  "from": "export const COMMONMARK: Reader = { from: \"commonmark\", key: \"c\" };",
+  "to": "export const COMMONMARK: Reader = { from: \"markdown\", key: \"c\" };",
+  "expect": "killed",
+  "why": "the markdown reader never asks the legacy pattern"
+ },
+ {
+  "name": "B-54 rows: the document has no from key",
+  "file": "test/unit/support/s338-div-word.ts",
+  "from": "`---\\nfrom: ${from}\\n---\\n\\n::: ${word}",
+  "to": "`---\\nfromx: ${from}\\n---\\n\\n::: ${word}",
+  "expect": "killed",
+  "why": "no reader is selected, so the legacy pattern is never asked"
+ },
+ {
+  "name": "B-55 rows: the cell label is expected on another line",
+  "file": "test/unit/support/s338-div-word.ts",
+  "from": "`tbl-c${id}`, \"knitr\")?.line, 15]",
+  "to": "`tbl-c${id}`, \"knitr\")?.line, 16]",
+  "expect": "killed",
+  "why": "the answer is wrong"
+ },
+ {
+  "name": "B-56 rows: the engine is expected to be jupyter",
+  "file": "test/unit/support/s338-div-word.ts",
+  "from": "[\"resolveDocumentEngine\", () => resolveDocumentEngine(\"a.qmd\", longText()), \"knitr\"],",
+  "to": "[\"resolveDocumentEngine\", () => resolveDocumentEngine(\"a.qmd\", longText()), \"jupyter\"],",
+  "expect": "killed",
+  "why": "the answer is wrong"
+ }
+]
