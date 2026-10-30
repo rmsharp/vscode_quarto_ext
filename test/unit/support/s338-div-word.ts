@@ -19,8 +19,8 @@ export const CJK = String.fromCharCode(0x4e2d);
  */
 export const LONG = 4_300_000;
 /**
- * 15 s. The cured reading of one document takes a second or less (measured when the cure is committed); a quadratic reading of the word takes hours at this size, so the limit separates the two
- * without being a benchmark. It is not raised to make a row pass.
+ * 15 s. The cured reading of one document takes about a second (the 45 rows of one reader, nine documents of 4,300,000 letters each read once for each engine hint, take 8.02 s, 8.10 s and 8.38 s in the three
+ * files, run alone); a quadratic reading of the word takes hours at this size, so the limit separates the two without being a benchmark. It is not raised to make a row pass.
  */
 export const LIMIT_MS = 15_000;
 

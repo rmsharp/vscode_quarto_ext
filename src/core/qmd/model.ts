@@ -4935,6 +4935,26 @@ function maskQuotedValues(attrs: string): string {
       m[0] + "\u0000".repeat((dq ?? sq ?? "").length) + m[0],
   );
 }
+/** `[\p{L}\p{N}_-]`: every letter and number, ASCII or not, and the underscore and the dash. The class of a bare word (see {@link divBareWord}). */
+const DIV_WORD_RUN = runClass("_-");
+/**
+ * Whether a fenced div's attribute text is ONE BARE WORD: one or more letters, numbers, underscores or dashes and nothing else, Pandoc's `::: foo` = `::: {.foo}` shorthand. The test both legacy readers
+ * (`legacyDivCalloutTitleSlot` and `legacyDivPanelTabset`) make before they compare the word with a class name, and the one that decides a div's reading under a CommonMark-family reader (`from: gfm`,
+ * `commonmark`, `commonmark_x`), the only readers that reach them with a word (`divSpecReading` reads a word from pandoc's own tokens under every other).
+ *
+ * ⚠ **IT IS A LOOP BECAUSE THE PATTERN IT REPLACES THREW (Session 338).** The test was `/^[\p{L}\p{N}_-]+$/u`, and V8 keeps one entry of its regex backtrack stack per character of a class-plus, twice as large once the
+ * subject holds a character above U+00FF (it is then stored with two bytes a character). Measured at HEAD `fe6aaec`, one fresh process per probe, the lower bound verified OK first: `::: ` and a word of 4,194,288 letters above
+ * U+00FF (CJK or astral letters, or ASCII with one CJK letter among them) threw `RangeError: Maximum call stack size exceeded` out of `computeRegions`, and a thrown `RangeError` answered NOTHING for the whole
+ * document (no Outline, no label index, no cell, no completion); 4,194,287 read. A line of characters up to U+00FF never threw (70,000,000 letters read). The word is read here by `isRun`, which walks the string by UTF-16
+ * code unit with no stack.
+ *
+ * ⚠ **IT READS WHAT THE PATTERN READ: a non-ASCII character as ONE CODE POINT (a surrogate pair is one letter, a lone surrogate is none), the empty string as no word, and nothing after the last character** (`$` without
+ * the `m` flag does not stop before a line feed, and `isRun` does not either). `test/unit/div-word-equivalence.test.ts` keeps the old pattern verbatim as the oracle, beside a reading of the grammar by definition, and
+ * compares them over every string of three alphabets, 100,000 seeded words and every code unit at every place of four heads.
+ */
+export function divBareWord(attrs: string): boolean {
+  return isRun(attrs, DIV_WORD_RUN);
+}
 /**
  * ⚠ LEGACY (Session 281): the regex reader `divCalloutTitleSlot` falls back to whenever
  * `divSpecReading` returns null — a CommonMark-family reader, `{{<`, quarto's `key= value` fix-up, a
@@ -4942,7 +4962,8 @@ function maskQuotedValues(attrs: string): string {
  * filings that hold them are the plan's §2.5 and `BACKLOG.md`'s deferred-shapes item.
  *
  * Whether a fenced div's attribute spec names a callout whose FIRST-BLOCK heading Quarto will
- * lift into the title bar — see `divCalloutTitleSlot`'s callers.
+ * lift into the title bar — see `divCalloutTitleSlot`'s callers. Exported only so that the rows of Session 338 can
+ * reach it without `legacyDivPanelTabset` (a document cannot: the entry of a div evaluates this one first).
  *
  * Both spellings Pandoc accepts are covered, because both really do produce a callout:
  * the `{…}` attribute block (`::: {.callout-note}`, `:::{.callout-tip}`, with further classes
@@ -4995,7 +5016,7 @@ export function legacyDivCalloutTitleSlot(attrs: string, commonmarkDialect: bool
     }
   }
   // The bare-word spelling: the whole spec is one word, read as a single class.
-  if (/^[\p{L}\p{N}_-]+$/u.test(attrs)) {
+  if (divBareWord(attrs)) {
     return attrs === "callout" || (attrs.startsWith("callout-") && CALLOUT_TYPES.has(attrs.slice(8)));
   }
   if (!/^\{[^}]*\}$/.test(attrs)) {
@@ -5045,7 +5066,8 @@ export function legacyDivCalloutTitleSlot(attrs: string, commonmarkDialect: bool
  * see `legacyDivCalloutTitleSlot` for the routes.
  *
  * Whether a fenced div's attribute spec names a `.panel-tabset`, whose TAB-LEVEL headings
- * Quarto turns into tab labels rather than headings — see `tabsetTabTakes`'s callers.
+ * Quarto turns into tab labels rather than headings — see `tabsetTabTakes`'s callers. Exported only so that the
+ * rows of Session 338 can reach it without `legacyDivCalloutTitleSlot`, which a document always reaches first.
  *
  * ⚠ **THE CLASS NAME IS MATCHED EXACTLY AND CASE-SENSITIVELY, BECAUSE QUARTO MATCHES IT THAT
  * WAY.** The tabset AST handler is registered with `class_name = { "panel-tabset" }`
@@ -5069,7 +5091,7 @@ export function legacyDivPanelTabset(attrs: string): boolean {
     return false;
   }
   // The bare-word spelling: the whole spec is one word, read as a single class.
-  if (/^[\p{L}\p{N}_-]+$/u.test(attrs)) {
+  if (divBareWord(attrs)) {
     return attrs === "panel-tabset";
   }
   if (!/^\{[^}]*\}$/.test(attrs)) {
