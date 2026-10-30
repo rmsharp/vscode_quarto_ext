@@ -99,6 +99,13 @@ describe("Session 338 — legacyDivCalloutTitleSlot on its own", () => {
     expect(["callout-bogus", "callouts", "panel-tabset", "abcd", "callout-", "callout_note", "calloutnote", "Callout-Note"].map((w) => legacyDivCalloutTitleSlot(w, false))).toEqual([false, false, false, false, false, false, false, false]);
   });
 
+  // The review of Session 338: nothing pinned the case of the bare word, and a lower-cased spelling lifts a heading that quarto keeps (the forbidden direction). `Callout` is a class of its own, and so are the others.
+  it("the spelling is case-sensitive: `Callout`, `CALLOUT`, `Callout-note`, `callout-NOTE` and `CALLOUT-NOTE` are no callout, under either dialect flag", () => {
+    const words = ["Callout", "CALLOUT", "Callout-note", "callout-NOTE", "CALLOUT-NOTE"];
+    expect(words.map((w) => legacyDivCalloutTitleSlot(w, false))).toEqual([false, false, false, false, false]);
+    expect(words.map((w) => legacyDivCalloutTitleSlot(w, true))).toEqual([false, false, false, false, false]);
+  });
+
   // A spec that is no bare word goes on to the attribute-block reading, which the word test must not take for its own: `{` is no member of the class.
   it("an attribute block is still read as one: a callout class is a callout, a title or a tabset written first is not", () => {
     expect(["{.callout-note}", "{.callout}", "{.callout-tip #a}", "{.callout-note .panel-tabset}"].map((a) => legacyDivCalloutTitleSlot(a, false))).toEqual([true, true, true, true]);

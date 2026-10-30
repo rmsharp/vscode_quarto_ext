@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import * as path from "node:path";
 import { describe, expect, it } from "vitest";
 import { resolveDocumentEngine } from "../../src/core/document-engine-resolve";
 import { buildOutline } from "../../src/core/qmd/model";
@@ -12,7 +14,8 @@ import { type FlatOutlineSymbol, flattenOutline } from "../../src/core/workspace
 //
 // Measured at HEAD `fe6aaec` (Session 338, Node 22.23.3, one fresh process per probe, `buildOutline(doc, engine, "execute")` and then `flattenOutline(outline)` as the provider calls them; the lower bound was run and
 // was OK before each bisect; 16 bisections: shape x engine x width): `# Top` followed by N lines `## h`, or by N cells, throws from 110,360 descendants (last OK 110,359) in 14 of the 16 bisections; the other two moved by
-// about 15 between processes (110,346 and a last OK that did not repeat), because the optimizing compiler changes the size of a frame. The stage that threw is `flattenOutline` in the 15 bisections that reported one (the sixteenth did not repeat its throw), never `buildOutline`.
+// about 15 between processes (110,346 and a last OK that did not repeat), because the optimizing compiler changes the size of a frame. The review of Session 338 re-measured it through the real provider with `vscode` stubbed: last OK
+// 110,540, first throw 110,560 in three fresh processes, because the provider's own frames sit under the call; the first throw depends on how deep the caller's stack already is, and 250,000 is more than twice either figure. The stage that threw is `flattenOutline` in the 15 bisections that reported one (the sixteenth did not repeat its throw), never `buildOutline`.
 // THE WIDTH OF THE LINE DOES NOT MATTER HERE (unlike a regex over a line): a document of characters up to U+00FF and one with the CJK letter U+4E2D in the Top heading threw at the same count. Neither does the
 // engine hint (undefined, "knitr", "jupyter", or the resolver's answer) nor the shape (headings or cells). The BACKLOG item says 125,742: that figure came from another process and the first throw moves with the stack
 // the process starts with, so the size below is 250,000 descendants, about twice the first throw (Learning 775): 2.27 times the figure measured here and 1.99 times the BACKLOG's.
@@ -180,6 +183,31 @@ describe("Session 338 -- a heading with more than a hundred thousand descendants
     }
     expect(wrong).toBe(0);
   }, ROW_TIMEOUT_MS);
+});
+
+// The review of Session 338: nothing noticed the provider going back to a spreading flatten of its own (a local copy of the old function passed every unit test and failed only the integration suite, which takes over the
+// screen and works on a small workspace). Like the citation adapter's gate, this one reads the SOURCE of `src/providers/workspace-symbols.ts`; it is a wiring gate and not a run.
+describe("Session 338 -- the provider flattens through the core function and spreads nothing (a wiring gate: it reads the SOURCE of src/providers/workspace-symbols.ts, it does not run it)", () => {
+  // Comments are stripped first: the provider's docstring may name the old spelling to say it is forbidden. Only a block comment that opens a line is stripped: the provider holds the glob `"**/*.qmd"`, whose
+  // `/*` would otherwise open a "comment" that swallows the code up to the next `*/`.
+  const code = readFileSync(path.join(__dirname, "../../src/providers/workspace-symbols.ts"), "utf8")
+    .replace(/^[ \t]*\/\*[\s\S]*?\*\//gm, "")
+    .replace(/^\s*\/\/.*$/gm, "");
+
+  it("flattenOutline is imported from the core module and called on the outline buildOutline built", () => {
+    expect(code).toMatch(/import\s*\{[^}]*\bflattenOutline\b[^}]*\}\s*from\s*"\.\.\/core\/workspace-symbols"/);
+    expect(code).toMatch(/flattenOutline\(\s*buildOutline\(/);
+  });
+
+  it("the provider defines no flatten of its own", () => {
+    expect(code).not.toMatch(/function\s+\w*[fF]latten/);
+    expect(code).not.toMatch(/(?:const|let)\s+\w*[fF]latten\w*\s*=/);
+  });
+
+  it("no call in the provider has a spread argument (a list that grows with a document must never be spread into a call)", () => {
+    expect(code).not.toMatch(/\(\s*\.\.\./);
+    expect(code).not.toMatch(/,\s*\.\.\.\w/);
+  });
 });
 
 describe("Session 338 -- the size of these rows", () => {

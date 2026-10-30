@@ -1483,7 +1483,7 @@ describe("Session 223 GUARD — shapes that must NOT move when fence openers joi
     // it recorded a defect that session deliberately did not fix: a fence opens only if it is
     // closed below (Session 179's measured rule), so this line is ordinary BODY text — quarto
     // renders it verbatim, braces included, and defines nothing
-    // (`scratchpad/s223/cal/q7.qmd`) — yet Source 3's unvalidated `NARROW_LABEL` scan minted
+    // (`scratchpad/s223/cal/q7.qmd`) — yet Source 3's unvalidated `narrowLabel` scan (then the pattern `NARROW_LABEL`) minted
     // `lst-h08` from it.
     //
     // Session 224 had to withhold that fallback on any line beginning with a FENCE RUN,
@@ -2324,7 +2324,7 @@ describe("Session 303 — a knitr chunk HEADER carries the cell's label", () => 
     ["#| label: fig-y$z", "a pipe label quarto rejects (r18: BOTH ids stay undefined)"],
     ["#| {label: fig-y, fig-cap: Cap}", "a whole-block flow mapping, which this index cannot read for its label (r22)"],
   ])("an overriding pipe block leaves the header label UNDEFINED too: %s — %s", (pipe) => {
-    // The pipe path may or may not mint its own id (the prefix quirk of CELL_LABEL_VALUE, filed); what is pinned is
+    // The pipe path may or may not mint its own id (the prefix quirk of `cellLabelValue`, once the pattern CELL_LABEL_VALUE; filed); what is pinned is
     // that the HEADER's `fig-x` is not defined beside it.
     expect(ids(chunk("{r fig-x}", pipe, "plot(1)"))).not.toContain("fig-x");
   });
@@ -2617,6 +2617,18 @@ describe("Session 303 — a knitr chunk HEADER carries the cell's label", () => 
       expect(label("{r fig-x, engine='ojs'}", new Set(["ojs"]))).toBeNull();
       expect(label("{r fig-x, engine='ojs'}")).toEqual({ value: "fig-x", column: 6 });
     });
+
+    // The review of Session 338. The parent matched the option names `engine` and `child` as lower case only (as it did `label`), so `ENGINE=` and `CHILD=` are options of another name; this is that reading, not a render.
+    it("the option names are case-sensitive: ENGINE= and CHILD= are ordinary options, so the unnamed slot still defines the label", () => {
+      expect(label("{r ENGINE=ojs, fig-x}", new Set(["ojs"]))).toEqual({ value: "fig-x", column: 18 });
+      expect(label("{r CHILD=x, fig-x}", new Set(["ojs"]))).toEqual({ value: "fig-x", column: 15 });
+    });
+
+    // The value of engine= is read as a FIRST SLOT (an identifier run), not as an R symbol: `1a` is no R symbol but a first-slot word, and a header whose engine= value this cannot read is declined whole. The review of Session 338.
+    it("engine= reads its value as a first slot: engine=1a names no handler and does not decline the header", () => {
+      expect(label("{r engine=1a, fig-x}", new Set(["ojs"]))).toEqual({ value: "fig-x", column: 17 });
+      expect(label("{r engine=1a:b, fig-x}", new Set(["ojs"]))).toEqual({ value: "fig-x", column: 19 });
+    });
   });
 
   describe("every header shape rendered with knitr executing, row by row (quarto 1.7.33)", () => {
@@ -2649,5 +2661,29 @@ describe("Session 303 — a knitr chunk HEADER carries the cell's label", () => 
       const found = ids(chunk(header, "plot(1)"));
       expect(found).toEqual(DECLINED.has(header) ? [] : defined);
     });
+  });
+});
+
+// The review of Session 338: three readers (`cellLabelValue`, `narrowLabel` and `headerLabelKind`) hand their ids to `kindOf`, whose prefix test is lower case only, and the call site of `cellLabelValue` takes
+// the value slot as the YAML reader gave it. Nothing pinned either; each row below is a mutant of the review that survived the whole suite. The lower-case controls are live in the same documents.
+describe("Session 338 review — an upper-case kind prefix defines nothing, and a Unicode blank before a cell's value is no blank", () => {
+  const ids = (text: string, hint?: "knitr" | "jupyter"): string[] => indexLabels(text, hint).map((l) => l.id);
+
+  it("`#| label: Fig-x`, `{#FIG-a}` after an image and `{r FIG-a}` under knitr define nothing, and the lower-case spellings define", () => {
+    expect(ids("```{python}\n#| label: Fig-x\nx = 1\n```\n")).toEqual([]);
+    expect(ids("```{python}\n#| label: fig-x\nx = 1\n```\n")).toEqual(["fig-x"]);
+    expect(ids("![a](b.png){#FIG-a}\n")).toEqual([]);
+    expect(ids("![a](b.png){#fig-a}\n")).toEqual(["fig-a"]);
+    expect(ids("```{r FIG-a}\nx <- 1\n```\n", "knitr")).toEqual([]);
+    expect(ids("```{r fig-a}\nx <- 1\n```\n", "knitr")).toEqual(["fig-a"]);
+  });
+
+  it.each([
+    ["a no-break space right after the colon", "#| label:\u00a0fig-a"],
+    ["an em space right after the colon", "#| label:\u2003fig-a"],
+    ["a space and then a no-break space", "#| label: \u00a0fig-a"],
+    ["a space and then an em space", "#| label: \u2003fig-a"],
+  ])("%s: the value is not trimmed with them, so `fig-a` is not the label", (_name, line) => {
+    expect(ids(`\`\`\`{python}\n${line}\nx = 1\n\`\`\`\n`)).toEqual([]);
   });
 });
