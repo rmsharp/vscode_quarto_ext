@@ -314,3 +314,43 @@ describe("Session 339 review — the index and the probe on documents that ask a
     expect(texts(text)).toEqual(expected);
   });
 });
+
+// The second round of the mutation lens (the review of Session 339, part 9; `tools/mutation-run/mutants/s339-review-raw-tex-end.json`, run against every row above): 20 more edits of the two call sites survived,
+// because the rows above meet only the names a, b, c and d, and never a closer past the second name of its line. The index half (`lastRawTexEnvEnd`) stores a NAME as the key of a map: an empty name, a name with a
+// blank, a star, 100 characters, an upper-case letter, a non-ASCII letter and a digit are all keys no row used, and each is answered with the ATX line directly under the `\begin{}` line, so the heading is found only if
+// the key was stored whole. The probe half compares the name on the line with the TOP of a copy of the stack: a closer in the wrong case, padded with a blank or longer than the open name must pop nothing, and the
+// closing name may be the third, fourth or ninth of the line. Every answer is what the code gives today (these rows are green on arrival; each is shown RED by the mutant it pins, in the commit message).
+describe("Session 339 review, the second round — the names the index and the probe meet", () => {
+  const texts = (text: string): string[] => findHeadings(text).map((heading) => heading.text);
+  const LONG = "n".repeat(100);
+  const E_ACUTE = String.fromCharCode(0xe9);
+  it.each([
+    // The index: the key of `lastRawTexEnvEnd` is the whole name, whatever it holds. The ATX line sits directly under the `\begin{}` line.
+    ["an empty name: `\\begin{}` is closed by `\\end{}`", "para\n\\begin{}\n# H\n\\end{}\n", ["H"]],
+    ["a name with a blank: `\\begin{a b}` is closed by `\\end{a b}`", "para\n\\begin{a b}\n# H\n\\end{a b}\n", ["H"]],
+    ["a starred name: `\\begin{align*}` is closed by `\\end{align*}`", "para\n\\begin{align*}\n# H\n\\end{align*}\n", ["H"]],
+    ["a starred closer is another name: `\\end{align*}` does not close `\\begin{align}`", "para\n\\begin{align}\n# H\n\\end{align*}\n", []],
+    ["a name of 100 characters is closed by the same 100 characters", `para\n\\begin{${LONG}}\n# H\n\\end{${LONG}}\n`, ["H"]],
+    ["an upper-case name: `\\begin{A}` is closed by `\\end{A}`", "para\n\\begin{A}\n# H\n\\end{A}\n", ["H"]],
+    ["a non-ASCII name: `\\begin{<e acute>}` is closed by `\\end{<e acute>}`", `para\n\\begin{${E_ACUTE}}\n# H\n\\end{${E_ACUTE}}\n`, ["H"]],
+    ["a name with a digit: `\\begin{a1}` is closed by `\\end{a1}`", "para\n\\begin{a1}\n# H\n\\end{a1}\n", ["H"]],
+    // The index: the closer is a late name of its line, and the ATX line sits directly under the `\begin{}` line (a blank line before the heading would decide nothing).
+    ["the closer is the third name of its line", "para\n\\begin{c}\n# H\n\\end{a}\\end{b}\\end{c}\n", ["H"]],
+    ["the closer is the fourth name of its line", "para\n\\begin{d}\n# H\n\\end{a}\\end{b}\\end{c}\\end{d}\n", ["H"]],
+    ["the closer is the ninth name of its line", "para\n\\begin{i}\n# H\n\\end{a}\\end{b}\\end{c}\\end{d}\\end{e}\\end{f}\\end{g}\\end{h}\\end{i}\n", ["H"]],
+    // The probe: the name on the line against the TOP of the stack. The real closer is a line below, so the open environment must still be open after the first `\end{}` line.
+    ["an empty name pops an empty name: `\\begin{}` ... `\\end{}`", "para\n\\begin{}\nbody\n\\end{}\n# H\n", ["H"]],
+    ["a closer in the wrong case pops nothing: the real `\\end{a}` below still closes", "para\n\\begin{a}\nbody\n\\end{A}\ntext\n\\end{a}\n# H\n", ["H"]],
+    ["a closer padded with a blank pops nothing: the real `\\end{a}` below still closes", "para\n\\begin{a}\nbody\n\\end{a }\ntext\n\\end{a}\n# H\n", ["H"]],
+    ["a closer whose name starts with the open one pops nothing: the real `\\end{a}` below still closes", "para\n\\begin{a}\nbody\n\\end{ab}\ntext\n\\end{a}\n# H\n", ["H"]],
+    // The probe: the popping name is a late name of its line.
+    ["the popping name is the third name of its line", "para\n\\begin{c}\nbody\n\\end{a}\\end{b}\\end{c}\n# H\n", ["H"]],
+    ["the popping name is the fourth name of its line", "para\n\\begin{d}\nbody\n\\end{a}\\end{b}\\end{c}\\end{d}\n# H\n", ["H"]],
+    ["the popping name is the ninth name of its line", "para\n\\begin{i}\nbody\n\\end{a}\\end{b}\\end{c}\\end{d}\\end{e}\\end{f}\\end{g}\\end{h}\\end{i}\n# H\n", ["H"]],
+    // The probe and the stack that is left: a line that closes three or four environments at once leaves nothing for a later `\end{a}`.
+    ["three environments closed on one line leave nothing for a later `\\end{a}`", "para\n\\begin{a}\n\\begin{b}\n\\begin{c}\nbody\n\\end{c}\\end{b}\\end{a}\ntext\n\\end{a}\n# H\n", []],
+    ["four environments closed on one line leave nothing for a later `\\end{a}`", "para\n\\begin{a}\n\\begin{b}\n\\begin{c}\n\\begin{d}\nbody\n\\end{d}\\end{c}\\end{b}\\end{a}\ntext\n\\end{a}\n# H\n", []],
+  ] as Array<[string, string, string[]]>)("%s", (_label, text, expected) => {
+    expect(texts(text)).toEqual(expected);
+  });
+});
