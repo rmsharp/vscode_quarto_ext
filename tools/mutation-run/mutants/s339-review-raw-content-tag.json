@@ -1,0 +1,178 @@
+[
+ {
+  "name": "H18 rawContentTags: a closer with no `>` goes on at the next `<`",
+  "file": "src/core/qmd/model.ts",
+  "from": "      return tags; // no `>` after this name, so none after any later one either",
+  "to": "      if (closing) {\n        from = lt + 1;\n        continue;\n      }\n      return tags; // no `>` after this name, so none after any later one either",
+  "expect": "killed",
+  "why": "the stop at a tag with no `>` is for a closer too: a `</pre ` with no `>` after its name that goes on at the next `<` keeps every answer and is quadratic at native speed on a run of closers, which no clock row held (the earlier ones are runs of openers; mutation lens M10, 8 s, survived); hand-run on the two part-11 files (raw-content-tag-equivalence + s339-raw-content-tag-rows) at 5f1c48b, load average 8 to 10: 7 rows fail in 40 s, the four closer rows at 10,686.9 / 6,261.3 / 5,348.7 / 10,661.8 ms (`</pre ` x 400,000, `</script ` x 250,000, `</pre ` x 200,000 and a CJK letter, an opener then `</pre ` x 400,000; the function takes 0.05 to 0.67 ms) and three 10,000,000-character rows that fail fast on nativeRowWasSlow"
+ },
+ {
+  "name": "J13 nameEnd: `xmp` is a fifth name and its first letter passes the guard",
+  "file": "src/core/qmd/model.ts",
+  "from": "const RAW_CONTENT_NAMES = [\"pre\", \"script\", \"style\", \"textarea\"] as const;\n/** Where the name of a raw-content element that starts at `at` ends, just after its last letter, or -1 when none starts there or no word boundary follows it. No name is a prefix of another, so a name that fails its boundary leaves nothing else to try. */\nfunction rawContentNameEnd(line: string, at: number): number {\n  const first = line.charCodeAt(at) | 32;\n  if (first !== 0x70 && first !== 0x73 && first !== 0x74) {",
+  "to": "const RAW_CONTENT_NAMES = [\"pre\", \"script\", \"style\", \"textarea\", \"xmp\"] as const;\n/** Where the name of a raw-content element that starts at `at` ends, just after its last letter, or -1 when none starts there or no word boundary follows it. No name is a prefix of another, so a name that fails its boundary leaves nothing else to try. */\nfunction rawContentNameEnd(line: string, at: number): number {\n  const first = line.charCodeAt(at) | 32;\n  if (first !== 0x70 && first !== 0x73 && first !== 0x74 && first !== 0x78) {",
+  "expect": "killed",
+  "why": "a fifth element name that starts with another letter needs both edits since the first-letter guard (the one-edit form J13a survives); no alphabet held `<xmp>` (mutation lens M11, survived); hand-run on the two part-11 files (raw-content-tag-equivalence + s339-raw-content-tag-rows) at 5f1c48b, load average 8 to 10: 4 rows fail: `<xmp>` and `</xmp>` stated, the 154-name sweep, the document row 'an xmp element is no raw-content element'"
+ },
+ {
+  "name": "J13a nameEnd: `xmp` is a fifth name, the guard unchanged",
+  "file": "src/core/qmd/model.ts",
+  "from": "const RAW_CONTENT_NAMES = [\"pre\", \"script\", \"style\", \"textarea\"] as const;",
+  "to": "const RAW_CONTENT_NAMES = [\"pre\", \"script\", \"style\", \"textarea\", \"xmp\"] as const;",
+  "expect": "survives",
+  "why": "equivalent since the first-letter guard (Session 339 review, P2): `x` is none of p, s, t, so `<xmp>` is turned away before the names are tried and the fifth name is dead code; it was killed before the guard (lens J13); hand-run at 5f1c48b: 189 pass"
+ },
+ {
+  "name": "J14 nameEnd: `code` is a fifth name and its first letter passes the guard",
+  "file": "src/core/qmd/model.ts",
+  "from": "const RAW_CONTENT_NAMES = [\"pre\", \"script\", \"style\", \"textarea\"] as const;\n/** Where the name of a raw-content element that starts at `at` ends, just after its last letter, or -1 when none starts there or no word boundary follows it. No name is a prefix of another, so a name that fails its boundary leaves nothing else to try. */\nfunction rawContentNameEnd(line: string, at: number): number {\n  const first = line.charCodeAt(at) | 32;\n  if (first !== 0x70 && first !== 0x73 && first !== 0x74) {",
+  "to": "const RAW_CONTENT_NAMES = [\"pre\", \"script\", \"style\", \"textarea\", \"code\"] as const;\n/** Where the name of a raw-content element that starts at `at` ends, just after its last letter, or -1 when none starts there or no word boundary follows it. No name is a prefix of another, so a name that fails its boundary leaves nothing else to try. */\nfunction rawContentNameEnd(line: string, at: number): number {\n  const first = line.charCodeAt(at) | 32;\n  if (first !== 0x70 && first !== 0x73 && first !== 0x74 && first !== 0x63) {",
+  "expect": "killed",
+  "why": "a fifth element name that starts with another letter needs both edits since the first-letter guard (the one-edit form J14a survives); no alphabet held `<code>` (mutation lens M11, survived); hand-run on the two part-11 files (raw-content-tag-equivalence + s339-raw-content-tag-rows) at 5f1c48b, load average 8 to 10: 3 rows fail: `<code>` stated, the 154-name sweep, the document row 'a code element is no raw-content element'"
+ },
+ {
+  "name": "J14a nameEnd: `code` is a fifth name, the guard unchanged",
+  "file": "src/core/qmd/model.ts",
+  "from": "const RAW_CONTENT_NAMES = [\"pre\", \"script\", \"style\", \"textarea\"] as const;",
+  "to": "const RAW_CONTENT_NAMES = [\"pre\", \"script\", \"style\", \"textarea\", \"code\"] as const;",
+  "expect": "survives",
+  "why": "equivalent since the first-letter guard (Session 339 review, P2): `c` is none of p, s, t, so `<code>` is turned away before the names are tried and the fifth name is dead code; it was killed before the guard (lens J14); hand-run at 5f1c48b: 189 pass"
+ },
+ {
+  "name": "J15 nameEnd: `title` is a fifth name",
+  "file": "src/core/qmd/model.ts",
+  "from": "const RAW_CONTENT_NAMES = [\"pre\", \"script\", \"style\", \"textarea\"] as const;",
+  "to": "const RAW_CONTENT_NAMES = [\"pre\", \"script\", \"style\", \"textarea\", \"title\"] as const;",
+  "expect": "killed",
+  "why": "a fifth element name that starts with p, s or t passes the guard and is tried (mutation lens M11, survived); hand-run on the two part-11 files (raw-content-tag-equivalence + s339-raw-content-tag-rows) at 5f1c48b, load average 8 to 10: 3 rows fail: `<title>` stated, the 154-name sweep, the document row 'a title element is no raw-content element'"
+ },
+ {
+  "name": "K01 count: a self-closing closer is a closer",
+  "file": "src/core/qmd/model.ts",
+  "from": "          if (tag.selfClosing) {\n            continue; // self-closing: opens nothing",
+  "to": "          if (tag.selfClosing && !tag.closing) {\n            continue; // self-closing: opens nothing",
+  "expect": "killed",
+  "why": "the test for a self-closing tag comes before the test for a closer, so `</pre/>` closes nothing; no document held a self-closing closer (mutation lens M12, survived); hand-run on the two part-11 files (raw-content-tag-equivalence + s339-raw-content-tag-rows) at 5f1c48b, load average 8 to 10: 3 rows fail: 'a self-closing closer closes nothing', 'a self-closing closer with a blank closes nothing', 'two openers, a self-closing closer and a closer'"
+ },
+ {
+  "name": "K02 count: the indent test is multi-line",
+  "file": "src/core/qmd/model.ts",
+  "from": "/^ {0,3}$/.test(line.slice(0, tag.index))",
+  "to": "/^ {0,3}$/m.test(line.slice(0, tag.index))",
+  "expect": "killed",
+  "why": "with the multi-line flag a line terminator (U+2028, U+2029) before the tag counts as a line start; only the clock rows killed it (it reads the whole prefix for every tag; mutation lens M14); hand-run on the two part-11 files (raw-content-tag-equivalence + s339-raw-content-tag-rows) at 5f1c48b, load average 8 to 10: 5 rows fail, three of them answer rows ('a line separator before the opener', 'a paragraph separator before the opener', 'text and a line separator before the opener') and the two CONTROL clock rows that killed it before"
+ },
+ {
+  "name": "K07 count: the count stops at 3",
+  "file": "src/core/qmd/model.ts",
+  "from": "            rawContentDepth += 1;",
+  "to": "            rawContentDepth = Math.min(rawContentDepth + 1, 3);",
+  "expect": "killed",
+  "why": "the raw-content count is not capped at 3 (mutation lens M13, survived); hand-run on the two part-11 files (raw-content-tag-equivalence + s339-raw-content-tag-rows) at 5f1c48b, load average 8 to 10: 3 rows fail: 'four openers and three closers', 'nine openers and eight closers', 'nine openers, eight closers on one line'"
+ },
+ {
+  "name": "K08 count: the count stops at 8",
+  "file": "src/core/qmd/model.ts",
+  "from": "            rawContentDepth += 1;",
+  "to": "            rawContentDepth = Math.min(rawContentDepth + 1, 8);",
+  "expect": "killed",
+  "why": "the raw-content count is not capped at 8 (mutation lens M13, survived); hand-run on the two part-11 files (raw-content-tag-equivalence + s339-raw-content-tag-rows) at 5f1c48b, load average 8 to 10: 2 rows fail: 'nine openers and eight closers', 'nine openers, eight closers on one line'"
+ },
+ {
+  "name": "K09 count: the first two tags of a line",
+  "file": "src/core/qmd/model.ts",
+  "from": "        for (const tag of rawContentTags(line)) {",
+  "to": "        for (const tag of rawContentTags(line).slice(0, 2)) {",
+  "expect": "killed",
+  "why": "a line closes as many elements as it holds closers, not only its first two tags (mutation lens M13, survived); hand-run on the two part-11 files (raw-content-tag-equivalence + s339-raw-content-tag-rows) at 5f1c48b, load average 8 to 10: 3 rows fail: 'three openers, three closers on one line', 'four ...', 'nine ...'"
+ },
+ {
+  "name": "K10 count: the first three tags of a line",
+  "file": "src/core/qmd/model.ts",
+  "from": "        for (const tag of rawContentTags(line)) {",
+  "to": "        for (const tag of rawContentTags(line).slice(0, 3)) {",
+  "expect": "killed",
+  "why": "a line closes as many elements as it holds closers, not only its first three tags (mutation lens M13, survived); hand-run on the two part-11 files (raw-content-tag-equivalence + s339-raw-content-tag-rows) at 5f1c48b, load average 8 to 10: 2 rows fail: 'four openers, four closers on one line', 'nine openers, nine closers on one line'"
+ },
+ {
+  "name": "K11 count: one closer a line",
+  "file": "src/core/qmd/model.ts",
+  "from": "        for (const tag of rawContentTags(line)) {",
+  "to": "        for (const tag of rawContentTags(line).filter((t, k, all) => !t.closing || all.findIndex((u) => u.closing) === k)) {",
+  "expect": "killed",
+  "why": "a line closes as many elements as it holds closers, not one (mutation lens M13, survived); hand-run on the two part-11 files (raw-content-tag-equivalence + s339-raw-content-tag-rows) at 5f1c48b, load average 8 to 10: 5 rows fail: 'two/three/four/nine openers, N closers on one line' and 'two names open, both close on one line'"
+ },
+ {
+  "name": "G01 rawContentNameEnd guard: the p is a q",
+  "file": "src/core/qmd/model.ts",
+  "from": "first !== 0x70 &&",
+  "to": "first !== 0x71 &&",
+  "expect": "killed",
+  "why": "the first-letter guard (Session 339 review, P2) must let `p` through; hand-run on the two part-11 files at 5f1c48b, load average 8 to 10: 86 rows fail"
+ },
+ {
+  "name": "G02 rawContentNameEnd guard: p is not let through",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (first !== 0x70 && first !== 0x73 && first !== 0x74) {",
+  "to": "  if (first !== 0x73 && first !== 0x74) {",
+  "expect": "killed",
+  "why": "the guard must let `p` through, so that `pre` is tried; hand-run on the two part-11 files at 5f1c48b, load average 8 to 10: 86 rows fail, the same as G01"
+ },
+ {
+  "name": "G03 rawContentNameEnd guard: s is not let through",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (first !== 0x70 && first !== 0x73 && first !== 0x74) {",
+  "to": "  if (first !== 0x70 && first !== 0x74) {",
+  "expect": "killed",
+  "why": "the guard must let `s` through, so that `script` and `style` are tried; hand-run on the two part-11 files at 5f1c48b, load average 8 to 10: 25 rows fail, among them `<script/>`, `<style />` and `<pre><script></pre>` stated, the seeded lines and the grid of opener runs"
+ },
+ {
+  "name": "G04 rawContentNameEnd guard: t is not let through",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (first !== 0x70 && first !== 0x73 && first !== 0x74) {",
+  "to": "  if (first !== 0x70 && first !== 0x73) {",
+  "expect": "killed",
+  "why": "the guard must let `t` through, so that `textarea` is tried; hand-run on the two part-11 files at 5f1c48b, load average 8 to 10: 14 rows fail, among them `<textarea/>` stated, the seeded lines, the grid and the 9-token enumeration"
+ },
+ {
+  "name": "G05 rawContentNameEnd guard: the letter is not folded to small",
+  "file": "src/core/qmd/model.ts",
+  "from": "const first = line.charCodeAt(at) | 32;",
+  "to": "const first = line.charCodeAt(at);",
+  "expect": "killed",
+  "why": "the guard folds the first letter to small (`P` is 0x50, `p` is 0x70), so an upper-case name is tried; hand-run on the two part-11 files at 5f1c48b, load average 8 to 10: 18 rows fail, among them `<PRE>`, `</PRE >` and `<Pre class=\"a\">` stated, the seeded lines and the grid"
+ },
+ {
+  "name": "G06 rawContentNameEnd guard: inverted",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (first !== 0x70 && first !== 0x73 && first !== 0x74) {",
+  "to": "  if (first === 0x70 || first === 0x73 || first === 0x74) {",
+  "expect": "killed",
+  "why": "the guard turns away what is not p, s or t, not what is; hand-run on the two part-11 files at 5f1c48b, load average 8 to 10: 101 rows fail"
+ },
+ {
+  "name": "G07 rawContentNameEnd guard: u is let through too",
+  "file": "src/core/qmd/model.ts",
+  "from": "first !== 0x74) {",
+  "to": "first !== 0x74 && first !== 0x75) {",
+  "expect": "survives",
+  "why": "equivalent: the guard only saves work; a name that starts with `u` fails the name loop as it did before, so no answer changes; hand-run on the two part-11 files at 5f1c48b, load average 8 to 10: 189 pass"
+ },
+ {
+  "name": "G08 rawContentNameEnd guard: never rejects",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (first !== 0x70 && first !== 0x73 && first !== 0x74) {",
+  "to": "  if (first === -1) {",
+  "expect": "survives",
+  "why": "the guard switched off (`first` is never -1): the same answers, slower; only a clock could notice (the dense line `<b>x</b> <i>y</i> ` repeated to 1,000,000 characters takes 10.36 ms in findHeadings without the guard and 5.53 ms with it, a ratio no row asserts on a shared machine); hand-run on the two part-11 files at 5f1c48b, load average 8 to 10: 189 pass"
+ },
+ {
+  "name": "G09 rawContentNameEnd guard: the fold is | 0x60",
+  "file": "src/core/qmd/model.ts",
+  "from": "line.charCodeAt(at) | 32;",
+  "to": "line.charCodeAt(at) | 0x60;",
+  "expect": "survives",
+  "why": "equivalent: `| 0x60` also lets the digits 0, 3 and 4 and three control characters (0x10, 0x13, 0x14) through the guard, which the name loop turns away; hand-run on the two part-11 files at 5f1c48b, load average 8 to 10: 189 pass"
+ }
+]
