@@ -14,9 +14,10 @@ import { appendCitations, type Citation, parseCitations } from "../../src/core/c
 // and in CSL-JSON alike. The bare spread `all.push(...parseCitations(content))` outside the adapter threw from 110,428 entries in both formats (the adapter's own frames cost a few thousand). The BACKLOG item says 125,770
 // (125,768 in CSL-JSON): that figure came from another process and the first throw moves with the stack the process starts with, so the size below is 250,000 entries, about twice the first throw (Learning 775): 2.35 times the one measured in the adapter and 1.99 times the BACKLOG's.
 //
-// THE ADAPTER IS NOT UNIT-TESTABLE (it imports `vscode`), so the accumulation lives in `core/citations.ts` as `appendCitations` and the rows below drive THAT with the real parser, the way the adapter's loop does: the
-// parsed list of each file appended to one list, in the order the front matter names the files. The ONE line these rows cannot run is the call in the adapter; `test/integration/suite/citation.test.ts` (`npm run test:integration`,
-// which takes over the screen and was not run) is the only run of it. The last describe reads the adapter's SOURCE for that line, which is a wiring gate and not a run.
+// THE ADAPTER IS NOT UNIT-TESTABLE (it imports `vscode`), so the accumulation lives in `core/citations.ts` as `appendCitations` and the rows below drive THAT with the real parser, the way the loop does: the
+// parsed list of each file appended to one list, in the order the front matter names the files. The review of Session 338 moved the loop itself into `readCitations` of the same module (the file reader handed in), whose
+// rows are `test/unit/citations-read.test.ts`; what these rows cannot run is the one call in the adapter, `test/integration/suite/citation.test.ts` (`npm run test:integration`, which takes over the screen and was
+// not run) is the only run of it. The last describe reads the adapter's SOURCE for that call, which is a wiring gate and not a run.
 
 const COUNT = 250_000;
 const SHORT = 3;
@@ -45,7 +46,7 @@ const cslJson = (count: number, from = 0): string => {
 /** The answer the parser gives for entry `n` of either format: the same citation for the same number. */
 const expectedCitation = (n: number): Citation => ({ key: `k${n}`, title: `Title ${n}`, author: "Doe, Jane", year: String(2000 + (n % 25)) });
 
-/** The adapter's loop over the files the front matter names: parse each, append, in order. */
+/** The loop of `readCitations` over the files the front matter names, without the reader: parse each, append, in order. */
 const accumulate = (contents: string[]): { all: Citation[]; ms: number } => {
   const all: Citation[] = [];
   let ms = 0;
@@ -106,18 +107,21 @@ describe("Session 338 -- a bibliography of more than a hundred thousand entries 
   }, ROW_TIMEOUT_MS);
 });
 
-describe("Session 338 -- the adapter routes the accumulation through the core function (a wiring gate: it reads the SOURCE of src/providers/citation.ts, it does not run it)", () => {
+describe("Session 338 -- the adapter routes the accumulation through the core function (a wiring gate: it reads the SOURCE of src/providers/citation.ts, it does not run it; the loop's behaviour is test/unit/citations-read.test.ts)", () => {
   // Comments are stripped first: the adapter's docstring may name the old spelling to say it is forbidden.
   const code = readFileSync(path.join(__dirname, "../../src/providers/citation.ts"), "utf8")
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/^\s*\/\/.*$/gm, "");
 
-  it("loadCitations appends each file's citations with appendCitations(all, parseCitations(content))", () => {
-    expect(code).toContain("appendCitations(all, parseCitations(content))");
+  it("loadCitations hands the declared paths and the document's directory to readCitations, with fs.readFile as the reader", () => {
+    expect(code).toContain("readCitations(relPaths, path.dirname(document.uri.fsPath), (file) =>");
+    expect(code).toContain('fs.readFile(file, "utf8")');
   });
 
-  it("appendCitations is imported from the core module", () => {
-    expect(code).toMatch(/import\s*\{[^}]*\bappendCitations\b[^}]*\}\s*from\s*"\.\.\/core\/citations"/);
+  it("readCitations is imported from the core module, and the adapter keeps no loop of its own over the files", () => {
+    expect(code).toMatch(/import\s*\{[^}]*\breadCitations\b[^}]*\}\s*from\s*"\.\.\/core\/citations"/);
+    expect(code).not.toMatch(/for\s*\(\s*const\s+\w+\s+of\s+relPaths/);
+    expect(code).not.toContain("parseCitations");
   });
 
   it("no call in the adapter has a spread argument (a list that grows with a file must never be spread into a call)", () => {

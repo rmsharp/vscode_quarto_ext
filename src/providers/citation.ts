@@ -18,10 +18,9 @@ import { promises as fs } from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import {
-  appendCitations,
   type Citation,
   citationCompletionContext,
-  parseCitations,
+  readCitations,
 } from "../core/citations";
 import { bibliographyPaths } from "../core/frontmatter";
 import { isReferenceableLine } from "../core/refs";
@@ -100,29 +99,9 @@ async function loadCitations(
   if (relPaths.length === 0 || document.uri.scheme !== "file") {
     return [];
   }
-  const dir = path.dirname(document.uri.fsPath);
-  const all: Citation[] = [];
-  for (const rel of relPaths) {
-    try {
-      const content = await fs.readFile(path.resolve(dir, rel), "utf8");
-      appendCitations(all, parseCitations(content));
-    } catch {
-      // Missing/unreadable bib file — skip it; offer what we can.
-    }
-  }
-  return dedupeByKey(all);
-}
-
-/** Keep only the first citation for each key, preserving order. */
-function dedupeByKey(citations: Citation[]): Citation[] {
-  const seen = new Set<string>();
-  return citations.filter((c) => {
-    if (seen.has(c.key)) {
-      return false;
-    }
-    seen.add(c.key);
-    return true;
-  });
+  return readCitations(relPaths, path.dirname(document.uri.fsPath), (file) =>
+    fs.readFile(file, "utf8"),
+  );
 }
 
 /** Translate one core `Citation` into a `vscode.CompletionItem`. */

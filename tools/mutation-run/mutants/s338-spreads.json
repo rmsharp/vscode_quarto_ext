@@ -273,51 +273,51 @@
  },
  {
   "name": "A01 loadCitations: the spread is back",
-  "file": "src/providers/citation.ts",
+  "file": "src/core/citations.ts",
   "from": "      appendCitations(all, parseCitations(content));",
   "to": "      all.push(...parseCitations(content));",
   "expect": "killed",
-  "why": "the gate: a call with a spread argument, and no appendCitations; run alone, killed by a non-clock row: oes not run it) loadCitations appends each file's citations with appendCitations(all, parseCitations(content))"
+  "why": "a spread of 250,000 entries throws RangeError, which the empty catch swallows, so the 250,000-entry file adds nothing: `readCitations` in `core/citations.ts` (the loop moved there from the adapter in the review of Session 338); re-anchored there, to be killed by a row of `citations-read.test.ts`"
  },
  {
   "name": "A02 loadCitations: the arguments are swapped",
-  "file": "src/providers/citation.ts",
+  "file": "src/core/citations.ts",
   "from": "      appendCitations(all, parseCitations(content));",
   "to": "      appendCitations(parseCitations(content), all);",
   "expect": "killed",
-  "why": "the gate: the exact call; run alone, killed by a non-clock row: oes not run it) loadCitations appends each file's citations with appendCitations(all, parseCitations(content))"
+  "why": "the file's citations go into the wrong list, so the result is empty: a row of `citations-read.test.ts` (re-anchored in the review of Session 338)"
  },
  {
   "name": "A03 loadCitations: the citations are parsed and dropped",
-  "file": "src/providers/citation.ts",
+  "file": "src/core/citations.ts",
   "from": "      appendCitations(all, parseCitations(content));",
   "to": "      parseCitations(content);",
   "expect": "killed",
-  "why": "the gate: the exact call; run alone, killed by a non-clock row: oes not run it) loadCitations appends each file's citations with appendCitations(all, parseCitations(content))"
+  "why": "nothing is appended: a row of `citations-read.test.ts` (re-anchored in the review of Session 338)"
  },
  {
   "name": "A04 loadCitations: appendCitations is not imported",
   "file": "src/providers/citation.ts",
-  "from": "  appendCitations,\n  type Citation,",
-  "to": "  type Citation,",
+  "from": "  citationCompletionContext,\n  readCitations,\n} from \"../core/citations\";",
+  "to": "  citationCompletionContext,\n} from \"../core/citations\";",
   "expect": "killed",
-  "why": "the gate: the import from ../core/citations; run alone, killed by a non-clock row: the SOURCE of src/providers/citation.ts, it does not run it) appendCitations is imported from the core module"
+  "why": "the adapter no longer imports `readCitations`: the wiring gate of `s338-spreads-rows-citations.test.ts` (re-anchored in the review of Session 338, when the loop moved to the core)"
  },
  {
   "name": "A05 loadCitations: the path is parsed, not the content",
-  "file": "src/providers/citation.ts",
+  "file": "src/core/citations.ts",
   "from": "      appendCitations(all, parseCitations(content));",
   "to": "      appendCitations(all, parseCitations(rel));",
   "expect": "killed",
-  "why": "the gate: the exact call; run alone, killed by a non-clock row: oes not run it) loadCitations appends each file's citations with appendCitations(all, parseCitations(content))"
+  "why": "the relative path is parsed in place of the file's text, so no key is read: a row of `citations-read.test.ts` (re-anchored in the review of Session 338)"
  },
  {
   "name": "A06 loadCitations: the list is spread into a call on the way out",
-  "file": "src/providers/citation.ts",
+  "file": "src/core/citations.ts",
   "from": "  return dedupeByKey(all);",
   "to": "  return dedupeByKey(Array.of(...all));",
   "expect": "killed",
-  "why": "the gate: no call in the adapter has a spread argument; run alone, killed by a non-clock row: no call in the adapter has a spread argument (a list that grows with a file must never be spread into a call)"
+  "why": "the whole list is spread into a call after the loop, outside the `try`, so 250,000 entries reject the promise with RangeError: the 250,000-entry row of `citations-read.test.ts` (re-anchored in the review of Session 338)"
  },
  {
   "name": "T01 equivalence: the pinned count of forests",

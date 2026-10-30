@@ -9,6 +9,8 @@
  * round-trip of either format.
  */
 
+import * as path from "node:path";
+
 /** One bibliography entry, reduced to what citation completion needs. */
 export interface Citation {
   /** The citekey — what an `@key` reference points at. */
@@ -60,6 +62,48 @@ export function appendCitations(target: Citation[], more: readonly Citation[]): 
   for (let i = 0; i < length; i++) {
     target.push(more[i]);
   }
+}
+
+/**
+ * The citations of every bibliography a document declares, de-duplicated by citekey (first wins), in
+ * declared/file order. Each path in `relPaths` is resolved against `dir`, the document's own directory,
+ * and read with `readFile`, which the adapter hands in (`fs.readFile`) so that this loop can run without
+ * `vscode`. A missing or unreadable bibliography is skipped — a broken bibliography must never break
+ * completion. The loop was the adapter's `loadCitations` until the review of Session 338, which found
+ * that six behaviour mutants of it passed every unit test: only a gate that read the adapter's SOURCE
+ * noticed the cure's call.
+ *
+ * ⚠ The `catch` is EMPTY on purpose and it covers the append too, as it did in the adapter: it is what
+ * swallowed the `RangeError` of the old spread (see {@link appendCitations}), so a throw from the parser
+ * or the append is still read as "this file adds nothing", not as an error to show.
+ */
+export async function readCitations(
+  relPaths: readonly string[],
+  dir: string,
+  readFile: (absolutePath: string) => Promise<string>,
+): Promise<Citation[]> {
+  const all: Citation[] = [];
+  for (const rel of relPaths) {
+    try {
+      const content = await readFile(path.resolve(dir, rel));
+      appendCitations(all, parseCitations(content));
+    } catch {
+      // Missing/unreadable bib file — skip it; offer what we can.
+    }
+  }
+  return dedupeByKey(all);
+}
+
+/** Keep only the first citation for each key, preserving order. */
+function dedupeByKey(citations: Citation[]): Citation[] {
+  const seen = new Set<string>();
+  return citations.filter((c) => {
+    if (seen.has(c.key)) {
+      return false;
+    }
+    seen.add(c.key);
+    return true;
+  });
 }
 
 // ── Completion context ──────────────────────────────────────────────────────
