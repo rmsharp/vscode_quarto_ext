@@ -50,8 +50,8 @@
  {
   "name": "A11 knitrHeaderAssignment: a comma, not a dot, may start a bare name",
   "file": "src/core/qmd/model.ts",
-  "from": "if (first === 46) {",
-  "to": "if (first === 44) {",
+  "from": "    if (first === 46) {\n      nameEnd = nameStart + 1;",
+  "to": "    if (first === 44) {\n      nameEnd = nameStart + 1;",
   "expect": "killed",
   "why": "`.x=1` is refused and `,x=1` accepted; killed by:  answers the groups the argument pattern of knitrChunkHeaderLabel answered a name may start with a dot: \".x=1\""
  },
