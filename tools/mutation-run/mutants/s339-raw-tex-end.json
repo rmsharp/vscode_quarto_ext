@@ -1,0 +1,370 @@
+[
+ {
+  "name": "E01 rawTexEndNames: the search starts at 1",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let from = 0; ; ) {",
+  "to": "  for (let from = 1; ; ) {",
+  "expect": "killed",
+  "why": "a line that starts with its delimiter loses the first name; run alone, killed by non-clock rows of both files (a line that starts with its delimiter)"
+ },
+ {
+  "name": "E02 rawTexEndNames: the opener is `\\end` without the brace",
+  "file": "src/core/qmd/model.ts",
+  "from": "    const open = line.indexOf(\"\\\\end{\", from);",
+  "to": "    const open = line.indexOf(\"\\\\end\", from);",
+  "expect": "killed",
+  "why": "`\\end {a}` and `\\end}` read as delimiters; run alone, killed by the enumeration of 6 characters"
+ },
+ {
+  "name": "E03 rawTexEndNames: the opener is searched backwards",
+  "file": "src/core/qmd/model.ts",
+  "from": "    const open = line.indexOf(\"\\\\end{\", from);",
+  "to": "    const open = line.lastIndexOf(\"\\\\end{\", from);",
+  "expect": "killed",
+  "why": "only an opener at or before `from` is found: a second delimiter on the line is never read; run alone, killed by non-clock rows of the rows file (a tail behind the `\\begin{x}` line)"
+ },
+ {
+  "name": "E04 rawTexEndNames: the opener test is `<= -1`",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (open === -1) {",
+  "to": "    if (open <= -1) {",
+  "expect": "survives",
+  "why": "`indexOf` answers -1 or an index of 0 or more, so `<= -1` and `=== -1` are the same test; run alone, survives all of both files' rows, as argued"
+ },
+ {
+  "name": "E05 rawTexEndNames: a missing opener returns instead of breaking",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (open === -1) {\n      break;\n    }",
+  "to": "    if (open === -1) {\n      return names;\n    }",
+  "expect": "survives",
+  "why": "the `break` leaves the loop and the next statement is `return names`; the same value is returned; run alone, survives all of both files' rows, as argued"
+ },
+ {
+  "name": "E06 rawTexEndNames: the brace is searched from the `{`",
+  "file": "src/core/qmd/model.ts",
+  "from": "    const close = line.indexOf(\"}\", open + 5);",
+  "to": "    const close = line.indexOf(\"}\", open + 4);",
+  "expect": "survives",
+  "why": "the character at `open + 4` is the `{` of the opener, never a `}`, so the first brace at or after it is the first brace at or after `open + 5`; run alone, survives all of both files' rows, as argued"
+ },
+ {
+  "name": "E07 rawTexEndNames: the brace is searched from the opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "    const close = line.indexOf(\"}\", open + 5);",
+  "to": "    const close = line.indexOf(\"}\", open);",
+  "expect": "survives",
+  "why": "the five characters from `open` are `\\end{`, none a `}`, so the first brace at or after `open` is the first brace at or after `open + 5`; run alone, survives all of both files' rows, as argued"
+ },
+ {
+  "name": "E08 rawTexEndNames: the brace is searched one place late",
+  "file": "src/core/qmd/model.ts",
+  "from": "    const close = line.indexOf(\"}\", open + 5);",
+  "to": "    const close = line.indexOf(\"}\", open + 6);",
+  "expect": "killed",
+  "why": "an empty name, `\\end{}`, is not found: its brace is at `open + 5`; run alone, killed by the enumeration of 6 characters"
+ },
+ {
+  "name": "E09 rawTexEndNames: the brace is searched from the `n`",
+  "file": "src/core/qmd/model.ts",
+  "from": "    const close = line.indexOf(\"}\", open + 5);",
+  "to": "    const close = line.indexOf(\"}\", open + 3);",
+  "expect": "survives",
+  "why": "the characters at `open + 3` and `open + 4` are `d` and `{`, never a `}`; run alone, survives all of both files' rows, as argued"
+ },
+ {
+  "name": "E10 rawTexEndNames: a missing brace goes on at the next place",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (close === -1) {\n      break;\n    }",
+  "to": "    if (close === -1) {\n      from = open + 1;\n      continue;\n    }",
+  "expect": "killed",
+  "why": "every answer is kept and the scan is n squared again (the parent's cost, in a loop): killed by the clock rows alone; run alone, killed by the 10,000,000-character row of the equivalence file after 225 s: the slowest mutant of the list (about 233 s alone with the labeller's --bail 1)"
+ },
+ {
+  "name": "E11 rawTexEndNames: the name keeps the brace of the opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "    names.push(line.slice(open + 5, close));",
+  "to": "    names.push(line.slice(open + 4, close));",
+  "expect": "killed",
+  "why": "every name starts with `{`; run alone, killed by non-clock rows of the rows file"
+ },
+ {
+  "name": "E12 rawTexEndNames: the name loses its first character",
+  "file": "src/core/qmd/model.ts",
+  "from": "    names.push(line.slice(open + 5, close));",
+  "to": "    names.push(line.slice(open + 6, close));",
+  "expect": "killed",
+  "why": "`\\end{a}` names ``; run alone, killed by non-clock rows of the rows file"
+ },
+ {
+  "name": "E13 rawTexEndNames: the name keeps its closing brace",
+  "file": "src/core/qmd/model.ts",
+  "from": "    names.push(line.slice(open + 5, close));",
+  "to": "    names.push(line.slice(open + 5, close + 1));",
+  "expect": "killed",
+  "why": "every name ends with `}`; run alone, killed by non-clock rows of the rows file"
+ },
+ {
+  "name": "E14 rawTexEndNames: the name keeps the whole opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "    names.push(line.slice(open + 5, close));",
+  "to": "    names.push(line.slice(open, close));",
+  "expect": "killed",
+  "why": "every name starts with `\\end{`; run alone, killed by non-clock rows of the rows file"
+ },
+ {
+  "name": "E15 rawTexEndNames: the name loses its last character",
+  "file": "src/core/qmd/model.ts",
+  "from": "    names.push(line.slice(open + 5, close));",
+  "to": "    names.push(line.slice(open + 5, close - 1));",
+  "expect": "killed",
+  "why": "`\\end{a}` names ``; run alone, killed by non-clock rows of the rows file"
+ },
+ {
+  "name": "E16 rawTexEndNames: the next search starts at the brace",
+  "file": "src/core/qmd/model.ts",
+  "from": "    from = close + 1;",
+  "to": "    from = close;",
+  "expect": "survives",
+  "why": "the character at `close` is the `}`, which cannot start `\\end{`, so a search from `close` finds what a search from `close + 1` finds; run alone, survives all of both files' rows, as argued"
+ },
+ {
+  "name": "E17 rawTexEndNames: the next search starts one place late",
+  "file": "src/core/qmd/model.ts",
+  "from": "    from = close + 1;",
+  "to": "    from = close + 2;",
+  "expect": "killed",
+  "why": "`\\end{a}\\end{b}` loses its second name; run alone, killed by non-clock rows of the rows file (the probe rows with two names)"
+ },
+ {
+  "name": "E18 rawTexEndNames: the next search starts inside the name",
+  "file": "src/core/qmd/model.ts",
+  "from": "    from = close + 1;",
+  "to": "    from = open + 5;",
+  "expect": "killed",
+  "why": "a nested `\\end{` inside a name is read as a delimiter of its own: `\\end{\\end{a}` has two names; run alone, killed by the enumeration of 6 tokens"
+ },
+ {
+  "name": "E19 rawTexEndNames: the next search starts at the next place",
+  "file": "src/core/qmd/model.ts",
+  "from": "    from = close + 1;",
+  "to": "    from = open + 1;",
+  "expect": "killed",
+  "why": "the same nested opener is read twice; run alone, killed by the enumeration of 6 tokens"
+ },
+ {
+  "name": "E20 rawTexEndNames: the names come back reversed",
+  "file": "src/core/qmd/model.ts",
+  "from": "    from = close + 1;\n  }\n  return names;",
+  "to": "    from = close + 1;\n  }\n  return names.reverse();",
+  "expect": "killed",
+  "why": "`\\end{a}\\end{b}` comes back as b, a; run alone, killed by the enumeration of 6 tokens"
+ },
+ {
+  "name": "E21 rawTexEndNames: the first name is dropped",
+  "file": "src/core/qmd/model.ts",
+  "from": "    from = close + 1;\n  }\n  return names;",
+  "to": "    from = close + 1;\n  }\n  return names.slice(1);",
+  "expect": "killed",
+  "why": "`\\end{a}` comes back with no name; run alone, killed by non-clock rows of the rows file"
+ },
+ {
+  "name": "E22 rawTexEndNames: the names are pushed to the front",
+  "file": "src/core/qmd/model.ts",
+  "from": "    names.push(line.slice(open + 5, close));",
+  "to": "    names.unshift(line.slice(open + 5, close));",
+  "expect": "killed",
+  "why": "the order of the names is reversed; run alone, killed by the enumeration of 6 tokens"
+ },
+ {
+  "name": "E23 rawTexEndNames: the brace is a closing parenthesis",
+  "file": "src/core/qmd/model.ts",
+  "from": "    const close = line.indexOf(\"}\", open + 5);",
+  "to": "    const close = line.indexOf(\")\", open + 5);",
+  "expect": "killed",
+  "why": "no delimiter is read; run alone, killed by non-clock rows of the rows file"
+ },
+ {
+  "name": "E24 rawTexEndNames: the opener is matched without its case",
+  "file": "src/core/qmd/model.ts",
+  "from": "    const open = line.indexOf(\"\\\\end{\", from);",
+  "to": "    const open = line.toLowerCase().indexOf(\"\\\\end{\", from);",
+  "expect": "killed",
+  "why": "`\\END{a}` is read as a delimiter (and a character whose lower case is another length moves every index); run alone, killed by the control row of 200,000 complete delimiters (a `toLowerCase` of the whole line per call is n squared)"
+ },
+ {
+  "name": "A01 lastRawTexEnvEnd: the first line is not read",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let i = 0; i < lines.length; i++) {\n    for (const name of rawTexEndNames(lines[i])) {",
+  "to": "  for (let i = 1; i < lines.length; i++) {\n    for (const name of rawTexEndNames(lines[i])) {",
+  "expect": "killed",
+  "why": "a one-line environment on line 0 is called unmatched; run alone, killed by the review row: a one-line environment on the first line of the document"
+ },
+ {
+  "name": "A02 lastRawTexEnvEnd: the last line is not read",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (let i = 0; i < lines.length; i++) {\n    for (const name of rawTexEndNames(lines[i])) {",
+  "to": "  for (let i = 0; i < lines.length - 1; i++) {\n    for (const name of rawTexEndNames(lines[i])) {",
+  "expect": "killed",
+  "why": "an `\\end{a}` on the last line of a document with no final line feed is not seen; run alone, killed by the review row: an `\\end{a}` on the last line with no final line feed"
+ },
+ {
+  "name": "A03 lastRawTexEnvEnd: the line is one too late",
+  "file": "src/core/qmd/model.ts",
+  "from": "      last.set(name, i);",
+  "to": "      last.set(name, i + 1);",
+  "expect": "killed",
+  "why": "an `\\end{a}` ABOVE a `\\begin{a}` closes it; run alone, killed by the review row: an `\\end{a}` above a `\\begin{a}`"
+ },
+ {
+  "name": "A04 lastRawTexEnvEnd: the line is one too early",
+  "file": "src/core/qmd/model.ts",
+  "from": "      last.set(name, i);",
+  "to": "      last.set(name, i - 1);",
+  "expect": "killed",
+  "why": "a one-line environment is called unmatched; run alone, killed by non-clock rows of the rows file (a one-line environment)"
+ },
+ {
+  "name": "A05 lastRawTexEnvEnd: the FIRST line of a name is kept",
+  "file": "src/core/qmd/model.ts",
+  "from": "      last.set(name, i);",
+  "to": "      if (!last.has(name)) {\n        last.set(name, i);\n      }",
+  "expect": "killed",
+  "why": "an `\\end{a}` above a `\\begin{a}` and another below: the one below is lost; run alone, killed by the review row: an `\\end{a}` above and another below"
+ },
+ {
+  "name": "A06 lastRawTexEnvEnd: the name is trimmed",
+  "file": "src/core/qmd/model.ts",
+  "from": "      last.set(name, i);",
+  "to": "      last.set(name.trim(), i);",
+  "expect": "killed",
+  "why": "`\\end{ a}` and `\\end{a }` close `a`; run alone, killed by the review rows: `\\end{ a}`, `\\end{a }` and the no-break space"
+ },
+ {
+  "name": "A07 lastRawTexEnvEnd: only the first name of a line counts",
+  "file": "src/core/qmd/model.ts",
+  "from": "    for (const name of rawTexEndNames(lines[i])) {",
+  "to": "    for (const name of rawTexEndNames(lines[i]).slice(0, 1)) {",
+  "expect": "killed",
+  "why": "the Session 226 case: `\\end{b}\\end{a}` closes `a`; run alone, killed by non-clock rows of the rows file (the first name is not the innermost open one)"
+ },
+ {
+  "name": "A08 lastRawTexEnvEnd: only the last name of a line counts",
+  "file": "src/core/qmd/model.ts",
+  "from": "    for (const name of rawTexEndNames(lines[i])) {",
+  "to": "    for (const name of rawTexEndNames(lines[i]).slice(-1)) {",
+  "expect": "killed",
+  "why": "`\\end{b}\\end{a}` no longer closes `b`; run alone, killed by the review row: the first of three names closes its environment"
+ },
+ {
+  "name": "A09 lastRawTexEnvEnd: the line is trimmed first",
+  "file": "src/core/qmd/model.ts",
+  "from": "    for (const name of rawTexEndNames(lines[i])) {",
+  "to": "    for (const name of rawTexEndNames(lines[i].trim())) {",
+  "expect": "survives",
+  "why": "a name sits between a `{` and a `}`, so the blanks `trim` takes off the ends of the line are outside every name; run alone, survives all of both files' rows, as argued"
+ },
+ {
+  "name": "A10 lastRawTexEnvEnd: the later line is kept by a maximum",
+  "file": "src/core/qmd/model.ts",
+  "from": "      last.set(name, i);",
+  "to": "      last.set(name, Math.max(i, last.get(name) ?? -1));",
+  "expect": "survives",
+  "why": "`i` only grows, so the maximum of `i` and an earlier line is `i`; run alone, survives all of both files' rows, as argued"
+ },
+ {
+  "name": "B01 probe: the real stack is popped as well",
+  "file": "src/core/qmd/model.ts",
+  "from": "        const probe = [...rawTexEnvStack];",
+  "to": "        const probe = rawTexEnvStack;",
+  "expect": "killed",
+  "why": "an `\\end{a}` over `[b, a]` pops twice: the later `\\end{b}` finds nothing open; run alone, killed by the review rows: `\\end{a}` over [b, a], with and without a repeated name"
+ },
+ {
+  "name": "B02 probe: only the first name of the line is read",
+  "file": "src/core/qmd/model.ts",
+  "from": "        for (const name of rawTexEndNames(line)) {\n          if (probe[probe.length - 1] === name) {",
+  "to": "        for (const name of rawTexEndNames(line).slice(0, 1)) {\n          if (probe[probe.length - 1] === name) {",
+  "expect": "killed",
+  "why": "the Session 226 case at the matching side: `\\end{b}\\end{a}` over `[a]`; run alone, killed by non-clock rows of the rows file (the first name is not the innermost open one)"
+ },
+ {
+  "name": "B03 probe: only the last name of the line is read",
+  "file": "src/core/qmd/model.ts",
+  "from": "        for (const name of rawTexEndNames(line)) {\n          if (probe[probe.length - 1] === name) {",
+  "to": "        for (const name of rawTexEndNames(line).slice(-1)) {\n          if (probe[probe.length - 1] === name) {",
+  "expect": "killed",
+  "why": "`\\end{b}\\end{a}` over `[a, b]` pops one; run alone, killed by non-clock rows of the rows file (two names on the line)"
+ },
+ {
+  "name": "B04 probe: the names are read from the last",
+  "file": "src/core/qmd/model.ts",
+  "from": "        for (const name of rawTexEndNames(line)) {\n          if (probe[probe.length - 1] === name) {",
+  "to": "        for (const name of rawTexEndNames(line).reverse()) {\n          if (probe[probe.length - 1] === name) {",
+  "expect": "killed",
+  "why": "`\\end{b}\\end{a}` over `[a, b]` pops one, not two; run alone, killed by the review row: `\\end{b}\\end{a}` over [a, b], then a later `\\end{a}`"
+ },
+ {
+  "name": "B05 probe: a name is compared with the BOTTOM of the stack",
+  "file": "src/core/qmd/model.ts",
+  "from": "          if (probe[probe.length - 1] === name) {",
+  "to": "          if (probe[0] === name) {",
+  "expect": "killed",
+  "why": "`\\end{b}\\end{a}` over `[a, b]` pops one and leaves `a`; run alone, killed by the review row: `\\end{b}\\end{a}` over [a, b], then a later `\\end{a}`"
+ },
+ {
+  "name": "B06 probe: a name anywhere in the stack pops the top",
+  "file": "src/core/qmd/model.ts",
+  "from": "          if (probe[probe.length - 1] === name) {",
+  "to": "          if (probe.includes(name)) {",
+  "expect": "killed",
+  "why": "`\\end{a}` over `[a, b]` closes `b`; run alone, killed by the review row: `\\end{a}` over [a, b]"
+ },
+ {
+  "name": "B07 probe: a matched name pops nothing in the probe",
+  "file": "src/core/qmd/model.ts",
+  "from": "            probe.pop();\n            texEndPops++;",
+  "to": "            texEndPops++;",
+  "expect": "killed",
+  "why": "`\\end{a}\\end{a}` over `[b, a]` counts two pops; run alone, killed by the review row: `\\end{b}\\end{a}` over [a, b], then a later `\\end{a}`"
+ },
+ {
+  "name": "B08 probe: two pops are counted for one",
+  "file": "src/core/qmd/model.ts",
+  "from": "            texEndPops++;",
+  "to": "            texEndPops += 2;",
+  "expect": "killed",
+  "why": "`\\end{a}` over `[b, a]` pops both; run alone, killed by the review rows: `\\end{a}` over [b, a], with and without a repeated name"
+ },
+ {
+  "name": "B09 probe: at most one pop is counted",
+  "file": "src/core/qmd/model.ts",
+  "from": "            texEndPops++;",
+  "to": "            texEndPops = 1;",
+  "expect": "killed",
+  "why": "`\\end{b}\\end{a}` over `[a, b]` pops one; run alone, killed by the review row: `\\end{b}\\end{a}` over [a, b], then a later `\\end{a}`"
+ },
+ {
+  "name": "B10 probe: the line is probed for a begin",
+  "file": "src/core/qmd/model.ts",
+  "from": "      if (texEnv !== null && texEnv[1] === \"end\") {\n        const probe",
+  "to": "      if (texEnv !== null && texEnv[1] === \"begin\") {\n        const probe",
+  "expect": "killed",
+  "why": "no `\\end{}` line pops anything; run alone, killed by non-clock rows of the rows file (every probe row)"
+ },
+ {
+  "name": "B11 probe: a line with one pop is unmatched",
+  "file": "src/core/qmd/model.ts",
+  "from": "            : texEndPops > 0;",
+  "to": "            : texEndPops > 1;",
+  "expect": "killed",
+  "why": "an `\\end{a}` over `[a]` closes nothing; run alone, killed by non-clock rows of the rows file (every probe row)"
+ },
+ {
+  "name": "B12 probe: the stack is popped once whatever the count",
+  "file": "src/core/qmd/model.ts",
+  "from": "          for (let k = 0; k < texEndPops; k++) {",
+  "to": "          for (let k = 0; k < Math.min(texEndPops, 1); k++) {",
+  "expect": "killed",
+  "why": "`\\end{b}\\end{a}` over `[a, b]` leaves `a` open; run alone, killed by the review row: `\\end{b}\\end{a}` over [a, b], then a later `\\end{a}`"
+ }
+]
