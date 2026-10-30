@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { distinctTexts, registerRows, type Row } from "./support/chunk-label-rows";
+import { distinctTexts, openerOf, registerRows, WIDE_OPTION, type Row } from "./support/chunk-label-rows";
 
 // Session 338, part D of the BACKLOG item "Eleven more places that throw `RangeError` on a long line or a long list", site (6), place (b): the BLANK runs of the argument pattern of
 // `knitrChunkHeaderLabel`, `^([ \t]*(?:name)[ \t]*=(?!=)[ \t]*)([^ \t](?:[\s\S]*[^ \t])?)?[ \t]*$` under the `u` flag. A run of spaces or tabs before the equals sign, after it, or after the value is a class-star
@@ -38,6 +38,8 @@ describe("Session 338 — a knitr chunk header with millions of blanks around an
   // The parent THROWS from 8,388,557 blanks on a two-byte line; a run below that, or a limit of minutes that would pass a quadratic cure, would say nothing.
   it("keeps the sizes and the limit the rows are built on", () => {
     expect([FIRST_THROW_BLANKS, N, LIMIT_MS]).toEqual([8_388_557, 16_800_000, 10_000]);
+    expect(WIDE_OPTION).toBe(', x="\u4e2d"'); // the wide form holds ONE character above U+00FF, which is what makes the line a two-byte string
+    expect(openerOf(ROWS[0], 4, "narrow").split("").every((c) => c.charCodeAt(0) <= 0xff)).toBe(true); // and the narrow form holds none
     expect(N).toBeGreaterThanOrEqual(2 * FIRST_THROW_BLANKS);
     for (const row of ROWS) {
       expect(row.n).toBe(N);

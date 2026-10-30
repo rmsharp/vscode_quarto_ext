@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { distinctTexts, registerRows, type Row } from "./support/chunk-label-rows";
+import { distinctTexts, openerOf, registerRows, WIDE_OPTION, type Row } from "./support/chunk-label-rows";
 
 // Session 338, part D of the BACKLOG item "Eleven more places that throw `RangeError` on a long line or a long list", site (6), place (a): the first-slot class of `readChunkLabelToken`. A bare token in the
 // FIRST slot of a knitr chunk header is the text written (`{r fig-x}` defines `fig-x`), and it was judged by `/^[\p{L}\p{N}_:.-]+$/u`. V8 keeps one entry of its regex backtrack stack per character of a class-plus
@@ -45,6 +45,8 @@ describe("Session 338 — a knitr chunk header whose first-slot label is million
   // The parent THROWS from 4,194,284 characters of the run on a two-byte line; a run below that, or a limit of minutes that would pass a quadratic cure, would make the rows below say nothing.
   it("keeps the sizes and the limit the rows are built on", () => {
     expect([FIRST_THROW_TOKEN, N, LIMIT_MS]).toEqual([4_194_284, 8_400_000, 10_000]);
+    expect(WIDE_OPTION).toBe(', x="\u4e2d"'); // the wide form holds ONE character above U+00FF, which is what makes the line a two-byte string
+    expect(openerOf(ROWS[0], 4, "narrow").split("").every((c) => c.charCodeAt(0) <= 0xff)).toBe(true); // and the narrow form holds none
     expect(N).toBeGreaterThanOrEqual(2 * FIRST_THROW_TOKEN);
     for (const row of ROWS) {
       expect(row.n).toBeGreaterThanOrEqual(2 * FIRST_THROW_TOKEN);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { distinctTexts, registerRows, type Row } from "./support/chunk-label-rows";
+import { distinctTexts, openerOf, registerRows, WIDE_OPTION, type Row } from "./support/chunk-label-rows";
 
 // Session 338, part D of the BACKLOG item "Eleven more places that throw `RangeError` on a long line or a long list", site (6), places (b) and (c).
 //
@@ -51,6 +51,8 @@ describe("Session 338 — a knitr chunk header whose argument name or figure lab
   // The parent THROWS from 4,194,287 letters of a name and 4,194,288 of a figure label on a two-byte line, and its value star from 8,388,562: a run below the first, or a `label=` row past the last, says nothing.
   it("keeps the sizes and the limit the rows are built on", () => {
     expect([FIRST_THROW_NAME, FIRST_THROW_HEADER_ID, FIRST_THROW_VALUE, N, N_BETWEEN, LIMIT_MS]).toEqual([4_194_287, 4_194_288, 8_388_562, 8_400_000, 6_000_000, 10_000]);
+    expect(WIDE_OPTION).toBe(', x="\u4e2d"'); // the wide form holds ONE character above U+00FF, which is what makes the line a two-byte string
+    expect(openerOf(ROWS[0], 4, "narrow").split("").every((c) => c.charCodeAt(0) <= 0xff)).toBe(true); // and the narrow form holds none
     expect(N).toBeGreaterThanOrEqual(2 * FIRST_THROW_HEADER_ID);
     expect(N_BETWEEN).toBeGreaterThan(FIRST_THROW_HEADER_ID);
     expect(N_BETWEEN).toBeLessThan(FIRST_THROW_VALUE);
