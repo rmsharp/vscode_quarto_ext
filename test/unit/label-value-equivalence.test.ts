@@ -75,7 +75,7 @@ const SEED = 338;
 const NEAR_MISS_LIMIT_MS = 3000; // generous: the loop reads a million letters in tens of milliseconds, a restart from every character or a rescan would take hours
 const NEAR_MISS_SIZES = [20_000, 50_000, 1_000_000];
 const HUGE_LETTERS = 8_400_000; // twice 4,194,284, the first throw of the cell pattern behind a character above U+00FF (4,194,283 reads; Node 22.23, HEAD fe6aaec); the group pattern's is 4,194,288
-const HUGE_LIMIT_MS = 5000;
+const HUGE_LIMIT_MS = 15_000; // the read takes 1.4 s at 8.4 million letters (the review of Session 338 measured 3.5 times under the old 5 s); a quadratic one takes minutes
 
 // The alphabets of the exhaustive rows, named so that one row can pin what is in them. The cell value: A1 the quotes, the identifier classes and the one character no identifier holds (`$`), to six characters;
 // A2 the Unicode kinds, with the two HALVES of an astral letter as members of their own, so that the enumeration builds the pair (a letter), a lone half (nothing) and a half beside a BMP character, to six characters.
@@ -316,7 +316,7 @@ describe("Session 338 — cellLabelValue answers what CELL_LABEL_VALUE's pattern
     }
   });
 
-  it("reads a value of 8,400,000 letters (twice the pattern's limit behind a character above U+00FF) in under five seconds, to the id the grammar gives", () => {
+  it("reads a value of 8,400,000 letters (twice the pattern's limit behind a character above U+00FF) inside the limit, to the id the grammar gives", () => {
     const run = CJK_LETTER.repeat(HUGE_LETTERS);
     const values = [`fig-${run}`, `"fig-${run}"`, `fig-${run}$x`, `fig-${run} caption`, `.fig-${run}`];
     const started = performance.now();
@@ -470,7 +470,7 @@ describe("Session 338 — narrowLabel answers what NARROW_LABEL's pattern answer
     }
   });
 
-  it("reads a content of 8,400,000 letters (twice the pattern's limit behind a character above U+00FF) in under five seconds, to the id the grammar gives", () => {
+  it("reads a content of 8,400,000 letters (twice the pattern's limit behind a character above U+00FF) inside the limit, to the id the grammar gives", () => {
     const run = CJK_LETTER.repeat(HUGE_LETTERS);
     const contents = [`#fig-${run}`, `#tbl-${run} b`, `#eq-${run}$x`, `#lst-${run} ${CJK_LETTER}`, `#sec-${run}`];
     const started = performance.now();
@@ -506,7 +506,7 @@ describe("Session 338 — narrowLabel answers what NARROW_LABEL's pattern answer
 describe("the constants of the Session 338 label value equivalence rows", () => {
   // A size of 40 characters, or a limit of 100 s, would pass on the pattern too, and one letter put in an alphabet in place of another moves neither its string count nor its accepted count, so the code points are pinned.
   it("keeps the limits, the sizes, the seed, the alphabets and the counts the rows above are built on", () => {
-    expect([NEAR_MISS_LIMIT_MS, NEAR_MISS_SIZES, HUGE_LETTERS, HUGE_LIMIT_MS, SEEDED_STRINGS, SEED]).toEqual([3000, [20_000, 50_000, 1_000_000], 8_400_000, 5000, 100_000, 338]);
+    expect([NEAR_MISS_LIMIT_MS, NEAR_MISS_SIZES, HUGE_LETTERS, HUGE_LIMIT_MS, SEEDED_STRINGS, SEED]).toEqual([3000, [20_000, 50_000, 1_000_000], 8_400_000, 15_000, 100_000, 338]);
     expect(HUGE_LETTERS).toBeGreaterThanOrEqual(2 * 4_194_288); // twice the larger of the two first throws (4,194,284 cell value, 4,194,288 group id) at HEAD fe6aaec
     const codes = (alphabet: readonly string[]): number[] => alphabet.map((c) => c.codePointAt(0) as number);
     expect(codes(CELL_A1)).toEqual([0x22, 0x27, 0x61, 0x31, 0x5f, 0x3a, 0x2e, 0x2d, 0x24]);

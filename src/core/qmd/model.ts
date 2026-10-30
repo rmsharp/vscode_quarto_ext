@@ -513,7 +513,7 @@ function headingAttributeId(
     if (!(commonmarkDialect ? commonmarkAttributeAtom(token) : attributeAtomRun(token))) {
       continue;
     }
-    // A loop and not `found.push(...attributeIds(token))`: a spread of 125,700 or more elements throws `RangeError` too, and a token of `#a` repeated holds that many ids.
+    // A loop and not `found.push(...attributeIds(token))`: a spread of about 110,000 or more elements throws `RangeError` too (110,038 from this call, Node 22.23.3), and a token of `#a` repeated holds that many ids.
     for (const id of attributeIds(token)) {
       found.push(id);
     }

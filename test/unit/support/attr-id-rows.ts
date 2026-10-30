@@ -10,8 +10,8 @@
 // read and 4,194,288 throw. A token whose characters are all up to U+00FF reads 60,000,000 letters (no throw to be found), so the all-up-to-U+00FF form of a row is a CONTROL that passes on the parent.
 // The rows are sized at twice the first throw (Learning 775) and every row asserts the ANSWER the short document gives, not only that nothing throws.
 //
-// ⚠ WHICH BUILD EACH ROW IS RED ON (Learning 882; the cured `model.ts` with one site put back to its old pattern, the eleven `s338-attr-id-rows-*.test.ts` files run on each): the parent `fe6aaec` fails 50 of the 143
-// tests, all by RangeError. With site 2 (`ATTR_ATOM_COMMONMARK`) cured and site 1 (`ATTR_ID_ALL`) old the same 50 fail. With site 1 cured and site 2 old 24 fail, the rows of the `commonmark` files, and the
+// ⚠ WHICH BUILD EACH ROW IS RED ON (Learning 882; the cured `model.ts` with one site put back to its old pattern, the eleven `s338-attr-id-rows-*.test.ts` files run on each): the parent `fe6aaec` fails 51 of the 145
+// tests: 50 by RangeError and the 200,002-id guard row of the headings file, which calls `attributeIds`, an export the parent does not have. With site 2 (`ATTR_ATOM_COMMONMARK`) cured and site 1 (`ATTR_ID_ALL`) old the same 50 fail. With site 1 cured and site 2 old 24 fail, the rows of the `commonmark` files, and the
 // 26 default-reader rows pass. So the default-reader rows reach site 1 ALONE, and under `from: commonmark_x` site 2 is tested before site 1 is read and HIDES it: curing site 2 alone leaves every row red.
 
 import { describe, expect, it } from "vitest";
@@ -27,8 +27,8 @@ export const S338_MANY = 8_400_000;
 export const S338_BYTE_MANY = 1_000_000;
 /** The few letters of the short run, asserted first so that the answer is the old pattern's and not the new function's choice. */
 export const S338_FEW = 4;
-/** The ceiling of one cured read: it takes 2.5 to 5 s at 8.4 million letters (the heading tokenizer builds a token a character at a time), so 10 s is two to four times the cost; never loosened to pass. */
-export const S338_LIMIT_MS = 10_000;
+/** The ceiling of one cured read: it takes 3 to 6 s at 8.4 million letters on this machine (the heading tokenizer builds a token a character at a time), so 30 s is five times the cost and still far under the minutes a quadratic read takes; the review of Session 338 raised it from 10 s, which was under two times the dearest rows. */
+export const S338_LIMIT_MS = 30_000;
 
 export type Form = { name: string; letters: (count: number) => string; many: number };
 /** Every character up to U+00FF: `a`s and a last `é` (U+00E9, a letter above ASCII that is still one byte). Cannot throw at any size measured. */
@@ -211,7 +211,7 @@ export function defineRows(options: { title: string; reader: Reader; keys: reado
     });
 
     it("keeps the sizes, the limit, the forms and the row count these rows are built on", () => {
-      expect([FIRST_THROW, S338_MANY, S338_BYTE_MANY, S338_FEW, S338_LIMIT_MS]).toEqual([4_194_288, 8_400_000, 1_000_000, 4, 10_000]);
+      expect([FIRST_THROW, S338_MANY, S338_BYTE_MANY, S338_FEW, S338_LIMIT_MS]).toEqual([4_194_288, 8_400_000, 1_000_000, 4, 30_000]);
       expect(S338_MANY).toBeGreaterThanOrEqual(2 * FIRST_THROW); // twice the first throw (4,194,288 letters, Node 22.23, HEAD fe6aaec)
       expect(forms.map((f) => f.letters(S338_FEW))).toEqual(forms.map((f) => FORM_SHORT[f.name]));
       expect(forms.map((f) => f.many)).toEqual(sizes);

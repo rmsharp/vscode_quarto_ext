@@ -12,7 +12,7 @@ from the loops: an id is a MAXIMAL run of identifier characters (a Unicode lette
 followed by one or more identifier characters, or a first character `.` followed by one or more of them that are no `.`. It decodes the UTF-16 code units by hand (a high surrogate followed by a low one is
 ONE code point, as a `u`-flag pattern reads it; a lone surrogate is a code point that is neither a letter nor a number) and asks Python's `unicodedata` for the kinds.
 
-    python3 -I tools/attr-id-count/count_attr_id.py                 # every count, about 30 seconds
+    python3 -I tools/attr-id-count/count_attr_id.py                 # every count, about 13 seconds
     python3 -I tools/attr-id-count/count_attr_id.py "D1 len 7"      # one of them
 
 The sweep of ASCII code units (`sweep ascii`) puts each of the 128 ASCII code units at every place of the heads the test names (inserted at each index, and in place of each character) and counts the same four

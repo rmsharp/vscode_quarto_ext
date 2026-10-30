@@ -75,7 +75,7 @@ const D3_LENGTH = 8;
 /** What each enumeration holds: how many strings, how many of them hold at least one id, how many ids there are in all, and how many strings the commonmark atom accepts. Counted by
  * `tools/attr-id-count/count_attr_id.py` (a maximal-run reading of the ids and a first-character reading of the atom, over a list of UTF-16 code units decoded by hand, Python 3's `unicodedata` for the letter and
  * number kinds, no `re`, no TypeScript), so a comparison cannot pass by both sides finding nothing and the numbers do not come from the code under test. The seeded one is counted the same way from a port of the
- * generator. `python3 -I tools/attr-id-count/count_attr_id.py` prints all of them (about a minute); change its alphabets with these. */
+ * generator. `python3 -I tools/attr-id-count/count_attr_id.py` prints all of them (about 13 seconds); change its alphabets with these. */
 type Counts = { strings: number; withIds: number; ids: number; atoms: number };
 const COUNTS: Record<"d1" | "d2" | "d3" | "seeded" | "sweepAsciiIds" | "sweepAsciiAtoms", Counts> = {
   d1: { strings: 960800, withIds: 481880, ids: 571905, atoms: 24990 },

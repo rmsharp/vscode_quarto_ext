@@ -5,8 +5,8 @@
 // and a thrown `RangeError` answers NOTHING for the whole document (Learnings 889, 890). The run is read here by UTF-16 code unit, with no stack.
 //
 // ⚠ **A CHARACTER ABOVE ASCII IS READ AS ONE CODE POINT, AS THE `u` FLAG READ IT.** A high surrogate followed by a low one is ONE character (`𝐀`, a letter) and a surrogate on its own is neither a
-// letter nor a number: one sticky `[\p{L}\p{N}]` test at the index reads either. The ASCII characters go through a table of 128 entries (the letters, the digits and the punctuation a class adds), which
-// is what keeps the loop at tens of nanoseconds a character on the long lines the cure exists for.
+// letter nor a number: one sticky `[\p{L}\p{N}]` test at the index reads either. The ASCII characters go through a table of 128 entries (the letters, the digits and the punctuation a class adds): 2 to 4
+// nanoseconds a character on the long lines the cure exists for, where a character above ASCII costs tens of nanoseconds (one sticky test each; about 1.3 s for 4.19 million of them, the size where the pattern threw).
 //
 // ⚠ **EVERY CLASS HERE HOLDS ALL LETTERS AND NUMBERS, ASCII OR NOT, AND SOME ASCII PUNCTUATION.** A class that does not (a letter-only start, a negated class) is not this module's: write it as its own
 // loop. Each call site keeps its OLD pattern as the oracle of its own cure (Learning 738); `test/unit/unicode-run.test.ts` keeps the class itself against the pattern, over every code point.

@@ -10,7 +10,7 @@ import { seededRandom } from "./support/regex-equivalence";
 //   - `oldFlattenOutline`: `flattenOutline` of `src/core/workspace-symbols.ts`, whose recursion handed each child list to `result.push(...)`;
 //   - `oldAppend`: line 107 of `src/providers/citation.ts`, `all.push(...parseCitations(content))`, as a function of the list it spread.
 //
-// A call with a spread argument puts one stack slot per element on the call stack, so both throw `RangeError: Maximum call stack size exceeded` from about 110,000 elements (110,360 for the flattening and 110,428 for the
+// A call with a spread argument puts one stack slot per element on the call stack, so both throw `RangeError: Maximum call stack size exceeded` from about 110,000 elements (110,360 for the flattening in a bare harness, up to 110,560 under the provider's own frames, and 110,428 for the
 // bare citation spread, fresh processes, Node 22.23.3). Each is compared with its cure over (1) a reading BY DEFINITION that uses no spread and no recursion, (2) every input of a small family, (3) every UTF-16 code unit as
 // a name (flattening only: a list of citations has no token to sweep), (4) seeded random inputs, and (5) the sizes around and past the first throw, where the old statement either gives the cure's answer or throws a RangeError
 // (and nothing else): that disjunction is what keeps the test true on a machine whose stack is larger.

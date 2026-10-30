@@ -1204,7 +1204,7 @@ describe("Session 324 — an attribute block whose atoms can be split many ways 
     { site: "control: an image block, an id and 30 valid classes", unit: ".A", many: SPLIT_CLASSES, build: (run) => `![Cap](a.png){#fig-a ${run}}\n`, read: splitLabels, answer: () => ["fig-a@0:15"] },
     // Each dash is an atom of its own, so a run of dashes alone has one parse: linear before and after.
     { site: "control: 100,000 dashes then `!` (a dash is an atom of its own)", unit: "-", many: SPLIT_DASHES, build: (run) => `# H {${run}!}\n`, read: splitHeadings, answer: (run) => refusedHeading(`${run}!`) },
-    // commonmark_x reads ONE atom a token (`ATTR_ATOM_COMMONMARK`), so the same refused text is linear there: the reader split is not the pattern's.
+    // commonmark_x reads ONE atom a token (`commonmarkAttributeAtom`, once `ATTR_ATOM_COMMONMARK`), so the same refused text is linear there: the reader split is not the pattern's.
     { site: "control: 30 classes then `!` under commonmark_x", unit: ".A", many: SPLIT_CLASSES, build: (run) => `---\nfrom: commonmark_x\n---\n\n# H {${run}!}\n`, read: splitHeadings, answer: (run) => [[4, `H {${run}!}`, undefined]] },
 
     { site: "heading: 30 classes then `!` (the item's shape)", unit: ".A", many: SPLIT_CLASSES, build: (run) => `# H {${run}!}\n`, read: splitHeadings, answer: (run) => refusedHeading(`${run}!`) },

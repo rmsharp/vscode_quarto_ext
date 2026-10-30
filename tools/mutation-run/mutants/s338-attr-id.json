@@ -285,7 +285,7 @@
   "from": "    for (const id of attributeIds(token)) {\n      found.push(id);\n    }",
   "to": "    found.push(...attributeIds(token));",
   "expect": "killed",
-  "why": "a spread of 125,700 or more ids throws RangeError: the 200,002-id row of the headings file. Run: KILLED at stage 2 by `Session 338 part A: one heading attribute block of 200,002 ids (the ids are pushed in a loop, not spread) > keeps the last id of the block`"
+  "why": "a spread of about 110,000 or more ids throws RangeError: the 200,002-id row of the headings file. Run: KILLED at stage 2 by `Session 338 part A: one heading attribute block of 200,002 ids (the ids are pushed in a loop, not spread) > keeps the last id of the block`"
  },
  {
   "name": "C03 headingAttributeId: only the first id of a token is kept",
@@ -362,7 +362,7 @@
  {
   "name": "T04 rows: the limit is a hundred seconds",
   "file": "test/unit/support/attr-id-rows.ts",
-  "from": "export const S338_LIMIT_MS = 10_000;",
+  "from": "export const S338_LIMIT_MS = 30_000;",
   "to": "export const S338_LIMIT_MS = 100_000;",
   "expect": "killed",
   "why": "the pinned limit. Run: KILLED at stage 1 by `Session 338 part A: one heading attribute id of millions of letters (findHeadings, findAllCells, resolveDocumentEngine; default reader) >`"

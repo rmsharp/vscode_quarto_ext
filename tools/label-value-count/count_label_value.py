@@ -13,7 +13,7 @@ code with the TypeScript and uses no regular expression at all: it derives them 
 A string is a list of UTF-16 code units, as the `u`-flag pattern reads it: a high surrogate followed by a low one is ONE code point (an astral letter), any other surrogate stands alone and is neither a
 letter nor a number. So every string below is built as a list of 16-bit code units and decoded into code points by hand.
 
-    python3 -I tools/label-value-count/count_label_value.py              # every count, about a minute
+    python3 -I tools/label-value-count/count_label_value.py              # every count, about 9 seconds
     python3 -I tools/label-value-count/count_label_value.py "cell A1"    # one of them
 
 It prints one line per count: the label, the number of strings, how many are accepted, and (cell) how many consumed a quote, and the SUM of the id lengths in UTF-16 code units. Compare them with the

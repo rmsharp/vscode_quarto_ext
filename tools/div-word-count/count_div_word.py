@@ -6,7 +6,7 @@ under test, or a comparison could pass by both being wrong the same way. This sc
 every code point of it is a letter (Unicode category L*), a number (category N*), an underscore or a dash -- by a loop over the code points, using Python's `unicodedata` for the letter
 and number kinds and no `re` at all.
 
-    python3 -I tools/div-word-count/count_div_word.py              # all five counts, about 10 seconds
+    python3 -I tools/div-word-count/count_div_word.py              # all five counts, about 5 seconds
     python3 -I tools/div-word-count/count_div_word.py "D1 len 7"   # one of them
 
 JavaScript strings are UTF-16: an alphabet member may be one code unit, a lone surrogate, or two code units that pair, and two members that sit side by side can pair (a high

@@ -19,11 +19,11 @@ defineRows({
 });
 
 
-// A token of MANY short ids, which is not a long id: `headingAttributeId` pushes the ids of `attributeIds` into its list, and `found.push(...attributeIds(token))` would throw `RangeError` from about 125,700 elements (an
-// array spread puts one stack slot per element). The parent read the ids with `matchAll` and a loop, so this row PASSES on `fe6aaec` (a guard for the cure's own loop, not a row that was RED); it is RED under the spread.
+// A token of MANY short ids, which is not a long id: `headingAttributeId` pushes the ids of `attributeIds` into its list, and `found.push(...attributeIds(token))` would throw `RangeError` from about 110,000 elements (110,038 from that call in a fresh Node 22.23.3 process; an
+// array spread puts one stack slot per element). The parent read the ids with `matchAll` and a loop, so the document's answer was the same there; the row is a guard for the cure's own loop, RED under the spread, and on `fe6aaec` it fails on `attributeIds`, which that commit does not export.
 describe("Session 338 part A: one heading attribute block of 200,002 ids (the ids are pushed in a loop, not spread)", () => {
   const MANY_IDS = 200_000;
-  const SPREAD_LIMIT = 125_700;
+  const SPREAD_LIMIT = 110_000;
   const LIMIT_MS = 3000;
 
   it("keeps the last id of the block (the pandoc family's) and finds it in the label index", () => {
@@ -38,6 +38,6 @@ describe("Session 338 part A: one heading attribute block of 200,002 ids (the id
   });
 
   it("keeps the sizes and the limit this guard is built on", () => {
-    expect([MANY_IDS, SPREAD_LIMIT, LIMIT_MS]).toEqual([200_000, 125_700, 3000]);
+    expect([MANY_IDS, SPREAD_LIMIT, LIMIT_MS]).toEqual([200_000, 110_000, 3000]);
   });
 });

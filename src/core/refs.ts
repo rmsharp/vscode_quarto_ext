@@ -210,10 +210,10 @@ const CELL_NEVER_DEFINES: ReadonlySet<RefKind> = new Set<RefKind>(["sec", "eq"])
  * ⚠ **A KNITR CHUNK HEADER DEFINES FIGURES AND TABLES ONLY.** `{r lst-x}`, `{r sec-x}` and `{r eq-x}` define nothing in
  * quarto 1.7.33 (`scratchpad/s303/hdr`, b02-b04, k05, k06; `hdr7`, v03). Nor does a `#| label: lst-x` on a KNITR chunk
  * define a listing (`hdr2`, k03, k04): a knitr listing cell names itself with `#| lst-label:` (`hdr7`, v02), which the
- * older `#|` path does not read and this pattern does not inherit. (Under Jupyter and in a handler cell `#| label: lst-x`
+ * older `#|` path does not read and this reader does not inherit. (Under Jupyter and in a handler cell `#| label: lst-x`
  * does define one, Session 305: {@link CELL_NEVER_DEFINES}.)
  *
- * ⚠ **ANCHORED AT BOTH ENDS, UNLIKE {@link cellLabelValue}.** That pattern takes the longest id-shaped PREFIX
+ * ⚠ **ANCHORED AT BOTH ENDS, UNLIKE {@link cellLabelValue}.** That reader takes the longest id-shaped PREFIX
  * of a `#|` value, so `#| label: fig-a$x` is read as `fig-a` and defines a phantom. The header slot is read
  * whole: `{r fig-a$x}` and `{r fig-a b}` define nothing (a20, a23 — the first slot is quoted verbatim by knitr, so
  * these spell the same text as `{r "fig-a$x"}` and `{r 'fig-a b'}`), and quoting is no licence to widen the class
