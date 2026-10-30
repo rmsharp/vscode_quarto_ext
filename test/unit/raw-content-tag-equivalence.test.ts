@@ -271,6 +271,20 @@ const STATED: Array<[string, Array<[number, boolean, boolean]>]> = [
   ["<pre " + CJK + ">", [[0, false, false]]],
   ["<pre " + ASTRAL + ">", [[0, false, false]]],
   ["<pre " + LONE_HIGH + ">", [[0, false, false]]],
+  // THE SET OF NAMES IS PINNED FROM ABOVE TOO (Session 339 review, J13 to J15 of tools/mutation-run/mutants/s339-review-raw-content-tag.json): dropping a name from `RAW_CONTENT_NAMES` dies on the rows above, but a FIFTH name (`xmp`,
+  // `code`, `title`) did not, because no alphabet held another element. These are elements the pattern never named, an opener and a closer each, and every answer is none.
+  ["<xmp>", []],
+  ["</xmp>", []],
+  ["<code>", []],
+  ["<title>", []],
+  ["<div>", []],
+  ["<p>", []],
+  ["</p>", []],
+  ["<listing>", []],
+  ["<plaintext>", []],
+  ["<noscript>", []],
+  ["<textareas>", []],
+  ["<styles>", []],
   ["<pre ".repeat(5), []],
   ["<pre ".repeat(5) + ">", [[0, false, false]]],
   ["<pre ".repeat(5) + "/>", [[0, false, true]]],
@@ -377,6 +391,35 @@ describe("Session 339 — rawContentTags: the new function reads the tags the ol
     expect(rawContentTags(line)).toEqual(stated);
   });
 
+  // The rest of the HTML element names, as the fifth name no row held (Session 339 review, J13 to J16): not one of them is a raw-content tag, as an opener, a closer, upper-cased with an attribute, or self-closing, and neither is a
+  // name that is a proper prefix of one of the four (`<p>`, `<scr>`, `<textare>`) or one of the four with a letter more (`<prea>`, `<styled>`).
+  const OTHER_ELEMENTS = [
+    "a", "abbr", "acronym", "address", "applet", "area", "article", "aside", "audio", "b", "base", "basefont", "bdi", "bdo", "big", "blink", "blockquote", "body", "br", "button", "canvas", "caption", "center", "cite", "code", "col",
+    "colgroup", "data", "datalist", "dd", "del", "details", "dfn", "dialog", "dir", "div", "dl", "dt", "em", "embed", "fieldset", "figcaption", "figure", "font", "footer", "form", "frame", "frameset", "h1", "h2", "h3", "h4", "h5",
+    "h6", "head", "header", "hgroup", "hr", "html", "i", "iframe", "img", "input", "ins", "kbd", "label", "legend", "li", "link", "listing", "main", "map", "mark", "marquee", "math", "menu", "meta", "meter", "nav", "nobr", "noembed",
+    "noframes", "noscript", "object", "ol", "optgroup", "option", "output", "p", "param", "picture", "plaintext", "progress", "q", "rp", "rt", "ruby", "s", "samp", "search", "section", "select", "slot", "small", "source", "span",
+    "strike", "strong", "sub", "summary", "sup", "svg", "table", "tbody", "td", "template", "tfoot", "th", "thead", "time", "title", "tr", "track", "tt", "u", "ul", "var", "video", "wbr", "xmp",
+    "prea", "pre1", "pre_", "preformatted", "scripta", "scripts", "styled", "styles", "textareas", "textareaa", "pr", "sc", "scr", "scri", "scrip", "st", "sty", "styl", "te", "tex", "text", "texta", "textar", "textare",
+  ];
+  function* otherElementSpellings(): Generator<string> {
+    for (const name of OTHER_ELEMENTS) {
+      yield `<${name}>`;
+      yield `</${name}>`;
+      yield `<${name.toUpperCase()} class="a">`;
+      yield `<${name}/>`;
+    }
+  }
+  it("not one of 154 other element names is a raw-content tag, in four spellings each, also by definition", () => {
+    const result = compareAll(otherElementSpellings(), true);
+    expect(result.disagreements).toEqual([]);
+    expect(OTHER_ELEMENTS.length).toBe(154);
+    expect(new Set(OTHER_ELEMENTS).size).toBe(OTHER_ELEMENTS.length);
+    expect(OTHER_ELEMENTS.some((name) => (NAMES as readonly string[]).includes(name))).toBe(false);
+    expect(result.compared).toBe(4 * OTHER_ELEMENTS.length);
+    expect(result.matched).toBe(0);
+    expect(result.tags).toBe(0);
+  });
+
   // Lines of 10,000,000 characters (the length the BACKLOG item names): the new function reads them without a stack or a spread (`RangeError`) and in linear time. The old pattern is quadratic on the first of them.
   const LONG_LIMIT_MS = 3000;
   const LONG_RUN = 2_000_000; // `<pre ` and `<pre>` are 5 characters
@@ -411,6 +454,21 @@ describe("Session 339 — rawContentTags: the new function reads the tags the ol
   });
   it("`<pre ` x 200,000 and a CJK letter (a two-byte string) holds no tag in linear time", () => {
     expect(native(() => rawContentTags("<pre ".repeat(NATIVE_TWO_BYTE_RUN) + CJK))).toEqual([]);
+  });
+  // ⚠ THE STOP IS FOR A CLOSER TOO (Session 339 review, H18 of tools/mutation-run/mutants/s339-review-raw-content-tag.json): a closer `</pre ` with no `>` after its name ends the scan exactly as an opener does, and a scan that went on
+  // at the next `<` for a closer only keeps every answer and is quadratic at native speed on a run of closers, which the rows above (all openers) never meet. The original takes 0.05 to 0.52 ms on the three lines below (fresh process,
+  // best and worst of 5 repetitions); that spelling took 10,831.9 ms on `</pre ` x 400,000, 6,370.8 ms on `</script ` x 250,000 and 5,467.8 ms on `</pre ` x 200,000 and a CJK letter (the rows below, run against it).
+  it("`</pre ` x 400,000 (2,400,000 characters, closers with no `>`) holds no tag in linear time", () => {
+    expect(native(() => rawContentTags("</pre ".repeat(NATIVE_PRE_RUN)))).toEqual([]);
+  });
+  it("`</script ` x 250,000 (2,250,000 characters, closers with no `>`) holds no tag in linear time", () => {
+    expect(native(() => rawContentTags("</script ".repeat(NATIVE_SCRIPT_RUN)))).toEqual([]);
+  });
+  it("`</pre ` x 200,000 and a CJK letter (a two-byte string of closers) holds no tag in linear time", () => {
+    expect(native(() => rawContentTags("</pre ".repeat(NATIVE_TWO_BYTE_RUN) + CJK))).toEqual([]);
+  });
+  it("an opener then `</pre ` x 400,000 is one tag, and the closers behind it are not read again", () => {
+    expect(native(() => rawContentTags("<pre>" + "</pre ".repeat(NATIVE_PRE_RUN)))).toEqual([{ index: 0, closing: false, selfClosing: false }]);
   });
   it("an opener then `<pre ` x 400,000 is one tag, and the run behind it is not read again", () => {
     expect(native(() => rawContentTags("<pre>" + "<pre ".repeat(NATIVE_PRE_RUN)))).toEqual([{ index: 0, closing: false, selfClosing: false }]);
@@ -468,6 +526,7 @@ describe("Session 339 — rawContentTags: the new function reads the tags the ol
     expect([LONG_RUN, PAIR_RUN, SCRIPT_RUN, ANGLE_RUN]).toEqual([2_000_000, 900_000, 1_250_000, 10_000_000]);
     expect([NATIVE_PRE_RUN, NATIVE_SCRIPT_RUN, NATIVE_TWO_BYTE_RUN]).toEqual([400_000, 250_000, 200_000]);
     expect([5 * LONG_RUN, 11 * PAIR_RUN, 8 * SCRIPT_RUN, 5 * NATIVE_PRE_RUN, 8 * NATIVE_SCRIPT_RUN, 5 * NATIVE_TWO_BYTE_RUN]).toEqual([10_000_000, 9_900_000, 10_000_000, 2_000_000, 2_000_000, 1_000_000]);
+    expect([6 * NATIVE_PRE_RUN, 9 * NATIVE_SCRIPT_RUN, 6 * NATIVE_TWO_BYTE_RUN]).toEqual([2_400_000, 2_250_000, 1_200_000]); // the closer runs: `</pre ` is 6 characters, `</script ` 9
   });
   // The old pattern meets the same lines at the size it can: 3,000 openers is about 15,000 characters and a millisecond or two.
   it("the old pattern and the new function agree on the long-line shapes at a size the old one can read", () => {

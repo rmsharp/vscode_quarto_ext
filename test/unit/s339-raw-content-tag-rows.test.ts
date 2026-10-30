@@ -103,6 +103,7 @@ describe("Session 339 — `<pre `, `<script `, `<style ` and `<textarea ` opener
 // SMALL DOCUMENTS: one opener line in each template and what the parent answered (headings of A, headings of G, the labels of G). These pass on the parent and are the cure's semantic rows at document level: the case of the name, the
 // self-closing spellings, the indent that lets an opener count (0 to 3 blanks), the characters after the name that end it (`\b`), a closer that floors at zero, and the openers a tag swallows.
 const LS = String.fromCharCode(0x2028);
+const PS = String.fromCharCode(0x2029);
 const E_ACUTE = String.fromCharCode(0xe9);
 const LONG_S = String.fromCharCode(0x17f);
 const DOTLESS_I = String.fromCharCode(0x131);
@@ -156,6 +157,15 @@ const TABLE: Array<[string, string, string[], string[], string[]]> = [
   ["five openers, a slash and `>`", "<pre ".repeat(5) + "/>", SHUT_A, SHUT_G, []],
   ["unterminated script openers with a CJK tail", "<script>" + "<script ".repeat(5) + CJK, OPEN_A, OPEN_G, ["sec-after"]],
   ["a quoted opener", "> <pre>", OPEN_A, ["Before", "In", "After"], ["sec-after"]],
+  // Session 339 review (mutation lens). K02: the indent test is `^ {0,3}$` WITHOUT the multi-line flag, so a line terminator in front of the tag (U+2028, U+2029) is no start of a line and opens nothing; with the flag the
+  // text before the terminator would not count and the opener would. Before this only the clock rows failed that spelling (it makes the test read the whole prefix for every tag). J13 to J15: an `xmp`, `code` or `title` element is no
+  // raw-content element, which no document row held (the function-level rows of the oracle file hold the names; these are the same three at document level).
+  ["a line separator before the opener", `${LS}<pre>`, SHUT_A, SHUT_G, []],
+  ["a paragraph separator before the opener", `${PS}<pre>`, SHUT_A, SHUT_G, []],
+  ["text and a line separator before the opener", `x${LS}<pre>`, SHUT_A, SHUT_G, []],
+  ["an xmp element is no raw-content element", "<xmp>", SHUT_A, SHUT_G, []],
+  ["a code element is no raw-content element", "<code>", SHUT_A, SHUT_G, []],
+  ["a title element is no raw-content element", "<title>", SHUT_A, SHUT_G, []],
 ];
 
 describe("Session 339 — one opener line in each template: what the parent answered for the raw-content count (part 11)", () => {
@@ -168,7 +178,7 @@ describe("Session 339 — one opener line in each template: what the parent answ
   it("the table holds each line once and both answers of each kind", () => {
     expect(new Set(TABLE.map((row) => row[1])).size).toBe(TABLE.length);
     expect(TABLE.some((row) => row[2] === OPEN_A) && TABLE.some((row) => row[2] === SHUT_A)).toBe(true);
-    expect(TABLE.length).toBe(49);
+    expect(TABLE.length).toBe(55);
   });
 });
 
@@ -189,6 +199,21 @@ const MULTILINE: Array<[string, string, string[], string[], string[]]> = [
   ["a pair then an opener", "<pre>\n</pre>\n<pre>", OPEN_A, OPEN_G, ["sec-after"]],
   ["style and textarea", "<style>\n<textarea>\n</textarea>", OPEN_A, ["Before", "In", "After"], ["sec-after"]],
   ["a textarea around a script", "<textarea>\n<script>\n</script>\n</textarea>", SHUT_A, SHUT_G, []],
+  // Session 339 review (mutation lens), M12 and M13. K01: a self-closing closer `</pre/>` closes nothing (the test for a self-closing tag comes before the test for a closer, so the element stays open); no document held one.
+  ["a self-closing closer closes nothing", "<pre>\n</pre/>", OPEN_A, OPEN_G, ["sec-after"]],
+  ["a self-closing closer with a blank closes nothing", "<script>\n</script />", OPEN_A, OPEN_G, ["sec-after"]],
+  ["two openers, a self-closing closer and a closer", "<pre>\n<pre>\n</pre/>\n</pre>", OPEN_A, ["Before", "In", "After"], ["sec-after"]],
+  // K07, K08: the count is not capped (nothing here stops at 3 or at 8), one element still open after four and after nine.
+  ["four openers and three closers", "<pre>\n".repeat(4) + "</pre>\n".repeat(3).trimEnd(), OPEN_A, ["Before", "In", "After"], ["sec-after"]],
+  ["nine openers and eight closers", "<pre>\n".repeat(9) + "</pre>\n".repeat(8).trimEnd(), OPEN_A, ["Before", "In", "After"], ["sec-after"]],
+  ["nine openers and nine closers", "<pre>\n".repeat(9) + "</pre>\n".repeat(9).trimEnd(), SHUT_A, SHUT_G, []],
+  // K09, K10, K11: a line closes as many elements as it holds closers (not one, not the first two or three tags), and the closers of one line come off a count of any size.
+  ["two openers, two closers on one line", "<pre>\n<pre>\n</pre></pre>", SHUT_A, SHUT_G, []],
+  ["three openers, three closers on one line", "<pre>\n<pre>\n<pre>\n</pre></pre></pre>", SHUT_A, SHUT_G, []],
+  ["four openers, four closers on one line", "<pre>\n<pre>\n<pre>\n<pre>\n</pre></pre></pre></pre>", SHUT_A, SHUT_G, []],
+  ["nine openers, nine closers on one line", "<pre>\n".repeat(9) + "</pre>".repeat(9), SHUT_A, SHUT_G, []],
+  ["nine openers, eight closers on one line", "<pre>\n".repeat(9) + "</pre>".repeat(8), OPEN_A, ["Before", "In", "After"], ["sec-after"]],
+  ["two names open, both close on one line", "<pre>\n<script>\n</script></pre>", SHUT_A, SHUT_G, []],
 ];
 
 describe("Session 339 review — elements opened and closed on several lines: the count goes past one (part 11)", () => {
@@ -202,6 +227,6 @@ describe("Session 339 review — elements opened and closed on several lines: th
     expect(new Set(MULTILINE.map((row) => row[1])).size).toBe(MULTILINE.length);
     expect(MULTILINE.every((row) => row[1].includes("\n"))).toBe(true);
     expect(MULTILINE.some((row) => row[2] === OPEN_A) && MULTILINE.some((row) => row[2] === SHUT_A)).toBe(true);
-    expect(MULTILINE.length).toBe(13);
+    expect(MULTILINE.length).toBe(25);
   });
 });
