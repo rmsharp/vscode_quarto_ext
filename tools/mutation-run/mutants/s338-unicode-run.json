@@ -1,0 +1,234 @@
+[
+  {
+    "name": "T01 runClass: the digits start at 49",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "for (let c = 48; c <= 57; c++) {",
+    "to": "for (let c = 49; c <= 57; c++) {",
+    "expect": "killed",
+    "why": "`0` leaves the class"
+  },
+  {
+    "name": "T02 runClass: the digits end at 56",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "for (let c = 48; c <= 57; c++) {",
+    "to": "for (let c = 48; c < 57; c++) {",
+    "expect": "killed",
+    "why": "`9` leaves the class"
+  },
+  {
+    "name": "T03 runClass: the capitals start at 66",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "for (let c = 65; c <= 90; c++) {",
+    "to": "for (let c = 66; c <= 90; c++) {",
+    "expect": "killed",
+    "why": "`A` leaves the class"
+  },
+  {
+    "name": "T04 runClass: the capitals end at 89",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "for (let c = 65; c <= 90; c++) {",
+    "to": "for (let c = 65; c < 90; c++) {",
+    "expect": "killed",
+    "why": "`Z` leaves the class"
+  },
+  {
+    "name": "T05 runClass: the lower case starts at 98",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "for (let c = 97; c <= 122; c++) {",
+    "to": "for (let c = 98; c <= 122; c++) {",
+    "expect": "killed",
+    "why": "`a` leaves the class"
+  },
+  {
+    "name": "T06 runClass: the lower case ends at 121",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "for (let c = 97; c <= 122; c++) {",
+    "to": "for (let c = 97; c < 122; c++) {",
+    "expect": "killed",
+    "why": "`z` leaves the class"
+  },
+  {
+    "name": "T07 runClass: the punctuation is never added",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "    table[c] = 1;\n  }\n  return table;",
+    "to": "  }\n  return table;",
+    "expect": "killed",
+    "why": "the table holds only letters and digits"
+  },
+  {
+    "name": "T08 runClass: the guard lets U+0080 through",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "if (c >= 128) {",
+    "to": "if (c > 128) {",
+    "expect": "killed",
+    "why": "a punctuation character U+0080 is written past the table and ignored, no RangeError"
+  },
+  {
+    "name": "T09 runClass: the guard never fires",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "if (c >= 128) {",
+    "to": "if (false) {",
+    "expect": "killed",
+    "why": "a non-ASCII punctuation character is ignored, no RangeError"
+  },
+  {
+    "name": "T10 runClass: a table of 256",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "const table = new Uint8Array(128);",
+    "to": "const table = new Uint8Array(256);",
+    "expect": "killed",
+    "why": "the table has 256 entries, the test pins 128"
+  },
+  {
+    "name": "T11 IDENTIFIER_RUN: no underscore",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "export const IDENTIFIER_RUN: RunClass = runClass(\"_:.-\");",
+    "to": "export const IDENTIFIER_RUN: RunClass = runClass(\":.-\");",
+    "expect": "killed",
+    "why": "`_` leaves the identifier class"
+  },
+  {
+    "name": "T12 IDENTIFIER_RUN: no colon",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "export const IDENTIFIER_RUN: RunClass = runClass(\"_:.-\");",
+    "to": "export const IDENTIFIER_RUN: RunClass = runClass(\"_.-\");",
+    "expect": "killed",
+    "why": "`:` leaves the identifier class"
+  },
+  {
+    "name": "T13 IDENTIFIER_RUN: no dot",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "export const IDENTIFIER_RUN: RunClass = runClass(\"_:.-\");",
+    "to": "export const IDENTIFIER_RUN: RunClass = runClass(\"_:-\");",
+    "expect": "killed",
+    "why": "`.` leaves the identifier class"
+  },
+  {
+    "name": "T14 IDENTIFIER_RUN: no dash",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "export const IDENTIFIER_RUN: RunClass = runClass(\"_:.-\");",
+    "to": "export const IDENTIFIER_RUN: RunClass = runClass(\"_:.\");",
+    "expect": "killed",
+    "why": "`-` leaves the identifier class"
+  },
+  {
+    "name": "E01 runEnd: ASCII is anything below 129",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "if (c < 128) {\n      if (members[c] === 0) {",
+    "to": "if (c < 129) {\n      if (members[c] === 0) {",
+    "expect": "killed",
+    "why": "U+0080 is read through the ASCII table, past its end (undefined is not 0): it becomes a member"
+  },
+  {
+    "name": "E02 runEnd: ASCII is anything below 127",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "if (c < 128) {\n      if (members[c] === 0) {",
+    "to": "if (c < 127) {\n      if (members[c] === 0) {",
+    "expect": "survives",
+    "why": "EQUIVALENT: U+007F goes to the sticky test instead of the table, and it is neither a letter nor a number: the same stop"
+  },
+  {
+    "name": "E03 runEnd: a non-member ASCII character is a member",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "if (members[c] === 0) {",
+    "to": "if (members[c] !== 0) {",
+    "expect": "killed",
+    "why": "the table is read backwards"
+  },
+  {
+    "name": "E04 runEnd: the loop reads one past the end",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "while (at < length) {",
+    "to": "while (at <= length) {",
+    "expect": "survives",
+    "why": "EQUIVALENT: at the end charCodeAt is NaN, `NaN < 128` is false, and the sticky test at the end fails: the same stop"
+  },
+  {
+    "name": "E05 runEnd: a non-ASCII character moves one unit",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "at = NON_ASCII_LETTER_OR_NUMBER.lastIndex;",
+    "to": "at++;",
+    "expect": "survives",
+    "why": "EQUIVALENT: a sticky unicode test that starts on the LOW half of a surrogate pair reads from the pair's high half (the specification takes the character that contains the code unit at lastIndex), so `at++` lands on the low half, the test reads the same pair again and ends where `lastIndex` did"
+  },
+  {
+    "name": "E06 runEnd: the non-ASCII test is a letter only",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "const NON_ASCII_LETTER_OR_NUMBER = /[\\p{L}\\p{N}]/uy;",
+    "to": "const NON_ASCII_LETTER_OR_NUMBER = /\\p{L}/uy;",
+    "expect": "killed",
+    "why": "the Arabic digit three and the superscript two leave the class"
+  },
+  {
+    "name": "E07 runEnd: the non-ASCII test is a number only",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "const NON_ASCII_LETTER_OR_NUMBER = /[\\p{L}\\p{N}]/uy;",
+    "to": "const NON_ASCII_LETTER_OR_NUMBER = /\\p{N}/uy;",
+    "expect": "killed",
+    "why": "the letters above ASCII leave the class"
+  },
+  {
+    "name": "E08 runEnd: the non-ASCII test is global, not sticky",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "const NON_ASCII_LETTER_OR_NUMBER = /[\\p{L}\\p{N}]/uy;",
+    "to": "const NON_ASCII_LETTER_OR_NUMBER = /[\\p{L}\\p{N}]/ug;",
+    "expect": "killed",
+    "why": "the test searches forward from lastIndex and finds a later letter, so a run ends too late"
+  },
+  {
+    "name": "E09 runEnd: the non-ASCII test is not unicode",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "const NON_ASCII_LETTER_OR_NUMBER = /[\\p{L}\\p{N}]/uy;",
+    "to": "const NON_ASCII_LETTER_OR_NUMBER = /[\\p{L}\\p{N}]/y;",
+    "expect": "killed",
+    "why": "without the u flag `\\p{L}` is a literal pattern and no letter above ASCII matches"
+  },
+  {
+    "name": "E10 runEnd: the run starts one past `from`",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "let at = from;\n  while",
+    "to": "let at = from + 1;\n  while",
+    "expect": "killed",
+    "why": "the character at `from` is skipped"
+  },
+  {
+    "name": "E11 runEnd: the lastIndex is set one late",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "NON_ASCII_LETTER_OR_NUMBER.lastIndex = at;\n    if (!NON",
+    "to": "NON_ASCII_LETTER_OR_NUMBER.lastIndex = at + 1;\n    if (!NON",
+    "expect": "killed",
+    "why": "the test reads the next character: a non-ASCII letter at the end is read as no letter, a letter before a space as a letter (an astral letter is the one equivalent case)"
+  },
+  {
+    "name": "E12 runEnd: the end of the run is returned one late",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "  return at;\n}\n\n/** Whether `text` is one or more",
+    "to": "  return at + 1;\n}\n\n/** Whether `text` is one or more",
+    "expect": "killed",
+    "why": "every run ends one past its last character"
+  },
+  {
+    "name": "R01 isRun: the empty string is a run",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "return text.length > 0 && runEnd(text, 0, members) === text.length;",
+    "to": "return runEnd(text, 0, members) === text.length;",
+    "expect": "killed",
+    "why": "`isRun(\"\")` is true"
+  },
+  {
+    "name": "R02 isRun: any prefix is a run",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "return text.length > 0 && runEnd(text, 0, members) === text.length;",
+    "to": "return text.length > 0 && runEnd(text, 0, members) > 0;",
+    "expect": "killed",
+    "why": "`callout.note` is accepted for the word-dash class"
+  },
+  {
+    "name": "R03 isRun: the run starts at one",
+    "file": "src/core/qmd/unicode-run.ts",
+    "from": "return text.length > 0 && runEnd(text, 0, members) === text.length;",
+    "to": "return text.length > 0 && runEnd(text, 1, members) === text.length;",
+    "expect": "killed",
+    "why": "the first character is not read: `.a` for the word-dash class would pass"
+  }
+]
