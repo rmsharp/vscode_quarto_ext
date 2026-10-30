@@ -1,3 +1,4 @@
+import { runInNewContext } from "node:vm";
 import { describe, expect, it } from "vitest";
 import { classValueMayHoldEscape, findHeadings } from "../../src/core/qmd/model";
 import { LS, NBSP, PS, countCodeUnitEdits, countStrings, everyCodeUnitEdit, everyString, seededRandom } from "./support/regex-equivalence";
@@ -244,10 +245,41 @@ const OPENERS: Array<[string, string[]]> = [
   ['::: {class="panel-tabset" data-x="&"}', LISTED],
   ['::: {data-x="&" class="panel-tabset"}', HIDDEN],
   ['::: {class="panel-tabset" data-x="}&"}', HIDDEN],
+  // The review round (the mutation lens): a `}` BEFORE the `class=` that carries the escape. The test must read the whole tail, not the text up to the first `}`: the `}` inside the value of `data-x` ends nothing,
+  // the attribute block goes on, and the escape behind the later `class=` is still in it. (The same opener without the escape is read from the tokens.)
+  ['::: {data-x="}" class="callout-note a&b"}', LISTED],
+  ['::: {data-x="}" class="callout-note" data-y="a&b"}', LISTED],
+  ['::: {data-x="}" class="callout-note"}', HIDDEN],
+  ['::: {data-x="}" class="panel-tabset a&b"}', LISTED],
 ];
 describe("Session 339 — the call site: an opener whose class value holds an escape is read by the regex reader", () => {
   it.each(OPENERS.map(([opener, expected]) => [JSON.stringify(opener), opener, expected] as const))("%s", (_label, opener, expected) => {
     const text = `${opener}\n\n## T\n\nbody\n:::\n\n# H\n`;
+    expect(findHeadings(text).map((h) => h.text)).toEqual(expected);
+  });
+});
+
+// The review round (the mutation lens): the rows above run under the default reader, which decodes every escape (`reader.pandocEscapes` is true). The test is the same under a reader that does not (`from: markdown-all_symbols_escapable`
+// selects pandoc's narrower escapable set): an escape in a class value is not decoded under either, so the reader declines under both, and a value with none is read from the tokens under both. A call gated on `pandocEscapes`
+// (declining only where it is true, or whenever it is false) answers another way for one of the three openers below, and no row above has a reader with the flag false.
+const NO_SYMBOL_ESCAPES = "---\nfrom: markdown-all_symbols_escapable\n---\n\n";
+const NO_ESCAPES_OPENERS: Array<[string, string[]]> = [
+  ['::: {class="callout-note a&b"}', LISTED],
+  ['::: {class="callout-note a\\b"}', LISTED],
+  ['::: {class="callout-note"}', HIDDEN],
+  ['::: {data-x="}" class="callout-note a&b"}', LISTED],
+  ['::: {class="panel-tabset"}', HIDDEN],
+  ['::: {class="panel-tabset" data-x="a&b"}', LISTED],
+];
+describe("Session 339 review — the call site under a reader that does not decode every escape (`reader.pandocEscapes` false)", () => {
+  // The precondition: the front matter does select the narrower set. `\:` is decoded to `:` by the default reader and stays `\:` under `markdown-all_symbols_escapable`.
+  it("the front matter selects the reader that keeps `\\:` in a heading, where the default reader decodes it", () => {
+    expect(findHeadings("# Esc\\:End\n").map((h) => h.text)).toEqual(["Esc:End"]);
+    expect(findHeadings(`${NO_SYMBOL_ESCAPES}# Esc\\:End\n`).map((h) => h.text)).toEqual(["Esc\\:End"]);
+  });
+
+  it.each(NO_ESCAPES_OPENERS.map(([opener, expected]) => [JSON.stringify(opener), opener, expected] as const))("%s", (_label, opener, expected) => {
+    const text = `${NO_SYMBOL_ESCAPES}${opener}\n\n## T\n\nbody\n:::\n\n# H\n`;
     expect(findHeadings(text).map((h) => h.text)).toEqual(expected);
   });
 });
@@ -262,6 +294,29 @@ describe("Session 339 — classValueMayHoldEscape on lines of 10,000,000 charact
   };
   const RUN = "class=".repeat(1_700_000);
   const BIG = 10_000_000;
+  // The review round (the mutation lens): three spellings of the key's test keep every answer and are quadratic on a run of the key's first letter or of its near miss: `indexOf("class=", i) === i`, `lastIndexOf("class=", i) === i`
+  // and `startsWith("class", i) && indexOf("=", i) === i + 5`. On a line of 10,000,000 characters they take hours, and a synchronous loop is not stopped by the test timeout, so a row that merely measured the call would
+  // hang the runner until its own timeout instead of failing: the call is made under the vm's watchdog, which stops it at the limit, and the row fails there (the function answers these three in 71 to 96 ms, measured in fresh processes at load 7.6).
+  const RUN_OF_C = "c".repeat(BIG);
+  const RUN_OF_CLASS = "class".repeat(2_000_000);
+  const RUN_OF_CLAS = "clas".repeat(2_500_000);
+  const watchedCall = <T,>(call: () => T, what: string): { result: T; ms: number } => {
+    const run = (): { result: T; ms: number } => {
+      const started = performance.now();
+      const result = call();
+      return { result, ms: performance.now() - started };
+    };
+    try {
+      return runInNewContext("run()", { run }, { timeout: LIMIT_MS }) as { result: T; ms: number };
+    } catch (error) {
+      if ((error as { code?: string }).code === "ERR_SCRIPT_EXECUTION_TIMEOUT") {
+        throw new Error(`${what} did not answer within ${LIMIT_MS} ms (stopped by the vm watchdog)`);
+      }
+      throw error;
+    }
+  };
+  const watched = (tail: string): { result: boolean; ms: number } =>
+    watchedCall(() => classValueMayHoldEscape(tail), `classValueMayHoldEscape on a tail of ${tail.length.toLocaleString("en-US")} characters`);
   it.each([
     ["1,700,000 `class=` and nothing else", RUN, false],
     ["1,700,000 `class=` and an ampersand", RUN + "&", true],
@@ -277,8 +332,11 @@ describe("Session 339 — classValueMayHoldEscape on lines of 10,000,000 charact
     ["an ampersand, then 10,000,000 letters and `class=`", "&" + "a".repeat(BIG) + "class=", false],
     ["`}class=` x 1,700,000 and an ampersand", "}class=".repeat(1_700_000) + "&", true],
     ["`class=}` x 1,700,000 and an ampersand", "class=}".repeat(1_700_000) + "&", false],
+    ["10,000,000 `c`, no `class=` (a run of the key's first letter)", RUN_OF_C, false],
+    ["`class` x 2,000,000, no `=` (a run of the key's near miss)", RUN_OF_CLASS, false],
+    ["`clas` x 2,500,000 (a run of a shorter near miss)", RUN_OF_CLAS, false],
   ] as Array<[string, string, boolean]>)("%s", (_label, tail, expected) => {
-    const { result, ms } = clock(() => classValueMayHoldEscape(tail));
+    const { result, ms } = watched(tail);
     expect(result).toBe(expected);
     expect(ms).toBeLessThan(LIMIT_MS);
   }, HEAVY_ROW_MS);
@@ -292,7 +350,20 @@ describe("Session 339 — classValueMayHoldEscape on lines of 10,000,000 charact
     expect(result).toBe(false);
     expect(ms).toBeGreaterThan(OLD_FLOOR_MS);
   }, HEAVY_ROW_MS);
+  // The watchdog can fail too: a call that would run for 5 s is stopped at the limit and the row throws. (Without this row the watchdog is only ever seen to work under a mutant that is slow.)
+  it("the watchdog row can fail: a call that spins for 5 s is stopped at the limit and the row throws", () => {
+    const spin = (): boolean => {
+      const end = performance.now() + 5000;
+      while (performance.now() < end) {
+        // a call that does not return
+      }
+      return false;
+    };
+    const started = performance.now();
+    expect(() => watchedCall(spin, "a spinning call")).toThrow("a spinning call did not answer within 1000 ms (stopped by the vm watchdog)");
+    expect(performance.now() - started).toBeLessThan(4000);
+  }, HEAVY_ROW_MS);
   it("keeps the sizes, the limit and the floor the clock rows above are built on", () => {
-    expect([LIMIT_MS, BIG, RUN.length, OLD_RUN, OLD_FLOOR_MS]).toEqual([1000, 10_000_000, 10_200_000, 24_000, 1000]);
+    expect([LIMIT_MS, BIG, RUN.length, OLD_RUN, OLD_FLOOR_MS, RUN_OF_C.length, RUN_OF_CLASS.length, RUN_OF_CLAS.length]).toEqual([1000, 10_000_000, 10_200_000, 24_000, 1000, 10_000_000, 10_000_000, 10_000_000]);
   });
 });
