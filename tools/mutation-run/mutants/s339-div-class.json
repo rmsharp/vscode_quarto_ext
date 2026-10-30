@@ -2,32 +2,32 @@
  {
   "name": "A01 classValueMayHoldEscape: the loop starts at 1",
   "file": "src/core/qmd/model.ts",
-  "from": "for (let i = 0; i < tail.length; i++) {\n    const code",
-  "to": "for (let i = 1; i < tail.length; i++) {\n    const code",
+  "from": "for (let i = first; i < tail.length; i++) {\n    const code",
+  "to": "for (let i = Math.max(first, 1); i < tail.length; i++) {\n    const code",
   "expect": "killed",
   "why": "a `class=` at index 0 is never seen; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
  },
  {
   "name": "A02 classValueMayHoldEscape: the loop stops one character short",
   "file": "src/core/qmd/model.ts",
-  "from": "for (let i = 0; i < tail.length; i++) {\n    const code",
-  "to": "for (let i = 0; i < tail.length - 1; i++) {\n    const code",
+  "from": "for (let i = first; i < tail.length; i++) {\n    const code",
+  "to": "for (let i = first; i < tail.length - 1; i++) {\n    const code",
   "expect": "killed",
   "why": "an escape in the last character is never seen; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
  },
  {
   "name": "A03 classValueMayHoldEscape: the loop reads one position past the end",
   "file": "src/core/qmd/model.ts",
-  "from": "for (let i = 0; i < tail.length; i++) {\n    const code",
-  "to": "for (let i = 0; i <= tail.length; i++) {\n    const code",
+  "from": "for (let i = first; i < tail.length; i++) {\n    const code",
+  "to": "for (let i = first; i <= tail.length; i++) {\n    const code",
   "expect": "survives",
   "why": "NO WITNESS, equivalent: charCodeAt(length) is NaN, which equals no code the loop tests, and startsWith is not reached"
  },
  {
   "name": "A04 classValueMayHoldEscape: the loop steps by two",
   "file": "src/core/qmd/model.ts",
-  "from": "for (let i = 0; i < tail.length; i++) {\n    const code",
-  "to": "for (let i = 0; i < tail.length; i += 2) {\n    const code",
+  "from": "for (let i = first; i < tail.length; i++) {\n    const code",
+  "to": "for (let i = first; i < tail.length; i += 2) {\n    const code",
   "expect": "killed",
   "why": "every other character is never read; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
  },
@@ -50,24 +50,24 @@
  {
   "name": "A07 classValueMayHoldEscape: a cap of 4,096 characters",
   "file": "src/core/qmd/model.ts",
-  "from": "for (let i = 0; i < tail.length; i++) {\n    const code",
-  "to": "for (let i = 0; i < Math.min(tail.length, 4096); i++) {\n    const code",
+  "from": "for (let i = first; i < tail.length; i++) {\n    const code",
+  "to": "for (let i = first; i < Math.min(tail.length, 4096); i++) {\n    const code",
   "expect": "killed",
   "why": "an escape past the cap is never seen; run alone, killed by: classValueMayHoldEscape: seeded texts, runs and every code unit a grid of runs of the token, its near misses and a `}`, behind six leads and in front of ten endings"
  },
  {
   "name": "A08 classValueMayHoldEscape: a cap of 65,536 characters",
   "file": "src/core/qmd/model.ts",
-  "from": "for (let i = 0; i < tail.length; i++) {\n    const code",
-  "to": "for (let i = 0; i < Math.min(tail.length, 65536); i++) {\n    const code",
+  "from": "for (let i = first; i < tail.length; i++) {\n    const code",
+  "to": "for (let i = first; i < Math.min(tail.length, 65536); i++) {\n    const code",
   "expect": "killed",
   "why": "an escape past the cap is never seen; run alone, killed by: classValueMayHoldEscape on lines of 10,000,000 characters 1,700,000 `class=` and an ampersand"
  },
  {
   "name": "A09 classValueMayHoldEscape: a cap of 2^20 characters",
   "file": "src/core/qmd/model.ts",
-  "from": "for (let i = 0; i < tail.length; i++) {\n    const code",
-  "to": "for (let i = 0; i < Math.min(tail.length, 1048576); i++) {\n    const code",
+  "from": "for (let i = first; i < tail.length; i++) {\n    const code",
+  "to": "for (let i = first; i < Math.min(tail.length, 1048576); i++) {\n    const code",
   "expect": "killed",
   "why": "an escape past the cap is never seen: only the rows of 10,000,000 characters reach it; run alone, killed by: classValueMayHoldEscape on lines of 10,000,000 characters 1,700,000 `class=` and an ampersand"
  },
@@ -277,7 +277,7 @@
   "from": "tail.startsWith(\"class=\", i)",
   "to": "tail.slice(i, i + 6).toLowerCase() === \"class=\"",
   "expect": "killed",
-  "why": "`cLASS=&` reads as a key; the old pattern is case-sensitive: only the code-unit sweep puts an upper-case letter inside the key; run alone, killed by: classValueMayHoldEscape: seeded texts, runs and every code unit every UTF-16 code unit at every place of `class=&`, also by definition"
+  "why": "`cLASS=&` reads as a key; the old pattern is case-sensitive. The pass starts at the FIRST real `class=` (Session 339 review, P1), so a spelling the mutant reads as a key is seen only behind a real key: the sweep of `class=&` no longer reaches it; run alone, killed by: classValueMayHoldEscape: seeded texts, runs and every code unit every UTF-16 code unit at every place of `class=}class=&`, also by the stated rows `class=}cLASS=&` and `class=}cLass=&`"
  },
  {
   "name": "D07 classValueMayHoldEscape: the flag is never set",
@@ -292,8 +292,8 @@
   "file": "src/core/qmd/model.ts",
   "from": "let classEnded = false;",
   "to": "let classEnded = true;",
-  "expect": "killed",
-  "why": "`&` alone is accepted; run alone, killed by: classValueMayHoldEscape: the new function answers what the old escape pattern answered every string of 12 tokens, up to 6"
+  "expect": "survives",
+  "why": "NO WITNESS, equivalent since the pass starts at the first `class=` (Session 339 review, P1): the first character it reads is that key's `c`, whose step sets the flag, so the flag's initial value is never read (before the guard, `&` alone was accepted and killed it)"
  },
  {
   "name": "D09 classValueMayHoldEscape: four characters are skipped after a key",

@@ -136,6 +136,8 @@ const SWEEPS: Array<{ label: string; heads: readonly string[]; accepted: number;
   { label: "`class=&`, also by definition", heads: ["class=&"], accepted: 196617, byDefinition: true },
   { label: "`}class=a`", heads: ["}class=a"], accepted: 6, byDefinition: false },
   { label: "`class=a}&`", heads: ["class=a}&"], accepted: 65541, byDefinition: false },
+  // The pass starts at the FIRST `class=`, so a spelling of the key that is broader than `class=` (any case, no `=`) is seen only behind a real key: this head puts every code unit into the second one.
+  { label: "`class=}class=&`", heads: ["class=}class=&"], accepted: 1114121, byDefinition: false },
 ];
 
 describe("Session 339 — classValueMayHoldEscape: seeded texts, runs and every code unit", () => {
@@ -189,6 +191,10 @@ const STATED: Array<[string, boolean]> = [
   ["class=}&", false],
   ["class=a}b&", false],
   ["class=}class=&", true],
+  // A real key, a `}`, and then a spelling that is not the key (another case, no `=`): the pass starts at the first key, so only a text with a key IN FRONT can tell a broader key test from the right one.
+  ["class=}cLASS=&", false],
+  ["class=}cLass=&", false],
+  ["class=}classa&", false],
   ["}class=&", true],
   ["class=class=&", true],
   ["class=&}", true],
@@ -335,6 +341,9 @@ describe("Session 339 — classValueMayHoldEscape on lines of 10,000,000 charact
     ["10,000,000 `c`, no `class=` (a run of the key's first letter)", RUN_OF_C, false],
     ["`class` x 2,000,000, no `=` (a run of the key's near miss)", RUN_OF_CLASS, false],
     ["`clas` x 2,500,000 (a run of a shorter near miss)", RUN_OF_CLAS, false],
+    // The pass starts at the first `class=`: one that stands behind every cap a search could carry (4,096, 65,536, 2^20 characters) must still be found, in a one-byte and in a two-byte string (V8 searches them by another routine).
+    ["10,000,000 letters, then `class=` and an ampersand", "a".repeat(BIG) + "class=&", true],
+    ["a character above U+00FF, 10,000,000 letters, then `class=` and an ampersand", ABOVE_FF + "a".repeat(BIG) + "class=&", true],
   ] as Array<[string, string, boolean]>)("%s", (_label, tail, expected) => {
     const { result, ms } = watched(tail);
     expect(result).toBe(expected);

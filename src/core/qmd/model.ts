@@ -5242,8 +5242,13 @@ function divTailMayBePrepassed(tail: string): boolean {
  * 300,000 seeded texts and every code unit at every place of three heads; `test/unit/s339-div-class-rows.test.ts` holds the clock rows through every entry that reads a document.
  */
 export function classValueMayHoldEscape(tail: string): boolean {
+  // Nothing in front of the first `class=` can set the flag or use it, so the pass starts there: a tail that holds no `class=` (nearly every opener) ends at once, in the native search the old pattern used.
+  const first = tail.indexOf("class=");
+  if (first < 0) {
+    return false;
+  }
   let classEnded = false;
-  for (let i = 0; i < tail.length; i++) {
+  for (let i = first; i < tail.length; i++) {
     const code = tail.charCodeAt(i);
     if (code === 0x7d) {
       classEnded = false;
