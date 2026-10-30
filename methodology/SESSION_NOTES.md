@@ -50,6 +50,13 @@ session.
 commits ahead of `origin/master` when the close-out began (level at Phase 0 of this session); the dashboard copy is v2.22.0 against canonical v2.23.0 (not synced). (14) `BACKLOG.md`, `HANDOFFS.md`,
 `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices, edit with a Python script (`python3 -I -`). After answering a direct question, STOP and wait (memory).
 
+### What Session 339 Did
+**Deliverable:** g02 of the backlog ordering plan, twenty-third session: the BACKLOG item "Three more quadratic single-line shapes, found by Session 336's own probes and its review round, none of them in its diff" -- parts (9) `\end{` repeated, (10) `class=` in a div opener, (11) `<pre ` and its family (IN PROGRESS)
+**Started:** 2026-10-30
+**Status:** Session claimed. Work beginning. Strict TDD: time each literal shape at HEAD first, one fresh process per probe (Learnings 840, 871, 885), profile before reading the cure, rows RED on the parent on the clock alone,
+the old regex kept as each cure's oracle (every short string of an alphabet that includes the recognised words), a mutation list per part, then a review round.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
 ### What Session 338 Did
 **Deliverable:** g02 of the backlog ordering plan, twenty-second session: the BACKLOG item "Eleven more places that throw `RangeError` on a long line or a long list" (nine class patterns under the `u`
 flag, two array spreads, found by Session 337's review round) -- DONE; claim `4f92d34`
