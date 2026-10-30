@@ -1,0 +1,482 @@
+[
+ {
+  "name": "W01 appendFlatOutline: every symbol is a heading",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "      kind: symbol.kind,",
+  "to": "      kind: \"heading\",",
+  "expect": "killed",
+  "why": "a cell is listed as a heading: the cell rows and the oracle's forests with cells; run alone, killed by a non-clock row: (so a wrong expectation fails here first) python cells: a short document gives the answer the long rows expect"
+ },
+ {
+  "name": "W02 appendFlatOutline: the name is trimmed",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "      name: symbol.name,",
+  "to": "      name: symbol.name.trim(),",
+  "expect": "killed",
+  "why": "only the code-unit sweep sees it: a name that is one blank, tab or no-break space comes out empty; run alone, killed by a non-clock row: ry one of the 65,536 code units, as a root's name (so as its child's container) and as the container handed in"
+ },
+ {
+  "name": "W03 appendFlatOutline: the container is never set",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "      containerName,\n      startLine: symbol.startLine,",
+  "to": "      containerName: \"\",\n      startLine: symbol.startLine,",
+  "expect": "killed",
+  "why": "every child loses its parent's name; run alone, killed by a non-clock row: -first flattening of an outline tree flattens nested children depth-first, tagging each with its parent's name"
+ },
+ {
+  "name": "W04 appendFlatOutline: startLine reads the selection line",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "      startLine: symbol.startLine,",
+  "to": "      startLine: symbol.selectionLine,",
+  "expect": "killed",
+  "why": "the oracle numbers a node's three lines 10i+1, 10i+2, 10i+3 so no two fields can swap unseen; run alone, killed by a non-clock row: ion, the cure and its seam agree on every (forest, kinds), with the default container and with an explicit one"
+ },
+ {
+  "name": "W05 appendFlatOutline: endLine reads the start line",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "      endLine: symbol.endLine,",
+  "to": "      endLine: symbol.startLine,",
+  "expect": "killed",
+  "why": "a section's end collapses to its first line; run alone, killed by a non-clock row: utline — depth-first flattening of an outline tree flattens a single root heading with an empty container name"
+ },
+ {
+  "name": "W06 appendFlatOutline: selectionLine reads the start line",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "      selectionLine: symbol.selectionLine,\n    });",
+  "to": "      selectionLine: symbol.startLine,\n    });",
+  "expect": "killed",
+  "why": "the selection line is the symbol's own, not its start; run alone, killed by a non-clock row: ion, the cure and its seam agree on every (forest, kinds), with the default container and with an explicit one"
+ },
+ {
+  "name": "W07 appendFlatOutline: a seventh field, the children, leaks into the record",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "      selectionLine: symbol.selectionLine,\n    });",
+  "to": "      selectionLine: symbol.selectionLine,\n      children: symbol.children,\n    } as FlatOutlineSymbol);",
+  "expect": "killed",
+  "why": "the flat record has exactly six fields; the oracle counts the keys and the rows compare the first record whole; run alone, killed by a non-clock row: utline — depth-first flattening of an outline tree flattens a single root heading with an empty container name"
+ },
+ {
+  "name": "W08 appendFlatOutline: the children are given the container of their parent",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "    appendFlatOutline(out, symbol.children, symbol.name);",
+  "to": "    appendFlatOutline(out, symbol.children, containerName);",
+  "expect": "killed",
+  "why": "a grandchild reports the root's container, not its parent's; run alone, killed by a non-clock row: -first flattening of an outline tree flattens nested children depth-first, tagging each with its parent's name"
+ },
+ {
+  "name": "W09 appendFlatOutline: the children are not visited",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "    appendFlatOutline(out, symbol.children, symbol.name);\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the flat list holds the roots only; run alone, killed by a non-clock row: -first flattening of an outline tree flattens nested children depth-first, tagging each with its parent's name"
+ },
+ {
+  "name": "W10 appendFlatOutline: a symbol is listed after its children",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "    out.push({\n      kind: symbol.kind,\n      name: symbol.name,\n      containerName,\n      startLine: symbol.startLine,\n      endLine: symbol.endLine,\n      selectionLine: symbol.selectionLine,\n    });\n    appendFlatOutline(out, symbol.children, symbol.name);",
+  "to": "    appendFlatOutline(out, symbol.children, symbol.name);\n    out.push({\n      kind: symbol.kind,\n      name: symbol.name,\n      containerName,\n      startLine: symbol.startLine,\n      endLine: symbol.endLine,\n      selectionLine: symbol.selectionLine,\n    });",
+  "expect": "killed",
+  "why": "depth-first order is parent first; run alone, killed by a non-clock row: -first flattening of an outline tree flattens nested children depth-first, tagging each with its parent's name"
+ },
+ {
+  "name": "W11 appendFlatOutline: the first sibling is skipped",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "  for (const symbol of symbols) {",
+  "to": "  for (const symbol of symbols.slice(1)) {",
+  "expect": "killed",
+  "why": "run alone, killed by a non-clock row: utline — depth-first flattening of an outline tree flattens a single root heading with an empty container name"
+ },
+ {
+  "name": "W12 appendFlatOutline: the siblings are read in reverse",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "  for (const symbol of symbols) {",
+  "to": "  for (const symbol of symbols.slice().reverse()) {",
+  "expect": "killed",
+  "why": "run alone, killed by a non-clock row: ect (so a wrong expectation fails here first) headings: a short document gives the answer the long rows expect"
+ },
+ {
+  "name": "W13 appendFlatOutline: the cells are skipped",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "  for (const symbol of symbols) {",
+  "to": "  for (const symbol of symbols.filter((s) => s.kind === \"heading\")) {",
+  "expect": "killed",
+  "why": "run alone, killed by a non-clock row: -first flattening of an outline tree flattens nested children depth-first, tagging each with its parent's name"
+ },
+ {
+  "name": "W14 flattenOutline: the container handed in is dropped",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "  appendFlatOutline(result, symbols, containerName);",
+  "to": "  appendFlatOutline(result, symbols, \"\");",
+  "expect": "killed",
+  "why": "the rows with an explicit container; run alone, killed by a non-clock row: ion, the cure and its seam agree on every (forest, kinds), with the default container and with an explicit one"
+ },
+ {
+  "name": "W15 flattenOutline: the default container is not empty",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "  containerName = \"\",\n): FlatOutlineSymbol[] {",
+  "to": "  containerName = \"root\",\n): FlatOutlineSymbol[] {",
+  "expect": "killed",
+  "why": "the roots report a container; run alone, killed by a non-clock row: utline — depth-first flattening of an outline tree flattens a single root heading with an empty container name"
+ },
+ {
+  "name": "W16 flattenOutline: the list is not returned",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "  return result;",
+  "to": "  return [];",
+  "expect": "killed",
+  "why": "run alone, killed by a non-clock row: utline — depth-first flattening of an outline tree flattens a single root heading with an empty container name"
+ },
+ {
+  "name": "W17 appendFlatOutline: the seam returns the list it filled",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "    appendFlatOutline(out, symbol.children, symbol.name);\n  }\n}",
+  "to": "    appendFlatOutline(out, symbol.children, symbol.name);\n  }\n  return out as unknown as undefined;\n}",
+  "expect": "killed",
+  "why": "the seam is a procedure: the oracle asserts it returns undefined; run alone, killed by a non-clock row: ion, the cure and its seam agree on every (forest, kinds), with the default container and with an explicit one"
+ },
+ {
+  "name": "W18 appendFlatOutline: the spread is back",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "    appendFlatOutline(out, symbol.children, symbol.name);",
+  "to": "    out.push(...flattenOutline(symbol.children, symbol.name));",
+  "expect": "killed",
+  "why": "the defect itself: the same list for a short document, a RangeError from about 110,000 descendants; run alone, killed by a non-clock row: 00 headings under Top, engine hint undefined: all of them are listed, depth-first, with Top as their container"
+ },
+ {
+  "name": "W19 appendFlatOutline: the list handed in is emptied first",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "  for (const symbol of symbols) {",
+  "to": "  out.length = 0;\n  for (const symbol of symbols) {",
+  "expect": "killed",
+  "why": "the seam keeps what was in the list; the siblings and the children keep each other too; run alone, killed by a non-clock row: utline — depth-first flattening of an outline tree flattens a single root heading with an empty container name"
+ },
+ {
+  "name": "W20 appendFlatOutline: the siblings are read from a copy",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "  for (const symbol of symbols) {",
+  "to": "  for (const symbol of symbols.slice()) {",
+  "expect": "survives",
+  "why": "NO WITNESS, equivalent: the copy holds the same symbols in the same order and nothing writes to the list being read; 150,000 generated forests (up to 24 nodes, names of random code units, a random container or none) show no difference in the flat list from the committed function"
+ },
+ {
+  "name": "W21 appendFlatOutline: the kind is read through a no-op",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "      kind: symbol.kind,",
+  "to": "      kind: symbol.kind ?? symbol.kind,",
+  "expect": "survives",
+  "why": "NO WITNESS, equivalent: kind is never undefined or null, and for any other value `x ?? x` is x; 150,000 generated forests show no difference in the flat list from the committed function"
+ },
+ {
+  "name": "C01 appendCitations: the first citation is skipped",
+  "file": "src/core/citations.ts",
+  "from": "  for (let i = 0; i < length; i++) {",
+  "to": "  for (let i = 1; i < length; i++) {",
+  "expect": "killed",
+  "why": "run alone, killed by a non-clock row: so a wrong expectation fails here first) BibTeX: a short bibliography gives the citations the long rows expect"
+ },
+ {
+  "name": "C02 appendCitations: one past the end",
+  "file": "src/core/citations.ts",
+  "from": "  for (let i = 0; i < length; i++) {",
+  "to": "  for (let i = 0; i <= length; i++) {",
+  "expect": "killed",
+  "why": "an undefined citation is appended; run alone, killed by a non-clock row: so a wrong expectation fails here first) BibTeX: a short bibliography gives the citations the long rows expect"
+ },
+ {
+  "name": "C03 appendCitations: the last citation is dropped",
+  "file": "src/core/citations.ts",
+  "from": "  for (let i = 0; i < length; i++) {",
+  "to": "  for (let i = 0; i < length - 1; i++) {",
+  "expect": "killed",
+  "why": "run alone, killed by a non-clock row: so a wrong expectation fails here first) BibTeX: a short bibliography gives the citations the long rows expect"
+ },
+ {
+  "name": "C04 appendCitations: every other citation",
+  "file": "src/core/citations.ts",
+  "from": "  for (let i = 0; i < length; i++) {",
+  "to": "  for (let i = 0; i < length; i += 2) {",
+  "expect": "killed",
+  "why": "run alone, killed by a non-clock row: so a wrong expectation fails here first) BibTeX: a short bibliography gives the citations the long rows expect"
+ },
+ {
+  "name": "C05 appendCitations: the citations are read in reverse",
+  "file": "src/core/citations.ts",
+  "from": "  for (let i = 0; i < length; i++) {",
+  "to": "  for (let i = length - 1; i >= 0; i--) {",
+  "expect": "killed",
+  "why": "file order is the order of the completion list; run alone, killed by a non-clock row: so a wrong expectation fails here first) BibTeX: a short bibliography gives the citations the long rows expect"
+ },
+ {
+  "name": "C06 appendCitations: each citation is copied",
+  "file": "src/core/citations.ts",
+  "from": "    target.push(more[i]);",
+  "to": "    target.push({ ...more[i] });",
+  "expect": "killed",
+  "why": "the fields are equal, the objects are not: only the oracle compares identity; run alone, killed by a non-clock row: ore) of 0 to 4 citations over three keys: the same list, the same elements in the same order, `more` untouched"
+ },
+ {
+  "name": "C07 appendCitations: the function returns the target",
+  "file": "src/core/citations.ts",
+  "from": "    target.push(more[i]);\n  }\n}",
+  "to": "    target.push(more[i]);\n  }\n  return target as unknown as undefined;\n}",
+  "expect": "killed",
+  "why": "the oracle asserts the return value is undefined, as the spread statement's is; run alone, killed by a non-clock row: ore) of 0 to 4 citations over three keys: the same list, the same elements in the same order, `more` untouched"
+ },
+ {
+  "name": "C08 appendCitations: the target is emptied first",
+  "file": "src/core/citations.ts",
+  "from": "  const length = more.length;",
+  "to": "  const length = more.length;\n  target.length = 0;",
+  "expect": "killed",
+  "why": "what the earlier files contributed is lost; run alone, killed by a non-clock row: then a CSL-JSON of 120,000: 250,000 citations, the first file's first (the order the front matter names them)"
+ },
+ {
+  "name": "C09 appendCitations: every citation twice",
+  "file": "src/core/citations.ts",
+  "from": "    target.push(more[i]);",
+  "to": "    target.push(more[i], more[i]);",
+  "expect": "killed",
+  "why": "run alone, killed by a non-clock row: so a wrong expectation fails here first) BibTeX: a short bibliography gives the citations the long rows expect"
+ },
+ {
+  "name": "C10 appendCitations: only the first citation",
+  "file": "src/core/citations.ts",
+  "from": "  for (let i = 0; i < length; i++) {",
+  "to": "  for (let i = 0; i < Math.min(length, 1); i++) {",
+  "expect": "killed",
+  "why": "run alone, killed by a non-clock row: so a wrong expectation fails here first) BibTeX: a short bibliography gives the citations the long rows expect"
+ },
+ {
+  "name": "C11 appendCitations: a cap of 100,000 citations",
+  "file": "src/core/citations.ts",
+  "from": "  const length = more.length;",
+  "to": "  const length = Math.min(more.length, 100000);",
+  "expect": "killed",
+  "why": "a cap below the first throw hides what the cure exists to keep: the 250,000 and 130,000 rows; run alone, killed by a non-clock row: RangeError\", part E, site 8) BibTeX, 250,000 entries in one file: every citation is accumulated, in file order"
+ },
+ {
+  "name": "C12 appendCitations: the loop ends when the index meets the length",
+  "file": "src/core/citations.ts",
+  "from": "  for (let i = 0; i < length; i++) {",
+  "to": "  for (let i = 0; i !== length; i++) {",
+  "expect": "survives",
+  "why": "NO WITNESS, equivalent: i starts at 0 and steps by 1 and length is a non-negative integer, so `i < length` and `i !== length` end the loop at the same index; 150,000 generated pairs of lists (up to 29 citations each, drawn from a pool of 12 shared objects) show no difference in the resulting list or in the identity of its elements"
+ },
+ {
+  "name": "C13 appendCitations: the citation is stored by index",
+  "file": "src/core/citations.ts",
+  "from": "    target.push(more[i]);",
+  "to": "    target[target.length] = more[i];",
+  "expect": "survives",
+  "why": "NO WITNESS, equivalent: for an array, storing at index length is what push does; 150,000 generated pairs of lists show no difference in the resulting list or in the identity of its elements"
+ },
+ {
+  "name": "A01 loadCitations: the spread is back",
+  "file": "src/providers/citation.ts",
+  "from": "      appendCitations(all, parseCitations(content));",
+  "to": "      all.push(...parseCitations(content));",
+  "expect": "killed",
+  "why": "the gate: a call with a spread argument, and no appendCitations; run alone, killed by a non-clock row: oes not run it) loadCitations appends each file's citations with appendCitations(all, parseCitations(content))"
+ },
+ {
+  "name": "A02 loadCitations: the arguments are swapped",
+  "file": "src/providers/citation.ts",
+  "from": "      appendCitations(all, parseCitations(content));",
+  "to": "      appendCitations(parseCitations(content), all);",
+  "expect": "killed",
+  "why": "the gate: the exact call; run alone, killed by a non-clock row: oes not run it) loadCitations appends each file's citations with appendCitations(all, parseCitations(content))"
+ },
+ {
+  "name": "A03 loadCitations: the citations are parsed and dropped",
+  "file": "src/providers/citation.ts",
+  "from": "      appendCitations(all, parseCitations(content));",
+  "to": "      parseCitations(content);",
+  "expect": "killed",
+  "why": "the gate: the exact call; run alone, killed by a non-clock row: oes not run it) loadCitations appends each file's citations with appendCitations(all, parseCitations(content))"
+ },
+ {
+  "name": "A04 loadCitations: appendCitations is not imported",
+  "file": "src/providers/citation.ts",
+  "from": "  appendCitations,\n  type Citation,",
+  "to": "  type Citation,",
+  "expect": "killed",
+  "why": "the gate: the import from ../core/citations; run alone, killed by a non-clock row: the SOURCE of src/providers/citation.ts, it does not run it) appendCitations is imported from the core module"
+ },
+ {
+  "name": "A05 loadCitations: the path is parsed, not the content",
+  "file": "src/providers/citation.ts",
+  "from": "      appendCitations(all, parseCitations(content));",
+  "to": "      appendCitations(all, parseCitations(rel));",
+  "expect": "killed",
+  "why": "the gate: the exact call; run alone, killed by a non-clock row: oes not run it) loadCitations appends each file's citations with appendCitations(all, parseCitations(content))"
+ },
+ {
+  "name": "A06 loadCitations: the list is spread into a call on the way out",
+  "file": "src/providers/citation.ts",
+  "from": "  return dedupeByKey(all);",
+  "to": "  return dedupeByKey(Array.of(...all));",
+  "expect": "killed",
+  "why": "the gate: no call in the adapter has a spread argument; run alone, killed by a non-clock row: no call in the adapter has a spread argument (a list that grows with a file must never be spread into a call)"
+ },
+ {
+  "name": "T01 equivalence: the pinned count of forests",
+  "file": "test/unit/spreads-equivalence.test.ts",
+  "from": "  forests: 2056,",
+  "to": "  forests: 2057,",
+  "expect": "killed",
+  "why": "the Python recount prints 2056; run alone, killed by a non-clock row: ion, the cure and its seam agree on every (forest, kinds), with the default container and with an explicit one"
+ },
+ {
+  "name": "T02 equivalence: the pinned count of kinded forests",
+  "file": "test/unit/spreads-equivalence.test.ts",
+  "from": "  kinded: 431_059,",
+  "to": "  kinded: 431_060,",
+  "expect": "killed",
+  "why": "run alone, killed by a non-clock row: ion, the cure and its seam agree on every (forest, kinds), with the default container and with an explicit one"
+ },
+ {
+  "name": "T03 equivalence: the pinned count of comparisons",
+  "file": "test/unit/spreads-equivalence.test.ts",
+  "from": "  compared: 862_118,",
+  "to": "  compared: 862_119,",
+  "expect": "killed",
+  "why": "run alone, killed by a non-clock row: ion, the cure and its seam agree on every (forest, kinds), with the default container and with an explicit one"
+ },
+ {
+  "name": "T04 equivalence: the pinned count of nodes",
+  "file": "test/unit/spreads-equivalence.test.ts",
+  "from": "  nodes: 3_371_466,",
+  "to": "  nodes: 3_371_467,",
+  "expect": "killed",
+  "why": "run alone, killed by a non-clock row: ion, the cure and its seam agree on every (forest, kinds), with the default container and with an explicit one"
+ },
+ {
+  "name": "T05 equivalence: the pinned count of roots",
+  "file": "test/unit/spreads-equivalence.test.ts",
+  "from": "  roots: 1_029_142,",
+  "to": "  roots: 1_029_143,",
+  "expect": "killed",
+  "why": "run alone, killed by a non-clock row: ion, the cure and its seam agree on every (forest, kinds), with the default container and with an explicit one"
+ },
+ {
+  "name": "T06 equivalence: the pinned count of strings",
+  "file": "test/unit/spreads-equivalence.test.ts",
+  "from": "  strings: 121,",
+  "to": "  strings: 122,",
+  "expect": "killed",
+  "why": "run alone, killed by a non-clock row: ore) of 0 to 4 citations over three keys: the same list, the same elements in the same order, `more` untouched"
+ },
+ {
+  "name": "T07 equivalence: the pinned count of pairs",
+  "file": "test/unit/spreads-equivalence.test.ts",
+  "from": "  pairs: 14_641,",
+  "to": "  pairs: 14_642,",
+  "expect": "killed",
+  "why": "run alone, killed by a non-clock row: ore) of 0 to 4 citations over three keys: the same list, the same elements in the same order, `more` untouched"
+ },
+ {
+  "name": "T08 equivalence: the largest forest has seven nodes",
+  "file": "test/unit/spreads-equivalence.test.ts",
+  "from": "const MAX_NODES = 8;",
+  "to": "const MAX_NODES = 7;",
+  "expect": "killed",
+  "why": "every pinned count of the forests changes; run alone, killed by a non-clock row: ion, the cure and its seam agree on every (forest, kinds), with the default container and with an explicit one"
+ },
+ {
+  "name": "T09 equivalence: the longest list has three citations",
+  "file": "test/unit/spreads-equivalence.test.ts",
+  "from": "const MAX_LEN = 4;",
+  "to": "const MAX_LEN = 3;",
+  "expect": "killed",
+  "why": "the pinned counts of the strings and the pairs change; run alone, killed by a non-clock row: ore) of 0 to 4 citations over three keys: the same list, the same elements in the same order, `more` untouched"
+ },
+ {
+  "name": "T10 equivalence: two keys, not three",
+  "file": "test/unit/spreads-equivalence.test.ts",
+  "from": "const ALPHABET = [\"a\", \"b\", \"c\"];",
+  "to": "const ALPHABET = [\"a\", \"b\"];",
+  "expect": "killed",
+  "why": "the pinned counts of the strings and the pairs change; run alone, killed by a non-clock row: ore) of 0 to 4 citations over three keys: the same list, the same elements in the same order, `more` untouched"
+ },
+ {
+  "name": "T11 equivalence: the long list is 100,000, below the first throw",
+  "file": "test/unit/spreads-equivalence.test.ts",
+  "from": "const LONG = 130_000;",
+  "to": "const LONG = 100_000;",
+  "expect": "killed",
+  "why": "the guard row: the long list is past the first throw of both old statements; run alone, killed by a non-clock row: reads fail, or do not fail, as the rows above say the long list is past the first throw of both old statements"
+ },
+ {
+  "name": "T12 rows: 100,000 descendants, below the first throw",
+  "file": "test/unit/s338-spreads-rows.test.ts",
+  "from": "const COUNT = 250_000;",
+  "to": "const COUNT = 100_000;",
+  "expect": "killed",
+  "why": "the guard row: about twice the first throw; run alone, killed by a non-clock row: -- the size of these rows is about twice the first throw measured on the base, so the spread would have thrown"
+ },
+ {
+  "name": "T13 citation rows: 100,000 entries, below the first throw",
+  "file": "test/unit/s338-spreads-rows-citations.test.ts",
+  "from": "const COUNT = 250_000;",
+  "to": "const COUNT = 100_000;",
+  "expect": "killed",
+  "why": "the guard row: about twice the first throw; run alone, killed by a non-clock row: then a CSL-JSON of 120,000: 250,000 citations, the first file's first (the order the front matter names them)"
+ },
+ {
+  "name": "T14 equivalence: the two children hold 50,000 each",
+  "file": "test/unit/spreads-equivalence.test.ts",
+  "from": "const EACH_OF_TWO = 70_000;",
+  "to": "const EACH_OF_TWO = 50_000;",
+  "expect": "killed",
+  "why": "the guard row: the sum 100,002 must be past the first throw; run alone, killed by a non-clock row: t of two children reaches the flattening's spread at the sum of its children, and each child alone is below it"
+ },
+ {
+  "name": "T15 equivalence: the three roots hold 120,000 each",
+  "file": "test/unit/spreads-equivalence.test.ts",
+  "from": "const EACH_OF_THREE = 60_000;",
+  "to": "const EACH_OF_THREE = 120_000;",
+  "expect": "killed",
+  "why": "the guard row: each root alone must be below the first throw; run alone, killed by a non-clock row: ld 60,000 (each list is below the first throw): the old statement reads them, and the cure gives the same list"
+ },
+ {
+  "name": "T16 equivalence: the first file holds 120,000",
+  "file": "test/unit/spreads-equivalence.test.ts",
+  "from": "const FILE_A = 60_000;",
+  "to": "const FILE_A = 120_000;",
+  "expect": "killed",
+  "why": "the guard row: each file alone must be below the first throw; run alone, killed by a non-clock row: 000, 0 and 70,000 (each below the first throw): the old statement reads them, and the cure gives the same list"
+ },
+ {
+  "name": "T17 equivalence: the second file holds 40,000",
+  "file": "test/unit/spreads-equivalence.test.ts",
+  "from": "const FILE_B = 70_000;",
+  "to": "const FILE_B = 40_000;",
+  "expect": "killed",
+  "why": "the guard row: the two files together must be past the first throw; run alone, killed by a non-clock row: oots, and the three files of the adapter's loop, are each below the first throw (the old statement reads them)"
+ },
+ {
+  "name": "T18 equivalence: the recorded first throw of the flattening is 50,000",
+  "file": "test/unit/spreads-equivalence.test.ts",
+  "from": "const FIRST_THROW = { flatten: 110_360, citations: 110_428 };",
+  "to": "const FIRST_THROW = { flatten: 50_000, citations: 110_428 };",
+  "expect": "killed",
+  "why": "the guard rows read the sizes against it; run alone, killed by a non-clock row: t of two children reaches the flattening's spread at the sum of its children, and each child alone is below it"
+ },
+ {
+  "name": "T19 rows: the recorded first throw is 50,000",
+  "file": "test/unit/s338-spreads-rows.test.ts",
+  "from": "const FIRST_THROW = 110_360;",
+  "to": "const FIRST_THROW = 50_000;",
+  "expect": "killed",
+  "why": "the guard row: the size must stay under three times it; run alone, killed by a non-clock row: -- the size of these rows is about twice the first throw measured on the base, so the spread would have thrown"
+ },
+ {
+  "name": "T20 citation rows: the recorded first throw is 50,000",
+  "file": "test/unit/s338-spreads-rows-citations.test.ts",
+  "from": "const FIRST_THROW = 106_320;",
+  "to": "const FIRST_THROW = 50_000;",
+  "expect": "killed",
+  "why": "the guard row: the size must stay under three times it; run alone, killed by a non-clock row: -- the size of these rows is about twice the first throw measured on the base, so the spread would have thrown"
+ }
+]
