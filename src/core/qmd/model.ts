@@ -14972,6 +14972,10 @@ export function rawContentTags(line: string): RawContentTag[] {
 const RAW_CONTENT_NAMES = ["pre", "script", "style", "textarea"] as const;
 /** Where the name of a raw-content element that starts at `at` ends, just after its last letter, or -1 when none starts there or no word boundary follows it. No name is a prefix of another, so a name that fails its boundary leaves nothing else to try. */
 function rawContentNameEnd(line: string, at: number): number {
+  const first = line.charCodeAt(at) | 32; // the letter folded to small: `P` and `p` give 0x70 and nothing else does; past the end `NaN | 32` is 32
+  if (first !== 0x70 && first !== 0x73 && first !== 0x74) {
+    return -1; // no name starts with another letter, so the loop below is for the `<` of a name only (a tag such as `<b>` or `</i>` is turned away here)
+  }
   for (const name of RAW_CONTENT_NAMES) {
     let k = 0;
     while (k < name.length && smallLetterAt(line, at + k) === name.charCodeAt(k)) {
