@@ -4955,7 +4955,7 @@ function maskQuotedValues(attrs: string): string {
  * title bar AND `<h2 id="inside-fox">Inside Fox</h2>` inside the callout body (`p6`). Reading
  * the class alone would delete a heading quarto really emits — the forbidden direction.
  */
-function legacyDivCalloutTitleSlot(attrs: string, commonmarkDialect: boolean): boolean {
+export function legacyDivCalloutTitleSlot(attrs: string, commonmarkDialect: boolean): boolean {
   if (attrs === "") {
     return false;
   }
@@ -5064,7 +5064,7 @@ function legacyDivCalloutTitleSlot(attrs: string, commonmarkDialect: boolean): b
  * `group=` or a `title=`) and the BARE WORD (`::: panel-tabset`), Pandoc's `::: foo` ≡
  * `::: {.foo}` shorthand — measured, `probes/s01`–`s08` and `s13`.
  */
-function legacyDivPanelTabset(attrs: string): boolean {
+export function legacyDivPanelTabset(attrs: string): boolean {
   if (attrs === "") {
     return false;
   }
