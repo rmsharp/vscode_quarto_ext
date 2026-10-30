@@ -14923,22 +14923,7 @@ const HTML_ELEMENT_COMPLETES = new RegExp(
   "i",
 );
 const HTML_EITHER_NAME = new RegExp("^(?:" + PANDOC_EITHER_TAGS + ")$", "i");
-/**
- * An element whose CONTENT IS NOT MARKDOWN (Session 295): inside an open `<pre>`, `<script>`, `<style>` or `<textarea>` even a complete
- * `<div>x</div>` is raw text, so the opener below it is swallowed with the rest (`scratchpad/s295/ob`, `ob_below_pre_in_div` and three siblings),
- * where inside a `table`, `ul`, `details` or `section` — whose content is markdown — the same line ends the block. An OPEN tag counts only at the
- * start of a line (a block position); a closer counts anywhere.
- *
- * The tags of one line, as `computeRegions` counts them (Session 339): `<` and an optional `/`, one of the four names in either ASCII case, a word boundary, then everything up to the FIRST `>`. It is what
- * `/<(\/?)(pre|script|style|textarea)\b[^>]*?(\/?)>/gi` found with `matchAll`, and it replaces that pattern, whose lazy `[^>]*?` read on to the first `>` from every opener: a line of `<pre ` repeated
- * with no `>` restarted a scan to the end of the line at each one, n squared (`<pre ` x 10,000 / 20,000 / 40,000 took 152.6 / 599.2 / 2,335.6 ms and `<script ` x 40,000 3,762.1 ms in `findHeadings`, a fresh process each, at `4d1944c`).
- * Here the `>` is looked for once per tag with `indexOf`, and the first opener that has no `>` after its name ends the scan, because no later opener can have one either (`<pre ` repeated to 100,000, 1,000,000 and 10,000,000
- * characters took 3.6, 6.8 and 33.6 ms in `findHeadings`; 2,000,000 `<pre>` tags in one line, 253.7 ms). The next search starts just after the `>`, so a
- * `<pre` inside the span of an earlier tag is swallowed by it, as `matchAll` continued after the end of a match.
- * ⚠ A name is compared without regard to ASCII case ONLY (the pattern has no `u` flag: U+017F is no `s` and U+0131 no `i`), and the word boundary after it is "not an ASCII letter, digit or underscore" (`<pre-x>` and `<pre` + e acute
- * are tags, `<prefix>`, `<pre_>` and `<pre1>` are not). A tag is self-closing when the character just before the `>` is a `/`: the name ends in a letter, so that `/` is never part of it (`<pre/>`, `<pre />` and `<pre//>`
- * are self-closing, `<pre/ >` is not). `test/unit/raw-content-tag-equivalence.test.ts` keeps the pattern as the oracle, beside a reading by definition with no regular expression.
- */
+/** One tag of an element whose content is not markdown (`pre`, `script`, `style`, `textarea`) as `rawContentTags` finds it in a line: what is a tag, and what the elements are for, is written there. */
 export interface RawContentTag {
   /** The index of the tag's `<` in the line. */
   index: number;
@@ -14947,6 +14932,23 @@ export interface RawContentTag {
   /** Whether the character before its `>` is a `/`. */
   selfClosing: boolean;
 }
+/**
+ * An element whose CONTENT IS NOT MARKDOWN (Session 295): inside an open `<pre>`, `<script>`, `<style>` or `<textarea>` even a complete
+ * `<div>x</div>` is raw text, so the opener below it is swallowed with the rest (`scratchpad/s295/ob`, `ob_below_pre_in_div` and three siblings),
+ * where inside a `table`, `ul`, `details` or `section` — whose content is markdown — the same line ends the block. An OPEN tag counts only at the
+ * start of a line (a block position); a closer counts anywhere. This function reports every tag of the line, wherever it stands; `computeRegions` applies that rule to what it returns.
+ *
+ * The tags of one line, as `computeRegions` counts them (Session 339): `<` and an optional `/`, one of the four names in either ASCII case, a word boundary, then everything up to the FIRST `>`. It is what
+ * `/<(\/?)(pre|script|style|textarea)\b[^>]*?(\/?)>/gi` found with `matchAll`, and it replaces that pattern, whose lazy `[^>]*?` read on to the first `>` from every opener: a line of `<pre ` repeated
+ * with no `>` restarted a scan to the end of the line at each one, n squared (`<pre ` x 10,000 / 20,000 / 40,000 took 152.6 / 599.2 / 2,335.6 ms and `<script ` x 40,000 3,762.1 ms in `findHeadings`, a fresh process each, at `4d1944c`).
+ * Here the `>` is looked for once per tag with `indexOf`, and the first tag that has no `>` after its name ends the scan, because no later one can have one either (`<pre ` repeated to 100,000, 1,000,000 and 10,000,000
+ * characters took 3.6, 6.8 and 33.6 ms in `findHeadings`; 2,000,000 `<pre>` tags in one line, 253.7 ms). ⚠ The stop is for a CLOSER too: a scan that went on at the next `<` after a `</pre ` with no `>` keeps every answer
+ * and is quadratic on a run of closers (Session 339 review; `</pre ` x 400,000 took 10,831.9 ms that way). The next search starts just after the `>`, so a
+ * `<pre` inside the span of an earlier tag is swallowed by it, as `matchAll` continued after the end of a match.
+ * ⚠ A name is compared without regard to ASCII case ONLY (the pattern has no `u` flag: U+017F is no `s` and U+0131 no `i`), and the word boundary after it is "not an ASCII letter, digit or underscore" (`<pre-x>` and `<pre` + e acute
+ * are tags, `<prefix>`, `<pre_>` and `<pre1>` are not). A tag is self-closing when the character just before the `>` is a `/`: the name ends in a letter, so that `/` is never part of it (`<pre/>`, `<pre />` and `<pre//>`
+ * are self-closing, `<pre/ >` is not). `test/unit/raw-content-tag-equivalence.test.ts` keeps the pattern as the oracle, beside a reading by definition with no regular expression.
+ */
 export function rawContentTags(line: string): RawContentTag[] {
   const tags: RawContentTag[] = [];
   let from = 0;
@@ -14972,9 +14974,13 @@ export function rawContentTags(line: string): RawContentTag[] {
 const RAW_CONTENT_NAMES = ["pre", "script", "style", "textarea"] as const;
 /** Where the name of a raw-content element that starts at `at` ends, just after its last letter, or -1 when none starts there or no word boundary follows it. No name is a prefix of another, so a name that fails its boundary leaves nothing else to try. */
 function rawContentNameEnd(line: string, at: number): number {
-  const first = line.charCodeAt(at) | 32; // the letter folded to small: `P` and `p` give 0x70 and nothing else does; past the end `NaN | 32` is 32
+  const first = line.charCodeAt(at) | 32;
   if (first !== 0x70 && first !== 0x73 && first !== 0x74) {
-    return -1; // no name starts with another letter, so the loop below is for the `<` of a name only (a tag such as `<b>` or `</i>` is turned away here)
+    // Session 339 review (P2). Every name starts with `p`, `s` or `t`, so any other first letter is turned away here, before the four names are tried: `P` and `p` give 0x70 and no other code unit does
+    // (past the end `NaN | 32` is 32). A line dense in other tags such as `<b>` and `</i>` costs about half as much (findHeadings, `<b>x</b> <i>y</i> ` repeated to 1,000,000 characters, best of 15: 10.36 ms
+    // before the guard, 5.53 after, 2.11 for the old pattern); no answer changes, the oracle file is green on both. ⚠ The first letters of the names are written here and in `RAW_CONTENT_NAMES`: a fifth
+    // name that starts with another letter is turned away here until this line is changed too (J13 and J14 of tools/mutation-run/mutants/s339-review-raw-content-tag.json change both).
+    return -1;
   }
   for (const name of RAW_CONTENT_NAMES) {
     let k = 0;

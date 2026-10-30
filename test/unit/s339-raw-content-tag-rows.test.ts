@@ -157,7 +157,7 @@ const TABLE: Array<[string, string, string[], string[], string[]]> = [
   ["five openers, a slash and `>`", "<pre ".repeat(5) + "/>", SHUT_A, SHUT_G, []],
   ["unterminated script openers with a CJK tail", "<script>" + "<script ".repeat(5) + CJK, OPEN_A, OPEN_G, ["sec-after"]],
   ["a quoted opener", "> <pre>", OPEN_A, ["Before", "In", "After"], ["sec-after"]],
-  // Session 339 review (mutation lens). K02: the indent test is `^ {0,3}$` WITHOUT the multi-line flag, so a line terminator in front of the tag (U+2028, U+2029) is no start of a line and opens nothing; with the flag the
+  // Session 339 review (mutation lens; its mutants are in tools/mutation-run/mutants/s339-review-raw-content-tag.json). K02: the indent test is `^ {0,3}$` WITHOUT the multi-line flag, so a line terminator in front of the tag (U+2028, U+2029) is no start of a line and opens nothing; with the flag the
   // text before the terminator would not count and the opener would. Before this only the clock rows failed that spelling (it makes the test read the whole prefix for every tag). J13 to J15: an `xmp`, `code` or `title` element is no
   // raw-content element, which no document row held (the function-level rows of the oracle file hold the names; these are the same three at document level).
   ["a line separator before the opener", `${LS}<pre>`, SHUT_A, SHUT_G, []],
@@ -182,9 +182,10 @@ describe("Session 339 — one opener line in each template: what the parent answ
   });
 });
 
-// THE REVIEW ROUND (Session 339, mutation lens): an opener counts only at the start of a LINE, so `<pre><pre>` opens one element, and the table above never takes the count past one. A closer that took two (R05 of
+// THE REVIEW ROUND (Session 339, mutation lens): an opener counts only at the start of a LINE, so `<pre><pre>` opens one element, and the table above never takes the count past one. A closer that took two (W05 of
 // `tools/mutation-run/mutants/s339-raw-content-tag.json`: `Math.max(0, rawContentDepth - 2)`) therefore passed every row of both templates and of the older suites. These documents open an element on one line and another on the
-// next, and close one: the opener below is still inside the first. Every answer is the parent `4d1944c`'s for the same two builders (the loop switched off gives the shut answer on 10 of the 13).
+// next, and close one: the opener below is still inside the first. Every answer is the parent `4d1944c`'s for the same two builders (the loop switched off gives the shut answer on 10 of the first 13 rows; the rows after them are the second review round, M12 and M13, and are pinned by the mutants K01 and K07 to K11 of
+// `tools/mutation-run/mutants/s339-review-raw-content-tag.json`).
 const MULTILINE: Array<[string, string, string[], string[], string[]]> = [
   ["two openers on two lines", "<pre>\n<pre>", OPEN_A, OPEN_G, ["sec-after"]],
   ["two openers and a closer", "<pre>\n<pre>\n</pre>", OPEN_A, ["Before", "In", "After"], ["sec-after"]],

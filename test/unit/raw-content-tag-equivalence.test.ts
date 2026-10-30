@@ -367,7 +367,7 @@ describe("Session 339 — rawContentTags: the new function reads the tags the ol
     expect(result.tags).toBe(1440);
   });
 
-  // The old pattern is quadratic on a run of unterminated openers, so the grid keeps the runs to 1,000 (about 5,000 characters, a millisecond); the reading by definition is cubic and meets the short runs only.
+  // The old pattern is quadratic on a run of unterminated openers, so the grid keeps the runs to 1,000 (about 5,000 characters, 1.5 ms for `<pre ` x 1,000); the reading by definition is cubic and meets the short runs only.
   it("a grid of opener runs, units and tails", () => {
     const result = compareAll(runGrid(RUNS));
     expect(result.disagreements).toEqual([]);
@@ -391,7 +391,7 @@ describe("Session 339 — rawContentTags: the new function reads the tags the ol
     expect(rawContentTags(line)).toEqual(stated);
   });
 
-  // The rest of the HTML element names, as the fifth name no row held (Session 339 review, J13 to J16): not one of them is a raw-content tag, as an opener, a closer, upper-cased with an attribute, or self-closing, and neither is a
+  // The rest of the HTML element names, as the fifth name no row held (Session 339 review, J13 to J15 of tools/mutation-run/mutants/s339-review-raw-content-tag.json): not one of them is a raw-content tag, as an opener, a closer, upper-cased with an attribute, or self-closing, and neither is a
   // name that is a proper prefix of one of the four (`<p>`, `<scr>`, `<textare>`) or one of the four with a letter more (`<prea>`, `<styled>`).
   const OTHER_ELEMENTS = [
     "a", "abbr", "acronym", "address", "applet", "area", "article", "aside", "audio", "b", "base", "basefont", "bdi", "bdo", "big", "blink", "blockquote", "body", "br", "button", "canvas", "caption", "center", "cite", "code", "col",
@@ -426,9 +426,10 @@ describe("Session 339 — rawContentTags: the new function reads the tags the ol
   const PAIR_RUN = 900_000; // `<pre></pre>` is 11
   const SCRIPT_RUN = 1_250_000; // `<script ` is 8
   const ANGLE_RUN = 10_000_000;
-  // ⚠ A SCAN THAT IS QUADRATIC AT NATIVE SPEED KEEPS EVERY ANSWER AND IS STILL QUADRATIC (Session 339 review, R12 of tools/mutation-run/mutants/s339-raw-content-tag.json: the `return` at the first opener with no `>` respelled as "go on to the
+  // ⚠ A SCAN THAT IS QUADRATIC AT NATIVE SPEED KEEPS EVERY ANSWER AND IS STILL QUADRATIC (Session 339 review, R11 of tools/mutation-run/mutants/s339-raw-content-tag.json: the `return` at the first opener with no `>` respelled as "go on to the
   // next `<`", every `indexOf(">")` then reading to the end of the line). `<pre ` x 100,000 / 200,000 / 400,000 (500,000 / 1,000,000 / 2,000,000 characters) took 565.7 / 2,252.4 / 8,941.8 ms that way, `<script ` x 250,000 5,685.1 ms
-  // and `<pre ` x 200,000 and a CJK letter (a two-byte string) 4,503.2 ms; the cure takes 0.3 to 0.4 ms on the 2,000,000-character lines (fresh processes, scratch copies of the cure and of the mutant). The 10,000,000-character rows
+  // and `<pre ` x 200,000 and a CJK letter (a two-byte string) 4,503.2 ms (fresh processes, scratch copies; the rows below, run against that mutant at load average 9, took 9,098 / 5,778 / 4,640 ms for the last three, and the two
+  // files together 79 s); the cure takes 0.05 to 0.30 ms on the 2,000,000-character `<pre ` line (best and worst of 5 repetitions in a fresh process). The 10,000,000-character rows
   // below would not come back from that mutant in hours, so they ask first whether a native row was slow and fail at once if one was.
   const NATIVE_LIMIT_MS = 1000;
   const NATIVE_PRE_RUN = 400_000;
@@ -456,8 +457,8 @@ describe("Session 339 — rawContentTags: the new function reads the tags the ol
     expect(native(() => rawContentTags("<pre ".repeat(NATIVE_TWO_BYTE_RUN) + CJK))).toEqual([]);
   });
   // ⚠ THE STOP IS FOR A CLOSER TOO (Session 339 review, H18 of tools/mutation-run/mutants/s339-review-raw-content-tag.json): a closer `</pre ` with no `>` after its name ends the scan exactly as an opener does, and a scan that went on
-  // at the next `<` for a closer only keeps every answer and is quadratic at native speed on a run of closers, which the rows above (all openers) never meet. The original takes 0.05 to 0.52 ms on the three lines below (fresh process,
-  // best and worst of 5 repetitions); that spelling took 10,831.9 ms on `</pre ` x 400,000, 6,370.8 ms on `</script ` x 250,000 and 5,467.8 ms on `</pre ` x 200,000 and a CJK letter (the rows below, run against it).
+  // at the next `<` for a closer only keeps every answer and is quadratic at native speed on a run of closers, which the rows above (all openers) never meet. The function takes 0.05 to 0.67 ms on the three lines below (best and worst of 5 repetitions, three fresh
+  // processes; 0.05 to 0.52 ms before the first-letter guard); that spelling took 10,831.9 ms on `</pre ` x 400,000, 6,370.8 ms on `</script ` x 250,000 and 5,467.8 ms on `</pre ` x 200,000 and a CJK letter (the rows below, run against it).
   it("`</pre ` x 400,000 (2,400,000 characters, closers with no `>`) holds no tag in linear time", () => {
     expect(native(() => rawContentTags("</pre ".repeat(NATIVE_PRE_RUN)))).toEqual([]);
   });
@@ -528,7 +529,8 @@ describe("Session 339 — rawContentTags: the new function reads the tags the ol
     expect([5 * LONG_RUN, 11 * PAIR_RUN, 8 * SCRIPT_RUN, 5 * NATIVE_PRE_RUN, 8 * NATIVE_SCRIPT_RUN, 5 * NATIVE_TWO_BYTE_RUN]).toEqual([10_000_000, 9_900_000, 10_000_000, 2_000_000, 2_000_000, 1_000_000]);
     expect([6 * NATIVE_PRE_RUN, 9 * NATIVE_SCRIPT_RUN, 6 * NATIVE_TWO_BYTE_RUN]).toEqual([2_400_000, 2_250_000, 1_200_000]); // the closer runs: `</pre ` is 6 characters, `</script ` 9
   });
-  // The old pattern meets the same lines at the size it can: 3,000 openers is about 15,000 characters and a millisecond or two.
+  // The old pattern meets the same lines at the size it can: 3,000 openers is 15,000 to 30,011 characters. Read to the end with `matchAll` (fresh processes, best of 15), the two shapes of unterminated openers take it 13.7 to 14.0 ms (`<pre ` x 3,000)
+  // and 21.8 to 22.5 ms (`<script ` x 3,000 and a CJK letter, 24,001 characters); the other seven shapes take 0.01 to 0.6 ms.
   it("the old pattern and the new function agree on the long-line shapes at a size the old one can read", () => {
     const shapes = ["<pre ".repeat(3_000), "<pre ".repeat(3_000) + ">", "<pre ".repeat(3_000) + "/>", "<pre>".repeat(3_000), "<pre></pre>".repeat(3_000), "</pre>".repeat(3_000), "<script ".repeat(3_000) + CJK, "<style/>".repeat(3_000), "<textarea ".repeat(3_000) + "</textarea>"];
     for (const shape of shapes) {
