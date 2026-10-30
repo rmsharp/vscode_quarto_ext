@@ -5229,17 +5229,21 @@ function divTailMayBePrepassed(tail: string): boolean {
  * decoded, so its words may not be the classes quarto reads (and the test is deliberately broader than the value: it also fires on an escape in a LATER attribute's value, as long as no `}` comes between).
  *
  * ⚠ **IT IS ONE PASS BECAUSE THE PATTERN IT REPLACES WAS QUADRATIC (Session 339).** The test was `/class=[^}]*[\\&]/.test(tail)`: unanchored, so it restarted at EVERY `class=` and read on to the next `}` (or the
- * end of the line) looking for the escape, and a well-formed opener that repeats `class=` and holds none cost n squared. Measured at HEAD `4d1944c`, one fresh process per probe, the opener `::: {k="` + n `class=`
- * + `"}` (6 characters a repeat): 400.8 ms at n = 8,000, 1,573.1 ms at 16,000 and 6,256.8 ms at 32,000; `::: {` + n `class=a ` + `}`: 525.9 ms at 8,000 and 2,659.3 ms at 16,000. (An UNTERMINATED opener is refused by
- * `divOpenerVerdict` before this test is asked, which is why `{k="class=class=...` with no closing quote cost nothing.)
+ * end of the line) looking for the escape, and a well-formed opener that repeats `class=` and holds none cost n squared. Measured at HEAD `4d1944c`, one fresh process per probe (three
+ * each, load 7 to 8), `findHeadings` on the opener, a heading, a line of body, the closer and a last heading: the opener `::: {k="` + n `class=` + `"}` (6 characters a repeat) took 404.6 to 407.5 ms at n = 8,000,
+ * 1,568.8 to 1,580.7 ms at 16,000 and 6,267.3 to 6,304.3 ms at 32,000; `::: {` + n `class=a ` + `}` took 531.3 to 542.5 ms at 8,000 and, at 16,000, 2,685.0 to 2,710.7 ms in 13 of 14 processes on that document (the other
+ * took 2,064.3 ms) but 2,051.5 to 2,074.0 ms in six processes on the opener alone or with a cell added to the document: the cost is quadratic, its constant depends on the document around the opener, and the ratio
+ * of the probe at 16,000 to the one at 8,000 is 3.8 to 5.1. (An UNTERMINATED opener is refused by `divOpenerVerdict` before this test is asked, which is why `{k="class=class=...` with no closing quote cost nothing.)
  *
  * ⚠ **IT READS WHAT THE PATTERN READ.** True iff there are positions p and q with `class=` at p, q at least p + 6, a backslash or an ampersand at q, and no `}` in `tail.slice(p + 6, q)`: `[^}]*` crosses every
  * character but `}` (a carriage return, U+2028, U+2029 and a `{` included), and the key is matched in lower case only. A flag says "a `class=` has ended in the brace-free stretch behind this character": the
- * first `class=` of a stretch sets it (a later one adds nothing), a `}` clears it, and the first backslash or ampersand met while it is set answers true. The text is read by UTF-16 code unit with no recursion,
- * so a character above U+00FF, a surrogate pair and a lone surrogate are all read as characters that are neither a brace nor an escape. Measured on the working tree of this session, one fresh process per probe: the
- * function alone takes 1.3 ms on a tail of 100,002 characters, 4.55 ms on 1,000,002 and 37.63 ms on 10,000,002 (`{k="` + n `class=` + `"}`), with no `RangeError`, and `findHeadings` on the opener above takes
- * 14 ms at n = 16,000. `test/unit/div-class-escape-equivalence.test.ts` keeps the old pattern verbatim as the oracle, beside a reading by definition, and compares them over every string of five alphabets,
- * 300,000 seeded texts and every code unit at every place of three heads; `test/unit/s339-div-class-rows.test.ts` holds the clock rows through every entry that reads a document.
+ * first `class=` of a stretch sets it (a later one adds nothing), a `}` clears it, and the first backslash or ampersand met while it is set answers true. The pass starts at the FIRST `class=` (an `indexOf`; with none
+ * the answer is false at once), because nothing in front of it can set the flag or use it: on the ordinary opener, which holds no `class=`, a call costs 15 ns where the loop from index 0 cost 110 (Session 339 review, P1).
+ * The text is read by UTF-16 code unit with no recursion, so a character above U+00FF, a surrogate pair and a lone surrogate are all read as characters that are neither a brace nor an escape. Measured on the working
+ * tree of this session, one fresh process per probe (three each): the function alone takes 0.85 ms on a tail of 100,002 characters, 4.60 to 4.72 ms on 1,000,002 and 36.71 to 38.07 ms on 10,000,002 (`{k="` + n `class=` + `"}`),
+ * with no `RangeError`, and `findHeadings` on the opener above takes 14.4 ms at n = 16,000. `test/unit/div-class-escape-equivalence.test.ts` keeps the old pattern verbatim as the oracle, beside a reading by definition,
+ * and compares them over every string of five alphabets, 300,000 seeded texts and every code unit at every place of four heads; `test/unit/s339-div-class-rows.test.ts` holds the clock rows through five entries that
+ * read a document (`findHeadings`, `buildOutline`, `findAllCells`, `indexLabels` and `findBodyLines`).
  */
 export function classValueMayHoldEscape(tail: string): boolean {
   // Nothing in front of the first `class=` can set the flag or use it, so the pass starts there: a tail that holds no `class=` (nearly every opener) ends at once, in the native search the old pattern used.

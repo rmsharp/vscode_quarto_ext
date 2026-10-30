@@ -5,8 +5,9 @@ import { indexLabels } from "../../src/core/refs";
 // Session 339, part (10) of the BACKLOG item "Three more quadratic single-line shapes" (group g02). `divSpecReading` (model.ts) reads a fenced div's opener from pandoc's own tokens, and declines (returns null,
 // so the regex readers answer) when a `class=` value holds a backslash or an ampersand: such a value is not decoded, so its words may not be the classes quarto reads. The test was
 // `/class=[^}]*[\\&]/.test(tail)`: an unanchored scan that restarts at EVERY `class=` and reads on to the next `}` (or the end of the line) looking for a `\` or an `&`. A well-formed opener that repeats `class=`
-// and holds no escape therefore costs n squared: `::: {k="` + n `class=` + `"}` measured at the parent `4d1944c`, one fresh process each (load 4.50): 400.8 ms at n = 8,000, 1,573.1 ms at 16,000, 6,256.8 ms at
-// 32,000 (6 characters a repeat); `::: {` + n `class=a ` + `}`: 525.9 ms at 8,000 and 2,659.3 ms at 16,000. (An UNTERMINATED opener is refused by `divOpenerVerdict` before the test, which is why `{k="class=class=...`
+// and holds no escape therefore costs n squared: `::: {k="` + n `class=` + `"}` measured at the parent `4d1944c`, three fresh processes each (load 7 to 8): 404.6 to 407.5 ms at n = 8,000, 1,568.8 to 1,580.7 ms at 16,000, 6,267.3 to 6,304.3 ms at
+// 32,000 (6 characters a repeat); `::: {` + n `class=a ` + `}`: 531.3 to 542.5 ms at 8,000 and 2,051.5 to 2,710.7 ms at 16,000 (the document around the opener decides where in that range: the docstring of
+// `classValueMayHoldEscape` has the cases). (An UNTERMINATED opener is refused by `divOpenerVerdict` before the test, which is why `{k="class=class=...`
 // with no closing quote costs nothing.) Every entry reaches it, because every entry reads the document through `scanRegions`, and `computeRegions` asks `divCalloutTitleSlot` and `divPanelTabset`, each of
 // which asks `divSpecReading`: the test runs twice for a div opener.
 //
@@ -15,7 +16,7 @@ import { indexLabels } from "../../src/core/refs";
 // regex reader finds no `.callout-note`, and `## T` is a heading. So the answer tells the two readings apart, and a cure that gets the escape test wrong changes it. The expected answers were taken from the
 // PARENT (`4d1944c`) on the same shapes at n = 3 (the small rows below pass on the parent and pin them); the shape adds no line, so the answer does not depend on n.
 //
-// THE CLOCK. The limit is 1,000 ms, well below the parent (3.27 to 3.62 s on the parent at these sizes, load 4.96 to 5.28: the rows that fail on it do so on the clock alone, their answers right) and at least 15 times the cure's cost. The
+// THE CLOCK. The limit is 1,000 ms, well below the parent (3.27 to 3.62 s on the parent at these sizes, load 4.96 to 5.28: the rows that fail on it do so on the clock alone, their answers right) and 10 to 14 times the cure's cost on the two rows of 1,200,000 characters (70 to 100 ms, fresh processes, load 6) and 47 times or more its cost on the others (5 to 21 ms). The
 // CONTROL rows hold an escape right where the scan can end (an `&` after the last `class=`, a `\` between two runs): the parent is linear on them and they must stay so. Two documents are built for every
 // shape, one with a character above U+00FF in the line (V8 stores such a string with two bytes a character and runs another regex path on it) and one without.
 
@@ -118,7 +119,7 @@ describe("Session 339 — controls: an escape in reach of the scan is linear on 
 });
 
 // The other entries reach the same site through `scanRegions`; each row below gives its entry a document of its own (the scan of the last text is memoized, so a second entry on the same text would be free).
-describe("Session 339 — every entry that reads the document reaches the test", () => {
+describe("Session 339 — four more entries that read the document reach the test (findHeadings is in the tables above)", () => {
   it("buildOutline: the Outline of a callout whose opener holds 24,000 `class=` and a character above U+00FF lists the cell and `# H`, not `## T`", () => {
     const id = "outline";
     const text = documentOf("quoted", QUOTED_N, WIDE, id);
@@ -173,7 +174,7 @@ describe("Session 339 — the small shapes pin the answers the large rows expect
 });
 
 // The review round (the mutation lens): the call of `classValueMayHoldEscape` in `divSpecReading` could read only the first 65,536 or 2^20 characters of the opener and every row above would pass but one: an escape
-// BEHIND the first megabyte. An opener of 200,000 `class=` and an ampersand is 1,200,011 characters; the parent is linear on it (its first `class=` finds the ampersand at the end of its one backtrack), so these rows pass on
+// BEHIND the first megabyte. An opener of 200,000 `class=` and an ampersand is 1,200,032 characters (1,200,033 with the character above U+00FF in front of the run; its tail after `::: ` is 1,200,028 or 1,200,029); the parent is linear on it (its first `class=` finds the ampersand at the end of its one backtrack), so these rows pass on
 // the parent, and the reader must decline: `## T` is a heading.
 describe("Session 339 review — an escape behind the first megabyte of an opener is seen by the call site", () => {
   it.each([

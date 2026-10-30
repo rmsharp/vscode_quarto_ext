@@ -69,7 +69,7 @@
   "from": "for (let i = first; i < tail.length; i++) {\n    const code",
   "to": "for (let i = first; i < Math.min(tail.length, 1048576); i++) {\n    const code",
   "expect": "killed",
-  "why": "an escape past the cap is never seen: only the rows of 10,000,000 characters reach it; run alone, killed by: classValueMayHoldEscape on lines of 10,000,000 characters 1,700,000 `class=` and an ampersand"
+  "why": "an escape past the cap is never seen: the rows of 10,000,000 characters reach it, and so do the two review rows of 1,200,000 characters (an opener of 200,000 `class=` and an ampersand, one-byte and two-byte); 9 rows fail with both files run; run alone, killed by: classValueMayHoldEscape on lines of 10,000,000 characters 1,700,000 `class=` and an ampersand"
  },
  {
   "name": "B01 classValueMayHoldEscape: the brace is U+007C",
@@ -301,7 +301,7 @@
   "from": "      i += 5;",
   "to": "      i += 4;",
   "expect": "survives",
-  "why": "NO WITNESS, equivalent: the fifth character of `class=` is `=`, which is no brace, escape or `c`"
+  "why": "NO WITNESS, equivalent: the sixth character of `class=` (index 5) is `=`, which is no brace, escape or `c`; the mutant reads it once more"
  },
  {
   "name": "D10 classValueMayHoldEscape: the characters of a key are not skipped",
