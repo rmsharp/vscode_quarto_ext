@@ -20,6 +20,8 @@ import { appendCitations, type Citation, parseCitations } from "../../src/core/c
 
 const COUNT = 250_000;
 const SHORT = 3;
+/** The first throw measured on the base through the real adapter (last OK 106,319): the guard row at the end keeps COUNT about twice of it (Learning 775). */
+const FIRST_THROW = 106_320;
 /** 3 s for the append alone: the cure appends 135,000 citations in 1.4 ms (a scratch probe, fresh process), and a list copied for every element (a `concat` in a loop) took 12,271 ms at that size, so an append that is quadratic still fails this limit at 250,000. */
 const LIMIT_MS = 3000;
 const ROW_TIMEOUT_MS = 40_000;
@@ -121,5 +123,12 @@ describe("Session 338 -- the adapter routes the accumulation through the core fu
   it("no call in the adapter has a spread argument (a list that grows with a file must never be spread into a call)", () => {
     expect(code).not.toMatch(/\(\s*\.\.\./);
     expect(code).not.toMatch(/,\s*\.\.\.\w/);
+  });
+});
+
+describe("Session 338 -- the size of these rows", () => {
+  it("is about twice the first throw measured on the base, so the spread would have thrown", () => {
+    expect(COUNT).toBeGreaterThanOrEqual(2 * FIRST_THROW);
+    expect(COUNT).toBeLessThan(3 * FIRST_THROW);
   });
 });

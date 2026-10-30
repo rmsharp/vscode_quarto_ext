@@ -22,6 +22,8 @@ import { type FlatOutlineSymbol, flattenOutline } from "../../src/core/workspace
 
 const COUNT = 250_000;
 const SHORT = 3;
+/** The first throw measured on the base through `buildOutline` and `flattenOutline` (last OK 110,359): the guard row at the end keeps COUNT about twice of it (Learning 775). */
+const FIRST_THROW = 110_360;
 /** 3 s for `flattenOutline` alone: the cure flattens 135,000 children in 14.1 ms (a scratch probe, fresh process), and a list copied for every element (a `concat` in a loop, measured on 135,000 citations) took 12,271 ms, so a flatten that is quadratic still fails this limit at 250,000. */
 const LIMIT_MS = 3000;
 const ROW_TIMEOUT_MS = 40_000;
@@ -178,4 +180,11 @@ describe("Session 338 -- a heading with more than a hundred thousand descendants
     }
     expect(wrong).toBe(0);
   }, ROW_TIMEOUT_MS);
+});
+
+describe("Session 338 -- the size of these rows", () => {
+  it("is about twice the first throw measured on the base, so the spread would have thrown", () => {
+    expect(COUNT).toBeGreaterThanOrEqual(2 * FIRST_THROW);
+    expect(COUNT).toBeLessThan(3 * FIRST_THROW);
+  });
 });

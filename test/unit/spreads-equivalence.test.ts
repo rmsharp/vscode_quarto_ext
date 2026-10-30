@@ -34,6 +34,13 @@ const ALPHABET = ["a", "b", "c"];
 const MAX_LEN = 4;
 /** Past the first throw measured in fresh processes (110,360 and 110,428): 130,000, the size the item names. */
 const LONG = 130_000;
+/** The first throw of each old statement, measured on the base in fresh processes: the flattening's spread (last OK 110,359) and the bare citation spread (last OK 110,427). The guard rows at the end read the sizes of this file against them. */
+const FIRST_THROW = { flatten: 110_360, citations: 110_428 };
+/** The two children of the "sum" row and the three roots of the "below" row; the guard rows keep each one on its side of the first throw. */
+const EACH_OF_TWO = 70_000;
+const EACH_OF_THREE = 60_000;
+const FILE_A = 60_000;
+const FILE_B = 70_000;
 /** 3 s for the cure alone on a list of 130,000: the cure flattens 135,000 children in 14.1 ms and appends 135,000 citations in 1.4 ms (a scratch probe, fresh process), and a list copied for every element took 12,271 ms at that size. */
 const LIMIT_MS = 3000;
 
@@ -271,17 +278,17 @@ describe("Session 338 -- flattenOutline: the sizes around the first throw", () =
   }, 40_000);
 
   it("a root of two children that each hold 70,000: each spread alone is below the first throw and the root's holds 140,002, and the cure keeps the order", () => {
-    const forest = [symbol("heading", "Top", 0, [fan(70_000, 1), fan(70_000, 70_001)])];
+    const forest = [symbol("heading", "Top", 0, [fan(EACH_OF_TWO, 1), fan(EACH_OF_TWO, EACH_OF_TWO + 1)])];
     const expected = flattenByDefinition(forest, "");
     const cure = flattenOutline(forest);
     expect(sameFlat(cure, expected)).toBe(true);
-    expect(cure.length).toBe(1 + 2 + 70_000 * 2);
+    expect(cure.length).toBe(1 + 2 + EACH_OF_TWO * 2);
     const old = oldAnswer(() => oldFlattenOutline(forest));
     expect(old === "RangeError" || sameFlat(old, expected)).toBe(true);
   }, 40_000);
 
   it("three roots that each hold 60,000 (each list is below the first throw): the old statement reads them, and the cure gives the same list", () => {
-    const forest = [fan(60_000, 0), fan(60_000, 60_001), fan(60_000, 120_002)];
+    const forest = [fan(EACH_OF_THREE, 0), fan(EACH_OF_THREE, EACH_OF_THREE + 1), fan(EACH_OF_THREE, 2 * EACH_OF_THREE + 2)];
     const expected = flattenByDefinition(forest, "");
     const old = oldFlattenOutline(forest);
     expect(sameFlat(old, expected)).toBe(true);
@@ -409,14 +416,14 @@ describe("Session 338 -- appendCitations: the sizes around the first throw", () 
   });
 
   it("the adapter's loop over three files of 60,000, 0 and 70,000 (each below the first throw): the old statement reads them, and the cure gives the same list", () => {
-    const files = [listOf("p".repeat(60_000)), [], listOf("q".repeat(70_000))];
+    const files = [listOf("p".repeat(FILE_A)), [], listOf("q".repeat(FILE_B))];
     const old: Citation[] = [];
     const cure: Citation[] = [];
     for (const file of files) {
       oldAppend(old, file);
       appendCitations(cure, file);
     }
-    expect(old.length).toBe(130_000);
+    expect(old.length).toBe(FILE_A + FILE_B);
     expect(sameList(cure, old)).toBe(true);
     expect(sameList(cure, files[0].concat(files[1], files[2]))).toBe(true);
   });
@@ -428,5 +435,26 @@ describe("Session 338 -- appendCitations: the sizes around the first throw", () 
     appendCitations(target, second);
     expect(target.length).toBe(2 * LONG);
     expect(sameList(target, first.concat(second))).toBe(true);
+  });
+});
+
+// ── The sizes of this file, read against the first throws ────────────────────────────────────────────────
+
+describe("Session 338 -- the sizes of this file sit where the spreads fail, or do not fail, as the rows above say", () => {
+  it("the long list is past the first throw of both old statements", () => {
+    expect(LONG).toBeGreaterThan(FIRST_THROW.flatten);
+    expect(LONG).toBeGreaterThan(FIRST_THROW.citations);
+  });
+
+  it("the root of two children reaches the flattening's spread at the sum of its children, and each child alone is below it", () => {
+    expect(EACH_OF_TWO).toBeLessThan(FIRST_THROW.flatten);
+    expect(2 * EACH_OF_TWO + 2).toBeGreaterThan(FIRST_THROW.flatten);
+  });
+
+  it("the three roots, and the three files of the adapter's loop, are each below the first throw (the old statement reads them)", () => {
+    expect(EACH_OF_THREE).toBeLessThan(FIRST_THROW.flatten);
+    expect(FILE_A).toBeLessThan(FIRST_THROW.citations);
+    expect(FILE_B).toBeLessThan(FIRST_THROW.citations);
+    expect(FILE_A + FILE_B).toBeGreaterThan(FIRST_THROW.citations);
   });
 });
