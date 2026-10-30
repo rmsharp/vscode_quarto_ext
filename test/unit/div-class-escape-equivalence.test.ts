@@ -302,7 +302,8 @@ describe("Session 339 — classValueMayHoldEscape on lines of 10,000,000 charact
   const BIG = 10_000_000;
   // The review round (the mutation lens): three spellings of the key's test keep every answer and are quadratic on a run of the key's first letter or of its near miss: `indexOf("class=", i) === i`, `lastIndexOf("class=", i) === i`
   // and `startsWith("class", i) && indexOf("=", i) === i + 5`. On a line of 10,000,000 characters they take hours, and a synchronous loop is not stopped by the test timeout, so a row that merely measured the call would
-  // hang the runner until its own timeout instead of failing: the call is made under the vm's watchdog, which stops it at the limit, and the row fails there (the function answers these three in 71 to 96 ms, measured in fresh processes at load 7.6).
+  // hang the runner until its own timeout instead of failing. (Since the pass starts at the first `class=`, a tail with none is answered by the native search and never reaches those spellings: the rows that reach them have a key in front.)
+  // The call is made under the vm's watchdog, which stops it at the limit, and the row fails there (the function answers the three rows with a key in front in 71.8 to 95.1 ms and the three with none in 20.1 to 89.8 ms, one fresh process each, load 7.2).
   const RUN_OF_C = "c".repeat(BIG);
   const RUN_OF_CLASS = "class".repeat(2_000_000);
   const RUN_OF_CLAS = "clas".repeat(2_500_000);
@@ -341,6 +342,10 @@ describe("Session 339 — classValueMayHoldEscape on lines of 10,000,000 charact
     ["10,000,000 `c`, no `class=` (a run of the key's first letter)", RUN_OF_C, false],
     ["`class` x 2,000,000, no `=` (a run of the key's near miss)", RUN_OF_CLASS, false],
     ["`clas` x 2,500,000 (a run of a shorter near miss)", RUN_OF_CLAS, false],
+    // The pass starts at the first `class=` and a tail with none never reaches the loop, so the three rows above no longer reach a slow spelling of the key's test: these three put a key in front.
+    ["`class=`, then 10,000,000 `c`", "class=" + RUN_OF_C, false],
+    ["`class=`, then `class` x 2,000,000", "class=" + RUN_OF_CLASS, false],
+    ["`class=`, then `clas` x 2,500,000", "class=" + RUN_OF_CLAS, false],
     // The pass starts at the first `class=`: one that stands behind every cap a search could carry (4,096, 65,536, 2^20 characters) must still be found, in a one-byte and in a two-byte string (V8 searches them by another routine).
     ["10,000,000 letters, then `class=` and an ampersand", "a".repeat(BIG) + "class=&", true],
     ["a character above U+00FF, 10,000,000 letters, then `class=` and an ampersand", ABOVE_FF + "a".repeat(BIG) + "class=&", true],
