@@ -18,6 +18,7 @@ import { promises as fs } from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import {
+  appendCitations,
   type Citation,
   citationCompletionContext,
   parseCitations,
@@ -104,7 +105,7 @@ async function loadCitations(
   for (const rel of relPaths) {
     try {
       const content = await fs.readFile(path.resolve(dir, rel), "utf8");
-      all.push(...parseCitations(content));
+      appendCitations(all, parseCitations(content));
     } catch {
       // Missing/unreadable bib file — skip it; offer what we can.
     }

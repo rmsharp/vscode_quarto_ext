@@ -34,7 +34,7 @@ const ALPHABET = ["a", "b", "c"];
 const MAX_LEN = 4;
 /** Past the first throw measured in fresh processes (110,360 and 110,428): 130,000, the size the item names. */
 const LONG = 130_000;
-/** 3 s for the cure alone on a list of 130,000: it reads in about a hundredth of that. */
+/** 3 s for the cure alone on a list of 130,000: the cure flattens 135,000 children in 14.1 ms and appends 135,000 citations in 1.4 ms (a scratch probe, fresh process), and a list copied for every element took 12,271 ms at that size. */
 const LIMIT_MS = 3000;
 
 // ── The OLD statements, verbatim ────────────────────────────────────────────────────────────────────────

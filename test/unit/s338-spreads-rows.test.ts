@@ -15,14 +15,14 @@ import { type FlatOutlineSymbol, flattenOutline } from "../../src/core/workspace
 // about 15 between processes (110,346 and a last OK that did not repeat), because the optimizing compiler changes the size of a frame. The stage that throws is `flattenOutline` every time, never `buildOutline`.
 // THE WIDTH OF THE LINE DOES NOT MATTER HERE (unlike a regex over a line): a document of characters up to U+00FF and one with the CJK letter U+4E2D in the Top heading threw at the same count. Neither does the
 // engine hint (undefined, "knitr", "jupyter", or the resolver's answer) nor the shape (headings or cells). The BACKLOG item says 125,742: that figure came from another process and the first throw moves with the stack
-// the process starts with, so the sizes below are 135,000, which is past both (1.22 times the figure measured here), and not the twice of Learning 775, because building the Outline of this document costs about a second a row.
+// the process starts with, so the size below is 250,000 descendants, about twice the first throw (Learning 775): 2.27 times the figure measured here and 1.99 times the BACKLOG's.
 //
 // THE ANSWER is what a short version of the same document gives: the list is depth-first, the first symbol is `Top` with an empty container, and every other symbol has `Top` (or `Mid`) as its container. Each row
-// checks every one of the 135,001 symbols, not the length alone.
+// checks every one of the 250,001 symbols, not the length alone.
 
-const COUNT = 135_000;
+const COUNT = 250_000;
 const SHORT = 3;
-/** 3 s for `flattenOutline` alone: the loop reads 135,000 descendants in about ten milliseconds, and a flatten that copies the list for every symbol (concat in a loop) takes ten seconds or more at this size. */
+/** 3 s for `flattenOutline` alone: the cure flattens 135,000 children in 14.1 ms (a scratch probe, fresh process), and a list copied for every element (a `concat` in a loop, measured on 135,000 citations) took 12,271 ms, so a flatten that is quadratic still fails this limit at 250,000. */
 const LIMIT_MS = 3000;
 const ROW_TIMEOUT_MS = 40_000;
 
@@ -109,7 +109,7 @@ describe("Session 338 -- the helpers of these rows read a SHORT document the way
     ["headings", headingShape],
     ["python cells", cellShape("python")],
     ["r cells", cellShape("r")],
-  ])("%s: %i children under Top give the answer the long rows expect", (_label, shape) => {
+  ])("%s: a short document gives the answer the long rows expect", (_label, shape) => {
     for (const hint of HINTS) {
       const text = shape.build(SHORT, "# Top");
       expect(disagreements(flatOf(text, hint).flat, shape, SHORT, "Top")).toEqual([]);

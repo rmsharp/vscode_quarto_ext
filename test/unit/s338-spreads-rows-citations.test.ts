@@ -12,15 +12,15 @@ import { appendCitations, type Citation, parseCitations } from "../../src/core/c
 // Measured at HEAD `fe6aaec` (Session 338, Node 22.23.3, one fresh process per probe, the lower bound run and OK before each bisect), driving the real adapter `CitationCompletionProvider.provideCompletionItems` with `vscode`
 // stubbed and one bibliography of N entries named in the front matter (scratchpad only, never committed): the completion lists all N citekeys up to 106,319 entries and answers `undefined` (nothing) from 106,320, in BibTeX
 // and in CSL-JSON alike. The bare spread `all.push(...parseCitations(content))` outside the adapter threw from 110,428 entries in both formats (the adapter's own frames cost a few thousand). The BACKLOG item says 125,770
-// (125,768 in CSL-JSON): that figure came from another process and the first throw moves with the stack the process starts with, so the size below is 135,000, past all three (1.27 times the first throw measured in the adapter).
+// (125,768 in CSL-JSON): that figure came from another process and the first throw moves with the stack the process starts with, so the size below is 250,000 entries, about twice the first throw (Learning 775): 2.35 times the one measured in the adapter and 1.99 times the BACKLOG's.
 //
 // THE ADAPTER IS NOT UNIT-TESTABLE (it imports `vscode`), so the accumulation lives in `core/citations.ts` as `appendCitations` and the rows below drive THAT with the real parser, the way the adapter's loop does: the
 // parsed list of each file appended to one list, in the order the front matter names the files. The ONE line these rows cannot run is the call in the adapter; `test/integration/suite/citation.test.ts` (`npm run test:integration`,
 // which takes over the screen and was not run) is the only run of it. The last describe reads the adapter's SOURCE for that line, which is a wiring gate and not a run.
 
-const COUNT = 135_000;
+const COUNT = 250_000;
 const SHORT = 3;
-/** 3 s for the append alone: the loop appends 135,000 citations in a few milliseconds, and an append that copies the target for every citation (concat in a loop) takes many seconds at this size. */
+/** 3 s for the append alone: the cure appends 135,000 citations in 1.4 ms (a scratch probe, fresh process), and a list copied for every element (a `concat` in a loop) took 12,271 ms at that size, so an append that is quadratic still fails this limit at 250,000. */
 const LIMIT_MS = 3000;
 const ROW_TIMEOUT_MS = 40_000;
 
@@ -75,26 +75,26 @@ describe("Session 338 -- the helpers of these rows read a SHORT bibliography the
   it.each([
     ["BibTeX", bibtex],
     ["CSL-JSON", cslJson],
-  ])("%s: %i entries give the citations the long rows expect", (_label, build) => {
+  ])("%s: a short bibliography gives the citations the long rows expect", (_label, build) => {
     expect(disagreements(accumulate([build(SHORT)]).all, SHORT)).toEqual([]);
   });
 });
 
 describe("Session 338 -- a bibliography of more than a hundred thousand entries must still be offered by the citation completion (the BACKLOG item \"Eleven more places that throw RangeError\", part E, site 8)", () => {
-  it("BibTeX, 135,000 entries in one file: every citation is accumulated, in file order", () => {
+  it("BibTeX, 250,000 entries in one file: every citation is accumulated, in file order", () => {
     const { all, ms } = accumulate([bibtex(COUNT)]);
     expect(disagreements(all, COUNT)).toEqual([]);
     expect(ms).toBeLessThan(LIMIT_MS);
   }, ROW_TIMEOUT_MS);
 
-  it("CSL-JSON, 135,000 entries in one file: every citation is accumulated, in file order", () => {
+  it("CSL-JSON, 250,000 entries in one file: every citation is accumulated, in file order", () => {
     const { all, ms } = accumulate([cslJson(COUNT)]);
     expect(disagreements(all, COUNT)).toEqual([]);
     expect(ms).toBeLessThan(LIMIT_MS);
   }, ROW_TIMEOUT_MS);
 
-  it("two files, a BibTeX of 70,000 then a CSL-JSON of 65,000: 135,000 citations, the first file's first (the order the front matter names them)", () => {
-    const { all } = accumulate([bibtex(70_000), cslJson(65_000, 70_000)]);
+  it("two files, a BibTeX of 130,000 then a CSL-JSON of 120,000: 250,000 citations, the first file's first (the order the front matter names them)", () => {
+    const { all } = accumulate([bibtex(130_000), cslJson(120_000, 130_000)]);
     expect(disagreements(all, COUNT)).toEqual([]);
   }, ROW_TIMEOUT_MS);
 

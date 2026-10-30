@@ -39,6 +39,29 @@ export function parseCitations(content: string): Citation[] {
   return parseBibtex(content);
 }
 
+/**
+ * Append every citation of `more` to `target`, in order, one at a time.
+ *
+ * ⚠ **WHY A LOOP AND NOT `target.push(...more)`.** A call with a spread argument puts one stack slot per
+ * element on the call stack, so a bibliography with more entries than the stack holds threw
+ * `RangeError: Maximum call stack size exceeded` in the adapter's `loadCitations`: the completion listed
+ * every citekey up to 106,319 entries and nothing from 106,320 (the bare spread throws from 110,428;
+ * BibTeX and CSL-JSON alike; Node 22.23.3, fresh process per probe). The `catch` around it is EMPTY (a
+ * missing or unreadable bibliography must not break completion), so the throw was swallowed and the file
+ * added no citation at all. The adapter cannot be unit-tested (it imports `vscode`), which is why the
+ * accumulation lives here.
+ *
+ * The length is read ONCE, before the loop: `appendCitations(x, x)` doubles `x`, as the spread did, and
+ * does not chase the list it is growing. The old statement lives on as the oracle of
+ * `test/unit/spreads-equivalence.test.ts` (`oldAppend`).
+ */
+export function appendCitations(target: Citation[], more: readonly Citation[]): void {
+  const length = more.length;
+  for (let i = 0; i < length; i++) {
+    target.push(more[i]);
+  }
+}
+
 // ── Completion context ──────────────────────────────────────────────────────
 
 /** Where an in-progress `@key` citation begins, and what has been typed so far. */
