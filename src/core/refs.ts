@@ -100,7 +100,7 @@ const KIND_PREFIX = /^(fig|tbl|sec|eq|lst)-/;
  * `{#fig-t08a#b}` defines `b` and no `fig-` target exists (t08, and Session 219's measured
  * last-wins rule).
  *
- * This is the same set `ATTR_ID_ALL` matches an atom with in `src/core/qmd/model.ts`, where
+ * This is the same set `attributeIds` matches an atom with in `src/core/qmd/model.ts` (the retired `ATTR_ID_ALL` pattern, Session 338), where
  * Session 218 measured it for HEADING attribute blocks. Session 221 re-measured it here for
  * images, divs and display equations rather than porting it, because "what may a heading's
  * identifier hold" and "what may an image's identifier hold" are two questions that happen to
@@ -137,7 +137,7 @@ const DEFINED_ID_CHAR_CLASS = String.raw`[\p{L}\p{N}_:.-]`;
  *
  * ⚠ **THIS IS THE SAME CLASS AS THE ATTRIBUTE-BLOCK PATH BECAUSE THE TWO WERE MEASURED TO ASK
  * ONE QUESTION — NOT BECAUSE ONE WAS PORTED TO THE OTHER.** (Session 222 split Source 3 into
- * a validated {@link isAttributeBlock} path, whose ids come from `ATTR_ID_ALL` in
+ * a validated {@link isAttributeBlock} path, whose ids come from `attributeIds` in
  * `core/qmd/model.ts`, and the older {@link narrowLabel} scan for the productions quarto owns
  * itself; the identifier SET is the same across all three, which is what this note is about.) The obvious model, and the one Session
  * 221 froze as its prediction, is that the label is the YAML scalar verbatim. That scored
@@ -181,7 +181,7 @@ export function cellLabelValue(value: string): { id: string; length: number } | 
  * ⚠ **A SECTION IS A HEADING'S AND AN EQUATION IS DISPLAY MATH'S, NEVER A CELL'S.** `#| label: sec-x` and `#| label: eq-x` print
  * `?@sec-x` / `?@eq-x` in quarto 1.7.33 in every cell language (r, python, mermaid, dot, ojs) under every document engine (knitr,
  * Jupyter, markdown): 26 rendered documents of 26 (`scratchpad/s305/grid1`, g040-g065), and the same two kinds in the knitr chunk
- * HEADER were already refused by {@link HEADER_LABEL_ID}. The `#|` path read the kind off the prefix and accepted all five, so the
+ * HEADER were already refused by {@link headerLabelKind}. The `#|` path read the kind off the prefix and accepted all five, so the
  * completion list and go-to-definition offered a target that does not exist.
  *
  * ⚠ **EXCEPT IN A DOCUMENT THAT CAN WRITE THE TARGET AT RUN TIME.** A cell whose OUTPUT carries `## T {#sec-x}` or `$$ y = x $$ {#eq-x}` makes quarto
@@ -213,11 +213,11 @@ const CELL_NEVER_DEFINES: ReadonlySet<RefKind> = new Set<RefKind>(["sec", "eq"])
  * older `#|` path does not read and this pattern does not inherit. (Under Jupyter and in a handler cell `#| label: lst-x`
  * does define one, Session 305: {@link CELL_NEVER_DEFINES}.)
  *
- * ⚠ **ANCHORED AT BOTH ENDS, UNLIKE {@link CELL_LABEL_VALUE}.** That pattern takes the longest id-shaped PREFIX
+ * ⚠ **ANCHORED AT BOTH ENDS, UNLIKE {@link cellLabelValue}.** That pattern takes the longest id-shaped PREFIX
  * of a `#|` value, so `#| label: fig-a$x` is read as `fig-a` and defines a phantom. The header slot is read
  * whole: `{r fig-a$x}` and `{r fig-a b}` define nothing (a20, a23 — the first slot is quoted verbatim by knitr, so
  * these spell the same text as `{r "fig-a$x"}` and `{r 'fig-a b'}`), and quoting is no licence to widen the class
- * (the same measurement {@link CELL_LABEL_VALUE} records for the pipe path). A bare `{r fig-}` was not rendered
+ * (the same measurement {@link cellLabelValue} records for the pipe path). A bare `{r fig-}` was not rendered
  * (the reference `@fig-` cannot be written as a probe): it is declined as a name-less id. The label must also
  * START with the kind, so an ordinary chunk label that merely contains one (`{r a-fig-x}`) defines nothing.
  *
