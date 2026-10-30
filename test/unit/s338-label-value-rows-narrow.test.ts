@@ -41,7 +41,9 @@ describe("the clock helper of the Session 338 narrow label rows", () => {
 const WIDE_LETTER = "中"; // a CJK letter above U+00FF: one such character puts the whole line on two bytes a character
 const FEW = 4;
 const MANY = 8_400_000; // twice 4,194,288, the first throw of the pattern (4,194,287 reads; Node 22.23, HEAD fe6aaec)
-const LIMIT_MS = 10_000; // the cured read takes well under a second; the old pattern throws and a quadratic reading would take hours
+// Chosen from the cured reads, measured at 8,400,000 letters behind a character above U+00FF in a fresh process: `indexLabels` took 173 to 176 ms for the group shapes and 337 ms for the cell and the group in one document,
+// `findLabel` (a probe that ran the index and then the lookup) 316 to 325 ms and 611 ms, so 10 s is more than fifteen times the slowest; the old pattern throws and a quadratic reading would take hours.
+const LIMIT_MS = 10_000;
 
 type Form = "latin1" | "wide";
 /** The letters of the id after the kind prefix: `n` letters, the last of them U+4E2D in the wide form (so the id itself holds the character above U+00FF). */

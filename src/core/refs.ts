@@ -109,18 +109,36 @@ const KIND_PREFIX = /^(fig|tbl|sec|eq|lst)-/;
 const DEFINED_ID_CHAR_CLASS = String.raw`[\p{L}\p{N}_:.-]`;
 /**
  * The VALUE of a `label:` cell option — `fig-plot` out of `#| label: fig-plot` — with an
- * optional opening YAML quote. Group 1 is the id; because the pattern is anchored at `^`
- * of the value span, its column is the span's start plus `match[0].length - id.length`.
+ * optional opening YAML quote. The answer is the id and the LENGTH of the match (the quote, when one
+ * was taken, and the id); because the value is read from its first character, the id's column is the
+ * span's start plus `length - id.length`.
  *
  * Which LINES carry a `label:` option is not decided here: Source 2 reads them from the
  * shared option scanner ({@link cellOptionLinesOf}), which owns the cell language's
- * comment character, the leading-block rule and YAML's multi-line folding. This pattern
+ * comment character, the leading-block rule and YAML's multi-line folding. This reader
  * only decides what the VALUE may hold.
+ *
+ * ⚠ **IT IS A LOOP, NOT THE PATTERN IT REPLACED (Session 338).** The value was read as
+ * `^["']?([\p{L}\p{N}_][\p{L}\p{N}_:.-]*)` under the `u` flag, and V8 keeps one entry of its regex
+ * backtrack stack per character of a class-star, twice as large once the line holds a character above
+ * U+00FF (the subject is then stored with two bytes a character): `#| label: fig-` and 4,194,284 letters
+ * threw `RangeError: Maximum call stack size exceeded` through {@link indexLabels} and {@link findLabel}
+ * (4,194,283 read, Node 22.23, one fresh process per probe, the lower bound verified). A line of
+ * characters up to U+00FF never threw (500,000,000 letters read). A thrown `RangeError` answers NOTHING
+ * for the whole document: no label index, so no completion and no go-to-definition. {@link runEnd} reads
+ * the id by index, with no stack. `test/unit/label-value-equivalence.test.ts` keeps the old pattern
+ * as the oracle (Learning 738) and compares the two on every string it can enumerate.
+ *
+ * ⚠ **THE OPENING QUOTE IS TAKEN ONLY WHEN AN ID START FOLLOWS IT.** The pattern's `["']?` is optional
+ * and the engine backtracks: a quote followed by a non-start (`"."`, `"-a"`, `""a`, a lone `"`) falls
+ * back to no quote, and the start clause then fails on the quote itself, so the WHOLE value is
+ * refused. And the id is the LONGEST identifier prefix — the pattern was not anchored at the end — so
+ * `fig-a$b` is `fig-a`.
  *
  * ⚠ **THIS IS THE SAME CLASS AS THE ATTRIBUTE-BLOCK PATH BECAUSE THE TWO WERE MEASURED TO ASK
  * ONE QUESTION — NOT BECAUSE ONE WAS PORTED TO THE OTHER.** (Session 222 split Source 3 into
  * a validated {@link isAttributeBlock} path, whose ids come from `ATTR_ID_ALL` in
- * `core/qmd/model.ts`, and the older {@link NARROW_LABEL} scan for the productions quarto owns
+ * `core/qmd/model.ts`, and the older {@link narrowLabel} scan for the productions quarto owns
  * itself; the identifier SET is the same across all three, which is what this note is about.) The obvious model, and the one Session
  * 221 froze as its prediction, is that the label is the YAML scalar verbatim. That scored
  * **11 of 24** (`scratchpad/s221/cal/cell.qmd`). What actually happens is that quarto's engine
@@ -140,19 +158,23 @@ const DEFINED_ID_CHAR_CLASS = String.raw`[\p{L}\p{N}_:.-]`;
  * TRAILING `:` is a hard render error — `YAMLException: bad indentation of a mapping entry`.
  *
  * ⚠ **THE LEADING `[\p{L}\p{N}_]` IS VESTIGIAL HERE AND IS KEPT ONLY BECAUSE REMOVING IT WOULD
- * BE AN UNMEASURED CHANGE.** Unlike {@link NARROW_LABEL}, whose kind prefix sits OUTSIDE the
+ * BE AN UNMEASURED CHANGE.** Unlike {@link narrowLabel}, whose kind prefix sits OUTSIDE the
  * capture, this group starts at the prefix itself — so the `f` of `fig-` always satisfies the
  * clause and only the tail ever decided anything. That asymmetry is why the pre-session defect
  * differed in kind between the two sources: here a punctuation-first name yielded the bare
  * `fig-`, a kind prefix with an empty name, rather than being refused outright.
  */
-const CELL_LABEL_VALUE = new RegExp(
-  String.raw`^["']?(` +
-    String.raw`[\p{L}\p{N}_]` +
-    DEFINED_ID_CHAR_CLASS +
-    String.raw`*)`,
-  "u",
-);
+export function cellLabelValue(value: string): { id: string; length: number } | null {
+  const first = value.charCodeAt(0);
+  const from = first === 0x22 || first === 0x27 ? 1 : 0; // an opening `"` or `'`; the quote is part of the match, never of the id
+  // The id must START with a letter, a number or `_`: the class holds `:`, `.` and `-` too, but only after the first character.
+  const start = value.charCodeAt(from);
+  if (start === 0x3a || start === 0x2e || start === 0x2d) {
+    return null;
+  }
+  const end = runEnd(value, from, IDENTIFIER_RUN);
+  return end === from ? null : { id: value.slice(from, end), length: end };
+}
 /**
  * The cross-reference kinds a code cell's `label:` never defines (Session 305).
  *
@@ -262,11 +284,40 @@ export function trailingBlanks(text: string): string {
  * `{#fig-.t30b}` and `{#fig--t31b}` outright, both of which quarto defines
  * (`scratchpad/s221/cal/attr.qmd` t30/t31) — so widening only the tail would have left half
  * the defect in place.
+ *
+ * ⚠ **IT IS A LOOP, NOT THE PATTERN IT REPLACED (Session 338).** The group was read as
+ * `^#((?:fig|tbl|eq|lst)-[\p{L}\p{N}_:.-]+)` under the `u` flag, and V8 keeps one entry of its regex
+ * backtrack stack per character of a class-plus, twice as large once the line holds a character above
+ * U+00FF (the subject is then stored with two bytes a character): `text {#fig-` and 4,194,288 letters
+ * and ` b}` threw `RangeError: Maximum call stack size exceeded` through {@link indexLabels} and
+ * {@link findLabel}, and so did a table caption (`: Cap {#tbl-…`) and display math (`$$ x $$ {#eq-…`)
+ * (4,194,287 read, Node 22.23, one fresh process per probe, the lower bound verified). A line of
+ * characters up to U+00FF never threw (500,000,000 letters read). A thrown `RangeError` answers NOTHING
+ * for the whole document. {@link runEnd} reads the id by index, with no stack.
+ * `test/unit/label-value-equivalence.test.ts` keeps the old pattern as the oracle (Learning 738) and
+ * compares the two on every string it can enumerate.
+ *
+ * The answer is the id with its kind prefix (`fig-plot`, everything after the `#`), the LONGEST
+ * identifier prefix because the pattern was not anchored at the end, and `null` for a group that does not
+ * begin with `#`, for another kind (`sec-` is Source 1's) and for a kind prefix with no identifier
+ * character after its dash.
  */
-const NARROW_LABEL = new RegExp(
-  String.raw`^#((?:fig|tbl|eq|lst)-` + DEFINED_ID_CHAR_CLASS + String.raw`+)`,
-  "u",
-);
+export function narrowLabel(content: string): string | null {
+  if (content.charCodeAt(0) !== 0x23) {
+    return null;
+  }
+  // The four kind prefixes begin with four different letters, so at most one can follow the `#`.
+  for (const prefix of NARROW_KIND_PREFIXES) {
+    if (content.startsWith(prefix, 1)) {
+      const start = 1 + prefix.length;
+      const end = runEnd(content, start, IDENTIFIER_RUN);
+      return end === start ? null : content.slice(1, end);
+    }
+  }
+  return null;
+}
+/** The kinds {@link narrowLabel} reads, each with the `-` that ends it. */
+const NARROW_KIND_PREFIXES: readonly string[] = ["fig-", "tbl-", "eq-", "lst-"];
 
 /**
  * Whether `group` is the Pandoc ATTRIBUTE BLOCK of the element it sits on, rather than a brace
@@ -296,7 +347,7 @@ const NARROW_LABEL = new RegExp(
  * an attribute block is CONSUMED here whether or not it yields an id.
  *
  * ⚠ **DISPLAY MATH AND TABLE CAPTIONS ARE DELIBERATELY NOT LISTED, BECAUSE THEY ARE NOT THIS
- * PRODUCTION.** See {@link NARROW_LABEL}'s docstring for what they are and why they keep the
+ * PRODUCTION.** See {@link narrowLabel}'s docstring for what they are and why they keep the
  * older scan.
  */
 function isAttributeBlock(lineText: string, group: BraceGroup): boolean {
@@ -602,11 +653,11 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
       if (key !== "label" || valueSlot === null) {
         continue;
       }
-      const m = CELL_LABEL_VALUE.exec(lineText.slice(valueSlot.startCol, valueSlot.endCol));
-      if (!m) {
+      const m = cellLabelValue(lineText.slice(valueSlot.startCol, valueSlot.endCol));
+      if (m === null) {
         continue;
       }
-      const value = m[1];
+      const value = m.id;
       const kind = kindOf(value);
       // ⚠ A `sec-`/`eq-` label is no definition (quarto prints `?@sec-x`), unless the document can write the target at run time: see
       // {@link CELL_NEVER_DEFINES}, which also lists the rows. A document with such a channel keeps the label, because a wrong removal loses
@@ -618,7 +669,7 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
         id: value,
         kind,
         line: option.line,
-        column: removed + valueSlot.startCol + m[0].length - value.length,
+        column: removed + valueSlot.startCol + m.length - value.length,
       });
     }
     // ⚠ A HANDLER cell (`ojs`, `mermaid`, `dot`) is run by quarto's own handler and never reaches knitr, so its
@@ -692,13 +743,13 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
       if (FENCE_RUN.test(rawText.slice(contentStart))) {
         continue;
       }
-      const m = NARROW_LABEL.exec(group.content);
-      if (m === null) {
+      const narrowId = narrowLabel(group.content);
+      if (narrowId === null) {
         continue;
       }
-      const kind = kindOf(m[1]);
+      const kind = kindOf(narrowId);
       if (kind !== null) {
-        labels.push({ id: m[1], kind, line, column: group.start + 2 });
+        labels.push({ id: narrowId, kind, line, column: group.start + 2 });
       }
     }
   }

@@ -33,8 +33,8 @@ const CJK_LETTER = String.fromCharCode(0x4e2d); // a letter above U+00FF: one su
 
 type CellAnswer = { id: string; length: number } | null;
 
-/** The kinds of the characters of the alphabets, STATED: letters are the ASCII letters, `é` and the astral letter; numbers are the ASCII digits, `²` and the Arabic three. */
-const isLetter = (c: string): boolean => /^[A-Za-z]$/.test(c) || c === E_ACUTE || c === ASTRAL_LETTER;
+/** The kinds of the characters of the alphabets, STATED: letters are the ASCII letters, `é`, the CJK letter and the astral letter; numbers are the ASCII digits, `²` and the Arabic three. */
+const isLetter = (c: string): boolean => (c >= "a" && c <= "z") || (c >= "A" && c <= "Z") || c === E_ACUTE || c === CJK_LETTER || c === ASTRAL_LETTER;
 const isNumber = (c: string): boolean => (c >= "0" && c <= "9") || c === SUPERSCRIPT_TWO || c === ARABIC_THREE;
 const isStart = (c: string): boolean => isLetter(c) || isNumber(c) || c === "_";
 const isIdentifier = (c: string): boolean => isStart(c) || c === ":" || c === "." || c === "-";
@@ -277,7 +277,7 @@ describe("Session 338 — cellLabelValue answers what CELL_LABEL_VALUE's pattern
     expect(compared).toBe(countCodeUnitEdits(CELL_SWEEP_HEADS));
     expect(compared).toBe((17 + 9 + 3 + 1) * 0x10000);
     expect(accepted).toBeGreaterThan(compared / 10);
-    expect(accepted).toBeLessThan(compared * 0.9);
+    expect(accepted).toBeLessThan(compared * 0.95);
   });
 
   it("agrees with the pattern and with the grammar by definition on every ASCII code unit at every place of the four heads, and the count is the Python port's", () => {

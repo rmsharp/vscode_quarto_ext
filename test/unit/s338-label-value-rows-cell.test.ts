@@ -38,7 +38,8 @@ describe("the clock helper of the Session 338 cell label rows", () => {
 const WIDE_LETTER = "中"; // a CJK letter above U+00FF: one such character puts the whole line on two bytes a character
 const FEW = 4;
 const MANY = 8_400_000; // twice 4,194,284, the first throw of the pattern (4,194,283 reads; Node 22.23, HEAD fe6aaec)
-// Chosen from the cured read: it took about 0.3 to 1 s for the longest row (measured with the cure in place), the old pattern throws and a quadratic reading would take hours.
+// Chosen from the cured reads, measured at 8,400,000 letters behind a character above U+00FF in a fresh process: `indexLabels` took 169 to 206 ms for the cell shapes and `findLabel` (a probe that ran the index
+// and then the lookup) 322 to 649 ms, so 10 s is more than fifteen times the slowest; the old pattern throws and a quadratic reading of a line this long would take hours.
 const LIMIT_MS = 10_000;
 
 type Form = "latin1" | "wide";
