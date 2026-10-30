@@ -230,7 +230,7 @@ describe("Session 339 — rawTexEndNames on long lines", () => {
     ["2,000,000 openers (10,000,000 characters) with no brace", END.repeat(2_000_000), []],
     ["1,000,000 two-byte openers (6,000,000 characters) with no brace", (END + WIDE_CHAR).repeat(1_000_000), []],
     ["a line that holds one complete delimiter and then 2,000,000 openers", "\\end{a}" + END.repeat(2_000_000), ["a"]],
-    ["2,000,000 openers and one brace at the very end: one name, all the rest", END.repeat(2_000_000) + "}", [END.repeat(1_999_999) + "\\end{"]],
+    ["2,000,000 openers and one brace at the very end: one name, all the rest", END.repeat(2_000_000) + "}", [END.repeat(1_999_999)]],
     ["1,000,000 complete delimiters", "\\end{a}".repeat(1_000_000), new Array<string>(1_000_000).fill("a")],
     ["1,600,000 empty delimiters", "\\end{}".repeat(1_600_000), new Array<string>(1_600_000).fill("")],
     ["a name of 10,000,000 letters", "\\end{" + "a".repeat(10_000_000) + "}", ["a".repeat(10_000_000)]],

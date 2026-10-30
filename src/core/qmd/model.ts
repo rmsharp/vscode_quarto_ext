@@ -4756,6 +4756,34 @@ export const THEMATIC_BREAK_ANY_INDENT = /^[ \t]*(?:\*[ \t]*\*[ \t]*\*[ \t*]*|-[
  */
 const RAW_TEX_ENV_DELIM = /^ {0,3}\\(begin|end)\{([^}]*)\}/;
 /**
+ * The names of the `\end{name}` delimiters on one line, in order (Session 339): what `/\\end\{([^}]*)\}/g` matched, read with `indexOf`.
+ *
+ * ⚠ **THE PATTERN WAS QUADRATIC ON A LINE THAT REPEATS `\end{` WITH NO `}`.** An `\end{` with no `}` after it fails only after `[^}]*` has read to the end of the line, and the scan then restarted at the next `\end{`:
+ * `\end{` x 40,000 (200,000 characters) cost 3.7 s in `findHeadings` at `4d1944c`, 4x per doubling, at the two places that ran it (`lastRawTexEnvEnd` over every line, and the LIFO probe in `computeRegions` over a line
+ * that starts with an `\end{}`: 7.5 s for both on a line that opens with `\end{a}`). The matches, in order: the leftmost `\end{` starts one; its name is everything up to the FIRST `}` after the `{`, so a name may hold a CR, a
+ * U+2028, a no-break space, a `{`, a backslash or a nested `\end{` (`\end{\end{a}` names `\end{a`); the next search starts AFTER that `}`; and an `\end{` with no `}` after it ends the scan, because a later `\end{` needs a `}`
+ * after a later place and so has none either. Each `indexOf` starts where the last one stopped, so the line is read once: `findHeadings` of a document that is `\end{` repeated, a blank line and a heading took 4.9 ms at
+ * 100,000 characters, 8.2 ms at 1,000,000 and 40.1 ms at 10,000,000 (Session 339, one fresh process per timing, Node 22, load 8), and none throws.
+ *
+ * The old pattern is kept as the oracle of `test/unit/raw-tex-end-equivalence.test.ts`, beside a reading by definition that uses no regex.
+ */
+export function rawTexEndNames(line: string): string[] {
+  const names: string[] = [];
+  for (let from = 0; ; ) {
+    const open = line.indexOf("\\end{", from);
+    if (open === -1) {
+      break;
+    }
+    const close = line.indexOf("}", open + 5);
+    if (close === -1) {
+      break;
+    }
+    names.push(line.slice(open + 5, close));
+    from = close + 1;
+  }
+  return names;
+}
+/**
  * The LAST line on which each environment name is closed by an `\end{name}` (Session 226).
  *
  * ⚠ **What decides a `\begin{}` sits BELOW it, which is why this is an index and not a
@@ -4778,11 +4806,9 @@ function lastRawTexEnvEnd(lines: readonly string[]): ReadonlyMap<string, number>
   // `\\end{b}\\end{a}` / `# H j01` find no `\\end{a}`, call the `\\begin` unmatched, and leave a
   // paragraph open across a heading quarto really renders (`scratchpad/s226/r4/j01`).
   // Under-matching this index DELETES; over-matching only forgoes a recovery.
-  const scan = /\\end\{([^}]*)\}/g;
   for (let i = 0; i < lines.length; i++) {
-    scan.lastIndex = 0;
-    for (let m = scan.exec(lines[i]); m !== null; m = scan.exec(lines[i])) {
-      last.set(m[1], i);
+    for (const name of rawTexEndNames(lines[i])) {
+      last.set(name, i);
     }
   }
   return last;
@@ -13101,9 +13127,8 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
       let texEndPops = 0;
       if (texEnv !== null && texEnv[1] === "end") {
         const probe = [...rawTexEnvStack];
-        const scan = /\\end\{([^}]*)\}/g;
-        for (let m = scan.exec(line); m !== null; m = scan.exec(line)) {
-          if (probe[probe.length - 1] === m[1]) {
+        for (const name of rawTexEndNames(line)) {
+          if (probe[probe.length - 1] === name) {
             probe.pop();
             texEndPops++;
           }
