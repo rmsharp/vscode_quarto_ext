@@ -88,26 +88,26 @@
   "why": "only the first eight names of a line are stored, so a closer that is the ninth name of its line is lost; every round-one row lived; killed by 2 rows of the second round of `raw-tex-end-equivalence.test.ts` (the closer and the popping name, ninth)"
  },
  {
-  "name": "B01 probe: names compared without case",
+  "name": "B01 pops: names compared without case",
   "file": "src/core/qmd/model.ts",
-  "from": "          if (probe[probe.length - 1] === name) {",
-  "to": "          if (probe[probe.length - 1]?.toLowerCase() === name.toLowerCase()) {",
+  "from": "    if (top > 0 && stack[top - 1] === name) {",
+  "to": "    if (top > 0 && stack[top - 1].toLowerCase() === name.toLowerCase()) {",
   "expect": "killed",
   "why": "names compared without case: `\\end{A}` pops `a`, and the real `\\end{a}` below then finds nothing open; every round-one row lived; killed by the second-round row 'a closer in the wrong case pops nothing' of `raw-tex-end-equivalence.test.ts`"
  },
  {
-  "name": "B02 probe: the name is trimmed",
+  "name": "B02 pops: the name is trimmed",
   "file": "src/core/qmd/model.ts",
-  "from": "          if (probe[probe.length - 1] === name) {",
-  "to": "          if (probe[probe.length - 1] === name.trim()) {",
+  "from": "    if (top > 0 && stack[top - 1] === name) {",
+  "to": "    if (top > 0 && stack[top - 1] === name.trim()) {",
   "expect": "killed",
   "why": "the name on the line is trimmed before the comparison: `\\end{a }` pops `a`; every round-one row lived; killed by the second-round row 'a closer padded with a blank pops nothing' of `raw-tex-end-equivalence.test.ts`"
  },
  {
-  "name": "B03 probe: a name that starts with the top closes it",
+  "name": "B03 pops: a name that starts with the top closes it",
   "file": "src/core/qmd/model.ts",
-  "from": "          if (probe[probe.length - 1] === name) {",
-  "to": "          if (probe.length > 0 && name.startsWith(probe[probe.length - 1])) {",
+  "from": "    if (top > 0 && stack[top - 1] === name) {",
+  "to": "    if (top > 0 && name.startsWith(stack[top - 1])) {",
   "expect": "killed",
   "why": "a name that starts with the top of the stack pops it: `\\end{a }` and `\\end{ab}` pop `a`; every round-one row lived; killed by 2 rows of the second round of `raw-tex-end-equivalence.test.ts` (the blank-padded closer and the longer-named closer)"
  },
@@ -128,42 +128,42 @@
   "why": "at most three pops from the real stack: four environments closed by one line leave one open; every round-one row lived; killed by the second-round row 'four environments closed on one line leave nothing' of `raw-tex-end-equivalence.test.ts`"
  },
  {
-  "name": "B11 probe: the first three names of the line",
+  "name": "B11 pops: the first three names of the line",
   "file": "src/core/qmd/model.ts",
-  "from": "        for (const name of rawTexEndNames(line)) {\n          if (probe[probe.length - 1] === name) {",
-  "to": "        for (const name of rawTexEndNames(line).slice(0, 3)) {\n          if (probe[probe.length - 1] === name) {",
+  "from": "  for (const name of rawTexEndNames(line)) {\n    if (top > 0 && stack[top - 1] === name) {",
+  "to": "  for (const name of rawTexEndNames(line).slice(0, 3)) {\n    if (top > 0 && stack[top - 1] === name) {",
   "expect": "killed",
   "why": "the probe reads only the first three names of the line, so a popping name that is the fourth is lost; every round-one row lived; killed by 3 rows of the second round of `raw-tex-end-equivalence.test.ts` (popping name fourth and ninth, and four environments closed on one line)"
  },
  {
-  "name": "B12 probe: the first two names of the line",
+  "name": "B12 pops: the first two names of the line",
   "file": "src/core/qmd/model.ts",
-  "from": "        for (const name of rawTexEndNames(line)) {\n          if (probe[probe.length - 1] === name) {",
-  "to": "        for (const name of rawTexEndNames(line).slice(0, 2)) {\n          if (probe[probe.length - 1] === name) {",
+  "from": "  for (const name of rawTexEndNames(line)) {\n    if (top > 0 && stack[top - 1] === name) {",
+  "to": "  for (const name of rawTexEndNames(line).slice(0, 2)) {\n    if (top > 0 && stack[top - 1] === name) {",
   "expect": "killed",
   "why": "the probe reads only the first two names of the line, so a popping name that is the third is lost (the round-one row with a third name decides only in the index); killed by 4 rows of the second round of `raw-tex-end-equivalence.test.ts` (popping name third, fourth and ninth, and three environments closed on one line)"
  },
  {
-  "name": "B13 probe: an empty name closes nothing",
+  "name": "B13 pops: an empty name closes nothing",
   "file": "src/core/qmd/model.ts",
-  "from": "          if (probe[probe.length - 1] === name) {",
-  "to": "          if (name !== \"\" && probe[probe.length - 1] === name) {",
+  "from": "    if (top > 0 && stack[top - 1] === name) {",
+  "to": "    if (top > 0 && name !== \"\" && stack[top - 1] === name) {",
   "expect": "killed",
   "why": "an empty name pops nothing in the probe, so `\\begin{}` ... `\\end{}` leaves the environment open; every round-one row lived; killed by the second-round row 'an empty name pops an empty name' of `raw-tex-end-equivalence.test.ts`"
  },
  {
   "name": "B14 probe: a copy of the stack for EVERY line",
   "file": "src/core/qmd/model.ts",
-  "from": "      let texEndPops = 0;\n      if (texEnv !== null && texEnv[1] === \"end\") {",
-  "to": "      let texEndPops = 0;\n      const wholeCopy = [...rawTexEnvStack];\n      void wholeCopy;\n      if (texEnv !== null && texEnv[1] === \"end\") {",
+  "from": "      const texEndPops: number = texEnv !== null && texEnv[1] === \"end\" ? rawTexEndPops(rawTexEnvStack, line) : 0;",
+  "to": "      const wholeCopy = [...rawTexEnvStack];\n      void wholeCopy;\n      const texEndPops: number = texEnv !== null && texEnv[1] === \"end\" ? rawTexEndPops(rawTexEnvStack, line) : 0;",
   "expect": "killed",
   "why": "the stack is copied on EVERY line: every answer is kept and the cost is the depth times the lines, which no earlier row made visible (every earlier row lets it live); killed by the clock row 'DEEP STACK' of `s339-raw-tex-end-rows.test.ts` (40,000 nested `\\begin{a}`, 40,000 plain lines, one closing line): 2,442.9 ms against the limit of 1,000, the original 166.8 to 199 ms (fresh process, load 7); alone it is a clock kill, so run it alone"
  },
  {
-  "name": "B18 probe: the first eight names of the line",
+  "name": "B18 pops: the first eight names of the line",
   "file": "src/core/qmd/model.ts",
-  "from": "        for (const name of rawTexEndNames(line)) {\n          if (probe[probe.length - 1] === name) {",
-  "to": "        for (const name of rawTexEndNames(line).slice(0, 8)) {\n          if (probe[probe.length - 1] === name) {",
+  "from": "  for (const name of rawTexEndNames(line)) {\n    if (top > 0 && stack[top - 1] === name) {",
+  "to": "  for (const name of rawTexEndNames(line).slice(0, 8)) {\n    if (top > 0 && stack[top - 1] === name) {",
   "expect": "killed",
   "why": "the probe reads only the first eight names of the line, so a popping name that is the ninth is lost; not a mutant of the lens (its own, for the probe's ninth-name row, which B11 and B12 also fail); killed by the second-round row 'the popping name is the ninth name of its line' of `raw-tex-end-equivalence.test.ts`"
  }

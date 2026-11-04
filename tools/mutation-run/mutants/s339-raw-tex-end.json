@@ -272,82 +272,82 @@
   "why": "`i` only grows, so the maximum of `i` and an earlier line is `i`; run alone, survives all of both files' rows, as argued"
  },
  {
-  "name": "B01 probe: the real stack is popped as well",
+  "name": "B01 pops: the real stack is popped as well",
   "file": "src/core/qmd/model.ts",
-  "from": "        const probe = [...rawTexEnvStack];",
-  "to": "        const probe = rawTexEnvStack;",
+  "from": "      top--;\n      pops++;",
+  "to": "      (stack as string[]).pop();\n      top--;\n      pops++;",
   "expect": "killed",
   "why": "an `\\end{a}` over `[b, a]` pops twice: the later `\\end{b}` finds nothing open; run alone, killed by the review rows: `\\end{a}` over [b, a], with and without a repeated name"
  },
  {
-  "name": "B02 probe: only the first name of the line is read",
+  "name": "B02 pops: only the first name of the line is read",
   "file": "src/core/qmd/model.ts",
-  "from": "        for (const name of rawTexEndNames(line)) {\n          if (probe[probe.length - 1] === name) {",
-  "to": "        for (const name of rawTexEndNames(line).slice(0, 1)) {\n          if (probe[probe.length - 1] === name) {",
+  "from": "  for (const name of rawTexEndNames(line)) {\n    if (top > 0 && stack[top - 1] === name) {",
+  "to": "  for (const name of rawTexEndNames(line).slice(0, 1)) {\n    if (top > 0 && stack[top - 1] === name) {",
   "expect": "killed",
   "why": "the Session 226 case at the matching side: `\\end{b}\\end{a}` over `[a]`; run alone, killed by non-clock rows of the rows file (the first name is not the innermost open one)"
  },
  {
-  "name": "B03 probe: only the last name of the line is read",
+  "name": "B03 pops: only the last name of the line is read",
   "file": "src/core/qmd/model.ts",
-  "from": "        for (const name of rawTexEndNames(line)) {\n          if (probe[probe.length - 1] === name) {",
-  "to": "        for (const name of rawTexEndNames(line).slice(-1)) {\n          if (probe[probe.length - 1] === name) {",
+  "from": "  for (const name of rawTexEndNames(line)) {\n    if (top > 0 && stack[top - 1] === name) {",
+  "to": "  for (const name of rawTexEndNames(line).slice(-1)) {\n    if (top > 0 && stack[top - 1] === name) {",
   "expect": "killed",
   "why": "`\\end{b}\\end{a}` over `[a, b]` pops one; run alone, killed by non-clock rows of the rows file (two names on the line)"
  },
  {
-  "name": "B04 probe: the names are read from the last",
+  "name": "B04 pops: the names are read from the last",
   "file": "src/core/qmd/model.ts",
-  "from": "        for (const name of rawTexEndNames(line)) {\n          if (probe[probe.length - 1] === name) {",
-  "to": "        for (const name of rawTexEndNames(line).reverse()) {\n          if (probe[probe.length - 1] === name) {",
+  "from": "  for (const name of rawTexEndNames(line)) {\n    if (top > 0 && stack[top - 1] === name) {",
+  "to": "  for (const name of rawTexEndNames(line).reverse()) {\n    if (top > 0 && stack[top - 1] === name) {",
   "expect": "killed",
   "why": "`\\end{b}\\end{a}` over `[a, b]` pops one, not two; run alone, killed by the review row: `\\end{b}\\end{a}` over [a, b], then a later `\\end{a}`"
  },
  {
-  "name": "B05 probe: a name is compared with the BOTTOM of the stack",
+  "name": "B05 pops: a name is compared with the BOTTOM of the stack",
   "file": "src/core/qmd/model.ts",
-  "from": "          if (probe[probe.length - 1] === name) {",
-  "to": "          if (probe[0] === name) {",
+  "from": "    if (top > 0 && stack[top - 1] === name) {",
+  "to": "    if (top > 0 && stack[0] === name) {",
   "expect": "killed",
   "why": "`\\end{b}\\end{a}` over `[a, b]` pops one and leaves `a`; run alone, killed by the review row: `\\end{b}\\end{a}` over [a, b], then a later `\\end{a}`"
  },
  {
-  "name": "B06 probe: a name anywhere in the stack pops the top",
+  "name": "B06 pops: a name anywhere in the open part of the stack pops the top",
   "file": "src/core/qmd/model.ts",
-  "from": "          if (probe[probe.length - 1] === name) {",
-  "to": "          if (probe.includes(name)) {",
+  "from": "    if (top > 0 && stack[top - 1] === name) {",
+  "to": "    if (top > 0 && stack.slice(0, top).includes(name)) {",
   "expect": "killed",
   "why": "`\\end{a}` over `[a, b]` closes `b`; run alone, killed by the review row: `\\end{a}` over [a, b]"
  },
  {
-  "name": "B07 probe: a matched name pops nothing in the probe",
+  "name": "B07 pops: a matched name leaves the top where it was",
   "file": "src/core/qmd/model.ts",
-  "from": "            probe.pop();\n            texEndPops++;",
-  "to": "            texEndPops++;",
+  "from": "      top--;\n      pops++;",
+  "to": "      pops++;",
   "expect": "killed",
   "why": "`\\end{a}\\end{a}` over `[b, a]` counts two pops; run alone, killed by the review row: `\\end{b}\\end{a}` over [a, b], then a later `\\end{a}`"
  },
  {
-  "name": "B08 probe: two pops are counted for one",
+  "name": "B08 pops: two pops are counted for one",
   "file": "src/core/qmd/model.ts",
-  "from": "            texEndPops++;",
-  "to": "            texEndPops += 2;",
+  "from": "      pops++;",
+  "to": "      pops += 2;",
   "expect": "killed",
   "why": "`\\end{a}` over `[b, a]` pops both; run alone, killed by the review rows: `\\end{a}` over [b, a], with and without a repeated name"
  },
  {
-  "name": "B09 probe: at most one pop is counted",
+  "name": "B09 pops: at most one pop is counted",
   "file": "src/core/qmd/model.ts",
-  "from": "            texEndPops++;",
-  "to": "            texEndPops = 1;",
+  "from": "      pops++;",
+  "to": "      pops = 1;",
   "expect": "killed",
   "why": "`\\end{b}\\end{a}` over `[a, b]` pops one; run alone, killed by the review row: `\\end{b}\\end{a}` over [a, b], then a later `\\end{a}`"
  },
  {
   "name": "B10 probe: the line is probed for a begin",
   "file": "src/core/qmd/model.ts",
-  "from": "      if (texEnv !== null && texEnv[1] === \"end\") {\n        const probe",
-  "to": "      if (texEnv !== null && texEnv[1] === \"begin\") {\n        const probe",
+  "from": "      const texEndPops: number = texEnv !== null && texEnv[1] === \"end\" ? rawTexEndPops(rawTexEnvStack, line) : 0;",
+  "to": "      const texEndPops: number = texEnv !== null && texEnv[1] === \"begin\" ? rawTexEndPops(rawTexEnvStack, line) : 0;",
   "expect": "killed",
   "why": "no `\\end{}` line pops anything; run alone, killed by non-clock rows of the rows file (every probe row)"
  },

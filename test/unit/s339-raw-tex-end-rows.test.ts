@@ -104,7 +104,7 @@ describe("Session 339 — a line that repeats `\\end{` with no `}`, read by the 
     { site: "CONTROL: a line of 200,000 `\\end{}`, none of them an environment that was opened", many: CONTROL_MANY, build: (n) => `para\n\\begin{x}\n${"\\end{}".repeat(n)}\n# Hc04\n`, read: names, answer: [] },
     // THE STACK COPY (the second round of the mutation lens): the probe copies the stack of open environments on a line that STARTS with an `\end{}` and on no other. A deep stack, plain lines above the closer
     // and ONE closing line cost the depth once (about 140 ms at 30,000 and 170 to 200 ms at 40,000 nested openers, fresh process, load 7); a copy taken on EVERY line costs the depth times the lines (1,350 to 1,370 ms
-    // at 30,000 and 2,300 ms at 40,000). It is NOT the row for one copy per `\end{}` line over a deep stack (many closing lines, each copying it): that cost is filed as its own item, and this row has one closing line.
+    // at 30,000 and 2,300 ms at 40,000). Session 340 cured the other shape: the probe no longer copies the stack at all (`rawTexEndPops`), and the rows for a copy per `\end{}` line over a deep stack (many closing lines, each copying it) are in `s340-raw-tex-stack-rows.test.ts`; this row keeps its one closing line.
     { site: "DEEP STACK: 40,000 nested `\\begin{a}`, 40,000 plain lines and ONE line that closes them all", build: (n) => `para\n${"\\begin{a}\n".repeat(n)}${"x\n".repeat(n)}${"\\end{a}".repeat(n)}\n# Hd01\n`, read: names, answer: ["Hd01"] },
   ];
 

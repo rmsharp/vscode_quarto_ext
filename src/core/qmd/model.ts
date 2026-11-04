@@ -4784,6 +4784,29 @@ export function rawTexEndNames(line: string): string[] {
   return names;
 }
 /**
+ * How many of the open raw-TeX environments in `stack` the `\end{name}` delimiters on `line` close, innermost first (Session 340): the probe in `computeRegions`, without the copy of the stack.
+ *
+ * The names of the line are read in order against the TOP of the stack as the pops so far have left it: a name equal to the innermost open environment closes it and exposes the next one; any other name closes
+ * nothing, even when it is open further down. The stack is never changed (the caller pops it afterwards, by the count): `top` is how much of it is still open, so the one place the question reads is `stack[top - 1]`.
+ *
+ * ⚠ **THE PROBE COPIED THE WHOLE STACK, `[...rawTexEnvStack]`, FOR EVERY LINE THAT STARTS WITH AN `\end{name}`, AND POPPED THE COPY.** A document that holds D environments open and then reads L such lines paid D for each:
+ * `\begin{a}` x N then `\end{a}` x N, one per line, took 88.5 / 224.6 / 895.9 / 3,085.6 ms in `findHeadings` at N = 10,000 / 20,000 / 40,000 / 80,000 (4x per doubling, Session 340, one fresh process per timing, Node 22,
+ * load 9), and N `\begin{a}`, N `\end{b}` (a name that is open nowhere, so the line pops nothing and the copy is wasted) and one `\end{a}` took 5.5 s at 80,000. A line that pops nothing, or one name, never needed the copy.
+ *
+ * The old spelling is kept as the oracle of `test/unit/raw-tex-end-pops-equivalence.test.ts`, beside a recursive reading by definition.
+ */
+export function rawTexEndPops(stack: readonly string[], line: string): number {
+  let top = stack.length;
+  let pops = 0;
+  for (const name of rawTexEndNames(line)) {
+    if (top > 0 && stack[top - 1] === name) {
+      top--;
+      pops++;
+    }
+  }
+  return pops;
+}
+/**
  * The LAST line on which each environment name is closed by an `\end{name}` (Session 226).
  *
  * ⚠ **What decides a `\begin{}` sits BELOW it, which is why this is an index and not a
@@ -13168,16 +13191,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
       // learned, now on the matching side, and the C6 test is what caught it: `\begin{a}` /
       // `body text` / `\end{b}\end{a}` really does close `a`, so reading only the delimiter
       // that STARTS the line calls it unmatched and deletes the heading below.
-      let texEndPops = 0;
-      if (texEnv !== null && texEnv[1] === "end") {
-        const probe = [...rawTexEnvStack];
-        for (const name of rawTexEndNames(line)) {
-          if (probe[probe.length - 1] === name) {
-            probe.pop();
-            texEndPops++;
-          }
-        }
-      }
+      const texEndPops: number = texEnv !== null && texEnv[1] === "end" ? rawTexEndPops(rawTexEnvStack, line) : 0;
       const texEnvMatched: boolean =
         texEnv === null
           ? false
