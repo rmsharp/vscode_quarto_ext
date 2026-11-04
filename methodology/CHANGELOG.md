@@ -15,6 +15,12 @@ keeps current. ledger-format: 2 — keep this marker; `bin/status` reads it.
 Losslessness is proved by [`docs/archive/CHANGELOG-through-2026-08-24.md.verify.sh`](docs/archive/CHANGELOG-through-2026-08-24.md.verify.sh), which re-derives L1/L2/L3 from git; run it rather
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
+## 2026-11
+
+### 2026-11-04 · [BL-Slow shapes and residuals found by Session 339's review round, none of them in its diff] Session 340 (in progress): claim -- g02 twenty-fourth session, part (1)
+
+Session claimed. Phase 0 found both ledger frontiers at HEAD (`3be8ca8`, gap 0), no open receipt, no merges, the ratchet 2/2 (results `bba236856bad`, re-run and equal to the S339 receipt's citation), the dashboard at 76/100 "critical" with 21 vulnerabilities (not re-checked; the dashboard copy is v2.22.0 against canonical v2.23.0, not synced), and `master` 76 commits ahead of `origin/master` (unpushed). The operator chose the item at the Phase 0 picker (placed by finishing a feature: g02 is in flight). Scope: part (1) only -- the raw-TeX probe in `computeRegions` copies the whole environment stack for every line that starts with `\end{` (`const probe = [...rawTexEnvStack]`), quadratic in nesting depth; parts (2) to (4) of the item stay filed. Phase 3F replaces this entry with the outcome.
+
 ## 2026-10
 
 ### 2026-10-30 · [ad hoc] Session 339: the quality-gate run cited in the receipt -- 2/2 pass at 10f1553
