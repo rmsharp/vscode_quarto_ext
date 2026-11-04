@@ -1,0 +1,194 @@
+[
+ {
+  "name": "P01 rawTexEndPops: the top starts one place low",
+  "file": "src/core/qmd/model.ts",
+  "from": "  let top = stack.length;",
+  "to": "  let top = stack.length - 1;",
+  "expect": "killed",
+  "why": "the first name is read against the place under the real top; run alone, killed by non-clock rows of `raw-tex-end-equivalence.test.ts` (a closer on the line under its opener) and by every enumeration of `raw-tex-end-pops-equivalence.test.ts`"
+ },
+ {
+  "name": "P02 rawTexEndPops: the top starts one place high",
+  "file": "src/core/qmd/model.ts",
+  "from": "  let top = stack.length;",
+  "to": "  let top = stack.length + 1;",
+  "expect": "killed",
+  "why": "the first name is read against a place past the end, which is `undefined`, so nothing ever pops; run alone, killed by the same two files as P01"
+ },
+ {
+  "name": "P03 rawTexEndPops: the stack is read at a top of zero",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (top > 0 && stack[top - 1] === name) {",
+  "to": "    if (top >= 0 && stack[top - 1] === name) {",
+  "expect": "survives",
+  "why": "EQUIVALENT: `top >= 0` differs from `top > 0` only at `top === 0`, where the read is `stack[-1]`, which is `undefined`, and a name is always a string, so the comparison refuses either way"
+ },
+ {
+  "name": "P04 rawTexEndPops: the bottom environment is never popped",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (top > 0 && stack[top - 1] === name) {",
+  "to": "    if (top > 1 && stack[top - 1] === name) {",
+  "expect": "killed",
+  "why": "the bottom environment (`top === 1`) can never be popped, so `\\begin{a}` ... `\\end{a}` with nothing else open stays open; run alone, killed by `raw-tex-end-equivalence.test.ts` (a one-environment document) and by the enumerations"
+ },
+ {
+  "name": "P05 rawTexEndPops: the place above the top is read",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (top > 0 && stack[top - 1] === name) {",
+  "to": "    if (top > 0 && stack[top] === name) {",
+  "expect": "killed",
+  "why": "the name is compared with the place ABOVE the top, which is `undefined` for the first name; run alone, killed by non-clock rows of `raw-tex-end-equivalence.test.ts` and by the enumerations"
+ },
+ {
+  "name": "P06 rawTexEndPops: the place two below the top is read",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (top > 0 && stack[top - 1] === name) {",
+  "to": "    if (top > 0 && stack[top - 2] === name) {",
+  "expect": "killed",
+  "why": "the name is compared with the place two below the top; run alone, killed by non-clock rows of `raw-tex-end-equivalence.test.ts` and by the enumerations"
+ },
+ {
+  "name": "P07 rawTexEndPops: a name that is NOT the top pops it",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (top > 0 && stack[top - 1] === name) {",
+  "to": "    if (top > 0 && stack[top - 1] !== name) {",
+  "expect": "killed",
+  "why": "a name that is not the top pops it (and the top pops nothing); run alone, killed by non-clock rows of `raw-tex-end-equivalence.test.ts` (an unterminated opener after a closer) and by the enumerations"
+ },
+ {
+  "name": "P08 rawTexEndPops: loose equality",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (top > 0 && stack[top - 1] === name) {",
+  "to": "    if (top > 0 && stack[top - 1] == name) {",
+  "expect": "survives",
+  "why": "EQUIVALENT: both sides are strings, or `undefined` against a string, and `==` refuses that pair exactly as `===` does (a stack entry and a name are never `null`)"
+ },
+ {
+  "name": "P09 rawTexEndPops: a pop lowers the top by two",
+  "file": "src/core/qmd/model.ts",
+  "from": "      top--;",
+  "to": "      top -= 2;",
+  "expect": "killed",
+  "why": "a pop lowers the top by two, so the environment under the popped one is skipped; run alone, killed by the review rows of `raw-tex-end-equivalence.test.ts` (the stack that is left after a line) and by the enumerations"
+ },
+ {
+  "name": "P10 rawTexEndPops: a pop empties the stack",
+  "file": "src/core/qmd/model.ts",
+  "from": "      top--;",
+  "to": "      top = 0;",
+  "expect": "killed",
+  "why": "a pop empties the stack, so `\\end{b}\\end{a}` over `[a, b]` counts one and a later `\\end{a}` finds nothing open; run alone, killed by the same review rows and the enumerations"
+ },
+ {
+  "name": "P11 rawTexEndPops: a pop raises the top",
+  "file": "src/core/qmd/model.ts",
+  "from": "      top--;",
+  "to": "      top++;",
+  "expect": "killed",
+  "why": "a pop RAISES the top (the next read is past the end); run alone, killed by the same review rows and the enumerations"
+ },
+ {
+  "name": "P12 rawTexEndPops: the count starts at one",
+  "file": "src/core/qmd/model.ts",
+  "from": "  let pops = 0;",
+  "to": "  let pops = 1;",
+  "expect": "killed",
+  "why": "the count starts at one, so a line that closes nothing counts as closing one; run alone, killed by non-clock rows of `raw-tex-end-equivalence.test.ts` (`\\end{b\\end{a}` names `b\\end{a`, so `a` is never closed) and by the enumerations"
+ },
+ {
+  "name": "P13 rawTexEndPops: the answer is what is left open",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return pops;\n}\n/**\n * The LAST line",
+  "to": "  return top;\n}\n/**\n * The LAST line",
+  "expect": "killed",
+  "why": "the answer is what is left open, not what was closed; run alone, killed by non-clock rows of `raw-tex-end-equivalence.test.ts` and by the enumerations"
+ },
+ {
+  "name": "P14 rawTexEndPops: the answer is the drop in depth",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return pops;\n}\n/**\n * The LAST line",
+  "to": "  return stack.length - top;\n}\n/**\n * The LAST line",
+  "expect": "survives",
+  "why": "EQUIVALENT: `top` starts at `stack.length` and falls by exactly one for each pop, so `stack.length - top` is `pops` on every input"
+ },
+ {
+  "name": "P15 rawTexEndPops: the count is capped at 4096",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return pops;\n}\n/**\n * The LAST line",
+  "to": "  return Math.min(pops, 4096);\n}\n/**\n * The LAST line",
+  "expect": "killed",
+  "why": "the count is capped at 4,096; the enumerations pop at most eight from a line and the documents of the older rows fewer, so only the 5,000-closer rows of `raw-tex-end-pops-equivalence.test.ts` tell it apart (run alone, they are the only kill)"
+ },
+ {
+  "name": "P16 rawTexEndPops: the count is capped at 16",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return pops;\n}\n/**\n * The LAST line",
+  "to": "  return Math.min(pops, 16);\n}\n/**\n * The LAST line",
+  "expect": "killed",
+  "why": "the count is capped at 16; run alone, killed only by the 5,000-closer rows of `raw-tex-end-pops-equivalence.test.ts`"
+ },
+ {
+  "name": "P17 rawTexEndPops: the stack is copied once per call (answers kept, cost the depth per call)",
+  "file": "src/core/qmd/model.ts",
+  "from": "  let top = stack.length;\n  let pops = 0;",
+  "to": "  const unused = [...stack];\n  void unused;\n  let top = stack.length;\n  let pops = 0;",
+  "expect": "killed",
+  "why": "the stack is copied once per call: every answer is kept, the cost is the depth per call; run alone, killed by the clock row 'a closer that is the top' of the deep-stack rows of `raw-tex-end-pops-equivalence.test.ts` (30,000 calls over 100,000 places) and by nothing that reads an answer"
+ },
+ {
+  "name": "P18 rawTexEndPops: the open part of the stack is sliced for every name (answers kept, cost the depth per name)",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (top > 0 && stack[top - 1] === name) {",
+  "to": "    if (top > 0 && stack.slice(0, top)[top - 1] === name) {",
+  "expect": "killed",
+  "why": "the open part of the stack is sliced for every name: every answer is kept, the cost is the depth per name; run alone, killed by the clock row 'a closer that is the top' of the deep-stack rows and by clock rows of `s340-raw-tex-stack-rows.test.ts` (97 s to kill: the document rows run to their end)"
+ },
+ {
+  "name": "P19 rawTexEndPops: the loop stops when nothing is open",
+  "file": "src/core/qmd/model.ts",
+  "from": "  for (const name of rawTexEndNames(line)) {\n    if (top > 0 && stack[top - 1] === name) {",
+  "to": "  for (const name of rawTexEndNames(line)) {\n    if (top === 0) {\n      break;\n    }\n    if (top > 0 && stack[top - 1] === name) {",
+  "expect": "survives",
+  "why": "EQUIVALENT in answers: at `top === 0` the guard `top > 0` already refuses every name, so stopping the loop there changes only the work"
+ },
+ {
+  "name": "P20 probe call: the stack is copied for the call (answers kept, cost the depth per closing line)",
+  "file": "src/core/qmd/model.ts",
+  "from": "      const texEndPops: number = texEnv !== null && texEnv[1] === \"end\" ? rawTexEndPops(rawTexEnvStack, line) : 0;",
+  "to": "      const texEndPops: number = texEnv !== null && texEnv[1] === \"end\" ? rawTexEndPops([...rawTexEnvStack], line) : 0;",
+  "expect": "killed",
+  "why": "the stack is copied for the call: every answer is kept, the cost is the depth per closing line; run alone, killed by clock rows of `s340-raw-tex-stack-rows.test.ts` and by nothing that reads an answer"
+ },
+ {
+  "name": "P21 probe call: the bottom environment is not offered",
+  "file": "src/core/qmd/model.ts",
+  "from": "      const texEndPops: number = texEnv !== null && texEnv[1] === \"end\" ? rawTexEndPops(rawTexEnvStack, line) : 0;",
+  "to": "      const texEndPops: number = texEnv !== null && texEnv[1] === \"end\" ? rawTexEndPops(rawTexEnvStack.slice(1), line) : 0;",
+  "expect": "killed",
+  "why": "the bottom environment is not offered to the function, so a document that opens one environment and closes it never closes it; run alone (no bail), killed by 12 rows of `raw-tex-end-equivalence.test.ts` (answers) and by `s340-raw-tex-stack-rows.test.ts`"
+ },
+ {
+  "name": "P22 probe call: only the first 1,000 characters of the line are read",
+  "file": "src/core/qmd/model.ts",
+  "from": "      const texEndPops: number = texEnv !== null && texEnv[1] === \"end\" ? rawTexEndPops(rawTexEnvStack, line) : 0;",
+  "to": "      const texEndPops: number = texEnv !== null && texEnv[1] === \"end\" ? rawTexEndPops(rawTexEnvStack, line.slice(0, 1000)) : 0;",
+  "expect": "killed",
+  "why": "only the first 1,000 characters of a closing line are read, so a name far along the line is lost; run alone, killed by `s340-raw-tex-stack-rows.test.ts` and, since no other row of that file has a line over 1,000 characters, by its late-name rows (a closing name 5,000 and 200,000 characters into its line)"
+ },
+ {
+  "name": "P23 probe call: the count of a line that is not a closer is one",
+  "file": "src/core/qmd/model.ts",
+  "from": "      const texEndPops: number = texEnv !== null && texEnv[1] === \"end\" ? rawTexEndPops(rawTexEnvStack, line) : 0;",
+  "to": "      const texEndPops: number = texEnv !== null && texEnv[1] === \"end\" ? rawTexEndPops(rawTexEnvStack, line) : 1;",
+  "expect": "survives",
+  "why": "EQUIVALENT: `texEndPops` is read only when `texEnv[1] === \"end\"`, and then the first branch of the ternary is taken, so the value of the other branch is never read"
+ },
+ {
+  "name": "P24 rawTexEndPops: only the first 65,536 places of the stack are read",
+  "file": "src/core/qmd/model.ts",
+  "from": "  let top = stack.length;",
+  "to": "  let top = Math.min(stack.length, 65_536);",
+  "expect": "killed",
+  "why": "only the first 65,536 places of the stack are read, so a stack deeper than that answers with the wrong top; run alone, killed by the deep-stack rows of `raw-tex-end-pops-equivalence.test.ts` (their top is a name no other place holds)"
+ }
+]
