@@ -156,6 +156,18 @@ describe("Session 340 — rawTexEndPops: the new function answers what the copy 
     expect(rawTexEndPops(Object.freeze([...stack]), line)).toBe(expected);
   });
 
+  // A cap on the count (or on the names read) that sits above every row of the enumerations: the enumerations pop at most eight from one line.
+  it.each([
+    ["5,000 closers over 5,000 environments of one name close them all", new Array<string>(5000).fill("a"), (END + "a}").repeat(5000), 5000],
+    ["6,000 closers over 5,000 environments close 5,000", new Array<string>(5000).fill("a"), (END + "a}").repeat(6000), 5000],
+    ["5,000 closers over 5,000 alternating environments, innermost first", Array.from({ length: 5000 }, (_, i) => (i % 2 === 0 ? "a" : "b")), (END + "b}" + END + "a}").repeat(2500), 5000],
+    ["5,000 closers over 5,000 alternating environments, outermost first: the first name meets the wrong top and is lost, every later one pops", Array.from({ length: 5000 }, (_, i) => (i % 2 === 0 ? "a" : "b")), (END + "a}" + END + "b}").repeat(2500), 4999],
+  ] as Array<[string, string[], string, number]>)("%s", (_label, stack, line, expected) => {
+    const frozen = Object.freeze([...stack]);
+    expect(rawTexEndPops(frozen, line)).toBe(expected);
+    expect(oldPops(frozen, line)).toBe(expected);
+  });
+
   it("does not change the stack it is given", () => {
     const stack = ["a", "b", "b"];
     expect(rawTexEndPops(stack, END + "b}" + END + "b}" + END + "a}")).toBe(3);
@@ -175,7 +187,8 @@ describe("Session 340 — rawTexEndPops on a deep stack", () => {
     const result = run();
     return { result, ms: performance.now() - started };
   };
-  const deep = Object.freeze(new Array<string>(DEPTH).fill("a"));
+  // The top is a name no other place holds, so a spelling that reads the wrong place of a stack this deep (or only the first 65,536 places of it) answers differently.
+  const deep = Object.freeze([...new Array<string>(DEPTH - 1).fill("a"), "z"]);
   const calls = (pops: (stack: readonly string[], line: string) => number, line: string): number => {
     let total = 0;
     for (let i = 0; i < CALLS; i++) {
@@ -185,9 +198,11 @@ describe("Session 340 — rawTexEndPops on a deep stack", () => {
   };
 
   it.each([
-    ["a closer that is the top: every call pops once", END + "a}", CALLS],
+    ["a closer that is the top: every call pops once", END + "z}", CALLS],
     ["a closer that is open nowhere: no call pops", END + "b}", 0],
-    ["a line of three closers, two of them open nowhere", END + "b}" + END + "a}" + END + "c}", CALLS],
+    ["a closer that is open only further down: no call pops", END + "a}", 0],
+    ["a line of three closers, two of them open nowhere", END + "b}" + END + "z}" + END + "c}", CALLS],
+    ["a line that pops the top and then five of the `a` under it", END + "z}" + (END + "a}").repeat(5), 6 * CALLS],
   ] as Array<[string, string, number]>)("%s", (_label, line, expected) => {
     const { result, ms } = clock(() => calls(rawTexEndPops, line));
     expect(result).toBe(expected);
@@ -198,7 +213,7 @@ describe("Session 340 — rawTexEndPops on a deep stack", () => {
     const { result, ms } = clock(() => calls(oldPops, END + "b}"));
     expect(result).toBe(0);
     expect(ms).toBeGreaterThan(OLD_FLOOR_MS);
-  });
+  }, HEAVY_ROW_MS);
 
   // A depth of 10,000, a limit of 100 s or a floor of 1 ms would pass the parent too.
   it("keeps the sizes, the limit and the floor the clock rows above are built on", () => {

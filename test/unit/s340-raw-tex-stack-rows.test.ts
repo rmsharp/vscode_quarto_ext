@@ -87,6 +87,18 @@ describe("Session 340 — a deep stack of raw-TeX environments and many lines th
     expect(ms).toBeLessThan(LIMIT_MS);
   }, 120_000);
 
+  // A closing name far along its line. The probe reads EVERY name of a line that starts with an `\\end{name}`, wherever it sits; a read that stops after a fixed number of characters would lose the name and leave the
+  // paragraph open (the ATX line below it hidden). Every answer is what the parent gives.
+  const names2 = (text: string): string[] => findHeadings(text).map((h) => h.text);
+  it.each([
+    ["the closing name is 5,000 characters into its line", `para\n\\begin{a}\nbody\n\\end{b}${" ".repeat(5000)}\\end{a}\n# Hl01\n`, ["Hl01"]],
+    ["the closing name is 200,000 characters into its line", `para\n\\begin{a}\nbody\n\\end{b}${" ".repeat(200_000)}\\end{a}\n# Hl02\n`, ["Hl02"]],
+    ["the same line with a name that is open nowhere at the end: the heading stays hidden", `para\n\\begin{a}\nbody\n\\end{b}${" ".repeat(5000)}\\end{c}\n\\end{a}\n# Hl03\n`, ["Hl03"]],
+    ["the same line, the real closer below it only: the paragraph is open at the ATX line", `para\n\\begin{a}\nbody\n\\end{b}${" ".repeat(5000)}\\end{c}\n# Hl04\n\\end{a}\n`, []],
+  ] as Array<[string, string, string[]]>)("%s", (_label, text, expected) => {
+    expect(names2(text)).toEqual(expected);
+  });
+
   // The rows above fix MANY, the limit and the control size: 8,000 environments, a limit of 100 s or a control of 1,000 would pass the parent too.
   it("keeps the sizes and the limit the clock rows are built on", () => {
     expect([FEW, MANY, LIMIT_MS, CONTROL_MANY]).toEqual([3, 80_000, 1000, 100_000]);
