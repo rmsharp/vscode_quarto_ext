@@ -73,7 +73,7 @@ describe("Session 341 -- the old spelling is what the parent had, and the oracle
     expect(oldBuildCellVirtualContent(text, cell)).toBe(`${D}\n\nx = 1\n\n`);
   });
 
-  it("the comparison reports a build that differs by one character (so a `toEqual` of equal arrays is not vacuous)", () => {
+  it("the old spelling's answer moves with the cell's language, code and start line (so a comparison with it can fail)", () => {
     const text = "p\n```{python}\nx = 1\n```\n";
     const [cell] = findAllCells(text);
     const same = oldBuildCellVirtualContent(text, cell);
