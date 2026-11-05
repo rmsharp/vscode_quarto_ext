@@ -44,11 +44,10 @@
 import * as vscode from "vscode";
 import { resolveDocumentEngine } from "../core/document-engine-resolve";
 import { cellLanguageId } from "../core/embedded/lang-map";
-import { buildCellVirtualContent } from "../core/embedded/virtual-doc";
+import { type CellVdocBuilder, createCellVdocBuilder } from "../core/embedded/virtual-doc";
 import { disposeVdocs, ensureVdoc } from "../features/embedded-vdoc";
 import {
   buildOutline,
-  findCellAtPosition,
   hideCellsInOutline,
   type OutlineSymbol,
 } from "../core/qmd/model";
@@ -113,8 +112,10 @@ class QmdDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
     // Only `"knitr"` changes anything; every other answer reproduces the pre-S273 Outline.
     const tree = buildOutline(text, resolveDocumentEngine(document.fileName, text), mode);
     const visible = showCells ? tree : hideCellsInOutline(tree);
+    // ONE builder per call (Session 341): the cell lookup and the per-cell virtual document used to redo the whole text's work for each cell (cells x document).
+    const cellVdocs = createCellVdocBuilder(text);
     return Promise.all(
-      visible.map((symbol) => toDocumentSymbol(symbol, document, text)),
+      visible.map((symbol) => toDocumentSymbol(symbol, document, cellVdocs)),
     );
   }
 }
@@ -128,7 +129,7 @@ class QmdDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
 async function toDocumentSymbol(
   symbol: OutlineSymbol,
   document: vscode.TextDocument,
-  text: string,
+  cellVdocs: CellVdocBuilder,
 ): Promise<vscode.DocumentSymbol> {
   const kind =
     symbol.kind === "heading"
@@ -143,9 +144,9 @@ async function toDocumentSymbol(
   );
   result.children =
     symbol.kind === "cell"
-      ? await forwardCellSymbols(symbol, document, text)
+      ? await forwardCellSymbols(symbol, document, cellVdocs)
       : await Promise.all(
-          symbol.children.map((child) => toDocumentSymbol(child, document, text)),
+          symbol.children.map((child) => toDocumentSymbol(child, document, cellVdocs)),
         );
   return result;
 }
@@ -162,13 +163,13 @@ async function toDocumentSymbol(
 async function forwardCellSymbols(
   cellSymbol: OutlineSymbol,
   document: vscode.TextDocument,
-  text: string,
+  cellVdocs: CellVdocBuilder,
 ): Promise<vscode.DocumentSymbol[]> {
   const el = cellLanguageId(cellSymbol.lang ?? "");
   if (el === null) {
     return [];
   }
-  const cell = findCellAtPosition(text, cellSymbol.startLine);
+  const cell = cellVdocs.cellAt(cellSymbol.startLine);
   if (cell === null) {
     return [];
   }
@@ -185,7 +186,7 @@ async function forwardCellSymbols(
       kind: "cell",
       cellStartLine: cell.startLine,
     },
-    buildCellVirtualContent(text, cell),
+    cellVdocs.build(cell),
   );
   if (vdocUri === undefined) {
     return []; // nowhere to write the vdoc — degrade to a cell node with no children

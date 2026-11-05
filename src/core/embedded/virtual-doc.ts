@@ -209,20 +209,40 @@ export function embeddedLanguagesIn(text: string): EmbeddedLang[] {
  * whitespace-only one; built from the RAW text, so it is CRLF-safe).
  */
 export function buildCellVirtualContent(text: string, cell: Cell): string {
-  const lines = text.split("\n");
-  const optionLines = new Set(findCellOptionLines(text).map((o) => o.line));
-  const lastBody = cell.startLine + bodyLineCount(cell);
-  const inBody = (i: number): boolean =>
-    i > cell.startLine && i <= lastBody && !optionLines.has(i);
-  // Candidate G (plan §4.1): the per-cell vdoc leaks the same workspace-mode phantom
-  // diagnostics (plan §3.1), so it takes the same file-level `# type: ignore` mute. Line 0 is
-  // never a body line here either — `inBody` requires `i > cell.startLine` and `cell.startLine`
-  // is a fence line ≥ 0 — so the write is coordinate-safe. Gated to a python cell (a `#` is a
-  // JS syntax error) with NON-WHITESPACE body content (nothing to mute in an all-blank cell).
-  const injectMute =
-    cellLanguageId(cell.lang)?.languageId === "python" &&
-    lines.some((line, i) => inBody(i) && line.trim() !== "");
-  return lines
-    .map((line, i) => (i === 0 && injectMute ? TYPE_IGNORE_DIRECTIVE : inBody(i) ? line : ""))
-    .join("\n");
+  return createCellVdocBuilder(text).build(cell);
+}
+
+/**
+ * The per-cell virtual documents of ONE text, and the cell lookup the Outline provider needs to ask for them
+ * (Session 341, part (2) of the BACKLOG item "Slow shapes and residuals found by Session 339's review round").
+ * `cellAt(line)` answers exactly what `findCellAtPosition(text, line)` answers and `build(cell)` exactly what
+ * `buildCellVirtualContent(text, cell)` answers; the provider makes ONE per `provideDocumentSymbols` call.
+ */
+export interface CellVdocBuilder {
+  cellAt(line: number): Cell | null;
+  build(cell: Cell): string;
+}
+
+export function createCellVdocBuilder(text: string): CellVdocBuilder {
+  return {
+    cellAt: (line) => findCellAtPosition(text, line),
+    build: (cell) => {
+      const lines = text.split("\n");
+      const optionLines = new Set(findCellOptionLines(text).map((o) => o.line));
+      const lastBody = cell.startLine + bodyLineCount(cell);
+      const inBody = (i: number): boolean =>
+        i > cell.startLine && i <= lastBody && !optionLines.has(i);
+      // Candidate G (plan §4.1): the per-cell vdoc leaks the same workspace-mode phantom
+      // diagnostics (plan §3.1), so it takes the same file-level `# type: ignore` mute. Line 0 is
+      // never a body line here either — `inBody` requires `i > cell.startLine` and `cell.startLine`
+      // is a fence line ≥ 0 — so the write is coordinate-safe. Gated to a python cell (a `#` is a
+      // JS syntax error) with NON-WHITESPACE body content (nothing to mute in an all-blank cell).
+      const injectMute =
+        cellLanguageId(cell.lang)?.languageId === "python" &&
+        lines.some((line, i) => inBody(i) && line.trim() !== "");
+      return lines
+        .map((line, i) => (i === 0 && injectMute ? TYPE_IGNORE_DIRECTIVE : inBody(i) ? line : ""))
+        .join("\n");
+    },
+  };
 }
