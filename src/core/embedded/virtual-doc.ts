@@ -216,8 +216,10 @@ export function buildCellVirtualContent(text: string, cell: Cell): string {
  * The per-cell virtual documents of ONE text, and the cell lookup the Outline provider needs to ask for them
  * (Session 341, part (2) of the BACKLOG item "Slow shapes and residuals found by Session 339's review round").
  * `cellAt(line)` answers exactly what `findCellAtPosition(text, line)` answers and `build(cell)` exactly what
- * the old `buildCellVirtualContent(text, cell)` answered, byte for byte; the provider makes ONE per
- * `provideDocumentSymbols` call and asks it once per code cell.
+ * the old `buildCellVirtualContent(text, cell)` answered, byte for byte, for EVERY `Cell` whose `startLine` is a number (a whole line, a
+ * fraction, `NaN`, an infinity, one above or below the text) and whose `code` is a string; the provider makes ONE per
+ * `provideDocumentSymbols` call and asks it once per code cell. (`endLine` is read by neither spelling. A `Cell` that breaks the type, with a
+ * `startLine` that is not a number or a `code` that is not a string, is not pinned by any row.)
  *
  * Why a builder and not the two functions: the Outline forwards EVERY code cell, and each call of the old pair
  * redid the work of the whole text (a scan of every cell to find the one at a line; a split of the text; every
@@ -248,7 +250,9 @@ interface CellVdocState {
  * `findCellAtPosition`'s answer without a scan of every cell: the model's cells come in document order and never overlap (each ends at its
  * own closing fence, and the next opens below it), so the only cell that can hold `line` is the last one that STARTS at or above it. The
  * cell-line differential of `cell-vdoc-builder-equivalence.test.ts` asserts that order on every document it reads, and asks every line.
- * A `line` that is not an integer, is `NaN` or lies outside the text finds no such cell, or one it is past the end of: `null`, as the scan answers.
+ * A `line` that is not a whole number is asked the same question as a whole one, `startLine <= line <= endLine`, and gets the same answer as the scan: the cell whose span holds
+ * it (`cellAt(1.5)` is the cell spanning lines 1 to 3, as is `cellAt(3)`), and `null` when no span does (`0.5`, `3.5`, `-0.5`). `NaN` is in no span, so it answers `null`, and so do
+ * `Infinity` and `-Infinity` (past every end, before every start).
  */
 function cellAtLine(cells: readonly Cell[], line: number): Cell | null {
   let low = 0;
@@ -272,13 +276,16 @@ function cellAtLine(cells: readonly Cell[], line: number): Cell | null {
  * above it — so the write is coordinate-safe (for a hand-made cell that starts above line 0 the mute still wins, as it always did). Gated to a
  * python cell (a `#` is a JS syntax error) with NON-WHITESPACE body content (nothing to mute in an all-blank cell).
  *
- * The body lines are the ones after the fence, up to `bodyLineCount` of them, that are not option lines. The result is those lines at their own
+ * The body lines are the ones after the fence, up to `bodyLineCount` of them, that are not option lines: the INTEGER line numbers `i` with `i > startLine`
+ * and `i <= startLine + bodyLineCount`, which is how the old spelling read them, so `first` is `floor(startLine) + 1` and `last` the floor of `startLine +
+ * bodyLineCount` (the same sum, so a rounding in it is the old rounding: `1.9999999999999998 + 2` is 4). A `startLine` that is a fraction, `NaN`, an infinity or
+ * a value no text reaches therefore gets the old answer too (for `NaN` no `i` satisfies the rule, and neither bound lets the loop run). The result is those lines at their own
  * indices with `"\n"` runs between them: element `k` of the `n` lines joined by `"\n"` is the line itself if kept and `""` otherwise, so a kept
  * line at index `i` after `at` lines already written is preceded by `i - at + 1` newlines (one fewer when nothing is written yet).
  */
 function buildCellVdoc({ lines, options }: CellVdocState, cell: Cell): string {
-  const first = Math.max(cell.startLine + 1, 0);
-  const last = Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1);
+  const first = Math.max(Math.floor(cell.startLine) + 1, 0);
+  const last = Math.floor(Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1));
   const kept: number[] = [];
   let content = false;
   for (let i = first; i <= last; i++) {
