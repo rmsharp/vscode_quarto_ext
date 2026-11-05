@@ -194,6 +194,16 @@ function nonEmptyLines(vdoc: string): Array<[number, string]> {
 }
 
 const LIMIT_MS = 1000;
+/** The ratio limit: the whole loop against its first call. */
+const RATIO = 100;
+/** The sizes of the clock rows. Named once so that the sizes row below reads the very values the rows run on. */
+const SIX_CELLS = 2000;
+const TWELVE_CELLS = 1600;
+const LONG_CELLS = 60;
+const LONG_GAP = 33_000;
+const CONTROL_CELLS = 250;
+/** The one-cell control sits in a document of the same 1,980,301 lines as the long shape. */
+const CONTROL_GAP = LONG_CELLS * (5 + LONG_GAP) - 5;
 
 /** Run the adapter's loop over `shape`, the clock on it, and read the answer back. The model's scan is warmed first: it is the model's cost, the same for the parent and the cure, and `buildOutline` has paid it before the adapter's loop starts. */
 function runAdapterLoop(shape: Shape): { ms: number; firstMs: number; builds: number; chars: number; checked: number } {
@@ -235,13 +245,11 @@ function runAdapterLoop(shape: Shape): { ms: number; firstMs: number; builds: nu
 }
 
 describe("Session 341 -- the Outline's per-cell virtual documents cost cells times document (the BACKLOG item \"Slow shapes and residuals found by Session 339's review round\", part 2)", () => {
-  const RATIO = 100;
-
   it.each([
-    ["2,000 six-line python cells (the shape the item measured)", () => sixLineShape(2000, "python"), true],
-    ["2,000 six-line r cells (no mute, no whole-document `some`)", () => sixLineShape(2000, "r"), true],
-    ["1,600 twelve-line python cells", () => twelveLineShape(1600, "python"), true],
-    ["60 python cells in a document of 1,980,301 lines (few cells, a very long document)", () => longShape(60, 33_000), false],
+    ["2,000 six-line python cells (the shape the item measured)", () => sixLineShape(SIX_CELLS, "python"), true],
+    ["2,000 six-line r cells (no mute, no whole-document `some`)", () => sixLineShape(SIX_CELLS, "r"), true],
+    ["1,600 twelve-line python cells", () => twelveLineShape(TWELVE_CELLS, "python"), true],
+    ["60 python cells in a document of 1,980,301 lines (few cells, a very long document)", () => longShape(LONG_CELLS, LONG_GAP), false],
   ] as Array<[string, () => Shape, boolean]>)("%s: one builder, a lookup and a build per cell, in under one second, with the stated answers", (_label, make, ratio) => {
     const shape = make();
     const run = runAdapterLoop(shape);
@@ -255,8 +263,8 @@ describe("Session 341 -- the Outline's per-cell virtual documents cost cells tim
 
   // CONTROLS: shapes that cost the parent little. They pass on it, and they say that the fixtures are not what is slow.
   it.each([
-    ["CONTROL: 250 six-line python cells", () => sixLineShape(250, "python")],
-    ["CONTROL: ONE python cell in a document of 1,980,301 lines (one build over the whole document is the inherent cost)", () => longShape(1, 1_980_296)],
+    ["CONTROL: 250 six-line python cells", () => sixLineShape(CONTROL_CELLS, "python")],
+    ["CONTROL: ONE python cell in a document of 1,980,301 lines (one build over the whole document is the inherent cost)", () => longShape(1, CONTROL_GAP)],
   ] as Array<[string, () => Shape]>)("%s: stays under one second, with the stated answers", (_label, make) => {
     const shape = make();
     const run = runAdapterLoop(shape);
@@ -265,8 +273,9 @@ describe("Session 341 -- the Outline's per-cell virtual documents cost cells tim
     expect(run.ms).toBeLessThan(LIMIT_MS);
   }, 120_000);
 
-  // The rows above fix the sizes and the limit: 200 cells, or a limit of 100 s, would pass the parent too.
+  // The rows above fix the sizes and the limit: 200 cells, or a limit of 100 s, would pass the parent too. Every size is a named constant, read here, so a changed one fails this row.
   it("keeps the sizes and the limit the clock rows are built on", () => {
-    expect([LIMIT_MS, RATIO, sixLineShape(2000, "python").lines, twelveLineShape(1600, "python").lines, longShape(60, 33_000).lines]).toEqual([1000, 100, 14_001, 22_401, 1_980_301]);
+    expect([LIMIT_MS, RATIO, SIX_CELLS, TWELVE_CELLS, LONG_CELLS, LONG_GAP, CONTROL_CELLS, CONTROL_GAP]).toEqual([1000, 100, 2000, 1600, 60, 33_000, 250, 1_980_295]);
+    expect([sixLineShape(SIX_CELLS, "python").lines, twelveLineShape(TWELVE_CELLS, "python").lines, longShape(LONG_CELLS, LONG_GAP).lines, longShape(1, CONTROL_GAP).lines]).toEqual([14_001, 22_401, 1_980_301, 1_980_301]);
   });
 });

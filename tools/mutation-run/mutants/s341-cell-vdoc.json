@@ -1,0 +1,554 @@
+[
+ {
+  "name": "V01 cellAtLine: the search starts at the second cell",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  let low = 0;\n  let high = cells.length - 1;",
+  "to": "  let low = 1;\n  let high = cells.length - 1;",
+  "expect": "killed",
+  "why": "the first cell can never be found; killed by the named rows and every enumerated document whose only cell is the first (cellAt on every line against findCellAtPosition)"
+ },
+ {
+  "name": "V02 cellAtLine: the search stops before the last cell",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  let high = cells.length - 1;\n  let found = -1;",
+  "to": "  let high = cells.length - 2;\n  let found = -1;",
+  "expect": "killed",
+  "why": "the last cell can never be found; killed by the same differential (a one-cell document) and by the clock rows' read-back of the last cell"
+ },
+ {
+  "name": "V03 cellAtLine: nothing found starts at the first cell",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  let found = -1;\n  while (low <= high) {",
+  "to": "  let found = 0;\n  while (low <= high) {",
+  "expect": "killed",
+  "why": "a line above the first cell (prose, line 0, -1) answers the first cell, and a document with no cell reads cells[0] of an empty array (a TypeError); killed by the no-cell named row and the differential"
+ },
+ {
+  "name": "V04 cellAtLine: a cell starts strictly above its first line",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    if (cells[middle].startLine <= line) {",
+  "to": "    if (cells[middle].startLine < line) {",
+  "expect": "killed",
+  "why": "the opening fence line is not in its cell (findCellAtPosition is inclusive of it); killed by the cellAt row on a fence line and by every enumerated document"
+ },
+ {
+  "name": "V05 cellAtLine: the cell found is the one before",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "      found = middle;\n      low = middle + 1;",
+  "to": "      found = middle - 1;\n      low = middle + 1;",
+  "expect": "killed",
+  "why": "the answer is always the previous cell (or none for the first); killed by the cellAt rows and the differential"
+ },
+ {
+  "name": "V06 cellAtLine: the middle is not an integer",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    const middle = (low + high) >> 1;",
+  "to": "    const middle = (low + high) / 2;",
+  "expect": "killed",
+  "why": "an odd sum gives a half index, cells[1.5] is undefined and reading its startLine throws; killed by any document with two or more cells and a lookup that probes an odd sum (E2, the seeded documents, the clock rows)"
+ },
+ {
+  "name": "V07 cellAtLine: the first cell is never answered",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  return found >= 0 && line <= cells[found].endLine ? cells[found] : null;",
+  "to": "  return found > 0 && line <= cells[found].endLine ? cells[found] : null;",
+  "expect": "killed",
+  "why": "index 0 is a cell that was found; killed like V01"
+ },
+ {
+  "name": "V08 cellAtLine: the closing fence line is outside the cell",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  return found >= 0 && line <= cells[found].endLine ? cells[found] : null;",
+  "to": "  return found >= 0 && line < cells[found].endLine ? cells[found] : null;",
+  "expect": "killed",
+  "why": "findCellAtPosition is inclusive of the closing fence (R2); killed by the cellAt rows and every enumerated document with a cell"
+ },
+ {
+  "name": "V09 cellAtLine: a line past the cell still answers it",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  return found >= 0 && line <= cells[found].endLine ? cells[found] : null;",
+  "to": "  return found >= 0 ? cells[found] : null;",
+  "expect": "killed",
+  "why": "prose under a cell answers the cell; killed by the cellAt row (line 4 of the five-line text) and the differential"
+ },
+ {
+  "name": "V10 cellAtLine: the end line is compared with the start line",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  return found >= 0 && line <= cells[found].endLine ? cells[found] : null;",
+  "to": "  return found >= 0 && line <= cells[found].startLine ? cells[found] : null;",
+  "expect": "killed",
+  "why": "only the fence line answers; killed by the body-line lookups of the named rows and the differential"
+ },
+ {
+  "name": "B01 buildCellVdoc: the first body line is not clamped to line 0",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  const first = Math.max(cell.startLine + 1, 0);",
+  "to": "  const first = cell.startLine + 1;",
+  "expect": "killed",
+  "why": "a hand-made cell above line 0 reads lines[-1], which is undefined, and `.trim()` throws; killed by the hand-made rows (startLine -2) and the seeded documents"
+ },
+ {
+  "name": "B02 buildCellVdoc: the first body line is clamped to line 1",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  const first = Math.max(cell.startLine + 1, 0);",
+  "to": "  const first = Math.max(cell.startLine + 1, 1);",
+  "expect": "killed",
+  "why": "a hand-made r cell that starts at -1 keeps line 0 (nothing mutes it); killed by the hand-made row that states `just prose` kept for a cell starting at -1 (r) and by the seeded documents' hand-made cells"
+ },
+ {
+  "name": "B03 buildCellVdoc: the fence line is body",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  const first = Math.max(cell.startLine + 1, 0);",
+  "to": "  const first = Math.max(cell.startLine, 0);",
+  "expect": "killed",
+  "why": "the opening fence is kept as code; killed by every named row with an r, js, ojs or julia cell (the python ones are muted away only at line 0)"
+ },
+ {
+  "name": "B04 buildCellVdoc: the last body line is one too far",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  const last = Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1);",
+  "to": "  const last = Math.min(cell.startLine + bodyLineCount(cell) + 1, lines.length - 1);",
+  "expect": "killed",
+  "why": "the closing fence is kept as code; killed by every named row with a body"
+ },
+ {
+  "name": "B05 buildCellVdoc: the last body line is one short",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  const last = Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1);",
+  "to": "  const last = Math.min(cell.startLine + bodyLineCount(cell) - 1, lines.length - 1);",
+  "expect": "killed",
+  "why": "the last body line is blanked; killed by every named row with a body"
+ },
+ {
+  "name": "B06 buildCellVdoc: the body is not clamped to the last line of the text",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  const last = Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1);",
+  "to": "  const last = cell.startLine + bodyLineCount(cell);",
+  "expect": "killed",
+  "why": "a hand-made cell whose code is longer than what is below it reads lines past the end and `.trim()` throws; killed by the hand-made rows (startLine 3, 9)"
+ },
+ {
+  "name": "B07 buildCellVdoc: the clamp is one line short",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  const last = Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1);",
+  "to": "  const last = Math.min(cell.startLine + bodyLineCount(cell), lines.length - 2);",
+  "expect": "killed",
+  "why": "the last line of the text is blanked for a hand-made cell that runs to it; killed by the seeded documents (a last line with text) and the hand-made unterminated-shaped row"
+ },
+ {
+  "name": "B08 buildCellVdoc: option lines are kept and the rest skipped",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    if (options.has(i)) {",
+  "to": "    if (!options.has(i)) {",
+  "expect": "killed",
+  "why": "the option lines survive and the code goes; killed by every row with an option line and every row with code"
+ },
+ {
+  "name": "B09 buildCellVdoc: option lines are never skipped",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    if (options.has(i)) {",
+  "to": "    if (false) {",
+  "expect": "killed",
+  "why": "a `#|` line is kept as code (and counts as content for the mute); killed by the option-line named rows"
+ },
+ {
+  "name": "B10 buildCellVdoc: no body line is recorded as kept",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    kept.push(i);\n",
+  "to": "",
+  "expect": "killed",
+  "why": "every vdoc is all blank; killed by every row with a kept line"
+ },
+ {
+  "name": "B11 buildCellVdoc: a whitespace-only line is content",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    if (!content && lines[i].trim() !== \"\") {",
+  "to": "    if (!content && lines[i] !== \"\") {",
+  "expect": "killed",
+  "why": "an all-blank python cell with a `  ` line gets the mute; killed by the all-blank named row, the U+2028 and no-break-space rows"
+ },
+ {
+  "name": "B12 buildCellVdoc: the content test is inverted",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    if (!content && lines[i].trim() !== \"\") {",
+  "to": "    if (!content && lines[i].trim() === \"\") {",
+  "expect": "killed",
+  "why": "the mute follows blank lines instead of code; killed by the first named row (code, no mute-free reading) and the all-blank row"
+ },
+ {
+  "name": "B13 buildCellVdoc: content is never found",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "      content = true;",
+  "to": "      content = false;",
+  "expect": "killed",
+  "why": "no python cell is ever muted; killed by every python row"
+ },
+ {
+  "name": "B14 buildCellVdoc: the mute needs content OR a python cell",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  const mute = content && cellLanguageId(cell.lang)?.languageId === \"python\";",
+  "to": "  const mute = content || cellLanguageId(cell.lang)?.languageId === \"python\";",
+  "expect": "killed",
+  "why": "an r cell with code is muted, and an all-blank python cell too; killed by the r, js, ojs, julia and bash named row and the all-blank row"
+ },
+ {
+  "name": "B15 buildCellVdoc: the mute is given to every cell with content but python",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  const mute = content && cellLanguageId(cell.lang)?.languageId === \"python\";",
+  "to": "  const mute = content && cellLanguageId(cell.lang)?.languageId !== \"python\";",
+  "expect": "killed",
+  "why": "the languages are swapped; killed by every python and every non-python row"
+ },
+ {
+  "name": "B16 buildCellVdoc: the mute is given to a cell without content",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  const mute = content && cellLanguageId(cell.lang)?.languageId === \"python\";",
+  "to": "  const mute = cellLanguageId(cell.lang)?.languageId === \"python\";",
+  "expect": "killed",
+  "why": "the content gate is gone: an all-blank or option-only python cell is muted; killed by the all-blank and option-only named rows"
+ },
+ {
+  "name": "B17 buildCellVdoc: javascript is muted as python",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  const mute = content && cellLanguageId(cell.lang)?.languageId === \"python\";",
+  "to": "  const mute = content && cellLanguageId(cell.lang)?.languageId !== undefined;",
+  "expect": "killed",
+  "why": "every mapped language is muted (a `#` is a JS syntax error); killed by the js, ojs, r and julia named rows"
+ },
+ {
+  "name": "B18 buildCellVdoc: the mute is not written",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    parts.push(TYPE_IGNORE_DIRECTIVE);\n    at = 1;",
+  "to": "    at = 1;",
+  "expect": "killed",
+  "why": "the line count stays and line 0 is empty; killed by every python row"
+ },
+ {
+  "name": "B19 buildCellVdoc: after the mute no line is counted as written",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    parts.push(TYPE_IGNORE_DIRECTIVE);\n    at = 1;",
+  "to": "    parts.push(TYPE_IGNORE_DIRECTIVE);\n    at = 0;",
+  "expect": "killed",
+  "why": "a hand-made python cell that starts above line 0 keeps line 0 after the mute wrote over it (the skip of line 0 reads `at`); killed by the hand-made rows (startLine -1) and the seeded documents"
+ },
+ {
+  "name": "B20 buildCellVdoc: line 0 under the mute is not skipped",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    if (i < at) {\n      continue; // line 0 under the mute\n    }",
+  "to": "",
+  "expect": "killed",
+  "why": "a hand-made python cell above line 0 writes line 0 after the directive and one line too many; killed by the hand-made rows (startLine -1, -2) and the seeded documents"
+ },
+ {
+  "name": "B21 buildCellVdoc: the skip takes the line right after the mute",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    if (i < at) {",
+  "to": "    if (i <= at) {",
+  "expect": "killed",
+  "why": "the first body line of a cell that starts at line 0 (line 1, right under the mute) is dropped; killed by the cell-at-line-0 named row"
+ },
+ {
+  "name": "B22 buildCellVdoc: a kept line is preceded by one newline too many",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    parts.push(\"\\n\".repeat(at === 0 ? i : i - at + 1), lines[i]);",
+  "to": "    parts.push(\"\\n\".repeat(at === 0 ? i + 1 : i - at + 1), lines[i]);",
+  "expect": "killed",
+  "why": "a kept line with nothing written before it (an r cell, or a python cell the mute does not reach) sits one line low; killed by the r row and the CRLF rows"
+ },
+ {
+  "name": "B23 buildCellVdoc: a kept line is preceded by one newline too few after the first",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    parts.push(\"\\n\".repeat(at === 0 ? i : i - at + 1), lines[i]);",
+  "to": "    parts.push(\"\\n\".repeat(at === 0 ? i : i - at), lines[i]);",
+  "expect": "killed",
+  "why": "two kept lines run together or a kept line sits one line high; killed by every row with a body of two lines or a mute"
+ },
+ {
+  "name": "B24 buildCellVdoc: the lines written are not advanced",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    at = i + 1;\n  }",
+  "to": "    at = i;\n  }",
+  "expect": "killed",
+  "why": "every later separator count is one high; killed by every row with a kept line"
+ },
+ {
+  "name": "B25 buildCellVdoc: the lines left are one short",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  const rest = lines.length - at;",
+  "to": "  const rest = lines.length - at - 1;",
+  "expect": "killed",
+  "why": "the vdoc has one line too few; killed by every named row (the line count is asserted on each)"
+ },
+ {
+  "name": "B26 buildCellVdoc: the trailing blank lines are written only when two or more are left",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  if (rest > 0) {",
+  "to": "  if (rest > 1) {",
+  "expect": "killed",
+  "why": "a vdoc whose last body line is the line before the last loses its final newline; killed by the row of a cell followed by one line"
+ },
+ {
+  "name": "B27 buildCellVdoc: the trailing run is written when none is left",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  if (rest > 0) {",
+  "to": "  if (rest >= 0) {",
+  "expect": "survives",
+  "why": "EQUIVALENT: `rest` is `lines.length - at` and `lines.length` is at least 1, so `rest === 0` means `at > 0`, where the pushed run is `\"\\n\".repeat(0)`, the empty string, and `join` adds nothing for it; with `at === 0` `rest` is the line count, at least 1"
+ },
+ {
+  "name": "B28 buildCellVdoc: nothing written yet takes a run of the full length",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    parts.push(\"\\n\".repeat(at === 0 ? rest - 1 : rest));",
+  "to": "    parts.push(\"\\n\".repeat(rest));",
+  "expect": "killed",
+  "why": "an empty cell, an option-only cell and the one-blank-line edge have one newline too many; killed by those named rows"
+ },
+ {
+  "name": "B29 buildCellVdoc: a run after something written is one short",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    parts.push(\"\\n\".repeat(at === 0 ? rest - 1 : rest));",
+  "to": "    parts.push(\"\\n\".repeat(at === 0 ? rest - 1 : rest - 1));",
+  "expect": "killed",
+  "why": "every vdoc with something written is one line short; killed by every named row with a body or a mute"
+ },
+ {
+  "name": "B30 buildCellVdoc: the parts are joined with a newline",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  return parts.join(\"\");",
+  "to": "  return parts.join(\"\\n\");",
+  "expect": "killed",
+  "why": "the line count doubles; killed by every row"
+ },
+ {
+  "name": "C01 createCellVdocBuilder: the text is read again on every call",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    if (state === undefined) {",
+  "to": "    if (true) {",
+  "expect": "killed",
+  "why": "the answers are the same and the cost is cells times document again (4.6 s at 2,000 cells); killed by the clock rows alone (and their ratio), by no answer row"
+ },
+ {
+  "name": "C02 createCellVdocBuilder: the text is split on CRLF too",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "        lines: text.split(\"\\n\"),",
+  "to": "        lines: text.split(/\\r?\\n/),",
+  "expect": "killed",
+  "why": "a kept line loses its CR; killed by the two CRLF named rows and the CRLF enumeration"
+ },
+ {
+  "name": "C03 createCellVdocBuilder: no option line is known",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "        options: new Set(findCellOptionLines(text).map((o) => o.line)),",
+  "to": "        options: new Set<number>(),",
+  "expect": "killed",
+  "why": "every option line is kept as code; killed like B09"
+ },
+ {
+  "name": "C04 createCellVdocBuilder: the cells are not in document order",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "        cells: findAllCells(text),",
+  "to": "        cells: findAllCells(text).reverse(),",
+  "expect": "killed",
+  "why": "the binary search needs the order the model gives; killed by every document with two cells (E1, E2, the named rows, the clock rows)"
+ },
+ {
+  "name": "C05 createCellVdocBuilder: cellAt is asked one line down",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    cellAt: (line) => cellAtLine(read().cells, line),",
+  "to": "    cellAt: (line) => cellAtLine(read().cells, line + 1),",
+  "expect": "killed",
+  "why": "the lookup is shifted; killed by the cellAt rows and the differential"
+ },
+ {
+  "name": "C06 createCellVdocBuilder: build reads a cell one line down",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    build: (cell) => buildCellVdoc(read(), cell),",
+  "to": "    build: (cell) => buildCellVdoc(read(), { ...cell, startLine: cell.startLine + 1 }),",
+  "expect": "killed",
+  "why": "the body is read one line low; killed by every row with a body"
+ },
+ {
+  "name": "C07 createCellVdocBuilder: the cells come from an empty list",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "        cells: findAllCells(text),",
+  "to": "        cells: [],",
+  "expect": "killed",
+  "why": "cellAt answers null everywhere; killed by every cellAt row"
+ },
+ {
+  "name": "D01 buildCellVirtualContent: the text is not the text",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  return createCellVdocBuilder(text).build(cell);",
+  "to": "  return createCellVdocBuilder(\"\").build(cell);",
+  "expect": "killed",
+  "why": "the respelled function builds from nothing; killed by the named rows (buildCellVirtualContent is asserted on each) and by embedded-virtual-doc.test.ts"
+ },
+ {
+  "name": "E01 outline.ts: one builder is made over a text that is not the document's",
+  "file": "src/providers/outline.ts",
+  "from": "    const cellVdocs = createCellVdocBuilder(text);",
+  "to": "    const cellVdocs = createCellVdocBuilder(\"\");",
+  "expect": "survives",
+  "why": "RECORDED GAP, not an equivalence: `providers/outline.ts` imports `vscode` and no unit test reaches it; only test/integration/suite/outline.test.ts, which opens a real VS Code window and takes over the screen, reads these symbols, and it was not run in this session"
+ },
+ {
+  "name": "E02 outline.ts: the cell is looked up one line down",
+  "file": "src/providers/outline.ts",
+  "from": "  const cell = cellVdocs.cellAt(cellSymbol.startLine);",
+  "to": "  const cell = cellVdocs.cellAt(cellSymbol.startLine + 1);",
+  "expect": "survives",
+  "why": "RECORDED GAP like E01: the adapter has no unit test; test/integration/suite/outline.test.ts would see a cell forwarded from its first body line, which is still inside the cell, so it may need a row that names the vdoc content"
+ },
+ {
+  "name": "E03 outline.ts: the vdoc handed to ensureVdoc is built from a cell with no code",
+  "file": "src/providers/outline.ts",
+  "from": "    cellVdocs.build(cell),\n  );",
+  "to": "    cellVdocs.build({ ...cell, code: \"\" }),\n  );",
+  "expect": "survives",
+  "why": "RECORDED GAP like E01: no unit test reaches the adapter; the integration suite would see no in-cell symbols from a real language server"
+ },
+ {
+  "name": "E04 outline.ts: a builder per cell",
+  "file": "src/providers/outline.ts",
+  "from": "      visible.map((symbol) => toDocumentSymbol(symbol, document, cellVdocs)),",
+  "to": "      visible.map((symbol) => toDocumentSymbol(symbol, document, createCellVdocBuilder(document.getText()))),",
+  "expect": "survives",
+  "why": "RECORDED GAP like E01, and the one the clock rows would catch if they could reach the adapter: a builder per top-level symbol re-reads the text for each, and nothing in the unit run calls provideDocumentSymbols"
+ },
+ {
+  "name": "K01 clock rows: the six-line shape has a tenth of its cells",
+  "file": "test/unit/s341-cell-vdoc-rows.test.ts",
+  "from": "const SIX_CELLS = 2000;",
+  "to": "const SIX_CELLS = 200;",
+  "expect": "killed",
+  "why": "the parent would pass in 0.4 s; killed by the sizes row, which reads the constant"
+ },
+ {
+  "name": "K02 clock rows: the twelve-line shape has a tenth of its cells",
+  "file": "test/unit/s341-cell-vdoc-rows.test.ts",
+  "from": "const TWELVE_CELLS = 1600;",
+  "to": "const TWELVE_CELLS = 160;",
+  "expect": "killed",
+  "why": "killed by the sizes row"
+ },
+ {
+  "name": "K03 clock rows: the long document has a tenth of its cells",
+  "file": "test/unit/s341-cell-vdoc-rows.test.ts",
+  "from": "const LONG_CELLS = 60;",
+  "to": "const LONG_CELLS = 6;",
+  "expect": "killed",
+  "why": "killed by the sizes row"
+ },
+ {
+  "name": "K04 clock rows: the long document has a tenth of its lines",
+  "file": "test/unit/s341-cell-vdoc-rows.test.ts",
+  "from": "const LONG_GAP = 33_000;",
+  "to": "const LONG_GAP = 3_300;",
+  "expect": "killed",
+  "why": "killed by the sizes row"
+ },
+ {
+  "name": "K05 clock rows: the limit is a hundred seconds",
+  "file": "test/unit/s341-cell-vdoc-rows.test.ts",
+  "from": "const LIMIT_MS = 1000;",
+  "to": "const LIMIT_MS = 100_000;",
+  "expect": "killed",
+  "why": "the parent would pass every row; killed by the sizes row"
+ },
+ {
+  "name": "K06 clock rows: the ratio limit is a hundred thousand",
+  "file": "test/unit/s341-cell-vdoc-rows.test.ts",
+  "from": "const RATIO = 100;",
+  "to": "const RATIO = 100_000;",
+  "expect": "killed",
+  "why": "killed by the sizes row"
+ },
+ {
+  "name": "K07 clock rows: the control has a tenth of its cells",
+  "file": "test/unit/s341-cell-vdoc-rows.test.ts",
+  "from": "const CONTROL_CELLS = 250;",
+  "to": "const CONTROL_CELLS = 25;",
+  "expect": "killed",
+  "why": "killed by the sizes row"
+ },
+ {
+  "name": "K08 clock rows: the first call is not timed",
+  "file": "test/unit/s341-cell-vdoc-rows.test.ts",
+  "from": "    if (builds === 1) firstMs = performance.now() - started;",
+  "to": "    if (builds === 1) firstMs = 1e9;",
+  "expect": "survives",
+  "why": "RECORDED GAP, not an equivalence: a first call of 1e9 ms makes the ratio test `ms < 100 * firstMs` always true, so the load-independent twin of the one-second limit (Learning 877) is lost, and no tree this session has can show it, because the one-second line fails first on the parent (4.6 s) and holds on the cure (10.8 ms). The ratio only decides on a machine more than 4 times faster than the one the rows were written on"
+ },
+ {
+  "name": "K09 clock rows: the loop does not lay the string out",
+  "file": "test/unit/s341-cell-vdoc-rows.test.ts",
+  "from": "    sink ^= vdoc.charCodeAt(vdoc.length >> 1); // reads the middle of the string: a string built by concatenation is really laid out here",
+  "to": "    sink ^= 0;",
+  "expect": "survives",
+  "why": "EQUIVALENT on this engine for the cured code: `parts.join(\"\")` returns a flat string, so reading its middle costs nothing extra; the line is there for a respelling by `+=`, whose rope would otherwise be timed unflattened"
+ },
+ {
+  "name": "O01 oracle: the old spelling's body starts at the fence line",
+  "file": "test/unit/cell-vdoc-builder-equivalence.test.ts",
+  "from": "    i > cell.startLine && i <= lastBody && !optionLines.has(i);",
+  "to": "    i >= cell.startLine && i <= lastBody && !optionLines.has(i);",
+  "expect": "killed",
+  "why": "the comparison is two-sided: a changed OLD spelling disagrees with the correct builder; killed by the named rows (the oracle is asserted on each) and every enumerated document"
+ },
+ {
+  "name": "O02 oracle: the old spelling mutes every python cell",
+  "file": "test/unit/cell-vdoc-builder-equivalence.test.ts",
+  "from": "    lines.some((line, i) => inBody(i) && line.trim() !== \"\");",
+  "to": "    lines.some((line, i) => inBody(i));",
+  "expect": "killed",
+  "why": "the old spelling mutes an all-blank python cell; killed by the all-blank named row and the enumerations"
+ },
+ {
+  "name": "O03 oracle: the old spelling reads the options of no cell",
+  "file": "test/unit/cell-vdoc-builder-equivalence.test.ts",
+  "from": "  const optionLines = new Set(findCellOptionLines(text).map((o) => o.line));",
+  "to": "  const optionLines = new Set<number>();",
+  "expect": "killed",
+  "why": "killed like O01"
+ },
+ {
+  "name": "O04 oracle: the old spelling counts a body of one blank line as a line",
+  "file": "test/unit/cell-vdoc-builder-equivalence.test.ts",
+  "from": "  return cell.code === \"\" ? 0 : cell.code.split(\"\\n\").length;",
+  "to": "  return cell.code === \"\" ? 1 : cell.code.split(\"\\n\").length;",
+  "expect": "killed",
+  "why": "an empty cell keeps the line under its fence in the oracle; the mute test also reads the closing fence; killed by the empty-cell and one-blank-line rows and the enumerations"
+ },
+ {
+  "name": "N01 enumeration E1: the documents are one line shorter",
+  "file": "test/unit/cell-vdoc-builder-equivalence.test.ts",
+  "from": "  const MAX_LENGTH_1 = 5;",
+  "to": "  const MAX_LENGTH_1 = 4;",
+  "expect": "killed",
+  "why": "killed by the sizes row and by the pinned counts of E1, which the Python recount reproduces"
+ },
+ {
+  "name": "N02 enumeration E1: the whitespace-only line is a blank one",
+  "file": "test/unit/cell-vdoc-builder-equivalence.test.ts",
+  "from": "    h: \"  \",",
+  "to": "    h: \"\",",
+  "expect": "killed",
+  "why": "the kept-line and mute counts move; killed by the pinned counts of E1"
+ },
+ {
+  "name": "N03 enumeration E2: the documents are one line shorter",
+  "file": "test/unit/cell-vdoc-builder-equivalence.test.ts",
+  "from": "  const MAX_LENGTH_2 = 7;",
+  "to": "  const MAX_LENGTH_2 = 6;",
+  "expect": "killed",
+  "why": "killed by the sizes row and the pinned counts of E2"
+ },
+ {
+  "name": "N04 seeded differential: a tenth of the documents",
+  "file": "test/unit/cell-vdoc-builder-equivalence.test.ts",
+  "from": "  const SEEDED_COUNT = 30_000;",
+  "to": "  const SEEDED_COUNT = 3_000;",
+  "expect": "killed",
+  "why": "the floors on cells and mutes are not reached; killed by them"
+ }
+]

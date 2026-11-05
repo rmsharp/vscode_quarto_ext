@@ -252,12 +252,51 @@ describe("Session 341 -- the named rows: the builder, buildCellVirtualContent an
     expect([-1, 0, 1, 2, 3, 4, 5, 6, 99].map((line) => builder.cellAt(line)?.startLine ?? null)).toEqual([null, null, 1, 1, 1, null, null, null, null]);
   });
 
+  it("cellAt answers a line that is not an integer, NaN and infinity as the scan does: the cell whose span holds it, else null", () => {
+    const text = "p\n```{python}\nx\n```\nq\n```{r}\ny\n```\n";
+    const builder = createCellVdocBuilder(text);
+    const starts = (line: number, from: { cellAt(l: number): Cell | null }): number | null => from.cellAt(line)?.startLine ?? null;
+    const scan = { cellAt: (line: number): Cell | null => findCellAtPosition(text, line) };
+    // 0 p | 1 fence | 2 x | 3 fence | 4 q | 5 fence | 6 y | 7 fence | 8 (empty): the cells span [1, 3] and [5, 7]
+    const lines = [NaN, 0.5, 0.999, 1, 1.5, 3, 3.5, 4.5, 5, 6.5, 7.25, 8, Infinity, -Infinity, Number.MAX_SAFE_INTEGER, -0];
+    expect(lines.map((line) => starts(line, builder))).toEqual(lines.map((line) => starts(line, scan)));
+    // and the scan's own answers are the ones the row is about
+    expect(lines.map((line) => starts(line, scan))).toEqual([null, null, null, 1, 1, 1, null, null, 5, 5, null, null, null, null, null, null]);
+  });
+
+  it("a builder is reusable: the cells built in any order, twice over, give the same vdocs", () => {
+    const text = "p\n```{python}\nx\n```\n```{r}\ny\n```\n```{python}\nz\n```\n";
+    const builder = createCellVdocBuilder(text);
+    const cells = findAllCells(text);
+    const first = cells.map((cell) => builder.build(cell));
+    const reversed = [...cells].reverse().map((cell) => builder.build(cell)).reverse();
+    const again = cells.map((cell) => builder.build(cell));
+    expect(reversed).toEqual(first);
+    expect(again).toEqual(first);
+    expect(first).toEqual(oldVdocs(text));
+    expect(new Set(first).size).toBe(3);
+  });
+
   it("a hand-made cell the model never found is built as the old spelling builds it: past the end, before the start, with a body of its own", () => {
     const text = "just prose\n\n# Heading\n";
     const builder = createCellVdocBuilder(text);
     const inside: Cell = { startLine: 1, endLine: 3, lang: "python", code: "a\nb" };
     expect(builder.build(inside)).toBe(`${D}\n\n# Heading\n`);
-    for (const cell of [inside, { ...inside, startLine: -1 }, { ...inside, startLine: -2 }, { ...inside, startLine: 3 }, { ...inside, startLine: 9 }, { ...inside, code: "" }, { ...inside, code: "a".repeat(50) }, { ...inside, lang: "r" }, { ...inside, lang: "" }]) {
+    // 0 `just prose` | 1 (empty) | 2 `# Heading` | 3 (empty). A cell above line 0 reads line 0 as its body; for a python cell with content the mute writes over it; a cell below the text, or with no code, holds nothing.
+    const stated: Array<[string, Cell, string]> = [
+      ["starts at -1, r: line 0 is its body and is kept", { ...inside, startLine: -1, lang: "r" }, "just prose\n\n\n"],
+      ["starts at -1, python: the mute writes over line 0", { ...inside, startLine: -1 }, `${D}\n\n\n`],
+      ["starts at -2, r: its two lines of code reach line 0 only", { ...inside, startLine: -2, lang: "r" }, "just prose\n\n\n"],
+      ["starts at -2, python", { ...inside, startLine: -2 }, `${D}\n\n\n`],
+      ["starts on the last line: nothing below it", { ...inside, startLine: 3 }, "\n\n\n"],
+      ["starts far below the text", { ...inside, startLine: 9 }, "\n\n\n"],
+      ["no code", { ...inside, code: "" }, "\n\n\n"],
+      ["one line of code", { ...inside, code: "a".repeat(50) }, `${D}\n\n# Heading\n`],
+      ["an r cell: no mute", { ...inside, lang: "r" }, "\n\n# Heading\n"],
+      ["no engine: no mute", { ...inside, lang: "" }, "\n\n# Heading\n"],
+    ];
+    for (const [, cell, expected] of stated) {
+      expect(builder.build(cell)).toBe(expected);
       expect(builder.build(cell)).toBe(oldBuildCellVirtualContent(text, cell));
     }
   });
