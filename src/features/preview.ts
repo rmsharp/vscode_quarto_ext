@@ -24,7 +24,7 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 import { buildPreviewHtml } from "../core/preview-html";
 import { buildPreviewArgs, parseDeclaredFormats } from "../core/preview-format";
-import { parseBrowseUrl } from "../core/preview-url";
+import { createBrowseUrlScanner } from "../core/preview-url";
 import {
   isRenderScript,
   isRenderScriptExtension,
@@ -195,7 +195,7 @@ class PreviewManager implements vscode.Disposable {
         }
       }, START_TIMEOUT_MS);
 
-      let stderr = "";
+      const urlScanner = createBrowseUrlScanner();
       // `settled` only flips after showPreview's async asExternalUri resolves;
       // `urlShown` flips synchronously the instant a URL is matched, so further
       // stderr chunks during that await don't re-dispatch showPreview. It MUST
@@ -204,10 +204,9 @@ class PreviewManager implements vscode.Disposable {
       let urlShown = false;
       child.stderr?.on("data", (buf: Buffer) => {
         const text = buf.toString();
-        stderr += text;
         this.channel.append(text);
         if (!urlShown) {
-          const url = parseBrowseUrl(stderr);
+          const url = urlScanner.push(text);
           if (url) {
             urlShown = true;
             void this.showPreview(session, url).then(settle, (err: unknown) => {

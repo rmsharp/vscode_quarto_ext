@@ -32,3 +32,24 @@ export function parseBrowseUrl(output: string): string | null {
   const match = BROWSE_PATTERN.exec(clean);
   return match ? match[1] : null;
 }
+
+/** A stateful reader of `quarto preview` stderr, fed one chunk at a time. */
+export interface BrowseUrlScanner {
+  push(chunk: string): string | null;
+}
+
+/**
+ * One scanner per spawned preview; feed it each stderr chunk as it arrives.
+ *
+ * Seam (Session 341): the OLD logic sits behind the new interface — it still accumulates every chunk and
+ * re-parses the whole buffer with `parseBrowseUrl`. The cure replaces the body, not the interface.
+ */
+export function createBrowseUrlScanner(): BrowseUrlScanner {
+  let buffer = "";
+  return {
+    push(chunk: string): string | null {
+      buffer += chunk;
+      return parseBrowseUrl(buffer);
+    },
+  };
+}
