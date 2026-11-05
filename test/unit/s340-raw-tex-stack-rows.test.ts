@@ -14,7 +14,8 @@ import { indexLabels } from "../../src/core/refs";
 // paragraph text, and the one `\end{a}` at the end is what interrupts the paragraph; in the third the `\end{a}` is BELOW the ATX line, every `\begin{a}` is a real opener, the `\end{b}` lines are text and the
 // ATX line is hidden. Every answer below is what the PARENT gives: the short assertion (`FEW`) of each row passes at `9238682` and states it, and the long assertion of the same row states the same answer.
 //
-// THE CLOCK. The limit is one second for 80,000 environments (about 1.4 million characters). The parent takes 3 s or more; a linear reader takes a fraction of a second. It is not raised to make a row
+// THE CLOCK. The limit is one second for 80,000 environments (about 1.4 million characters). The parent takes 2.6 to 3.6 s on the nested shapes and 3.6 to 8 s on the unmatched ones, depending on the load of the
+// machine (the review round of Session 340 measured 2.65 to 2.79 s at load 4.6 to 4.9 and 3.0 to 3.6 s at load 5 to 8; the first reading said "3 s or more"); a linear reader takes 0.3 to 0.5 s. It is not raised to make a row
 // pass. The control rows (a shape that is linear today and must stay so: a stack that never grows past one, and closers that meet an empty stack) are written to pass on the parent.
 
 const timed = <T>(run: () => T): { result: T; ms: number } => {
@@ -65,7 +66,7 @@ describe("Session 340 — a deep stack of raw-TeX environments and many lines th
     { site: "indexLabels", build: (n) => nested("a05", n), read: (text) => indexLabels(text).map((l) => [l.id, l.line]), answer: (n) => [["fig-a05", 3 + 2 * n]] },
     // A line that holds two names, the first of which is open nowhere: the line is read in full and pops one.
     { site: "two names per closing line (`\\end{b}\\end{a}`), the first open nowhere", build: (n) => `para\n${OPEN.repeat(n)}${"\\end{b}\\end{a}\n".repeat(n)}${tail("a06")}`, read: names, answer: () => ["Ha06"] },
-    // A closing line that is indented, and one that is behind a block quote marker (the strip is applied before the probe).
+    // A closing line that is indented two spaces (the review round of Session 340 found that an earlier wording promised a second row, a closer behind a block quote marker, that was never written).
     { site: "indented two spaces", build: (n) => `para\n${OPEN.repeat(n)}${"  \\end{a}\n".repeat(n)}${tail("a07")}`, read: names, answer: () => ["Ha07"] },
     // The second shape: names that are open nowhere. The probe pops nothing, and it still copies the stack.
     { site: "n openers, n `\\end{b}` lines that pop nothing, one `\\end{a}`", build: (n) => `para\n${OPEN.repeat(n)}${"\\end{b}\n".repeat(n)}${CLOSE}${tail("b01")}`, read: names, answer: () => ["Hb01"] },
@@ -93,11 +94,40 @@ describe("Session 340 — a deep stack of raw-TeX environments and many lines th
   it.each([
     ["the closing name is 5,000 characters into its line", `para\n\\begin{a}\nbody\n\\end{b}${" ".repeat(5000)}\\end{a}\n# Hl01\n`, ["Hl01"]],
     ["the closing name is 200,000 characters into its line", `para\n\\begin{a}\nbody\n\\end{b}${" ".repeat(200_000)}\\end{a}\n# Hl02\n`, ["Hl02"]],
-    ["the same line with a name that is open nowhere at the end: the heading stays hidden", `para\n\\begin{a}\nbody\n\\end{b}${" ".repeat(5000)}\\end{c}\n\\end{a}\n# Hl03\n`, ["Hl03"]],
+    ["the same line with a name that is open nowhere at the end, the real closer on the next line above the heading: the heading shows", `para\n\\begin{a}\nbody\n\\end{b}${" ".repeat(5000)}\\end{c}\n\\end{a}\n# Hl03\n`, ["Hl03"]],
     ["the same line, the real closer below it only: the paragraph is open at the ATX line", `para\n\\begin{a}\nbody\n\\end{b}${" ".repeat(5000)}\\end{c}\n# Hl04\n\\end{a}\n`, []],
   ] as Array<[string, string, string[]]>)("%s", (_label, text, expected) => {
     expect(names2(text)).toEqual(expected);
   });
+
+  // ROWS THE REVIEW ROUND OF SESSION 340 FOUND MISSING (its mutation lens: 16 edits of `rawTexEndPops`, its call and the push beside it that every test file let live; `tools/mutation-run/mutants/s340-review-raw-tex-pops.json`).
+  // They read an ANSWER through `findHeadings`, no clock. A closing line that closes something ends the paragraph, so an ATX line right under it is a heading; a closer that finds nothing to close is paragraph text,
+  // and `# H` right under paragraph text is not a heading (blank-before-header). So how many entries ONE line removed is read back by the NEXT closer: too many and it finds nothing (the heading is hidden), exactly
+  // all and a stray closer after them finds nothing (hidden), too few and the stray closer closes one of the rest (the heading shows). Every answer is what the PARENT (`9238682`) gives, checked on it (the long
+  // ones take it 4 to 5 s) and on the cured code.
+  const AT_ONCE = "\\end{a}";
+  it.each([
+    // How many entries ONE line removes is read back by the NEXT closer.
+    ["one line closes two of three open environments, the next `\\end{a}` closes the last: the heading shows", `para\n${OPEN.repeat(3)}${AT_ONCE.repeat(2)}\n${CLOSE}# Hm01\n`, ["Hm01"]],
+    ["one line closes 4,999 of 5,000 open environments, the next `\\end{a}` closes the last", `para\n${OPEN.repeat(5000)}${AT_ONCE.repeat(4999)}\n${CLOSE}# Hm02\n`, ["Hm02"]],
+    ["one line closes all 5,000 open environments, the next `\\end{a}` has nothing to close and is paragraph text: the heading stays hidden", `para\n${OPEN.repeat(5000)}${AT_ONCE.repeat(5000)}\n${CLOSE}# Hm03\n`, []],
+    // A name is compared as it was written: no trim, no case folding, no cap, no collapsed blanks, on the pushed name and on the closing one.
+    ["a name with a blank at each end, `\\begin{ a }`, is closed by `\\end{ a }`", `para\n\\begin{ a }\nbody\n\\end{ a }\n# Hn01\n`, ["Hn01"]],
+    ["a capital, `\\begin{A}`, is closed by `\\end{A}`", `para\n\\begin{A}\nbody\n\\end{A}\n# Hn02\n`, ["Hn02"]],
+    ["a name of 100 characters is closed by itself", `para\n\\begin{${"x".repeat(100)}}\nbody\n\\end{${"x".repeat(100)}}\n# Hn03\n`, ["Hn03"]],
+    ["two names that agree for 64 characters and then differ: the first closer closes nothing, the second closes the environment", `para\n\\begin{${"x".repeat(64)}1}\nbody\n\\end{${"x".repeat(64)}2}\n\\end{${"x".repeat(64)}1}\n# Hn04\n`, ["Hn04"]],
+    ["a name with two blanks, `\\begin{a  b}`, is closed by `\\end{a  b}`", `para\n\\begin{a  b}\nbody\n\\end{a  b}\n# Hn05\n`, ["Hn05"]],
+    ["`\\begin{a b}` is NOT closed by `\\end{a  b}` (two blanks): the heading stays hidden", `para\n\\begin{a b}\nbody\n\\end{a  b}\n# Hn06\n`, []],
+    // The older guards of the same block: a one-line environment moves nothing, and an opener with no closer anywhere opens nothing.
+    ["a one-line environment pushes nothing: the stray `\\end{c}` under it closes nothing and the heading stays hidden", `para\n\\begin{c}x\\end{c}\n\\end{c}\n# Ho01\n`, []],
+    ["an opener whose `\\end{zz}` is nowhere is paragraph text: the heading under it stays hidden", `\\begin{zz}\n# Ho02\n`, []],
+    // Sizes no clock row reaches: past 65,535 and 100,000 environments, and a line past 1,000,000 characters.
+    ["100,001 environments open and 100,001 closing lines: the heading shows", `para\n${OPEN.repeat(100_001)}${CLOSE.repeat(100_001)}# Hp01\n`, ["Hp01"]],
+    ["one line closes 100,002 open environments, the next `\\end{a}` closes nothing: the heading stays hidden", `para\n${OPEN.repeat(100_002)}${AT_ONCE.repeat(100_002)}\n${CLOSE}# Hp02\n`, []],
+    ["a closing name more than 1,000,000 characters into its line", `para\n\\begin{a}\nbody\n\\end{b}${" ".repeat(1_000_000)}\\end{a}\n# Hp03\n`, ["Hp03"]],
+  ] as Array<[string, string, string[]]>)("%s", (_label, text, expected) => {
+    expect(names(text)).toEqual(expected);
+  }, 120_000);
 
   // The rows above fix MANY, the limit and the control size: 8,000 environments, a limit of 100 s or a control of 1,000 would pass the parent too.
   it("keeps the sizes and the limit the clock rows are built on", () => {

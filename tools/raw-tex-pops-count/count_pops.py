@@ -11,7 +11,7 @@ wrong the same way. This script shares no code with the TypeScript and uses no r
     python3 -I tools/raw-tex-pops-count/count_pops.py              # every count, about 20 seconds
     python3 -I tools/raw-tex-pops-count/count_pops.py "E1"         # one of them (E1, E2, E3)
 
-It prints one line per count: the label, the number of pairs, how many pop at least once, and the pops in all. Compare them with the constants of the test (`ENUMERATIONS`, `SEEDED`).
+It prints one line per count: the label, the number of pairs, how many pop at least once, and the pops in all. Compare them with the numbers of the test: the `compared`, `popping` and `pops` of the two entries of `ENUMERATIONS` (E1, E2) and the two literals of the seeded row (E3: 477_153 and 835_844, beside `SEEDED_COUNT`).
 
 The seeded count reproduces the test's generator: Mulberry32 (`seededRandom` of `test/unit/support/regex-equivalence.ts`) seeded with 340, then the same pools, pieces and draws as the seeded row. If the alphabets, token
 lists, pools, pieces or seed change, change them here too.

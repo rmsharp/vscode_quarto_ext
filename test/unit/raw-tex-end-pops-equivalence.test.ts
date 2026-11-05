@@ -156,7 +156,7 @@ describe("Session 340 — rawTexEndPops: the new function answers what the copy 
     expect(rawTexEndPops(Object.freeze([...stack]), line)).toBe(expected);
   });
 
-  // A cap on the count (or on the names read) that sits above every row of the enumerations: the enumerations pop at most eight from one line.
+  // A cap on the count (or on the names read) that sits above every row of the enumerations: the two exhaustive ones pop at most six from one line (4 and 6, measured by the Python recount) and the seeded sample at most twelve.
   it.each([
     ["5,000 closers over 5,000 environments of one name close them all", new Array<string>(5000).fill("a"), (END + "a}").repeat(5000), 5000],
     ["6,000 closers over 5,000 environments close 5,000", new Array<string>(5000).fill("a"), (END + "a}").repeat(6000), 5000],
