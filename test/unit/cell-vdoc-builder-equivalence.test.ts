@@ -308,7 +308,12 @@ function compareDocument(text: string, tally: Tally, handMade: readonly Cell[] =
   const note = (what: string): void => {
     if (tally.disagreements.length < 5) tally.disagreements.push(`${JSON.stringify(text)}: ${what}`);
   };
-  for (const cell of findAllCells(text)) {
+  // The order `cellAt` relies on: the model's cells come in document order and never overlap (each starts below the line the one before it ends on).
+  const found = findAllCells(text);
+  for (let k = 1; k < found.length; k++) {
+    if (found[k].startLine <= found[k - 1].endLine) note(`the cells at ${found[k - 1].startLine} and ${found[k].startLine} overlap or are out of order`);
+  }
+  for (const cell of found) {
     const old = oldBuildCellVirtualContent(text, cell);
     tally.cells++;
     const el = cellLanguageId(cell.lang);

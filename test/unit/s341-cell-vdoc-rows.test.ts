@@ -99,7 +99,8 @@ describe("createCellVdocBuilder -- the answers (Session 341)", () => {
 // cells at load 3.7; the same with `{r}` cells 4,501 ms at 2,000 at load 4.1; 12-line cells (fence, option line, nine body lines, fence) 4,125 ms at 1,600 (22,401 lines) at load 5.3; 60 cells in a 1,980,301-line
 // document 3,708 ms at load 5.2. The cost is cells times document: every build splits the whole text, reads every cell's option lines again and maps over every line.
 //
-// The limit is one second. It is not raised to make a row pass. The parent takes 3.7 to 4.6 s on the four clock rows; the cure takes tens of milliseconds (written below, from the run on the cured tree).
+// The limit is one second. It is not raised to make a row pass. The parent takes 3.5 to 4.6 s on the four clock rows (4.6 / 4.5 / 4.1 / 3.5 s at load 3 to 5); the cure takes 10.8 / 11.0 / 12.2 / 49.7 ms at load 8.9 to 7.3
+// (one fresh process each, the same four shapes). The loop against its first call, which no load moves: 844 / 825 / 838 on the first three shapes at the parent, 2.1 / 2.1 / 2.4 on the cure; the limit is 100.
 // Every row states its ANSWER before the clock: the number of builds, the total length of the strings, and the exact non-empty lines of three sampled cells (the first, the middle, the last), read back after the loop.
 
 const timed = <T>(run: () => T): { result: T; ms: number } => {

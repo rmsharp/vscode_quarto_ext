@@ -216,33 +216,115 @@ export function buildCellVirtualContent(text: string, cell: Cell): string {
  * The per-cell virtual documents of ONE text, and the cell lookup the Outline provider needs to ask for them
  * (Session 341, part (2) of the BACKLOG item "Slow shapes and residuals found by Session 339's review round").
  * `cellAt(line)` answers exactly what `findCellAtPosition(text, line)` answers and `build(cell)` exactly what
- * `buildCellVirtualContent(text, cell)` answers; the provider makes ONE per `provideDocumentSymbols` call.
+ * the old `buildCellVirtualContent(text, cell)` answered, byte for byte; the provider makes ONE per
+ * `provideDocumentSymbols` call and asks it once per code cell.
+ *
+ * Why a builder and not the two functions: the Outline forwards EVERY code cell, and each call of the old pair
+ * redid the work of the whole text (a scan of every cell to find the one at a line; a split of the text; every
+ * cell's option lines again; a callback over every line; for a python cell a whole-document `some` for the mute),
+ * so the cost was cells times document (4.6 s at 2,000 six-line cells, measured at the parent). What is done ONCE
+ * per text here: the split, the option lines, the cells. What is done once per cell: its own body lines, and
+ * the blank runs between them written as `"\n".repeat(k)` (a block copy, not a callback per line).
+ *
+ * The identity-mapping contract needs each vdoc to be the text's full line count, so every build is at least as
+ * long as the document: that part is inherent. The per-text work is not, and the preparation is lazy, so a
+ * document with no code cell (which never asks) pays for none of it.
  */
 export interface CellVdocBuilder {
+  /** The cell holding 0-based `line` (its fence lines included), or `null`: `findCellAtPosition(text, line)`. */
   cellAt(line: number): Cell | null;
+  /** The vdoc of `cell`: the full line count of the text, `cell`'s own body lines kept verbatim, everything else empty, the python mute on line 0. */
   build(cell: Cell): string;
 }
 
+/** What is read from the text ONCE: its LF-split lines (a CR stays on its line, the model supplies the line numbers), every cell's option lines, and the model's cells. */
+interface CellVdocState {
+  lines: string[];
+  options: ReadonlySet<number>;
+  cells: readonly Cell[];
+}
+
+/**
+ * `findCellAtPosition`'s answer without a scan of every cell: the model's cells come in document order and never overlap (each ends at its
+ * own closing fence, and the next opens below it), so the only cell that can hold `line` is the last one that STARTS at or above it. The
+ * cell-line differential of `cell-vdoc-builder-equivalence.test.ts` asserts that order on every document it reads, and asks every line.
+ * A `line` that is not an integer, is `NaN` or lies outside the text finds no such cell, or one it is past the end of: `null`, as the scan answers.
+ */
+function cellAtLine(cells: readonly Cell[], line: number): Cell | null {
+  let low = 0;
+  let high = cells.length - 1;
+  let found = -1;
+  while (low <= high) {
+    const middle = (low + high) >> 1;
+    if (cells[middle].startLine <= line) {
+      found = middle;
+      low = middle + 1;
+    } else {
+      high = middle - 1;
+    }
+  }
+  return found >= 0 && line <= cells[found].endLine ? cells[found] : null;
+}
+
+/**
+ * One cell's vdoc from the prepared text. Candidate G (plan §4.1): the per-cell vdoc leaks the same workspace-mode phantom diagnostics (plan §3.1),
+ * so it takes the same file-level `# type: ignore` mute on line 0. Line 0 is never a body line of a cell the model found — a body line needs a fence
+ * above it — so the write is coordinate-safe (for a hand-made cell that starts above line 0 the mute still wins, as it always did). Gated to a
+ * python cell (a `#` is a JS syntax error) with NON-WHITESPACE body content (nothing to mute in an all-blank cell).
+ *
+ * The body lines are the ones after the fence, up to `bodyLineCount` of them, that are not option lines. The result is those lines at their own
+ * indices with `"\n"` runs between them: element `k` of the `n` lines joined by `"\n"` is the line itself if kept and `""` otherwise, so a kept
+ * line at index `i` after `at` lines already written is preceded by `i - at + 1` newlines (one fewer when nothing is written yet).
+ */
+function buildCellVdoc({ lines, options }: CellVdocState, cell: Cell): string {
+  const first = Math.max(cell.startLine + 1, 0);
+  const last = Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1);
+  const kept: number[] = [];
+  let content = false;
+  for (let i = first; i <= last; i++) {
+    if (options.has(i)) {
+      continue;
+    }
+    kept.push(i);
+    if (!content && lines[i].trim() !== "") {
+      content = true;
+    }
+  }
+  const mute = content && cellLanguageId(cell.lang)?.languageId === "python";
+  const parts: string[] = [];
+  let at = 0; // how many lines `parts` holds
+  if (mute) {
+    parts.push(TYPE_IGNORE_DIRECTIVE);
+    at = 1;
+  }
+  for (const i of kept) {
+    if (i < at) {
+      continue; // line 0 under the mute
+    }
+    parts.push("\n".repeat(at === 0 ? i : i - at + 1), lines[i]);
+    at = i + 1;
+  }
+  const rest = lines.length - at;
+  if (rest > 0) {
+    parts.push("\n".repeat(at === 0 ? rest - 1 : rest));
+  }
+  return parts.join("");
+}
+
 export function createCellVdocBuilder(text: string): CellVdocBuilder {
+  let state: CellVdocState | undefined;
+  const read = (): CellVdocState => {
+    if (state === undefined) {
+      state = {
+        lines: text.split("\n"),
+        options: new Set(findCellOptionLines(text).map((o) => o.line)),
+        cells: findAllCells(text),
+      };
+    }
+    return state;
+  };
   return {
-    cellAt: (line) => findCellAtPosition(text, line),
-    build: (cell) => {
-      const lines = text.split("\n");
-      const optionLines = new Set(findCellOptionLines(text).map((o) => o.line));
-      const lastBody = cell.startLine + bodyLineCount(cell);
-      const inBody = (i: number): boolean =>
-        i > cell.startLine && i <= lastBody && !optionLines.has(i);
-      // Candidate G (plan §4.1): the per-cell vdoc leaks the same workspace-mode phantom
-      // diagnostics (plan §3.1), so it takes the same file-level `# type: ignore` mute. Line 0 is
-      // never a body line here either — `inBody` requires `i > cell.startLine` and `cell.startLine`
-      // is a fence line ≥ 0 — so the write is coordinate-safe. Gated to a python cell (a `#` is a
-      // JS syntax error) with NON-WHITESPACE body content (nothing to mute in an all-blank cell).
-      const injectMute =
-        cellLanguageId(cell.lang)?.languageId === "python" &&
-        lines.some((line, i) => inBody(i) && line.trim() !== "");
-      return lines
-        .map((line, i) => (i === 0 && injectMute ? TYPE_IGNORE_DIRECTIVE : inBody(i) ? line : ""))
-        .join("\n");
-    },
+    cellAt: (line) => cellAtLine(read().cells, line),
+    build: (cell) => buildCellVdoc(read(), cell),
   };
 }
