@@ -277,15 +277,16 @@ function cellAtLine(cells: readonly Cell[], line: number): Cell | null {
  * python cell (a `#` is a JS syntax error) with NON-WHITESPACE body content (nothing to mute in an all-blank cell).
  *
  * The body lines are the ones after the fence, up to `bodyLineCount` of them, that are not option lines: the INTEGER line numbers `i` with `i > startLine`
- * and `i <= startLine + bodyLineCount`, which is how the old spelling read them, so `first` is `floor(startLine) + 1` and `last` the floor of `startLine +
- * bodyLineCount` (the same sum, so a rounding in it is the old rounding: `1.9999999999999998 + 2` is 4). A `startLine` that is a fraction, `NaN`, an infinity or
- * a value no text reaches therefore gets the old answer too (for `NaN` no `i` satisfies the rule, and neither bound lets the loop run). The result is those lines at their own
+ * and `i <= startLine + bodyLineCount`, which is how the old spelling read them. The loop's `i` is a whole number, so `first` is `floor(startLine) + 1` (the loop must
+ * START on a whole line) and `last` needs no floor (`i <= last` for a whole `i` is `i <= floor(last)`); `last` is the very sum the old spelling compared with, so a rounding in it
+ * is the old rounding (`1.9999999999999998 + 2` is 4). A `startLine` that is a fraction, `NaN`, an infinity or a value no text reaches therefore gets the old answer too
+ * (for `NaN` no `i` satisfies the rule, and neither bound lets the loop run). The result is those lines at their own
  * indices with `"\n"` runs between them: element `k` of the `n` lines joined by `"\n"` is the line itself if kept and `""` otherwise, so a kept
  * line at index `i` after `at` lines already written is preceded by `i - at + 1` newlines (one fewer when nothing is written yet).
  */
 function buildCellVdoc({ lines, options }: CellVdocState, cell: Cell): string {
   const first = Math.max(Math.floor(cell.startLine) + 1, 0);
-  const last = Math.floor(Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1));
+  const last = Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1);
   const kept: number[] = [];
   let content = false;
   for (let i = first; i <= last; i++) {

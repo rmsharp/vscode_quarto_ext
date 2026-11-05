@@ -106,32 +106,32 @@
  {
   "name": "B04 buildCellVdoc: the last body line is one too far",
   "file": "src/core/embedded/virtual-doc.ts",
-  "from": "  const last = Math.floor(Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1));",
-  "to": "  const last = Math.floor(Math.min(cell.startLine + bodyLineCount(cell) + 1, lines.length - 1));",
+  "from": "  const last = Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1);",
+  "to": "  const last = Math.min(cell.startLine + bodyLineCount(cell) + 1, lines.length - 1);",
   "expect": "killed",
   "why": "the closing fence is kept as code; killed by every named row with a body"
  },
  {
   "name": "B05 buildCellVdoc: the last body line is one short",
   "file": "src/core/embedded/virtual-doc.ts",
-  "from": "  const last = Math.floor(Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1));",
-  "to": "  const last = Math.floor(Math.min(cell.startLine + bodyLineCount(cell) - 1, lines.length - 1));",
+  "from": "  const last = Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1);",
+  "to": "  const last = Math.min(cell.startLine + bodyLineCount(cell) - 1, lines.length - 1);",
   "expect": "killed",
   "why": "the last body line is blanked; killed by every named row with a body"
  },
  {
   "name": "B06 buildCellVdoc: the body is not clamped to the last line of the text",
   "file": "src/core/embedded/virtual-doc.ts",
-  "from": "  const last = Math.floor(Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1));",
-  "to": "  const last = Math.floor(cell.startLine + bodyLineCount(cell));",
+  "from": "  const last = Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1);",
+  "to": "  const last = cell.startLine + bodyLineCount(cell);",
   "expect": "killed",
   "why": "a hand-made cell whose code is longer than what is below it reads lines past the end and `.trim()` throws; killed by the hand-made rows (startLine 3, 9)"
  },
  {
   "name": "B07 buildCellVdoc: the clamp is one line short",
   "file": "src/core/embedded/virtual-doc.ts",
-  "from": "  const last = Math.floor(Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1));",
-  "to": "  const last = Math.floor(Math.min(cell.startLine + bodyLineCount(cell), lines.length - 2));",
+  "from": "  const last = Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1);",
+  "to": "  const last = Math.min(cell.startLine + bodyLineCount(cell), lines.length - 2);",
   "expect": "killed",
   "why": "the last line of the text is blanked for a hand-made cell that runs to it; killed by the seeded documents (a last line with text) and the hand-made unterminated-shaped row"
  },
