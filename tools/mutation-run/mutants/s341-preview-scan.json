@@ -1,0 +1,386 @@
+[
+ {
+  "name": "S01 push: the first newline of the chunk, not the last",
+  "file": "src/core/preview-url.ts",
+  "from": "const end = chunk.lastIndexOf(\"\\n\") + 1;",
+  "to": "const end = chunk.indexOf(\"\\n\") + 1;",
+  "expect": "killed",
+  "why": "the lines after the first newline of a chunk wait in the tail until a later push; a marker line that is the second line of its chunk answers one push late; killed by the named case 'a first Browse at that fails the pattern, then a real one, in one chunk' and by every enumeration"
+ },
+ {
+  "name": "S02 push: the end of the completed text is one place too far",
+  "file": "src/core/preview-url.ts",
+  "from": "const end = chunk.lastIndexOf(\"\\n\") + 1;",
+  "to": "const end = chunk.lastIndexOf(\"\\n\") + 2;",
+  "expect": "killed",
+  "why": "a chunk with no newline has `end` 1 and is cut, and the first character after a newline is tested with the lines and lost from the tail; killed by the named cases that cut a marker, a URL or an escape"
+ },
+ {
+  "name": "S03 push: no +1, so a newline at index 0 reads as no newline",
+  "file": "src/core/preview-url.ts",
+  "from": "const end = chunk.lastIndexOf(\"\\n\") + 1;",
+  "to": "const end = chunk.lastIndexOf(\"\\n\");",
+  "expect": "killed",
+  "why": "a chunk with no newline gets `end` -1 (not 0), a chunk that is only a newline gets 0 and is kept as a tail; killed by the named case 'a URL line whose newline has not arrived, then the newline' and by every enumeration"
+ },
+ {
+  "name": "S04 push: the no-newline test is `end <= 0`",
+  "file": "src/core/preview-url.ts",
+  "from": "if (end === 0) {",
+  "to": "if (end <= 0) {",
+  "expect": "survives",
+  "why": "EQUIVALENT: `end` is `lastIndexOf(...) + 1`, and `lastIndexOf` returns -1 or more, so `end` is 0 or more and `end <= 0` and `end === 0` are the same test"
+ },
+ {
+  "name": "S05 push: a chunk that STARTS with a newline counts as having none",
+  "file": "src/core/preview-url.ts",
+  "from": "if (end === 0) {",
+  "to": "if (end < 2) {",
+  "expect": "killed",
+  "why": "a chunk that is only a newline (end 1) is kept as a tail and answers null, so a URL line completed by a lone newline answers one push late; killed by 'a URL line whose newline has not arrived, then the newline', the CRLF case cut between CR and LF and every enumeration"
+ },
+ {
+  "name": "S06 push: the no-newline branch is taken for `end === 1`",
+  "file": "src/core/preview-url.ts",
+  "from": "if (end === 0) {",
+  "to": "if (end === 1) {",
+  "expect": "killed",
+  "why": "a chunk with no newline goes through the completion path, which REPLACES the kept tail by the chunk, and a chunk that is only a newline is kept; killed by the named cut-marker and cut-URL cases"
+ },
+ {
+  "name": "S07 push: a chunk with no newline REPLACES the kept tail",
+  "file": "src/core/preview-url.ts",
+  "from": "tail.push(chunk);",
+  "to": "tail = [chunk];",
+  "expect": "killed",
+  "why": "the pieces received so far are dropped, so a line that arrives in three or more chunks is read from its last piece only; killed by the live capture one character at a time and in pieces of seven"
+ },
+ {
+  "name": "S08 push: a chunk with no newline is put BEFORE the kept pieces",
+  "file": "src/core/preview-url.ts",
+  "from": "tail.push(chunk);",
+  "to": "tail.unshift(chunk);",
+  "expect": "killed",
+  "why": "the pieces of a line are joined in reverse order; killed by the live capture one character at a time and in pieces of seven (three or more pieces), and by every enumeration with a cut in the middle"
+ },
+ {
+  "name": "S09 push: a chunk with no newline is parsed with all the pieces joined (the answer is the same, the cost is not)",
+  "file": "src/core/preview-url.ts",
+  "from": "tail.push(chunk);\n        return null;",
+  "to": "tail.push(chunk);\n        return parseBrowseUrl(tail.join(\"\"));",
+  "expect": "killed",
+  "why": "the answer is the same (the joined tail has no newline, and a match needs one, so it is always null) but every push re-joins and re-reads the whole incomplete line: ONE line of 16 MiB in 4,096-character chunks and 256 KiB in one-byte chunks are quadratic again; killed by the clock rows alone"
+ },
+ {
+  "name": "S10 push: the kept text goes AFTER the new lines",
+  "file": "src/core/preview-url.ts",
+  "from": "const completed = tail.join(\"\") + chunk.slice(0, end);",
+  "to": "const completed = chunk.slice(0, end) + tail.join(\"\");",
+  "expect": "killed",
+  "why": "the kept tail is appended to the completed lines instead of starting them; killed by the cut-marker, cut-URL and cut-escape cases"
+ },
+ {
+  "name": "S11 push: the pieces are joined with a blank",
+  "file": "src/core/preview-url.ts",
+  "from": "const completed = tail.join(\"\") + chunk.slice(0, end);",
+  "to": "const completed = tail.join(\" \") + chunk.slice(0, end);",
+  "expect": "killed",
+  "why": "a blank appears at every cut of the incomplete line, so a URL or an escape cut across two chunks is torn; killed by the cut-URL and cut-escape cases"
+ },
+ {
+  "name": "S12 push: the whole chunk is tested, not only up to its last newline",
+  "file": "src/core/preview-url.ts",
+  "from": "const completed = tail.join(\"\") + chunk.slice(0, end);",
+  "to": "const completed = tail.join(\"\") + chunk;",
+  "expect": "survives",
+  "why": "EQUIVALENT in the answer: the part of the chunk after its last newline has no newline, and a match ends on a newline, so it cannot start, end or extend a match; it is tested a second time later, when its own newline arrives, with the same result; the cost is at most one more read of each byte of a tail"
+ },
+ {
+  "name": "S13 push: the last character of the completed text (the newline) is cut",
+  "file": "src/core/preview-url.ts",
+  "from": "const completed = tail.join(\"\") + chunk.slice(0, end);",
+  "to": "const completed = tail.join(\"\") + chunk.slice(0, end - 1);",
+  "expect": "killed",
+  "why": "the newline that ends every match is cut off, so nothing ever matches; killed by every case that expects a URL"
+ },
+ {
+  "name": "S14 push: the first character of the new lines is cut",
+  "file": "src/core/preview-url.ts",
+  "from": "const completed = tail.join(\"\") + chunk.slice(0, end);",
+  "to": "const completed = tail.join(\"\") + chunk.slice(1, end);",
+  "expect": "killed",
+  "why": "the first character of every chunk with a newline is lost; killed by the cut-marker case (the chunk 'se at ...' loses its s) and by the enumerations"
+ },
+ {
+  "name": "S15 push: the incomplete tail of a chunk is dropped",
+  "file": "src/core/preview-url.ts",
+  "from": "tail = end < chunk.length ? [chunk.slice(end)] : [];",
+  "to": "tail = [];",
+  "expect": "killed",
+  "why": "the text after the last newline of a chunk is lost, so a marker line that starts in one chunk and ends in the next is never seen; killed by 'noise, then a marker line cut in the middle' and by the enumerations"
+ },
+ {
+  "name": "S16 push: the tail is kept also when it is empty",
+  "file": "src/core/preview-url.ts",
+  "from": "tail = end < chunk.length ? [chunk.slice(end)] : [];",
+  "to": "tail = end <= chunk.length ? [chunk.slice(end)] : [];",
+  "expect": "survives",
+  "why": "EQUIVALENT: for `end === chunk.length` the kept piece is the empty string, and an empty piece joins to nothing"
+ },
+ {
+  "name": "S17 push: a tail of one character is dropped",
+  "file": "src/core/preview-url.ts",
+  "from": "tail = end < chunk.length ? [chunk.slice(end)] : [];",
+  "to": "tail = end < chunk.length - 1 ? [chunk.slice(end)] : [];",
+  "expect": "killed",
+  "why": "a chunk that ends one character after its last newline loses that character; killed by the enumerations (a chunk cut one character after a newline) and by 'the pieces of seven'"
+ },
+ {
+  "name": "S18 push: the kept tail starts one character late",
+  "file": "src/core/preview-url.ts",
+  "from": "tail = end < chunk.length ? [chunk.slice(end)] : [];",
+  "to": "tail = end < chunk.length ? [chunk.slice(end + 1)] : [];",
+  "expect": "killed",
+  "why": "the first character after the last newline is lost; killed by 'noise, then a marker line cut in the middle' and by the enumerations"
+ },
+ {
+  "name": "S19 push: the kept tail starts one character early, with the newline",
+  "file": "src/core/preview-url.ts",
+  "from": "tail = end < chunk.length ? [chunk.slice(end)] : [];",
+  "to": "tail = end < chunk.length ? [chunk.slice(end - 1)] : [];",
+  "expect": "survives",
+  "why": "EQUIVALENT: the kept text then starts with the newline that ended the last line, so the next completed text starts with one more EMPTY line; a match cannot start or end on an empty line, and a pattern with no anchor finds the same match, at the same place shifted by one"
+ },
+ {
+  "name": "S20 push: a chunk that ends on a newline keeps the old tail",
+  "file": "src/core/preview-url.ts",
+  "from": "tail = end < chunk.length ? [chunk.slice(end)] : [];",
+  "to": "tail = end < chunk.length ? [chunk.slice(end)] : tail;",
+  "expect": "killed",
+  "why": "the pieces that were just tested stay and are joined in front of the next lines: the cost grows with the stream, and a 'Browse at ' that ended a line is glued to the start of the next one (a false URL); killed by the enumerations, the seeded row and the clock rows"
+ },
+ {
+  "name": "S21 push: the tail starts with one empty piece",
+  "file": "src/core/preview-url.ts",
+  "from": "let tail: string[] = [];",
+  "to": "let tail: string[] = [\"\"];",
+  "expect": "survives",
+  "why": "EQUIVALENT: an empty piece joins to nothing"
+ },
+ {
+  "name": "S22 push: only the chunk is parsed",
+  "file": "src/core/preview-url.ts",
+  "from": "return parseBrowseUrl(completed);",
+  "to": "return parseBrowseUrl(chunk);",
+  "expect": "killed",
+  "why": "the kept tail is ignored, so a marker cut across two chunks is never seen; killed by the cut-marker, cut-URL and CRLF-cut cases"
+ },
+ {
+  "name": "S23 push: only the new tail is parsed",
+  "file": "src/core/preview-url.ts",
+  "from": "return parseBrowseUrl(completed);",
+  "to": "return parseBrowseUrl(tail.join(\"\"));",
+  "expect": "killed",
+  "why": "the completed lines are not read at all; killed by every case that expects a URL"
+ },
+ {
+  "name": "S24 push: a chunk with no newline is concatenated to the kept text at once",
+  "file": "src/core/preview-url.ts",
+  "from": "tail.push(chunk);",
+  "to": "tail = [tail.join(\"\") + chunk];",
+  "expect": "survives",
+  "why": "EQUIVALENT in the answer and in the cost: the concatenation of strings is a rope in V8 and `join` of one element returns it unflattened, so no push reads the line; the single flatten is at the newline, as before"
+ },
+ {
+  "name": "W01 adapter: the scanner is fed an empty string",
+  "file": "src/features/preview.ts",
+  "from": "const url = urlScanner.push(text);",
+  "to": "const url = urlScanner.push(\"\");",
+  "expect": "killed",
+  "why": "the preview would never find its URL; killed by the source-text pin of `s341-preview-scan-rows.test.ts` (the spelling of the call site; `preview.ts` imports `vscode`, so no unit test runs it, and the behaviour is only the integration suite's, not run here)"
+ },
+ {
+  "name": "W02 adapter: the scanner is fed only AFTER a URL has been shown",
+  "file": "src/features/preview.ts",
+  "from": "if (!urlShown) {",
+  "to": "if (urlShown) {",
+  "expect": "killed",
+  "why": "the guard that stops feeding the scanner is inverted; killed by the source-text pin of `s341-preview-scan-rows.test.ts` (the spelling of the call site; `preview.ts` imports `vscode`, so no unit test runs it, and the behaviour is only the integration suite's, not run here)"
+ },
+ {
+  "name": "W03 adapter: the chunk is not appended to the channel",
+  "file": "src/features/preview.ts",
+  "from": "this.channel.append(text);",
+  "to": "void 0;",
+  "expect": "killed",
+  "why": "the output channel would stay empty; killed by the source-text pin of `s341-preview-scan-rows.test.ts` (the spelling of the call site; `preview.ts` imports `vscode`, so no unit test runs it, and the behaviour is only the integration suite's, not run here)"
+ },
+ {
+  "name": "W04 adapter: the chunk is trimmed before it is used",
+  "file": "src/features/preview.ts",
+  "from": "const text = buf.toString();",
+  "to": "const text = buf.toString().trim();",
+  "expect": "killed",
+  "why": "the newline that completes the URL line is cut off; killed by the source-text pin of `s341-preview-scan-rows.test.ts` (the spelling of the call site; `preview.ts` imports `vscode`, so no unit test runs it, and the behaviour is only the integration suite's, not run here)"
+ },
+ {
+  "name": "W05 adapter: the flag is never set",
+  "file": "src/features/preview.ts",
+  "from": "urlShown = true;",
+  "to": "urlShown = false;",
+  "expect": "killed",
+  "why": "every later chunk would show the preview again; killed by the source-text pin of `s341-preview-scan-rows.test.ts` (the spelling of the call site; `preview.ts` imports `vscode`, so no unit test runs it, and the behaviour is only the integration suite's, not run here)"
+ },
+ {
+  "name": "W06 adapter: a second scanner is made",
+  "file": "src/features/preview.ts",
+  "from": "const urlScanner = createBrowseUrlScanner();",
+  "to": "const urlScanner = createBrowseUrlScanner();\n      const spare = createBrowseUrlScanner();",
+  "expect": "killed",
+  "why": "two scanners in one spawn; killed by the source-text pin of `s341-preview-scan-rows.test.ts` (the spelling of the call site; `preview.ts` imports `vscode`, so no unit test runs it, and the behaviour is only the integration suite's, not run here)"
+ },
+ {
+  "name": "W07 adapter: the whole-buffer parser is imported again",
+  "file": "src/features/preview.ts",
+  "from": "import { createBrowseUrlScanner } from \"../core/preview-url\";",
+  "to": "import { createBrowseUrlScanner, parseBrowseUrl } from \"../core/preview-url\";",
+  "expect": "killed",
+  "why": "the old parser is back in the file; killed by the source-text pin of `s341-preview-scan-rows.test.ts` (the spelling of the call site; `preview.ts` imports `vscode`, so no unit test runs it, and the behaviour is only the integration suite's, not run here)"
+ },
+ {
+  "name": "W08 adapter: an accumulated stderr is kept again",
+  "file": "src/features/preview.ts",
+  "from": "const urlScanner = createBrowseUrlScanner();",
+  "to": "const urlScanner = createBrowseUrlScanner();\n      let stderr = \"\";",
+  "expect": "killed",
+  "why": "a variable that could grow for the whole life of the preview; killed by the source-text pin of `s341-preview-scan-rows.test.ts` (the spelling of the call site; `preview.ts` imports `vscode`, so no unit test runs it, and the behaviour is only the integration suite's, not run here)"
+ },
+ {
+  "name": "K01 rows: the limit is a hundred seconds",
+  "file": "test/unit/s341-preview-scan-rows.test.ts",
+  "from": "const LIMIT_MS = 1000;",
+  "to": "const LIMIT_MS = 100000;",
+  "expect": "killed",
+  "why": "killed by the row that pins the limit and the sizes"
+ },
+ {
+  "name": "K02 rows: the small chunk is 8 KiB",
+  "file": "test/unit/s341-preview-scan-rows.test.ts",
+  "from": "const CHUNK_SMALL = 4 * KIB;",
+  "to": "const CHUNK_SMALL = 8 * KIB;",
+  "expect": "killed",
+  "why": "killed by the row that pins the limit and the sizes"
+ },
+ {
+  "name": "K03 rows: the large chunk is 32 KiB",
+  "file": "test/unit/s341-preview-scan-rows.test.ts",
+  "from": "const CHUNK_LARGE = 64 * KIB;",
+  "to": "const CHUNK_LARGE = 32 * KIB;",
+  "expect": "killed",
+  "why": "killed by the row that pins the limit and the sizes"
+ },
+ {
+  "name": "K04 rows: 1 MiB of plain lines in small chunks",
+  "file": "test/unit/s341-preview-scan-rows.test.ts",
+  "from": "plain4k: 12 * MIB",
+  "to": "plain4k: 1 * MIB",
+  "expect": "killed",
+  "why": "killed by the row that pins the limit and the sizes"
+ },
+ {
+  "name": "K05 rows: 1 MiB of lines with SGR in small chunks",
+  "file": "test/unit/s341-preview-scan-rows.test.ts",
+  "from": "sgr4k: 4 * MIB",
+  "to": "sgr4k: 1 * MIB",
+  "expect": "killed",
+  "why": "killed by the row that pins the limit and the sizes"
+ },
+ {
+  "name": "K06 rows: 4 MiB of plain lines in large chunks",
+  "file": "test/unit/s341-preview-scan-rows.test.ts",
+  "from": "plain64k: 48 * MIB",
+  "to": "plain64k: 4 * MIB",
+  "expect": "killed",
+  "why": "killed by the row that pins the limit and the sizes"
+ },
+ {
+  "name": "K07 rows: 2 MiB of lines with SGR in large chunks",
+  "file": "test/unit/s341-preview-scan-rows.test.ts",
+  "from": "sgr64k: 16 * MIB",
+  "to": "sgr64k: 2 * MIB",
+  "expect": "killed",
+  "why": "killed by the row that pins the limit and the sizes"
+ },
+ {
+  "name": "K08 rows: one line of 1 MiB",
+  "file": "test/unit/s341-preview-scan-rows.test.ts",
+  "from": "oneLine: 16 * MIB",
+  "to": "oneLine: 1 * MIB",
+  "expect": "killed",
+  "why": "killed by the row that pins the limit and the sizes"
+ },
+ {
+  "name": "K09 rows: 16 KiB in one-byte chunks",
+  "file": "test/unit/s341-preview-scan-rows.test.ts",
+  "from": "oneByte: 256 * KIB",
+  "to": "oneByte: 16 * KIB",
+  "expect": "killed",
+  "why": "killed by the row that pins the limit and the sizes"
+ },
+ {
+  "name": "K10 rows: `cut` skips one character per chunk",
+  "file": "test/unit/s341-preview-scan-rows.test.ts",
+  "from": "for (let at = 0; at < text.length; at += size) {",
+  "to": "for (let at = 0; at < text.length; at += size + 1) {",
+  "expect": "killed",
+  "why": "every row would feed fewer characters than its title says; killed by the check of each clock row that it fed at least `bytes` characters"
+ },
+ {
+  "name": "K11 rows: `cut` makes each chunk one character longer",
+  "file": "test/unit/s341-preview-scan-rows.test.ts",
+  "from": "chunks.push(text.slice(at, at + size));",
+  "to": "chunks.push(text.slice(at, at + size + 1));",
+  "expect": "killed",
+  "why": "the chunks of every row are one character longer than its title says; killed by the check that the longest chunk is exactly the chunk size"
+ },
+ {
+  "name": "K12 rows: `noise` rounds the repeat count down",
+  "file": "test/unit/s341-preview-scan-rows.test.ts",
+  "from": "block.repeat(Math.ceil(bytes / block.length))",
+  "to": "block.repeat(Math.floor(bytes / block.length))",
+  "expect": "killed",
+  "why": "the noise is shorter than the size asked for; killed by the check that each clock row fed at least `bytes` characters"
+ },
+ {
+  "name": "K13 rows: the pushes that answered early include the last one",
+  "file": "test/unit/s341-preview-scan-rows.test.ts",
+  "from": "for (let i = 0; i < answers.length - 1; i++) {",
+  "to": "for (let i = 0; i < answers.length; i++) {",
+  "expect": "killed",
+  "why": "the last push, which answers the URL, is counted as early; killed by the rows of the clock helper and by every clock row"
+ },
+ {
+  "name": "K14 rows: a push that answered something is not counted as early",
+  "file": "test/unit/s341-preview-scan-rows.test.ts",
+  "from": "if (answers[i] !== null) early.push(i);",
+  "to": "if (answers[i] === null) early.push(i);",
+  "expect": "killed",
+  "why": "the pushes that answered null are named early; killed by the rows of the clock helper"
+ },
+ {
+  "name": "K15 rows: the ratio is 400x",
+  "file": "test/unit/s341-preview-scan-rows.test.ts",
+  "from": "lastMs < 4 * firstMs + 100",
+  "to": "lastMs < 400 * firstMs + 100",
+  "expect": "killed",
+  "why": "the ratio no longer refuses the old logic's windows; killed by the rows of `lastTenthWithin`"
+ },
+ {
+  "name": "K16 rows: the ratio floor is a second",
+  "file": "test/unit/s341-preview-scan-rows.test.ts",
+  "from": "lastMs < 4 * firstMs + 100",
+  "to": "lastMs < 4 * firstMs + 1000",
+  "expect": "killed",
+  "why": "the floor no longer refuses a window of 140 ms against a first tenth of 10 ms; killed by the rows of `lastTenthWithin`"
+ }
+]
