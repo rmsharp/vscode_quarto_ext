@@ -46,6 +46,12 @@ this session's Phase 0, plus this session's; the dashboard copy is v2.22.0 again
 slices, edit with a Python script (`python3 -I -`). After answering a direct question, STOP and wait (memory).
 
 
+### What Session 341 Did
+**Deliverable:** g02 of the backlog ordering plan, twenty-fifth session: parts (2) and (3) of the BACKLOG item "Slow shapes and residuals found by Session 339's review round, none of them in its diff" -- the Outline provider builds a whole-document virtual document for every code cell, and `quarto preview` re-parses the whole accumulated stderr on every chunk (IN PROGRESS)
+**Started:** 2026-11-05
+**Status:** Session claimed. Work beginning. Strict TDD: time the literal shapes at HEAD first, one fresh process per probe (Learnings 840, 871, 885), profile before reading the cure, rows RED on the parent on the clock alone, the old spelling kept as the cure's oracle, `mutation-lists-apply` right after any cherry-pick, a review round, then close out.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
 ### What Session 340 Did
 **Deliverable:** g02 of the backlog ordering plan, twenty-fourth session: part (1) of the BACKLOG item "Slow shapes and residuals found by Session 339's review round, none of them in its diff" -- the raw-TeX probe copied the whole
 environment stack on every `\end{` line -- DONE; claim `9238682`

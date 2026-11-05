@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-11
 
+### 2026-11-05 · [BL-Slow shapes and residuals found by Session 339's review round, none of them in its diff] Session 341 (in progress): claim -- g02 twenty-fifth session, parts (2) and (3)
+
+Session claimed. Phase 0 found both ledger frontiers at HEAD (`7175687`, gap 0), no open receipt (the one `status: pending` grep hit is prose inside a gotchas line), no merges, the ratchet 2/2 (results `bba236856bad`, head `26f0667`, read from `.quality-gates-results.json` and equal to the S340 receipt's citation), the dashboard at 76/100 "critical" with 21 vulnerabilities (the dashboard copy is v2.22.0 against canonical v2.23.0, not synced), and `master` level with `origin/master` (0 ahead; the Session 340 notes said 76). The operator chose the item at the Phase 0 picker (placed by finishing a feature: g02 is in flight and this is first in its order). Scope: parts (2) and (3) only -- (2) the Outline provider builds a whole-document virtual document for every code cell (`src/providers/outline.ts` `forwardCellSymbols` -> `buildCellVirtualContent` in `src/core/embedded/virtual-doc.ts`), (3) `quarto preview` re-parses the whole accumulated stderr on every chunk until the `Browse at` line (`src/features/preview.ts`, `src/core/preview-url.ts`); part (4), the Polish list, stays filed. Phase 3F replaces this entry with the outcome.
+
 ### 2026-11-04 · [ad hoc] Session 340: the quality-gate run cited in the receipt -- 2/2 pass at 26f0667
 
 `quality_ratchet.py --run`, after the ledger commits (Learning 683): ledger-lag 0 and release-gate 0 (`npm run check-package`), 2 pass, 0 fail, 0 unmeasured, results `bba236856bad`, manifest `334939914945`. `context_budget.py`: `SESSION_NOTES.md` ok (369 lines, 52,106 B, no line over 280 B), `HANDOFFS.md`, `BACKLOG.md` and `PROJECT_LEARNINGS.md` over the 65,536 B ceiling as before. `master` is unpushed (about 90 commits ahead of `origin/master` after this commit; 76 at Phase 0); the dashboard copy is v2.22.0 against canonical v2.23.0, not synced.
