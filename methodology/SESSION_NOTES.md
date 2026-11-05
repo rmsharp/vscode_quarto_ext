@@ -367,33 +367,3 @@ the exact review counts; I re-read the journal instead of trusting it. (7) The r
 function existed); the review's six survivor rows and the provider gate are green on arrival, their RED is a mutant (20 mutants, all killed); one worker deviation in part A (above).
 **Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** two workflows (5 workers; 70 agents, 7.6 million subagent tokens, 3,012 tool calls, about 2 h 45 min), six lists of 6 to 11
 minutes and a 3-minute review list, no quarto renders, the machine at load 8 to 16.
-
-## Session 336 Handoff Evaluation (by Session 337)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers (at HEAD `7635df2`, gap 0), no `pending` receipt, the ratchet citation (2/2, results `bba236856bad`), the
-real-document score (2423 of 2438), the dashboard and the picker all held; `master` was 131 commits ahead at Phase 0 (the note said 127 when the close-out began, and four close-out commits followed). Candidate (a), the new Up
-Next item, was placed by finishing a feature, and its parts (1) to (8) took the whole session.
-**Helped:** the item's figures: six of eight held exactly and the corrections were small, so the bisects went fast (gotcha 2 was right to insist on the lower bound); the written recipe (a loop, the old pattern as the oracle,
-a code-unit sweep, rows with the engine hint) and `comment-full-line-equivalence.test.ts` as a template let eight workers start from one brief; gotcha 4 (the runner tests the COMMITTED source, the README's `--tests` set)
-held; gotcha 7 named the clock flakers and they were not the ones that failed.
-**Missing:** the rows of Sessions 335 and 336 are built from ASCII and one-byte letters, so their figures are the one-byte ones and a character above U+00FF halves them (Learning 890); nothing said so. **Wrong:** gotcha 10
-said `npm test` at HEAD was "14,099 tests in 118 files, clean": it prints `Errors 1 error` (`Timeout calling "onTaskUpdate"`) and exits 1, twice here (Learning 892). The zsh traps were named and I still hit `echo =====`
-twice. **ROI: high.**
-
-## Session 337 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** Read the baseline's exit code and found what the handoff had called clean; timed the shapes at HEAD first; briefed eight workers with the clean-room rule repeated in every prompt (the reviewers' too), one part
-and its own files each, so the merge of 35 commits had no conflict; checked the workers from my side instead of trusting their reports (215 of 263 rows fail on the parent, the figures of parts 1, 6 and 8 re-bisected, the
-eight lists run alone with every label holding, the whole suite on the merged tree, which found the one anchor collision); ran a six-lens review whose findings two refuters re-ran each, and acted on what stood (four mutation
-gaps pinned and killed, twelve statements corrected, four recount scripts tracked, eleven more places filed), filing the outside shapes instead of fixing them (1 and done).
-**Went wrong.** (1) Numbers again: seven of eight workers wrote commit numbers from memory (Learning 894), and my own commit `aaf17a9` says "eleven" statements corrected where there are twelve; my first draft of Learning 894
-carried examples I had not taken from the reports (caught before the commit). (2) The review brief said "nine mutation lists: 416 killed" when 416 is the eight new lists (the ninth adds 4). (3) My first full run of the final
-tree was discarded: another project's load (40) failed 180 clock rows; the rerun on a quiet machine passed (15,252, exit 1 from the known worker error). (4) The refuter cap of 24 left the four mutation gaps without refuters;
-I verified them myself by running the mutants. (5) The workflows ran for hours with few status lines from me: the harness nudged me several times. (6) zsh traps again (`echo =====` twice; `set -- $spec` does not split). (7)
-TDD deviations, disclosed: the review's rows, the oracles' later rows and the four gap rows are green on arrival (their RED is a mutant); every cure's RED was shown first on the parent.
-**Known residuals (filed or stated):** the BACKLOG Up Next items (eleven more places that throw, three quadratic), three Polish items, 60 plus 41 mutants argued equivalent or recorded as gaps, S4-01 to S4-03 without a
-witness; the Session 333 and 334 items, the S322 item's part (1), the S311 item's parts (4), (10), (11); `test:integration` NOT run.
-**TDD:** RED before GREEN for every cure (rows and oracle committed RED first on the parent); the review's rows are mutant-RED.
-**Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** two workflows (8 and 54 agents; 8.3 million subagent tokens; 2,500 tool calls; about 5 hours), nine mutation runs of 90 minutes in all, no
-quarto renders, the machine at load 3 to 54 (another project's load of 40 during one suite run).
