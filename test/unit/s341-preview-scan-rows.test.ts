@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { createBrowseUrlScanner } from "../../src/core/preview-url";
 
@@ -34,7 +37,7 @@ const MARKER_SGR = `\x1b[32mBrowse at \x1b[39m\x1b[4m\x1b[32m${URL}\x1b[39m\x1b[
 const MIB = 1024 * 1024;
 const KIB = 1024;
 
-// The sizes the clock rows are built on, each chosen so that the old logic takes 5x to 22x the limit (see the figures above) and the cure takes far under it. The last row of the file pins them.
+// The sizes the clock rows are built on, each chosen so that the old logic takes 6x to 16x the limit (see the figures above) and the cure takes far under it. A row near the end of the file pins them, and each clock row checks that it really fed that much.
 const CHUNK_SMALL = 4 * KIB;
 const CHUNK_LARGE = 64 * KIB;
 const SIZES = { plain4k: 12 * MIB, sgr4k: 4 * MIB, plain64k: 48 * MIB, sgr64k: 16 * MIB, oneLine: 16 * MIB, oneByte: 256 * KIB };
@@ -59,13 +62,12 @@ function noise(block: string, bytes: number): string {
   return block.repeat(Math.ceil(bytes / block.length));
 }
 
-/** Cut `text` into chunks of `size` characters (the last one may be shorter), then the marker as one more chunk. */
-function chunked(text: string, size: number, marker: string): string[] {
+/** Cut `text` into chunks of `size` characters (the last one may be shorter). */
+function cut(text: string, size: number): string[] {
   const chunks: string[] = [];
   for (let at = 0; at < text.length; at += size) {
     chunks.push(text.slice(at, at + size));
   }
-  chunks.push(marker);
   return chunks;
 }
 
@@ -102,6 +104,9 @@ function answeredOnlyAtTheMarker(answers: ReadonlyArray<string | null>): { early
   return { early, last: answers[answers.length - 1] };
 }
 
+/** The last tenth of the pushes costs about what the first did: at most 4x, and a 100 ms floor keeps a garbage-collection pause from deciding it. */
+const lastTenthWithin = (firstMs: number, lastMs: number): boolean => lastMs < 4 * firstMs + 100;
+
 describe("the Session 341 clock helper", () => {
   it("feed hands back every push's answer and a clock that covers the pushes", () => {
     const { answers, totalMs } = feed(["a\n", "b", "\n", MARKER_PLAIN]);
@@ -114,48 +119,52 @@ describe("the Session 341 clock helper", () => {
     expect(answeredOnlyAtTheMarker([null, URL, null, URL])).toEqual({ early: [1], last: URL });
     expect(answeredOnlyAtTheMarker([null, null, URL])).toEqual({ early: [], last: URL });
   });
+
+  it("lastTenthWithin accepts up to four times the first tenth plus 100 ms, and refuses what the old logic took (3,143 against 129 ms; 1,155 against 66 ms; 4,377 against 195 ms)", () => {
+    expect(lastTenthWithin(10, 139.9)).toBe(true);
+    expect(lastTenthWithin(10, 140)).toBe(false);
+    expect(lastTenthWithin(0, 99.9)).toBe(true);
+    expect(lastTenthWithin(0, 100)).toBe(false);
+    expect(lastTenthWithin(129, 3143)).toBe(false);
+    expect(lastTenthWithin(66, 1155)).toBe(false);
+    expect(lastTenthWithin(195, 4377)).toBe(false);
+  });
 });
 
 describe("Session 341 — the stderr of `quarto preview` before the Browse at line (the BACKLOG item \"Slow shapes and residuals found by Session 339's review round\", part 3)", () => {
-  type Row = { site: string; chunks: () => string[]; ratio: boolean };
+  /** `noise` are the pushes of startup text, cut `chunkSize` characters at a time; `tail` are the pushes that end the stream (the marker, and for one line the newline before it). */
+  type Row = { site: string; bytes: number; chunkSize: number; build: () => { noise: string[]; tail: string[] }; ratio: boolean };
 
   const ROWS: Row[] = [
-    { site: "4,096-byte chunks, 12 MiB of plain startup lines, then the marker", chunks: () => chunked(noise(PLAIN_BLOCK, SIZES.plain4k), CHUNK_SMALL, MARKER_PLAIN), ratio: true },
-    { site: "4,096-byte chunks, 4 MiB of startup lines with SGR escapes, then the marker", chunks: () => chunked(noise(SGR_BLOCK, SIZES.sgr4k), CHUNK_SMALL, MARKER_SGR), ratio: true },
-    { site: "65,536-byte chunks, 48 MiB of plain startup lines, then the marker", chunks: () => chunked(noise(PLAIN_BLOCK, SIZES.plain64k), CHUNK_LARGE, MARKER_PLAIN), ratio: true },
-    { site: "65,536-byte chunks, 16 MiB of startup lines with SGR escapes, then the marker", chunks: () => chunked(noise(SGR_BLOCK, SIZES.sgr64k), CHUNK_LARGE, MARKER_SGR), ratio: true },
+    { site: "4,096-byte chunks, 12 MiB of plain startup lines, then the marker", bytes: SIZES.plain4k, chunkSize: CHUNK_SMALL, build: () => ({ noise: cut(noise(PLAIN_BLOCK, SIZES.plain4k), CHUNK_SMALL), tail: [MARKER_PLAIN] }), ratio: true },
+    { site: "4,096-byte chunks, 4 MiB of startup lines with SGR escapes, then the marker", bytes: SIZES.sgr4k, chunkSize: CHUNK_SMALL, build: () => ({ noise: cut(noise(SGR_BLOCK, SIZES.sgr4k), CHUNK_SMALL), tail: [MARKER_SGR] }), ratio: true },
+    { site: "65,536-byte chunks, 48 MiB of plain startup lines, then the marker", bytes: SIZES.plain64k, chunkSize: CHUNK_LARGE, build: () => ({ noise: cut(noise(PLAIN_BLOCK, SIZES.plain64k), CHUNK_LARGE), tail: [MARKER_PLAIN] }), ratio: true },
+    { site: "65,536-byte chunks, 16 MiB of startup lines with SGR escapes, then the marker", bytes: SIZES.sgr64k, chunkSize: CHUNK_LARGE, build: () => ({ noise: cut(noise(SGR_BLOCK, SIZES.sgr64k), CHUNK_LARGE), tail: [MARKER_SGR] }), ratio: true },
     // ONE enormous line with no newline in it, 4,096 characters at a time. Nothing can be answered until its newline comes, and the line is then read once: the cost is in the LAST pushes by design, so the
     // ratio of the last tenth to the first does not apply; the clock does (the old logic re-read the whole line on every chunk).
-    {
-      site: "ONE line of 16 MiB with no newline in 4,096-character chunks, then a newline and the marker",
-      chunks: () => {
-        const chunks = chunked("x".repeat(SIZES.oneLine), CHUNK_SMALL, "\n");
-        chunks.push(MARKER_PLAIN);
-        return chunks;
-      },
-      ratio: false,
-    },
+    { site: "ONE line of 16 MiB with no newline in 4,096-character chunks, then a newline and the marker", bytes: SIZES.oneLine, chunkSize: CHUNK_SMALL, build: () => ({ noise: cut("x".repeat(SIZES.oneLine), CHUNK_SMALL), tail: ["\n", MARKER_PLAIN] }), ratio: false },
     // One character at a time: 262,144 pushes (256 KiB) of the plain lines, then the marker one character at a time too.
-    {
-      site: "ONE-byte chunks, 256 KiB of plain startup lines, then the marker",
-      chunks: () => [...noise(PLAIN_BLOCK, SIZES.oneByte), ...MARKER_PLAIN],
-      ratio: true,
-    },
+    { site: "ONE-byte chunks, 256 KiB of plain startup lines, then the marker", bytes: SIZES.oneByte, chunkSize: 1, build: () => ({ noise: cut(noise(PLAIN_BLOCK, SIZES.oneByte), 1), tail: [...MARKER_PLAIN] }), ratio: true },
   ];
 
   it.each(ROWS.map((row) => [row.site, row] as const))(
     "%s: every push answers null until the marker line is whole, the URL then, in under one second",
     (_site, row) => {
-      const chunks = row.chunks();
-      const { answers, totalMs, firstMs, lastMs } = feed(chunks);
+      const built = row.build();
+      // The row really feeds what its title says: at least `bytes` characters of noise, in chunks of `chunkSize` (the last one may be shorter).
+      const characters = built.noise.reduce((sum, chunk) => sum + chunk.length, 0);
+      expect(characters).toBeGreaterThanOrEqual(row.bytes);
+      expect(built.noise.reduce((longest, chunk) => Math.max(longest, chunk.length), 0)).toBe(row.chunkSize);
+      expect(built.noise.length).toBe(Math.ceil(characters / row.chunkSize));
+      const { answers, totalMs, firstMs, lastMs } = feed([...built.noise, ...built.tail]);
       // The answer first, so that a failure of the clock below is a failure of the clock alone.
       const { early, last } = answeredOnlyAtTheMarker(answers);
       expect(early).toEqual([]);
       expect(last).toBe(URL);
       expect(totalMs).toBeLessThan(LIMIT_MS);
       if (row.ratio) {
-        // The last tenth of the pushes costs about what the first did. A 20 ms floor keeps a garbage-collection pause from deciding it; the old logic took 17x to 24x here and seconds in absolute terms.
-        expect(lastMs).toBeLessThan(4 * firstMs + 20);
+        // The old logic took 17x to 24x the first tenth here and seconds in absolute terms.
+        expect(lastTenthWithin(firstMs, lastMs)).toBe(true);
       }
     },
     120_000,
@@ -168,7 +177,7 @@ describe("Session 341 — the stderr of `quarto preview` before the Browse at li
   });
 
   it("control: 256 KiB of plain lines in 4,096-byte chunks, then the marker, is answered at the marker and fast", () => {
-    const { answers, totalMs } = feed(chunked(noise(PLAIN_BLOCK, 256 * KIB), 4 * KIB, MARKER_PLAIN));
+    const { answers, totalMs } = feed([...cut(noise(PLAIN_BLOCK, 256 * KIB), 4 * KIB), MARKER_PLAIN]);
     const { early, last } = answeredOnlyAtTheMarker(answers);
     expect(early).toEqual([]);
     expect(last).toBe(URL);
@@ -176,7 +185,7 @@ describe("Session 341 — the stderr of `quarto preview` before the Browse at li
   });
 
   it("control: 1 MiB of lines with SGR escapes in 65,536-byte chunks (sixteen pushes), then the marker, is answered at the marker", () => {
-    const { answers } = feed(chunked(noise(SGR_BLOCK, MIB), 64 * KIB, MARKER_SGR));
+    const { answers } = feed([...cut(noise(SGR_BLOCK, MIB), 64 * KIB), MARKER_SGR]);
     const { early, last } = answeredOnlyAtTheMarker(answers);
     expect(early).toEqual([]);
     expect(last).toBe(URL);
@@ -187,5 +196,45 @@ describe("Session 341 — the stderr of `quarto preview` before the Browse at li
     expect(LIMIT_MS).toBe(1000);
     expect([CHUNK_SMALL, CHUNK_LARGE]).toEqual([4096, 65_536]);
     expect(SIZES).toEqual({ plain4k: 12_582_912, sgr4k: 4_194_304, plain64k: 50_331_648, sgr64k: 16_777_216, oneLine: 16_777_216, oneByte: 262_144 });
+  });
+});
+
+// ---- THE WIRING. `src/features/preview.ts` imports `vscode`, so no unit test can run it: an adapter like that is pinned by its SOURCE TEXT only (Learning 899), and the text pins the SPELLING of the call site, not what
+// the handler does when VS Code runs it (`test:integration` does, `preview.test.ts`; it was not run for this change). The stderr handler must read the Browse at line through ONE scanner per spawn, fed the chunk it
+// just received and only until a URL has been shown, and must keep no accumulated stderr.
+describe("Session 341 — the stderr handler of src/features/preview.ts reads the Browse at line through one scanner per spawn (a source-text pin)", () => {
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+  const source = readFileSync(resolve(root, "src", "features", "preview.ts"), "utf8");
+  // Code only: block comments and whole-line comments dropped, then the blanks squeezed out for the contiguous pins.
+  const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
+  const squeezed = code.replace(/\s+/g, "");
+
+  it("imports the scanner and no longer the whole-buffer parser", () => {
+    expect(code).toContain('import { createBrowseUrlScanner } from "../core/preview-url";');
+    expect(code).not.toContain("parseBrowseUrl");
+  });
+
+  it("makes exactly one scanner, inside the Promise executor of one spawn and before its stderr handler", () => {
+    expect(code.split("createBrowseUrlScanner(").length - 1).toBe(1);
+    const executor = code.indexOf("return new Promise<void>((resolve) => {");
+    const scanner = code.indexOf("const urlScanner = createBrowseUrlScanner();");
+    const handler = code.indexOf('child.stderr?.on("data"');
+    expect(executor).toBeGreaterThan(-1);
+    expect(scanner).toBeGreaterThan(executor);
+    expect(handler).toBeGreaterThan(scanner);
+  });
+
+  it("appends the chunk to the channel, then feeds the scanner that same chunk, only while no URL has been shown", () => {
+    const start = squeezed.indexOf('child.stderr?.on("data"');
+    const end = squeezed.indexOf('child.stdout?.on("data"');
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const handler = squeezed.slice(start, end);
+    expect(handler).toContain("consttext=buf.toString();this.channel.append(text);if(!urlShown){consturl=urlScanner.push(text);if(url){urlShown=true;");
+  });
+
+  it("keeps no accumulated stderr", () => {
+    expect(code).not.toMatch(/\bstderr\s*\+?=[^=>]/);
+    expect(code).not.toMatch(/let\s+stderr\b/);
   });
 });

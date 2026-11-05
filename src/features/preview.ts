@@ -195,6 +195,8 @@ class PreviewManager implements vscode.Disposable {
         }
       }, START_TIMEOUT_MS);
 
+      // One scanner per spawn. It keeps only the incomplete last line of stderr and tests only the new text, so
+      // startup noise before the URL costs linear time; no accumulated stderr is kept (Session 341).
       const urlScanner = createBrowseUrlScanner();
       // `settled` only flips after showPreview's async asExternalUri resolves;
       // `urlShown` flips synchronously the instant a URL is matched, so further
