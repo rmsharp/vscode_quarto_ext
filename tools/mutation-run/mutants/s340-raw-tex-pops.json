@@ -117,7 +117,7 @@
   "from": "  return pops;\n}\n/**\n * The LAST line",
   "to": "  return Math.min(pops, 4096);\n}\n/**\n * The LAST line",
   "expect": "killed",
-  "why": "the count is capped at 4,096; the enumerations pop at most eight from a line and the documents of the older rows fewer, so only the 5,000-closer rows of `raw-tex-end-pops-equivalence.test.ts` tell it apart (run alone, they are the only kill)"
+  "why": "the count is capped at 4,096; the two exhaustive enumerations pop at most six from a line, the seeded sample twelve, and the documents of the older rows fewer, so only the 5,000-closer rows of `raw-tex-end-pops-equivalence.test.ts` tell it apart (run alone, they are the only kill)"
  },
  {
   "name": "P16 rawTexEndPops: the count is capped at 16",
@@ -133,7 +133,7 @@
   "from": "  let top = stack.length;\n  let pops = 0;",
   "to": "  const unused = [...stack];\n  void unused;\n  let top = stack.length;\n  let pops = 0;",
   "expect": "killed",
-  "why": "the stack is copied once per call: every answer is kept, the cost is the depth per call; run alone, killed by the clock row 'a closer that is the top' of the deep-stack rows of `raw-tex-end-pops-equivalence.test.ts` (30,000 calls over 100,000 places) and by nothing that reads an answer"
+  "why": "the stack is copied once per call: every answer is kept, the cost is the depth per call; run alone, killed by the clock row 'a closer that is the top' of the deep-stack rows of `raw-tex-end-pops-equivalence.test.ts` (30,000 calls over 100,000 places) and by the document clock rows of `s340-raw-tex-stack-rows.test.ts` (80,000 closing lines over an 80,000-deep stack; the review round of Session 340 timed 2,730 and 4,888 ms against the limit of 1,000 and the controls unmoved), and by nothing that reads an answer"
  },
  {
   "name": "P18 rawTexEndPops: the open part of the stack is sliced for every name (answers kept, cost the depth per name)",

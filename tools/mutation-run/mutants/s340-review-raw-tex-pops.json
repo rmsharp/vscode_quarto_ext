@@ -1,0 +1,130 @@
+[
+ {
+  "name": "R01 compare collapses whitespace runs in name",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (top > 0 && stack[top - 1] === name) {",
+  "to": "if (top > 0 && stack[top - 1] === name.replace(/ +/g, ' ')) {",
+  "expect": "killed",
+  "why": "(the review round's N14) the closing name's runs of blanks are collapsed before the comparison, so `\\end{a  b}` no longer meets `\\begin{a  b}`; killed by the two-blank row (Hn05) of `test/unit/s340-raw-tex-stack-rows.test.ts` alone, which nothing else wrote at document level"
+ },
+ {
+  "name": "R02 compare name capped at 64 chars",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (top > 0 && stack[top - 1] === name) {",
+  "to": "if (top > 0 && stack[top - 1] === name.slice(0, 64)) {",
+  "expect": "killed",
+  "why": "(N15) the closing name is cut at 64 characters before the comparison; killed by the 100-character row (Hn03) and the two names that agree for 64 characters (Hn04) of `test/unit/s340-raw-tex-stack-rows.test.ts`"
+ },
+ {
+  "name": "R03 compare both capped at 64 chars",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (top > 0 && stack[top - 1] === name) {",
+  "to": "if (top > 0 && stack[top - 1].slice(0, 64) === name.slice(0, 64)) {",
+  "expect": "killed",
+  "why": "(N16) both sides of the comparison are cut at 64 characters; killed by Hn04 alone (the two names agree for 64 characters, the 100-character name agrees with itself either way) of `test/unit/s340-raw-tex-stack-rows.test.ts`"
+ },
+ {
+  "name": "R04 names: line capped at 1000000 chars",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (const name of rawTexEndNames(line)) {",
+  "to": "for (const name of rawTexEndNames(line.slice(0, 1000000))) {",
+  "expect": "killed",
+  "why": "(N26) the line is cut at 1,000,000 characters before the names are read; killed by the row whose closing name sits 1,000,000 characters into its line (Hp03) of `test/unit/s340-raw-tex-stack-rows.test.ts` (the 200,000-character late-name row is below it)"
+ },
+ {
+  "name": "R05 count: capped at 65535",
+  "file": "src/core/qmd/model.ts",
+  "from": "return pops;",
+  "to": "return Math.min(pops, 65535);",
+  "expect": "killed",
+  "why": "(N39) the count is capped at 65,535 (a 16-bit counter); killed by the row in which one line closes 100,002 open environments and the next `\\end{a}` must find nothing (Hp02) of `test/unit/s340-raw-tex-stack-rows.test.ts`; the 5,000-closer rows of `raw-tex-end-pops-equivalence.test.ts` are below the cap"
+ },
+ {
+  "name": "R06 count: halves when large",
+  "file": "src/core/qmd/model.ts",
+  "from": "return pops;",
+  "to": "return pops > 100000 ? pops - 1 : pops;",
+  "expect": "killed",
+  "why": "(N41) the count loses one past 100,000; killed by Hp02 alone, the one row above 100,000 pops on a line (the earlier rows stop at 5,000), of `test/unit/s340-raw-tex-stack-rows.test.ts`"
+ },
+ {
+  "name": "R07 call: stack offered by slice(-1000)",
+  "file": "src/core/qmd/model.ts",
+  "from": "rawTexEndPops(rawTexEnvStack, line)",
+  "to": "rawTexEndPops(rawTexEnvStack.slice(-1000), line)",
+  "expect": "killed",
+  "why": "(N45) the call is offered only the last 1,000 places of the stack; killed by the rows in which one line closes all 5,000 (Hm03) and 100,002 (Hp02) open environments and a stray `\\end{a}` after them must find nothing, of `test/unit/s340-raw-tex-stack-rows.test.ts`"
+ },
+ {
+  "name": "R08 call: line capped at 1 MB",
+  "file": "src/core/qmd/model.ts",
+  "from": "rawTexEndPops(rawTexEnvStack, line)",
+  "to": "rawTexEndPops(rawTexEnvStack, line.slice(0, 1000000))",
+  "expect": "killed",
+  "why": "(N48) the line is cut at 1 MB at the call site; killed by Hp03 of `test/unit/s340-raw-tex-stack-rows.test.ts`, the same row as R04 (the cut at the call and the cut inside the function are two edits of one limit)"
+ },
+ {
+  "name": "R09 begin: default 0",
+  "file": "src/core/qmd/model.ts",
+  "from": "(rawTexEnvEnds.get(texEnv[2]) ?? -1) >= i",
+  "to": "(rawTexEnvEnds.get(texEnv[2]) ?? 0) >= i",
+  "expect": "killed",
+  "why": "(N64, older code of the same block) a `\\begin{zz}` with no `\\end{zz}` anywhere counts as matched when it is on line 0 (the default of the index lookup is 0, not -1); killed by the row `\\begin{zz}` / `# H` (Ho02) of `test/unit/s340-raw-tex-stack-rows.test.ts`, which hides the heading"
+ },
+ {
+  "name": "R10 loop: pops capped 1000",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let k = 0; k < texEndPops; k++) {",
+  "to": "for (let k = 0; k < Math.min(texEndPops, 1000); k++) {",
+  "expect": "killed",
+  "why": "(N68) the pop loop stops at 1,000 pops; killed by Hm03 (5,000 closed by one line, a stray closer after them) and Hp02 of `test/unit/s340-raw-tex-stack-rows.test.ts`: the heading shows only if the loop removed every entry"
+ },
+ {
+  "name": "R11 pop: pops twice when depth>1 and k==0",
+  "file": "src/core/qmd/model.ts",
+  "from": "rawTexEnvStack.pop();",
+  "to": "rawTexEnvStack.pop(); if (k === 0 && texEndPops === 2) rawTexEnvStack.pop();",
+  "expect": "killed",
+  "why": "(N75) the pop loop removes one entry too many when a line pops exactly two; killed by the row in which one line closes two of three open environments and the next `\\end{a}` must close the last (Hm01) of `test/unit/s340-raw-tex-stack-rows.test.ts`; every earlier row popped one entry per line or so many that the extra one was lost"
+ },
+ {
+  "name": "R12 push: trimmed",
+  "file": "src/core/qmd/model.ts",
+  "from": "rawTexEnvStack.push(texEnv![2]);",
+  "to": "rawTexEnvStack.push(texEnv![2].trim());",
+  "expect": "killed",
+  "why": "(N77, older code of the same block) the name is trimmed when it is pushed; killed by the row `\\begin{ a }` / `\\end{ a }` (Hn01) of `test/unit/s340-raw-tex-stack-rows.test.ts`"
+ },
+ {
+  "name": "R13 push: lower-cased",
+  "file": "src/core/qmd/model.ts",
+  "from": "rawTexEnvStack.push(texEnv![2]);",
+  "to": "rawTexEnvStack.push(texEnv![2].toLowerCase());",
+  "expect": "killed",
+  "why": "(N78, older code) the pushed name is lower-cased; killed by the row `\\begin{A}` / `\\end{A}` (Hn02) of `test/unit/s340-raw-tex-stack-rows.test.ts`"
+ },
+ {
+  "name": "R14 push: name capped 64",
+  "file": "src/core/qmd/model.ts",
+  "from": "rawTexEnvStack.push(texEnv![2]);",
+  "to": "rawTexEnvStack.push(texEnv![2].slice(0, 64));",
+  "expect": "killed",
+  "why": "(N80, older code) the pushed name is cut at 64 characters; killed by Hn03 and Hn04 of `test/unit/s340-raw-tex-stack-rows.test.ts`, the same two rows as R02"
+ },
+ {
+  "name": "R15 push: depth capped 100000",
+  "file": "src/core/qmd/model.ts",
+  "from": "rawTexEnvStack.push(texEnv![2]);",
+  "to": "if (rawTexEnvStack.length < 100000) rawTexEnvStack.push(texEnv![2]);",
+  "expect": "killed",
+  "why": "(N81, older code) nothing is pushed once the stack holds 100,000 entries; killed by the row of 100,001 nested environments (Hp01) of `test/unit/s340-raw-tex-stack-rows.test.ts` (the clock rows stop at 80,000 and 100,000 open-and-close pairs)"
+ },
+ {
+  "name": "R16 outer: self-contained pushes",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (texEnvMatched && !texEnvSelfContained) {",
+  "to": "if (texEnvMatched) {",
+  "expect": "killed",
+  "why": "(N86, older code) a one-line environment `\\begin{c}x\\end{c}` pushes `c` and nothing pops it; killed by the row in which a stray `\\end{c}` follows it and must find nothing (Ho01) of `test/unit/s340-raw-tex-stack-rows.test.ts`"
+ }
+]
