@@ -301,6 +301,63 @@ describe("Session 341 -- the named rows: the builder, buildCellVirtualContent an
     }
   });
 
+  // The old spelling read a cell's body by the RULE `i > startLine && i <= startLine + (the line count of its code)` over the integer line numbers `i`, and so answered for ANY number as a start line: a fraction, NaN, an infinity, a
+  // value no text reaches. The rows state the answer by that rule, from the six lines below (none is blank, so a wrong body shows), for an r cell (no mute) and a python cell (the mute on line 0).
+  const FRACTIONAL_TEXT = "l0\nl1\nl2\nl3\nl4\nl5"; // 0 l0 | 1 l1 | 2 l2 | 3 l3 | 4 l4 | 5 l5: six lines, no blank one
+  const NOTHING = nl(5); // six empty lines
+  const FRACTIONAL_ROWS: Array<[string, number, string, string, string]> = [
+    // [label, startLine, lang, code, the vdoc]. The code `a\nb` is two lines, so the body is the integers in (startLine, startLine + 2].
+    ["r, 0.5: lines 1 and 2", 0.5, "r", "a\nb", `${nl(1)}l1\nl2${nl(3)}`],
+    ["r, 1.5: lines 2 and 3", 1.5, "r", "a\nb", `${nl(2)}l2\nl3${nl(2)}`],
+    ["r, 4.5: line 5 only, the body runs past the text", 4.5, "r", "a\nb", `${nl(5)}l5`],
+    ["r, 5.5: nothing, the body starts below the text", 5.5, "r", "a\nb", NOTHING],
+    ["r, -0.5: lines 0 and 1", -0.5, "r", "a\nb", `l0\nl1${nl(4)}`],
+    ["r, -1.5: line 0 only", -1.5, "r", "a\nb", `l0${nl(5)}`],
+    ["r, -2.5: nothing, the body ends above the text", -2.5, "r", "a\nb", NOTHING],
+    ["python, 0.5: the mute writes over line 0, lines 1 and 2 are kept", 0.5, "python", "a\nb", `${D}\nl1\nl2${nl(3)}`],
+    ["python, 2.5: lines 3 and 4", 2.5, "python", "a\nb", `${D}${nl(2)}\nl3\nl4\n`],
+    ["python, -0.5: line 0 is body, the mute writes over it, line 1 is kept", -0.5, "python", "a\nb", `${D}\nl1${nl(4)}`],
+    ["python, -1.5: line 0 is the whole body and the mute writes over it", -1.5, "python", "a\nb", `${D}${nl(5)}`],
+    ["python, 5.5: nothing is below, so no mute", 5.5, "python", "a\nb", NOTHING],
+    ["python, 0.25, no code: an empty body, so no mute", 0.25, "python", "", NOTHING],
+    ["python, 0.75, one line of code: line 1", 0.75, "python", "a", `${D}\nl1${nl(4)}`],
+    ["r, 2.75, three lines of code: lines 3, 4 and 5", 2.75, "r", "a\nb\nc", `${nl(3)}l3\nl4\nl5`],
+    ["r, the largest double below 2: start + 2 rounds to 4 (a tie, to even), so lines 2, 3 and 4", 1.9999999999999998, "r", "a\nb", `${nl(2)}l2\nl3\nl4\n`],
+    ["r, the smallest positive double: floor is 0, so lines 1 and 2", Number.MIN_VALUE, "r", "a\nb", `${nl(1)}l1\nl2${nl(3)}`],
+    ["r, the smallest negative double: floor is -1, but start + 2 rounds to 2, so lines 0, 1 and 2", -Number.MIN_VALUE, "r", "a\nb", `l0\nl1\nl2${nl(3)}`],
+    ["r, negative zero: lines 1 and 2", -0, "r", "a\nb", `${nl(1)}l1\nl2${nl(3)}`],
+    ["r, NaN: nothing", NaN, "r", "a\nb", NOTHING],
+    ["python, NaN: nothing, so no mute", NaN, "python", "a\nb", NOTHING],
+    ["python, +Infinity: nothing", Infinity, "python", "a\nb", NOTHING],
+    ["python, -Infinity: nothing", -Infinity, "python", "a\nb", NOTHING],
+    ["python, 2^53: nothing", 2 ** 53, "python", "a\nb", NOTHING],
+    ["python, 1e300: nothing", 1e300, "python", "a\nb", NOTHING],
+    ["python, -1e300: nothing", -1e300, "python", "a\nb", NOTHING],
+    ["r, the largest double: nothing", Number.MAX_VALUE, "r", "a\nb", NOTHING],
+    ["r, minus the largest double: nothing", -Number.MAX_VALUE, "r", "a\nb", NOTHING],
+  ];
+
+  it.each(FRACTIONAL_ROWS.map((row) => [row[0], row] as const))("a hand-made cell with a start line that is not a whole line number is built as the old spelling builds it -- %s", (_label, row) => {
+    const [, startLine, lang, code, expected] = row;
+    const cell: Cell = { startLine, endLine: startLine + 1 + code.split("\n").length, lang, code };
+    const builder = createCellVdocBuilder(FRACTIONAL_TEXT);
+    expect(oldBuildCellVirtualContent(FRACTIONAL_TEXT, cell)).toBe(expected);
+    expect(builder.build(cell)).toBe(expected);
+    expect(buildCellVirtualContent(FRACTIONAL_TEXT, cell)).toBe(expected);
+  });
+
+  it("a hand-made cell with a fractional start line in a document the model reads: the model's own cell moved by half a line is built as the old spelling builds it", () => {
+    const text = "p\n```{python}\n#| echo: false\nx = 1\ny = 2\n```\nq\n";
+    const [cell] = findAllCells(text);
+    const builder = createCellVdocBuilder(text);
+    for (const shift of [-1.5, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 1.5]) {
+      for (const lang of ["python", "r"]) {
+        const moved: Cell = { ...cell, lang, startLine: cell.startLine + shift };
+        expect(builder.build(moved)).toBe(oldBuildCellVirtualContent(text, moved));
+      }
+    }
+  });
+
   it("a hand-made cell shaped like an unterminated cell (its end line the last line, the closing fence missing) is built from its start line and its code alone", () => {
     const text = "p\n```{python}\nx = 1\ny = 2";
     const builder = createCellVdocBuilder(text);
@@ -366,7 +423,14 @@ function compareDocument(text: string, tally: Tally, handMade: readonly Cell[] =
     if (buildCellVirtualContent(text, cell) !== old) note(`buildCellVirtualContent of the cell at ${cell.startLine}`);
   }
   for (const cell of handMade) {
-    if (builder.build(cell) !== oldBuildCellVirtualContent(text, cell)) note(`build of the hand-made cell ${JSON.stringify(cell)}`);
+    const built = ((): string => {
+      try {
+        return builder.build(cell);
+      } catch (error) {
+        return `THROWS ${String(error)}`;
+      }
+    })();
+    if (built !== oldBuildCellVirtualContent(text, cell)) note(`build of the hand-made cell ${JSON.stringify(cell)}${built.startsWith("THROWS ") ? `, ${built}` : ""}`);
   }
   const total = text.split("\n").length;
   for (let line = -1; line <= total + 1; line++) {
@@ -457,8 +521,9 @@ describe("Session 341 -- a seeded differential on larger documents", () => {
   const EOLS = ["\n", "\n", "\n", "\r\n"];
   const ENGINES = ["python", "r", "ojs", "js", "julia", "bash", ""];
   const CODES = ["", "a", "a\nb\nc", "\n", "   ", "x = 1\n#| echo: false"];
+  const FRACTIONS = [-0.75, -0.5, -0.25, 0.25, 0.5, 0.75, 1e-9, -1e-9, 1 - 2 ** -53, -(2 ** -53)];
 
-  it(`agrees with the old spelling and with findCellAtPosition on ${SEEDED_COUNT.toLocaleString("en-US")} documents of 1 to 40 lines, and on four hand-made cells of each`, () => {
+  it(`agrees with the old spelling and with findCellAtPosition on ${SEEDED_COUNT.toLocaleString("en-US")} documents of 1 to 40 lines, and on six hand-made cells of each`, () => {
     const random = seededRandom(SEED);
     const pick = <T,>(items: readonly T[]): T => items[Math.floor(random() * items.length)];
     const tally = newTally();
@@ -473,6 +538,12 @@ describe("Session 341 -- a seeded differential on larger documents", () => {
       const handMade: Cell[] = [];
       for (let k = 0; k < 4; k++) {
         const startLine = Math.floor(random() * (total + 6)) - 2;
+        const code = pick(CODES);
+        handMade.push({ startLine, endLine: startLine + 1 + code.split("\n").length, lang: pick(ENGINES), code });
+      }
+      // Two more whose start line is NOT a whole line number: a whole one moved by a fraction (either way, and by a hair that rounds back in `start + lines`).
+      for (let k = 0; k < 2; k++) {
+        const startLine = Math.floor(random() * (total + 6)) - 2 + pick(FRACTIONS);
         const code = pick(CODES);
         handMade.push({ startLine, endLine: startLine + 1 + code.split("\n").length, lang: pick(ENGINES), code });
       }
