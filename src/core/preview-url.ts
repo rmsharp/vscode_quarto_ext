@@ -33,23 +33,44 @@ export function parseBrowseUrl(output: string): string | null {
   return match ? match[1] : null;
 }
 
-/** A stateful reader of `quarto preview` stderr, fed one chunk at a time. */
+/**
+ * A stateful reader of `quarto preview` stderr, fed one chunk at a time as the process writes it.
+ *
+ * `push` answers null for every chunk until the `Browse at <url>` line is complete, and the URL at the first push
+ * after which `parseBrowseUrl` of ALL the text pushed so far would be non-null (the same URL: the leftmost match, so
+ * two marker lines in one chunk give the first). What it answers AFTER that first non-null answer is unspecified: the
+ * caller stops feeding it.
+ */
 export interface BrowseUrlScanner {
   push(chunk: string): string | null;
 }
 
 /**
- * One scanner per spawned preview; feed it each stderr chunk as it arrives.
+ * One scanner per spawned preview. It tests only the NEW text: `parseBrowseUrl` on a whole, growing buffer costs the
+ * bytes so far times the chunks, and startup noise before the marker can be megabytes (Session 341, part 3 of the
+ * "Slow shapes and residuals found by Session 339's review round" item).
  *
- * Seam (Session 341): the OLD logic sits behind the new interface — it still accumulates every chunk and
- * re-parses the whole buffer with `parseBrowseUrl`. The cure replaces the body, not the interface.
+ * Why that is the same answer. `BROWSE_PATTERN` cannot span a newline (`\S` and `[ \t\r]` both exclude it, and the
+ * pattern ends on one) and an SGR escape cannot contain one, so stripping the escapes and matching line by line gives
+ * what doing both on the whole buffer gives. A match needs its terminating newline, so the text after the last newline
+ * can never answer: it is kept RAW (a chunk boundary inside "Browse at", inside the URL, inside an escape or between
+ * "\r" and "\n" must not matter) until its newline arrives. A push that completes lines tests exactly those lines,
+ * the kept text plus the chunk up to its last newline, once; a push that brings no newline only keeps its chunk, so
+ * one enormous line arriving in many chunks is read once, when its newline comes, and never joined or scanned before.
  */
 export function createBrowseUrlScanner(): BrowseUrlScanner {
-  let buffer = "";
+  // The incomplete last line so far (everything after the last newline pushed), as the pieces it arrived in.
+  let tail: string[] = [];
   return {
     push(chunk: string): string | null {
-      buffer += chunk;
-      return parseBrowseUrl(buffer);
+      const end = chunk.lastIndexOf("\n") + 1;
+      if (end === 0) {
+        tail.push(chunk);
+        return null;
+      }
+      const completed = tail.join("") + chunk.slice(0, end);
+      tail = end < chunk.length ? [chunk.slice(end)] : [];
+      return parseBrowseUrl(completed);
     },
   };
 }

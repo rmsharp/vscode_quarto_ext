@@ -17,6 +17,8 @@ import { createBrowseUrlScanner } from "../../src/core/preview-url";
 //   12 MiB plain, 4,096-byte chunks 8.8 s; 4 MiB SGR, 4,096-byte chunks 6.2 s; 48 MiB plain, 65,536-byte chunks 8.9 s; 16 MiB SGR, 65,536-byte chunks 9.5 s; ONE 16 MiB line 12.2 s; 256 KiB in one-byte chunks 15.5 s.
 // That is 6x to 16x the limit. The last tenth of the pushes took 17x to 24x the first tenth on the shapes the ratio is asserted on (12 MiB plain: 3,143 against 129 ms; 4 MiB SGR: 1,155 against 66 ms; one-byte
 // chunks: 4,377 against 195 ms), checked with the clock assertion switched off.
+// The cure (`createBrowseUrlScanner` as committed with these rows), the same six shapes, one fresh process each outside the test: 9 / 12 / 23 / 43 / 20 / 11 ms at load 14 (23x to 110x under the limit), the last
+// tenth of the pushes costing what the first does. The whole file, twelve rows with their 96 MiB of generated text, runs in 0.14 s at load 19.
 //
 // WHAT THE ANSWER IS (Learning 903: the site is reached only while no complete `Browse at <url>` line has arrived, so every row ends on the marker). The scanner answers null for every push until the marker line
 // is complete, and the URL at the push that completes it; the rows read that last answer back (Learning 907), after the whole stream of noise went through.
