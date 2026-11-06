@@ -471,7 +471,15 @@ describe("Session 343 -- the answer is readCitations' answer, on enumerated and 
     for (let history = 0; history < 500; history++) {
       const fs = fakeFs();
       let clock = 1;
-      for (const name of names) if (next() < 0.8) fs.set(name, { content: makeContent(), mtimeMs: clock++ });
+      // The signatures each file has had in this history. A file that goes back to one it had (the size alone moving twice under one time: A, B, A) is the blind spot the row above pins, not a disagreement, so the
+      // model never makes that move: a size-alone change to a signature the file has had becomes a change of the time as well.
+      const had = new Map<string, Set<string>>();
+      const signatureOf = (file: FakeFile): string => `${file.mtimeMs}:${file.size ?? file.content.length}`;
+      const put = (name: string, file: FakeFile): void => {
+        fs.set(name, file);
+        had.set(name, (had.get(name) ?? new Set<string>()).add(signatureOf(file)));
+      };
+      for (const name of names) if (next() < 0.8) put(name, { content: makeContent(), mtimeMs: clock++ });
       const cache = createCitationCache(fs);
       for (let ask = 0; ask < 12; ask++) {
         // between asks: some files change (the time moves, the size moves, or both: never neither), vanish, appear or stay
@@ -483,11 +491,11 @@ describe("Session 343 -- the answer is readCitations' answer, on enumerated and 
             const how = next();
             const previousSize = current.size ?? current.content.length;
             const sameSize = how < 0.33; // the time alone moves
-            const sameTime = how >= 0.33 && how < 0.66 && content.length !== previousSize; // the size alone moves
-            fs.set(name, { content, mtimeMs: sameTime ? current.mtimeMs : clock++, size: sameSize ? previousSize : undefined });
+            const sameTime = how >= 0.33 && how < 0.66 && content.length !== previousSize && !(had.get(name)?.has(`${current.mtimeMs}:${content.length}`) ?? false); // the size alone moves, to a size not had under this time
+            put(name, { content, mtimeMs: sameTime ? current.mtimeMs : clock++, size: sameSize ? previousSize : undefined });
             moves++;
           } else if (roll < 0.32) fs.set(name, undefined);
-          else if (roll < 0.4 && current === undefined) fs.set(name, { content: makeContent(), mtimeMs: clock++ });
+          else if (roll < 0.4 && current === undefined) put(name, { content: makeContent(), mtimeMs: clock++ });
         }
         const declared = Array.from({ length: Math.floor(next() * 5) }, () => pickOf(names));
         const before = fs.reads();

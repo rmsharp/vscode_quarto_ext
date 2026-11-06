@@ -111,12 +111,91 @@ export interface CitationCache {
   read(relPaths: readonly string[], dir: string): Promise<Citation[]>;
 }
 
+/** How many bibliography files the cache keeps; the least recently used one is dropped for the next. */
+export const CITATION_CACHE_MAX_FILES = 16;
+
+/** What the cache keeps for one file: the signature it was read under, and what it parsed to. */
+interface CachedBibliography {
+  mtimeMs: number;
+  size: number;
+  citations: readonly Citation[];
+}
+
 /**
- * The seam of Session 343 (SIB-07): the adapter reads its bibliographies through THIS interface, and in the first
- * version of it the read is still `readCitations` and nothing is kept.
+ * The bibliographies of a document, read through a cache of PARSED files (Session 343, SIB-07). The answer is
+ * {@link readCitations}'s, for every input (that function is the oracle of `test/unit/s343-citation-cache-rows.test.ts`);
+ * the difference is what it asks of the file system. The adapter used to read and parse every declared bibliography
+ * on every completion request: at 20,000 entries of five lines each the parse alone is 40 ms, proportional to the bytes.
+ *
+ * For each declared path, in order:
+ *  - the file is `stat`ed FIRST. If the cache holds it under the same modification time AND the same size, its parsed
+ *    citations are reused and the file is not read. Otherwise it is read and parsed, and the entry replaced.
+ *  - **the signature kept is the one read BEFORE the content.** A file rewritten between the `stat` and the read is then
+ *    kept under the old signature, the next ask sees the new one and reads it again; read after the content, it would
+ *    be kept under the new signature with the old content, and served stale for good.
+ *  - a file that cannot be `stat`ed or read adds nothing, exactly as in `readCitations`, and its entry is DROPPED, so a
+ *    file that comes back with the very numbers it had before is read again and not served from a stale entry.
+ *
+ * The cross-file de-duplication by key (first wins, in declared order) is done at EVERY ask over the entries, not kept:
+ * the same two cached files answer differently when they are declared the other way round.
+ *
+ * ⚠ **THE ONE BLIND SPOT.** A file rewritten within one millisecond to the SAME size, which leaves the modification time
+ * (to the granularity of the file system) and the size as they were, is not seen. Every build tool that decides by stat
+ * has it. `===` is the comparison, so a `NaN` (a stat that cannot say) is never equal to itself and the file is read at
+ * every ask, and `0` and `-0` are one signature. A stat that does not carry two numbers is no signature at all: the
+ * file is read at every ask and nothing is kept for it.
+ *
+ * The cache is keyed by the file's ABSOLUTE path, so two documents that declare one file by two spellings share an
+ * entry, and it holds at most {@link CITATION_CACHE_MAX_FILES} files, least recently used first out (a `Map` iterates in
+ * insertion order and a hit re-inserts). A document that declares more files than that still gets all of them: the
+ * answer is built from what each ask read or reused, never from what is still held afterwards.
+ *
+ * The citations handed back are shared with the entries, so they are FROZEN: a caller that edits one throws (the
+ * modules are strict) instead of corrupting what the next ask is served from. The list is the caller's own.
  */
 export function createCitationCache(options: CitationCacheOptions): CitationCache {
-  return { read: (relPaths, dir) => readCitations(relPaths, dir, options.readFile) };
+  const entries = new Map<string, CachedBibliography>();
+
+  /** The parsed citations of one file, from the entry if its signature is unchanged and from the file if not; throws if the file cannot be `stat`ed or read. */
+  async function citationsOf(absolute: string): Promise<readonly Citation[]> {
+    const signature = await options.stat(absolute);
+    const { mtimeMs, size } = signature;
+    const known = typeof mtimeMs === "number" && typeof size === "number";
+    const kept = entries.get(absolute);
+    if (known && kept !== undefined && kept.mtimeMs === mtimeMs && kept.size === size) {
+      entries.delete(absolute);
+      entries.set(absolute, kept); // most recently used
+      return kept.citations;
+    }
+    const citations = parseCitations(await options.readFile(absolute)).map((citation) => Object.freeze(citation));
+    entries.delete(absolute);
+    if (known) {
+      entries.set(absolute, { mtimeMs, size, citations });
+      while (entries.size > CITATION_CACHE_MAX_FILES) {
+        const oldest = entries.keys().next();
+        if (oldest.done === true) break;
+        entries.delete(oldest.value);
+      }
+    }
+    return citations;
+  }
+
+  return {
+    async read(relPaths, dir) {
+      const merged: Citation[] = [];
+      for (const relPath of relPaths) {
+        let absolute = "";
+        try {
+          absolute = path.resolve(dir, relPath);
+          appendCitations(merged, await citationsOf(absolute));
+        } catch {
+          // A file that cannot be stat'ed or read adds nothing, and what was kept for it is stale from now on.
+          entries.delete(absolute);
+        }
+      }
+      return dedupeByKey(merged);
+    },
+  };
 }
 
 /** Keep only the first citation for each key, preserving order. */
