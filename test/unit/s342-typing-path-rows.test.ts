@@ -17,7 +17,8 @@ import { createFakeClock } from "./support/fake-timers";
 //
 // ⚠ WHAT THE CURE COVERS, AND WHAT THESE ROWS SHOW: BURSTS. The debounce coalesces events that arrive LESS THAN 150 ms apart (a held key, a paste, a replace-all, a snippet). Typing at a steady gap of 150 ms or more still
 // pays one cold scan per keystroke exactly as before, only delayed by the pause. The clock rows' keystrokes are 10 ms apart (`clock.advance(10)`; the sequence rows' 20 ms), so "40 keystrokes in 2,000 cells, 1,052 ms to 39 ms" is a burst
-// figure; no row here counts the evaluations of live keystrokes spaced 150 ms or more apart (the sequence rows' gaps are at most 100 ms). There is also no maximum wait: events arriving less than 150 ms apart postpone the evaluation until 150 ms after the last of them, and "navigation
+// figure; no row here counts the evaluations of live keystrokes spaced 150 ms or more apart (the sequence rows' gaps are at most 100 ms). The schedulers made in this file have NO `maxWaitMs`, so events arriving less than 150 ms apart postpone the evaluation until 150 ms after the last of them (with the maximum wait of Session 343, `TYPING_MAX_WAIT_MS`, which the adapters
+// hand them and `s343-max-wait.test.ts` pins, an unbroken stream is evaluated about once a second); and "navigation
 // stays fresh" is true of a cursor move with no edit since the last evaluation only (a move after an edit is debounced with it).
 //
 // This file holds the SEQUENCES (a fake clock drives the cell-context scheduler through edits, cursor moves, editor switches and pauses and counts what it evaluated) and the CLOCK rows (the real scans, a burst

@@ -14,7 +14,8 @@ import { createFakeClock } from "./support/fake-timers";
 // events that the cell-context key goes through are the rows of `s342-typing-path-rows.test.ts`.
 //
 // ⚠ A trailing debounce coalesces BURSTS: runs scheduled less than the delay (150 ms) apart. A key scheduled at a steady gap of the delay or more runs every time, exactly as often as without the debouncer. The burst row
-// below spaces its schedules 20 ms apart. There is no maximum wait: a stream of schedules under the delay apart postpones the run for as long as it lasts.
+// below spaces its schedules 20 ms apart. Every debouncer made here has NO `maxWaitMs`, so it is the pure trailing debounce: a stream of schedules under the delay apart postpones its run for as long as it lasts. The maximum wait
+// (Session 343) is `createKeyedDebouncer`'s optional `maxWaitMs`, whose rows are `s343-max-wait.test.ts`.
 
 describe("the fake clock (the rows below count on it: Learning 910 -- a row that counts evaluations is only as good as its clock)", () => {
   it("runs a timer due exactly at the end of the window, and not one due a millisecond later", () => {
