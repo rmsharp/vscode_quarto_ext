@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { MAX_TIMER_DELAY_MS, TYPING_DEBOUNCE_MS, TYPING_MAX_WAIT_MS, createKeyedDebouncer } from "../../src/core/typing-debounce";
+import {
+  type EditorSnapshot,
+  MAX_TIMER_DELAY_MS,
+  TYPING_DEBOUNCE_MS,
+  TYPING_MAX_WAIT_MS,
+  createCellContextScheduler,
+  createKeyedDebouncer,
+} from "../../src/core/typing-debounce";
 import { createFakeClock } from "./support/fake-timers";
 
 // Session 343 -- the BACKLOG item "What Session 342's review round found beside the typing-path cures, none of them in its diff", part (2), first cost: the typing path's trailing debounce had NO MAXIMUM WAIT. Events that keep
@@ -481,6 +488,226 @@ describe("createKeyedDebouncer with a maximum wait -- keys are independent", () 
     }
     expect(w.ran).toEqual(["x 900", "y 900"]);
     expect(w.ranAt).toEqual([1_000, 1_000]);
+    expect(w.clock.pending()).toBe(0);
+  });
+});
+
+// ---- THE CELL-CONTEXT SCHEDULER -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+/** The cell-context scheduler on a fake clock, over an editor whose state the rows change the way VS Code does: an edit bumps the version, a cursor move changes the line. Each evaluation records the time and what it saw. */
+function schedulerWorld(options: { delayMs?: number; maxWaitMs?: number; onError?: (error: unknown) => void; evaluate?: () => void } = {}) {
+  const clock = createFakeClock();
+  const state = { active: true, key: "file:///a.qmd", version: 1, line: 0 };
+  const seen: Array<{ at: number; version: number; line: number }> = [];
+  const errors: unknown[] = [];
+  const scheduler = createCellContextScheduler({
+    timers: clock,
+    delayMs: options.delayMs ?? TYPING_DEBOUNCE_MS,
+    maxWaitMs: options.maxWaitMs,
+    activeSnapshot: (): EditorSnapshot | undefined => (state.active ? { key: state.key, version: state.version } : undefined),
+    evaluate: () => {
+      options.evaluate?.();
+      seen.push({ at: clock.now(), version: state.version, line: state.line });
+    },
+    onError: options.onError ?? ((error) => errors.push(error)),
+  });
+  /** One keystroke as VS Code reports it: the document event, then the selection event. */
+  const keystroke = (line: number): void => {
+    state.version++;
+    scheduler.changed();
+    state.line = line;
+    scheduler.changed();
+  };
+  return { clock, state, seen, errors, scheduler, keystroke };
+}
+
+/** One keystroke every `gap` ms from 0 to 30 s (the document event and the selection event of each); the evaluations done before the stream ends, and the last event's version. */
+function keystrokeStream(gap: number, maxWaitMs: number | undefined) {
+  const w = schedulerWorld({ maxWaitMs });
+  w.scheduler.evaluateNow(); // the activation-time evaluation, at 0
+  const events: Array<{ at: number; version: number }> = [];
+  for (let t = 0; t <= 30_000; t += gap) {
+    w.clock.advance(t - w.clock.now());
+    w.keystroke(t % 97);
+    events.push({ at: t, version: w.state.version });
+  }
+  const during = w.seen.length - 1; // not counting the activation
+  const duringSeen = w.seen.slice(1);
+  w.clock.advance(2_000);
+  return { ...w, events, during, duringSeen };
+}
+
+describe("createCellContextScheduler with a maximum wait -- a stream of keystrokes (a fake clock; the gap between keystrokes is stated in each title)", () => {
+  it("CONTROL: with no maxWaitMs a keystroke every 100 ms for 30 s (301 keystrokes) evaluates NOTHING before the stream ends: the limitation, kept as it was", () => {
+    const s = keystrokeStream(100, undefined);
+    expect(s.events).toHaveLength(301);
+    expect(s.during).toBe(0);
+  });
+
+  it.each([
+    [100, 301, 30],
+    [50, 601, 30],
+    [149, 202, 28],
+  ])("a keystroke every %i ms for 30 s (%i keystrokes) evaluates %i times before the stream ends, each time on the state AS IT IS when the evaluation runs, one per window", (gap, keystrokes, evaluations) => {
+    const s = keystrokeStream(gap, TYPING_MAX_WAIT_MS);
+    expect(s.events).toHaveLength(keystrokes);
+    expect(s.during).toBe(evaluations);
+    // The evaluation reads the editor when the timer fires: the last keystroke before it (a keystroke is a document event and a selection event, so the version moved once and the line with it).
+    for (const evaluation of s.duringSeen) {
+      const last = s.events.filter((event) => event.at < evaluation.at).pop();
+      expect(last).toBeDefined();
+      expect(evaluation.version).toBe(last?.version);
+      expect(evaluation.line).toBe((last?.at ?? 0) % 97);
+    }
+    expect(s.clock.staleClears()).toBe(0);
+  });
+
+  it("a keystroke every 151 ms for 30 s (199 keystrokes) evaluates 198 times before the stream ends: unchanged by the maximum wait (the same as with none)", () => {
+    const withMax = keystrokeStream(151, TYPING_MAX_WAIT_MS);
+    const without = keystrokeStream(151, undefined);
+    expect(withMax.events).toHaveLength(199);
+    expect(withMax.during).toBe(198);
+    expect(without.during).toBe(198);
+    expect(withMax.duringSeen).toEqual(without.duringSeen);
+  });
+
+  it.each([50, 100, 149, 151])("a keystroke every %i ms: the key lags every keystroke by at most TYPING_MAX_WAIT_MS (the stale window of the five chords that read quarto.inCodeCell is bounded by it)", (gap) => {
+    const s = keystrokeStream(gap, TYPING_MAX_WAIT_MS);
+    // For each keystroke, the first evaluation at or after it that saw its version (or a later one) must come within the maximum wait.
+    const evaluations = s.seen;
+    let worst = 0;
+    for (const event of s.events) {
+      const covering = evaluations.find((evaluation) => evaluation.at >= event.at && evaluation.version >= event.version);
+      expect(covering).toBeDefined();
+      worst = Math.max(worst, (covering?.at ?? Infinity) - event.at);
+    }
+    expect(worst).toBeLessThanOrEqual(TYPING_MAX_WAIT_MS);
+    if (gap === 100) expect(worst).toBe(TYPING_MAX_WAIT_MS); // the first keystroke of a window waits the whole of it
+  });
+
+  it("a burst of 40 keystrokes 10 ms apart evaluates ONCE, one delay after the last, on the last state", () => {
+    const w = schedulerWorld({ maxWaitMs: TYPING_MAX_WAIT_MS });
+    w.scheduler.evaluateNow();
+    for (let i = 1; i <= 40; i++) {
+      w.keystroke(10 + i);
+      w.clock.advance(10);
+    }
+    expect(w.seen).toHaveLength(1);
+    w.clock.advance(TYPING_DEBOUNCE_MS - 10);
+    expect(w.seen).toEqual([
+      { at: 0, version: 1, line: 0 },
+      { at: 40 * 10 - 10 + TYPING_DEBOUNCE_MS, version: 41, line: 50 },
+    ]);
+    expect(w.clock.pending()).toBe(0);
+    w.clock.advance(10_000);
+    expect(w.seen).toHaveLength(2);
+  });
+
+  it("asks the timer for the delay and the maximum wait at the first event of a window, and for the delay only at the rest; with no maxWaitMs it asks for the delay only", () => {
+    const w = schedulerWorld({ maxWaitMs: TYPING_MAX_WAIT_MS });
+    w.scheduler.evaluateNow();
+    w.keystroke(2);
+    expect(w.clock.delays).toEqual([150, 1000, 150]); // the document event opens the window, the selection event restarts the trailing timer
+    const plain = schedulerWorld();
+    plain.scheduler.evaluateNow();
+    plain.keystroke(2);
+    expect(plain.clock.delays).toEqual([150, 150]);
+  });
+
+  it("a maximum wait shorter than the delay (100 against 150) evaluates at 100", () => {
+    const w = schedulerWorld({ delayMs: 150, maxWaitMs: 100 });
+    w.scheduler.evaluateNow();
+    w.keystroke(3);
+    w.clock.advance(99);
+    expect(w.seen).toHaveLength(1);
+    w.clock.advance(1);
+    expect(w.seen.map((e) => e.at)).toEqual([0, 100]);
+  });
+});
+
+describe("createCellContextScheduler with a maximum wait -- the immediate paths drop BOTH timers", () => {
+  it("evaluateNow in the middle of a stream evaluates at once and leaves no timer: neither the trailing one nor the window's runs afterwards, and the next keystroke opens a new window", () => {
+    const w = schedulerWorld({ maxWaitMs: TYPING_MAX_WAIT_MS });
+    w.scheduler.evaluateNow();
+    for (let t = 0; t < 500; t += 100) {
+      w.keystroke(t);
+      w.clock.advance(100);
+    } // the clock is at 500; the window would end at 1,000
+    expect(w.clock.pending()).toBe(2);
+    w.scheduler.evaluateNow();
+    expect(w.clock.pending()).toBe(0);
+    const evaluated = w.seen.length;
+    w.clock.advance(10_000);
+    expect(w.seen).toHaveLength(evaluated);
+    w.keystroke(7);
+    expect(w.clock.delays.slice(-3)).toEqual([150, 1000, 150]); // a new window
+    expect(w.clock.staleClears()).toBe(0);
+  });
+
+  it("an event that follows no edit (the editor is gone, so the snapshot is none) evaluates at once and drops both timers: nothing runs at the end of the window", () => {
+    const w = schedulerWorld({ maxWaitMs: TYPING_MAX_WAIT_MS });
+    w.scheduler.evaluateNow();
+    w.keystroke(2);
+    expect(w.clock.pending()).toBe(2);
+    w.state.active = false;
+    w.scheduler.changed();
+    expect(w.seen).toHaveLength(2);
+    expect(w.clock.pending()).toBe(0);
+    w.clock.advance(10_000);
+    expect(w.seen).toHaveLength(2);
+    expect(w.clock.staleClears()).toBe(0);
+  });
+
+  it("a cursor move after an evaluation (no edit since) evaluates at once and sets no timer, with a maximum wait as without", () => {
+    const w = schedulerWorld({ maxWaitMs: TYPING_MAX_WAIT_MS });
+    w.scheduler.evaluateNow();
+    for (let line = 1; line <= 5; line++) {
+      w.state.line = line;
+      w.scheduler.changed();
+    }
+    expect(w.seen.map((e) => e.line)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(w.clock.pending()).toBe(0);
+    expect(w.clock.delays).toEqual([]);
+  });
+
+  it("dispose drops both timers of the pending evaluation, and later events set none", () => {
+    const w = schedulerWorld({ maxWaitMs: TYPING_MAX_WAIT_MS });
+    w.scheduler.evaluateNow();
+    w.keystroke(2);
+    expect(w.clock.pending()).toBe(2);
+    w.scheduler.dispose();
+    expect(w.clock.pending()).toBe(0);
+    w.keystroke(3);
+    expect(w.clock.pending()).toBe(0);
+    w.clock.advance(10_000);
+    expect(w.seen).toHaveLength(1);
+    expect(w.clock.staleClears()).toBe(0);
+  });
+});
+
+describe("createCellContextScheduler with a maximum wait -- an evaluation that throws", () => {
+  it("one fired by the window's timer is reported to onError, the version is not recorded as evaluated, and the next event opens a new window and retries", () => {
+    let failures = 1;
+    const w = schedulerWorld({
+      maxWaitMs: TYPING_MAX_WAIT_MS,
+      evaluate: () => {
+        if (failures-- > 0) throw new Error("setContext failed");
+      },
+    });
+    w.state.version = 2;
+    for (let t = 0; t <= 1_000; t += 100) {
+      w.clock.advance(t - w.clock.now());
+      w.state.version++;
+      w.scheduler.changed();
+    } // the window's timer fires the failing evaluation at 1,000 (the trailing timer never came due)
+    expect(w.errors.map((e) => (e as Error).message)).toEqual(["setContext failed"]);
+    expect(w.seen).toHaveLength(0);
+    w.state.line = 9;
+    w.scheduler.changed(); // the version was not recorded as evaluated: debounced, in a new window
+    expect(w.seen).toHaveLength(0);
+    expect(w.clock.pending()).toBe(2);
+    w.clock.advance(TYPING_DEBOUNCE_MS);
+    expect(w.seen.map((e) => e.line)).toEqual([9]);
     expect(w.clock.pending()).toBe(0);
   });
 });
