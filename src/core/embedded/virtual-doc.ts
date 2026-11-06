@@ -325,9 +325,10 @@ export function buildCellVirtualContent(text: string, cell: Cell): string {
 /**
  * The per-cell virtual documents of ONE text, and the cell lookup the Outline provider needs to ask for them
  * (Session 341, part (2) of the BACKLOG item "Slow shapes and residuals found by Session 339's review round").
- * `cellAt(line)` answers exactly what `findCellAtPosition(text, line)` answers and `build(cell)` exactly what
+ * Without an engine, `cellAt(line)` answers exactly what `findCellAtPosition(text, line)` answers and `build(cell)` exactly what
  * the old `buildCellVirtualContent(text, cell)` answered, byte for byte, for EVERY `Cell` whose `startLine` is a number (a whole line, a
- * fraction, `NaN`, an infinity, one above or below the text) and whose `code` is a string; the provider makes ONE per
+ * fraction, `NaN`, an infinity, one above or below the text) and whose `code` is a string. Given an engine (below), `cellAt` answers from `findAllCells(text, engine, mode)` instead and `build` blanks the
+ * option lines of that list: those two answers are the engine-aware ones, and are pinned against the Outline's own symbols and not against the old pair. The provider makes ONE per
  * `provideDocumentSymbols` call and asks it once per code cell. (`endLine` is read by neither spelling. A `Cell` that breaks the type, with a
  * `startLine` that is not a number or a `code` that is not a string, is not pinned by any row.)
  *
@@ -343,13 +344,25 @@ export function buildCellVirtualContent(text: string, cell: Cell): string {
  * document with no code cell (which never asks) pays for none of it.
  *
  * `engine` and `mode` (Session 342, part (5)) are the very pair the Outline built its symbols with: `createCellVdocBuilder(text, engine, mode)` reads its cells AND its option lines from the scan
- * `buildOutline(text, engine, mode)` has just cached, so its preparation is a cache hit and not a SECOND full scan (13 ms at 2,000 cells, 52 ms at 8,000, on every Outline pass of a knitr,
- * jupyter or markdown document), and the cell it finds for a symbol's start line is that symbol's own cell. The engine-blind list differs from the aware one on a stray bare fence above a hidden
- * knitr chunk, an indented opener under `jupyter`, an indented non-handler cell under `markdown`, and under `--no-execute` for knitr; where it does, the blind lookup answered `null`
- * (nothing forwarded) or ANOTHER cell, and the symbols of that cell's body were attributed to this one. Omitted, both answer as before (the engine-blind list).
+ * `buildOutline(text, engine, mode)` has just cached, so its preparation is a cache hit and not a SECOND full scan, and the cell it finds for a symbol's start line is that symbol's own cell.
+ * Omitted, both answer as before (the engine-blind list).
+ *
+ * The cost it removes. The scans are cached under (text, engine, mode), so a builder made with ANY engine but `undefined` (knitr, jupyter, markdown, julia and ambiguous alike: julia and ambiguous read
+ * the very list the blind scan reads, from another cache key) was a second full scan whenever the engine-blind list of the text was not already cached, about 13 to 25 ms at 2,000 cells and 52 to 77 ms
+ * at 8,000, depending on the size of the cells and the load. `resolveDocumentEngine` reads the same text engine-blind first, which warms it for a text with no leading whitespace (0.03 ms for the
+ * second read at 2,000 cells); a text with leading whitespace, whose engine is read from a trimmed copy, paid the scan.
+ *
+ * The answers it changes. The lists differ for three engines, and only on documents of these shapes:
+ *  - knitr: a stray bare fence above a hidden or an empty chunk, and, under `--no-execute`, the chunks below a setup chunk that silences them only when the document executes;
+ *  - jupyter: an INDENTED opener (a kernel cell closes only on its own indent, so the aware list drops it where the blind one closes it at any indent), and a COLUMN-0 opener whose body holds an indented
+ *    closer-shaped line (the SAME opener in both lists, with a shorter extent in the blind one: the old vdoc was a truncated copy of its own cell, filed under the same `cellStartLine` key as the whole one);
+ *  - markdown: an indented non-handler cell.
+ * Where they differ, the blind lookup answered `null` (nothing forwarded), ANOTHER cell (the symbols of that cell's body were attributed to this one), or this cell cut short (the symbols after the fake
+ * closer were lost). How often that happens is a property of the shapes and not a measurement of authored documents: the third jupyter class changed 176 of 5,162 mapped symbols in 40,000 GENERATED
+ * documents (179 of 5,323 in a second draw), while of the 3,383 documents of the authored corpus 3 changed in all, knitr only (none of its 41 jupyter documents).
  */
 export interface CellVdocBuilder {
-  /** The cell holding 0-based `line` (its fence lines included), or `null`: `findCellAtPosition(text, line)`. */
+  /** The cell holding 0-based `line` (its fence lines included), or `null`. Made without an engine: `findCellAtPosition(text, line)`. Given one: the cell of `findAllCells(text, engine, mode)` that holds the line. */
   cellAt(line: number): Cell | null;
   /** The vdoc of `cell`: the full line count of the text, `cell`'s own body lines kept verbatim, everything else empty, the python mute on line 0. */
   build(cell: Cell): string;
@@ -363,7 +376,7 @@ interface CellVdocState {
 }
 
 /**
- * `findCellAtPosition`'s answer without a scan of every cell: the model's cells come in document order and never overlap (each ends at its
+ * `findCellAtPosition`'s answer over the engine-blind list (the same search over the engine-aware list, when the builder is given an engine) without a scan of every cell: the model's cells come in document order and never overlap (each ends at its
  * own closing fence, and the next opens below it), so the only cell that can hold `line` is the last one that STARTS at or above it. The
  * cell-line differential of `cell-vdoc-builder-equivalence.test.ts` asserts that order on every document it reads, and asks every line.
  * A `line` that is not a whole number is asked the same question as a whole one, `startLine <= line <= endLine`, and gets the same answer as the scan: the cell whose span holds

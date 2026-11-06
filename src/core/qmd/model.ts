@@ -13426,8 +13426,10 @@ export function frontMatterContentLines(text: string): string[] | null {
  *
  * ⚠ `engine` and `mode` are OPTIONAL and last (Session 342), and mean what they mean to `buildOutline`: the list of the scan cached under (text, engine, mode), the very scan the Outline
  * built its symbols from. Omitted, the answer is the engine-BLIND list every other surface reads (validation, Run Cell, cell background, cross-references), byte for byte. The two lists
- * can differ (a stray bare fence above a hidden knitr chunk; an indented opener under `jupyter` or `markdown`), and a caller that looks a cell up by the line of an Outline symbol must
- * ask the scan the symbol came from (`createCellVdocBuilder`, `src/core/embedded/virtual-doc.ts`).
+ * differ for three engines and no other: knitr (a stray bare fence above a hidden or an empty chunk; under `--no-execute`, the chunks below a setup chunk that silences them only when the document
+ * executes), jupyter (an indented opener, which the aware list drops; a column-0 opener whose body holds an indented closer-shaped line, which the blind list closes there, so it holds the SAME
+ * opener with a shorter extent) and markdown (an indented non-handler cell). For `julia`, `ambiguous` and `undefined` the list is the blind one, read from another cache key. A caller that looks a cell up
+ * by the line of an Outline symbol must ask the scan the symbol came from (`createCellVdocBuilder`, `src/core/embedded/virtual-doc.ts`).
  */
 export function findAllCells(text: string, engine: EngineHint = undefined, mode: RenderMode = "execute"): Cell[] {
   return scanRegions(text, engine, mode).cells.slice();
@@ -13648,7 +13650,9 @@ const BLOCK_SCALAR_HEADER = /^[|>](?:[1-9][-+]?|[-+][1-9]?)?[ \t]*(?:#.*)?$/;
  * is not one, so a `#|` line below that point is an ordinary comment (S160 — see the
  * block-terminating `break` below).
  *
- * `engine` and `mode` are optional and last, as for `findAllCells` (Session 342): the option lines of the cells of the scan cached under (text, engine, mode); omitted, the engine-blind lines.
+ * `engine` and `mode` are optional and last, as for `findAllCells` (Session 342): the option lines of the cells of the scan cached under (text, engine, mode); omitted, the engine-blind lines. The two
+ * lists of lines differ where the lists of cells do: a `#|` line under an indented opener that `jupyter` or `markdown` drops is an option line to the blind lines and to no cell's option lines in the
+ * aware ones, so a consumer that is blind by design (`embeddedCellAt`, the range lookup, the blind builder) must keep the default, or that line is forwarded as code.
  */
 export function findCellOptionLines(text: string, engine: EngineHint = undefined, mode: RenderMode = "execute"): CellOptionLine[] {
   return findAllCells(text, engine, mode).flatMap((cell) => cellOptionLinesOf(cell));

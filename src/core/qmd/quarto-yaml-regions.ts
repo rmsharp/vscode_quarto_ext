@@ -151,7 +151,8 @@ function isOrdered(regions: readonly YamlRegion[]): boolean {
  * `inQuartoYamlRegion(regions, line)` for ONE array asked MANY times: make the lookup once, ask it for each line.
  *
  * `collectValueSources` asks once per cell option line, and `inQuartoYamlRegion` is a pass over every region, so the enumeration cost regions times option lines (64,000 pairs of a `---` region and a cell with an
- * option line took 4.2 s, 2.9 to 4.0 s of it this filter). The answer is exactly `inQuartoYamlRegion`'s, for every array and every line:
+ * option line took 4.2 s, 2.9 to 4.0 s of it this filter). The answer is exactly `inQuartoYamlRegion`'s, for every DENSE array of regions and every line (an array with a hole or an `undefined` element makes
+ * `isOrdered` throw when the lookup is made, where `some` skips a hole and reaches an `undefined` element only for a line no earlier region holds; no caller can make one, `quartoYamlRegions` pushes plain objects):
  *   - an ORDERED array (see `isOrdered`, checked ONCE here) is answered by a binary search for the last region whose start is at or below the line: in an ordered array the regions that start at or below a line are a
  *     prefix of it, every one of them but the last ends before the next one starts, so only the last of them can hold the line, and it holds it when the line is at or below its end. A line that is NaN is at or above no start,
  *     so nothing is found and the answer is false, as `some` finds no region that holds it.

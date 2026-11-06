@@ -8,7 +8,8 @@ import { countStrings, seededRandom } from "./support/regex-equivalence";
 const HEAVY_ROW_MS = 120_000;
 
 // Session 342 -- part (2) of the BACKLOG item "What Session 341's review round found beside the Outline and preview cures". `collectValueSources` asked `inQuartoYamlRegion(regions, line)` once per cell option line, and that is a
-// pass over every region (regions times option lines). `createYamlRegionLookup(regions)` is made once per call and must answer, for EVERY array of regions and EVERY line, what `inQuartoYamlRegion(regions, line)` answers:
+// pass over every region (regions times option lines). `createYamlRegionLookup(regions)` is made once per call and must answer, for EVERY dense array of regions (one with no hole and no `undefined` element: the
+// lookup throws when it is made over one, where `some` skips a hole, and no caller can make one) and EVERY line, what `inQuartoYamlRegion(regions, line)` answers:
 // `regions.some((r) => line >= r.startLine && line <= r.endLine)`. The function in the source is unchanged (it is the oracle the lookup falls back to), and the OLD spelling is kept here VERBATIM as the oracle (Learning 738),
 // so that a change to the source function cannot move the oracle with it: the enumerations below compare the lookup with this copy and the source function with this copy.
 //
