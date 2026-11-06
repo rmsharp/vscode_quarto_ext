@@ -17,7 +17,11 @@ import {
   findCellAtPosition,
   findCellOptionLines,
 } from "../qmd/model";
+import type { RenderMode } from "../render-mode";
 import { cellLanguageId, type EmbeddedLang } from "./lang-map";
+
+/** What the caller knows about the document's execution engine (`undefined`: nothing), as the model reads it: the type of the second parameter of `findAllCells`. */
+type EngineHint = Parameters<typeof findAllCells>[1];
 
 /**
  * The file-level mute injected on a python vdoc's line 0 (candidate G, plan §4.1). Under
@@ -436,7 +440,7 @@ function buildCellVdoc({ lines, options }: CellVdocState, cell: Cell): string {
   return parts.join("");
 }
 
-export function createCellVdocBuilder(text: string): CellVdocBuilder {
+export function createCellVdocBuilder(text: string, _engine?: EngineHint, _mode?: RenderMode): CellVdocBuilder {
   let state: CellVdocState | undefined;
   const read = (): CellVdocState => {
     if (state === undefined) {

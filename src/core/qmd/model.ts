@@ -13424,7 +13424,7 @@ export function frontMatterContentLines(text: string): string[] | null {
  * mutate a field). `findCellAtPosition`/`findCellOptionLines` return elements
  * from this same shared set, so the same don't-mutate contract applies to them.
  */
-export function findAllCells(text: string): Cell[] {
+export function findAllCells(text: string, _engine: EngineHint = undefined, _mode: RenderMode = "execute"): Cell[] {
   return scanRegions(text).cells.slice();
 }
 
@@ -13643,7 +13643,7 @@ const BLOCK_SCALAR_HEADER = /^[|>](?:[1-9][-+]?|[-+][1-9]?)?[ \t]*(?:#.*)?$/;
  * is not one, so a `#|` line below that point is an ordinary comment (S160 — see the
  * block-terminating `break` below).
  */
-export function findCellOptionLines(text: string): CellOptionLine[] {
+export function findCellOptionLines(text: string, _engine: EngineHint = undefined, _mode: RenderMode = "execute"): CellOptionLine[] {
   return findAllCells(text).flatMap((cell) => cellOptionLinesOf(cell));
 }
 
