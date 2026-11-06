@@ -25,6 +25,7 @@ import {
   delegateCommandsFor,
   pickDelegate,
 } from "../core/execution-delegate";
+import { isInCodeCell } from "../core/in-code-cell";
 import {
   type EditorSnapshot,
   TYPING_DEBOUNCE_MS,
@@ -428,15 +429,20 @@ function activeDocumentSnapshot(): EditorSnapshot | undefined {
     : { key: document.uri.toString(), version: document.version };
 }
 
-/** Set `quarto.inCodeCell` from the ACTIVE editor's state as it is now. */
+/**
+ * Set `quarto.inCodeCell` from the ACTIVE editor's state as it is now. The question is
+ * core's `isInCodeCell` (unit-tested: nothing can read a context key back); the text is
+ * handed as a function, which it calls only for a Quarto document, as this function's
+ * inline test always did.
+ */
 function updateCellContext(): void {
   const editor = vscode.window.activeTextEditor;
   const inCell =
     editor !== undefined &&
-    editor.document.languageId === "quarto" &&
-    findCellAtPosition(
-      editor.document.getText(),
+    isInCodeCell(
+      editor.document.languageId,
+      () => editor.document.getText(),
       editor.selection.active.line,
-    ) !== null;
+    );
   void vscode.commands.executeCommand("setContext", IN_CELL_CONTEXT, inCell);
 }

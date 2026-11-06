@@ -176,8 +176,32 @@ function problemsInExecution(source: string): string[] {
     if (update.parameters.length !== 0) problems.push("updateCellContext takes a parameter (it must read the active editor itself, when it runs)");
     const reads = collect(update.body, (n): n is ts.VariableDeclaration => ts.isVariableDeclaration(n) && flat(n.name, sf) === "editor");
     if (reads.length !== 1 || reads[0].initializer === undefined || flat(reads[0].initializer, sf) !== "vscode.window.activeTextEditor") problems.push("updateCellContext does not read `const editor = vscode.window.activeTextEditor`");
-    if (callsOf(update.body, sf, "findCellAtPosition").length !== 1) problems.push("updateCellContext does not call findCellAtPosition exactly once");
-    if (callsOf(update.body, sf, "vscode.commands.executeCommand").length !== 1) problems.push("updateCellContext does not call executeCommand exactly once");
+    // The VALUE of the key (the review round, M-02): nothing, unit or integration, could read it, because VS Code offers no way to read a context key back. The question is core's `isInCodeCell(languageId, text, line)`, whose
+    // answers `in-code-cell.test.ts` pins, so what is pinned here is that it is ASKED once, of the right things, and that its answer is what is set under the key the keybindings read.
+    if (callsOf(update.body, sf, "findCellAtPosition").length !== 0) problems.push("updateCellContext calls findCellAtPosition itself (the question is core's isInCodeCell, asked once)");
+    const asks = callsOf(update.body, sf, "isInCodeCell");
+    if (asks.length !== 1) {
+      problems.push(`${asks.length} calls of isInCodeCell in updateCellContext, not one`);
+    } else {
+      const given = asks[0].arguments.map((argument) => flat(argument, sf));
+      if (given.length !== 3) problems.push("isInCodeCell is not given three arguments (the language id, the text, the line)");
+      if (given[0] !== "editor.document.languageId") problems.push("updateCellContext does not hand isInCodeCell `editor.document.languageId` (the key is for quarto documents only)");
+      if (given[1] !== "() => editor.document.getText()") problems.push("updateCellContext does not hand isInCodeCell `() => editor.document.getText()` (the text must be read only for a quarto document: a cursor move in any other file asks too)");
+      if (given[2] !== "editor.selection.active.line") problems.push("updateCellContext does not hand isInCodeCell `editor.selection.active.line` (the cursor is the ACTIVE end of the selection, not its anchor)");
+    }
+    const inCell = collect(update.body, (n): n is ts.VariableDeclaration => ts.isVariableDeclaration(n) && flat(n.name, sf) === "inCell");
+    const asked = inCell.length === 1 ? inCell[0].initializer : undefined;
+    if (asked === undefined || !ts.isBinaryExpression(asked) || asked.operatorToken.kind !== ts.SyntaxKind.AmpersandAmpersandToken || flat(asked.left, sf) !== "editor !== undefined" || !ts.isCallExpression(asked.right) || flat(asked.right.expression, sf) !== "isInCodeCell") {
+      problems.push("`const inCell` in updateCellContext is not `editor !== undefined && isInCodeCell(...)` (there may be no editor, and the answer is isInCodeCell's own)");
+    }
+    const sets = callsOf(update.body, sf, "vscode.commands.executeCommand");
+    if (sets.length !== 1) problems.push("updateCellContext does not call executeCommand exactly once");
+    else if (sets[0].arguments.map((argument) => flat(argument, sf)).join() !== '"setContext",IN_CELL_CONTEXT,inCell') problems.push('updateCellContext does not call executeCommand("setContext", IN_CELL_CONTEXT, inCell) (the key is set to the answer, not to its negation or to another key)');
+  }
+  // 9. The key the code sets is the key the keybindings read.
+  const keyName = collect(sf, (n): n is ts.VariableDeclaration => ts.isVariableDeclaration(n) && flat(n.name, sf) === "IN_CELL_CONTEXT");
+  if (keyName.length !== 1 || keyName[0].initializer === undefined || !ts.isStringLiteral(keyName[0].initializer) || keyName[0].initializer.text !== "quarto.inCodeCell") {
+    problems.push("IN_CELL_CONTEXT is not the key 'quarto.inCodeCell' that the keybindings of package.json read");
   }
   return problems;
 }
@@ -328,6 +352,12 @@ describe("Session 342 -- how execution.ts and cell-background.ts call the typing
     expect(methodNamed(background, "CellBackgroundDecorator", "reload")).toBeDefined();
   });
 
+  it("the key the code sets is read by exactly the five keybindings that the cost note names: ctrl+enter, shift+enter, ctrl+shift+enter, ctrl+alt+c and ctrl+k ctrl+f (package.json `when` clauses)", () => {
+    const manifest = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8")) as { contributes: { keybindings: Array<{ key: string; when?: string }> } };
+    const gated = manifest.contributes.keybindings.filter((binding) => (binding.when ?? "").split(/[\s&|!()=]+/).includes("quarto.inCodeCell"));
+    expect(gated.map((binding) => binding.key)).toEqual(["ctrl+enter", "shift+enter", "ctrl+shift+enter", "ctrl+alt+c", "ctrl+k ctrl+f"]);
+  });
+
   // The edits: each is a live file with ONE respelling, and the pin it must break. They are the mutants the runner applies to the file itself.
   const EXECUTION_EDITS: Array<[string, string, string, string]> = [
     // [name, from, to, a word of the problem it must be named by]
@@ -351,6 +381,15 @@ describe("Session 342 -- how execution.ts and cell-background.ts call the typing
     ["X18: the scheduler's timers are not the host's", "    timers: realTimers,\n    delayMs: TYPING_DEBOUNCE_MS,\n    activeSnapshot", "    timers: { setTimeout: () => 0, clearTimeout: () => undefined },\n    delayMs: TYPING_DEBOUNCE_MS,\n    activeSnapshot", "timers are not realTimers"],
     ["X19: updateCellContext called directly from the register function", "  cellContext.evaluateNow();\n}", "  cellContext.evaluateNow();\n  updateCellContext();\n}", "the last statement of registerExecutionFeature"],
     ["X20: the evaluator does not read the active editor", "  const editor = vscode.window.activeTextEditor;\n  const inCell =", "  const editor = vscode.window.visibleTextEditors[0];\n  const inCell =", "does not read `const editor = vscode.window.activeTextEditor`"],
+    // The VALUE of the key (the review round, M-02; mutants E01 to E04 of `tools/mutation-run/mutants/s342-review-typing.json` and their neighbours): what `updateCellContext` hands the core predicate and what it sets.
+    ["E01: the key follows the selection's ANCHOR, not its active end (a selection made backwards sets the key from its far end)", "      () => editor.document.getText(),\n      editor.selection.active.line,\n", "      () => editor.document.getText(),\n      editor.selection.anchor.line,\n", "the ACTIVE end of the selection"],
+    ["E03: the language id handed is another language's (the key is never true in a .qmd)", "      editor.document.languageId,\n      () => editor.document.getText(),", "      \"markdown\",\n      () => editor.document.getText(),", "does not hand isInCodeCell `editor.document.languageId`"],
+    ["E04: the key is set to the NEGATION of the answer (ctrl+enter binds in prose and not in a cell)", "\"setContext\", IN_CELL_CONTEXT, inCell", "\"setContext\", IN_CELL_CONTEXT, !inCell", "does not call executeCommand(\"setContext\", IN_CELL_CONTEXT, inCell)"],
+    ["E05: another key is set (the keybindings never see it)", "const IN_CELL_CONTEXT = \"quarto.inCodeCell\";", "const IN_CELL_CONTEXT = \"quarto.inCell\";", "IN_CELL_CONTEXT is not the key 'quarto.inCodeCell'"],
+    ["E06: the text is read for every language (a getText of every file at every cursor move)", "      () => editor.document.getText(),\n", "      editor.document.getText(),\n", "`() => editor.document.getText()`"],
+    ["E07: the missing editor is not checked first", "    editor !== undefined &&\n    isInCodeCell(", "    isInCodeCell(", "is not `editor !== undefined && isInCodeCell(...)`"],
+    ["E08: the old inline scan is back beside the predicate", "  void vscode.commands.executeCommand(\"setContext\", IN_CELL_CONTEXT, inCell);", "  void findCellAtPosition(\"\", 0);\n  void vscode.commands.executeCommand(\"setContext\", IN_CELL_CONTEXT, inCell);", "calls findCellAtPosition itself"],
+    ["E09: the question is asked twice", "  void vscode.commands.executeCommand(\"setContext\", IN_CELL_CONTEXT, inCell);", "  void isInCodeCell(\"quarto\", \"\", 0);\n  void vscode.commands.executeCommand(\"setContext\", IN_CELL_CONTEXT, inCell);", "2 calls of isInCodeCell"],
   ];
 
   const BACKGROUND_EDITS: Array<[string, string, string, string]> = [
