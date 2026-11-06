@@ -29,6 +29,7 @@ import {
   cellBackgroundRanges,
   resolveCellBackgroundSettings,
 } from "../core/cell-background";
+import { createCellBackgroundRefresher } from "../core/cell-background-refresh";
 import {
   TYPING_DEBOUNCE_MS,
   TYPING_MAX_WAIT_MS,
@@ -70,6 +71,12 @@ export function cellBackgroundRangesFor(doc: vscode.TextDocument): vscode.Range[
  */
 class CellBackgroundDecorator implements vscode.Disposable {
   private decorationType: vscode.TextEditorDecorationType;
+  // One refresher for the decorator's life: it keeps the record of which editors hold a tint.
+  private readonly refresher = createCellBackgroundRefresher({
+    visible: () => vscode.window.visibleTextEditors.map((editor) => ({ key: editor.document.uri.toString(), languageId: editor.document.languageId, editor })),
+    rangesFor: (editor) => cellBackgroundRangesFor(editor.document),
+    apply: (editor, ranges) => editor.setDecorations(this.decorationType, ranges),
+  });
 
   constructor() {
     this.decorationType = createDecorationType(readCellBackgroundSettings());
@@ -80,13 +87,15 @@ class CellBackgroundDecorator implements vscode.Disposable {
    * ranges applied (the return value is for tests — production callers ignore it).
    */
   refresh(): Map<string, vscode.Range[]> {
-    const applied = new Map<string, vscode.Range[]>();
-    for (const editor of vscode.window.visibleTextEditors) {
-      const ranges = cellBackgroundRangesFor(editor.document);
-      editor.setDecorations(this.decorationType, ranges);
-      applied.set(editor.document.uri.toString(), ranges);
-    }
-    return applied;
+    return this.refresher.refreshAll();
+  }
+
+  /**
+   * An edit of `document`: re-apply the tint to the editors the edit can have changed
+   * (`core/cell-background-refresh`) and return, per editor URI, the ranges applied.
+   */
+  refreshAfterEdit(document: vscode.TextDocument): Map<string, vscode.Range[]> {
+    return this.refresher.refreshAfterEdit({ key: document.uri.toString(), languageId: document.languageId });
   }
 
   /** A colour setting changed: dispose the old type (clearing its tint) and re-apply a fresh one. */
@@ -146,7 +155,7 @@ export function registerCellBackgroundFeature(
     vscode.window.onDidChangeVisibleTextEditors(() => decorator.refresh()),
     vscode.workspace.onDidChangeTextDocument((event) => {
       if (isVisible(event.document)) {
-        typing.schedule(event.document.uri.toString(), () => decorator.refresh());
+        typing.schedule(event.document.uri.toString(), () => decorator.refreshAfterEdit(event.document));
       }
     }),
     vscode.workspace.onDidCloseTextDocument((document) =>

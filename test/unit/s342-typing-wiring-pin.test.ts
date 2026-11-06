@@ -273,9 +273,9 @@ function problemsInBackground(source: string): string[] {
       if (schedule.arguments.length !== 2) problems.push("typing.schedule is not given a key and a run");
       if (flat(schedule.arguments[0], sf) !== "event.document.uri.toString()") problems.push("the document handler's key is not event.document.uri.toString() (one pending run per document)");
       const run = schedule.arguments[1];
-      if (!(run !== undefined && ts.isArrowFunction(run) && ts.isCallExpression(run.body) && flat(run.body, sf) === "decorator.refresh()")) problems.push("the document handler's run is not exactly `() => decorator.refresh()`");
+      if (!(run !== undefined && ts.isArrowFunction(run) && ts.isCallExpression(run.body) && flat(run.body, sf) === "decorator.refreshAfterEdit(event.document)")) problems.push("the document handler's run is not exactly `() => decorator.refreshAfterEdit(event.document)`");
     }
-    const refreshes = callsOf(body, sf, "decorator.refresh");
+    const refreshes = [...callsOf(body, sf, "decorator.refresh"), ...callsOf(body, sf, "decorator.refreshAfterEdit")];
     const stray = refreshes.filter((call) => {
       const owner = enclosingFunction(call);
       return !(owner !== undefined && ts.isArrowFunction(owner) && owner.parent !== undefined && ts.isCallExpression(owner.parent) && flat(owner.parent.expression, sf) === "typing.schedule");
@@ -284,7 +284,7 @@ function problemsInBackground(source: string): string[] {
     const guards = collect(body, (n): n is ts.IfStatement => ts.isIfStatement(n));
     if (guards.length !== 1 || flat(guards[0].expression, sf) !== "isVisible(event.document)") problems.push("the document handler does not guard on `isVisible(event.document)`");
     const callees = calleesIn(body, sf).filter((callee) => callee !== "event.document.uri.toString");
-    if (callees.join() !== "isVisible,typing.schedule,decorator.refresh") problems.push(`the document handler calls ${callees.join() || "nothing"}, not isVisible, typing.schedule and (inside the run) decorator.refresh`);
+    if (callees.join() !== "isVisible,typing.schedule,decorator.refreshAfterEdit") problems.push(`the document handler calls ${callees.join() || "nothing"}, not isVisible, typing.schedule and (inside the run) decorator.refreshAfterEdit`);
   }
 
   // 5. Closing a document drops its pending run.
@@ -395,11 +395,11 @@ describe("Session 342 -- how execution.ts and cell-background.ts call the typing
   ];
 
   const BACKGROUND_EDITS: Array<[string, string, string, string]> = [
-    ["B01: the document handler refreshes at once", "        typing.schedule(event.document.uri.toString(), () => decorator.refresh());", "        decorator.refresh();", "0 calls of typing.schedule"],
-    ["B02: the document handler refreshes at once as well as scheduling", "        typing.schedule(event.document.uri.toString(), () => decorator.refresh());", "        decorator.refresh();\n        typing.schedule(event.document.uri.toString(), () => decorator.refresh());", "at once, outside the run"],
+    ["B01: the document handler refreshes at once", "        typing.schedule(event.document.uri.toString(), () => decorator.refreshAfterEdit(event.document));", "        decorator.refresh();", "0 calls of typing.schedule"],
+    ["B02: the document handler refreshes at once as well as scheduling", "        typing.schedule(event.document.uri.toString(), () => decorator.refreshAfterEdit(event.document));", "        decorator.refresh();\n        typing.schedule(event.document.uri.toString(), () => decorator.refreshAfterEdit(event.document));", "at once, outside the run"],
     ["B03: the debounce is keyed by one constant (documents postpone each other)", "typing.schedule(event.document.uri.toString(),", "typing.schedule(\"cells\",", "the document handler's key is not event.document.uri.toString()"],
     ["B04: the debounce is keyed by the language, not the document", "typing.schedule(event.document.uri.toString(),", "typing.schedule(event.document.languageId,", "the document handler's key"],
-    ["B05: the scheduled run scans instead of refreshing", "() => decorator.refresh());", "() => cellBackgroundRangesFor(event.document));", "the document handler's run is not exactly"],
+    ["B05: the scheduled run scans instead of refreshing", "() => decorator.refreshAfterEdit(event.document));", "() => cellBackgroundRangesFor(event.document));", "the document handler's run is not exactly"],
     ["B06: the document handler is not guarded to visible documents", "      if (isVisible(event.document)) {\n        typing.schedule", "      if (event.document) {\n        typing.schedule", "does not guard on `isVisible(event.document)`"],
     ["B07: the active-editor handler is debounced", "onDidChangeActiveTextEditor(() => decorator.refresh())", "onDidChangeActiveTextEditor(() => typing.schedule(\"active\", () => decorator.refresh()))", "onDidChangeActiveTextEditor handler is not exactly"],
     ["B08: the visible-editors handler is debounced", "onDidChangeVisibleTextEditors(() => decorator.refresh())", "onDidChangeVisibleTextEditors(() => typing.schedule(\"visible\", () => decorator.refresh()))", "onDidChangeVisibleTextEditors handler is not exactly"],
@@ -439,7 +439,7 @@ describe("Session 342 -- how execution.ts and cell-background.ts call the typing
     const commented = EXECUTION.replace("const IN_CELL_CONTEXT", "// updateCellContext() and findCellAtPosition(text, line) run on every keystroke\n/* updateCellContext(); */\nconst NOTE = 'updateCellContext()';\nconst IN_CELL_CONTEXT");
     expect(commented).not.toBe(EXECUTION);
     expect(problemsInExecution(commented)).toEqual([]);
-    const bg = BACKGROUND.replace("        typing.schedule(event.document.uri.toString(), () => decorator.refresh());", "        // typing.schedule(event.document.uri.toString(), () => decorator.refresh());\n        const decoy = \"typing.schedule(\" + `typing.schedule(`;\n        void decoy;\n        decorator.refresh();");
+    const bg = BACKGROUND.replace("        typing.schedule(event.document.uri.toString(), () => decorator.refreshAfterEdit(event.document));", "        // typing.schedule(event.document.uri.toString(), () => decorator.refreshAfterEdit(event.document));\n        const decoy = \"typing.schedule(\" + `typing.schedule(`;\n        void decoy;\n        decorator.refresh();");
     expect(bg).not.toBe(BACKGROUND);
     expect(problemsInBackground(bg).join("\n")).toContain("0 calls of typing.schedule");
     const bgCommented = BACKGROUND.replace("function isVisible(", "// decorator.refresh() on every edit is what the debounce replaced\nconst NOTE = 'decorator.refresh()';\nfunction isVisible(");

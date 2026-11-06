@@ -650,7 +650,7 @@
  {
   "name": "B01: the document handler refreshes at once",
   "file": "src/features/cell-background.ts",
-  "from": "        typing.schedule(event.document.uri.toString(), () => decorator.refresh());",
+  "from": "        typing.schedule(event.document.uri.toString(), () => decorator.refreshAfterEdit(event.document));",
   "to": "        decorator.refresh();",
   "expect": "killed",
   "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name '0 calls of typing.schedule')"
@@ -658,8 +658,8 @@
  {
   "name": "B02: the document handler refreshes at once as well as scheduling",
   "file": "src/features/cell-background.ts",
-  "from": "        typing.schedule(event.document.uri.toString(), () => decorator.refresh());",
-  "to": "        decorator.refresh();\n        typing.schedule(event.document.uri.toString(), () => decorator.refresh());",
+  "from": "        typing.schedule(event.document.uri.toString(), () => decorator.refreshAfterEdit(event.document));",
+  "to": "        decorator.refresh();\n        typing.schedule(event.document.uri.toString(), () => decorator.refreshAfterEdit(event.document));",
   "expect": "killed",
   "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'at once, outside the run')"
  },
@@ -682,7 +682,7 @@
  {
   "name": "B05: the scheduled run scans instead of refreshing",
   "file": "src/features/cell-background.ts",
-  "from": "() => decorator.refresh());",
+  "from": "() => decorator.refreshAfterEdit(event.document));",
   "to": "() => cellBackgroundRangesFor(event.document));",
   "expect": "killed",
   "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the document handler's run is not exactly')"
