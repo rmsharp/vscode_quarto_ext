@@ -84,6 +84,70 @@ export function embeddedCellAt(text: string, line: number): EmbeddedHit | null {
 }
 
 /**
+ * The questions the two edit checks ask of a text, line by line (Session 342, part (3) of the BACKLOG item "What Session 341's review round found beside the
+ * Outline and preview cures"). Both adapters hold a list of edits from a language server and keep an edit only when every line of its range is body of the right
+ * cell: the completion list's `additionalTextEdits` (`providers/embedded.ts`, body of a cell of the completion's language) and a formatter's edits
+ * (`features/format-cell.ts`, body of the cursor's own cell). Each used to ask `embeddedCellAt(text, line)` once per LINE of every range, and that is a scan of
+ * every cell plus every cell's option lines: cells times lines asked. ONE lookup is made per call (a completion list, a format request), asks about plain NUMBERS (no
+ * `vscode.Range`, so a unit test reaches it), and is prepared when first asked.
+ *
+ * Every answer is the old one for EVERY number, a fraction, `NaN`, an infinity, `-0`, a negative and a value past the end of the text included:
+ * `hitAt(line)` is `embeddedCellAt(text, line)` and the two range checks are the loops the adapters wrote over it.
+ */
+export interface RangeLookup {
+  /** `embeddedCellAt(text, line)`: the forwarding hit for `line`, or `null` unless it is an interior body line of a mapped-language cell. */
+  hitAt(line: number): EmbeddedHit | null;
+  /**
+   * Whether every line `start, start + 1, ...` up to `end` is an interior body line of a cell whose `languageId` is `languageId`. A range with `start > end` (or a `NaN` bound) has no line, and so is
+   * in the body.
+   */
+  rangeInLanguageBody(start: number, end: number, languageId: string): boolean;
+  /**
+   * Whether every line `start, start + 1, ...` up to `end` is an interior body line of `cell` itself: a line that is a fence, a `#|` option line, prose, front matter or the body of a DIFFERENT cell
+   * (`cell` is the one starting at `cell.startLine`) breaks it. A range with `start > end` (or a `NaN` bound) has no line, and so is in the body.
+   *
+   * Region membership, not coordinate validity (this was `rangeWithinCell` of `features/format-cell.ts`). Under `buildCellVirtualContent`'s whole-document blanking, every line outside the body
+   * identity-maps to a *valid* `.qmd` offset, so a formatter's edit there is perfectly well-formed and utterly destructive. Two distinct hazards, and the second one bit:
+   *
+   *  1. A line **outside the cell** (the front matter, prose, a sibling cell): the ownership check.
+   *  2. A line **inside the cell but not in its body** (the opening fence, the closing fence, a `#|` option line). `findCellAtPosition` is INCLUSIVE of a cell's fences, so an ownership check ALONE
+   *     accepts an edit that lands on ```` ```{python} ```` and deletes it. A real formatter emits exactly that: the fences are blanked to whitespace-only lines in the vdoc, and formatters trim
+   *     trailing whitespace. Observed end-to-end against VS Code's own JavaScript formatter: `` ```{ojs}\nx   =   1\n``` `` became `\nx = 1\n\n`, both fences gone, the cell no longer a cell. It was latent until
+   *     the forward reached a real language server (CHANGELOG: embedded-language forwarding did not reach real language servers, Session 87), which made a document-corruption bug reachable.
+   *
+   * So the body gate is `hitAt` (`null` on fences and on `#|` option lines), the primitive the completion edit filter already used, and the ownership check comes after it.
+   */
+  rangeInCellBody(start: number, end: number, cell: Cell): boolean;
+}
+
+export function createRangeLookup(text: string): RangeLookup {
+  return {
+    hitAt: (line) => embeddedCellAt(text, line),
+    rangeInLanguageBody: (start, end, languageId) => {
+      for (let line = start; line <= end; line++) {
+        const hit = embeddedCellAt(text, line);
+        if (hit === null || hit.languageId !== languageId) {
+          return false;
+        }
+      }
+      return true;
+    },
+    rangeInCellBody: (start, end, cell) => {
+      for (let line = start; line <= end; line++) {
+        if (embeddedCellAt(text, line) === null) {
+          return false; // a fence, a `#|` directive, prose, YAML: never code we may rewrite
+        }
+        const owner = findCellAtPosition(text, line);
+        if (owner === null || owner.startLine !== cell.startLine) {
+          return false; // a body line, but of a DIFFERENT cell
+        }
+      }
+      return true;
+    },
+  };
+}
+
+/**
  * The virtual document for ONE `languageId`: every interior body line of a cell
  * whose `cellLanguageId(...).languageId === languageId` is kept VERBATIM; every
  * other line (prose, YAML, fences, `#|` option lines, other-language cells) is

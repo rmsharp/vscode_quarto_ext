@@ -37,6 +37,7 @@ import { needsLanguageExtension } from "../core/embedded/lang-map";
 import type { EmbeddedHit } from "../core/embedded/virtual-doc";
 import {
   buildVirtualContent,
+  createRangeLookup,
   embeddedCellAt,
 } from "../core/embedded/virtual-doc";
 import { disposeVdocs, ensureVdoc } from "../features/embedded-vdoc";
@@ -362,27 +363,16 @@ function filterOutOfCellEdits(
   if (list === undefined) {
     return undefined;
   }
+  // ONE lookup for the whole list (Session 342), asked about NUMBERS: the range check is `core/embedded/virtual-doc.ts`'s `createRangeLookup`, which a unit test reaches.
+  const lookup = createRangeLookup(text);
   for (const item of list.items) {
     const edits = item.additionalTextEdits;
     if (edits !== undefined && edits.length > 0) {
-      const kept = edits.filter((e) => rangeInSameLangBody(text, e.range, languageId));
+      const kept = edits.filter((e) =>
+        lookup.rangeInLanguageBody(e.range.start.line, e.range.end.line, languageId),
+      );
       item.additionalTextEdits = kept.length > 0 ? kept : undefined;
     }
   }
   return new vscode.CompletionList(list.items, list.isIncomplete);
-}
-
-/** Whether every line of `range` is an interior body line of a `languageId` cell. */
-function rangeInSameLangBody(
-  text: string,
-  range: vscode.Range,
-  languageId: string,
-): boolean {
-  for (let line = range.start.line; line <= range.end.line; line++) {
-    const hit = embeddedCellAt(text, line);
-    if (hit === null || hit.languageId !== languageId) {
-      return false;
-    }
-  }
-  return true;
 }
