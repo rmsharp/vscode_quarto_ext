@@ -1,0 +1,178 @@
+[
+ {
+  "name": "CL01 rows: feed's whole-run clock reads 0",
+  "file": "test/unit/s341-preview-scan-rows.test.ts",
+  "from": "totalMs: t3 - t0,",
+  "to": "totalMs: 0,",
+  "expect": "survives",
+  "why": "a stuck clock: the ONE-line row (ratio false, decided by totalMs alone) passes on the old whole-buffer logic with it; the helper row only asserts 0 <= totalMs < 1000 (finding C03, TD-1(b))"
+ },
+ {
+  "name": "CL02 rows: feed's whole-run clock is the first tenth only",
+  "file": "test/unit/s341-preview-scan-rows.test.ts",
+  "from": "totalMs: t3 - t0,",
+  "to": "totalMs: t1 - t0,",
+  "expect": "survives",
+  "why": "the ONE-line 16 MiB row passes the old logic's 13 s of work with it (finding TD-1(b), variant (c))"
+ },
+ {
+  "name": "CL03 rows: feed's first-tenth clock reads 0",
+  "file": "test/unit/s341-preview-scan-rows.test.ts",
+  "from": "firstMs: t1 - t0,",
+  "to": "firstMs: 0,",
+  "expect": "survives",
+  "why": "the ratio then compares the last tenth with nothing but the 100 ms floor; no row asserts the first-tenth number"
+ },
+ {
+  "name": "CL04 rows: feed's last-tenth clock reads 0",
+  "file": "test/unit/s341-preview-scan-rows.test.ts",
+  "from": "lastMs: t3 - t2 }",
+  "to": "lastMs: 0 }",
+  "expect": "survives",
+  "why": "the ratio is then always met, so a quadratic scanner is judged by the whole-run limit alone"
+ },
+ {
+  "name": "CL05 rows: feed's last-tenth clock is the whole run",
+  "file": "test/unit/s341-preview-scan-rows.test.ts",
+  "from": "lastMs: t3 - t2 }",
+  "to": "lastMs: t3 - t0 }",
+  "expect": "survives",
+  "why": "the last-tenth number then contains the first nine tenths; no row asserts it"
+ },
+ {
+  "name": "CL06 rows: feed's windows are a fifth of the pushes",
+  "file": "test/unit/s341-preview-scan-rows.test.ts",
+  "from": "const tenth = Math.max(1, Math.floor(n / 10));",
+  "to": "const tenth = Math.max(1, Math.floor(n / 5));",
+  "expect": "survives",
+  "why": "the first and last windows are twice as long as their name says; no row asserts the window size"
+ },
+ {
+  "name": "CL07 rows: feed's clock stops where it started",
+  "file": "test/unit/s341-preview-scan-rows.test.ts",
+  "from": "const t3 = performance.now();",
+  "to": "const t3 = t0;",
+  "expect": "survives",
+  "why": "the whole-run and last-tenth numbers are zero or negative; the helper row accepts totalMs of 0"
+ },
+ {
+  "name": "LL01 push: the kept tail is capped to its last 65,536 characters (after 16 pieces)",
+  "file": "src/core/preview-url.ts",
+  "from": "tail.push(chunk);\n        return null;",
+  "to": "tail.push(chunk);\n        if (tail.length > 16) tail = [tail.join(\"\").slice(-65536)];\n        return null;",
+  "expect": "survives",
+  "why": "a marker line longer than 64 KiB loses its start; no row has a Browse at line that long (the 100,000-character line holds only x, the seeded lines are at most 400 characters) (finding M-R43, TD-3)"
+ },
+ {
+  "name": "LL02 push: the kept tail is capped to its last 4,096 characters (checked every 1,024 pieces)",
+  "file": "src/core/preview-url.ts",
+  "from": "tail.push(chunk);\n        return null;",
+  "to": "tail.push(chunk);\n        if (tail.length > 1024) tail = [tail.join(\"\").slice(-4096)];\n        return null;",
+  "expect": "survives",
+  "why": "the same family with a small cap that only one-byte chunks reach (finding TD-3)"
+ },
+ {
+  "name": "LL03 push: the kept tail is capped to its last 65,536 characters (after 64 pieces)",
+  "file": "src/core/preview-url.ts",
+  "from": "tail.push(chunk);\n        return null;",
+  "to": "tail.push(chunk);\n        if (tail.length > 64) {\n          tail = [tail.join(\"\").slice(-65536)];\n        }\n        return null;",
+  "expect": "survives",
+  "why": "the reviewer's first variant (finding TD-3)"
+ },
+ {
+  "name": "LL04 push: the kept tail is capped to its FIRST 65,536 characters",
+  "file": "src/core/preview-url.ts",
+  "from": "tail.push(chunk);\n        return null;",
+  "to": "tail.push(chunk);\n        if (tail.length > 16) tail = [tail.join(\"\").slice(0, 65536)];\n        return null;",
+  "expect": "survives",
+  "why": "a long line of noise that ENDS in the marker loses the marker; no row has a line like that"
+ },
+ {
+  "name": "LL05 push: the kept tail is capped to its last 1 MiB (checked every 16 pieces)",
+  "file": "src/core/preview-url.ts",
+  "from": "tail.push(chunk);\n        return null;",
+  "to": "tail.push(chunk);\n        if (tail.length > 16) tail = [tail.join(\"\").slice(-1048576)];\n        return null;",
+  "expect": "survives",
+  "why": "a cap above every line the rows send; only a marker line of more than 1 MiB loses its start"
+ },
+ {
+  "name": "LL06 push: the completed text is capped to its last 65,536 characters",
+  "file": "src/core/preview-url.ts",
+  "from": "const completed = tail.join(\"\") + chunk.slice(0, end);",
+  "to": "const completed = (tail.join(\"\") + chunk.slice(0, end)).slice(-65536);",
+  "expect": "survives",
+  "why": "the lines being tested are cut to their end; a marker whose start is more than 64 KiB before its newline is never seen"
+ },
+ {
+  "name": "SP01 push: the new text's whole escapes are stripped before the join",
+  "file": "src/core/preview-url.ts",
+  "from": "const completed = tail.join(\"\") + chunk.slice(0, end);",
+  "to": "const completed = tail.join(\"\") + chunk.slice(0, end).replace(/\\x1b\\[[0-9;]*m/g, \"\");",
+  "expect": "survives",
+  "why": "a whole escape spliced into a cut one (ESC [ 0, a whole escape, m) is stripped here and then again by parseBrowseUrl; no generator makes one (finding M-R44-R45)"
+ },
+ {
+  "name": "SP02 push: the kept tail's whole escapes are stripped when it is kept",
+  "file": "src/core/preview-url.ts",
+  "from": "tail = end < chunk.length ? [chunk.slice(end)] : [];",
+  "to": "tail = end < chunk.length ? [chunk.slice(end).replace(/\\x1b\\[[0-9;]*m/g, \"\")] : [];",
+  "expect": "survives",
+  "why": "the same family on the other side of the join (finding M-R44-R45)"
+ },
+ {
+  "name": "EA01 push: the unfinished line is read as if its newline had arrived (answers early)",
+  "file": "src/core/preview-url.ts",
+  "from": "tail.push(chunk);\n        return null;",
+  "to": "tail.push(chunk);\n        return parseBrowseUrl(tail.join(\"\") + \"\\n\");",
+  "expect": "survives",
+  "why": "answers at the push that brings the last character of the URL, before its newline; the row 'answers null at every push before the first answer, for every case' cannot see it (its slice ends at the first non-null answer by definition); run with -t on that row alone, it SURVIVES (finding TD-6)"
+ },
+ {
+  "name": "WI01 adapter: a dead stub scanner, the real call in a trailing comment, the factory kept alive by `void`",
+  "file": "src/features/preview.ts",
+  "from": "const urlScanner = createBrowseUrlScanner();",
+  "to": "const urlScanner = { push: (_text: string): string | null => null }; // const urlScanner = createBrowseUrlScanner();\n      void createBrowseUrlScanner;",
+  "expect": "survives",
+  "why": "the preview would never find its URL; the comment stripper leaves a TRAILING comment, so the spelling is still in the text (finding TD-4, V1)"
+ },
+ {
+  "name": "WI02 adapter: an accumulator under another name",
+  "file": "src/features/preview.ts",
+  "from": "      child.stderr?.on(\"data\", (buf: Buffer) => {\n        const text = buf.toString();",
+  "to": "      let acc = \"\";\n      child.stderr?.on(\"data\", (buf: Buffer) => {\n        acc += buf.toString();\n        if (acc.length < 0) {\n          return;\n        }\n        const text = buf.toString();",
+  "expect": "survives",
+  "why": "the whole stderr is accumulated again; the gate looks for the identifier stderr, not for the accumulation (finding TD-4, V2)"
+ },
+ {
+  "name": "WI03 adapter: a harmless trailing comment that names parseBrowseUrl",
+  "file": "src/features/preview.ts",
+  "from": "let urlShown = false;",
+  "to": "let urlShown = false; // formerly fed to parseBrowseUrl",
+  "expect": "survives",
+  "why": "EQUIVALENT: a comment is not code and changes nothing; the gate must not refuse it, and today it does (it strips whole-line comments only), so this verdict is a false kill (finding TD-4, V3)"
+ },
+ {
+  "name": "WI04 adapter: stdout chunks are fed to the scanner too",
+  "file": "src/features/preview.ts",
+  "from": "      child.stdout?.on(\"data\", (buf: Buffer) => {\n        this.channel.append(buf.toString());",
+  "to": "      child.stdout?.on(\"data\", (buf: Buffer) => {\n        this.channel.append(buf.toString());\n        urlScanner.push(buf.toString());",
+  "expect": "survives",
+  "why": "the scanner's partial line would take stdout bytes (stderr x/ and stdout noise give xnoise/); the pin reads only the stderr handler's slice (finding M-R58)"
+ },
+ {
+  "name": "WI05 adapter: showPreview gets the chunk and not the URL",
+  "file": "src/features/preview.ts",
+  "from": "void this.showPreview(session, url).then(settle,",
+  "to": "void this.showPreview(session, text).then(settle,",
+  "expect": "survives",
+  "why": "the pin ends at `urlShown=true;`, so what follows in the handler is unpinned; only the integration preview test would see it (finding M-R59)"
+ },
+ {
+  "name": "WI06 adapter: the stderr is accumulated into a property, as the handler's first statement",
+  "file": "src/features/preview.ts",
+  "from": "      child.stderr?.on(\"data\", (buf: Buffer) => {\n        const text = buf.toString();",
+  "to": "      child.stderr?.on(\"data\", (buf: Buffer) => {\n        session.panel.title += buf.toString();\n        const text = buf.toString();",
+  "expect": "survives",
+  "why": "a `+=` on a string that is not a local, before the statements the contiguous pin reads; the gate pins the identifier stderr only (an insert AFTER `const text` breaks that pin's contiguity and is killed, as the first draft of this mutant was)"
+ }
+]
