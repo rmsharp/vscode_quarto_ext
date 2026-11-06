@@ -112,14 +112,37 @@ function reportError(error: unknown): void {
 export function createKeyedDebouncer(options: KeyedDebouncerOptions): KeyedDebouncer {
   const { timers } = options;
   const delayMs = normalizeDelayMs(options.delayMs);
+  const maxWaitMs = options.maxWaitMs === undefined ? undefined : normalizeDelayMs(options.maxWaitMs);
   const onError = options.onError ?? reportError;
+  // The trailing timer of each key with a run waiting; and, with a maximum wait, the timer of the key's open window (the
+  // first schedule since its last run opens it) with the latest run: whichever of the two fires first runs the key once.
   const pending = new Map<string, TimerHandle>();
+  const windows = new Map<string, { timer: TimerHandle; run: () => void }>();
   let disposed = false;
 
   const cancel = (key: string): void => {
     if (pending.has(key)) {
       timers.clearTimeout(pending.get(key));
       pending.delete(key);
+    }
+  };
+
+  const closeWindow = (key: string): void => {
+    const window = windows.get(key);
+    if (window !== undefined) {
+      timers.clearTimeout(window.timer);
+      windows.delete(key);
+    }
+  };
+
+  const settle = (key: string, run: () => void): void => {
+    // The run is over before it runs: it may schedule its own key again, and a throw leaves the key free.
+    pending.delete(key);
+    windows.delete(key);
+    try {
+      run();
+    } catch (error) {
+      onError(error);
     }
   };
 
@@ -132,15 +155,23 @@ export function createKeyedDebouncer(options: KeyedDebouncerOptions): KeyedDebou
       pending.set(
         key,
         timers.setTimeout(() => {
-          // The run is over before it runs: it may schedule its own key again, and a throw leaves the key free.
-          pending.delete(key);
-          try {
-            run();
-          } catch (error) {
-            onError(error);
-          }
+          closeWindow(key);
+          settle(key, run);
         }, delayMs),
       );
+      if (maxWaitMs !== undefined) {
+        const open = windows.get(key);
+        if (open !== undefined) {
+          open.run = run;
+        } else {
+          const window = { timer: undefined as TimerHandle, run };
+          window.timer = timers.setTimeout(() => {
+            cancel(key);
+            settle(key, window.run);
+          }, maxWaitMs);
+          windows.set(key, window);
+        }
+      }
     },
     cancel,
     dispose() {

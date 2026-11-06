@@ -122,24 +122,24 @@
  {
   "name": "D05 createKeyedDebouncer: a run leaves its entry in the table",
   "file": "src/core/typing-debounce.ts",
-  "from": "          pending.delete(key);\n          try {",
-  "to": "          try {",
+  "from": "    pending.delete(key);\n    windows.delete(key);\n    try {",
+  "to": "    windows.delete(key);\n    try {",
   "expect": "killed",
   "why": "the table keeps the handle of a timer that has run, and the next schedule or cancel of the key clears it (a stale clear); killed by the rows that count stale clears"
  },
  {
   "name": "D06 createKeyedDebouncer: a throwing run is not caught",
   "file": "src/core/typing-debounce.ts",
-  "from": "          try {\n            run();\n          } catch (error) {\n            onError(error);\n          }",
-  "to": "          run();",
+  "from": "    try {\n      run();\n    } catch (error) {\n      onError(error);\n    }",
+  "to": "    run();",
   "expect": "killed",
   "why": "the error leaves the timer and, on the fake clock, stops the rest of the advance; killed by the throw-isolation rows"
  },
  {
   "name": "D07 createKeyedDebouncer: a caught error is not reported",
   "file": "src/core/typing-debounce.ts",
-  "from": "            onError(error);",
-  "to": "            void error;",
+  "from": "      onError(error);",
+  "to": "      void error;",
   "expect": "killed",
   "why": "the throw rows read what onError received"
  },
@@ -202,8 +202,8 @@
  {
   "name": "D15 createKeyedDebouncer: a run empties the whole table",
   "file": "src/core/typing-debounce.ts",
-  "from": "          pending.delete(key);\n          try {",
-  "to": "          pending.clear();\n          try {",
+  "from": "    pending.delete(key);\n    windows.delete(key);\n    try {",
+  "to": "    pending.clear();\n    windows.delete(key);\n    try {",
   "expect": "killed",
   "why": "the other keys' handles are forgotten, so a dispose from inside a run leaves them set; killed by the dispose-from-inside row and the model differential"
  },
@@ -346,16 +346,16 @@
  {
   "name": "S17 createCellContextScheduler: the debouncer runs on no delay",
   "file": "src/core/typing-debounce.ts",
-  "from": "    delayMs: options.delayMs,\n    onError: options.onError,",
-  "to": "    delayMs: 0,\n    onError: options.onError,",
+  "from": "    delayMs: options.delayMs,\n    maxWaitMs",
+  "to": "    delayMs: 0,\n    maxWaitMs",
   "expect": "killed",
   "why": "every pause row and the delay row"
  },
  {
   "name": "S18 createCellContextScheduler: the debouncer runs on the host's timers",
   "file": "src/core/typing-debounce.ts",
-  "from": "    timers: options.timers,\n    delayMs: options.delayMs,\n    onError",
-  "to": "    timers: realTimers,\n    delayMs: options.delayMs,\n    onError",
+  "from": "    timers: options.timers,\n    delayMs: options.delayMs,\n    maxWaitMs",
+  "to": "    timers: realTimers,\n    delayMs: options.delayMs,\n    maxWaitMs",
   "expect": "killed",
   "why": "the fake clock never sees a timer; killed by the sequence rows"
  },

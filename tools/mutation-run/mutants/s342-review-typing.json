@@ -18,16 +18,16 @@
  {
   "name": "T03 the entry is deleted after the run, in a finally",
   "file": "src/core/typing-debounce.ts",
-  "from": "          pending.delete(key);\n          try {\n            run();\n          } catch (error) {\n            onError(error);\n          }",
-  "to": "          try {\n            run();\n          } catch (error) {\n            onError(error);\n          } finally {\n            pending.delete(key);\n          }",
+  "from": "    pending.delete(key);\n    windows.delete(key);\n    try {\n      run();\n    } catch (error) {\n      onError(error);\n    }",
+  "to": "    windows.delete(key);\n    try {\n      run();\n    } catch (error) {\n      onError(error);\n    } finally {\n      pending.delete(key);\n    }",
   "expect": "killed",
   "why": "a run that schedules its own key leaves a timer the table no longer knows (cancel and dispose cannot reach it): the dropped second run still runs, a disposed debouncer still runs it, and the timer that is running is cleared a second time; killed by the four 'a run that schedules its own key ...' rows of typing-debounce.test.ts (the throwing-run row passes under it)"
  },
  {
   "name": "T04 the entry is deleted after a run that did not throw",
   "file": "src/core/typing-debounce.ts",
-  "from": "          pending.delete(key);\n          try {\n            run();\n          } catch (error) {",
-  "to": "          try {\n            run();\n            pending.delete(key);\n          } catch (error) {",
+  "from": "    pending.delete(key);\n    windows.delete(key);\n    try {\n      run();\n    } catch (error) {",
+  "to": "    windows.delete(key);\n    try {\n      run();\n      pending.delete(key);\n    } catch (error) {",
   "expect": "killed",
   "why": "the entry is deleted after a run that did not throw: the same four rows fail, and the throwing-run row too (a throwing run leaves a stale entry, so a later cancel and dispose clear a timer that has run: seen by the fake clock's stale-clear counter only); killed by those five rows of typing-debounce.test.ts"
  },
