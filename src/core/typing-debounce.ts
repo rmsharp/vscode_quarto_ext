@@ -120,7 +120,7 @@ export function createKeyedDebouncer(options: KeyedDebouncerOptions): KeyedDebou
   const windows = new Map<string, { timer: TimerHandle; run: () => void }>();
   let disposed = false;
 
-  const cancel = (key: string): void => {
+  const dropTrailing = (key: string): void => {
     if (pending.has(key)) {
       timers.clearTimeout(pending.get(key));
       pending.delete(key);
@@ -151,7 +151,7 @@ export function createKeyedDebouncer(options: KeyedDebouncerOptions): KeyedDebou
       if (disposed) {
         return;
       }
-      cancel(key);
+      dropTrailing(key);
       pending.set(
         key,
         timers.setTimeout(() => {
@@ -166,20 +166,27 @@ export function createKeyedDebouncer(options: KeyedDebouncerOptions): KeyedDebou
         } else {
           const window = { timer: undefined as TimerHandle, run };
           window.timer = timers.setTimeout(() => {
-            cancel(key);
+            dropTrailing(key);
             settle(key, window.run);
           }, maxWaitMs);
           windows.set(key, window);
         }
       }
     },
-    cancel,
+    cancel(key) {
+      dropTrailing(key);
+      closeWindow(key);
+    },
     dispose() {
       disposed = true;
       for (const handle of pending.values()) {
         timers.clearTimeout(handle);
       }
       pending.clear();
+      for (const window of windows.values()) {
+        timers.clearTimeout(window.timer);
+      }
+      windows.clear();
     },
   };
 }

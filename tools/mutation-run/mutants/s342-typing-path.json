@@ -106,15 +106,15 @@
  {
   "name": "D03 createKeyedDebouncer: schedule works after dispose",
   "file": "src/core/typing-debounce.ts",
-  "from": "    schedule(key, run) {\n      if (disposed) {\n        return;\n      }\n      cancel(key);",
-  "to": "    schedule(key, run) {\n      cancel(key);",
+  "from": "    schedule(key, run) {\n      if (disposed) {\n        return;\n      }\n      dropTrailing(key);",
+  "to": "    schedule(key, run) {\n      dropTrailing(key);",
   "expect": "killed",
   "why": "a schedule after dispose sets a timer and runs; killed by the dispose rows (no run, no timer)"
  },
  {
   "name": "D04 createKeyedDebouncer: a schedule does not drop the pending run",
   "file": "src/core/typing-debounce.ts",
-  "from": "      cancel(key);\n      pending.set(",
+  "from": "      dropTrailing(key);\n      pending.set(",
   "to": "      pending.set(",
   "expect": "killed",
   "why": "every schedule of a burst runs; killed by every burst row"
@@ -178,8 +178,8 @@
  {
   "name": "D12 createKeyedDebouncer: dispose leaves the table full",
   "file": "src/core/typing-debounce.ts",
-  "from": "      pending.clear();\n    },\n  };\n}\n\n/** The active editor's document",
-  "to": "    },\n  };\n}\n\n/** The active editor's document",
+  "from": "      pending.clear();\n      for (const window of windows.values()) {",
+  "to": "      for (const window of windows.values()) {",
   "expect": "killed",
   "why": "a cancel after dispose clears a handle that was already cleared (a stale clear); killed by the stale-clear row"
  },

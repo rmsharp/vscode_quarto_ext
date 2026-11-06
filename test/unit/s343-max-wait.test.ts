@@ -282,8 +282,9 @@ describe("createKeyedDebouncer with a maximum wait -- cancel and dispose clear B
       w.clock.advance(100);
     }
     expect(w.ran).toEqual([]); // the clock is at 1,400: the old window's end passed without a run
+    w.debouncer.schedule("a", w.run("after 1400"));
     w.clock.advance(100);
-    expect(w.ran).toEqual(["after 1300"]);
+    expect(w.ran).toEqual(["after 1400"]);
     expect(w.ranAt).toEqual([1_500]); // 500 + 1,000
     expect(w.clock.staleClears()).toBe(0);
   });
