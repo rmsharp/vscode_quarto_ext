@@ -1,0 +1,218 @@
+[
+ {
+  "name": "S01 languagesInMarkdown: no de-duplication (the membership test is always true)",
+  "file": "src/core/document-engine.ts",
+  "from": "if (!seen.has(language)) {",
+  "to": "if (true) {",
+  "expect": "killed",
+  "why": "every fence adds its language, so a language written twice is listed twice; killed by the oracle rows (the lists differ) and the named rows"
+ },
+ {
+  "name": "S02 languagesInMarkdown: de-duplicates on the raw spelling",
+  "file": "src/core/document-engine.ts",
+  "from": "if (!seen.has(language)) {",
+  "to": "if (!seen.has(match[1])) {",
+  "expect": "killed",
+  "why": "the lookup is the spelling as written while the Set holds the lower-cased one, so `R` after `r` is a second entry; killed by the case-variant alphabets and the named case row"
+ },
+ {
+  "name": "S03 languagesInMarkdown: the Set is never filled",
+  "file": "src/core/document-engine.ts",
+  "from": "      seen.add(language);\n",
+  "to": "",
+  "expect": "killed",
+  "why": "nothing is ever seen, so there is no de-duplication; killed by the same rows as S01"
+ },
+ {
+  "name": "S04 languagesInMarkdown: the Set is filled with the raw spelling",
+  "file": "src/core/document-engine.ts",
+  "from": "seen.add(language);",
+  "to": "seen.add(match[1]);",
+  "expect": "killed",
+  "why": "`R` is remembered as `R` and looked up as `r`, so a second `R` is a second entry; killed by the case-variant alphabets"
+ },
+ {
+  "name": "S05 languagesInMarkdown: the list is built in reverse (unshift)",
+  "file": "src/core/document-engine.ts",
+  "from": "languages.push(language);",
+  "to": "languages.unshift(language);",
+  "expect": "killed",
+  "why": "the order is the last appearance first; killed by the order rows (b, a, b, c, a) and by the 64,000-language answer"
+ },
+ {
+  "name": "S06 languagesInMarkdown: the Set is filled after the list (the two statements swapped)",
+  "file": "src/core/document-engine.ts",
+  "from": "      seen.add(language);\n      languages.push(language);",
+  "to": "      languages.push(language);\n      seen.add(language);",
+  "expect": "survives",
+  "why": "EQUIVALENT: the two statements are independent and both run in the same branch"
+ },
+ {
+  "name": "S07 languagesInMarkdown: the Set is kept across calls",
+  "file": "src/core/document-engine.ts",
+  "from": "  const seen = new Set<string>();\n",
+  "to": "  const holder = languagesInMarkdown as unknown as { seen?: Set<string> };\n  const seen = (holder.seen ??= new Set<string>());\n",
+  "expect": "killed",
+  "why": "a language seen by an earlier call is never listed again, so the second call on one text answers []; killed by the two-call row and by every enumerated document after the first that shares a language with an earlier one"
+ },
+ {
+  "name": "S08 languagesInMarkdown: the Set is an object with `in` (inherited names are always seen)",
+  "file": "src/core/document-engine.ts",
+  "from": "  const seen = new Set<string>();\n",
+  "to": "  const table: Record<string, boolean> = {};\n  const seen = { has: (k: string): boolean => k in table, add: (k: string): void => void (table[k] = true) };\n",
+  "expect": "killed",
+  "why": "`constructor`, `tostring`-shaped and `__proto__` names answer true before they are added and are dropped; killed by the named row of the names an object would answer for (and the seeded documents, which draw `__proto__` and `constructor`)"
+ },
+ {
+  "name": "S09 languagesInMarkdown: the old Array.includes test is back (the answers are the same, the cost is n squared)",
+  "file": "src/core/document-engine.ts",
+  "from": "if (!seen.has(language)) {",
+  "to": "if (!languages.includes(language)) {",
+  "expect": "killed",
+  "why": "every answer is kept and 64,000 distinct languages take 4 s; killed by the clock row alone (a ratio of about 20 against the limit of 4)"
+ },
+ {
+  "name": "S10 languagesInMarkdown: the Set is asked and the list is searched too (cost only)",
+  "file": "src/core/document-engine.ts",
+  "from": "if (!seen.has(language)) {",
+  "to": "if (!seen.has(language) && !languages.includes(language)) {",
+  "expect": "killed",
+  "why": "every answer is kept (a miss in the Set is a miss in the list) and every NEW language reads the whole list again: quadratic; killed by the clock row alone"
+ },
+ {
+  "name": "S11 languagesInMarkdown: the scan stops at 4,096 distinct languages",
+  "file": "src/core/document-engine.ts",
+  "from": "while (match !== null) {",
+  "to": "while (match !== null && languages.length < 4096) {",
+  "expect": "killed",
+  "why": "a document with more languages than the cap loses the rest; killed by the 64,000-language answer row (and by its engine, which needs the {r} at the end)"
+ },
+ {
+  "name": "S12 languagesInMarkdown: the answer is the Set spread (the same list: a Set keeps insertion order)",
+  "file": "src/core/document-engine.ts",
+  "from": "  return languages;\n}",
+  "to": "  return [...seen];\n}",
+  "expect": "survives",
+  "why": "EQUIVALENT: a Set iterates in insertion order and holds the same members, so the spread is the list the array holds; the array is kept for the callers' `readonly string[]`"
+ },
+ {
+  "name": "T01 the ratio limit is 400",
+  "file": "test/unit/s343-languages-set-rows.test.ts",
+  "from": "const RATIO_LIMIT = 4;",
+  "to": "const RATIO_LIMIT = 400;",
+  "expect": "killed",
+  "why": "the parent's ratio of about 20 would pass; killed by the row that reads the sizes and the limit"
+ },
+ {
+  "name": "T02 the distinct languages are 6,400 (a tenth)",
+  "file": "test/unit/s343-languages-set-rows.test.ts",
+  "from": "const DISTINCT_LANGUAGES = 64_000;",
+  "to": "const DISTINCT_LANGUAGES = 6_400;",
+  "expect": "killed",
+  "why": "at a tenth of the size the parent's ratio is about 2; killed by the row that reads the sizes and the limit"
+ },
+ {
+  "name": "T03 the run's window reads 0 (the clock row's own clock)",
+  "file": "test/unit/s343-languages-set-rows.test.ts",
+  "from": "  const t2 = now();",
+  "to": "  const t2 = t1;",
+  "expect": "killed",
+  "why": "`ms` is 0, which is under every limit; killed by clockBreaks's refusal of a window that did not tick (the clock row and the helper rows)"
+ },
+ {
+  "name": "T04 the baseline's window reads 0",
+  "file": "test/unit/s343-languages-set-rows.test.ts",
+  "from": "  const t1 = now();",
+  "to": "  const t1 = t0;",
+  "expect": "killed",
+  "why": "`baselineMs` is 0 and the ratio is Infinity or NaN; killed by clockBreaks's refusal of a window that did not tick"
+ },
+ {
+  "name": "T05 the limit is not strict",
+  "file": "test/unit/s343-languages-set-rows.test.ts",
+  "from": "return costRatio(run) < ratioLimit ? [] :",
+  "to": "return costRatio(run) <= ratioLimit ? [] :",
+  "expect": "killed",
+  "why": "a ratio exactly at the limit keeps the criterion; killed by the helper row that hands clockBreaks 400 over 100"
+ },
+ {
+  "name": "T06 clockBreaks accepts a window that did not tick",
+  "file": "test/unit/s343-languages-set-rows.test.ts",
+  "from": "if (!(run.ms > 0 && run.baselineMs > 0)) return [",
+  "to": "if (false) return [",
+  "expect": "killed",
+  "why": "a clock stuck at 0 passes every ratio; killed by the helper rows (0, NaN and negative windows), not by the clock row, whose real clock always ticks"
+ },
+ {
+  "name": "T07 the last distinct fence is {julia}, not {r}",
+  "file": "test/unit/s343-languages-set-rows.test.ts",
+  "from": "fences.push(\"```{r}\\nx\\n```\");",
+  "to": "fences.push(\"```{julia}\\nx\\n```\");",
+  "expect": "killed",
+  "why": "the engine is jupyter and the list ends in julia; killed by the 64,000-language answer row and by the clock row's engine check"
+ },
+ {
+  "name": "T08 the baseline text is the distinct one",
+  "file": "test/unit/s343-languages-set-rows.test.ts",
+  "from": "() => resolve(\"a.qmd\", oneLanguageFences(count, \"control\")),",
+  "to": "() => resolve(\"a.qmd\", distinctFences(count, \"control\")),",
+  "expect": "killed",
+  "why": "both windows take the quadratic spelling the same time, so the parent's ratio is 1 and the clock row passes it; killed by the row that reads the texts the windows are handed"
+ },
+ {
+  "name": "T09 no warm-up before the windows",
+  "file": "test/unit/s343-languages-set-rows.test.ts",
+  "from": "  resolve(\"a.qmd\", distinctFences(64, \"warm\"));\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the baseline pays the compilation and the ratio shrinks; killed by the same row (three calls, the first a small distinct text)"
+ },
+ {
+  "name": "T10 the run's text carries the baseline's tag",
+  "file": "test/unit/s343-languages-set-rows.test.ts",
+  "from": "() => resolve(\"a.qmd\", distinctFences(count, \"distinct\")),",
+  "to": "() => resolve(\"a.qmd\", distinctFences(count, \"control\")),",
+  "expect": "killed",
+  "why": "the run's text ends like the baseline's; killed by the row that reads the tags"
+ },
+ {
+  "name": "T11 the oracle does not de-duplicate",
+  "file": "test/unit/s343-languages-set-rows.test.ts",
+  "from": "    if (!languages.includes(language)) {\n      languages.push(language);\n    }",
+  "to": "    languages.push(language);",
+  "expect": "killed",
+  "why": "the oracle lists a repeated language twice and the rows compare it with the cure's list; killed by every row that compares them"
+ },
+ {
+  "name": "T12 the oracle does not lower-case",
+  "file": "test/unit/s343-languages-set-rows.test.ts",
+  "from": "    const language = match[1].toLowerCase();\n    if (!languages",
+  "to": "    const language = match[1];\n    if (!languages",
+  "expect": "killed",
+  "why": "the oracle lists `R` and `r` apart; killed by the case-variant alphabets and the named rows"
+ },
+ {
+  "name": "T13 the enumeration stops one length short (4 fences)",
+  "file": "test/unit/s343-languages-set-rows.test.ts",
+  "from": "for (let length = 1; length <= maxLength; length++) {",
+  "to": "for (let length = 1; length < maxLength; length++) {",
+  "expect": "killed",
+  "why": "121 sequences instead of 364; killed by the row that counts them"
+ },
+ {
+  "name": "T14 the seeded sample is 3 documents",
+  "file": "test/unit/s343-languages-set-rows.test.ts",
+  "from": "for (let doc = 0; doc < 3000; doc++) {",
+  "to": "for (let doc = 0; doc < 3; doc++) {",
+  "expect": "killed",
+  "why": "killed by the row's own count of the documents compared and by its floors"
+ },
+ {
+  "name": "T15 the seeded sample never repeats a language (60 names become 1)",
+  "file": "test/unit/s343-languages-set-rows.test.ts",
+  "from": "const pick = <T,>(xs: readonly T[]): T => xs[Math.floor(next() * xs.length)];",
+  "to": "const pick = <T,>(xs: readonly T[]): T => xs[0];",
+  "expect": "killed",
+  "why": "every fence is the first shape in the first name: no repeated language the lists could disagree on is left in a varied document; killed by the row's floors"
+ }
+]
