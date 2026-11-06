@@ -238,6 +238,19 @@ describe("Session 343 -- completionContextAt answers at every offset what the pa
     expect(compared).toBe(D1.length + 1);
   });
 
+  it("the option lines it reads are the engine-BLIND ones, as the provider is blind by design: an indented jupyter opener's `#|` line completes, and a `#|` line under a stray knitr fence does not", () => {
+    // jupyter, an indent-3 python opener whose cell holds a `#|` line at column 0: blind python[0-3] (option line 1); aware (jupyter) r[2-3], no option line
+    const jupyter = "   ```{python}\n#| echo: false\n```{r}\n```\n```{ojs}";
+    const jupyterKey = jupyter.indexOf("#| echo") + "#| echo".length;
+    expect(completionContextAt(jupyter, jupyterKey, () => "jupyter")?.kind).toBe("cell-option-key");
+    expect(findCellOptionLines(jupyter, "jupyter")).toHaveLength(0); // the premise: the aware list has no such line
+    // knitr, a stray bare fence above a silent python chunk: blind no cell (the `#|` line is prose); aware python[6-9], option line 7
+    const stray = ["prose", "", "```", "", "## Heading Under Test", "", "```{python}", "#| echo: false", "x = 1", "```", "", "## Heading After Chunk", "", "tail prose", ""].join(LF);
+    const strayKey = stray.indexOf("#| echo") + "#| echo".length;
+    expect(completionContextAt(stray, strayKey, () => "knitr")).toBeNull();
+    expect(findCellOptionLines(stray, "knitr")).toHaveLength(1); // the premise: the aware list has it
+  });
+
   it("a prose line is null and a `#|` line is the key or the value, whatever the line breaks of the document", () => {
     const prose = D1.indexOf("Prose with") + 5;
     const option = D1.indexOf("#| echo: false") + "#| echo".length; // the end of the key

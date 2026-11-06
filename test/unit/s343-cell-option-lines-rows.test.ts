@@ -343,6 +343,25 @@ describe("the Session 343 clock helpers (the clock row's own clock is pinned her
     expect(paused.smallestWindowMs).toBe(1);
   });
 
+  it("the median round decides on the other side too: one pause in the BASELINE window of one of three rounds (a ratio of 0.1 in that round) does not move the ratio either", () => {
+    let t = 0;
+    let call = 0;
+    const paused = ratioOfWindows(
+      () => {
+        t += 5;
+      },
+      1,
+      () => {
+        t += call++ === 1 ? 50 : 1; // a pause in the second round's baseline window
+      },
+      1,
+      3,
+      () => t,
+    );
+    expect(paused.ratio).toBe(5);
+    expect(paused.smallestWindowMs).toBe(1);
+  });
+
   it("a clock stuck at 0 (every window reads 0) breaks the criterion, whatever the limit", () => {
     const run = ratioOfWindows(() => undefined, 3, () => undefined, 3, 3, () => 0);
     expect(run.smallestWindowMs).toBe(0);
