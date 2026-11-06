@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type Cell, buildOutline, findAllCells, findCellAtPosition, findCellOptionLines, type OutlineSymbol } from "../../src/core/qmd/model";
-import { TYPE_IGNORE_DIRECTIVE, createCellVdocBuilder } from "../../src/core/embedded/virtual-doc";
+import { TYPE_IGNORE_DIRECTIVE, createCellVdocBuilder, createRangeLookup, embeddedCellAt } from "../../src/core/embedded/virtual-doc";
 import { cellLanguageId } from "../../src/core/embedded/lang-map";
 import type { RenderMode } from "../../src/core/render-mode";
 import { seededRandom } from "./support/regex-equivalence";
@@ -69,6 +69,23 @@ const SETUP_OPTION = [
   "---", "title: t", "---", "", "```{r setup, include=FALSE}", "knitr::opts_chunk$set(echo = F)", "```", "", "# Top", "", "```", "", "## Between", "", "```{r}", "#| eval: false", "```", "", "## After", "", "```{r}", "y <- 1", "```", "", "## Last", "",
 ].join("\n");
 
+/**
+ * jupyter, an INDENTED python opener whose cell holds a `#|` line at column 0: blind python[0-3] (line 1 is its option line, and line 2 is a body line of it); aware r[2-3] (a kernel cell closes only on its own indent, so
+ * the indent-3 opener is dropped, and with it the cell the `#|` line was an option of: no option line at all). Lines: 0 opener | 1 `#| echo: false` | 2 `{r}` opener | 3 closer | 4 `{ojs}` opener, never closed.
+ */
+const JUPYTER_OPTION = "   ```{python}\n#| echo: false\n```{r}\n```\n```{ojs}";
+/**
+ * engine markdown, an indent-4 python opener whose cell holds a `#|` line at column 0, and a cell at column 0 below it: blind python[4-7] python[9-11], option line 5; aware python[9-11], no option line (an indented
+ * non-handler cell is no cell there). Lines: 0-2 front matter | 3 | 4 opener | 5 `#| echo: false` | 6 `x = 1` | 7 indent-4 closer | 8 | 9 opener | 10 `y = 2` | 11 closer | 12.
+ */
+const MARKDOWN_OPTION = ["---", "engine: markdown", "---", "", "    ```{python}", "#| echo: false", "x = 1", "    ```", "", "```{python}", "y = 2", "```", ""].join("\n");
+/**
+ * jupyter, a python cell at COLUMN 0 whose body holds an indented line shaped like a closer: blind python[4-6] (the any-indent scan closes at line 6, so the cell is a truncated copy of itself); aware python[4-10] (a
+ * kernel cell closes only on its own indent, here none). The opener is the SAME and the extent differs, so the two vdocs of this cell share the key `cellStartLine` 4 and hold different text.
+ * Lines: 0-2 front matter | 3 | 4 opener | 5 `s = '''` | 6 two spaces and a fence | 7 `'''` | 8 `def after():` | 9 `    pass` | 10 closer.
+ */
+const CLOSER_JUPYTER = ["---", "jupyter: python3", "---", "", "```{python}", "s = '''", "  ```", "'''", "def after():", "    pass", "```"].join("\n");
+
 interface Named {
   name: string;
   text: string;
@@ -88,6 +105,9 @@ const NAMED: Named[] = [
   { name: "the same setup chunk, --no-execute", text: SETUP_CALL, engine: "knitr", mode: "no-execute", blind: "r[4-6] r[19-21]", aware: "r[4-6]" },
   { name: "a setup chunk and a chunk with a #| line, executing", text: SETUP_OPTION, engine: "knitr", mode: "execute", blind: "r[4-6] r[20-22]", aware: "r[4-6] r[14-16] r[20-22]" },
   { name: "the same two chunks, --no-execute", text: SETUP_OPTION, engine: "knitr", mode: "no-execute", blind: "r[4-6] r[20-22]", aware: "r[4-6]" },
+  { name: "an indent-3 python opener with a #| line under jupyter, an r cell below it", text: JUPYTER_OPTION, engine: "jupyter", blind: "python[0-3]", aware: "r[2-3]" },
+  { name: "an indent-4 python opener with a #| line under engine markdown, a python cell below it", text: MARKDOWN_OPTION, engine: "markdown", blind: "python[4-7] python[9-11]", aware: "python[9-11]" },
+  { name: "a column-0 python cell under jupyter with an indented closer-shaped line in its body", text: CLOSER_JUPYTER, engine: "jupyter", blind: "python[4-6]", aware: "python[4-10]" },
 ];
 
 describe("the documents are what the rows below say they are (the Session 342 premise: the two scans disagree on each of them)", () => {
@@ -137,6 +157,25 @@ describe("Session 342 -- findAllCells and findCellOptionLines read the scan the 
     expect(findCellOptionLines(SETUP_OPTION)).toEqual([]);
   });
 
+  it("the option lines of an indented opener: its #| line is an option line of the cell the blind scan finds, and of no cell to the scan of the engine that drops that cell", () => {
+    const lines = (text: string, engine?: Engine): number[] => findCellOptionLines(text, engine).map((o) => o.line);
+    // JUPYTER_OPTION: the #| line is line 1
+    expect(lines(JUPYTER_OPTION)).toEqual([1]);
+    expect(lines(JUPYTER_OPTION, undefined)).toEqual([1]);
+    for (const engine of ["ambiguous", "julia", "knitr", "markdown"] as const) expect(lines(JUPYTER_OPTION, engine)).toEqual([1]);
+    expect(lines(JUPYTER_OPTION, "jupyter")).toEqual([]);
+    // MARKDOWN_OPTION: the #| line is line 5
+    expect(lines(MARKDOWN_OPTION)).toEqual([5]);
+    expect(lines(MARKDOWN_OPTION, undefined)).toEqual([5]);
+    for (const engine of ["ambiguous", "julia", "knitr", "jupyter"] as const) expect(lines(MARKDOWN_OPTION, engine)).toEqual([5]);
+    expect(lines(MARKDOWN_OPTION, "markdown")).toEqual([]);
+  });
+
+  it("the option line carries the cell it belongs to: the indented opener's start line", () => {
+    expect(findCellOptionLines(JUPYTER_OPTION)).toEqual([expect.objectContaining({ line: 1, cellStartLine: 0 })]);
+    expect(findCellOptionLines(MARKDOWN_OPTION)).toEqual([expect.objectContaining({ line: 5, cellStartLine: 4 })]);
+  });
+
   it("an engine that changes nothing (ambiguous, julia, undefined) reads the blind list", () => {
     for (const row of NAMED) {
       for (const engine of ["ambiguous", "julia", undefined] as const) {
@@ -178,6 +217,111 @@ describe("Session 342 -- createCellVdocBuilder with no engine and no mode answer
         expect(given.build(cell)).toBe(blind.build(cell));
       }
     }
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// THE OPTION LINES OF THE ENGINE-BLIND CONSUMERS. `embeddedCellAt`, the range lookup and the blind builder never pass an engine, so they read the blind list and the blind option lines: a `#|` line at column 0 under an
+// INDENTED opener is an option line there (it belongs to YAML and is never forwarded as code), and it is that only because `findCellOptionLines` defaults to the blind list. A default of `jupyter` or `markdown`
+// would drop the indented opener's cell from the option lines and leave its `#|` line a line of code.
+
+describe("Session 342 -- the engine-blind consumers keep the #| line of an indented opener an option line, and the aware builder drops the cell that holds it", () => {
+  const PYTHON = { lang: "python", languageId: "python", ext: "py" };
+
+  it("jupyter document, embeddedCellAt and the range lookup: the #| line is not forwarded as code; the line below it is a body line of the cell the blind scan finds", () => {
+    // 0 indent-3 python opener | 1 `#| echo: false` | 2 `{r}` opener | 3 closer | 4 `{ojs}` opener. The blind scan reads line 2 as python code: the parent's answer, kept.
+    const lookup = createRangeLookup(JUPYTER_OPTION);
+    expect(embeddedCellAt(JUPYTER_OPTION, 1)).toBeNull();
+    expect(lookup.hitAt(1)).toBeNull();
+    expect(embeddedCellAt(JUPYTER_OPTION, 2)).toEqual(PYTHON);
+    expect(lookup.hitAt(2)).toEqual(PYTHON);
+    expect(lookup.rangeInLanguageBody(1, 1, "python")).toBe(false);
+    expect(lookup.rangeInLanguageBody(1, 2, "python")).toBe(false);
+    expect(lookup.rangeInLanguageBody(2, 2, "python")).toBe(true);
+    const [cell] = findAllCells(JUPYTER_OPTION);
+    expect(lookup.rangeInCellBody(1, 2, cell)).toBe(false);
+    expect(lookup.rangeInCellBody(2, 2, cell)).toBe(true);
+  });
+
+  it("markdown document, embeddedCellAt and the range lookup: the #| line of the indent-4 cell is not forwarded, the line below it is", () => {
+    // 4 indent-4 opener | 5 `#| echo: false` | 6 `x = 1` | 7 indent-4 closer | 9 opener | 10 `y = 2` | 11 closer
+    const lookup = createRangeLookup(MARKDOWN_OPTION);
+    for (const line of [4, 5, 7, 8, 9, 11]) {
+      expect(embeddedCellAt(MARKDOWN_OPTION, line)).toBeNull();
+      expect(lookup.hitAt(line)).toBeNull();
+    }
+    for (const line of [6, 10]) {
+      expect(embeddedCellAt(MARKDOWN_OPTION, line)).toEqual(PYTHON);
+      expect(lookup.hitAt(line)).toEqual(PYTHON);
+    }
+    const [indented] = findAllCells(MARKDOWN_OPTION);
+    expect(lookup.rangeInCellBody(5, 6, indented)).toBe(false);
+    expect(lookup.rangeInCellBody(6, 6, indented)).toBe(true);
+  });
+
+  it("the blind builder blanks the #| line of the indented opener's cell: the vdoc keeps the line below it and the python mute", () => {
+    const jupyter = createCellVdocBuilder(JUPYTER_OPTION);
+    const jupyterCell = jupyter.cellAt(1) as Cell;
+    expect(jupyterCell).toEqual({ startLine: 0, endLine: 3, lang: "python", code: "#| echo: false\n```{r}" });
+    expect(jupyter.build(jupyterCell)).toBe(`${D}${nl(2)}\`\`\`{r}${nl(2)}`); // 5 lines: the mute, the emptied #| line, the `{r}` line kept, two empty
+    const markdown = createCellVdocBuilder(MARKDOWN_OPTION);
+    const markdownCell = markdown.cellAt(5) as Cell;
+    expect(markdownCell).toEqual({ startLine: 4, endLine: 7, lang: "python", code: "#| echo: false\nx = 1" });
+    expect(markdown.build(markdownCell)).toBe(`${D}${nl(6)}x = 1${nl(6)}`); // 13 lines: `x = 1` is line 6
+  });
+
+  it("the builder given jupyter: the indented python cell and its #| line are not in the Outline's list, so the line is in no cell and the r cell is the only one", () => {
+    const aware = createCellVdocBuilder(JUPYTER_OPTION, "jupyter");
+    expect(aware.cellAt(0)).toBeNull();
+    expect(aware.cellAt(1)).toBeNull();
+    expect(aware.cellAt(2)).toEqual({ startLine: 2, endLine: 3, lang: "r", code: "" });
+    expect(aware.build(aware.cellAt(2) as Cell)).toBe(nl(4));
+  });
+
+  it("the builder given markdown: the indent-4 cell and its #| line are not in the Outline's list; the cell at column 0 is, built with its own body only", () => {
+    const aware = createCellVdocBuilder(MARKDOWN_OPTION, "markdown");
+    for (const line of [4, 5, 6, 7]) expect(aware.cellAt(line)).toBeNull();
+    const cell = aware.cellAt(10) as Cell;
+    expect(cell).toEqual({ startLine: 9, endLine: 11, lang: "python", code: "y = 2" });
+    expect(aware.build(cell)).toBe(`${D}${nl(10)}y = 2${nl(2)}`); // 13 lines: `y = 2` is line 10
+    // the blind builder holds the indent-4 cell too, whose vdoc is the line `x = 1` and nothing of the cell at column 0
+    expect(createCellVdocBuilder(MARKDOWN_OPTION).build(findAllCells(MARKDOWN_OPTION)[0])).not.toBe(aware.build(cell));
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// THE THIRD CLASS. A cell at column 0 under jupyter whose body holds an indented line shaped like a closer: the OPENER is the same in the two lists and the EXTENT differs, so the blind lookup answered a truncated
+// copy of the Outline's own cell, under the same `cellStartLine` key as the aware one (the key `outline.ts` files a vdoc under), and the symbols after the fake closer were lost.
+
+describe("Session 342 -- a column-0 python cell under jupyter with an indented closer-shaped line in its body: the same opener, a longer extent, one key and two vdocs", () => {
+  it("the blind builder finds the cell cut at the indented line; the builder given jupyter finds it whole", () => {
+    // 4 opener | 5 `s = '''` | 6 two spaces and a fence | 7 `'''` | 8 `def after():` | 9 `    pass` | 10 closer
+    const blind = createCellVdocBuilder(CLOSER_JUPYTER);
+    const aware = createCellVdocBuilder(CLOSER_JUPYTER, "jupyter");
+    expect(blind.cellAt(5)).toEqual({ startLine: 4, endLine: 6, lang: "python", code: "s = '''" });
+    expect(aware.cellAt(5)).toEqual({ startLine: 4, endLine: 10, lang: "python", code: "s = '''\n  ```\n'''\ndef after():\n    pass" });
+    expect(blind.cellAt(8)).toBeNull(); // a symbol of `def after()` is looked up here, and the blind list holds no cell
+    expect(aware.cellAt(8)?.startLine).toBe(4);
+  });
+
+  it("the two vdocs share the cell's start line and hold different text: the blind one has lost `def after()`", () => {
+    const blind = createCellVdocBuilder(CLOSER_JUPYTER);
+    const aware = createCellVdocBuilder(CLOSER_JUPYTER, "jupyter");
+    const blindCell = blind.cellAt(5) as Cell;
+    const awareCell = aware.cellAt(5) as Cell;
+    expect(blindCell.startLine).toBe(awareCell.startLine);
+    expect(blindCell.endLine).not.toBe(awareCell.endLine);
+    // 11 lines; the mute on line 0; the body lines 5 to 9 (the kept lines of the aware cell), only line 5 for the blind one
+    expect(blind.build(blindCell)).toBe(`${D}${nl(5)}s = '''${nl(5)}`);
+    expect(aware.build(awareCell)).toBe(`${D}${nl(5)}s = '''\n  \`\`\`\n'''\ndef after():\n    pass${nl(1)}`);
+    expect(aware.build(awareCell)).toContain("def after():");
+    expect(blind.build(blindCell)).not.toContain("def after():");
+  });
+
+  it("the Outline reports the whole cell: its symbol and the builder given jupyter agree on the extent", () => {
+    const [symbol] = cellSymbols(CLOSER_JUPYTER, "jupyter");
+    expect([symbol.startLine, symbol.endLine]).toEqual([4, 10]);
+    expect(createCellVdocBuilder(CLOSER_JUPYTER, "jupyter").cellAt(symbol.startLine)).toMatchObject({ startLine: 4, endLine: 10 });
   });
 });
 
