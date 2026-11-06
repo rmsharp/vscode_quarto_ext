@@ -277,32 +277,34 @@ describe("Session 343 -- a repeat call on a cached scan costs a copy: the same e
 
 const MODEL = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "src", "core", "qmd", "model.ts"), "utf8");
 
-/** The name of the nearest enclosing function declaration of every call of `callee(...)` in `source`. */
-function callersOf(source: string, callee: string): string[] {
+/** The name of the nearest enclosing function declaration of every REFERENCE to `name` in `source` (a call, or the function handed over bare), not counting its own declaration. */
+function referencersOf(source: string, name: string): string[] {
   const sf = ts.createSourceFile("model.ts", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
-  const callers: string[] = [];
+  const referencers: string[] = [];
   const visit = (node: ts.Node): void => {
-    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === callee) {
+    if (ts.isIdentifier(node) && node.text === name && !(ts.isFunctionDeclaration(node.parent) && node.parent.name === node)) {
       let up: ts.Node | undefined = node.parent;
       while (up !== undefined && !ts.isFunctionDeclaration(up)) up = up.parent;
-      callers.push(up !== undefined && ts.isFunctionDeclaration(up) && up.name !== undefined ? up.name.text : "<top level>");
+      referencers.push(up !== undefined && ts.isFunctionDeclaration(up) && up.name !== undefined ? up.name.text : "<top level>");
     }
     ts.forEachChild(node, visit);
   };
   visit(sf);
-  return callers;
+  return referencers;
 }
 
 describe("Session 343 -- the option lines are built by the first ask, not by the scan", () => {
-  it("cellOptionLinesOf is called from findCellOptionLines and from nowhere else in the model", () => {
-    expect(callersOf(MODEL, "cellOptionLinesOf")).toEqual(["findCellOptionLines"]);
+  it("cellOptionLinesOf is referenced from findCellOptionLines and from nowhere else in the model", () => {
+    expect(referencersOf(MODEL, "cellOptionLinesOf")).toEqual(["findCellOptionLines"]);
   });
 
-  it("the check can fail: a source in which the scan calls the per-cell reader names the scan", () => {
+  it("the check can fail: a source in which the scan calls the per-cell reader names the scan, and a bare reference counts as one", () => {
     const head = 'function computeRegions(text: string, engine: EngineHint = undefined, mode: RenderMode = "execute"): Regions {';
     const eager = MODEL.replace(head, `${head} cellOptionLinesOf(undefined as never);`);
     expect(eager).not.toBe(MODEL);
-    expect(callersOf(eager, "cellOptionLinesOf").sort()).toEqual(["computeRegions", "findCellOptionLines"]);
+    expect(referencersOf(eager, "cellOptionLinesOf").sort()).toEqual(["computeRegions", "findCellOptionLines"]);
+    const bare = MODEL.replace(head, `${head} [].flatMap(cellOptionLinesOf);`);
+    expect(referencersOf(bare, "cellOptionLinesOf").sort()).toEqual(["computeRegions", "findCellOptionLines"]);
   });
 });
 
