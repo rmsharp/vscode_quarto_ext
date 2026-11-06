@@ -425,3 +425,89 @@ describe("Session 341 -- the Outline's per-cell virtual documents cost cells tim
     expect(CLOCK_ROWS.map((row) => row.ratioLimit)).toEqual([100, 100, 100, 20]);
   });
 });
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// THE LOOKUP ALONE (Session 341 review, M-R05 / M-R39). `cellAt` is a binary search over the cells the builder prepared once. A pass over every cell (R05), or a fresh copy of the cell list per call (R39), gives the same answers
+// and is linear in the cells per call: invisible at the 2,000 cells of the rows above (the loop there is dominated by the builds), and 3.9 to 8.6 s at 100,000 cells, where the cure takes 7.3 to 7.6 ms (one fresh process each,
+// `cellAt` on every cell start after the first ask has paid the preparation, load 8 to 10). The parent's `findCellAtPosition` is quadratic here too, and is not run: the row runs the cure only.
+
+const CELLAT_CELLS = 100_000;
+/** The limit of the lookup row: 66x the cure's 7.5 ms, and 7.8x under the cheapest of the four slow spellings (3.9 s). */
+const CELLAT_LIMIT_MS = 500;
+
+/** `n` cells of three lines (fence, `x = i`, closing fence), the text ending on a newline: the cell `i` starts on line `3 * i` and the text has `3 * n + 1` lines. */
+function threeLineText(n: number): string {
+  let text = "";
+  for (let i = 0; i < n; i++) text += `${FENCE}{python}\nx = ${i}\n${FENCE}\n`;
+  return text;
+}
+
+describe("Session 341 review -- cellAt over 100,000 cells (a pass over every cell, or a copy of the cell list per call, is linear per call)", () => {
+  it("answers every one of 100,000 cell starts in under half a second, the last tenth of the lookups costing about what the first tenth did, with the stated answers", () => {
+    const text = threeLineText(CELLAT_CELLS);
+    const starts = Array.from({ length: CELLAT_CELLS }, (_, i) => 3 * i);
+    const builder = createCellVdocBuilder(text);
+    expect(builder.cellAt(0)?.startLine).toBe(0); // the first ask pays the preparation (the scan of the text, its split, its option lines); the loop below is the lookup alone
+    const tenth = CELLAT_CELLS / 10;
+    let hits = 0;
+    const t0 = performance.now();
+    for (let i = 0; i < tenth; i++) if (builder.cellAt(starts[i]) !== null) hits++;
+    const t1 = performance.now();
+    for (let i = tenth; i < CELLAT_CELLS - tenth; i++) if (builder.cellAt(starts[i]) !== null) hits++;
+    const t2 = performance.now();
+    for (let i = CELLAT_CELLS - tenth; i < CELLAT_CELLS; i++) if (builder.cellAt(starts[i]) !== null) hits++;
+    const t3 = performance.now();
+    expect(hits).toBe(CELLAT_CELLS);
+    expect(t3 - t0).toBeLessThan(CELLAT_LIMIT_MS);
+    expect(lastTenthWithin(t1 - t0, t3 - t2)).toBe(true);
+    // The answers, on the first, the middle and the last cell, and on the lines around them: a start, a body line, the closing fence, and the one line past the last cell.
+    for (const i of [0, CELLAT_CELLS >> 1, CELLAT_CELLS - 1]) {
+      for (const line of [3 * i, 3 * i + 1, 3 * i + 2]) {
+        expect(builder.cellAt(line)).toEqual({ startLine: 3 * i, endLine: 3 * i + 2, lang: "python", code: `x = ${i}` });
+      }
+    }
+    expect(text.split("\n")).toHaveLength(3 * CELLAT_CELLS + 1);
+    expect(builder.cellAt(3 * CELLAT_CELLS)).toBeNull(); // the empty last line
+    expect(builder.cellAt(-1)).toBeNull();
+  }, 120_000);
+
+  it("keeps the size and the limit the lookup row is built on", () => {
+    expect([CELLAT_CELLS, CELLAT_LIMIT_MS]).toEqual([100_000, 500]);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// THE PREPARATION IS LAZY (Session 341 review, M-R35). `provideDocumentSymbols` makes a builder on EVERY call, and the great majority of documents hold no code cell, so nothing asks it anything: the builder reads the text
+// when it is first ASKED, never when it is made. A builder that read it at construction costs 223 to 344 ms per call on a 130,000-line, 4.29 MB document with no cell (R35, measured).
+
+describe("Session 341 review -- createCellVdocBuilder reads the text when it is first asked, not when it is made", () => {
+  const hostile = (): string => ({ split: () => { throw new Error("read at construction"); } }) as unknown as string;
+  const aCell: Cell = { startLine: 0, endLine: 2, lang: "r", code: "x" };
+
+  it("makes a builder over a text whose split throws without reading it; the first cellAt reads it", () => {
+    const builder = createCellVdocBuilder(hostile());
+    expect(typeof builder.cellAt).toBe("function");
+    expect(() => builder.cellAt(0)).toThrow("read at construction");
+  });
+
+  it("the first build reads it too", () => {
+    const builder = createCellVdocBuilder(hostile());
+    expect(() => builder.build(aCell)).toThrow("read at construction");
+  });
+
+  it("touches nothing of the text at construction (no property, no coercion), and something once it is asked", () => {
+    const reads: Array<string | symbol> = [];
+    const spy = new Proxy({}, { get: (_target, key) => { reads.push(key); return undefined; } }) as unknown as string;
+    const builder = createCellVdocBuilder(spy);
+    expect(reads).toEqual([]);
+    expect(() => builder.cellAt(0)).toThrow(TypeError);
+    expect(reads.length).toBeGreaterThan(0);
+  });
+
+  it("a document with no code cell asks nothing: three builders over a 130,000-line prose text cost under 50 ms in all", () => {
+    const prose = "some prose\n".repeat(130_000);
+    const started = performance.now();
+    for (let i = 0; i < 3; i++) createCellVdocBuilder(prose);
+    expect(performance.now() - started).toBeLessThan(50);
+  });
+});

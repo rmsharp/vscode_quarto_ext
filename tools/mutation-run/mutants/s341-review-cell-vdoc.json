@@ -60,40 +60,40 @@
   "file": "src/core/embedded/virtual-doc.ts",
   "from": "  let low = 0;\n  let high = cells.length - 1;\n  let found = -1;\n  while (low <= high) {\n    const middle = (low + high) >> 1;\n    if (cells[middle].startLine <= line) {\n      found = middle;\n      low = middle + 1;\n    } else {\n      high = middle - 1;\n    }\n  }\n",
   "to": "  let found = -1;\n  for (let k = 0; k < cells.length; k++) {\n    if (cells[k].startLine <= line) found = k;\n  }\n",
-  "expect": "survives",
-  "why": "same answer, linear in the cells: only a clock row with tens of thousands of cells sees it"
+  "expect": "killed",
+  "why": "same answer, linear in the cells per call: 8,503 ms for cellAt on every one of 100,000 cells against the cure's 7.3 to 7.6 ms (one fresh process each, load 8 to 10); killed by the lookup row's 500 ms limit (it survived every row of 89d38e3: the largest had 2,000 cells)"
  },
  {
   "name": "R05b cellAtLine: a pass over the cells that stops at the first one below the line",
   "file": "src/core/embedded/virtual-doc.ts",
   "from": "  let low = 0;\n  let high = cells.length - 1;\n  let found = -1;\n  while (low <= high) {\n    const middle = (low + high) >> 1;\n    if (cells[middle].startLine <= line) {\n      found = middle;\n      low = middle + 1;\n    } else {\n      high = middle - 1;\n    }\n  }\n",
   "to": "  let found = -1;\n  for (let k = 0; k < cells.length; k++) {\n    if (cells[k].startLine > line) break;\n    found = k;\n  }\n",
-  "expect": "survives",
-  "why": "same answer, linear in the position of the answer: cheap at the top of the document, dear at the bottom"
+  "expect": "killed",
+  "why": "the pass that stops at the first cell below the line: 3,866 ms over 100,000 cells, the first tenth 41.5 ms and the last 739 ms (cheap at the top of the document, dear at the bottom); killed by the lookup row's 500 ms limit, and by its last-tenth against first-tenth ratio (739 against 4 x 41.5 + 100)"
  },
  {
   "name": "R39 createCellVdocBuilder: cellAt takes a fresh scan on every call",
   "file": "src/core/embedded/virtual-doc.ts",
   "from": "    cellAt: (line) => cellAtLine(read().cells, line),",
   "to": "    cellAt: (line) => cellAtLine(findAllCells(text), line),",
-  "expect": "survives",
-  "why": "same answer; `findAllCells` hands back a copy of the model's cells, so it is linear in the cells for every call"
+  "expect": "killed",
+  "why": "`findAllCells` hands back a copy of the model's cells, so a fresh scan per call is linear in the cells: 8,368 ms over 100,000 cells against the cure's 7.5 ms; killed by the lookup row's 500 ms limit"
  },
  {
   "name": "R39b createCellVdocBuilder: cellAt takes a copy of the prepared cells on every call",
   "file": "src/core/embedded/virtual-doc.ts",
   "from": "    cellAt: (line) => cellAtLine(read().cells, line),",
   "to": "    cellAt: (line) => cellAtLine(read().cells.slice(), line),",
-  "expect": "survives",
-  "why": "same answer, a copy of the cell list per call (the spelling of R39 that does not depend on how the model memoizes its scan)"
+  "expect": "killed",
+  "why": "a copy of the prepared cell list per call, the spelling that does not depend on how the model memoizes its scan: 8,645 ms over 100,000 cells; killed by the lookup row's 500 ms limit"
  },
  {
   "name": "R35 createCellVdocBuilder: the text is read when the builder is made",
   "file": "src/core/embedded/virtual-doc.ts",
   "from": "  return {\n    cellAt: (line) => cellAtLine(read().cells, line),",
   "to": "  read();\n  return {\n    cellAt: (line) => cellAtLine(read().cells, line),",
-  "expect": "survives",
-  "why": "same answers; the documented laziness (a document with no code cell pays for none of it) is pinned by no row"
+  "expect": "killed",
+  "why": "the text is read when the builder is made: the provider makes a builder on every `provideDocumentSymbols` call and most documents hold no cell; 223 to 344 ms per construction on a 130,000-line, 4.29 MB prose document (the review's measurement). Killed by the laziness rows: a text whose `split` throws is not read at construction, a Proxy text records no read, three builders over 130,000 lines of prose cost under 50 ms"
  },
  {
   "name": "R38 createCellVdocBuilder: build caches by the cell object",
@@ -334,5 +334,21 @@
   "to": "make: () => longShape(LONG_CELLS, LONG_GAP), ratioLimit: RATIO },",
   "expect": "killed",
   "why": "the ratio of 100 is under the parent's 133 to 138 by 1.3x, which a faster first call would close; the row-specific 20 sits 6.5x under it; killed by the sizes row"
+ },
+ {
+  "name": "L03 clock rows: the lookup row has a tenth of its cells",
+  "file": "test/unit/s341-cell-vdoc-rows.test.ts",
+  "from": "const CELLAT_CELLS = 100_000;",
+  "to": "const CELLAT_CELLS = 10_000;",
+  "expect": "killed",
+  "why": "at 10,000 cells the cellAt mutants cost 100x less (R05 86 ms, R39 18 to 19 ms, three fresh processes at load 6), under the 500 ms limit; killed by the row that reads the constant"
+ },
+ {
+  "name": "L04 clock rows: the lookup row's limit is 500 seconds",
+  "file": "test/unit/s341-cell-vdoc-rows.test.ts",
+  "from": "const CELLAT_LIMIT_MS = 500;",
+  "to": "const CELLAT_LIMIT_MS = 500_000;",
+  "expect": "killed",
+  "why": "no cellAt mutant would reach it; killed by the row that reads the constant"
  }
 ]
