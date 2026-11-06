@@ -392,33 +392,3 @@ item's part (1), the S311 item's parts (4), (10), (11); `test:integration` and `
 edits: 19 killed, 5 equivalent; 16 edits: 0 killed before the rows, 16 after).
 **Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** one workflow (35 agents, 2,597,235 subagent tokens, 403 tool calls, 70 min), three list runs of 3 to 5 minutes (plus the re-anchored 18), no quarto
 renders, the machine at load 3 to 33.
-
-## Session 338 Handoff Evaluation (by Session 339)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers (at HEAD `acfd9ce`, gap 0), no `pending` receipt, the ratchet citation (2/2, results `bba236856bad`, compared by hash), the
-baseline (170 files, 16,399 tests, exit 1) and the picker all held. Candidate (a) was placed by finishing a feature and its estimate of one session held (three workers, one review round).
-**Helped:** gotcha 2 (rebuild the harness with esbuild, one fresh process per probe, verify the lower bound) and Learning 840 (time the literal shape at HEAD first) found that the item's `class=` opener is NOT slow as written; gotcha 4 (the runner
-tests the COMMITTED source; one list at a time; run `mutation-lists-apply` after cherry-picking) and gotcha 5 (reset the worktree's empty branch) held for all six workers; the Session 338 files were templates a worker could start from.
-**Missing:** the item's line numbers were stale by 100 to 800 lines (`model.ts:4657`, `5066`, `14351`, `12467`, `12671` against 4774, 5212, 14863, 12900, 13104 at the claim) and its `class=` repro had no closing `"}`, so as written it costs 12 ms;
-nothing said that the site is reached only after `divOpenerVerdict` calls the opener well-formed (Learning 903). **Wrong:** nothing material; the "38 commits ahead" was true when written (four commits followed). I still hit the zsh `echo =====`
-trap named in gotcha 3. **ROI: high.**
-
-## Session 339 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** Re-timed all three shapes at the parent myself and profiled them before briefing, which found the item's unreproducible repro; briefed three workers with the clean-room rule repeated in every prompt (the reviewers' and the
-follow-up's too); checked the workers from my side instead of trusting their reports (the RED counts re-run on `4d1944c`: 27 of 33, 13 of 29, 8 of 66, every failure on the clock alone, 52 of 68, 64 of 82 and 68 of 68 on the seams; the cures
-re-timed to 10,000,000 characters; the six lists run alone, one at a time; the whole suite, the type-check, `npm run package` and the real-document score on the final tree); ran a six-lens review and acted on what stood (two regressions in my own
-cures fixed and re-measured by me, 36 survivors pinned, a dozen wrong figures and comments corrected, the vm watchdog for rows that cannot otherwise fail) and filed the rest (1 and done: the stack copy, the Outline, the preview, the Polish list);
-gave status lines before each long run.
-**Went wrong.** (1) The workers' commit messages carry counts the final files do not ("27 of 31" is 27 of 33 tests; five stated figures in comments and docstrings did not reproduce, three mutant ids in the README and test comments were wrong, a doc
-comment was left on the wrong declaration); they cannot be amended and the review round caught them. (2) My follow-up brief said the cost-only mutants "take seconds" on a line of 10,000,000 characters; they take hours (one needed 44 s at 100,000
-characters), so the worker had to add a `node:vm` watchdog: I copied a premise from a lens instead of measuring it (Learning 905). (3) The P1 speed-up I asked for made three of its own lists' mutants unreachable and flipped a fourth; the worker
-caught it, I had not warned of it (Learning 904). (4) The review phase took 4 h 13 min with the machine at load 60 to 380 from other work, which made two kills false (E12, E16) and E03 look like a hang; I re-ran E03 alone (4 s, a real kill). (5) My
-cap of 24 verifications left the 12 mutation findings M04 to M15 to the runner instead of two refuters (the runner is the stronger check, but the record must say so). (6) The harness nudged me once for silence during the review wait.
-**Known residuals (filed or stated):** the BACKLOG Up Next items (Session 339's round, the standing guard), the Polish items, 30 mutants argued equivalent, the review's size-cap and ratio nits, the Session 333 and 334 items, the S322 item's part
-(1), the S311 item's parts (4), (10), (11); `test:integration` and `test:lsp` NOT run.
-**TDD:** RED before GREEN for every cure (rows and oracle committed RED first on the parent, re-run from my side); the survivor rows and the two speed-ups are green on arrival by nature, their RED is the mutant (each shown failing by a worker and
-re-run by me in the six lists; P1 and P2 are refactors under the oracle with the oracle green before and after and the timings re-measured by me).
-**Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** three workflows (3 workers, 898,512 tokens, 416 tool calls, 1 h 9 min; the review, 54 agents, 6,042,009 tokens, 1,563 tool calls, 4 h 13 min; 3 workers, 765,690
-tokens, 365 tool calls, 52 min; 7.7 million subagent tokens in all), nine list runs of 3 to 15 minutes, no quarto renders, the machine at load 7 to 380.
