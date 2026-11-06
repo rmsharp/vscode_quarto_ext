@@ -104,13 +104,15 @@ describe("Session 343 -- the document-text memo returns a document's text, built
     expect(memo.textOf(d, () => d.text)).toBe("beta");
   });
 
-  it("an empty text is a text: it is kept, not read again", () => {
-    const memo = createDocumentTextMemo();
-    const d = doc("");
-    const r = reader(d);
-    expect(memo.textOf(d, r.read)).toBe("");
-    expect(memo.textOf(d, r.read)).toBe("");
-    expect(r.calls()).toBe(1);
+  it("every text is a text and is returned as it was read: an empty one, whitespace, line endings and a separator are kept untouched, and read once", () => {
+    for (const text of ["", " ", "\n", "\r\n", "  padded  ", "a\r\nb\r\n", "\u2028", "\ufeff# bom", "x".repeat(100_000)]) {
+      const memo = createDocumentTextMemo();
+      const d = doc(text);
+      const r = reader(d);
+      expect(memo.textOf(d, r.read)).toBe(text);
+      expect(memo.textOf(d, r.read)).toBe(text);
+      expect(r.calls(), JSON.stringify(text.slice(0, 12))).toBe(1);
+    }
   });
 });
 
@@ -223,6 +225,30 @@ describe("Session 343 -- the document-text memo is lazy where the caller's guard
     // The memo is still usable after the collection, and answers a new document its own text.
     const next = doc("another");
     expect(memo.textOf(next, () => next.text)).toBe("another");
+  });
+
+  it("the entry of a collected document takes no slot: d2, then d1, d1 collected, then d3 -- d2 is still kept", async () => {
+    setFlagsFromString("--expose-gc");
+    const gc = runInNewContext("gc") as () => void;
+    const memo = createDocumentTextMemo();
+    const d2 = doc("second");
+    const r2 = reader(d2);
+    memo.textOf(d2, r2.read);
+    let gone: WeakRef<FakeDocument> | undefined;
+    ((): void => {
+      const d1 = doc("first");
+      gone = new WeakRef(d1);
+      memo.textOf(d1, () => d1.text);
+    })();
+    for (let i = 0; i < 3; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      gc();
+    }
+    expect(gone?.deref()).toBeUndefined();
+    const d3 = doc("third");
+    memo.textOf(d3, () => d3.text);
+    memo.textOf(d2, r2.read);
+    expect(r2.calls()).toBe(1);
   });
 });
 

@@ -1,0 +1,434 @@
+[
+ {
+  "name": "M01 an entry matches by version alone (the document object is ignored)",
+  "file": "src/core/document-text-memo.ts",
+  "from": "entries.findIndex((entry) => entry.document.deref() === document)",
+  "to": "entries.findIndex((entry) => entry.version === document.version)",
+  "expect": "killed",
+  "why": "two document objects at one version share an entry; killed by the 'never share an entry' row and the oracle; killed by document-text-memo.test.ts"
+ },
+ {
+  "name": "M02 a hit needs no version match",
+  "file": "src/core/document-text-memo.ts",
+  "from": "if (at !== -1 && entries[at].version === version) {",
+  "to": "if (at !== -1) {",
+  "expect": "killed",
+  "why": "a new version is served the old text; killed by document-text-memo.test.ts"
+ },
+ {
+  "name": "M03 a hit needs a DIFFERENT version",
+  "file": "src/core/document-text-memo.ts",
+  "from": "if (at !== -1 && entries[at].version === version) {",
+  "to": "if (at !== -1 && entries[at].version !== version) {",
+  "expect": "killed",
+  "why": "every second ask at one version reads again, and a new version is served the old text; killed by document-text-memo.test.ts"
+ },
+ {
+  "name": "M04 a hit drops its own entry",
+  "file": "src/core/document-text-memo.ts",
+  "from": "        const [hit] = entries.splice(at, 1);\n        entries.push(hit);\n        return hit.text;",
+  "to": "        const [hit] = entries.splice(at, 1);\n        return hit.text;",
+  "expect": "killed",
+  "why": "the third ask at one version reads again; killed by document-text-memo.test.ts"
+ },
+ {
+  "name": "M05 a hit does not refresh recency",
+  "file": "src/core/document-text-memo.ts",
+  "from": "        const [hit] = entries.splice(at, 1);\n        entries.push(hit);\n        return hit.text;",
+  "to": "        return entries[at].text;",
+  "expect": "killed",
+  "why": "a, b, a, c evicts a and keeps b; killed by the recency row; killed by document-text-memo.test.ts"
+ },
+ {
+  "name": "M06 three entries are kept",
+  "file": "src/core/document-text-memo.ts",
+  "from": "export const DOCUMENT_TEXT_MEMO_ENTRIES = 2;",
+  "to": "export const DOCUMENT_TEXT_MEMO_ENTRIES = 3;",
+  "expect": "killed",
+  "why": "a third document does not evict; killed by document-text-memo.test.ts"
+ },
+ {
+  "name": "M07 one entry is kept",
+  "file": "src/core/document-text-memo.ts",
+  "from": "export const DOCUMENT_TEXT_MEMO_ENTRIES = 2;",
+  "to": "export const DOCUMENT_TEXT_MEMO_ENTRIES = 1;",
+  "expect": "killed",
+  "why": "two documents are not both kept; killed by document-text-memo.test.ts"
+ },
+ {
+  "name": "M08 the most recently used is evicted",
+  "file": "src/core/document-text-memo.ts",
+  "from": "      while (entries.length > DOCUMENT_TEXT_MEMO_ENTRIES) {\n        entries.shift();",
+  "to": "      while (entries.length > DOCUMENT_TEXT_MEMO_ENTRIES) {\n        entries.pop();",
+  "expect": "killed",
+  "why": "the new entry is dropped as soon as it is stored; killed by document-text-memo.test.ts"
+ },
+ {
+  "name": "M09 the eviction test keeps one fewer (>=)",
+  "file": "src/core/document-text-memo.ts",
+  "from": "while (entries.length > DOCUMENT_TEXT_MEMO_ENTRIES) {",
+  "to": "while (entries.length >= DOCUMENT_TEXT_MEMO_ENTRIES) {",
+  "expect": "killed",
+  "why": "one entry only is kept: two documents are not both kept; killed by document-text-memo.test.ts"
+ },
+ {
+  "name": "M10 an old version of a document is not replaced (two entries for one document)",
+  "file": "src/core/document-text-memo.ts",
+  "from": "      const stale = indexOf(document);\n      if (stale !== -1) {\n        entries.splice(stale, 1);\n      }\n",
+  "to": "",
+  "expect": "killed",
+  "why": "a new version takes a second slot and the first match is the old version, so every ask reads; killed by document-text-memo.test.ts"
+ },
+ {
+  "name": "M11 the stale index is the one found before the read (equal unless the read re-enters the memo)",
+  "file": "src/core/document-text-memo.ts",
+  "from": "      const stale = indexOf(document);",
+  "to": "      const stale = at;",
+  "expect": "survives",
+  "why": "argued equivalent: the read of the text does not touch the memo (the thunk is `getText()` of a document), so the index cannot move; the same answer in every row"
+ },
+ {
+  "name": "M12 the dead entries are not pruned",
+  "file": "src/core/document-text-memo.ts",
+  "from": "      for (let i = entries.length - 1; i >= 0; i--) {\n        if (entries[i].document.deref() === undefined) {\n          entries.splice(i, 1);\n        }\n      }\n",
+  "to": "",
+  "expect": "killed",
+  "why": "an entry of a collected document takes a slot and evicts a live one: killed by the GC slot row; killed by document-text-memo.test.ts"
+ },
+ {
+  "name": "M13 the prune drops the LIVE entries",
+  "file": "src/core/document-text-memo.ts",
+  "from": "if (entries[i].document.deref() === undefined) {",
+  "to": "if (entries[i].document.deref() !== undefined) {",
+  "expect": "killed",
+  "why": "nothing is ever kept; killed by document-text-memo.test.ts"
+ },
+ {
+  "name": "M14 the entry is matched by the WeakRef, not its target",
+  "file": "src/core/document-text-memo.ts",
+  "from": "entry.document.deref() === document",
+  "to": "(entry.document as unknown) === document",
+  "expect": "killed",
+  "why": "no document is ever found; killed by document-text-memo.test.ts"
+ },
+ {
+  "name": "M15 the version stored is the next one",
+  "file": "src/core/document-text-memo.ts",
+  "from": "entries.push({ document: new WeakRef(document), version, text });",
+  "to": "entries.push({ document: new WeakRef(document), version: version + 1, text });",
+  "expect": "killed",
+  "why": "a hit never matches; killed by document-text-memo.test.ts"
+ },
+ {
+  "name": "M16 the text stored is trimmed",
+  "file": "src/core/document-text-memo.ts",
+  "from": "entries.push({ document: new WeakRef(document), version, text });",
+  "to": "entries.push({ document: new WeakRef(document), version, text: text.trim() });",
+  "expect": "killed",
+  "why": "a hit answers a different string than the first ask: killed by the whitespace texts row; killed by document-text-memo.test.ts"
+ },
+ {
+  "name": "M17 the text is read twice",
+  "file": "src/core/document-text-memo.ts",
+  "from": "      const text = getText();",
+  "to": "      getText();\n      const text = getText();",
+  "expect": "killed",
+  "why": "the count rows; killed by document-text-memo.test.ts"
+ },
+ {
+  "name": "M18 a throwing read is swallowed",
+  "file": "src/core/document-text-memo.ts",
+  "from": "      const text = getText();",
+  "to": "      let text = \"\";\n      try {\n        text = getText();\n      } catch {\n        // swallowed\n      }",
+  "expect": "killed",
+  "why": "the error does not propagate, and an empty text is stored; killed by document-text-memo.test.ts"
+ },
+ {
+  "name": "M19 a hit answers the first entry, not the document's",
+  "file": "src/core/document-text-memo.ts",
+  "from": "        return hit.text;",
+  "to": "        return entries[0]?.text ?? hit.text;",
+  "expect": "killed",
+  "why": "two documents are answered the same text; killed by document-text-memo.test.ts"
+ },
+ {
+  "name": "M20 an eviction test with `if` for the `while` (one push per call, so the same)",
+  "file": "src/core/document-text-memo.ts",
+  "from": "      while (entries.length > DOCUMENT_TEXT_MEMO_ENTRIES) {",
+  "to": "      if (entries.length > DOCUMENT_TEXT_MEMO_ENTRIES) {",
+  "expect": "survives",
+  "why": "argued equivalent: one entry is pushed per call, so the loop runs at most once and `if` keeps the same entries"
+ },
+ {
+  "name": "M22 the version is truncated to a whole number",
+  "file": "src/core/document-text-memo.ts",
+  "from": "      const version = document.version;",
+  "to": "      const version = Math.trunc(document.version);",
+  "expect": "killed",
+  "why": "1.5 and 1 share an entry: a fraction version is served another version's text (the oracle draws fractions); killed by document-text-memo.test.ts"
+ },
+ {
+  "name": "M23 a collected-entry test reads a document that is not there",
+  "file": "src/core/document-text-memo.ts",
+  "from": "if (entries[i].document.deref() === undefined) {",
+  "to": "if (entries[i].document === undefined) {",
+  "expect": "killed",
+  "why": "the WeakRef object itself is never undefined, so nothing is pruned: the same as M12; killed by document-text-memo.test.ts"
+ },
+ {
+  "name": "DT01: a second memo is made at the top level (two features would not share an entry)",
+  "file": "src/features/document-text.ts",
+  "from": "const memo = createDocumentTextMemo();\n",
+  "to": "const memo = createDocumentTextMemo();\nconst other = createDocumentTextMemo();\n",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name '2 calls of createDocumentTextMemo')"
+ },
+ {
+  "name": "DT02: the memo is made inside documentText (it keeps nothing between calls)",
+  "file": "src/features/document-text.ts",
+  "from": "const memo = createDocumentTextMemo();\n\n/** The text of `document` as it is now: `document.getText()` on the first ask of a version, the same string while the version stays. */\nexport function documentText(document: vscode.TextDocument): string {\n",
+  "to": "/** The text of `document` as it is now: `document.getText()` on the first ask of a version, the same string while the version stays. */\nexport function documentText(document: vscode.TextDocument): string {\n  const memo = createDocumentTextMemo();\n",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'is not the initializer of a top-level constant')"
+ },
+ {
+  "name": "DT03: the thunk reads a trimmed text",
+  "file": "src/features/document-text.ts",
+  "from": "() => document.getText()",
+  "to": "() => document.getText().trim()",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'textOf is not given `() => document.getText()`')"
+ },
+ {
+  "name": "DT04: the text is read before the memo is asked (every ask joins the buffer)",
+  "file": "src/features/document-text.ts",
+  "from": "  return memo.textOf(document, () => document.getText());",
+  "to": "  const text = document.getText();\n  return memo.textOf(document, () => text);",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'textOf is not given `() => document.getText()`')"
+ },
+ {
+  "name": "DT05: the memo is asked about a fresh object (its key never matches)",
+  "file": "src/features/document-text.ts",
+  "from": "memo.textOf(document, ",
+  "to": "memo.textOf({ version: document.version }, ",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'textOf is not asked about the document documentText was given')"
+ },
+ {
+  "name": "DT06: the module imports vscode at runtime",
+  "file": "src/features/document-text.ts",
+  "from": "import type * as vscode from \"vscode\";",
+  "to": "import * as vscode from \"vscode\";",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'imports vscode at runtime')"
+ },
+ {
+  "name": "DT07: the answer is not the memo's",
+  "file": "src/features/document-text.ts",
+  "from": "  return memo.textOf(document, () => document.getText());",
+  "to": "  memo.textOf(document, () => document.getText());\n  return document.getText();",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not return the memo's `textOf(...)` answer itself')"
+ },
+ {
+  "name": "DT08: the memo module is not imported",
+  "file": "src/features/document-text.ts",
+  "from": "import { createDocumentTextMemo } from \"../core/document-text-memo\";\n",
+  "to": "",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not import ../core/document-text-memo')"
+ },
+ {
+  "name": "XT01: the text is read eagerly (a join on every cursor move in every language)",
+  "file": "src/features/execution.ts",
+  "from": "      () => documentText(editor.document),\n",
+  "to": "      documentText(editor.document),\n",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not hand isInCodeCell `() => documentText(editor.document)`')"
+ },
+ {
+  "name": "XT02: the text is read through getText again (no memo)",
+  "file": "src/features/execution.ts",
+  "from": "      () => documentText(editor.document),\n",
+  "to": "      () => editor.document.getText(),\n",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not hand isInCodeCell `() => documentText(editor.document)`')"
+ },
+ {
+  "name": "XT03: the import of documentText is dropped",
+  "file": "src/features/execution.ts",
+  "from": "import { documentText } from \"./document-text\";\n",
+  "to": "",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'execution.ts does not import documentText')"
+ },
+ {
+  "name": "XT04: the text of another document is read",
+  "file": "src/features/execution.ts",
+  "from": "      () => documentText(editor.document),\n",
+  "to": "      () => documentText(vscode.window.visibleTextEditors[0].document),\n",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not hand isInCodeCell `() => documentText(editor.document)`')"
+ },
+ {
+  "name": "XT05: the memo is also asked eagerly beside the thunk",
+  "file": "src/features/execution.ts",
+  "from": "  setContextKey(IN_CELL_CONTEXT, inCell);\n}",
+  "to": "  void (editor !== undefined && documentText(editor.document));\n  setContextKey(IN_CELL_CONTEXT, inCell);\n}",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name '2 calls of documentText in updateCellContext')"
+ },
+ {
+  "name": "XT06: getText is called beside the memo",
+  "file": "src/features/execution.ts",
+  "from": "  setContextKey(IN_CELL_CONTEXT, inCell);\n}",
+  "to": "  void editor?.document.getText();\n  setContextKey(IN_CELL_CONTEXT, inCell);\n}",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'updateCellContext calls getText itself')"
+ },
+ {
+  "name": "PT01: the predicate reads getText again (no memo)",
+  "file": "src/features/preview.ts",
+  "from": "isRenderScript(doc.uri.fsPath, documentText(doc))",
+  "to": "isRenderScript(doc.uri.fsPath, doc.getText())",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not end in `isRenderScript(doc.uri.fsPath, documentText(doc))`')"
+ },
+ {
+  "name": "PT02: the extension prefilter comes after the read (a 20 MB log is joined on every keystroke)",
+  "file": "src/features/preview.ts",
+  "from": "    isRenderScriptExtension(doc.uri.fsPath) &&\n    isRenderScript(doc.uri.fsPath, documentText(doc))",
+  "to": "    isRenderScript(doc.uri.fsPath, documentText(doc)) &&\n    isRenderScriptExtension(doc.uri.fsPath)",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not come before the read of the text')"
+ },
+ {
+  "name": "PT03: the extension prefilter is dropped",
+  "file": "src/features/preview.ts",
+  "from": "    isRenderScriptExtension(doc.uri.fsPath) &&\n",
+  "to": "",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not come before the read of the text')"
+ },
+ {
+  "name": "PT04: the import of documentText is dropped",
+  "file": "src/features/preview.ts",
+  "from": "import { documentText } from \"./document-text\";\n",
+  "to": "",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'preview.ts does not import documentText')"
+ },
+ {
+  "name": "PT05: getText is called in the chain before the prefilter",
+  "file": "src/features/preview.ts",
+  "from": "    doc.uri.scheme === \"file\" &&\n",
+  "to": "    doc.uri.scheme === \"file\" &&\n    doc.getText() !== null &&\n",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'isPreviewableRenderScript calls getText itself')"
+ },
+ {
+  "name": "PT06: a further operand follows the read of the text",
+  "file": "src/features/preview.ts",
+  "from": "isRenderScript(doc.uri.fsPath, documentText(doc))\n",
+  "to": "isRenderScript(doc.uri.fsPath, documentText(doc)) &&\n    doc.uri.fsPath !== \"\"\n",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the read of the text is not the last operand')"
+ },
+ {
+  "name": "BT01: the ranges are built from getText again (no memo)",
+  "file": "src/features/cell-background.ts",
+  "from": "cellBackgroundRanges(documentText(doc))",
+  "to": "cellBackgroundRanges(doc.getText())",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not hand cellBackgroundRanges `documentText(doc)`')"
+ },
+ {
+  "name": "BT02: the text is read before the guard (a join for a document that is not a quarto one)",
+  "file": "src/features/cell-background.ts",
+  "from": "  if (doc.languageId !== \"quarto\" || !readCellBackgroundSettings().enabled) {\n    return [];\n  }\n  return cellBackgroundRanges(documentText(doc)).map(",
+  "to": "  const ranges = cellBackgroundRanges(documentText(doc));\n  if (doc.languageId !== \"quarto\" || !readCellBackgroundSettings().enabled) {\n    return [];\n  }\n  return ranges.map(",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the language and settings guard does not come before the read of the text')"
+ },
+ {
+  "name": "BT03: the language is no longer part of the guard",
+  "file": "src/features/cell-background.ts",
+  "from": "doc.languageId !== \"quarto\" || ",
+  "to": "",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the language and settings guard does not come before the read of the text')"
+ },
+ {
+  "name": "BT04: the settings are no longer part of the guard",
+  "file": "src/features/cell-background.ts",
+  "from": " || !readCellBackgroundSettings().enabled",
+  "to": "",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the language and settings guard does not come before the read of the text')"
+ },
+ {
+  "name": "BT05: the import of documentText is dropped",
+  "file": "src/features/cell-background.ts",
+  "from": "import { documentText } from \"./document-text\";\n",
+  "to": "",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'cell-background.ts does not import documentText')"
+ },
+ {
+  "name": "BT06: getText is called beside the memo",
+  "file": "src/features/cell-background.ts",
+  "from": "  return cellBackgroundRanges(documentText(doc)).map(",
+  "to": "  void doc.getText();\n  return cellBackgroundRanges(documentText(doc)).map(",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'cellBackgroundRangesFor calls getText itself')"
+ },
+ {
+  "name": "MC01: an entry holds the document itself",
+  "file": "src/core/document-text-memo.ts",
+  "from": "  readonly document: WeakRef<VersionedDocument>;",
+  "to": "  readonly document: VersionedDocument;",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'Entry has the members')"
+ },
+ {
+  "name": "MC02: the entry is stored with the document, not a WeakRef of it",
+  "file": "src/core/document-text-memo.ts",
+  "from": "document: new WeakRef(document), version, text",
+  "to": "document: document as unknown as WeakRef<VersionedDocument>, version, text",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'entries.push is not called twice')"
+ },
+ {
+  "name": "MC03: a table keyed by the document",
+  "file": "src/core/document-text-memo.ts",
+  "from": "  const entries: Entry[] = [];\n",
+  "to": "  const entries: Entry[] = [];\n  const byDocument = new Map<VersionedDocument, Entry>();\n  void byDocument;\n",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the file makes a Map')"
+ },
+ {
+  "name": "MC04: an entry gets a second reference to the document",
+  "file": "src/core/document-text-memo.ts",
+  "from": "  readonly text: string;\n}",
+  "to": "  readonly text: string;\n  readonly owner: VersionedDocument;\n}",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'Entry has the members')"
+ },
+ {
+  "name": "MC05: a second WeakRef is made (the document is stored twice)",
+  "file": "src/core/document-text-memo.ts",
+  "from": "      const version = document.version;\n",
+  "to": "      const version = document.version;\n      void new WeakRef(document);\n",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not make exactly one `new WeakRef(document)`')"
+ },
+ {
+  "name": "MC06: an entry's version is not readonly",
+  "file": "src/core/document-text-memo.ts",
+  "from": "  readonly document: WeakRef<VersionedDocument>;\n  readonly version: number;",
+  "to": "  readonly document: WeakRef<VersionedDocument>;\n  version: number;",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'Entry has the members')"
+ }
+]

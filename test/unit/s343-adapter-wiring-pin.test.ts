@@ -23,6 +23,7 @@ const PREVIEW = read("src", "features", "preview.ts");
 const CONTEXT_KEY = read("src", "features", "context-key.ts");
 const DOCUMENT_TEXT = read("src", "features", "document-text.ts");
 const BACKGROUND = read("src", "features", "cell-background.ts");
+const MEMO_CORE = read("src", "core", "document-text-memo.ts");
 
 const parse = (name: string, source: string): ts.SourceFile => ts.createSourceFile(name, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 
@@ -51,6 +52,8 @@ const functionNamed = (sf: ts.SourceFile, name: string): ts.FunctionDeclaration 
   collect(sf, (n): n is ts.FunctionDeclaration => ts.isFunctionDeclaration(n) && n.name?.text === name)[0];
 /** The call `callee(...)` anywhere under `node`, every one. */
 const callsOf = (node: ts.Node, sf: ts.SourceFile, callee: string): ts.CallExpression[] => collect(node, isCall).filter((call) => flat(call.expression, sf) === callee);
+/** Every call of a method named `getText`, whatever it is called on and however it is reached (`a.getText()`, `a?.b.getText()`, `a!.getText()`). */
+const getTextCalls = (node: ts.Node): ts.CallExpression[] => collect(node, isCall).filter((call) => ts.isPropertyAccessExpression(call.expression) && call.expression.name.text === "getText");
 /** The names a parameter list declares, as written. */
 const parameterNames = (fn: ts.FunctionDeclaration | ts.ArrowFunction, sf: ts.SourceFile): string[] => fn.parameters.map((p) => flat(p.name, sf));
 /** The properties `name: initializer` of an object literal, as written. */
@@ -293,7 +296,7 @@ function problemsInDocumentTextAdapter(source: string): string[] {
     if (given[0] !== document) problems.push("textOf is not asked about the document documentText was given");
     if (given[1] !== `() => ${document}.getText()`) problems.push(`textOf is not given \`() => ${document}.getText()\` (the thunk must read the same document, and only be called on a miss)`);
   }
-  if (callsOf(sf, sf, "getText").length + callsOf(sf, sf, `${document}.getText`).length !== 1) problems.push("getText is not called exactly once in the file (inside the thunk)");
+  if (getTextCalls(sf).length !== 1) problems.push("getText is not called exactly once in the file (inside the thunk)");
   // 3. The module loads without the host: its only import of `vscode` is a type import, which is erased.
   const imports = collect(sf, (n): n is ts.ImportDeclaration => ts.isImportDeclaration(n));
   const vscodeImports = imports.filter((i) => ts.isStringLiteral(i.moduleSpecifier) && i.moduleSpecifier.text === "vscode");
@@ -321,7 +324,8 @@ function problemsInExecutionText(source: string): string[] {
   } else if (flat(asks[0].arguments[1], sf) !== "() => documentText(editor.document)") {
     problems.push("updateCellContext does not hand isInCodeCell `() => documentText(editor.document)` (a thunk over the memo: read only for a quarto document, and only once a version)");
   }
-  if (callsOf(update.body, sf, "editor.document.getText").length !== 0) problems.push("updateCellContext calls getText itself (a whole-buffer join on every cursor move)");
+  if (getTextCalls(update.body).length !== 0) problems.push("updateCellContext calls getText itself (a whole-buffer join on every cursor move)");
+  if (callsOf(update.body, sf, "documentText").length !== 1) problems.push(`${callsOf(update.body, sf, "documentText").length} calls of documentText in updateCellContext, not one (the one in the thunk)`);
   return problems;
 }
 
@@ -350,7 +354,7 @@ function problemsInPreviewText(source: string): string[] {
   if (detect === -1) problems.push("isPreviewableRenderScript does not end in `isRenderScript(doc.uri.fsPath, documentText(doc))` (the text is read through the memo)");
   if (prefilter === -1 || (detect !== -1 && prefilter > detect)) problems.push("the extension prefilter `isRenderScriptExtension(doc.uri.fsPath)` does not come before the read of the text (a 20 MB log would be joined on every keystroke)");
   if (detect !== -1 && detect !== chain.length - 1) problems.push("the read of the text is not the last operand of the && chain");
-  if (callsOf(predicate.body, sf, "doc.getText").length !== 0) problems.push("isPreviewableRenderScript calls getText itself (a whole-buffer join on every keystroke)");
+  if (getTextCalls(predicate.body).length !== 0) problems.push("isPreviewableRenderScript calls getText itself (a whole-buffer join on every keystroke)");
   return problems;
 }
 
@@ -369,7 +373,30 @@ function problemsInBackgroundText(source: string): string[] {
     const guard = ranges.body.statements.find((s): s is ts.IfStatement => ts.isIfStatement(s));
     if (guard === undefined || flat(guard.expression, sf) !== 'doc.languageId !== "quarto" || !readCellBackgroundSettings().enabled' || guard.pos > asks[0].pos) problems.push("the language and settings guard does not come before the read of the text");
   }
-  if (callsOf(ranges.body, sf, "doc.getText").length !== 0) problems.push("cellBackgroundRangesFor calls getText itself (a whole-buffer join on every refresh)");
+  if (getTextCalls(ranges.body).length !== 0) problems.push("cellBackgroundRangesFor calls getText itself (a whole-buffer join on every refresh)");
+  return problems;
+}
+
+/**
+ * Every pin `src/core/document-text-memo.ts` breaks about what an entry holds: the document ONLY through a `WeakRef`, the version and the text. The closing of the loop with the GC row of document-text-memo.test.ts,
+ * which collects a document with the memo alive: that row fails on a strong reference the day it runs, and this one names where the reference would sit.
+ */
+function problemsInMemoCore(source: string): string[] {
+  const sf = parse("document-text-memo.ts", source);
+  const problems: string[] = [];
+  const entry = collect(sf, (n): n is ts.InterfaceDeclaration => ts.isInterfaceDeclaration(n) && n.name.text === "Entry")[0];
+  if (entry === undefined) return ["the interface Entry is missing"];
+  const members = entry.members.filter(ts.isPropertySignature).map((m) => `${m.modifiers?.some((x) => x.kind === ts.SyntaxKind.ReadonlyKeyword) === true ? "readonly " : ""}${flat(m.name, sf)}: ${m.type === undefined ? "?" : flat(m.type, sf)}`);
+  if (entry.members.length !== 3 || members.join("; ") !== "readonly document: WeakRef<VersionedDocument>; readonly version: number; readonly text: string") {
+    problems.push(`Entry has the members [${members.join("; ")}], not [readonly document: WeakRef<VersionedDocument>; readonly version: number; readonly text: string] (an entry may hold the document only through a WeakRef)`);
+  }
+  const weak = collect(sf, (n): n is ts.NewExpression => ts.isNewExpression(n) && flat(n.expression, sf) === "WeakRef");
+  if (weak.length !== 1 || weak[0].arguments?.map((a) => flat(a, sf)).join() !== "document") problems.push("the file does not make exactly one `new WeakRef(document)` (the one place a document is stored)");
+  const pushes = callsOf(sf, sf, "entries.push");
+  const stored = pushes.filter((call) => call.arguments.length === 1 && ts.isObjectLiteralExpression(call.arguments[0]) && propertiesOf(call.arguments[0], sf).document === "new WeakRef(document)");
+  if (pushes.length !== 2 || stored.length !== 1) problems.push("entries.push is not called twice, once with an object whose `document` is `new WeakRef(document)` and once with the entry that was hit");
+  const holders = collect(sf, (n): n is ts.NewExpression => ts.isNewExpression(n) && ["Map", "Set", "WeakMap", "WeakSet"].includes(flat(n.expression, sf)));
+  if (holders.length > 0) problems.push(`the file makes a ${holders.map((h) => flat(h.expression, sf)).join(", ")} (a table keyed by the document would hold it strongly)`);
   return problems;
 }
 
@@ -388,5 +415,120 @@ describe("Session 343 -- how the adapters read a document's text, pinned by the 
 
   it("cell-background.ts keeps every text pin: the ranges come from the memo's text, after the language and settings guard", () => {
     expect(problemsInBackgroundText(BACKGROUND)).toEqual([]);
+  });
+
+  it("document-text-memo.ts keeps every pin: an entry holds the document only through a WeakRef", () => {
+    expect(problemsInMemoCore(MEMO_CORE)).toEqual([]);
+  });
+
+  it("the files parsed are the adapters: they parse without a syntax error and hold the functions the pins read", () => {
+    for (const [name, source] of [["document-text.ts", DOCUMENT_TEXT], ["document-text-memo.ts", MEMO_CORE], ["cell-background.ts", BACKGROUND]] as const) {
+      expect((parse(name, source) as unknown as { parseDiagnostics: ts.Diagnostic[] }).parseDiagnostics).toEqual([]);
+    }
+    expect(functionNamed(parse("document-text.ts", DOCUMENT_TEXT), "documentText")).toBeDefined();
+    expect(functionNamed(parse("cell-background.ts", BACKGROUND), "cellBackgroundRangesFor")).toBeDefined();
+    expect(functionNamed(parse("preview.ts", PREVIEW), "isPreviewableRenderScript")).toBeDefined();
+  });
+
+  // The edits: each is a live file with ONE respelling, and the pin it must break. They are the mutants of `tools/mutation-run/mutants/s343-text-memo.json`, which the runner applies to the file itself.
+  const DOCUMENT_TEXT_EDITS: Array<[string, string, string, string]> = [
+    ["DT01: a second memo is made at the top level (two features would not share an entry)", "const memo = createDocumentTextMemo();\n", "const memo = createDocumentTextMemo();\nconst other = createDocumentTextMemo();\n", "2 calls of createDocumentTextMemo"],
+    ["DT02: the memo is made inside documentText (it keeps nothing between calls)", "const memo = createDocumentTextMemo();\n\n/** The text of `document` as it is now: `document.getText()` on the first ask of a version, the same string while the version stays. */\nexport function documentText(document: vscode.TextDocument): string {\n", "/** The text of `document` as it is now: `document.getText()` on the first ask of a version, the same string while the version stays. */\nexport function documentText(document: vscode.TextDocument): string {\n  const memo = createDocumentTextMemo();\n", "is not the initializer of a top-level constant"],
+    ["DT03: the thunk reads a trimmed text", "() => document.getText()", "() => document.getText().trim()", "textOf is not given `() => document.getText()`"],
+    ["DT04: the text is read before the memo is asked (every ask joins the buffer)", "  return memo.textOf(document, () => document.getText());", "  const text = document.getText();\n  return memo.textOf(document, () => text);", "textOf is not given `() => document.getText()`"],
+    ["DT05: the memo is asked about a fresh object (its key never matches)", "memo.textOf(document, ", "memo.textOf({ version: document.version }, ", "textOf is not asked about the document documentText was given"],
+    ["DT06: the module imports vscode at runtime", "import type * as vscode from \"vscode\";", "import * as vscode from \"vscode\";", "imports vscode at runtime"],
+    ["DT07: the answer is not the memo's", "  return memo.textOf(document, () => document.getText());", "  memo.textOf(document, () => document.getText());\n  return document.getText();", "does not return the memo's `textOf(...)` answer itself"],
+    ["DT08: the memo module is not imported", "import { createDocumentTextMemo } from \"../core/document-text-memo\";\n", "", "does not import ../core/document-text-memo"],
+  ];
+
+  const EXECUTION_TEXT_EDITS: Array<[string, string, string, string]> = [
+    ["XT01: the text is read eagerly (a join on every cursor move in every language)", "      () => documentText(editor.document),\n", "      documentText(editor.document),\n", "does not hand isInCodeCell `() => documentText(editor.document)`"],
+    ["XT02: the text is read through getText again (no memo)", "      () => documentText(editor.document),\n", "      () => editor.document.getText(),\n", "does not hand isInCodeCell `() => documentText(editor.document)`"],
+    ["XT03: the import of documentText is dropped", "import { documentText } from \"./document-text\";\n", "", "execution.ts does not import documentText"],
+    ["XT04: the text of another document is read", "      () => documentText(editor.document),\n", "      () => documentText(vscode.window.visibleTextEditors[0].document),\n", "does not hand isInCodeCell `() => documentText(editor.document)`"],
+    ["XT05: the memo is also asked eagerly beside the thunk", "  setContextKey(IN_CELL_CONTEXT, inCell);\n}", "  void (editor !== undefined && documentText(editor.document));\n  setContextKey(IN_CELL_CONTEXT, inCell);\n}", "2 calls of documentText in updateCellContext"],
+    ["XT06: getText is called beside the memo", "  setContextKey(IN_CELL_CONTEXT, inCell);\n}", "  void editor?.document.getText();\n  setContextKey(IN_CELL_CONTEXT, inCell);\n}", "updateCellContext calls getText itself"],
+  ];
+
+  const PREVIEW_TEXT_EDITS: Array<[string, string, string, string]> = [
+    ["PT01: the predicate reads getText again (no memo)", "isRenderScript(doc.uri.fsPath, documentText(doc))", "isRenderScript(doc.uri.fsPath, doc.getText())", "does not end in `isRenderScript(doc.uri.fsPath, documentText(doc))`"],
+    ["PT02: the extension prefilter comes after the read (a 20 MB log is joined on every keystroke)", "    isRenderScriptExtension(doc.uri.fsPath) &&\n    isRenderScript(doc.uri.fsPath, documentText(doc))", "    isRenderScript(doc.uri.fsPath, documentText(doc)) &&\n    isRenderScriptExtension(doc.uri.fsPath)", "does not come before the read of the text"],
+    ["PT03: the extension prefilter is dropped", "    isRenderScriptExtension(doc.uri.fsPath) &&\n", "", "does not come before the read of the text"],
+    ["PT04: the import of documentText is dropped", "import { documentText } from \"./document-text\";\n", "", "preview.ts does not import documentText"],
+    ["PT05: getText is called in the chain before the prefilter", "    doc.uri.scheme === \"file\" &&\n", "    doc.uri.scheme === \"file\" &&\n    doc.getText() !== null &&\n", "isPreviewableRenderScript calls getText itself"],
+    ["PT06: a further operand follows the read of the text", "isRenderScript(doc.uri.fsPath, documentText(doc))\n", "isRenderScript(doc.uri.fsPath, documentText(doc)) &&\n    doc.uri.fsPath !== \"\"\n", "the read of the text is not the last operand"],
+  ];
+
+  const BACKGROUND_TEXT_EDITS: Array<[string, string, string, string]> = [
+    ["BT01: the ranges are built from getText again (no memo)", "cellBackgroundRanges(documentText(doc))", "cellBackgroundRanges(doc.getText())", "does not hand cellBackgroundRanges `documentText(doc)`"],
+    ["BT02: the text is read before the guard (a join for a document that is not a quarto one)", "  if (doc.languageId !== \"quarto\" || !readCellBackgroundSettings().enabled) {\n    return [];\n  }\n  return cellBackgroundRanges(documentText(doc)).map(", "  const ranges = cellBackgroundRanges(documentText(doc));\n  if (doc.languageId !== \"quarto\" || !readCellBackgroundSettings().enabled) {\n    return [];\n  }\n  return ranges.map(", "the language and settings guard does not come before the read of the text"],
+    ["BT03: the language is no longer part of the guard", "doc.languageId !== \"quarto\" || ", "", "the language and settings guard does not come before the read of the text"],
+    ["BT04: the settings are no longer part of the guard", " || !readCellBackgroundSettings().enabled", "", "the language and settings guard does not come before the read of the text"],
+    ["BT05: the import of documentText is dropped", "import { documentText } from \"./document-text\";\n", "", "cell-background.ts does not import documentText"],
+    ["BT06: getText is called beside the memo", "  return cellBackgroundRanges(documentText(doc)).map(", "  void doc.getText();\n  return cellBackgroundRanges(documentText(doc)).map(", "cellBackgroundRangesFor calls getText itself"],
+  ];
+
+  const MEMO_CORE_EDITS: Array<[string, string, string, string]> = [
+    ["MC01: an entry holds the document itself", "  readonly document: WeakRef<VersionedDocument>;", "  readonly document: VersionedDocument;", "Entry has the members"],
+    ["MC02: the entry is stored with the document, not a WeakRef of it", "document: new WeakRef(document), version, text", "document: document as unknown as WeakRef<VersionedDocument>, version, text", "entries.push is not called twice"],
+    ["MC03: a table keyed by the document", "  const entries: Entry[] = [];\n", "  const entries: Entry[] = [];\n  const byDocument = new Map<VersionedDocument, Entry>();\n  void byDocument;\n", "the file makes a Map"],
+    ["MC04: an entry gets a second reference to the document", "  readonly text: string;\n}", "  readonly text: string;\n  readonly owner: VersionedDocument;\n}", "Entry has the members"],
+    ["MC05: a second WeakRef is made (the document is stored twice)", "      const version = document.version;\n", "      const version = document.version;\n      void new WeakRef(document);\n", "does not make exactly one `new WeakRef(document)`"],
+    ["MC06: an entry's version is not readonly", "  readonly document: WeakRef<VersionedDocument>;\n  readonly version: number;", "  readonly document: WeakRef<VersionedDocument>;\n  version: number;", "Entry has the members"],
+  ];
+
+  it.each(DOCUMENT_TEXT_EDITS)("document-text.ts, %s: the pin is broken, and is named", (_name, from, to, named) => {
+    expect(DOCUMENT_TEXT.split(from).length - 1).toBe(1);
+    const problems = problemsInDocumentTextAdapter(DOCUMENT_TEXT.replace(from, () => to));
+    expect(problems.length).toBeGreaterThan(0);
+    expect(problems.join("\n")).toContain(named);
+  });
+
+  it.each(EXECUTION_TEXT_EDITS)("execution.ts, %s: the pin is broken, and is named", (_name, from, to, named) => {
+    expect(EXECUTION.split(from).length - 1).toBe(1);
+    const problems = problemsInExecutionText(EXECUTION.replace(from, () => to));
+    expect(problems.length).toBeGreaterThan(0);
+    expect(problems.join("\n")).toContain(named);
+  });
+
+  it.each(PREVIEW_TEXT_EDITS)("preview.ts, %s: the pin is broken, and is named", (_name, from, to, named) => {
+    expect(PREVIEW.split(from).length - 1).toBe(1);
+    const problems = problemsInPreviewText(PREVIEW.replace(from, () => to));
+    expect(problems.length).toBeGreaterThan(0);
+    expect(problems.join("\n")).toContain(named);
+  });
+
+  it.each(BACKGROUND_TEXT_EDITS)("cell-background.ts, %s: the pin is broken, and is named", (_name, from, to, named) => {
+    expect(BACKGROUND.split(from).length - 1).toBe(1);
+    const problems = problemsInBackgroundText(BACKGROUND.replace(from, () => to));
+    expect(problems.length).toBeGreaterThan(0);
+    expect(problems.join("\n")).toContain(named);
+  });
+
+  it.each(MEMO_CORE_EDITS)("document-text-memo.ts, %s: the pin is broken, and is named", (_name, from, to, named) => {
+    expect(MEMO_CORE.split(from).length - 1).toBe(1);
+    const problems = problemsInMemoCore(MEMO_CORE.replace(from, () => to));
+    expect(problems.length).toBeGreaterThan(0);
+    expect(problems.join("\n")).toContain(named);
+  });
+
+  // A pin read from the syntax tree is not moved by what is not code.
+  it("a comment, a string and an unused identifier that spell the memo's calls do not satisfy the pins, and a comment that names getText does not break them", () => {
+    const decoy = DOCUMENT_TEXT.replace("  return memo.textOf(document, () => document.getText());", "  // return memo.textOf(document, () => document.getText());\n  const unused = \"memo.textOf(document, () => document.getText())\" + `memo.textOf(document, () => document.getText())`;\n  void unused;\n  return document.getText();");
+    expect(decoy).not.toBe(DOCUMENT_TEXT);
+    expect(problemsInDocumentTextAdapter(decoy).join("\n")).toContain("does not return the memo's `textOf(...)` answer itself");
+    const commented = DOCUMENT_TEXT.replace("const memo = createDocumentTextMemo();", "// document.getText() on every ask is what this replaced\nconst NOTE = 'document.getText()';\nconst memo = createDocumentTextMemo();");
+    expect(commented).not.toBe(DOCUMENT_TEXT);
+    expect(problemsInDocumentTextAdapter(commented)).toEqual([]);
+    const execution = EXECUTION.replace("const IN_CELL_CONTEXT", "// () => editor.document.getText() was here\nconst NOTE = 'editor.document.getText()';\nconst IN_CELL_CONTEXT");
+    expect(execution).not.toBe(EXECUTION);
+    expect(problemsInExecutionText(execution)).toEqual([]);
+    const preview = PREVIEW.replace("function isPreviewableRenderScript(", "// doc.getText() on every keystroke\nconst NOTE = 'doc.getText()';\nfunction isPreviewableRenderScript(");
+    expect(preview).not.toBe(PREVIEW);
+    expect(problemsInPreviewText(preview)).toEqual([]);
+    const background = BACKGROUND.replace("export function cellBackgroundRangesFor(", "// doc.getText() on every refresh\nconst NOTE = 'doc.getText()';\nexport function cellBackgroundRangesFor(");
+    expect(background).not.toBe(BACKGROUND);
+    expect(problemsInBackgroundText(background)).toEqual([]);
   });
 });
