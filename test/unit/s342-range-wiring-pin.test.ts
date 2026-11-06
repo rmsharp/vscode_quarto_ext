@@ -411,11 +411,12 @@ describe("Session 342 -- the edit checks' use of the range lookup, pinned by the
 
   // Two respellings the pins leave ALONE, on purpose (the review round's argued survivors, `A05` and `FB` of `tools/mutation-run/mutants/s342-review-typing.json`): a pin that named them would redden a harmless refactor.
   it("an item with no kept edit that keeps an EMPTY list instead of none (A05) is the same to VS Code, and an emptiness test on the unfiltered edits (FB) can never be true after the early return: neither is a pin", () => {
+    // (`replace` is a no-op on a source that already has the respelling, so that the runner can apply it to the file itself and this row still holds: the mutant is then an argued survivor, not a kill of this row.)
     const empty = COMPLETION.replace("      item.additionalTextEdits = kept.length > 0 ? kept : undefined;", "      item.additionalTextEdits = kept;");
-    expect(empty).not.toBe(COMPLETION);
+    expect(empty).toContain("      item.additionalTextEdits = kept;");
     expect(problemsInCompletion(empty)).toEqual([]);
     const unfiltered = FORMAT.replace("  if (kept.length === 0) {\n    return;\n  }", "  if (edits.length === 0) {\n    return;\n  }");
-    expect(unfiltered).not.toBe(FORMAT);
+    expect(unfiltered).toContain("  if (edits.length === 0) {\n    return;\n  }");
     expect(problemsInFormat(unfiltered)).toEqual([]);
   });
 
