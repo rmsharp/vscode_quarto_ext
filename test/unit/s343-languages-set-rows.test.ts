@@ -145,22 +145,58 @@ function oneLanguageFences(count: number, tag: string): string {
   return Array.from({ length: count }, () => "```{python}\nx\n```").join("\n") + "\n" + tag;
 }
 
+/**
+ * The clock row's setup: the code is compiled on a small distinct text before either window opens, then the baseline window is the one-language text of `count` fences and the run's window the distinct-language text of the
+ * same count, each with a tag of its own. `resolve` and `now` are the resolver and the clock (the real ones in the row, stand-ins in the row that pins this setup).
+ */
+function measureDistinctAgainstOne(count: number, resolve: (fileName: string, text: string) => unknown, now?: () => number): Timed<unknown> {
+  resolve("a.qmd", distinctFences(64, "warm"));
+  return timeAgainstBaseline(
+    () => resolve("a.qmd", oneLanguageFences(count, "control")),
+    () => resolve("a.qmd", distinctFences(count, "distinct")),
+    now,
+  );
+}
+
 /** The ratio limit of the clock row: the parent's is 21 at 64,000 distinct languages and the cure's about 1 (the lead's probe, load 6 to 15). */
 const RATIO_LIMIT = 4;
 const DISTINCT_LANGUAGES = 64_000;
 
 describe("Session 343 -- resolveDocumentEngine over thousands of DISTINCT fence languages costs about the same call on one language, not their square (the BACKLOG item \"What Session 342's review round found beside the typing-path cures\", part 4, SIB-06)", () => {
   it(`${DISTINCT_LANGUAGES.toLocaleString("en-US")} distinct languages: the engine is knitr (the last fence is {r}), and the call takes under ${RATIO_LIMIT} times the same call on ${DISTINCT_LANGUAGES.toLocaleString("en-US")} fences of one language`, () => {
-    resolveDocumentEngine("a.qmd", distinctFences(64, "warm")); // the code is compiled before either window opens
-    const run = timeAgainstBaseline(
-      () => resolveDocumentEngine("a.qmd", oneLanguageFences(DISTINCT_LANGUAGES, "control")),
-      () => resolveDocumentEngine("a.qmd", distinctFences(DISTINCT_LANGUAGES, "distinct")),
-    );
+    const run = measureDistinctAgainstOne(DISTINCT_LANGUAGES, resolveDocumentEngine);
     expect(run.result).toBe("knitr");
     expect(run.baselineMs).toBeGreaterThan(0);
     expect(run.ms).toBeGreaterThan(0);
     expect(clockBreaks(run, RATIO_LIMIT).join("; ")).toBe("");
   }, 120_000);
+
+  // The clock row's SETUP, on a stand-in for the resolver and a clock only the stand-in advances: which texts the windows are handed, in which order, and that a warm-up comes first and outside both windows.
+  it("measureDistinctAgainstOne warms the code on a small distinct text, then times the one-language text of the same fence count as the baseline and the distinct-language text as the run, each fresh and each once", () => {
+    let t = 500;
+    const seen: string[] = [];
+    const run = measureDistinctAgainstOne(
+      30,
+      (_fileName, text) => {
+        seen.push(text);
+        t += seen.length === 1 ? 7000 : seen.length === 2 ? 40 : 130; // the warm-up's cost is in neither window
+        return "answer";
+      },
+      () => t,
+    );
+    expect(run).toEqual({ result: "answer", ms: 130, baselineMs: 40 });
+    expect(seen).toHaveLength(3);
+    const [warm, control, distinct] = seen;
+    const languagesOf = (text: string): string[] => [...text.matchAll(/^```\{(\w+)\}$/gm)].map((m) => m[1]);
+    expect(languagesOf(warm)).toHaveLength(64);
+    expect(new Set(languagesOf(warm)).size).toBe(64);
+    expect(languagesOf(control)).toEqual(Array.from({ length: 30 }, () => "python"));
+    expect(languagesOf(distinct)).toHaveLength(30);
+    expect(new Set(languagesOf(distinct)).size).toBe(30);
+    expect(new Set(seen).size).toBe(3); // three different strings: nothing a memo on the exact text could answer twice
+    expect(control.endsWith("\ncontrol")).toBe(true);
+    expect(distinct.endsWith("\ndistinct")).toBe(true);
+  });
 
   it("keeps the size and the limit the clock row is built on", () => {
     expect([RATIO_LIMIT, DISTINCT_LANGUAGES]).toEqual([4, 64_000]);
@@ -302,6 +338,10 @@ describe("Session 343 -- the list languagesInMarkdown makes is the one the Array
     ];
     const fill = ["", "prose", "# Heading", "x = 1", "```", "<!-- ```{julia} -->", "---"];
     const disagreements: string[] = [];
+    let compared = 0;
+    let withLanguages = 0;
+    let longest = 0;
+    let repeated = 0;
     for (let doc = 0; doc < 3000; doc++) {
       const lines: string[] = [];
       const count = Math.floor(next() * 40);
@@ -310,7 +350,16 @@ describe("Session 343 -- the list languagesInMarkdown makes is the one the Array
       const old = oldLanguagesInMarkdown(text);
       const got = languagesInMarkdown(text);
       if (JSON.stringify(got) !== JSON.stringify(old)) disagreements.push(`doc ${doc}: ${JSON.stringify(got)} against ${JSON.stringify(old)}`);
+      compared++;
+      if (old.length > 0) withLanguages++;
+      longest = Math.max(longest, old.length);
+      if ([...text.matchAll(/^[\t >]*```+\s*\{([a-zA-Z0-9_]+)([ ,].*)?\}\s*$/gm)].length > old.length) repeated++; // a counted fence whose language was already in the list
     }
     expect(disagreements).toEqual([]);
+    // the sample is what the title says: 3,000 documents, most of them with languages, some with a long list, a good share where a language is written twice or more (or a fence is not counted)
+    expect(compared).toBe(3000);
+    expect(withLanguages).toBeGreaterThan(2500); // 2,843 at seed 343
+    expect(longest).toBeGreaterThanOrEqual(15); // 20
+    expect(repeated).toBeGreaterThan(1000); // 1,536
   });
 });
