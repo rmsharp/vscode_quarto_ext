@@ -109,7 +109,7 @@ describe("createCellVdocBuilder -- the answers (Session 341)", () => {
 // 11.2 to 11.5 / 27.4 to 28.5 ms, the ratio 2.1 to 2.7 on the first three and 1.9 to 2.1 on the long one.
 //
 // The limit is one second. It is not raised to make a row pass: the parent is 3.7 to 4.4 times over it on every row, and the limit and the ratio each fail it alone (`K05` of `s341-cell-vdoc.json` is the limit raised, with the
-// consequence recorded there). The ratio is the loop against its first call, which no load moves (Learning 877). Every row states its ANSWER before the clock: the number of builds, the total length of the strings, and the exact
+// consequence recorded there). The ratio is the loop against its first call in the same process, so a machine that is slow all through moves both and cancels (Learning 877); it is NOT load-proof, and the cure's own ratio read 1.9 to 2.7 over runs at load 5 to 25, under the limits of 100 (`RATIO`) and 20 (`LONG_RATIO`) by 7x or more. Every row states its ANSWER before the clock: the number of builds, the total length of the strings, and the exact
 // non-empty lines of three sampled cells (the first, the middle, the last), read back after the loop.
 //
 // The clock itself is pinned by the helper rows below (`timeLoop` and `loopRatio` have rows of their own): a clock stuck at 0 made every row of this file pass on the parent's logic until the review round (C02 / TD-1).
