@@ -31,6 +31,7 @@ import {
 } from "../core/cell-background";
 import {
   TYPING_DEBOUNCE_MS,
+  TYPING_MAX_WAIT_MS,
   createKeyedDebouncer,
   realTimers,
 } from "../core/typing-debounce";
@@ -123,11 +124,14 @@ export function registerCellBackgroundFeature(
   const decorator = new CellBackgroundDecorator();
   activeDecorator = decorator;
   decorator.refresh();
-  // An edit re-applies the tint once the typing pauses (per document); the active
-  // editor, the visible editors and the settings re-apply at once.
+  // An edit re-applies the tint once the typing pauses (per document), or at the
+  // latest TYPING_MAX_WAIT_MS after the first edit since the last re-apply while
+  // edits keep coming less than a pause apart; the active editor, the visible
+  // editors and the settings re-apply at once.
   const typing = createKeyedDebouncer({
     timers: realTimers,
     delayMs: TYPING_DEBOUNCE_MS,
+    maxWaitMs: TYPING_MAX_WAIT_MS,
   });
   context.subscriptions.push(
     decorator,

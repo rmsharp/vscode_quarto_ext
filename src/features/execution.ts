@@ -29,6 +29,7 @@ import { isInCodeCell } from "../core/in-code-cell";
 import {
   type EditorSnapshot,
   TYPING_DEBOUNCE_MS,
+  TYPING_MAX_WAIT_MS,
   createCellContextScheduler,
   realTimers,
 } from "../core/typing-debounce";
@@ -45,11 +46,13 @@ export function registerExecutionFeature(
   // used to scan the whole document. The key can therefore be stale for up to the
   // pause after an edit (the chords that read it, ctrl+enter, shift+enter,
   // ctrl+shift+enter, ctrl+alt+c and ctrl+k ctrl+f, can fall through or show the
-  // "place the cursor" message), and a stream of events under a pause apart
-  // postpones it (no maximum wait). See core/typing-debounce.
+  // "place the cursor" message), and during a stream of events under a pause apart
+  // for at most TYPING_MAX_WAIT_MS: the evaluation then runs although the events
+  // keep coming. See core/typing-debounce.
   const cellContext = createCellContextScheduler({
     timers: realTimers,
     delayMs: TYPING_DEBOUNCE_MS,
+    maxWaitMs: TYPING_MAX_WAIT_MS,
     activeSnapshot: activeDocumentSnapshot,
     evaluate: updateCellContext,
   });

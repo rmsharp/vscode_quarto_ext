@@ -100,7 +100,7 @@ function problemsInExecution(source: string): string[] {
     if (options.delayMs !== "TYPING_DEBOUNCE_MS") problems.push("the scheduler's delayMs is not TYPING_DEBOUNCE_MS");
     if (options.activeSnapshot !== "activeDocumentSnapshot") problems.push("the scheduler's activeSnapshot is not activeDocumentSnapshot");
     if (options.evaluate !== "updateCellContext") problems.push("the scheduler's evaluate is not updateCellContext");
-    if (Object.keys(options).sort().join() !== "activeSnapshot,delayMs,evaluate,timers") problems.push(`the scheduler is made with the options ${Object.keys(options).sort().join()}, not activeSnapshot,delayMs,evaluate,timers`);
+    if (Object.keys(options).sort().join() !== "activeSnapshot,delayMs,evaluate,maxWaitMs,timers") problems.push(`the scheduler is made with the options ${Object.keys(options).sort().join()}, not activeSnapshot,delayMs,evaluate,maxWaitMs,timers`);
   }
 
   // 2. The scheduler is disposed with the extension: it is one of the subscriptions pushed.
@@ -229,7 +229,7 @@ function problemsInBackground(source: string): string[] {
     const options = propertiesOf(make.arguments[0], sf);
     if (options.timers !== "realTimers") problems.push("the debouncer's timers are not realTimers");
     if (options.delayMs !== "TYPING_DEBOUNCE_MS") problems.push("the debouncer's delayMs is not TYPING_DEBOUNCE_MS");
-    if (Object.keys(options).sort().join() !== "delayMs,timers") problems.push(`the debouncer is made with the options ${Object.keys(options).sort().join()}, not delayMs,timers`);
+    if (Object.keys(options).sort().join() !== "delayMs,maxWaitMs,timers") problems.push(`the debouncer is made with the options ${Object.keys(options).sort().join()}, not delayMs,maxWaitMs,timers`);
   }
 
   // 2. The debouncer is disposed with the extension: it is one of the subscriptions pushed.
@@ -373,14 +373,14 @@ describe("Session 342 -- how execution.ts and cell-background.ts call the typing
     ["X08: the activation-time call is dropped", "  cellContext.evaluateNow();\n}", "}", "the last statement of registerExecutionFeature"],
     ["X09: the activation-time call only notes a change", "  cellContext.evaluateNow();\n}", "  cellContext.changed();\n}", "the last statement of registerExecutionFeature"],
     ["X10: the scheduler is not disposed with the extension", "  context.subscriptions.push(\n    cellContext,\n", "  context.subscriptions.push(\n", "cellContext is not among the subscriptions"],
-    ["X11: the scheduler runs on a literal delay", "    delayMs: TYPING_DEBOUNCE_MS,\n    activeSnapshot", "    delayMs: 0,\n    activeSnapshot", "delayMs is not TYPING_DEBOUNCE_MS"],
+    ["X11: the scheduler runs on a literal delay", "    delayMs: TYPING_DEBOUNCE_MS,\n    maxWaitMs", "    delayMs: 0,\n    maxWaitMs","delayMs is not TYPING_DEBOUNCE_MS"],
     ["X12: the scheduler is evaluated through the wrong function", "    evaluate: updateCellContext,\n", "    evaluate: () => undefined,\n", "evaluate is not updateCellContext"],
     ["X13: the snapshot's version is the document's line count", "{ key: document.uri.toString(), version: document.version }", "{ key: document.uri.toString(), version: document.lineCount }", "version is not document.version"],
     ["X14: the snapshot's key is a constant", "{ key: document.uri.toString(), version: document.version }", "{ key: \"active\", version: document.version }", "key is not document.uri.toString()"],
     ["X15: the evaluator reads the editor it is told, not the active one", "function updateCellContext(): void {\n  const editor = vscode.window.activeTextEditor;", "function updateCellContext(editor: vscode.TextEditor | undefined = vscode.window.activeTextEditor): void {", "takes a parameter"],
-    ["X16: the scheduler is made inside a function the register function calls (a new one wherever that function is called again)", "  const cellContext = createCellContextScheduler({\n    timers: realTimers,\n    delayMs: TYPING_DEBOUNCE_MS,\n    activeSnapshot: activeDocumentSnapshot,\n    evaluate: updateCellContext,\n  });", "  const cellContext = (() =>\n    createCellContextScheduler({\n      timers: realTimers,\n      delayMs: TYPING_DEBOUNCE_MS,\n      activeSnapshot: activeDocumentSnapshot,\n      evaluate: updateCellContext,\n    }))();", "not called directly"],
+    ["X16: the scheduler is made inside a function the register function calls (a new one wherever that function is called again)", "  const cellContext = createCellContextScheduler({\n    timers: realTimers,\n    delayMs: TYPING_DEBOUNCE_MS,\n    maxWaitMs: TYPING_MAX_WAIT_MS,\n    activeSnapshot: activeDocumentSnapshot,\n    evaluate: updateCellContext,\n  });", "  const cellContext = (() =>\n    createCellContextScheduler({\n      timers: realTimers,\n      delayMs: TYPING_DEBOUNCE_MS,\n      maxWaitMs: TYPING_MAX_WAIT_MS,\n      activeSnapshot: activeDocumentSnapshot,\n      evaluate: updateCellContext,\n    }))();", "not called directly"],
     ["X17: a second scheduler", "  cellContext.evaluateNow();\n}", "  createCellContextScheduler({ timers: realTimers, delayMs: 0, activeSnapshot: activeDocumentSnapshot, evaluate: updateCellContext });\n  cellContext.evaluateNow();\n}", "2 calls of createCellContextScheduler"],
-    ["X18: the scheduler's timers are not the host's", "    timers: realTimers,\n    delayMs: TYPING_DEBOUNCE_MS,\n    activeSnapshot", "    timers: { setTimeout: () => 0, clearTimeout: () => undefined },\n    delayMs: TYPING_DEBOUNCE_MS,\n    activeSnapshot", "timers are not realTimers"],
+    ["X18: the scheduler's timers are not the host's", "    timers: realTimers,\n    delayMs: TYPING_DEBOUNCE_MS,\n    maxWaitMs", "    timers: { setTimeout: () => 0, clearTimeout: () => undefined },\n    delayMs: TYPING_DEBOUNCE_MS,\n    maxWaitMs","timers are not realTimers"],
     ["X19: updateCellContext called directly from the register function", "  cellContext.evaluateNow();\n}", "  cellContext.evaluateNow();\n  updateCellContext();\n}", "the last statement of registerExecutionFeature"],
     ["X20: the evaluator does not read the active editor", "  const editor = vscode.window.activeTextEditor;\n  const inCell =", "  const editor = vscode.window.visibleTextEditors[0];\n  const inCell =", "does not read `const editor = vscode.window.activeTextEditor`"],
     // The VALUE of the key (the review round, M-02; mutants E01 to E04 of `tools/mutation-run/mutants/s342-review-typing.json` and their neighbours): what `updateCellContext` hands the core predicate and what it sets.
@@ -408,11 +408,11 @@ describe("Session 342 -- how execution.ts and cell-background.ts call the typing
     ["B11: the debouncer is not disposed with the extension", "    decorator,\n    typing,\n", "    decorator,\n", "typing is not among the subscriptions"],
     ["B12: the close handler is dropped", "    vscode.workspace.onDidCloseTextDocument((document) =>\n      typing.cancel(document.uri.toString()),\n    ),\n", "", "onDidCloseTextDocument is not given an arrow function"],
     ["B13: the close handler cancels the wrong key", "typing.cancel(document.uri.toString())", "typing.cancel(document.languageId)", "the close handler is not exactly"],
-    ["B14: the debouncer runs on a literal delay", "    delayMs: TYPING_DEBOUNCE_MS,\n  });\n  context", "    delayMs: 0,\n  });\n  context", "delayMs is not TYPING_DEBOUNCE_MS"],
+    ["B14: the debouncer runs on a literal delay", "    delayMs: TYPING_DEBOUNCE_MS,\n    maxWaitMs: TYPING_MAX_WAIT_MS,\n  });\n  context", "    delayMs: 0,\n    maxWaitMs: TYPING_MAX_WAIT_MS,\n  });\n  context","delayMs is not TYPING_DEBOUNCE_MS"],
     ["B15: the debouncer is made inside the document handler (it keeps no state between events)", "      if (isVisible(event.document)) {\n        typing.schedule(", "      if (isVisible(event.document)) {\n        const typing = createKeyedDebouncer({ timers: realTimers, delayMs: TYPING_DEBOUNCE_MS });\n        typing.schedule(", "2 calls of createKeyedDebouncer"],
     ["B16: the test hook goes through the debouncer", "  return activeDecorator.refresh();", "  return new Map();", "does not return `activeDecorator.refresh()`"],
     ["B17: reload no longer re-applies", "    this.decorationType = createDecorationType(readCellBackgroundSettings());\n    this.refresh();", "    this.decorationType = createDecorationType(readCellBackgroundSettings());", "reload does not call this.refresh()"],
-    ["B18: the debouncer's timers are not the host's", "    timers: realTimers,\n    delayMs: TYPING_DEBOUNCE_MS,\n  });\n  context", "    timers: { setTimeout: () => 0, clearTimeout: () => undefined },\n    delayMs: TYPING_DEBOUNCE_MS,\n  });\n  context", "timers are not realTimers"],
+    ["B18: the debouncer's timers are not the host's", "    timers: realTimers,\n    delayMs: TYPING_DEBOUNCE_MS,\n    maxWaitMs: TYPING_MAX_WAIT_MS,\n  });\n  context", "    timers: { setTimeout: () => 0, clearTimeout: () => undefined },\n    delayMs: TYPING_DEBOUNCE_MS,\n    maxWaitMs: TYPING_MAX_WAIT_MS,\n  });\n  context","timers are not realTimers"],
     // The Session 342 review round (mutation lens, M-03): the body of `isVisible`, which the document handler's guard calls. A mutant of `tools/mutation-run/mutants/s342-review-typing.json` (K01).
     ["K01: isVisible compares with `!==` (an edit in a visible document is not tinted, one in a hidden document is)", "    (editor) => editor.document === doc,", "    (editor) => editor.document !== doc,", "isVisible is not"],
   ];

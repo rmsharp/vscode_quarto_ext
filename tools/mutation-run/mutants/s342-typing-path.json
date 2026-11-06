@@ -570,8 +570,8 @@
  {
   "name": "X11: the scheduler runs on a literal delay",
   "file": "src/features/execution.ts",
-  "from": "    delayMs: TYPING_DEBOUNCE_MS,\n    activeSnapshot",
-  "to": "    delayMs: 0,\n    activeSnapshot",
+  "from": "    delayMs: TYPING_DEBOUNCE_MS,\n    maxWaitMs",
+  "to": "    delayMs: 0,\n    maxWaitMs",
   "expect": "killed",
   "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'delayMs is not TYPING_DEBOUNCE_MS')"
  },
@@ -610,8 +610,8 @@
  {
   "name": "X16: the scheduler is made inside a function the register function calls (a new one wherever that function is called again)",
   "file": "src/features/execution.ts",
-  "from": "  const cellContext = createCellContextScheduler({\n    timers: realTimers,\n    delayMs: TYPING_DEBOUNCE_MS,\n    activeSnapshot: activeDocumentSnapshot,\n    evaluate: updateCellContext,\n  });",
-  "to": "  const cellContext = (() =>\n    createCellContextScheduler({\n      timers: realTimers,\n      delayMs: TYPING_DEBOUNCE_MS,\n      activeSnapshot: activeDocumentSnapshot,\n      evaluate: updateCellContext,\n    }))();",
+  "from": "  const cellContext = createCellContextScheduler({\n    timers: realTimers,\n    delayMs: TYPING_DEBOUNCE_MS,\n    maxWaitMs: TYPING_MAX_WAIT_MS,\n    activeSnapshot: activeDocumentSnapshot,\n    evaluate: updateCellContext,\n  });",
+  "to": "  const cellContext = (() =>\n    createCellContextScheduler({\n      timers: realTimers,\n      delayMs: TYPING_DEBOUNCE_MS,\n      maxWaitMs: TYPING_MAX_WAIT_MS,\n      activeSnapshot: activeDocumentSnapshot,\n      evaluate: updateCellContext,\n    }))();",
   "expect": "killed",
   "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'not called directly')"
  },
@@ -626,8 +626,8 @@
  {
   "name": "X18: the scheduler's timers are not the host's",
   "file": "src/features/execution.ts",
-  "from": "    timers: realTimers,\n    delayMs: TYPING_DEBOUNCE_MS,\n    activeSnapshot",
-  "to": "    timers: { setTimeout: () => 0, clearTimeout: () => undefined },\n    delayMs: TYPING_DEBOUNCE_MS,\n    activeSnapshot",
+  "from": "    timers: realTimers,\n    delayMs: TYPING_DEBOUNCE_MS,\n    maxWaitMs",
+  "to": "    timers: { setTimeout: () => 0, clearTimeout: () => undefined },\n    delayMs: TYPING_DEBOUNCE_MS,\n    maxWaitMs",
   "expect": "killed",
   "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'timers are not realTimers')"
  },
@@ -754,8 +754,8 @@
  {
   "name": "B14: the debouncer runs on a literal delay",
   "file": "src/features/cell-background.ts",
-  "from": "    delayMs: TYPING_DEBOUNCE_MS,\n  });\n  context",
-  "to": "    delayMs: 0,\n  });\n  context",
+  "from": "    delayMs: TYPING_DEBOUNCE_MS,\n    maxWaitMs: TYPING_MAX_WAIT_MS,\n  });\n  context",
+  "to": "    delayMs: 0,\n    maxWaitMs: TYPING_MAX_WAIT_MS,\n  });\n  context",
   "expect": "killed",
   "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'delayMs is not TYPING_DEBOUNCE_MS')"
  },
@@ -786,8 +786,8 @@
  {
   "name": "B18: the debouncer's timers are not the host's",
   "file": "src/features/cell-background.ts",
-  "from": "    timers: realTimers,\n    delayMs: TYPING_DEBOUNCE_MS,\n  });\n  context",
-  "to": "    timers: { setTimeout: () => 0, clearTimeout: () => undefined },\n    delayMs: TYPING_DEBOUNCE_MS,\n  });\n  context",
+  "from": "    timers: realTimers,\n    delayMs: TYPING_DEBOUNCE_MS,\n    maxWaitMs: TYPING_MAX_WAIT_MS,\n  });\n  context",
+  "to": "    timers: { setTimeout: () => 0, clearTimeout: () => undefined },\n    delayMs: TYPING_DEBOUNCE_MS,\n    maxWaitMs: TYPING_MAX_WAIT_MS,\n  });\n  context",
   "expect": "killed",
   "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'timers are not realTimers')"
  }
