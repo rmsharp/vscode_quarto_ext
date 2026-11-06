@@ -150,8 +150,8 @@ interface CachedBibliography {
  * insertion order and a hit re-inserts). A document that declares more files than that still gets all of them: the
  * answer is built from what each ask read or reused, never from what is still held afterwards.
  *
- * The citations handed back are shared with the entries, so they are FROZEN: a caller that edits one throws (the
- * modules are strict) instead of corrupting what the next ask is served from. The list is the caller's own.
+ * The citations handed back are shared with the entries, so they are FROZEN: an edit of one throws in strict code (and
+ * does nothing in sloppy code) instead of corrupting what the next ask is served from. The list is the caller's own.
  */
 export function createCitationCache(options: CitationCacheOptions): CitationCache {
   const entries = new Map<string, CachedBibliography>();

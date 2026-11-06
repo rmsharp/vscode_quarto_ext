@@ -3,9 +3,10 @@
  * CHANGELOG: workspace symbol provider, Session 54) — flattening the per-document outline tree from
  * `core/qmd/model`'s `buildOutline` into a queryable flat list, and matching
  * a flattened symbol's name against a query string. The `vscode` adapter
- * (`providers/workspace-symbols.ts`) calls `buildOutline` once per workspace
- * `.qmd` file, flattens each result here, and turns the matches into
- * `vscode.SymbolInformation`.
+ * (`providers/workspace-symbols.ts`) reads the flat symbols of every workspace
+ * `.qmd` file through `createWorkspaceSymbolCache` below (which runs `buildOutline`
+ * once per file TEXT, not once per query keystroke), matches them against the
+ * query here, and turns the matches into `vscode.SymbolInformation`.
  */
 
 import { resolveDocumentEngine } from "./document-engine-resolve";
@@ -109,16 +110,85 @@ export interface WorkspaceSymbolCacheOptions {
   maxFiles?: number;
 }
 
-/** The query-independent symbols of the workspace's files, read through a cache keyed by the file's uri. */
+/** The query-independent symbols of the workspace's files, read through a cache keyed by the file's uri. The list and its symbols are frozen: read them, never edit them. */
 export interface WorkspaceSymbolCache {
-  read(uri: string, fileName: string, text: string, mode: RenderMode): readonly FlatOutlineSymbol[];
+  read(uri: string, fileName: string, text: string, mode: RenderMode): readonly Readonly<FlatOutlineSymbol>[];
+}
+
+/** What the cache keeps for one uri: the three things the symbols depend on, and the symbols. */
+interface CachedSymbols {
+  fileName: string;
+  mode: RenderMode;
+  text: string;
+  symbols: readonly Readonly<FlatOutlineSymbol>[];
+}
+
+/** A bound an option gives: a finite number of at least 0, rounded down. NaN, a negative number, an infinity and a non-number are not bounds, and the default stands. */
+function boundOf(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.floor(value) : fallback;
 }
 
 /**
- * The seam of Session 343 (SIB-03): the adapter reads the flat symbols of every file through THIS interface, and in
- * the first version of it the read is `flatSymbolsOf` and nothing is kept.
+ * The flat symbols of every `.qmd` file of the workspace, read through a cache (Session 343, SIB-03). "Go to Symbol in
+ * Workspace" built the Outline of EVERY file on EVERY keystroke of the query, because the query filter ran after it:
+ * 100 files of 1,255 lines cost about 200 ms a keystroke and 400 files about 770 ms, and every pass after the first
+ * cost what the first did. What a file's symbols depend on is its text, the render mode and its file name (which
+ * decides the engine); the query is not among them, so the query filter and the `SymbolInformation` mapping stay in
+ * the adapter, per pass, and the symbols are kept per file.
+ *
+ * An entry is keyed by the uri's STRING and is served only while the text is EQUAL (a string comparison, by value:
+ * `getText()` hands a new string every time), the mode is equal and the file name is equal. The cheap two are compared
+ * first, so a file whose mode changed is not compared character by character. ONE entry per uri: a changed file
+ * replaces its own.
+ *
+ * **Two bounds, least recently used out.** The text is kept with the symbols (the equality test needs it), so the cache
+ * holds at most {@link WORKSPACE_SYMBOL_CACHE_MAX_CHARS} characters of it in all and
+ * {@link WORKSPACE_SYMBOL_CACHE_MAX_FILES} files. A text longer than the character bound is computed and NOT kept, and
+ * it drops the uri's older entry (which can no longer be served) without pushing anyone else out. A pass over MORE
+ * files than fit pays for every file at every pass, as before: least-recently-used eviction in a cyclic scan evicts
+ * exactly the entry the next pass needs. 100 files of 16,500 characters fit with room to spare; about 500 do not.
+ *
+ * **The value is frozen, not copied.** The list and each symbol are `Object.freeze`d once, when they are made, and every
+ * read hands back that very list: an edit throws in strict code (and does nothing in sloppy code) instead of corrupting
+ * what the next pass is served from, and the types say `readonly`. A copy per pass would cost a list the size of the
+ * outline for every file on every keystroke.
+ *
+ * The computation is made BEFORE the old entry is touched, so one that throws (a document whose outline overflows the
+ * stack) leaves the cache as it was and throws through, as the uncached pass did.
  */
 export function createWorkspaceSymbolCache(options: WorkspaceSymbolCacheOptions = {}): WorkspaceSymbolCache {
   const compute = options.flatSymbolsOf ?? flatSymbolsOf;
-  return { read: (_uri, fileName, text, mode) => compute(fileName, text, mode) };
+  const maxChars = boundOf(options.maxChars, WORKSPACE_SYMBOL_CACHE_MAX_CHARS);
+  const maxFiles = boundOf(options.maxFiles, WORKSPACE_SYMBOL_CACHE_MAX_FILES);
+  const entries = new Map<string, CachedSymbols>();
+  let keptChars = 0;
+
+  return {
+    read(uri, fileName, text, mode) {
+      const kept = entries.get(uri);
+      if (kept !== undefined && kept.mode === mode && kept.fileName === fileName && kept.text === text) {
+        entries.delete(uri);
+        entries.set(uri, kept); // most recently used
+        return kept.symbols;
+      }
+      const flat = compute(fileName, text, mode);
+      for (const symbol of flat) Object.freeze(symbol);
+      const symbols = Object.freeze(flat);
+      if (kept !== undefined) {
+        entries.delete(uri);
+        keptChars -= kept.text.length;
+      }
+      if (text.length <= maxChars) {
+        entries.set(uri, { fileName, mode, text, symbols });
+        keptChars += text.length;
+        while (keptChars > maxChars || entries.size > maxFiles) {
+          const oldest = entries.entries().next();
+          if (oldest.done === true) break;
+          entries.delete(oldest.value[0]);
+          keptChars -= oldest.value[1].text.length;
+        }
+      }
+      return symbols;
+    },
+  };
 }
