@@ -13423,9 +13423,14 @@ export function frontMatterContentLines(text: string): string[] | null {
  * later call; the `Cell` elements themselves are shared and immutable (do not
  * mutate a field). `findCellAtPosition`/`findCellOptionLines` return elements
  * from this same shared set, so the same don't-mutate contract applies to them.
+ *
+ * ⚠ `engine` and `mode` are OPTIONAL and last (Session 342), and mean what they mean to `buildOutline`: the list of the scan cached under (text, engine, mode), the very scan the Outline
+ * built its symbols from. Omitted, the answer is the engine-BLIND list every other surface reads (validation, Run Cell, cell background, cross-references), byte for byte. The two lists
+ * can differ (a stray bare fence above a hidden knitr chunk; an indented opener under `jupyter` or `markdown`), and a caller that looks a cell up by the line of an Outline symbol must
+ * ask the scan the symbol came from (`createCellVdocBuilder`, `src/core/embedded/virtual-doc.ts`).
  */
-export function findAllCells(text: string, _engine: EngineHint = undefined, _mode: RenderMode = "execute"): Cell[] {
-  return scanRegions(text).cells.slice();
+export function findAllCells(text: string, engine: EngineHint = undefined, mode: RenderMode = "execute"): Cell[] {
+  return scanRegions(text, engine, mode).cells.slice();
 }
 
 /**
@@ -13642,9 +13647,11 @@ const BLOCK_SCALAR_HEADER = /^[|>](?:[1-9][-+]?|[-+][1-9]?)?[ \t]*(?:#.*)?$/;
  * from the leading contiguous run of `#|` lines and stops at the first body line that
  * is not one, so a `#|` line below that point is an ordinary comment (S160 — see the
  * block-terminating `break` below).
+ *
+ * `engine` and `mode` are optional and last, as for `findAllCells` (Session 342): the option lines of the cells of the scan cached under (text, engine, mode); omitted, the engine-blind lines.
  */
-export function findCellOptionLines(text: string, _engine: EngineHint = undefined, _mode: RenderMode = "execute"): CellOptionLine[] {
-  return findAllCells(text).flatMap((cell) => cellOptionLinesOf(cell));
+export function findCellOptionLines(text: string, engine: EngineHint = undefined, mode: RenderMode = "execute"): CellOptionLine[] {
+  return findAllCells(text, engine, mode).flatMap((cell) => cellOptionLinesOf(cell));
 }
 
 /**

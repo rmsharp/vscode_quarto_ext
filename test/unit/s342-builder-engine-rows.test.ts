@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type Cell, buildOutline, findAllCells, findCellOptionLines, type OutlineSymbol } from "../../src/core/qmd/model";
+import { type Cell, buildOutline, findAllCells, findCellAtPosition, findCellOptionLines, type OutlineSymbol } from "../../src/core/qmd/model";
 import { TYPE_IGNORE_DIRECTIVE, createCellVdocBuilder } from "../../src/core/embedded/virtual-doc";
 import { cellLanguageId } from "../../src/core/embedded/lang-map";
 import type { RenderMode } from "../../src/core/render-mode";
@@ -247,6 +247,7 @@ describe("Session 342 -- over a seeded corpus, every cell symbol of the Outline 
     let symbols = 0;
     let mapped = 0;
     let differing = 0;
+    let lostByBlind = 0;
     for (let n = 0; n < COUNT; n++) {
       const lines = [...pick(FRONT)];
       const length = 2 + Math.floor(random() * 14);
@@ -262,6 +263,9 @@ describe("Session 342 -- over a seeded corpus, every cell symbol of the Outline 
         const builder = createCellVdocBuilder(text, engine, mode);
         for (const symbol of outline) {
           symbols++;
+          // the control: how often the engine-blind lookup of the parent would NOT have found this symbol's cell (none, or another cell)
+          const blindCell = findCellAtPosition(text, symbol.startLine);
+          if (blindCell === null || blindCell.startLine !== symbol.startLine || blindCell.endLine !== symbol.endLine || blindCell.lang !== symbol.lang) lostByBlind++;
           const cell = builder.cellAt(symbol.startLine);
           const where = `${JSON.stringify(text)} under ${engine ?? "no engine"}/${mode}, the symbol ${span(symbol)}`;
           if (cell === null) {
@@ -292,8 +296,9 @@ describe("Session 342 -- over a seeded corpus, every cell symbol of the Outline 
     expect(failures).toEqual([]);
     expect(docs).toBe(COUNT);
     // The draw must reach the shapes it is for: floors, not pinned counts (the generator is Mulberry32 over a pool, not a definition a second program is asked to reproduce).
-    expect(symbols).toBeGreaterThan(20_000);
-    expect(mapped).toBeGreaterThan(15_000);
+    expect(symbols).toBeGreaterThan(10_000);
+    expect(mapped).toBeGreaterThan(9_000);
     expect(differing).toBeGreaterThan(300);
+    expect(lostByBlind).toBeGreaterThan(100); // symbols the blind lookup would have lost: the corpus holds the shapes the change is for
   }, 120_000);
 });

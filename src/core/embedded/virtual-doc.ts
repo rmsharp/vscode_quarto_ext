@@ -341,6 +341,12 @@ export function buildCellVirtualContent(text: string, cell: Cell): string {
  * The identity-mapping contract needs each vdoc to be the text's full line count, so every build is at least as
  * long as the document: that part is inherent. The per-text work is not, and the preparation is lazy, so a
  * document with no code cell (which never asks) pays for none of it.
+ *
+ * `engine` and `mode` (Session 342, part (5)) are the very pair the Outline built its symbols with: `createCellVdocBuilder(text, engine, mode)` reads its cells AND its option lines from the scan
+ * `buildOutline(text, engine, mode)` has just cached, so its preparation is a cache hit and not a SECOND full scan (13 ms at 2,000 cells, 52 ms at 8,000, on every Outline pass of a knitr,
+ * jupyter or markdown document), and the cell it finds for a symbol's start line is that symbol's own cell. The engine-blind list differs from the aware one on a stray bare fence above a hidden
+ * knitr chunk, an indented opener under `jupyter`, an indented non-handler cell under `markdown`, and under `--no-execute` for knitr; where it does, the blind lookup answered `null`
+ * (nothing forwarded) or ANOTHER cell, and the symbols of that cell's body were attributed to this one. Omitted, both answer as before (the engine-blind list).
  */
 export interface CellVdocBuilder {
   /** The cell holding 0-based `line` (its fence lines included), or `null`: `findCellAtPosition(text, line)`. */
@@ -387,8 +393,8 @@ function cellIndexAt(cells: readonly Cell[], line: number): number {
 }
 
 /** The lines the model reads as `#|` / `//|` cell options, as a set: what every vdoc blanks, and what a body line must not be. */
-function optionLineSet(text: string): ReadonlySet<number> {
-  return new Set(findCellOptionLines(text).map((o) => o.line));
+function optionLineSet(text: string, engine?: EngineHint, mode?: RenderMode): ReadonlySet<number> {
+  return new Set(findCellOptionLines(text, engine, mode).map((o) => o.line));
 }
 
 /**
@@ -440,14 +446,14 @@ function buildCellVdoc({ lines, options }: CellVdocState, cell: Cell): string {
   return parts.join("");
 }
 
-export function createCellVdocBuilder(text: string, _engine?: EngineHint, _mode?: RenderMode): CellVdocBuilder {
+export function createCellVdocBuilder(text: string, engine?: EngineHint, mode?: RenderMode): CellVdocBuilder {
   let state: CellVdocState | undefined;
   const read = (): CellVdocState => {
     if (state === undefined) {
       state = {
         lines: text.split("\n"),
-        options: optionLineSet(text),
-        cells: findAllCells(text),
+        options: optionLineSet(text, engine, mode),
+        cells: findAllCells(text, engine, mode),
       };
     }
     return state;
