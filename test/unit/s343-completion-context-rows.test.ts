@@ -20,12 +20,14 @@ import { everyString, seededRandom } from "./support/regex-equivalence";
 //
 // THE CLOCK ROWS. Each is a RATIO against a baseline measured in the same process (Learning 919), one split of the whole text, which is the work the cure removes: the ratio of a warm `completionContextAt` call on a prose line
 // (and on a `#|` line) near the top of a 2,000-cell document to one `text.split(/\r?\n/)` of that document, read round after round, the median round deciding (`test/unit/support/ratio-windows.ts`; the helper's own rows are in
-// `s343-cell-option-lines-rows.test.ts`: Learning 910). Measured at load 4 to 9 in vitest: at the seam (the old spelling behind `cursorLineAt`, after the memo of the option lines) the ratio is about 1.0 to 1.1 (a split and the
-// scan of the 4,000 option lines for the line), at the cure about 0.04 to 0.06; the limit is 0.3, 3 times under the seam's figure and 5 times over the cure's.
+// `s343-cell-option-lines-rows.test.ts`: Learning 910). Measured at load 4 to 9 in vitest, five runs each, a prose line at line 7, a `#|` line at line 11 (the first option line, which `find` reaches at once) and a prose line in
+// the middle (line 25,000): at the seam (the old spelling behind `cursorLineAt`, after the memo of the option lines) the ratios are 1.01 to 1.04, 0.99 to 1.03 and 1.51 to 1.55 (a split, and for the prose line the scan of the
+// 4,000 option lines for it); at the cure 0.020, 0.001 to 0.002 and 0.28. The limit is 0.2: 5 times under the seam's figure for the first two shapes and 10 to 100 times over the cure's.
 //
-// ⚠ SHAPES TOO CLOSE TO CARRY A CLOCK, so they are answer and count rows only. A cursor in the MIDDLE or at the END of the document: the cure still walks the text up to the offset (about 0.3 ms at 2,000 cells for the
-// whole text, an eighth to a quarter of a split), so the cure's ratio is 0.15 to 0.3 against the seam's 1.6 to 2.0, a margin under 2 times from the limit that would separate them. A document of 500 cells or fewer: a split is
-// 0.3 ms, a quarter of a millisecond is inside the timer's noise under load. A cursor in the FRONT MATTER: `frontMatterContextAt` makes its own split for the ancestor walk of a nested key, which this cure leaves alone.
+// ⚠ SHAPES TOO CLOSE TO CARRY A CLOCK, so they are answer and count rows only. A cursor in the MIDDLE or at the END of the document: the cure still walks the text up to the offset (one `indexOf` a line, 0.3 ms at 2,000 cells for
+// the whole text, a quarter of a split), so the cure's ratio is 0.28 in the middle against the seam's 1.5 (a margin of 1.5 times from the limit that would separate them: noise), and the count rows carry that shape.
+// A document of 500 cells or fewer: a split is 0.3 ms, and the cure's residue is inside the timer's noise under load. A cursor in the FRONT MATTER: `frontMatterContextAt` makes its own split for the ancestor walk of a nested
+// key, which this cure leaves alone.
 
 /** The OLD spelling, verbatim: the walk of `lineColAt` and a split of the whole text for one line. */
 function oldCursorLine(text: string, offset: number): { line: number; col: number; lineText: string } {
@@ -332,7 +334,7 @@ describe("Session 343 -- a warm completionContextAt call splits the document no 
 // THE CLOCK ROWS, through the public entry, as a ratio of one whole-text split (see the header for the figures and for the shapes too close to carry one).
 
 const CELLS = 2000;
-const RATIO_LIMIT = 0.3;
+const RATIO_LIMIT = 0.2;
 const clockBreaks = (run: Windows): string[] => ratioBreaks(run, RATIO_LIMIT, "a warm completionContextAt call over one split of the whole text");
 
 describe(`Session 343 -- a warm completionContextAt call near the top of a ${CELLS.toLocaleString("en-US")}-cell document costs a fraction of one split of its text (load 4 to 15)`, () => {
