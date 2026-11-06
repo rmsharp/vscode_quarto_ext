@@ -97,12 +97,22 @@ describe("createCellVdocBuilder -- the answers (Session 341)", () => {
 //
 // Measured at the parent `c20f0e8` (Session 341, one fresh process per timing, Node, the loop above through `findCellAtPosition` and `buildCellVirtualContent`, the string of each build hashed so that it is
 // really materialised): six-line cells (`` ```{python} ``, a `#|` line, two body lines, the closing fence, a blank line, a prose line; 7 lines a cell) 76 / 292 / 1,155 / 4,619 ms at 250 / 500 / 1,000 / 2,000
-// cells at load 3.7; the same with `{r}` cells 4,501 ms at 2,000 at load 4.1; 12-line cells (fence, option line, nine body lines, fence) 4,125 ms at 1,600 (22,401 lines) at load 5.3; 60 cells in a 1,980,301-line
-// document 3,708 ms at load 5.2. The cost is cells times document: every build splits the whole text, reads every cell's option lines again and maps over every line.
+// cells at load 3.7; the same with `{r}` cells 4,501 ms at 2,000 at load 4.1; 12-line cells (fence, option line, nine body lines, fence) 4,125 ms at 1,600 (22,401 lines) at load 5.3. The cost is cells times
+// document: every build splits the whole text, reads every cell's option lines again and maps over every line.
 //
-// The limit is one second. It is not raised to make a row pass. The parent takes 3.5 to 4.6 s on the four clock rows (4.6 / 4.5 / 4.1 / 3.5 s at load 3 to 5); the cure takes 10.8 / 11.0 / 12.2 / 49.7 ms at load 8.9 to 7.3
-// (one fresh process each, the same four shapes). The loop against its first call, which no load moves: 844 / 825 / 838 on the first three shapes at the parent, 2.1 / 2.1 / 2.4 on the cure; the limit is 100.
-// Every row states its ANSWER before the clock: the number of builds, the total length of the strings, and the exact non-empty lines of three sampled cells (the first, the middle, the last), read back after the loop.
+// THE LONG DOCUMENT changed in the review round (Session 341, TD-5 / TD-9). It was 60 cells in 1,980,301 lines (3,604 ms at the parent, ratio 70.5, below `RATIO`, so it had no ratio and only the clock guarded it, and
+// the file peaked at 1.03 GB resident, the model's own tables over two million lines). The parent's cost is the cells times the lines, so 120 cells in 990,001 lines cost it the same (3.69 to 3.74 s) with half the text, and
+// 120 cells push its ratio (133 to 138) above a limit the cure's (1.9 to 2.1) is far under: `LONG_RATIO` below.
+//
+// Measured again at the seam commit `00f85d4` (the parent's logic behind the builder), the four shapes as they now are, one fresh process each, load 8 to 25: 4.35 to 4.37 s on 2,000 six-line python cells (the loop against
+// its first call 833 to 855), 4.24 to 4.32 s on the r cells (779 to 794), 3.90 to 3.92 s on the 12-line cells (816 to 843), 3.69 to 3.74 s on the long document (133 to 138). The cure on the same four: 9.7 to 10.8 / 9.7 to 10.1 /
+// 11.2 to 11.5 / 27.4 to 28.5 ms, the ratio 2.1 to 2.7 on the first three and 1.9 to 2.1 on the long one.
+//
+// The limit is one second. It is not raised to make a row pass: the parent is 3.7 to 4.4 times over it on every row, and the limit and the ratio each fail it alone (`K05` of `s341-cell-vdoc.json` is the limit raised, with the
+// consequence recorded there). The ratio is the loop against its first call, which no load moves (Learning 877). Every row states its ANSWER before the clock: the number of builds, the total length of the strings, and the exact
+// non-empty lines of three sampled cells (the first, the middle, the last), read back after the loop.
+//
+// The clock itself is pinned by the helper rows below (`timeLoop` and `loopRatio` have rows of their own): a clock stuck at 0 made every row of this file pass on the parent's logic until the review round (C02 / TD-1).
 
 /** What one run of the adapter's loop measured: the builder it made, the whole loop's milliseconds, the milliseconds up to the end of the first build, and how many builds it did and how many characters they held. */
 interface TimedLoop {
@@ -306,16 +316,53 @@ function nonEmptyLines(vdoc: string): Array<[number, string]> {
 }
 
 const LIMIT_MS = 1000;
-/** The ratio limit: the whole loop against its first call. */
+/** The ratio limit: the whole loop against its first call. The parent's ratio on the three shapes with many cells is 779 to 855, the cure's 2.1 to 2.7. */
 const RATIO = 100;
+/**
+ * The ratio limit of the long document, which has few cells: the parent pays the same for each of its 120 cells, so its ratio is bounded by about the number of cells (133 to 138 measured), below `RATIO`. The cure's is 1.9 to 2.1:
+ * 20 sits 6.5x under the parent and 10x over the cure.
+ */
+const LONG_RATIO = 20;
 /** The sizes of the clock rows. Named once so that the sizes row below reads the very values the rows run on. */
 const SIX_CELLS = 2000;
 const TWELVE_CELLS = 1600;
-const LONG_CELLS = 60;
-const LONG_GAP = 33_000;
+const LONG_CELLS = 120;
+const LONG_GAP = 8_245;
 const CONTROL_CELLS = 250;
-/** The one-cell control sits in a document of the same 1,980,301 lines as the long shape. */
+/** The one-cell control sits in a document of the same 990,001 lines as the long shape. */
 const CONTROL_GAP = LONG_CELLS * (5 + LONG_GAP) - 5;
+
+/** Which of the two clock criteria a run breaks, each named with its numbers: the whole loop under `LIMIT_MS`, and the loop against its first call under `ratioLimit`. `[]` is a run that keeps both. */
+function clockBreaks(run: { ms: number; firstMs: number }, ratioLimit: number): string[] {
+  const broken: string[] = [];
+  if (!(run.ms < LIMIT_MS)) broken.push(`the loop took ${run.ms.toFixed(1)} ms, not under ${LIMIT_MS} ms`);
+  if (!(loopRatio(run) < ratioLimit)) broken.push(`the loop took ${loopRatio(run).toFixed(1)} times its first call, not under ${ratioLimit} times`);
+  return broken;
+}
+
+describe("the Session 341 clock criteria (clockBreaks), fed the numbers the parent and the cure were measured at", () => {
+  it("the parent's measurements break both criteria on every shape, the cure's break neither", () => {
+    expect(clockBreaks({ ms: 4619, firstMs: 5.5 }, RATIO)).toHaveLength(2); // 2,000 six-line python cells at the parent
+    expect(clockBreaks({ ms: 3920, firstMs: 4.6 }, RATIO)).toHaveLength(2); // 1,600 twelve-line cells at the parent
+    expect(clockBreaks({ ms: 3690, firstMs: 27.6 }, LONG_RATIO)).toHaveLength(2); // the long document at the parent
+    expect(clockBreaks({ ms: 9.9, firstMs: 4.7 }, RATIO)).toEqual([]); // the same six-line cells at the cure
+    expect(clockBreaks({ ms: 28.2, firstMs: 13.7 }, LONG_RATIO)).toEqual([]); // the long document at the cure
+  });
+
+  it("each criterion fails alone: a slow run with a slow first call breaks the limit only, a fast run that pays the same for every call breaks the ratio only", () => {
+    expect(clockBreaks({ ms: 4600, firstMs: 4000 }, RATIO)).toEqual(["the loop took 4600.0 ms, not under 1000 ms"]);
+    expect(clockBreaks({ ms: 900, firstMs: 5 }, RATIO)).toEqual(["the loop took 180.0 times its first call, not under 100 times"]);
+  });
+
+  it("both limits are strict, and a first call read as 0 or a loop read as NaN keeps neither", () => {
+    expect(clockBreaks({ ms: 999.9, firstMs: 100 }, RATIO)).toEqual([]);
+    expect(clockBreaks({ ms: 1000, firstMs: 100 }, RATIO)).toHaveLength(1);
+    expect(clockBreaks({ ms: 500, firstMs: 5.01 }, RATIO)).toEqual([]); // 99.8 times
+    expect(clockBreaks({ ms: 500, firstMs: 5 }, RATIO)).toHaveLength(1); // exactly 100 times
+    expect(clockBreaks({ ms: 10, firstMs: 0 }, RATIO)).toHaveLength(1);
+    expect(clockBreaks({ ms: NaN, firstMs: 5 }, RATIO)).toHaveLength(2);
+  });
+});
 
 /** Run the adapter's loop over `shape`, the clock on it, and read the answer back. The model's scan is warmed first: it is the model's cost, the same for the parent and the cure, and `buildOutline` has paid it before the adapter's loop starts. */
 function runAdapterLoop(shape: Shape): { ms: number; firstMs: number; builds: number; chars: number; checked: number } {
@@ -340,27 +387,29 @@ function runAdapterLoop(shape: Shape): { ms: number; firstMs: number; builds: nu
   return { ms, firstMs, builds, chars, checked };
 }
 
+/** The four clock rows: a shape and the ratio its loop must keep to its first call. Named once so that the sizes row below reads the ratios the rows run on. */
+const CLOCK_ROWS: Array<{ label: string; make: () => Shape; ratioLimit: number }> = [
+  { label: "2,000 six-line python cells (the shape the item measured)", make: () => sixLineShape(SIX_CELLS, "python"), ratioLimit: RATIO },
+  { label: "2,000 six-line r cells (no mute, no whole-document `some`)", make: () => sixLineShape(SIX_CELLS, "r"), ratioLimit: RATIO },
+  { label: "1,600 twelve-line python cells", make: () => twelveLineShape(TWELVE_CELLS, "python"), ratioLimit: RATIO },
+  { label: "120 python cells in a document of 990,001 lines (few cells, a very long document)", make: () => longShape(LONG_CELLS, LONG_GAP), ratioLimit: LONG_RATIO },
+];
+
 describe("Session 341 -- the Outline's per-cell virtual documents cost cells times document (the BACKLOG item \"Slow shapes and residuals found by Session 339's review round\", part 2)", () => {
-  it.each([
-    ["2,000 six-line python cells (the shape the item measured)", () => sixLineShape(SIX_CELLS, "python"), true],
-    ["2,000 six-line r cells (no mute, no whole-document `some`)", () => sixLineShape(SIX_CELLS, "r"), true],
-    ["1,600 twelve-line python cells", () => twelveLineShape(TWELVE_CELLS, "python"), true],
-    ["60 python cells in a document of 1,980,301 lines (few cells, a very long document)", () => longShape(LONG_CELLS, LONG_GAP), false],
-  ] as Array<[string, () => Shape, boolean]>)("%s: one builder, a lookup and a build per cell, in under one second, with the stated answers", (_label, make, ratio) => {
-    const shape = make();
+  it.each(CLOCK_ROWS.map((row) => [row.label, row] as const))("%s: one builder, a lookup and a build per cell, in under one second and within its ratio of the first call, with the stated answers", (_label, row) => {
+    const shape = row.make();
     const run = runAdapterLoop(shape);
     expect(run.builds).toBe(shape.cells);
     expect(run.chars).toBe(expectedChars(shape));
     expect(run.checked).toBe(3);
-    expect(run.ms).toBeLessThan(LIMIT_MS);
-    // A ratio no load of the machine moves (Learning 877): the whole loop against its first call. A builder that pays for the document once makes every later cell cheap; the parent pays the same for each.
-    if (ratio) expect(loopRatio(run)).toBeLessThan(RATIO);
+    // The limit, and a ratio no load of the machine moves (Learning 877): the whole loop against its first call. A builder that pays for the document once makes every later cell cheap; the parent pays the same for each.
+    expect(clockBreaks(run, row.ratioLimit)).toEqual([]);
   }, 120_000);
 
   // CONTROLS: shapes that cost the parent little. They pass on it, and they say that the fixtures are not what is slow.
   it.each([
     ["CONTROL: 250 six-line python cells", () => sixLineShape(CONTROL_CELLS, "python")],
-    ["CONTROL: ONE python cell in a document of 1,980,301 lines (one build over the whole document is the inherent cost)", () => longShape(1, CONTROL_GAP)],
+    ["CONTROL: ONE python cell in a document of 990,001 lines (one build over the whole document is the inherent cost)", () => longShape(1, CONTROL_GAP)],
   ] as Array<[string, () => Shape]>)("%s: stays under one second, with the stated answers", (_label, make) => {
     const shape = make();
     const run = runAdapterLoop(shape);
@@ -371,7 +420,8 @@ describe("Session 341 -- the Outline's per-cell virtual documents cost cells tim
 
   // The rows above fix the sizes and the limit: 200 cells, or a limit of 100 s, would pass the parent too. Every size is a named constant, read here, so a changed one fails this row.
   it("keeps the sizes and the limit the clock rows are built on", () => {
-    expect([LIMIT_MS, RATIO, SIX_CELLS, TWELVE_CELLS, LONG_CELLS, LONG_GAP, CONTROL_CELLS, CONTROL_GAP]).toEqual([1000, 100, 2000, 1600, 60, 33_000, 250, 1_980_295]);
-    expect([sixLineShape(SIX_CELLS, "python").lines, twelveLineShape(TWELVE_CELLS, "python").lines, longShape(LONG_CELLS, LONG_GAP).lines, longShape(1, CONTROL_GAP).lines]).toEqual([14_001, 22_401, 1_980_301, 1_980_301]);
+    expect([LIMIT_MS, RATIO, LONG_RATIO, SIX_CELLS, TWELVE_CELLS, LONG_CELLS, LONG_GAP, CONTROL_CELLS, CONTROL_GAP]).toEqual([1000, 100, 20, 2000, 1600, 120, 8245, 250, 989_995]);
+    expect([sixLineShape(SIX_CELLS, "python").lines, twelveLineShape(TWELVE_CELLS, "python").lines, longShape(LONG_CELLS, LONG_GAP).lines, longShape(1, CONTROL_GAP).lines]).toEqual([14_001, 22_401, 990_001, 990_001]);
+    expect(CLOCK_ROWS.map((row) => row.ratioLimit)).toEqual([100, 100, 100, 20]);
   });
 });

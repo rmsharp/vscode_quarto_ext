@@ -133,15 +133,15 @@
   "from": "    build: (cell) => buildCellVdoc(read(), cell),",
   "to": "    build: (cell) => buildCellVdoc({ ...read(), lines: text.split(\"\\n\") }, cell),",
   "expect": "killed",
-  "why": "one split of the whole text per cell"
+  "why": "one split of the whole text per cell: 1,556 ms and a ratio of 54 to 55 on the long document (over the one-second limit and over the ratio of 20), and over the ratio on the three shapes with many cells; the 60-cell long row of 89d38e3 saw it by 1,623 ms against 1,000 at load 12 and no ratio"
  },
  {
   "name": "R34 buildCellVdoc: a newline run is pushed one newline at a time",
   "file": "src/core/embedded/virtual-doc.ts",
   "from": "    parts.push(\"\\n\".repeat(at === 0 ? i : i - at + 1), lines[i]);",
   "to": "    for (let k = at === 0 ? i : i - at + 1; k > 0; k--) parts.push(\"\\n\");\n    parts.push(lines[i]);",
-  "expect": "survives",
-  "why": "same answer, one push per blank line"
+  "expect": "killed",
+  "why": "same answer, one push per blank line: 715 ms and a ratio of 51 to 52 on the long document (three fresh processes, load 9), under the one-second limit and far over its ratio of 20; before the long row had a ratio of its own it survived (R34 at 89d38e3). Killed by the long row's ratio"
  },
  {
   "name": "R33 buildCellVdoc: the loop over the body reads every line of the document",
@@ -149,7 +149,7 @@
   "from": "  for (let i = first; i <= last; i++) {\n    if (options.has(i)) {",
   "to": "  for (let i = 0; i < lines.length; i++) {\n    if (!(i >= first && i <= last)) {\n      continue;\n    }\n    if (options.has(i)) {",
   "expect": "survives",
-  "why": "same answer, one comparison per document line per cell"
+  "why": "same answer, one comparison per document line per cell: 195 ms and a ratio of 12 on the long document (three fresh processes, load 9) against 28 ms and 1.9 for the cure, so it passes both the one-second limit and the ratio of 20. A ratio tight enough to see it (about 8) would sit 4x over the cure's, a margin a loaded machine's garbage-collection pause can eat; recorded as a gap in the clock rows, not argued equivalent"
  },
  {
   "name": "R62 outline.ts: a builder per child symbol over the document's text",
@@ -270,5 +270,69 @@
   "to": "now: () => number = () => 0): TimedLoop {",
   "expect": "killed",
   "why": "the clock the clock rows run on is `performance.now()` by default and no row passes one; killed by the real-clock row (a builder that spins 20 ms per build is read as 0 ms)"
+ },
+ {
+  "name": "S06 clock rows: the ratio is not passed to the criteria",
+  "file": "test/unit/s341-cell-vdoc-rows.test.ts",
+  "from": "    expect(clockBreaks(run, row.ratioLimit)).toEqual([]);",
+  "to": "    expect(clockBreaks(run, Infinity)).toEqual([]);",
+  "expect": "survives",
+  "why": "RECORDED GAP, visible only on a slow tree: on the cure nothing fails either way, and on the parent's logic (the seam commit 00f85d4, a scratch vitest root) the four shape rows still fail on the one-second limit alone, `Tests  4 failed | 17 passed (21)`; the ratio's own values are pinned by the clockBreaks rows and the sizes row (`CLOCK_ROWS` ratios 100, 100, 100, 20)"
+ },
+ {
+  "name": "S08 clockBreaks: the limit is never broken",
+  "file": "test/unit/s341-cell-vdoc-rows.test.ts",
+  "from": "  if (!(run.ms < LIMIT_MS)) broken.push(",
+  "to": "  if (false) broken.push(",
+  "expect": "killed",
+  "why": "the one-second limit is never reported; killed by the clockBreaks rows that feed it the parent's numbers (4619 ms) and a slow run with a slow first call"
+ },
+ {
+  "name": "S09 clockBreaks: the ratio is never broken",
+  "file": "test/unit/s341-cell-vdoc-rows.test.ts",
+  "from": "  if (!(loopRatio(run) < ratioLimit)) broken.push(",
+  "to": "  if (false) broken.push(",
+  "expect": "killed",
+  "why": "the ratio is never reported; killed by the clockBreaks rows (a fast run that pays the same for every call: 900 ms, first call 5 ms)"
+ },
+ {
+  "name": "S10 clockBreaks: the limit is not strict",
+  "file": "test/unit/s341-cell-vdoc-rows.test.ts",
+  "from": "  if (!(run.ms < LIMIT_MS)) broken.push(",
+  "to": "  if (!(run.ms <= LIMIT_MS)) broken.push(",
+  "expect": "killed",
+  "why": "a loop of exactly 1000 ms keeps the limit; killed by the boundary row"
+ },
+ {
+  "name": "S11 clockBreaks: the ratio limit is not strict",
+  "file": "test/unit/s341-cell-vdoc-rows.test.ts",
+  "from": "  if (!(loopRatio(run) < ratioLimit)) broken.push(",
+  "to": "  if (!(loopRatio(run) <= ratioLimit)) broken.push(",
+  "expect": "killed",
+  "why": "a loop of exactly 100 times its first call keeps the ratio; killed by the boundary row (500 ms over 5 ms)"
+ },
+ {
+  "name": "S12 clockBreaks: a loop read as NaN keeps the limit",
+  "file": "test/unit/s341-cell-vdoc-rows.test.ts",
+  "from": "  if (!(run.ms < LIMIT_MS)) broken.push(",
+  "to": "  if (run.ms >= LIMIT_MS) broken.push(",
+  "expect": "killed",
+  "why": "a clock that reads NaN (`NaN >= 1000` is false) passes the limit; killed by the NaN row"
+ },
+ {
+  "name": "L01 clock rows: the long document's ratio limit is 2,000",
+  "file": "test/unit/s341-cell-vdoc-rows.test.ts",
+  "from": "const LONG_RATIO = 20;",
+  "to": "const LONG_RATIO = 2000;",
+  "expect": "killed",
+  "why": "the parent's ratio there is 133 to 138, so 2,000 sees nothing; killed by the sizes row, which reads the ratios the rows run on"
+ },
+ {
+  "name": "L02 clock rows: the long document is held to the generic ratio",
+  "file": "test/unit/s341-cell-vdoc-rows.test.ts",
+  "from": "make: () => longShape(LONG_CELLS, LONG_GAP), ratioLimit: LONG_RATIO },",
+  "to": "make: () => longShape(LONG_CELLS, LONG_GAP), ratioLimit: RATIO },",
+  "expect": "killed",
+  "why": "the ratio of 100 is under the parent's 133 to 138 by 1.3x, which a faster first call would close; the row-specific 20 sits 6.5x under it; killed by the sizes row"
  }
 ]

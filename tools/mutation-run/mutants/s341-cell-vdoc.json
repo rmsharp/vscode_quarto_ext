@@ -421,7 +421,7 @@
   "from": "const SIX_CELLS = 2000;",
   "to": "const SIX_CELLS = 200;",
   "expect": "killed",
-  "why": "the parent would pass in 0.4 s; killed by the sizes row, which reads the constant"
+  "why": "at 200 six-line cells the parent's loop takes 46 to 56 ms with a ratio of 49 to 60 (four fresh processes at the seam commit 00f85d4, load 13), under both limits, so the six-line rows would pass it and only the twelve-line and long rows would still see it; killed by the sizes row, which reads the constant"
  },
  {
   "name": "K02 clock rows: the twelve-line shape has a tenth of its cells",
@@ -434,16 +434,16 @@
  {
   "name": "K03 clock rows: the long document has a tenth of its cells",
   "file": "test/unit/s341-cell-vdoc-rows.test.ts",
-  "from": "const LONG_CELLS = 60;",
-  "to": "const LONG_CELLS = 6;",
+  "from": "const LONG_CELLS = 120;",
+  "to": "const LONG_CELLS = 12;",
   "expect": "killed",
   "why": "killed by the sizes row"
  },
  {
   "name": "K04 clock rows: the long document has a tenth of its lines",
   "file": "test/unit/s341-cell-vdoc-rows.test.ts",
-  "from": "const LONG_GAP = 33_000;",
-  "to": "const LONG_GAP = 3_300;",
+  "from": "const LONG_GAP = 8_245;",
+  "to": "const LONG_GAP = 825;",
   "expect": "killed",
   "why": "killed by the sizes row"
  },
@@ -453,7 +453,7 @@
   "from": "const LIMIT_MS = 1000;",
   "to": "const LIMIT_MS = 100_000;",
   "expect": "killed",
-  "why": "the parent would pass every row; killed by the sizes row"
+  "why": "the limit alone is not what separates the parent: with `LIMIT_MS = 100_000` the parent's logic (the seam commit 00f85d4, a scratch vitest root) still fails all four shape rows on the RATIO assertion alone and passes the two controls, `Tests  8 failed | 13 passed (21)` (the four rows, the three clockBreaks rows that read the limit, and the sizes row); killed by the clockBreaks row that feeds the limit the parent's 4,619 ms, and by the sizes row"
  },
  {
   "name": "K06 clock rows: the ratio limit is a hundred thousand",
