@@ -12,8 +12,9 @@
  *
  * WHAT THE CURE COVERS: BURSTS. The debounce coalesces events that arrive LESS THAN `TYPING_DEBOUNCE_MS` (150 ms) apart: a
  * held key, a paste, a replace-all, a snippet. Typing at a steady gap of 150 ms or more between edit events still pays one
- * cold scan per keystroke exactly as before (the scan is only delayed by the pause); the burst rows' keystrokes are 10 ms
- * apart, so "40 keystrokes, 1,052 ms to 39 ms" is a burst figure and says nothing about a steady typist.
+ * cold scan per keystroke exactly as before (the scan is only delayed by the pause); the clock rows' keystrokes are 10 ms
+ * apart (the sequence rows' at most 100 ms), so "40 keystrokes, 1,052 ms to 39 ms" is a burst figure and says nothing
+ * about a steady typist.
  *
  * The cure is a TRAILING debounce of the edit-driven work, kept in this module so that it is unit-tested with a fake
  * clock (the §3.3 guardrail): the timers are injected (`Timers`), and the two adapters are reduced to wiring.
