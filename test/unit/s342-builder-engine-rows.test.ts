@@ -1,9 +1,29 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type Cell, buildOutline, findAllCells, findCellAtPosition, findCellOptionLines, type OutlineSymbol } from "../../src/core/qmd/model";
 import { TYPE_IGNORE_DIRECTIVE, createCellVdocBuilder } from "../../src/core/embedded/virtual-doc";
 import { cellLanguageId } from "../../src/core/embedded/lang-map";
 import type { RenderMode } from "../../src/core/render-mode";
 import { seededRandom } from "./support/regex-equivalence";
+
+// What `createCellVdocBuilder` ASKS of the model is counted (the describe "what createCellVdocBuilder asks of the model" below), so the model's exports `findAllCells` and `findCellOptionLines` are replaced by
+// wrappers that call through and, while `asked.on` is set, write down the arguments of each call (the pattern of `s342-range-lookup-counts.test.ts`). Every other row of this file reads the real answers: the
+// wrappers change nothing they return, and `asked.on` is off outside that one describe. The model's own calls (`buildOutline` scanning, `findCellOptionLines` reading `findAllCells`) are inside its module
+// and are not seen by the wrappers: only the calls the builder makes through the module's exports are.
+const asked = vi.hoisted(() => ({ on: false, cells: [] as unknown[][], options: [] as unknown[][] }));
+vi.mock("../../src/core/qmd/model", async (importOriginal) => {
+  const real = await importOriginal<typeof import("../../src/core/qmd/model")>();
+  return {
+    ...real,
+    findAllCells: (...args: Parameters<typeof real.findAllCells>) => {
+      if (asked.on) asked.cells.push(args);
+      return real.findAllCells(...args);
+    },
+    findCellOptionLines: (...args: Parameters<typeof real.findCellOptionLines>) => {
+      if (asked.on) asked.options.push(args);
+      return real.findCellOptionLines(...args);
+    },
+  };
+});
 
 // Session 342 -- the BACKLOG item "What Session 341's review round found beside the Outline and preview cures", part (5). `createCellVdocBuilder(text)` read its cells with the engine-BLIND `findAllCells(text)`, but the Outline
 // provider has just built its symbols with `buildOutline(text, engine, mode)`, whose scan is cached under (text, engine, mode). For any document whose engine is not `undefined` the builder's preparation was a SECOND full scan
@@ -239,6 +259,80 @@ describe("Session 342 -- createCellVdocBuilder given the engine and mode finds e
     expect(blindCell).toEqual(aware);
     expect(blindCell).not.toBe(aware);
     expect(blindCell).toBe(findAllCells(INDENT_MARKDOWN)[0]);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// THE CALLS. The rows above say what the builder ANSWERS; these say what it ASKS the model, because a spelling that asks more (a second scan under another cache key, an engine-blind read beside the aware one) answers
+// the same and costs a scan: the preparation after `buildOutline(text, engine, mode)` is a cache hit only when the builder asks for exactly the (text, engine, mode) the Outline scanned, and once. Counted, so the
+// rows pin the CALLS and not a time. (The extra engine-blind read is a real scan only when the engine-blind list of the text is not already cached: `resolveDocumentEngine` reads the same text engine-blind
+// first, so for a text with no leading whitespace it is a hit there. Whether it costs is the cache's business; that it is asked at all is the builder's.)
+
+describe("Session 342 -- what createCellVdocBuilder asks of the model", () => {
+  const TEXT = STRAY_PY;
+  const ENGINES: Engine[] = [undefined, "ambiguous", "knitr", "jupyter", "markdown", "julia"];
+  const MODES: Array<RenderMode | undefined> = [undefined, "execute", "no-execute"];
+  const COMBOS: Array<[engine: Engine, mode: RenderMode | undefined]> = ENGINES.flatMap((engine) => MODES.map((mode): [Engine, RenderMode | undefined] => [engine, mode]));
+  const label = (engine: Engine, mode: RenderMode | undefined): string => `${engine ?? "no engine"} / ${mode ?? "no mode"}`;
+  /** What the builder is expected to have asked, once each: the text, the engine and the mode exactly as it was given them (an omitted one is `undefined`, passed on as such). */
+  const once = (engine: Engine, mode: RenderMode | undefined): { cells: unknown[][]; options: unknown[][] } => ({ cells: [[TEXT, engine, mode]], options: [[TEXT, engine, mode]] });
+  const seen = (): { cells: unknown[][]; options: unknown[][] } => ({ cells: asked.cells.slice(), options: asked.options.slice() });
+
+  beforeEach(() => {
+    asked.cells.length = 0;
+    asked.options.length = 0;
+    asked.on = true;
+  });
+  afterEach(() => {
+    asked.on = false;
+  });
+
+  it("the counter can count: a call through the model's export is written down with its arguments, and the omitted ones are not there", () => {
+    findAllCells(TEXT);
+    findAllCells(TEXT, "knitr", "no-execute");
+    findCellOptionLines(TEXT, "jupyter");
+    expect(asked.cells).toEqual([[TEXT], [TEXT, "knitr", "no-execute"]]);
+    expect(asked.cells[0]).toHaveLength(1);
+    expect(asked.options).toEqual([[TEXT, "jupyter"]]);
+  });
+
+  it.each(COMBOS.map(([engine, mode]) => [label(engine, mode), engine, mode] as const))("%s: nothing is asked of the model when the builder is made", (_label, engine, mode) => {
+    createCellVdocBuilder(TEXT, engine, mode);
+    expect(seen()).toEqual({ cells: [], options: [] });
+  });
+
+  it.each(COMBOS.map(([engine, mode]) => [label(engine, mode), engine, mode] as const))("%s: the first cellAt asks once for the cells and once for the option lines, with the text, the engine and the mode it was given", (_label, engine, mode) => {
+    cellSymbols(TEXT, engine, mode ?? "execute"); // the Outline's own pass first, as the provider makes it
+    asked.cells.length = 0;
+    asked.options.length = 0;
+    const builder = createCellVdocBuilder(TEXT, engine, mode);
+    builder.cellAt(7);
+    expect(seen()).toStrictEqual(once(engine, mode));
+  });
+
+  it.each(COMBOS.map(([engine, mode]) => [label(engine, mode), engine, mode] as const))("%s: build as the first ask is the same one call each, and nothing after it asks again", (_label, engine, mode) => {
+    const builder = createCellVdocBuilder(TEXT, engine, mode);
+    const cell: Cell = { startLine: 6, endLine: 9, lang: "python", code: "#| echo: false\nx = 1" }; // hand-made: the first ask is a build, not a cellAt
+    builder.build(cell);
+    expect(seen()).toStrictEqual(once(engine, mode));
+    for (let round = 0; round < 3; round++) {
+      for (let line = -1; line <= TEXT.split("\n").length + 1; line++) {
+        const found = builder.cellAt(line);
+        if (found !== null) builder.build(found);
+      }
+      builder.build(cell);
+    }
+    expect(seen()).toStrictEqual(once(engine, mode));
+  });
+
+  it("two builders over one text ask separately, once each: nothing is shared between them", () => {
+    const first = createCellVdocBuilder(TEXT, "knitr", "execute");
+    const second = createCellVdocBuilder(TEXT, "knitr", "execute");
+    first.cellAt(7);
+    second.cellAt(7);
+    first.cellAt(8);
+    second.cellAt(8);
+    expect(seen()).toStrictEqual({ cells: [[TEXT, "knitr", "execute"], [TEXT, "knitr", "execute"]], options: [[TEXT, "knitr", "execute"], [TEXT, "knitr", "execute"]] });
   });
 });
 
