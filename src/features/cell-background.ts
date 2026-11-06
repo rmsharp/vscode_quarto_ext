@@ -29,6 +29,11 @@ import {
   cellBackgroundRanges,
   resolveCellBackgroundSettings,
 } from "../core/cell-background";
+import {
+  TYPING_DEBOUNCE_MS,
+  createKeyedDebouncer,
+  realTimers,
+} from "../core/typing-debounce";
 
 /** Read and resolve the `quarto.cells.background.*` settings from configuration. */
 function readCellBackgroundSettings(): CellBackgroundSettings {
@@ -118,8 +123,15 @@ export function registerCellBackgroundFeature(
   const decorator = new CellBackgroundDecorator();
   activeDecorator = decorator;
   decorator.refresh();
+  // An edit re-applies the tint once the typing pauses (per document); the active
+  // editor, the visible editors and the settings re-apply at once.
+  const typing = createKeyedDebouncer({
+    timers: realTimers,
+    delayMs: TYPING_DEBOUNCE_MS,
+  });
   context.subscriptions.push(
     decorator,
+    typing,
     new vscode.Disposable(() => {
       if (activeDecorator === decorator) {
         activeDecorator = undefined;
@@ -129,9 +141,12 @@ export function registerCellBackgroundFeature(
     vscode.window.onDidChangeVisibleTextEditors(() => decorator.refresh()),
     vscode.workspace.onDidChangeTextDocument((event) => {
       if (isVisible(event.document)) {
-        decorator.refresh();
+        typing.schedule(event.document.uri.toString(), () => decorator.refresh());
       }
     }),
+    vscode.workspace.onDidCloseTextDocument((document) =>
+      typing.cancel(document.uri.toString()),
+    ),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration("quarto.cells.background")) {
         decorator.reload();

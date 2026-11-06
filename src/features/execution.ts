@@ -25,6 +25,12 @@ import {
   delegateCommandsFor,
   pickDelegate,
 } from "../core/execution-delegate";
+import {
+  type EditorSnapshot,
+  TYPING_DEBOUNCE_MS,
+  createCellContextScheduler,
+  realTimers,
+} from "../core/typing-debounce";
 
 /** Context key gating the cell keybindings, true only when the cursor is in a cell. */
 const IN_CELL_CONTEXT = "quarto.inCodeCell";
@@ -32,7 +38,14 @@ const IN_CELL_CONTEXT = "quarto.inCodeCell";
 export function registerExecutionFeature(
   context: vscode.ExtensionContext,
 ): void {
+  const cellContext = createCellContextScheduler({
+    timers: realTimers,
+    delayMs: TYPING_DEBOUNCE_MS,
+    activeSnapshot: activeDocumentSnapshot,
+    evaluate: updateCellContext,
+  });
   context.subscriptions.push(
+    cellContext,
     vscode.commands.registerCommand("quarto.runCell", () =>
       runCellAtCursor(false),
     ),
@@ -68,22 +81,24 @@ export function registerExecutionFeature(
     ),
     // Keep the `quarto.inCodeCell` context key in sync so ctrl/shift+enter only
     // bind inside a cell (and fall through to normal newline editing elsewhere).
-    vscode.window.onDidChangeTextEditorSelection((e) =>
-      updateCellContext(e.textEditor),
-    ),
-    vscode.window.onDidChangeActiveTextEditor((editor) =>
-      updateCellContext(editor),
-    ),
+    vscode.window.onDidChangeTextEditorSelection((e) => {
+      // Only the active editor drives the global context key; ignore selection
+      // events from background editors, which would otherwise clobber it.
+      if (e.textEditor === vscode.window.activeTextEditor) {
+        cellContext.changed();
+      }
+    }),
+    vscode.window.onDidChangeActiveTextEditor(() => cellContext.evaluateNow()),
     // An edit can change whether the cursor sits in a cell without moving the
     // selection (a formatter, a programmatic edit) — keep the key fresh.
     vscode.workspace.onDidChangeTextDocument((e) => {
       const active = vscode.window.activeTextEditor;
       if (active && e.document === active.document) {
-        updateCellContext(active);
+        cellContext.changed();
       }
     }),
   );
-  updateCellContext(vscode.window.activeTextEditor);
+  cellContext.evaluateNow();
 }
 
 /** The active editor iff it is a Quarto document, else a message + null. */
@@ -401,12 +416,17 @@ function showNoDelegate(langs: readonly string[]): void {
   void vscode.window.showWarningMessage(`Quarto: ${parts.join(" ")}`);
 }
 
-function updateCellContext(editor: vscode.TextEditor | undefined): void {
-  // Only the active editor drives the global context key; ignore selection
-  // events from background editors, which would otherwise clobber it.
-  if (editor !== undefined && editor !== vscode.window.activeTextEditor) {
-    return;
-  }
+/** The active editor's document and the version of its text: what tells the scheduler whether an event follows an edit. */
+function activeDocumentSnapshot(): EditorSnapshot | undefined {
+  const document = vscode.window.activeTextEditor?.document;
+  return document === undefined
+    ? undefined
+    : { key: document.uri.toString(), version: document.version };
+}
+
+/** Set `quarto.inCodeCell` from the ACTIVE editor's state as it is now. */
+function updateCellContext(): void {
+  const editor = vscode.window.activeTextEditor;
   const inCell =
     editor !== undefined &&
     editor.document.languageId === "quarto" &&
