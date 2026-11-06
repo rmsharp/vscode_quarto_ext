@@ -8,6 +8,7 @@ import {
   createKeyedDebouncer,
 } from "../../src/core/typing-debounce";
 import { createFakeClock } from "./support/fake-timers";
+import { seededRandom } from "./support/regex-equivalence";
 
 // Session 343 -- the BACKLOG item "What Session 342's review round found beside the typing-path cures, none of them in its diff", part (2), first cost: the typing path's trailing debounce had NO MAXIMUM WAIT. Events that keep
 // arriving less than 150 ms apart postponed the evaluation (and the cell tint) for as long as they kept coming: on a fake clock, an edit event every 100 ms for 30 s gave 301 events and 0 evaluations before the stream ended
@@ -709,5 +710,170 @@ describe("createCellContextScheduler with a maximum wait -- an evaluation that t
     w.clock.advance(TYPING_DEBOUNCE_MS);
     expect(w.seen.map((e) => e.line)).toEqual([9]);
     expect(w.clock.pending()).toBe(0);
+  });
+});
+
+// ---- THE DEBOUNCER WITH A MAXIMUM WAIT AGAINST A MODEL OF ITS SPEC ----------------------------------------------------------------------------------------------------------------------------------
+
+type Op = { op: "schedule"; key: string; again?: true } | { op: "cancel"; key: string } | { op: "advance"; ms: number } | { op: "dispose" };
+
+/**
+ * The spec of a keyed debouncer with a maximum wait as a plain model, written from the spec and not from the code: a list of timers `{ key, kind, due, id }` (the ids are the order they were set in, which breaks ties as the fake
+ * clock does), the latest run of each key, a run log, a clock. A schedule drops the key's trailing timer and sets a new one; with a maximum wait it also sets the window's timer if the key has none, and either way the
+ * latest run is the one just scheduled. The timer due first runs the latest run of its key and drops the other timer of the key before it runs. No real timers, no table of handles.
+ */
+function modelOfWindowSpec(delayMs: number, maxWaitMs: number | undefined) {
+  let now = 0;
+  let nextId = 0;
+  let disposed = false;
+  type Timer = { key: string; kind: "trailing" | "window"; due: number; id: number };
+  let timers: Timer[] = [];
+  const latest = new Map<string, { label: string; again?: string }>();
+  const log: string[] = [];
+  const dropKey = (key: string, kind?: "trailing" | "window"): void => {
+    timers = timers.filter((t) => !(t.key === key && (kind === undefined || t.kind === kind)));
+  };
+  const model = {
+    log,
+    schedule(key: string, label: string, again?: string): void {
+      if (disposed) return;
+      dropKey(key, "trailing");
+      timers.push({ key, kind: "trailing", due: now + delayMs, id: nextId++ });
+      if (maxWaitMs !== undefined && !timers.some((t) => t.key === key && t.kind === "window")) {
+        timers.push({ key, kind: "window", due: now + maxWaitMs, id: nextId++ });
+      }
+      latest.set(key, { label, again });
+    },
+    cancel(key: string): void {
+      dropKey(key);
+    },
+    dispose(): void {
+      disposed = true;
+      timers = [];
+    },
+    advance(ms: number): void {
+      const target = now + ms;
+      for (;;) {
+        const due = timers.filter((t) => t.due <= target).sort((a, b) => a.due - b.due || a.id - b.id)[0];
+        if (due === undefined) break;
+        now = Math.max(now, due.due);
+        dropKey(due.key);
+        const run = latest.get(due.key);
+        if (run !== undefined) {
+          log.push(`${due.key}:${run.label}`);
+          if (run.again !== undefined) model.schedule(due.key, run.again);
+        }
+      }
+      now = target;
+    },
+    pending: () => timers.length,
+  };
+  return model;
+}
+
+describe("createKeyedDebouncer with a maximum wait agrees with a model of its spec on seeded operation sequences (schedule, a run that schedules its own key, cancel, advance, dispose over three keys)", () => {
+  it("runs the same runs, in the same order, with the same number of timers pending after every operation, on 4,000 sequences of 5 to 60 operations at six delays and seven maximum waits (undefined among them)", () => {
+    const random = seededRandom(3431);
+    const keys = ["a", "b", "c"];
+    const advances = [0, 1, 10, 49, 50, 51, 99, 100, 149, 150, 151, 399, 400, 999, 1_000, 1_001];
+    const delays = [150, 0, 50, 25.5, 100, 1];
+    const maxWaits: Array<number | undefined> = [1_000, 100, 150, 0, 400, 25.5, undefined];
+    let ran = 0;
+    let ranByWindow = 0;
+    const mismatches: string[] = [];
+    for (let n = 0; n < 4_000; n++) {
+      const ops: Op[] = [];
+      const length = 5 + Math.floor(random() * 56);
+      for (let k = 0; k < length; k++) {
+        const draw = random();
+        const key = keys[Math.floor(random() * keys.length)];
+        if (draw < 0.4) ops.push({ op: "schedule", key });
+        else if (draw < 0.5) ops.push({ op: "schedule", key, again: true });
+        else if (draw < 0.58) ops.push({ op: "cancel", key });
+        else if (draw < 0.995) ops.push({ op: "advance", ms: advances[Math.floor(random() * advances.length)] });
+        else ops.push({ op: "dispose" });
+      }
+      ops.push({ op: "advance", ms: 3_000 });
+      const delayMs = delays[n % delays.length];
+      const maxWaitMs = maxWaits[Math.floor(n / delays.length) % maxWaits.length];
+
+      const clock = createFakeClock();
+      const actual: string[] = [];
+      const debouncer = createKeyedDebouncer({ timers: clock, delayMs, maxWaitMs });
+      const model = modelOfWindowSpec(delayMs, maxWaitMs);
+      const pendingActual: number[] = [];
+      const pendingExpected: number[] = [];
+      let label = 0;
+      for (const o of ops) {
+        switch (o.op) {
+          case "schedule": {
+            const id = String(label++);
+            if (o.again === true) {
+              const again = String(label++);
+              debouncer.schedule(o.key, () => {
+                actual.push(`${o.key}:${id}`);
+                debouncer.schedule(o.key, () => actual.push(`${o.key}:${again}`));
+              });
+              model.schedule(o.key, id, again);
+            } else {
+              debouncer.schedule(o.key, () => actual.push(`${o.key}:${id}`));
+              model.schedule(o.key, id);
+            }
+            break;
+          }
+          case "cancel":
+            debouncer.cancel(o.key);
+            model.cancel(o.key);
+            break;
+          case "advance":
+            clock.advance(o.ms);
+            model.advance(o.ms);
+            break;
+          case "dispose":
+            debouncer.dispose();
+            model.dispose();
+            break;
+        }
+        pendingActual.push(clock.pending());
+        pendingExpected.push(model.pending());
+      }
+      ran += actual.length;
+      // the draw reaches the window: a sequence whose runs outnumber what the trailing timers alone would give is counted by the maximum wait being shorter than the delay, below
+      if (maxWaitMs !== undefined && maxWaitMs < delayMs) ranByWindow += actual.length;
+      if (JSON.stringify(actual) !== JSON.stringify(model.log) || JSON.stringify(pendingActual) !== JSON.stringify(pendingExpected) || clock.staleClears() !== 0) {
+        if (mismatches.length < 3) mismatches.push(`delay ${delayMs}, max wait ${maxWaitMs}: ${JSON.stringify(ops)} -> ${JSON.stringify(actual)} against the model's ${JSON.stringify(model.log)} (stale clears ${clock.staleClears()})`);
+      }
+    }
+    expect(mismatches).toEqual([]);
+    expect(ran).toBeGreaterThan(20_000);
+    expect(ranByWindow).toBeGreaterThan(1_000);
+  });
+
+  it("the model itself: a window opens at the first schedule since a run and ends at the maximum wait whatever later schedules do; the latest run runs; the other timer of the key goes with it", () => {
+    const m = modelOfWindowSpec(150, 400);
+    m.schedule("a", "1");
+    expect(m.pending()).toBe(2);
+    m.advance(100);
+    m.schedule("a", "2"); // the trailing timer moves to 250; the window stays at 400
+    m.advance(100);
+    m.schedule("a", "3"); // 200: the trailing timer moves to 350
+    m.advance(100);
+    m.schedule("a", "4"); // 300: the trailing timer moves to 450, past the window's 400
+    expect(m.log).toEqual([]);
+    m.advance(99);
+    expect(m.log).toEqual([]);
+    m.advance(1); // 400: the window ends, runs the latest and takes the trailing timer with it
+    expect(m.log).toEqual(["a:4"]);
+    expect(m.pending()).toBe(0);
+    m.schedule("a", "5"); // a new window, at 800
+    m.schedule("b", "6", "7");
+    expect(m.pending()).toBe(4);
+    m.advance(1_000); // a runs at 550, b at 550 then again at 700
+    expect(m.log).toEqual(["a:4", "a:5", "b:6", "b:7"]);
+    m.schedule("c", "8");
+    m.dispose();
+    m.advance(1_000);
+    expect(m.log).toHaveLength(4);
+    expect(m.pending()).toBe(0);
   });
 });
