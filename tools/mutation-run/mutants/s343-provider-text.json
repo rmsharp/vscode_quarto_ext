@@ -1,0 +1,82 @@
+[
+ {
+  "name": "P01 crossref's completion reads the buffer itself again (a join per request)",
+  "file": "src/providers/crossref.ts",
+  "from": "const text = documentText(document);\n    // Cross-refs apply",
+  "to": "const text = document.getText();\n    // Cross-refs apply",
+  "expect": "killed",
+  "why": "killed by s343-provider-text-wiring-pin.test.ts: the pin's first row for crossref.ts: the text is not read through documentText(document)"
+ },
+ {
+  "name": "P02 citation's completion reads the buffer itself again",
+  "file": "src/providers/citation.ts",
+  "from": "    const text = documentText(document);\n    // Citations apply",
+  "to": "    const text = document.getText();\n    // Citations apply",
+  "expect": "killed",
+  "why": "killed by s343-provider-text-wiring-pin.test.ts: the pin names the read"
+ },
+ {
+  "name": "P03 yaml's completion reads the buffer itself again",
+  "file": "src/providers/yaml.ts",
+  "from": "    const text = documentText(document);\n    // The document's engine",
+  "to": "    const text = document.getText();\n    // The document's engine",
+  "expect": "killed",
+  "why": "killed by s343-provider-text-wiring-pin.test.ts: the pin names the read"
+ },
+ {
+  "name": "P04 embedded's completion reads the buffer itself again",
+  "file": "src/providers/embedded.ts",
+  "from": "    const text = documentText(document);\n    const hit = embeddedCellAt(text, position.line);\n    // Off-region",
+  "to": "    const text = document.getText();\n    const hit = embeddedCellAt(text, position.line);\n    // Off-region",
+  "expect": "killed",
+  "why": "killed by s343-provider-text-wiring-pin.test.ts: the pin names the read"
+ },
+ {
+  "name": "P05 crossref's memo is asked about another document",
+  "file": "src/providers/crossref.ts",
+  "from": "const text = documentText(document);\n    // Cross-refs apply",
+  "to": "const text = documentText(activeDocumentForTesting);\n    // Cross-refs apply",
+  "expect": "killed",
+  "why": "killed by s343-provider-text-wiring-pin.test.ts: the argument is pinned to the method's own document parameter"
+ },
+ {
+  "name": "P06 citation joins the buffer a second time beside the memo",
+  "file": "src/providers/citation.ts",
+  "from": "    const text = documentText(document);\n    // Citations apply",
+  "to": "    const text = documentText(document);\n    void document.getText();\n    // Citations apply",
+  "expect": "killed",
+  "why": "killed by s343-provider-text-wiring-pin.test.ts: a second whole-buffer join puts a distinct string beside the memo's; pinned by the getText count"
+ },
+ {
+  "name": "P07 yaml asks the memo twice",
+  "file": "src/providers/yaml.ts",
+  "from": "    const text = documentText(document);\n    // The document's engine",
+  "to": "    const text = documentText(document);\n    void documentText(document);\n    // The document's engine",
+  "expect": "killed",
+  "why": "killed by s343-provider-text-wiring-pin.test.ts: one call of documentText in the method is pinned"
+ },
+ {
+  "name": "P08 embedded reads the text after another statement",
+  "file": "src/providers/embedded.ts",
+  "from": "    const text = documentText(document);\n    const hit = embeddedCellAt(text, position.line);\n    // Off-region",
+  "to": "    void position;\n    const text = documentText(document);\n    const hit = embeddedCellAt(text, position.line);\n    // Off-region",
+  "expect": "killed",
+  "why": "killed by s343-provider-text-wiring-pin.test.ts: the read is the first statement: pinned"
+ },
+ {
+  "name": "P09 citation drops the import",
+  "file": "src/providers/citation.ts",
+  "from": "import { documentText } from \"../features/document-text\";\n",
+  "to": "",
+  "expect": "killed",
+  "why": "killed by s343-provider-text-wiring-pin.test.ts: the import is pinned (and check-types would also fail: the pin is the unit-level name for it)"
+ },
+ {
+  "name": "P10 yaml imports documentText from the wrong module",
+  "file": "src/providers/yaml.ts",
+  "from": "\"../features/document-text\"",
+  "to": "\"../features/document-text-other\"",
+  "expect": "killed",
+  "why": "killed by s343-provider-text-wiring-pin.test.ts: the import's module specifier is pinned"
+ }
+]
