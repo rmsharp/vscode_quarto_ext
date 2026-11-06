@@ -478,7 +478,7 @@ describe("Session 341 review -- cellAt over 100,000 cells (a pass over every cel
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // THE PREPARATION IS LAZY (Session 341 review, M-R35). `provideDocumentSymbols` makes a builder on EVERY call, and the great majority of documents hold no code cell, so nothing asks it anything: the builder reads the text
-// when it is first ASKED, never when it is made. A builder that read it at construction costs 223 to 344 ms per call on a 130,000-line, 4.29 MB document with no cell (R35, measured).
+// when it is first ASKED, never when it is made. A builder that read it at construction costs 223 to 344 ms per call on a 130,000-line, 4.29 MB document with no cell (R35, two runs of the review round, the slower at load 139; a fresh process each).
 
 describe("Session 341 review -- createCellVdocBuilder reads the text when it is first asked, not when it is made", () => {
   const hostile = (): string => ({ split: () => { throw new Error("read at construction"); } }) as unknown as string;

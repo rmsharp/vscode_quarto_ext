@@ -5,7 +5,7 @@
   "from": "  const first = Math.max(Math.floor(cell.startLine) + 1, 0);",
   "to": "  const first = Math.max(cell.startLine + 1, 0);",
   "expect": "killed",
-  "why": "a start of 0.5 makes the loop start on 1.5 and `lines[1.5].trim()` throws; -5e-324 + 1 rounds to 1, so line 0 is dropped"
+  "why": "the pre-cure bound: a start of 0.5 makes the loop start on 1.5 and `lines[1.5].trim()` throws, a start of 4.5 keeps nothing, and -5e-324 + 1 rounds to 1 so line 0 is dropped. 13 failed | 89 passed in cell-vdoc-builder-equivalence.test.ts: the fractional named rows (r and python at 0.5, 1.5, 4.5, -0.5, 2.5, 0.75, 2.75, the largest double below 2, the smallest negative double), the moved-cell row and the seeded draw (the same 13 failed at 064af6e on this very bound)"
  },
  {
   "name": "F02 buildCellVdoc: the first body line is the CEIL of the start",
@@ -13,7 +13,7 @@
   "from": "  const first = Math.max(Math.floor(cell.startLine) + 1, 0);",
   "to": "  const first = Math.max(Math.ceil(cell.startLine) + 1, 0);",
   "expect": "killed",
-  "why": "a start of 0.5 begins the body on line 2, where the rule `i > 0.5` begins it on line 1"
+  "why": "a start of 0.5 begins the body on line 2, where the rule `i > 0.5` begins it on line 1; 13 failed | 89 passed in cell-vdoc-builder-equivalence.test.ts, the fractional named rows (r, 0.5 gives '\\n\\nl2\\n\\n\\n' where '\\nl1\\nl2\\n\\n\\n' is stated), the moved-cell row and the seeded draw"
  },
  {
   "name": "F03 buildCellVdoc: the first body line is the floor of start + 1",
@@ -21,7 +21,7 @@
   "from": "  const first = Math.max(Math.floor(cell.startLine) + 1, 0);",
   "to": "  const first = Math.max(Math.floor(cell.startLine + 1), 0);",
   "expect": "killed",
-  "why": "the sum rounds first: -5e-324 + 1 is 1, so a start of -5e-324 drops line 0 that `i > -5e-324` keeps"
+  "why": "the sum rounds first: -5e-324 + 1 is 1, and 1.9999999999999998 + 1 rounds to 3, so the body begins one line late; 3 failed | 99 passed in cell-vdoc-builder-equivalence.test.ts: the two rows that name those doubles (the smallest negative double, the largest double below 2) and the seeded draw (its `1 - 2^-53` and `-1e-9` starts)"
  },
  {
   "name": "F04 buildCellVdoc: the first body line is the TRUNC of the start",
@@ -29,7 +29,7 @@
   "from": "  const first = Math.max(Math.floor(cell.startLine) + 1, 0);",
   "to": "  const first = Math.max(Math.trunc(cell.startLine) + 1, 0);",
   "expect": "killed",
-  "why": "trunc(-0.5) is -0, so a start of -0.5 begins the body on line 1, where `i > -0.5` begins it on line 0"
+  "why": "trunc(-0.5) is -0, so a start of -0.5 begins the body on line 1, where `i > -0.5` begins it on line 0; 4 failed | 98 passed in cell-vdoc-builder-equivalence.test.ts: the r row at -0.5, the smallest negative double, the moved-cell row and the seeded draw"
  },
  {
   "name": "F05 buildCellVdoc: the last body line is the CEIL of the sum",
@@ -37,7 +37,7 @@
   "from": "  const last = Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1);",
   "to": "  const last = Math.ceil(Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1));",
   "expect": "killed",
-  "why": "a start of 0.5 over two lines ends the body on line 3, where `i <= 2.5` ends it on line 2"
+  "why": "a start of 0.5 over two lines ends the body on line 3, where `i <= 2.5` ends it on line 2; 13 failed | 89 passed in cell-vdoc-builder-equivalence.test.ts, the fractional named rows (r, 0.5 gives '\\nl1\\nl2\\nl3\\n\\n' where '\\nl1\\nl2\\n\\n\\n' is stated), the moved-cell row and the seeded draw"
  },
  {
   "name": "F06 buildCellVdoc: the last body line is the floor of the start plus the count",
@@ -45,7 +45,7 @@
   "from": "  const last = Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1);",
   "to": "  const last = Math.min(Math.floor(cell.startLine) + bodyLineCount(cell), lines.length - 1);",
   "expect": "killed",
-  "why": "the floor of the start before the sum: 1.9999999999999998 + 2 rounds to 4 (a tie, to even), floor(1.9999999999999998) + 2 is 3"
+  "why": "the floor of the start before the sum: 1.9999999999999998 + 2 rounds to 4 (a tie, to even) but floor(1.9999999999999998) + 2 is 3, and floor(-5e-324) + 2 is 1 where -5e-324 + 2 is 2; 3 failed | 99 passed in cell-vdoc-builder-equivalence.test.ts: the two rows that name those doubles and the seeded draw"
  },
  {
   "name": "F07 buildCellVdoc: the last body line is floored (a respelling)",
@@ -125,7 +125,7 @@
   "from": "    build: (cell) => buildCellVdoc(read(), cell),",
   "to": "    build: (cell) => buildCellVdoc({ ...read(), options: new Set(findCellOptionLines(text).map((o) => o.line)) }, cell),",
   "expect": "killed",
-  "why": "cells times the document's cells again"
+  "why": "the option lines of the whole text read again on every build: cells times the document's cells again, 4,698 ms CPU on 2,000 six-line cells (the review) and only 41 ms and a ratio of 3 on the long document; killed by the shapes with many cells, 3 failed | 24 passed in s341-cell-vdoc-rows.test.ts"
  },
  {
   "name": "R41 createCellVdocBuilder: the text is split again on every build",
@@ -133,7 +133,7 @@
   "from": "    build: (cell) => buildCellVdoc(read(), cell),",
   "to": "    build: (cell) => buildCellVdoc({ ...read(), lines: text.split(\"\\n\") }, cell),",
   "expect": "killed",
-  "why": "one split of the whole text per cell: 1,556 ms and a ratio of 54 to 55 on the long document (over the one-second limit and over the ratio of 20), and over the ratio on the three shapes with many cells; the 60-cell long row of 89d38e3 saw it by 1,623 ms against 1,000 at load 12 and no ratio"
+  "why": "one split of the whole text per cell: 1,556 ms and a ratio of 54 to 55 on the long document (over the one-second limit and over the ratio of 20); the 60-cell long row of 89d38e3 saw it only by 1,623 ms against 1,000 at load 12, with no ratio. Now all four clock rows fail it: 4 failed | 23 passed in s341-cell-vdoc-rows.test.ts, so the margin no longer rests on the long row alone"
  },
  {
   "name": "R34 buildCellVdoc: a newline run is pushed one newline at a time",
@@ -141,7 +141,7 @@
   "from": "    parts.push(\"\\n\".repeat(at === 0 ? i : i - at + 1), lines[i]);",
   "to": "    for (let k = at === 0 ? i : i - at + 1; k > 0; k--) parts.push(\"\\n\");\n    parts.push(lines[i]);",
   "expect": "killed",
-  "why": "same answer, one push per blank line: 715 ms and a ratio of 51 to 52 on the long document (three fresh processes, load 9), under the one-second limit and far over its ratio of 20; before the long row had a ratio of its own it survived (R34 at 89d38e3). Killed by the long row's ratio"
+  "why": "same answer, one push per blank line: 715 ms and a ratio of 51 to 52 on the long document (three fresh processes, load 9), under the one-second limit and far over its ratio of 20. It survived the clock rows of 89d38e3 (the long row had no ratio, and 841 ms is under 1,000). Killed since the review round by the long row's ratio alone: 1 failed | 26 passed in s341-cell-vdoc-rows.test.ts"
  },
  {
   "name": "R33 buildCellVdoc: the loop over the body reads every line of the document",
