@@ -45,6 +45,12 @@ Real-document score: `REALDOC_DATA=scratchpad/s265 REALDOC_ORDINALS=scratchpad/s
 before the close-out commits; the dashboard copy is v2.22.0 against canonical v2.23.0 (not synced). (13) `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in
 slices, edit with a Python script (`python3 -I -`). After answering a direct question, STOP and wait (memory).
 
+### What Session 343 Did
+**Deliverable:** g02 of the backlog ordering plan, twenty-seventh session: parts (2) to (4) of the BACKLOG item "What Session 342's review round found beside the typing-path cures, none of them in its diff" -- the smaller costs of the typing-path handlers, the completion providers' whole-document scans and the sibling costs (IN PROGRESS)
+**Started:** 2026-11-06
+**Status:** Session claimed. Work beginning. Strict TDD: time each literal shape at HEAD first, one fresh process per probe, through the caller's whole call sequence (Learnings 840, 903, 916), profile before reading the cure, seam first for anything behind a `vscode` adapter (Learning 913), rows RED on the parent on the clock alone with their own clock pinned (Learning 910), the old spelling kept as the cure's oracle, `mutation-lists-apply` right after any cherry-pick (Learning 918), a review round, then close out. Part (1) was put to the operator at Phase 1: leave the 150 ms debounce as shipped (it cures bursts, not steady typing) and do parts (2) to (4); it stays in the item as a measurement question. Parts (5) and (6) need a host or the R6 (g) wiring change, and (7) is records: all stay in the item.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
 ### What Session 342 Did
 **Deliverable:** g02 of the backlog ordering plan, twenty-sixth session: parts (2) to (5) of the BACKLOG item "What Session 341's review round found beside the Outline and preview cures, none of them in
 its diff" -- the YAML-region lookup per cell option line, the per-line cell lookups of the completion and formatter edit checks, the two undebounced typing-path handlers and the engine-blind cell list --
