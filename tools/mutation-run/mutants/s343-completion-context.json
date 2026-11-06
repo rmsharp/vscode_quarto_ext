@@ -1,0 +1,298 @@
+[
+  {
+    "name": "C01 cursorLineAt: the offset is not clamped from below",
+    "file": "src/core/cursor-line.ts",
+    "from": "Math.max(0, Math.min(offset, text.length))",
+    "to": "Math.min(offset, text.length)",
+    "expect": "killed",
+    "why": "an offset below 0 reports a negative column: killed by the named case (-7) and the enumeration (offset -1 of every string)"
+  },
+  {
+    "name": "C02 cursorLineAt: the offset is not clamped from above",
+    "file": "src/core/cursor-line.ts",
+    "from": "Math.max(0, Math.min(offset, text.length))",
+    "to": "Math.max(0, offset)",
+    "expect": "killed",
+    "why": "an offset past the end reports a column past the line: killed by the named cases (99, +Infinity, 2^53)"
+  },
+  {
+    "name": "C03 cursorLineAt: a break AT the offset counts as before it",
+    "file": "src/core/cursor-line.ts",
+    "from": "lineBreak < clamped",
+    "to": "lineBreak <= clamped",
+    "expect": "killed",
+    "why": "an offset on a line break is the end of its own line; counted, it is the start of the next: killed by the named cases on the break and by the enumeration"
+  },
+  {
+    "name": "C04 cursorLineAt: a break at index 0 is never counted",
+    "file": "src/core/cursor-line.ts",
+    "from": "lineBreak >= 0 && lineBreak < clamped",
+    "to": "lineBreak > 0 && lineBreak < clamped",
+    "expect": "killed",
+    "why": "a text that starts with a line break has an empty first line: killed by the named cases of only line breaks and by the enumeration"
+  },
+  {
+    "name": "C05 cursorLineAt: the line is never counted",
+    "file": "src/core/cursor-line.ts",
+    "from": "    line++;\n",
+    "to": "",
+    "expect": "killed",
+    "why": "every cursor is on line 0: killed by every named case below the first line"
+  },
+  {
+    "name": "C06 cursorLineAt: the line starts at the break, not after it",
+    "file": "src/core/cursor-line.ts",
+    "from": "    lineStart = lineBreak + 1;\n",
+    "to": "    lineStart = lineBreak;\n",
+    "expect": "killed",
+    "why": "an INFINITE LOOP: the next search starts at the break it just found, so the walk finds the same break forever and never ends: killed only by the runner's timeout (600 s by default, a hang the suite really suffers; run this list with --timeout 60). The same edit with a bound would be killed by the named cases (the line's text starts with its own break and the column is one too many)"
+  },
+  {
+    "name": "C07 cursorLineAt: the walk skips the character after a break",
+    "file": "src/core/cursor-line.ts",
+    "from": "    lineBreak = text.indexOf(\"\\n\", lineStart);\n",
+    "to": "    lineBreak = text.indexOf(\"\\n\", lineStart + 1);\n",
+    "expect": "killed",
+    "why": "an empty line (two breaks in a row) is not seen: killed by the named cases of only line breaks and the enumeration"
+  },
+  {
+    "name": "C08 cursorLineAt: the first search starts at index 1",
+    "file": "src/core/cursor-line.ts",
+    "from": "  let lineBreak = text.indexOf(\"\\n\");\n",
+    "to": "  let lineBreak = text.indexOf(\"\\n\", 1);\n",
+    "expect": "killed",
+    "why": "a text that starts with a line break loses it: killed by the enumeration (every string that starts with LF) and the only-breaks cases"
+  },
+  {
+    "name": "C09 cursorLineAt: the line's text ends after its break",
+    "file": "src/core/cursor-line.ts",
+    "from": "  let lineEnd = lineBreak < 0 ? text.length : lineBreak;",
+    "to": "  let lineEnd = lineBreak < 0 ? text.length : lineBreak + 1;",
+    "expect": "killed",
+    "why": "the line break is part of the text: killed by every named case with a break after the cursor's line"
+  },
+  {
+    "name": "C10 cursorLineAt: the CR strip also runs when the break is the line's first character",
+    "file": "src/core/cursor-line.ts",
+    "from": "  if (lineBreak > lineStart && text.charCodeAt(lineBreak - 1) === 13) lineEnd = lineBreak - 1;",
+    "to": "  if (lineBreak >= lineStart && text.charCodeAt(lineBreak - 1) === 13) lineEnd = lineBreak - 1;",
+    "expect": "survives",
+    "why": "EQUIVALENT: when the break is the line's first character the character before it is the previous line's break (a \\n) or, at index 0, nothing (charCodeAt gives NaN), never a CR, so the added case never strips; tried on the enumeration: no difference"
+  },
+  {
+    "name": "C11 cursorLineAt: the CR strip guard is 'a break after index 0'",
+    "file": "src/core/cursor-line.ts",
+    "from": "  if (lineBreak > lineStart && text.charCodeAt(lineBreak - 1) === 13) lineEnd = lineBreak - 1;",
+    "to": "  if (lineBreak > 0 && text.charCodeAt(lineBreak - 1) === 13) lineEnd = lineBreak - 1;",
+    "expect": "survives",
+    "why": "EQUIVALENT: lineBreak > lineStart differs from lineBreak > 0 only when lineBreak is at or before lineStart and above 0, where it is the first character of its line and the character before it is the previous \\n (see C10)"
+  },
+  {
+    "name": "C12 cursorLineAt: a line feed before the break is stripped instead of a CR",
+    "file": "src/core/cursor-line.ts",
+    "from": "text.charCodeAt(lineBreak - 1) === 13",
+    "to": "text.charCodeAt(lineBreak - 1) === 10",
+    "expect": "killed",
+    "why": "no CR is stripped: every CRLF line keeps its CR: killed by the CRLF named cases and the digest of D2"
+  },
+  {
+    "name": "C13 cursorLineAt: the strip takes two characters",
+    "file": "src/core/cursor-line.ts",
+    "from": "lineEnd = lineBreak - 1;",
+    "to": "lineEnd = lineBreak - 2;",
+    "expect": "killed",
+    "why": "a CRLF line loses its last character: killed by the CRLF named cases"
+  },
+  {
+    "name": "C14 cursorLineAt: no CR is ever stripped",
+    "file": "src/core/cursor-line.ts",
+    "from": "  if (lineBreak > lineStart && text.charCodeAt(lineBreak - 1) === 13) lineEnd = lineBreak - 1;\n",
+    "to": "",
+    "expect": "killed",
+    "why": "the text of a CRLF line ends in a CR: killed by the CRLF named cases, the digest of D2 and the CRLF = LF row"
+  },
+  {
+    "name": "C15 cursorLineAt: the column is the clamped offset",
+    "file": "src/core/cursor-line.ts",
+    "from": "col: clamped - lineStart",
+    "to": "col: clamped",
+    "expect": "killed",
+    "why": "the column counts from the start of the document: killed by every named case below the first line"
+  },
+  {
+    "name": "C16 cursorLineAt: the text of the line is one character too long",
+    "file": "src/core/cursor-line.ts",
+    "from": "text.slice(lineStart, lineEnd)",
+    "to": "text.slice(lineStart, lineEnd + 1)",
+    "expect": "killed",
+    "why": "killed by every named case"
+  },
+  {
+    "name": "C17 cursorLineAt: a CR at the very end of the text is stripped too",
+    "file": "src/core/cursor-line.ts",
+    "from": "  let lineEnd = lineBreak < 0 ? text.length : lineBreak;",
+    "to": "  let lineEnd = lineBreak < 0 ? text.length - (text.endsWith(\"\\r\") ? 1 : 0) : lineBreak;",
+    "expect": "killed",
+    "why": "a CR with no line feed after it is text (split keeps it): killed by the named case 'a CR at the very end' and the enumeration"
+  },
+  {
+    "name": "C18 cursorLineAt: every CR of the line is dropped",
+    "file": "src/core/cursor-line.ts",
+    "from": "text.slice(lineStart, lineEnd)",
+    "to": "text.slice(lineStart, lineEnd).replace(/\\r/g, \"\")",
+    "expect": "killed",
+    "why": "a lone CR is text: killed by the named lone-CR cases, the digest of D3 and the enumeration"
+  },
+  {
+    "name": "C19 cursorLineAt: a U+2028 before the break is stripped like a CR",
+    "file": "src/core/cursor-line.ts",
+    "from": "text.charCodeAt(lineBreak - 1) === 13",
+    "to": "(text.charCodeAt(lineBreak - 1) === 13 || text.charCodeAt(lineBreak - 1) === 0x2028)",
+    "expect": "killed",
+    "why": "only a CR belongs to the break: killed by the seeded documents, whose pieces include U+2028"
+  },
+  {
+    "name": "C20 cursorLineAt: the walk stops at the integer below the offset",
+    "file": "src/core/cursor-line.ts",
+    "from": "lineBreak >= 0 && lineBreak < clamped",
+    "to": "lineBreak >= 0 && lineBreak <= clamped - 1",
+    "expect": "killed",
+    "why": "a fractional offset past a break (2.5 over a break at index 2) is on the next line in the old walk (i < 2.5): killed by the named fraction case"
+  },
+  {
+    "name": "C21 cursorLineAt: the offset is truncated to an integer",
+    "file": "src/core/cursor-line.ts",
+    "from": "Math.max(0, Math.min(offset, text.length))",
+    "to": "Math.max(0, Math.min(offset | 0, text.length))",
+    "expect": "killed",
+    "why": "a NaN becomes 0 (a column of 0, not NaN) and a fraction an integer: killed by the NaN and fraction cases (Learning 914)"
+  },
+  {
+    "name": "C22 cursorLineAt: the lower clamp is minus zero",
+    "file": "src/core/cursor-line.ts",
+    "from": "Math.max(0, Math.min(offset, text.length))",
+    "to": "Math.max(-0, Math.min(offset, text.length))",
+    "expect": "killed",
+    "why": "an offset below 0 gives a column of -0: killed by the comparison that is Object.is (the named cases below 0 and the enumeration)"
+  },
+  {
+    "name": "W01 completionContextAt: the cursor is one character on",
+    "file": "src/core/yaml-context.ts",
+    "from": "cursorLineAt(text, offset);",
+    "to": "cursorLineAt(text, offset + 1);",
+    "expect": "killed",
+    "why": "every context is read one character late: killed by the digests of D1 to D3 and by the CRLF = LF row (and by yaml-context.test.ts)"
+  },
+  {
+    "name": "W02 completionContextAt: the option lines are read engine-aware for knitr",
+    "file": "src/core/yaml-context.ts",
+    "from": "findCellOptionLines(text).find(",
+    "to": "findCellOptionLines(text, \"knitr\").find(",
+    "expect": "killed",
+    "why": "the provider is engine-blind by design (a stray fence swallows the chunk for the aware list only): killed by the blind-lookup row, whose knitr document completes nowhere"
+  },
+  {
+    "name": "W03 completionContextAt: the option lines are read engine-aware for jupyter",
+    "file": "src/core/yaml-context.ts",
+    "from": "findCellOptionLines(text).find(",
+    "to": "findCellOptionLines(text, \"jupyter\").find(",
+    "expect": "killed",
+    "why": "an indented opener's `#|` line completes to the blind list and to no aware one: killed by the blind-lookup row"
+  },
+  {
+    "name": "W04 completionContextAt: any option line at or after the cursor's line is taken",
+    "file": "src/core/yaml-context.ts",
+    "from": "(o) => o.line === line);",
+    "to": "(o) => o.line >= line);",
+    "expect": "killed",
+    "why": "a prose line above a cell reads that cell's first option line: killed by the prose-line rows (null) and the digests"
+  },
+  {
+    "name": "W05 completionContextAt: the cell's fence line stands for its option lines",
+    "file": "src/core/yaml-context.ts",
+    "from": "(o) => o.line === line);",
+    "to": "(o) => o.cellStartLine === line);",
+    "expect": "killed",
+    "why": "the fence line completes and the option lines do not: killed by the digests and the key and value rows"
+  },
+  {
+    "name": "T01 clock rows: the ratio limit is 0.001 (under the cure's own figure for a prose line)",
+    "file": "test/unit/s343-completion-context-rows.test.ts",
+    "from": "const RATIO_LIMIT = 0.2;",
+    "to": "const RATIO_LIMIT = 0.001;",
+    "expect": "killed",
+    "why": "the cure's ratio on a prose line near the top is 0.020: a limit under it fails the cure, so the row is live and measures what it says"
+  },
+  {
+    "name": "T02 clock rows: the ratio limit is 5 (over the seam's figure)",
+    "file": "test/unit/s343-completion-context-rows.test.ts",
+    "from": "const RATIO_LIMIT = 0.2;",
+    "to": "const RATIO_LIMIT = 5;",
+    "expect": "survives",
+    "why": "a recorded gap of the clock rows on their own: a limit over the seam's 1.0 passes any version; the COUNT rows are the witness of the cure (M: the split of the document's text), and the limit's value is held by the figures in the header"
+  },
+  {
+    "name": "T03 enumeration: strings of up to five characters",
+    "file": "test/unit/s343-completion-context-rows.test.ts",
+    "from": "const MAX_LENGTH = 6;",
+    "to": "const MAX_LENGTH = 5;",
+    "expect": "killed",
+    "why": "the count of strings (55,987) is asserted, so a shorter enumeration cannot pass for the stated one"
+  },
+  {
+    "name": "T04 enumeration: no CR in the alphabet",
+    "file": "test/unit/s343-completion-context-rows.test.ts",
+    "from": "const ALPHABET = [\"a\", \"|\", \"#\", CR, LF, \" \"];",
+    "to": "const ALPHABET = [\"a\", \"|\", \"#\", \"b\", LF, \" \"];",
+    "expect": "killed",
+    "why": "the enumeration would never draw a CR: the counts of strings with a CRLF (7,231), with a CR and no LF after it (32,578) and with an LF (36,456) are asserted, so an alphabet without the CR cannot pass for the stated one"
+  },
+  {
+    "name": "T05 seeded documents: the floor on documents with a lone CR is 20000",
+    "file": "test/unit/s343-completion-context-rows.test.ts",
+    "from": "expect(withLoneCr).toBeGreaterThan(5000);",
+    "to": "expect(withLoneCr).toBeGreaterThan(20000);",
+    "expect": "killed",
+    "why": "the floor is a real count, not a constant that cannot fail"
+  },
+  {
+    "name": "T06 seeded documents: the floor on asks is ten million",
+    "file": "test/unit/s343-completion-context-rows.test.ts",
+    "from": "expect(compared).toBeGreaterThan(120_000);",
+    "to": "expect(compared).toBeGreaterThan(10_000_000);",
+    "expect": "killed",
+    "why": "the floor is a real count"
+  },
+  {
+    "name": "T07 split counter: nothing is ever counted",
+    "file": "test/unit/s343-completion-context-rows.test.ts",
+    "from": "if (typeof this === \"string\" && this === target) count++;",
+    "to": "if (false) count++;",
+    "expect": "killed",
+    "why": "a counter that reads 0 passes every count row: killed by the row that splits the text itself and expects 1"
+  },
+  {
+    "name": "T08 split counter: every split of any string is counted",
+    "file": "test/unit/s343-completion-context-rows.test.ts",
+    "from": "if (typeof this === \"string\" && this === target) count++;",
+    "to": "if (typeof this === \"string\") count++;",
+    "expect": "killed",
+    "why": "a split of another string would count: killed by the row that splits 'other text' and a slice of the text and expects 0"
+  },
+  {
+    "name": "T09 split counter: String.prototype.split is not restored",
+    "file": "test/unit/s343-completion-context-rows.test.ts",
+    "from": "    String.prototype.split = original;\n",
+    "to": "",
+    "expect": "killed",
+    "why": "a patched split would stay for every later row of the worker: killed by the restore row, which reads the prototype after a returning and a throwing run"
+  },
+  {
+    "name": "T10 count rows: the document is read before it is warm",
+    "file": "test/unit/s343-completion-context-rows.test.ts",
+    "from": "  const warm = (): void => void findCellOptionLines(text);",
+    "to": "  const warm = (): void => undefined;",
+    "expect": "killed",
+    "why": "the cache holds the scans of other rows' texts, so the first row would pay a cold scan, which splits the text (3 splits at the cure): killed by the prose-line count row"
+  }
+]

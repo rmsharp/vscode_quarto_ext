@@ -1,0 +1,258 @@
+[
+  {
+    "name": "R01 regions-cache: the maximum is three entries",
+    "file": "src/core/qmd/regions-cache.ts",
+    "from": "export const REGIONS_CACHE_MAX_ENTRIES = 4;",
+    "to": "export const REGIONS_CACHE_MAX_ENTRIES = 3;",
+    "expect": "killed",
+    "why": "a second visible document loses one of its two keys: killed by the constants row and the four-key cache rows"
+  },
+  {
+    "name": "R02 regions-cache: the maximum is five entries",
+    "file": "src/core/qmd/regions-cache.ts",
+    "from": "export const REGIONS_CACHE_MAX_ENTRIES = 4;",
+    "to": "export const REGIONS_CACHE_MAX_ENTRIES = 5;",
+    "expect": "killed",
+    "why": "a fifth key is kept: killed by the constants row and the fifth-key cache rows (the oldest must be scanned again)"
+  },
+  {
+    "name": "R03 regions-cache: one entry is always kept",
+    "file": "src/core/qmd/regions-cache.ts",
+    "from": "export const REGIONS_CACHE_ALWAYS_KEPT = 2;",
+    "to": "export const REGIONS_CACHE_ALWAYS_KEPT = 1;",
+    "expect": "killed",
+    "why": "a megabytes-sized document loses its engine-aware key to its blind one: killed by the constants row and by the row of two scans over the whole budget"
+  },
+  {
+    "name": "R04 regions-cache: three entries are always kept",
+    "file": "src/core/qmd/regions-cache.ts",
+    "from": "export const REGIONS_CACHE_ALWAYS_KEPT = 2;",
+    "to": "export const REGIONS_CACHE_ALWAYS_KEPT = 3;",
+    "expect": "killed",
+    "why": "the memory bound is not applied to the third entry: killed by the constants row and by the rows where three scans do not fit"
+  },
+  {
+    "name": "R05 regions-cache: the budget is one character short",
+    "file": "src/core/qmd/regions-cache.ts",
+    "from": "export const REGIONS_CACHE_TEXT_BUDGET = 8_388_608;",
+    "to": "export const REGIONS_CACHE_TEXT_BUDGET = 8_388_607;",
+    "expect": "killed",
+    "why": "four scans that total exactly the budget are not all kept: killed by the row of four quarters"
+  },
+  {
+    "name": "R06 regions-cache: the budget is one character long",
+    "file": "src/core/qmd/regions-cache.ts",
+    "from": "export const REGIONS_CACHE_TEXT_BUDGET = 8_388_608;",
+    "to": "export const REGIONS_CACHE_TEXT_BUDGET = 8_388_609;",
+    "expect": "killed",
+    "why": "killed by the constants row (the cache rows over the budget are over it by 2 characters, so only the stated value tells)"
+  },
+  {
+    "name": "R07 regions-cache: the budget is halved",
+    "file": "src/core/qmd/regions-cache.ts",
+    "from": "export const REGIONS_CACHE_TEXT_BUDGET = 8_388_608;",
+    "to": "export const REGIONS_CACHE_TEXT_BUDGET = 4_194_304;",
+    "expect": "killed",
+    "why": "four quarter-budget scans are no longer kept: killed by the row of four quarters and the constants row"
+  },
+  {
+    "name": "P01 promoted: an index of 0 or less is not guarded",
+    "file": "src/core/qmd/regions-cache.ts",
+    "from": "  if (at <= 0 || at >= entries.length) return entries.slice();",
+    "to": "  if (at < 0 || at >= entries.length) return entries.slice();",
+    "expect": "survives",
+    "why": "EQUIVALENT: at 0 the rebuilt list is [entries[0], ...nothing, ...entries.slice(1)], the same entries in the same order as the copy, and still another array"
+  },
+  {
+    "name": "P02 promoted: an index equal to the length is a hit",
+    "file": "src/core/qmd/regions-cache.ts",
+    "from": "  if (at <= 0 || at >= entries.length) return entries.slice();",
+    "to": "  if (at <= 0 || at > entries.length) return entries.slice();",
+    "expect": "killed",
+    "why": "the entry at the length is undefined and goes first: killed by the row of an index past either end"
+  },
+  {
+    "name": "P03 promoted: a negative index is a hit",
+    "file": "src/core/qmd/regions-cache.ts",
+    "from": "  if (at <= 0 || at >= entries.length) return entries.slice();",
+    "to": "  if (at === 0 || at >= entries.length) return entries.slice();",
+    "expect": "killed",
+    "why": "entries[-1] is undefined and goes first, with the whole list after it: killed by the row of an index past either end"
+  },
+  {
+    "name": "P04 promoted: only the first entry stays behind the hit",
+    "file": "src/core/qmd/regions-cache.ts",
+    "from": "  return [entries[at], ...entries.slice(0, at), ...entries.slice(at + 1)];",
+    "to": "  return [entries[at], entries[0], ...entries.slice(at + 1)];",
+    "expect": "killed",
+    "why": "a hit on the third or fourth entry loses the entries between: killed by the policy rows for the third and last entry and by the seeded reference"
+  },
+  {
+    "name": "P05 promoted: the hit is not moved",
+    "file": "src/core/qmd/regions-cache.ts",
+    "from": "  return [entries[at], ...entries.slice(0, at), ...entries.slice(at + 1)];",
+    "to": "  return [...entries.slice(0, at), entries[at], ...entries.slice(at + 1)];",
+    "expect": "killed",
+    "why": "a hit never becomes the most recent: killed by the promoted rows and the cache row 'a hit promotes'"
+  },
+  {
+    "name": "P06 promoted: the hit goes to the back",
+    "file": "src/core/qmd/regions-cache.ts",
+    "from": "  return [entries[at], ...entries.slice(0, at), ...entries.slice(at + 1)];",
+    "to": "  return [...entries.slice(0, at), ...entries.slice(at + 1), entries[at]];",
+    "expect": "killed",
+    "why": "the cache drops what was just asked: killed by the promoted rows"
+  },
+  {
+    "name": "A01 admitted: the new entry goes to the back",
+    "file": "src/core/qmd/regions-cache.ts",
+    "from": "  const held = [fresh, ...entries];",
+    "to": "  const held = [...entries, fresh];",
+    "expect": "killed",
+    "why": "the cache drops what was just scanned: killed by every admitted row (slow: about 115 s, the multi-megabyte rows rescan their texts at every miss; the kill is a real one, 29 and 26 failing rows)"
+  },
+  {
+    "name": "A02 admitted: the always-kept count is a floor of one fewer",
+    "file": "src/core/qmd/regions-cache.ts",
+    "from": "  while (held.length > limits.alwaysKept && (",
+    "to": "  while (held.length >= limits.alwaysKept && (",
+    "expect": "killed",
+    "why": "a pair over the budget loses its second entry, or its first: killed by the row 'kept whatever their size'"
+  },
+  {
+    "name": "A03 admitted: the maximum is exclusive",
+    "file": "src/core/qmd/regions-cache.ts",
+    "from": "held.length > limits.maxEntries ||",
+    "to": "held.length >= limits.maxEntries ||",
+    "expect": "killed",
+    "why": "three entries are kept where four are allowed: killed by the row of four small entries and the cache rows of four keys"
+  },
+  {
+    "name": "A04 admitted: the budget is exclusive",
+    "file": "src/core/qmd/regions-cache.ts",
+    "from": "|| total > limits.textBudget)",
+    "to": "|| total >= limits.textBudget)",
+    "expect": "killed",
+    "why": "entries whose texts total exactly the budget are dropped: killed by the row of 4 x 25 = 100, the row of four quarters and the row of three that fit exactly"
+  },
+  {
+    "name": "A05 admitted: dropping needs the maximum AND the budget",
+    "file": "src/core/qmd/regions-cache.ts",
+    "from": "held.length > limits.maxEntries || total > limits.textBudget",
+    "to": "held.length > limits.maxEntries && total > limits.textBudget",
+    "expect": "killed",
+    "why": "a fifth small entry is kept and a big third one too: killed by the fifth-entry row and the rows over the budget"
+  },
+  {
+    "name": "A06 admitted: the total is not reduced as entries are dropped",
+    "file": "src/core/qmd/regions-cache.ts",
+    "from": "    total -= (held.pop() as E).text.length;",
+    "to": "    held.pop();",
+    "expect": "killed",
+    "why": "once over the budget everything past the always-kept entries goes: killed by 'dropping the oldest is enough' and the row where the third stays"
+  },
+  {
+    "name": "A07 admitted: the total leaves out the new entry",
+    "file": "src/core/qmd/regions-cache.ts",
+    "from": "  let total = held.reduce((sum, e) => sum + e.text.length, 0);",
+    "to": "  let total = entries.reduce((sum, e) => sum + e.text.length, 0);",
+    "expect": "killed",
+    "why": "the new entry's size is not counted (and then subtracted when the back is dropped): killed by the boundary rows (3 x 25 + 26, four quarters, one character over)"
+  },
+  {
+    "name": "A08 admitted: the total counts entries, not characters",
+    "file": "src/core/qmd/regions-cache.ts",
+    "from": "sum + e.text.length, 0);",
+    "to": "sum + 1, 0);",
+    "expect": "killed",
+    "why": "no entry is ever dropped for its size: killed by every budget row"
+  },
+  {
+    "name": "A09 admitted: the newest entry is dropped, not the oldest",
+    "file": "src/core/qmd/regions-cache.ts",
+    "from": "    total -= (held.pop() as E).text.length;",
+    "to": "    total -= (held.shift() as E).text.length;",
+    "expect": "killed",
+    "why": "the entry just scanned is the one that leaves: killed by every row that drops an entry (slow: about 115 s, the multi-megabyte rows rescan their texts at every miss; the kill is a real one, 29 and 26 failing rows)"
+  },
+  {
+    "name": "W01 scanEntry: a hit is not promoted",
+    "file": "src/core/qmd/model.ts",
+    "from": "    if (hitAt !== 0) regionsCache = promoted(regionsCache, hitAt);",
+    "to": "    if (hitAt !== 0) regionsCache = regionsCache;",
+    "expect": "killed",
+    "why": "the cache is first-in first-out, not least-recently-used: killed by the cache rows 'a hit promotes' and 'a hit on the oldest and then on the next oldest'"
+  },
+  {
+    "name": "W02 scanEntry: a miss replaces the whole cache",
+    "file": "src/core/qmd/model.ts",
+    "from": "  regionsCache = admitted(regionsCache, entry);",
+    "to": "  regionsCache = [entry];",
+    "expect": "killed",
+    "why": "one entry, not four: killed by every cache row that asks a second key"
+  },
+  {
+    "name": "W03 scanEntry: the render mode is not part of the key",
+    "file": "src/core/qmd/model.ts",
+    "from": "(e) => e.engine === engine && e.mode === mode && e.text === text,",
+    "to": "(e) => e.engine === engine && e.text === text,",
+    "expect": "killed",
+    "why": "a knitr document asked under --no-execute is served the executing scan: killed by the option-line rows of the setup chunk (s343-cell-option-lines-rows.test.ts), not by the cache rows, which never ask a knitr mode"
+  },
+  {
+    "name": "W04 scanEntry: the engine is not part of the key",
+    "file": "src/core/qmd/model.ts",
+    "from": "(e) => e.engine === engine && e.mode === mode && e.text === text,",
+    "to": "(e) => e.mode === mode && e.text === text,",
+    "expect": "killed",
+    "why": "the blind and the aware scans of one text are one entry: killed by the cache rows (two keys, two scans) and the option-line rows"
+  },
+  {
+    "name": "W05 scanEntry: the text is not part of the key",
+    "file": "src/core/qmd/model.ts",
+    "from": "(e) => e.engine === engine && e.mode === mode && e.text === text,",
+    "to": "(e) => e.engine === engine && e.mode === mode,",
+    "expect": "killed",
+    "why": "another document is served the last scan: killed by every row that asks two texts"
+  },
+  {
+    "name": "W06 scanEntry: the render mode is not normalised for engines that do not read it",
+    "file": "src/core/qmd/model.ts",
+    "from": "  const mode: RenderMode = engine === \"knitr\" && requested === \"no-execute\" ? \"no-execute\" : \"execute\";",
+    "to": "  const mode: RenderMode = requested;",
+    "expect": "killed",
+    "why": "a jupyter document asked under both modes takes two of the four slots, and any value of the mode is a key: killed by the cache row 'a mode that no engine but knitr reads is not another key'"
+  },
+  {
+    "name": "T01 cache rows: a quarter of the budget is a fifth",
+    "file": "test/unit/s343-regions-cache-rows.test.ts",
+    "from": "  const QUARTER = REGIONS_CACHE_TEXT_BUDGET / 4;",
+    "to": "  const QUARTER = REGIONS_CACHE_TEXT_BUDGET / 5;",
+    "expect": "killed",
+    "why": "four scans of a fifth total 80 percent of the budget and are all kept, so the 'one character over' row finds the oldest still there: the rows' sizes are live"
+  },
+  {
+    "name": "T02 seeded reference row: the floor on steps that dropped an entry for its size is 100000",
+    "file": "test/unit/s343-regions-cache-rows.test.ts",
+    "from": "    expect(evictedByBudget).toBeGreaterThan(500);",
+    "to": "    expect(evictedByBudget).toBeGreaterThan(100000);",
+    "expect": "killed",
+    "why": "the floor is a real count of the draw"
+  },
+  {
+    "name": "T03 seeded reference row: the floor on steps that held four entries is 100000",
+    "file": "test/unit/s343-regions-cache-rows.test.ts",
+    "from": "    expect(heldFour).toBeGreaterThan(500);",
+    "to": "    expect(heldFour).toBeGreaterThan(100000);",
+    "expect": "killed",
+    "why": "the floor is a real count of the draw"
+  },
+  {
+    "name": "T04 cache rows: the flush pushes out two scans only",
+    "file": "test/unit/s343-regions-cache-rows.test.ts",
+    "from": "  for (let i = 0; i < 5; i++) findAllCells(textOf(60, `flush${i}`));",
+    "to": "  for (let i = 0; i < 2; i++) findAllCells(textOf(60, `flush${i}`));",
+    "expect": "survives",
+    "why": "a recorded gap of the isolation, not of the cache: the rows scan four fresh keys before they ask anything, which evicts what an earlier row left, and each row uses its own tags; the longer flush is a safeguard for a row that asks fewer keys"
+  }
+]

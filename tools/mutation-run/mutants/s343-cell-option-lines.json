@@ -1,0 +1,186 @@
+[
+  {
+    "name": "M01 findCellOptionLines: the memo is rebuilt on every call",
+    "file": "src/core/qmd/model.ts",
+    "from": "  entry.optionLines ??= entry.regions.cells.flatMap((cell) => cellOptionLinesOf(cell));",
+    "to": "  entry.optionLines = entry.regions.cells.flatMap((cell) => cellOptionLinesOf(cell));",
+    "expect": "killed",
+    "why": "the parent's cost under another spelling: every call flat-maps every cell again; killed by the identity rows (fresh element objects on a repeat call) and by the clock row (three calls over one lookup: thousands)"
+  },
+  {
+    "name": "M02 findCellOptionLines: the cached array itself is returned",
+    "file": "src/core/qmd/model.ts",
+    "from": "  return entry.optionLines.slice();",
+    "to": "  return entry.optionLines;",
+    "expect": "killed",
+    "why": "a caller that reorders or empties its answer corrupts the cache: killed by the different-array row and the mutation row (push, pop, reverse, sort, splice, truncate)"
+  },
+  {
+    "name": "M03 findCellOptionLines: the copy leaves out the first element",
+    "file": "src/core/qmd/model.ts",
+    "from": "  return entry.optionLines.slice();",
+    "to": "  return entry.optionLines.slice(1);",
+    "expect": "killed",
+    "why": "the first option line of every document is missing: killed by every answer row"
+  },
+  {
+    "name": "M04 findCellOptionLines: the copy leaves out the last element",
+    "file": "src/core/qmd/model.ts",
+    "from": "  return entry.optionLines.slice();",
+    "to": "  return entry.optionLines.slice(0, -1);",
+    "expect": "killed",
+    "why": "the last option line is missing: killed by the answer rows (the old-spelling oracle on named and seeded documents)"
+  },
+  {
+    "name": "M05 findCellOptionLines: the memo is kept with ||= instead of ??=",
+    "file": "src/core/qmd/model.ts",
+    "from": "  entry.optionLines ??= entry.regions.cells.flatMap((cell) => cellOptionLinesOf(cell));",
+    "to": "  entry.optionLines ||= entry.regions.cells.flatMap((cell) => cellOptionLinesOf(cell));",
+    "expect": "survives",
+    "why": "EQUIVALENT: the field is undefined or an array, and an array (an empty one too) is truthy, so ||= and ??= assign in exactly the same cases"
+  },
+  {
+    "name": "M06 findCellOptionLines: the per-cell reader is passed to flatMap bare",
+    "file": "src/core/qmd/model.ts",
+    "from": "entry.regions.cells.flatMap((cell) => cellOptionLinesOf(cell));",
+    "to": "entry.regions.cells.flatMap(cellOptionLinesOf);",
+    "expect": "survives",
+    "why": "EQUIVALENT in the answer: flatMap hands the reader (cell, index, array), and cellOptionLinesOf declares one parameter, so the extra arguments are ignored; the laziness row counts REFERENCES to cellOptionLinesOf (a call and a bare one alike), so the spelling is not a kill either (an earlier row that counted calls only killed it by its spelling: fixed)"
+  },
+  {
+    "name": "M07 findCellOptionLines: the first cell is skipped",
+    "file": "src/core/qmd/model.ts",
+    "from": "  entry.optionLines ??= entry.regions.cells.flatMap((cell) => cellOptionLinesOf(cell));",
+    "to": "  entry.optionLines ??= entry.regions.cells.slice(1).flatMap((cell) => cellOptionLinesOf(cell));",
+    "expect": "killed",
+    "why": "the first cell's option lines are missing: killed by the answer rows"
+  },
+  {
+    "name": "M08 findCellOptionLines: only the first cell is read",
+    "file": "src/core/qmd/model.ts",
+    "from": "  entry.optionLines ??= entry.regions.cells.flatMap((cell) => cellOptionLinesOf(cell));",
+    "to": "  entry.optionLines ??= entry.regions.cells.slice(0, 1).flatMap((cell) => cellOptionLinesOf(cell));",
+    "expect": "killed",
+    "why": "every cell but the first is missing: killed by the answer rows and the 2,000-cell premise of the clock row"
+  },
+  {
+    "name": "M09 scanEntry: the option lines are built eagerly with the scan",
+    "file": "src/core/qmd/model.ts",
+    "from": "  const entry: RegionsCacheEntry = { text, engine, mode, regions: computeRegions(text, engine, mode) };",
+    "to": "  const scanned = computeRegions(text, engine, mode);\n  const entry: RegionsCacheEntry = { text, engine, mode, regions: scanned, optionLines: scanned.cells.flatMap((cell) => cellOptionLinesOf(cell)) };",
+    "expect": "killed",
+    "why": "every surface that scans (the Outline, the tint, Run Cell, cross-references) pays for the option lines it never asks for: the answers are the same, so only the laziness row sees it (the callers of cellOptionLinesOf in the model are findCellOptionLines and scanEntry, not findCellOptionLines alone)"
+  },
+  {
+    "name": "M10 scanEntry: a cache hit forgets the option lines",
+    "file": "src/core/qmd/model.ts",
+    "from": "    if (hitAt !== 0) regionsCache = promoted(regionsCache, hitAt);\n    return hit;",
+    "to": "    if (hitAt !== 0) regionsCache = promoted(regionsCache, hitAt);\n    hit.optionLines = undefined;\n    return hit;",
+    "expect": "killed",
+    "why": "any lookup of the scan (findAllCells, inFrontMatter, buildOutline) drops the memo: the next findCellOptionLines flat-maps again; killed by the row that asks findAllCells between two calls (fresh elements) and the clock row's lookups"
+  },
+  {
+    "name": "M11 scanEntry: the memo is dropped when a hit is not at the front",
+    "file": "src/core/qmd/model.ts",
+    "from": "    if (hitAt !== 0) regionsCache = promoted(regionsCache, hitAt);\n    return hit;",
+    "to": "    if (hitAt !== 0) { hit.optionLines = undefined; regionsCache = promoted(regionsCache, hitAt); }\n    return hit;",
+    "expect": "killed",
+    "why": "the blind list is rebuilt whenever the engine-aware scan was asked in between (the two keys of one document alternate in an edit cycle): killed by the row that asks the blind and the aware lists in turn and expects the blind elements back"
+  },
+  {
+    "name": "T01 clock row: the ratio limit is 1e12",
+    "file": "test/unit/s343-cell-option-lines-rows.test.ts",
+    "from": "const RATIO_LIMIT = 100;",
+    "to": "const RATIO_LIMIT = 1e12;",
+    "expect": "survives",
+    "why": "a recorded gap of the clock row on its own: with no limit the row still ticks its windows, and the identity rows are the witness of the memo (M01 is killed by them); the limit's value is held by its figure in the header (the parent 15,000, the cure under 10)"
+  },
+  {
+    "name": "T02 clock row: the ratio limit is 3 (under the cure's own figure)",
+    "file": "test/unit/s343-cell-option-lines-rows.test.ts",
+    "from": "const RATIO_LIMIT = 100;",
+    "to": "const RATIO_LIMIT = 3;",
+    "expect": "killed",
+    "why": "three copies of 4,000 elements over a copy of 2,000 cells are 6 to 9 lookups: a limit under that fails the cure, so the row is live and measures what it says"
+  },
+  {
+    "name": "T03 seeded row: the floor on documents with an option line is 399",
+    "file": "test/unit/s343-cell-option-lines-rows.test.ts",
+    "from": "    expect(withOptions).toBeGreaterThan(200);",
+    "to": "    expect(withOptions).toBeGreaterThan(399);",
+    "expect": "killed",
+    "why": "not every one of the 400 documents holds an option line: the floor fails when raised to all of them, so the draw's floor of 200 is a real count and not a constant that cannot fail"
+  },
+  {
+    "name": "T04 seeded row: the floor on documents whose lists differ by engine is 399",
+    "file": "test/unit/s343-cell-option-lines-rows.test.ts",
+    "from": "    expect(withBothLists).toBeGreaterThan(20);",
+    "to": "    expect(withBothLists).toBeGreaterThan(399);",
+    "expect": "killed",
+    "why": "most documents agree under every engine; the floor of 20 is a real count of the documents where a wrong key would show"
+  },
+  {
+    "name": "H01 ratioOfWindows: the baseline window reads the work window's end",
+    "file": "test/unit/support/ratio-windows.ts",
+    "from": "    const t2 = now();\n",
+    "to": "    const t2 = t1;\n",
+    "expect": "killed",
+    "why": "a clock stuck in the baseline window (Learning 910): the ratio is 1/0, the smallest window 0, and the clock row fails as 'did not tick'; killed by the helper's own rows and the clock row, which pass at the cure without the edit"
+  },
+  {
+    "name": "H02 ratioOfWindows: the baseline window is not among the smallest",
+    "file": "test/unit/support/ratio-windows.ts",
+    "from": "    smallest = Math.min(smallest, t1 - t0, t2 - t1);",
+    "to": "    smallest = Math.min(smallest, t1 - t0);",
+    "expect": "killed",
+    "why": "a baseline window that did not tick is not noticed: killed by the helper row whose baseline reads 0"
+  },
+  {
+    "name": "H03 ratioOfWindows: the work window is not among the smallest",
+    "file": "test/unit/support/ratio-windows.ts",
+    "from": "    smallest = Math.min(smallest, t1 - t0, t2 - t1);",
+    "to": "    smallest = Math.min(smallest, t2 - t1);",
+    "expect": "killed",
+    "why": "a work window that did not tick is not noticed: killed by the helper row whose work reads 0 (the stuck clock) and the spin row"
+  },
+  {
+    "name": "H04 ratioOfWindows: the largest round decides, not the median",
+    "file": "test/unit/support/ratio-windows.ts",
+    "from": "ratios[Math.floor(ratios.length / 2)]",
+    "to": "ratios[ratios.length - 1]",
+    "expect": "killed",
+    "why": "one pause in a work window decides the row: killed by the helper row with a pause in the work window of the middle round (500 against 5)"
+  },
+  {
+    "name": "H05 ratioOfWindows: the smallest round decides, not the median",
+    "file": "test/unit/support/ratio-windows.ts",
+    "from": "ratios[Math.floor(ratios.length / 2)]",
+    "to": "ratios[0]",
+    "expect": "killed",
+    "why": "one pause in a baseline window decides the row: killed by the helper row with a pause in the baseline window of the middle round (0.1 against 5)"
+  },
+  {
+    "name": "H06 ratioOfWindows: the ratio is not normalised by the repeats of the work",
+    "file": "test/unit/support/ratio-windows.ts",
+    "from": "    ratios.push((t1 - t0) / workRepeats / ((t2 - t1) / baselineRepeats));",
+    "to": "    ratios.push((t1 - t0) / ((t2 - t1) / baselineRepeats));",
+    "expect": "killed",
+    "why": "a window of 4 repeats against a window of 8 repeats is not one unit against one unit: killed by the helper row with 4 and 8 repeats (exactly 20)"
+  },
+  {
+    "name": "H07 ratioOfWindows: the ratio is not normalised by the repeats of the baseline",
+    "file": "test/unit/support/ratio-windows.ts",
+    "from": "    ratios.push((t1 - t0) / workRepeats / ((t2 - t1) / baselineRepeats));",
+    "to": "    ratios.push((t1 - t0) / workRepeats / (t2 - t1));",
+    "expect": "killed",
+    "why": "killed by the helper row with 4 and 8 repeats (exactly 20)"
+  },
+  {
+    "name": "H08 clockBreaks: a ratio that is not a number is accepted",
+    "file": "test/unit/support/ratio-windows.ts",
+    "from": "  if (!Number.isFinite(run.ratio)) return [`the ratio is ${run.ratio}`];\n",
+    "to": "",
+    "expect": "survives",
+    "why": "EQUIVALENT in the count of breaks: a NaN ratio fails `run.ratio < ratioLimit` and so does an Infinity one, so without the line the same single break is reported with the generic message instead of 'the ratio is ...'; no row reads the message of that break (the line exists to name the cause)"
+  }
+]
