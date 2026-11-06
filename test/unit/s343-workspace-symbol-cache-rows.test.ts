@@ -145,6 +145,8 @@ describe("Session 343 -- the symbol cache computes a file once while its text, m
     expect(() => cache.read(URI, "a.qmd", "boom", "execute")).toThrow(RangeError);
     expect(() => cache.read(URI, "a.qmd", "boom", "execute")).toThrow(RangeError);
     expect(calls).toEqual(["fine", "boom", "boom"]);
+    expect(cache.read(URI, "a.qmd", "fine", "execute")).toHaveLength(1); // the entry the throw found is still there: the computation is made before the old entry is touched
+    expect(calls).toEqual(["fine", "boom", "boom"]);
     fail = false;
     expect(cache.read(URI, "a.qmd", "boom", "execute").map((x) => x.name)).toEqual(["boom"]);
     expect(cache.read(URI, "a.qmd", "boom", "execute")).toHaveLength(1);
@@ -264,6 +266,32 @@ describe("Session 343 -- the two bounds: 8,388,608 characters of text in all, an
     cache.read("u:b", "a.qmd", text(40, "B"), "execute");
     cache.read("u:c", "a.qmd", text(60, "C"), "execute");
     expect(s.calls.map((c) => c[1][0])).toEqual(["B", "A", "a", "C"]);
+  });
+
+  it("a file pushed out gives its characters back: A (60), B (41) pushes A out, and C (59) then fits beside B", () => {
+    const { s, cache } = at100();
+    cache.read("u:a", "a.qmd", text(60, "A"), "execute");
+    cache.read("u:b", "a.qmd", text(41, "B"), "execute"); // A goes: 41 are held
+    cache.read("u:c", "a.qmd", text(59, "C"), "execute"); // 41 + 59 = 100 fits
+    cache.read("u:b", "a.qmd", text(41, "B"), "execute");
+    cache.read("u:c", "a.qmd", text(59, "C"), "execute");
+    expect(s.calls.map((c) => c[1][0])).toEqual(["A", "B", "C"]);
+  });
+
+  it("a file that CHANGED counts as just used: with 3 held, the oldest rewritten and a fourth read, the one pushed out is the next oldest, not the rewritten", () => {
+    const s = stand();
+    const cache = createWorkspaceSymbolCache({ ...s, maxFiles: 3 });
+    const read = (name: string, body = "# x\n"): void => void cache.read("u:" + name, "a.qmd", body, "execute");
+    read("a");
+    read("b");
+    read("c");
+    read("a", "# changed\n"); // a is the newest now
+    read("d"); // b goes
+    expect(s.calls).toHaveLength(5);
+    read("a", "# changed\n");
+    expect(s.calls).toHaveLength(5); // a is still there
+    read("b");
+    expect(s.calls).toHaveLength(6); // b went
   });
 
   it("a text over the bound is computed at EVERY read, and pushes nobody out", () => {
