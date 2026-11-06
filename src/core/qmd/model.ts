@@ -50,9 +50,12 @@ import { IDENTIFIER_RUN, isRun, runClass, runEnd } from "./unicode-run";
 
 /**
  * What the caller knows about the document's execution engine, or `undefined` when it does not
- * know (Session 273). Only `"knitr"` changes anything — see `KNITR_CHUNK_INFO` — so every other
- * value, `"ambiguous"` and `undefined` included, reproduces this model's pre-S273 behaviour
- * exactly. That is deliberate: the engine can depend on the FILENAME (`resolveDocumentEngine`
+ * know (Session 273). Three values change what the model reads: `"knitr"` (see `KNITR_CHUNK_INFO`
+ * and the silent-chunk closers), `"jupyter"` (an opener is a cell only if its language is the
+ * document's kernel language, `documentKernelLanguage`) and `"markdown"` (a cell opener whose
+ * language is not a handler language, `HANDLER_CELL_LANGUAGES`, is not a cell); every other value,
+ * `"ambiguous"`, julia and `undefined` included, reproduces the engine-blind behaviour exactly.
+ * Passing the engine IN is deliberate: the engine can depend on the FILENAME (`resolveDocumentEngine`
  * short-circuits on an `.Rmd` extension before reading a byte), which this module never sees, so
  * the answer is passed IN by the adapter that holds the document rather than resolved here.
  * Resolving it here would close an import cycle — `document-engine-resolve.ts` already imports
