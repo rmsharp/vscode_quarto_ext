@@ -38,18 +38,24 @@ describe("the fake clock (the rows below count on it: Learning 910 -- a row that
     expect(ran).toEqual(["a: due 10", "b: due 20", "c: due 30, first set", "d: due 30, second set"]);
   });
 
-  it("clearTimeout drops a timer; clearing one that has run, or one never set, changes nothing", () => {
+  it("clearTimeout drops a timer; clearing one that has run, one already cleared, or one never set, changes nothing -- and is counted as a stale clear", () => {
     const clock = createFakeClock();
     const ran: string[] = [];
     const kept = clock.setTimeout(() => ran.push("kept"), 5);
     const dropped = clock.setTimeout(() => ran.push("dropped"), 5);
     clock.clearTimeout(dropped);
     expect(clock.pending()).toBe(1);
+    expect(clock.staleClears()).toBe(0); // clearing a pending timer is not stale
     clock.advance(5);
     expect(ran).toEqual(["kept"]);
-    clock.clearTimeout(kept);
-    clock.clearTimeout(dropped);
-    clock.clearTimeout(12345);
+    clock.clearTimeout(kept); // it has run
+    expect(clock.staleClears()).toBe(1);
+    clock.clearTimeout(dropped); // it was cleared
+    expect(clock.staleClears()).toBe(2);
+    clock.clearTimeout(12345); // never set
+    expect(clock.staleClears()).toBe(3);
+    clock.clearTimeout(undefined); // no handle at all
+    expect(clock.staleClears()).toBe(4);
     expect(clock.pending()).toBe(0);
   });
 
@@ -289,6 +295,27 @@ describe("createKeyedDebouncer -- cancel", () => {
     debouncer.cancel("b");
     clock.advance(TYPING_DEBOUNCE_MS);
     expect(ran).toEqual(["a"]);
+  });
+});
+
+describe("createKeyedDebouncer -- it never clears a timer that is not pending", () => {
+  it("not after a run, not for a key never scheduled or cancelled twice, not on a second dispose or a cancel after it", () => {
+    const { clock, ran, debouncer, run } = setup();
+    debouncer.schedule("a", run("a"));
+    clock.advance(TYPING_DEBOUNCE_MS); // a runs
+    debouncer.schedule("a", run("a again")); // a fired timer must not be cleared by this schedule
+    debouncer.cancel("a"); // a pending one: a real clear
+    debouncer.cancel("a"); // none pending now
+    debouncer.cancel("never");
+    debouncer.schedule("b", run("b"));
+    clock.advance(TYPING_DEBOUNCE_MS); // b runs
+    debouncer.cancel("b"); // b has run
+    debouncer.schedule("c", run("c"));
+    debouncer.dispose(); // clears c
+    debouncer.dispose();
+    debouncer.cancel("c");
+    expect(clock.staleClears()).toBe(0);
+    expect(ran).toEqual(["a", "b"]);
   });
 });
 

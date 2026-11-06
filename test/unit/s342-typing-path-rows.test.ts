@@ -35,10 +35,14 @@ function session(options: { delayMs?: number; evaluate?: (state: { key: string; 
   const state = { active: true, key: DOC_A, version: 1, line: 0 };
   const seen: Seen[] = [];
   const errors: unknown[] = [];
+  const reads = { snapshots: 0 };
   const scheduler = createCellContextScheduler({
     timers: clock,
     delayMs: options.delayMs ?? TYPING_DEBOUNCE_MS,
-    activeSnapshot: (): EditorSnapshot | undefined => (state.active ? { key: state.key, version: state.version } : undefined),
+    activeSnapshot: (): EditorSnapshot | undefined => {
+      reads.snapshots++;
+      return state.active ? { key: state.key, version: state.version } : undefined;
+    },
     evaluate: () => {
       options.evaluate?.(state);
       seen.push({ key: state.key, version: state.version, line: state.line });
@@ -50,6 +54,7 @@ function session(options: { delayMs?: number; evaluate?: (state: { key: string; 
     state,
     seen,
     errors,
+    reads,
     scheduler,
     /** A document event: the text changed. */
     edit: () => {
@@ -317,10 +322,35 @@ describe("createCellContextScheduler -- when the quarto.inCodeCell key is evalua
     expect(s.clock.pending()).toBe(0);
   });
 
+  it("after dispose nothing reads the editor either: the snapshot is not asked for by an event, and no timer was cleared that was not pending", () => {
+    const s = session();
+    s.scheduler.evaluateNow();
+    s.keystroke(2);
+    s.scheduler.dispose();
+    const reads = s.reads.snapshots;
+    s.keystroke(3);
+    s.select(4);
+    s.scheduler.evaluateNow();
+    s.scheduler.dispose();
+    expect(s.reads.snapshots).toBe(reads);
+    expect(s.clock.staleClears()).toBe(0);
+  });
+
   it("dispose can be called twice", () => {
     const s = session();
     s.scheduler.dispose();
     expect(() => s.scheduler.dispose()).not.toThrow();
+  });
+
+  it("never clears a timer that is not pending: not on an immediate evaluation with nothing waiting, not after a debounced run", () => {
+    const s = session();
+    s.scheduler.evaluateNow();
+    s.select(3); // immediate, nothing pending
+    s.keystroke(4);
+    s.clock.advance(TYPING_DEBOUNCE_MS); // the debounced run
+    s.select(5); // immediate again
+    s.switchTo(DOC_B, 2, 0);
+    expect(s.clock.staleClears()).toBe(0);
   });
 });
 
