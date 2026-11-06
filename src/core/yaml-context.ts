@@ -16,6 +16,7 @@
  * `frontmatter-value` (the slot after that key's colon).
  */
 
+import { cursorLineAt } from "./cursor-line";
 import type { DocumentEngine } from "./document-engine";
 import { findCellOptionLines, inFrontMatter, trimEndBlanks } from "./qmd/model";
 
@@ -89,8 +90,7 @@ export function completionContextAt(
   offset: number,
   documentEngine: () => DocumentEngine | "ambiguous" | undefined,
 ): YamlCompletionContext | null {
-  const { line, col } = lineColAt(text, offset);
-  const lineText = text.split(/\r?\n/)[line] ?? "";
+  const { line, col, lineText } = cursorLineAt(text, offset);
 
   const optLine = findCellOptionLines(text).find((o) => o.line === line);
   if (optLine === undefined) {
@@ -1175,23 +1175,4 @@ const CELL_HANDLER_LANGUAGES: ReadonlySet<string> = new Set(["mermaid", "dot"]);
  */
 function isCellHandlerLanguage(lang: string): boolean {
   return CELL_HANDLER_LANGUAGES.has(lang);
-}
-
-/**
- * The 0-based (line, col) of `offset` in `text`, counting `\n` as the line break
- * (matching `vscode.TextDocument.offsetAt`, which walks the raw buffer). A `\r`
- * before a `\n` belongs to the preceding line, so columns within a `\r\n` line
- * agree with the model's `\r?\n`-split line text for any cursor before the `\r`.
- */
-function lineColAt(text: string, offset: number): { line: number; col: number } {
-  const clamped = Math.max(0, Math.min(offset, text.length));
-  let line = 0;
-  let lineStart = 0;
-  for (let i = 0; i < clamped; i++) {
-    if (text[i] === "\n") {
-      line++;
-      lineStart = i + 1;
-    }
-  }
-  return { line, col: clamped - lineStart };
 }
