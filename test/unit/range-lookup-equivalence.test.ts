@@ -363,6 +363,44 @@ describe("Session 342 -- cells the engine map reaches by an own property only, a
     }
   });
 
+  // The model keeps an engine token as written (`cells.test.ts` pins `{R}` giving the language "R") and the engine map is an own-property table of lower-case tokens, so `{Python}` is no mapped engine and its
+  // cell has no body to forward: the parent's `embeddedCellAt` answers `null` there and the lookup must too, on every question (a lookup that folds the case answers a python hit that the parent refuses).
+  const CASE_TOKENS: Array<[token: string, lower: string, languageId: string]> = [
+    ["Python", "python", "python"],
+    ["PYTHON", "python", "python"],
+    ["pYthon", "python", "python"],
+    ["Julia", "julia", "julia"],
+    ["JULIA", "julia", "julia"],
+    ["OJS", "ojs", "javascript"],
+    ["Js", "js", "javascript"],
+    ["R", "r", "r"],
+  ];
+  it.each(CASE_TOKENS)("an engine token is read as written: {%s} is no mapped engine, so its cell has no hit and no range, where {%s} is a cell of its language", (token, lower, languageId) => {
+    const upperText = `p\n\`\`\`{${token}}\nx\ny\n\`\`\`\n`;
+    const lowerText = `p\n\`\`\`{${lower}}\nx\ny\n\`\`\`\n`;
+    // 0 p | 1 fence | 2 x | 3 y | 4 fence | 5 (empty)
+    const upper = createRangeLookup(upperText);
+    const [upperCell] = findAllCells(upperText);
+    expect(upperCell).toEqual({ startLine: 1, endLine: 4, lang: token, code: "x\ny" });
+    for (let line = -1; line <= 6; line++) {
+      expect(upper.hitAt(line)).toBeNull();
+      expect(oldEmbeddedCellAt(upperText, line)).toBeNull();
+    }
+    for (const language of ["python", "r", "julia", "javascript"]) {
+      expect(upper.rangeInLanguageBody(2, 3, language)).toBe(false);
+      expect(oldRangeInSameLangBody(upperText, 2, 3, language)).toBe(false);
+    }
+    expect(upper.rangeInCellBody(2, 3, upperCell)).toBe(false);
+    expect(oldRangeWithinCell(upperText, 2, 3, upperCell)).toBe(false);
+    // the control: the same text with the token in lower case is a cell of its language, by the lookup and by the old spelling, so the comparison above can fail
+    const lowerLookup = createRangeLookup(lowerText);
+    const [lowerCell] = findAllCells(lowerText);
+    expect(lowerLookup.hitAt(2)?.languageId).toBe(languageId);
+    expect(oldEmbeddedCellAt(lowerText, 2)?.languageId).toBe(languageId);
+    expect(lowerLookup.rangeInLanguageBody(2, 3, languageId)).toBe(true);
+    expect(lowerLookup.rangeInCellBody(2, 3, lowerCell)).toBe(true);
+  });
+
   it("ojs and js cells are javascript: one language, two engine tokens", () => {
     const text = "```{ojs}\na\n```\n```{js}\nb\n```\n";
     const lookup = createRangeLookup(text);
@@ -410,6 +448,8 @@ describe("Session 342 -- cells the engine map reaches by an own property only, a
 
 const document = (word: string, lines: Record<string, string>): string => [...word].map((s) => lines[s]).join("\n");
 
+// `k` is the one opener with an upper-case engine token: the model keeps the token as written and the engine map holds lower-case tokens only, so `{Python}` is a cell that maps to no language (a lookup that folded
+// the case would forward it, where the parent answers `null`). The named row "an engine token is read as written" asks the same of more tokens.
 const LINES_1: Record<string, string> = {
   a: "```{python}",
   b: "```{r}",
@@ -421,6 +461,7 @@ const LINES_1: Record<string, string> = {
   h: "  ",
   i: "prose",
   j: "# Heading",
+  k: "```{Python}",
 };
 const LINES_2: Record<string, string> = { a: "```{python}", b: "```{r}", d: "```", e: "#| echo: false", f: "x = 1", g: "" };
 
@@ -448,12 +489,12 @@ describe("Session 342 -- every document over a line alphabet (the lookup against
   const R1_LENGTH = 4;
   const R2_LENGTH = 5;
 
-  it("the sizes: H1 reaches 111,111 documents of 0 to 5 lines over ten lines; H2 335,923 of 0 to 7 over six; R1 11,111 of 0 to 4 over ten; R2 9,331 of 0 to 5 over six", () => {
-    expect(Object.keys(LINES_1)).toHaveLength(10);
+  it("the sizes: H1 reaches 177,156 documents of 0 to 5 lines over eleven lines; H2 335,923 of 0 to 7 over six; R1 16,105 of 0 to 4 over eleven; R2 9,331 of 0 to 5 over six", () => {
+    expect(Object.keys(LINES_1)).toHaveLength(11);
     expect(Object.keys(LINES_2)).toHaveLength(6);
-    expect(countStrings(10, H1_LENGTH)).toBe(111_111);
+    expect(countStrings(11, H1_LENGTH)).toBe(177_156);
     expect(countStrings(6, H2_LENGTH)).toBe(335_923);
-    expect(countStrings(10, R1_LENGTH)).toBe(11_111);
+    expect(countStrings(11, R1_LENGTH)).toBe(16_105);
     expect(countStrings(6, R2_LENGTH)).toBe(9_331);
   });
 
@@ -464,7 +505,7 @@ describe("Session 342 -- every document over a line alphabet (the lookup against
     }
     expect(tally.disagreements).toEqual([]);
     // Recounted by `tools/range-lookup-count/count_ranges.py H1`.
-    expect(counts(tally)).toEqual({ docs: 111_111, cells: 19_728, lineAsks: 876_544, hits: 12_398 });
+    expect(counts(tally)).toEqual({ docs: 177_156, cells: 33_360, lineAsks: 1_399_534, hits: 16_518 });
   }, HEAVY_ROW_MS);
 
   it("H2: hitAt agrees on every line of every document over six lines up to seven lines long, and reaches the counts of the Python recount", () => {
@@ -477,14 +518,14 @@ describe("Session 342 -- every document over a line alphabet (the lookup against
     expect(counts(tally)).toEqual({ docs: 335_923, cells: 148_398, lineAsks: 3_292_048, hits: 197_296 });
   }, HEAVY_ROW_MS);
 
-  it("R1: both range checks agree on every range (every start against every end from -1 to one past the last line) of every document of 0 to 4 lines over ten, for three languages and every cell", () => {
+  it("R1: both range checks agree on every range (every start against every end from -1 to one past the last line) of every document of 0 to 4 lines over eleven, for three languages and every cell", () => {
     const tally = newTally();
     for (const word of everyString(Object.keys(LINES_1), R1_LENGTH)) {
       compareDocument(document(word, LINES_1), tally, { ranges: true });
     }
     expect(tally.disagreements).toEqual([]);
     // Recounted by `tools/range-lookup-count/count_ranges.py R1`.
-    expect(rangeCounts(tally)).toEqual({ docs: 11_111, cells: 1_353, lineAsks: 76_544, hits: 542, pairs: 528_676, python: 226_409, r: 226_409, javascript: 226_066, cellAsks: 65_250, cellKept: 28_616 });
+    expect(rangeCounts(tally)).toEqual({ docs: 16_105, cells: 2_104, lineAsks: 111_126, hits: 666, pairs: 768_542, python: 329_131, r: 329_131, javascript: 328_708, cellAsks: 101_596, cellKept: 44_338 });
   }, HEAVY_ROW_MS);
 
   it("R2: both range checks agree on every range of every document of 0 to 5 lines over six", () => {
@@ -498,7 +539,7 @@ describe("Session 342 -- every document over a line alphabet (the lookup against
   }, HEAVY_ROW_MS);
 });
 
-describe("Session 342 -- ranges with bounds that are not whole lines, on every document of 0 to 3 lines over ten and of 4 and 5 lines over six", () => {
+describe("Session 342 -- ranges with bounds that are not whole lines, on every document of 0 to 3 lines over eleven and of 4 and 5 lines over six", () => {
   it("R3: both range checks agree with the old spelling on every pairing of an odd number with a whole line (fractions, NaN, infinities, -0, hairs, the largest and smallest doubles), and on four hand-made cells", () => {
     const tally = newTally();
     const handMade: Cell[] = [
@@ -514,7 +555,7 @@ describe("Session 342 -- ranges with bounds that are not whole lines, on every d
       if (word.length === 4 || word.length === 5) compareDocument(document(word, LINES_2), tally, { oddRanges: true, handMade });
     }
     expect(tally.disagreements).toEqual([]);
-    expect(tally.docs).toBe(1_111 + 1_296 + 7_776);
+    expect(tally.docs).toBe(1_464 + 1_296 + 7_776);
     // floors, not pinned counts: the odd numbers are a list in this file, and the Python recount reads whole lines only
     expect(tally.oddRangeAsks).toBeGreaterThan(1_000_000);
     expect(tally.oddRangeKept).toBeGreaterThan(30_000);

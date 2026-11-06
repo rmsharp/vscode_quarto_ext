@@ -11,7 +11,8 @@ This script shares no code with the TypeScript, uses no regular expression and n
                 open only a line of exactly three backticks closes it (any other line is body); a block that is never closed is dropped (a cell nothing closes is no cell: the model says so).
     body:       the lines between the fences. A body of no line, or of one blank line, is an EMPTY code string: the cell has no body line at all (the documented edge). Otherwise it has as many body lines as the body has lines.
     options:    the cell's LEADING run of lines equal to `#| echo: false` (the only option line of the alphabets).
-    hit:        a whole-number line `i` is a hit when it is one of the cell's body lines that is not an option line, and the cell's engine maps to a language: `python` to python, `r` to r (`bash` maps to none).
+    hit:        a whole-number line `i` is a hit when it is one of the cell's body lines that is not an option line, and the cell's engine maps to a language: `python` to python, `r` to r (`bash` maps to none,
+                and neither does `Python`: the engine token is read as written, so an upper-case token is no mapped engine and its cell has no hit).
     lines:      for each document, one question for every line from -1 to two past the last, that is (the number of lines + 3).
     ranges:     for each document, every start from -1 to one past the last line against every end from -1 to one past the last line, start above end included: (the number of lines + 3) squared of them. A range
                 `start..end` has the lines `start, start + 1, ..., end` (none when start is above end).
@@ -32,7 +33,7 @@ OPTION = "#| echo: false"
 MAPPED = {"python": "python", "r": "r"}
 LANGS = ("python", "r", "javascript")
 
-LINES_1 = {"a": "```{python}", "b": "```{r}", "c": "```{bash}", "d": "```", "e": OPTION, "f": "x = 1", "g": "", "h": "  ", "i": "prose", "j": "# Heading"}
+LINES_1 = {"a": "```{python}", "b": "```{r}", "c": "```{bash}", "d": "```", "e": OPTION, "f": "x = 1", "g": "", "h": "  ", "i": "prose", "j": "# Heading", "k": "```{Python}"}
 LINES_2 = {"a": "```{python}", "b": "```{r}", "d": "```", "e": OPTION, "f": "x = 1", "g": ""}
 
 SPECS = {
