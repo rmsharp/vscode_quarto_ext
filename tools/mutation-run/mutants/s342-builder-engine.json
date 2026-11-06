@@ -42,16 +42,16 @@
  {
   "name": "B06 findCellOptionLines: the engine is ignored",
   "file": "src/core/qmd/model.ts",
-  "from": "  return findAllCells(text, engine, mode).flatMap((cell) => cellOptionLinesOf(cell));",
-  "to": "  return findAllCells(text, undefined, mode).flatMap((cell) => cellOptionLinesOf(cell));",
+  "from": "  const entry = scanEntry(text, engine, mode);",
+  "to": "  const entry = scanEntry(text, undefined, mode);",
   "expect": "killed",
   "why": "the option lines of the aware chunk are not found; killed by the option-line rows and the vdoc row of the python chunk"
  },
  {
   "name": "B07 findCellOptionLines: the mode is ignored",
   "file": "src/core/qmd/model.ts",
-  "from": "  return findAllCells(text, engine, mode).flatMap((cell) => cellOptionLinesOf(cell));",
-  "to": "  return findAllCells(text, engine).flatMap((cell) => cellOptionLinesOf(cell));",
+  "from": "  const entry = scanEntry(text, engine, mode);",
+  "to": "  const entry = scanEntry(text, engine);",
   "expect": "killed",
   "why": "a #| line that exists only when the document executes is an option line under --no-execute; killed by the option-line row of the setup chunk"
  },

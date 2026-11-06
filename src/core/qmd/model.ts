@@ -10331,7 +10331,14 @@ interface Regions {
  * `text` (no external state, time, or randomness), so equal text ⇒ equal regions;
  * the key comparison is a value comparison (JS `===` on strings).
  */
-type RegionsCacheEntry = { text: string; engine: EngineHint; mode: RenderMode; regions: Regions };
+type RegionsCacheEntry = {
+  text: string;
+  engine: EngineHint;
+  mode: RenderMode;
+  regions: Regions;
+  /** The option lines of `regions.cells`, built by the first `findCellOptionLines` that asks (Session 343) and kept with the entry, so they leave the cache with it. Never built by the scan itself. */
+  optionLines?: CellOptionLine[];
+};
 /**
  * ⚠ The key is `text`, `engine` AND `mode` since Session 310: the Outline provider is re-registered when the render-mode setting changes, but the document text is NOT, so a key
  * without the mode would serve the previous mode's regions for an unchanged document. `scanRegions` normalises the mode to `execute` for every engine but knitr (the only reader of
@@ -10360,6 +10367,11 @@ let regionsCache: [RegionsCacheEntry?, RegionsCacheEntry?] = [];
  * element's fields (`cell.code`, `heading.text`, …) — no consumer does.
  */
 function scanRegions(text: string, engine: EngineHint = undefined, requested: RenderMode = "execute"): Regions {
+  return scanEntry(text, engine, requested).regions;
+}
+
+/** The cache entry of (`text`, `engine`, `requested`), made by one scan when it is not there: `scanRegions`, and `findCellOptionLines`, which keeps its list on the entry. */
+function scanEntry(text: string, engine: EngineHint = undefined, requested: RenderMode = "execute"): RegionsCacheEntry {
   // Only the exact string `no-execute` selects the non-default reading, as in `resolveRenderMode`: it hides headings quarto shows when it is wrong, so no other value, however it got here, may select it.
   const mode: RenderMode = engine === "knitr" && requested === "no-execute" ? "no-execute" : "execute";
   const hitAt = regionsCache.findIndex(
@@ -10368,11 +10380,11 @@ function scanRegions(text: string, engine: EngineHint = undefined, requested: Re
   if (hitAt >= 0) {
     const hit = regionsCache[hitAt] as RegionsCacheEntry;
     if (hitAt !== 0) regionsCache = [hit, regionsCache[0]];
-    return hit.regions;
+    return hit;
   }
-  const regions = computeRegions(text, engine, mode);
-  regionsCache = [{ text, engine, mode, regions }, regionsCache[0]];
-  return regions;
+  const entry: RegionsCacheEntry = { text, engine, mode, regions: computeRegions(text, engine, mode) };
+  regionsCache = [entry, regionsCache[0]];
+  return entry;
 }
 
 /**
@@ -13656,9 +13668,16 @@ const BLOCK_SCALAR_HEADER = /^[|>](?:[1-9][-+]?|[-+][1-9]?)?[ \t]*(?:#.*)?$/;
  * `engine` and `mode` are optional and last, as for `findAllCells` (Session 342): the option lines of the cells of the scan cached under (text, engine, mode); omitted, the engine-blind lines. The two
  * lists of lines differ where the lists of cells do: a `#|` line under an indented opener that `jupyter` or `markdown` drops is an option line to the blind lines and to no cell's option lines in the
  * aware ones, so a consumer that is blind by design (`embeddedCellAt`, the range lookup, the blind builder) must keep the default, or that line is forwarded as code.
+ *
+ * ⚠ MEMOISED on the scan's cache entry (Session 343): the first call on a cached scan builds the list, every later one costs a copy of the array (one completion request inside a cell asks three times; the
+ * value diagnostics and the Outline's builder once a pass each, on a scan the request before them had already made). The array is a FRESH one each call, as for `findAllCells`, so a caller may reorder, add or
+ * remove entries; its ELEMENTS are the entry's shared objects and are immutable: do not mutate a field (no caller does). The list leaves the cache with its entry, and the scan never builds it, so a surface that
+ * does not ask pays nothing.
  */
 export function findCellOptionLines(text: string, engine: EngineHint = undefined, mode: RenderMode = "execute"): CellOptionLine[] {
-  return findAllCells(text, engine, mode).flatMap((cell) => cellOptionLinesOf(cell));
+  const entry = scanEntry(text, engine, mode);
+  entry.optionLines ??= entry.regions.cells.flatMap((cell) => cellOptionLinesOf(cell));
+  return entry.optionLines.slice();
 }
 
 /**
