@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   type EditorSnapshot,
+  type KeyedDebouncer,
+  type KeyedDebouncerOptions,
   MAX_TIMER_DELAY_MS,
   TYPING_DEBOUNCE_MS,
   TYPING_MAX_WAIT_MS,
+  type TimerHandle,
   createCellContextScheduler,
   createKeyedDebouncer,
+  normalizeDelayMs,
 } from "../../src/core/typing-debounce";
 import { createFakeClock } from "./support/fake-timers";
 import { seededRandom } from "./support/regex-equivalence";
@@ -875,5 +879,156 @@ describe("createKeyedDebouncer with a maximum wait agrees with a model of its sp
     m.advance(1_000);
     expect(m.log).toHaveLength(4);
     expect(m.pending()).toBe(0);
+  });
+});
+
+// ---- THE DEBOUNCER WITHOUT A MAXIMUM WAIT IS THE ONE IT WAS (the old spelling as the oracle) -----------------------------------------------------------------------------------------------------
+
+/**
+ * `createKeyedDebouncer` as it was before the maximum wait, copied VERBATIM from the parent of Session 343 (`src/core/typing-debounce.ts`: one table of trailing timers, no window), as the ORACLE (Learning 738): "no maxWaitMs
+ * behaves exactly as today" is checked against the code that was today, not against a description of it.
+ */
+function oldCreateKeyedDebouncer(options: KeyedDebouncerOptions): KeyedDebouncer {
+  const { timers } = options;
+  const delayMs = normalizeDelayMs(options.delayMs);
+  const onError = options.onError ?? ((error: unknown): void => console.error("Quarto: a debounced typing-path run failed", error));
+  const pending = new Map<string, TimerHandle>();
+  let disposed = false;
+
+  const cancel = (key: string): void => {
+    if (pending.has(key)) {
+      timers.clearTimeout(pending.get(key));
+      pending.delete(key);
+    }
+  };
+
+  return {
+    schedule(key, run) {
+      if (disposed) {
+        return;
+      }
+      cancel(key);
+      pending.set(
+        key,
+        timers.setTimeout(() => {
+          // The run is over before it runs: it may schedule its own key again, and a throw leaves the key free.
+          pending.delete(key);
+          try {
+            run();
+          } catch (error) {
+            onError(error);
+          }
+        }, delayMs),
+      );
+    },
+    cancel,
+    dispose() {
+      disposed = true;
+      for (const handle of pending.values()) {
+        timers.clearTimeout(handle);
+      }
+      pending.clear();
+    },
+  };
+}
+
+type OracleOp = Op | { op: "schedule"; key: string; throws: true };
+
+describe("createKeyedDebouncer with no maxWaitMs behaves exactly as it did (the oracle: the previous spelling, verbatim, on the same operations; Learning 914: every number a delay can hold)", () => {
+  // The values a number can hold (Learning 914): a fraction, zero, minus zero, a negative, NaN, both infinities, the longest a host timer holds and one past it, 2^53, a year.
+  const DELAYS = [150, 25.5, 0.25, 1, 0, -0, -5, NaN, Infinity, -Infinity, MAX_TIMER_DELAY_MS, MAX_TIMER_DELAY_MS + 1, 2 ** 53, 31_536_000_000];
+
+  /** Run the operations on a debouncer made by `make`, on its own fake clock; everything observable from outside. */
+  function observe(make: (options: KeyedDebouncerOptions) => KeyedDebouncer, ops: readonly OracleOp[], delayMs: number) {
+    const clock = createFakeClock();
+    const log: string[] = [];
+    const errors: string[] = [];
+    const debouncer = make({ timers: clock, delayMs, onError: (error) => errors.push((error as Error).message) });
+    const pending: number[] = [];
+    let label = 0;
+    for (const o of ops) {
+      switch (o.op) {
+        case "schedule": {
+          const id = String(label++);
+          const throws = "throws" in o;
+          if ("again" in o && o.again === true) {
+            const again = String(label++);
+            debouncer.schedule(o.key, () => {
+              log.push(`${o.key}:${id}`);
+              debouncer.schedule(o.key, () => log.push(`${o.key}:${again}`));
+              if (throws) throw new Error(id);
+            });
+          } else {
+            debouncer.schedule(o.key, () => {
+              log.push(`${o.key}:${id}`);
+              if (throws) throw new Error(id);
+            });
+          }
+          break;
+        }
+        case "cancel":
+          debouncer.cancel(o.key);
+          break;
+        case "advance":
+          clock.advance(o.ms);
+          break;
+        case "dispose":
+          debouncer.dispose();
+          break;
+      }
+      pending.push(clock.pending());
+    }
+    return { log, errors, pending, delays: clock.delays.map((d) => Object.is(d, -0) ? "-0" : String(d)), staleClears: clock.staleClears(), now: clock.now() };
+  }
+
+  it("agrees on 3,000 seeded sequences of 5 to 60 operations (schedule, a run that schedules its own key, a throwing run, cancel, advance, dispose) at each of the fourteen delays: the runs, the errors, the timers pending after every operation, the delays the timer was asked for, the stale clears", () => {
+    const random = seededRandom(3432);
+    const keys = ["a", "b", "c"];
+    const advances = [0, 1, 10, 49, 50, 51, 149, 150, 151, 1_000, 5_000];
+    let compared = 0;
+    let ranTotal = 0;
+    let errorsTotal = 0;
+    const mismatches: string[] = [];
+    for (let n = 0; n < 3_000; n++) {
+      const ops: OracleOp[] = [];
+      const length = 5 + Math.floor(random() * 56);
+      for (let k = 0; k < length; k++) {
+        const draw = random();
+        const key = keys[Math.floor(random() * keys.length)];
+        if (draw < 0.3) ops.push({ op: "schedule", key });
+        else if (draw < 0.4) ops.push({ op: "schedule", key, again: true });
+        else if (draw < 0.47) ops.push({ op: "schedule", key, throws: true });
+        else if (draw < 0.56) ops.push({ op: "cancel", key });
+        else if (draw < 0.995) ops.push({ op: "advance", ms: advances[Math.floor(random() * advances.length)] });
+        else ops.push({ op: "dispose" });
+      }
+      ops.push({ op: "advance", ms: 3_000 });
+      const delayMs = DELAYS[n % DELAYS.length];
+      const before = observe(oldCreateKeyedDebouncer, ops, delayMs);
+      const now = observe((options) => createKeyedDebouncer({ ...options, maxWaitMs: undefined }), ops, delayMs);
+      const omitted = observe(createKeyedDebouncer, ops, delayMs); // the option not given at all
+      compared += 2;
+      ranTotal += before.log.length;
+      errorsTotal += before.errors.length;
+      for (const [name, got] of [["maxWaitMs: undefined", now], ["no maxWaitMs", omitted]] as const) {
+        if (JSON.stringify(got) !== JSON.stringify(before) && mismatches.length < 3) {
+          mismatches.push(`delay ${String(delayMs)}, ${name}: ${JSON.stringify(ops)} -> ${JSON.stringify(got)} against the oracle's ${JSON.stringify(before)}`);
+        }
+      }
+    }
+    expect(mismatches).toEqual([]);
+    expect(compared).toBe(6_000);
+    expect(ranTotal).toBeGreaterThan(10_000); // the draw reaches runs, and runs that throw
+    expect(errorsTotal).toBeGreaterThan(1_000);
+  });
+
+  it("agrees on every number the delay can hold, for one schedule and a pause past it: the timer is asked for the same delay (a minus zero never), and the run comes when the oracle's does", () => {
+    for (const delayMs of DELAYS) {
+      const ops: OracleOp[] = [{ op: "schedule", key: "a" }, { op: "advance", ms: 149 }, { op: "advance", ms: 1 }, { op: "advance", ms: 100_000 }];
+      const before = observe(oldCreateKeyedDebouncer, ops, delayMs);
+      const after = observe(createKeyedDebouncer, ops, delayMs);
+      expect(after, `delay ${String(delayMs)}`).toEqual(before);
+      expect(before.delays.includes("-0")).toBe(false);
+    }
   });
 });
