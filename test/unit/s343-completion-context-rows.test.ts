@@ -127,9 +127,15 @@ describe("Session 343 -- cursorLineAt answers what the old walk and split answer
   it(`every string of up to ${MAX_LENGTH} characters over { a | # CR LF space } (55,987 of them) with every integer offset from -1 to one past the end and the awkward numbers`, () => {
     let strings = 0;
     let compared = 0;
+    let withCrlf = 0;
+    let withLoneCr = 0;
+    let withLf = 0;
     const disagreements: string[] = [];
     for (const text of everyString(ALPHABET, MAX_LENGTH)) {
       strings++;
+      if (text.includes(CR + LF)) withCrlf++;
+      if (/\r(?!\n)/.test(text)) withLoneCr++;
+      if (text.includes(LF)) withLf++;
       for (const offset of offsetsFor(text.length)) {
         compared++;
         const got = cursorLineAt(text, offset);
@@ -139,6 +145,8 @@ describe("Session 343 -- cursorLineAt answers what the old walk and split answer
     expect(disagreements).toEqual([]);
     expect(strings).toBe(55_987);
     expect(compared).toBeGreaterThan(55_987 * 12);
+    // the enumeration reached the shapes it is for (counted over the six characters of the alphabet): a CRLF in 7,231 strings, a CR with no LF after it in 32,578, a line feed in 36,456
+    expect([withCrlf, withLoneCr, withLf]).toEqual([7231, 32_578, 36_456]);
   });
 
   it("20,000 seeded documents of up to 400 characters built from line breaks of every kind, fence and option lines, blanks and prose, each asked at random offsets of every kind", () => {
@@ -310,6 +318,18 @@ describe("Session 343 -- a warm completionContextAt call splits the document no 
     expect(countSplitsOf(text, () => void "other text".split("t"))).toBe(0);
     expect(countSplitsOf(text, () => void text.slice(1).split("\n"))).toBe(0);
     expect(countSplitsOf(text, () => void 0)).toBe(0);
+  });
+
+  it("the counter puts String.prototype.split back, whether the work returns or throws", () => {
+    const original = String.prototype.split;
+    countSplitsOf(text, () => void text.split(LF));
+    expect(String.prototype.split).toBe(original);
+    expect(() =>
+      countSplitsOf(text, () => {
+        throw new Error("boom");
+      }),
+    ).toThrow("boom");
+    expect(String.prototype.split).toBe(original);
   });
 
   it("a prose line (the answer is null): no split of the text", () => {
