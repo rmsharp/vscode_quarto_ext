@@ -1,0 +1,602 @@
+[
+ {
+  "name": "S01 createWorkspaceSymbolCache: the mode is not compared",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "kept.mode === mode && ",
+  "to": "",
+  "expect": "killed",
+  "why": "a file read under the other render mode is served the first mode's symbols; killed by the changed-mode row and the enumerated documents"
+ },
+ {
+  "name": "S02 createWorkspaceSymbolCache: the file name is not compared",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "kept.fileName === fileName && ",
+  "to": "",
+  "expect": "killed",
+  "why": "an `.Rmd` and a `.qmd` of one uri share an answer; killed by the changed-name row and the documents whose list depends on the name"
+ },
+ {
+  "name": "S03 createWorkspaceSymbolCache: the text is not compared (the uri alone is the key)",
+  "file": "src/core/workspace-symbols.ts",
+  "from": " && kept.text === text) {",
+  "to": ") {",
+  "expect": "killed",
+  "why": "an edited file is served its old symbols; killed by every changed-text row"
+ },
+ {
+  "name": "S04 createWorkspaceSymbolCache: the text is compared by its length",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "kept.text === text",
+  "to": "kept.text.length === text.length",
+  "expect": "killed",
+  "why": "an edit that keeps the length is not seen; killed by the swapped-character variant and the seeded reads"
+ },
+ {
+  "name": "S05 createWorkspaceSymbolCache: the text is compared by its first 1,000 characters",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "kept.text === text",
+  "to": "kept.text.slice(0, 1000) === text.slice(0, 1000)",
+  "expect": "killed",
+  "why": "an edit past the first 1,000 characters is not seen; killed by the variants of a 5,000-character text"
+ },
+ {
+  "name": "S06 createWorkspaceSymbolCache: the text is compared by its length and last character",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "kept.text === text",
+  "to": "kept.text.length === text.length && kept.text.slice(-1) === text.slice(-1)",
+  "expect": "killed",
+  "why": "a character swapped in the middle is not seen; killed by the middle-swap variant"
+ },
+ {
+  "name": "S07 createWorkspaceSymbolCache: a hit does not move the entry to the end",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "        entries.delete(uri);\n        entries.set(uri, kept); // most recently used\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the bound drops the oldest READ and not the least recently USED; killed by the recency rows"
+ },
+ {
+  "name": "S08 createWorkspaceSymbolCache: the symbols are not frozen one by one",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "      for (const symbol of flat) Object.freeze(symbol);\n",
+  "to": "",
+  "expect": "killed",
+  "why": "a pass can edit a symbol the next pass is served; killed by the frozen rows"
+ },
+ {
+  "name": "S09 createWorkspaceSymbolCache: the list is not frozen",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "const symbols = Object.freeze(flat);",
+  "to": "const symbols = flat;",
+  "expect": "killed",
+  "why": "a pass can push to the list; killed by the frozen rows"
+ },
+ {
+  "name": "S10 createWorkspaceSymbolCache: a hit hands back a copy of each symbol",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "return kept.symbols;",
+  "to": "return kept.symbols.map((symbol) => ({ ...symbol }));",
+  "expect": "killed",
+  "why": "the same values, a new list and new unfrozen objects every pass; killed by the identity row and the frozen rows"
+ },
+ {
+  "name": "S11 createWorkspaceSymbolCache: a text of exactly the bound is not kept",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "text.length <= maxChars",
+  "to": "text.length < maxChars",
+  "expect": "killed",
+  "why": "off by one at the character bound; killed by the rows at 100 and at 8,388,608 characters"
+ },
+ {
+  "name": "S12 createWorkspaceSymbolCache: a text up to twice the bound is kept",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "text.length <= maxChars",
+  "to": "text.length <= maxChars * 2",
+  "expect": "killed",
+  "why": "a text over the bound is kept and pushes the others out; killed by the 101-character and 8,388,609-character rows"
+ },
+ {
+  "name": "S13 createWorkspaceSymbolCache: a replaced entry does not give its characters back",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "        keptChars -= kept.text.length;\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the total drifts up with every edit and the cache empties itself early; killed by the changed-file characters row"
+ },
+ {
+  "name": "S14 createWorkspaceSymbolCache: an evicted entry does not give its characters back",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "          keptChars -= oldest.value[1].text.length;\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the total drifts up with every eviction; killed by the evicted-file characters row"
+ },
+ {
+  "name": "S15 createWorkspaceSymbolCache: the file bound is one short (>=)",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "entries.size > maxFiles",
+  "to": "entries.size >= maxFiles",
+  "expect": "killed",
+  "why": "4,095 files are held and 2 of 3; killed by the 4,096-file row and the 3-file rows"
+ },
+ {
+  "name": "S16 createWorkspaceSymbolCache: the character bound is not enforced",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "keptChars > maxChars || ",
+  "to": "",
+  "expect": "killed",
+  "why": "texts pile up without limit; killed by the 60 + 41 row"
+ },
+ {
+  "name": "S17 createWorkspaceSymbolCache: the file bound is not enforced",
+  "file": "src/core/workspace-symbols.ts",
+  "from": " || entries.size > maxFiles",
+  "to": "",
+  "expect": "killed",
+  "why": "files pile up without limit; killed by the 4,097-file row and the 3-file rows"
+ },
+ {
+  "name": "S18 createWorkspaceSymbolCache: the newest entry is the one pushed out",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "entries.delete(oldest.value[0]);",
+  "to": "entries.delete(uri);",
+  "expect": "killed",
+  "why": "the file just computed is dropped; killed by the bound rows"
+ },
+ {
+  "name": "S19 createWorkspaceSymbolCache: a replaced entry keeps its place in the order",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "        entries.delete(uri);\n        keptChars -= kept.text.length;",
+  "to": "        keptChars -= kept.text.length;",
+  "expect": "killed",
+  "why": "Map.set on an existing key keeps its position, so a rewritten file stays where it was; killed by the changed-file recency rows"
+ },
+ {
+  "name": "S20 createWorkspaceSymbolCache: a text over the bound leaves the file's older entry in place",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "      if (kept !== undefined) {\n        entries.delete(uri);\n        keptChars -= kept.text.length;\n      }\n      if (text.length <= maxChars) {\n",
+  "to": "      if (text.length <= maxChars) {\n        if (kept !== undefined) {\n          entries.delete(uri);\n          keptChars -= kept.text.length;\n        }\n",
+  "expect": "killed",
+  "why": "the stale entry keeps its characters and pushes a neighbour out; killed by the row that grows a file past the bound"
+ },
+ {
+  "name": "S21 createWorkspaceSymbolCache: the older entry is dropped BEFORE the computation",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "      const flat = compute(fileName, text, mode);\n",
+  "to": "      if (kept !== undefined) entries.delete(uri);\n      const flat = compute(fileName, text, mode);\n",
+  "expect": "killed",
+  "why": "a computation that throws leaves the cache without the entry it found, and with its characters still counted; killed by the throwing row"
+ },
+ {
+  "name": "S22 WORKSPACE_SYMBOL_CACHE_MAX_CHARS is one short",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "export const WORKSPACE_SYMBOL_CACHE_MAX_CHARS = 8_388_608;",
+  "to": "export const WORKSPACE_SYMBOL_CACHE_MAX_CHARS = 8_388_607;",
+  "expect": "killed",
+  "why": "a text of exactly 8,388,608 characters is not kept; killed by the default-bound rows"
+ },
+ {
+  "name": "S23 WORKSPACE_SYMBOL_CACHE_MAX_FILES is one short",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "export const WORKSPACE_SYMBOL_CACHE_MAX_FILES = 4_096;",
+  "to": "export const WORKSPACE_SYMBOL_CACHE_MAX_FILES = 4_095;",
+  "expect": "killed",
+  "why": "the 4,096th file pushes the first out; killed by the default-bound rows"
+ },
+ {
+  "name": "S24 boundOf: an infinity is a bound",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "Number.isFinite(value) && ",
+  "to": "",
+  "expect": "killed",
+  "why": "a bound of Infinity keeps everything; killed by the default-stands rows (8,388,609 characters, 4,097 files)"
+ },
+ {
+  "name": "S25 boundOf: 0 is not a bound",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "value >= 0 ?",
+  "to": "value > 0 ?",
+  "expect": "killed",
+  "why": "a bound of 0 falls back to the default instead of keeping nothing; killed by the bound-of-0 row"
+ },
+ {
+  "name": "S26 boundOf: the bound is not rounded down",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "? Math.floor(value) :",
+  "to": "? value :",
+  "expect": "survives",
+  "why": "EQUIVALENT: both bounds are compared with whole numbers (a count of entries, a sum of lengths), and x > 2.9, x >= 3 and x > 2 agree for every whole x, as do x <= 2.9 and x <= 2"
+ },
+ {
+  "name": "S27 boundOf: a non-number is not rejected by `typeof`",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "typeof value === \"number\" && ",
+  "to": "",
+  "expect": "survives",
+  "why": "EQUIVALENT: Number.isFinite answers false for a string, an object and undefined without coercing, so the typeof test repeats it"
+ },
+ {
+  "name": "S28 createWorkspaceSymbolCache: the text is compared first (the cheap two last)",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "kept.mode === mode && kept.fileName === fileName && kept.text === text",
+  "to": "kept.text === text && kept.fileName === fileName && kept.mode === mode",
+  "expect": "survives",
+  "why": "EQUIVALENT in every answer; only the cost differs (a file whose mode changed is compared character by character before it is found different), and no count or clock row of a unit test can see it at the sizes it runs"
+ },
+ {
+  "name": "S29 createWorkspaceSymbolCache: the computation is handed the text first",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "const flat = compute(fileName, text, mode);",
+  "to": "const flat = compute(text, fileName, mode);",
+  "expect": "killed",
+  "why": "the computation reads its arguments in the wrong order; killed by the row that logs the calls and by every real-computation row"
+ },
+ {
+  "name": "S30 createWorkspaceSymbolCache: the default computation is empty",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "options.flatSymbolsOf ?? flatSymbolsOf",
+  "to": "options.flatSymbolsOf ?? (() => [])",
+  "expect": "killed",
+  "why": "no file lists a symbol; killed by every row on the real computation"
+ },
+ {
+  "name": "S31 flatSymbolsOf: the engine is resolved from no file name",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "resolveDocumentEngine(fileName, text), mode)",
+  "to": "resolveDocumentEngine(\"\", text), mode)",
+  "expect": "killed",
+  "why": "an `.Rmd` is not knitr by its name; killed by the documents whose list depends on the file name"
+ },
+ {
+  "name": "S32 flatSymbolsOf: the mode is always `execute`",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "resolveDocumentEngine(fileName, text), mode)",
+  "to": "resolveDocumentEngine(fileName, text), \"execute\")",
+  "expect": "killed",
+  "why": "the setting is ignored; killed by the documents whose list depends on the mode"
+ },
+ {
+  "name": "S33 createWorkspaceSymbolCache: the entry is looked up by file name",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "const kept = entries.get(uri);",
+  "to": "const kept = entries.get(fileName);",
+  "expect": "killed",
+  "why": "no lookup ever finds an entry stored under a uri; killed by every count row"
+ },
+ {
+  "name": "S34 createWorkspaceSymbolCache: the entry keeps no text",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "entries.set(uri, { fileName, mode, text, symbols });",
+  "to": "entries.set(uri, { fileName, mode, text: \"\", symbols });",
+  "expect": "killed",
+  "why": "no text is ever equal, so nothing is ever served; killed by every count row"
+ },
+ {
+  "name": "S35 createWorkspaceSymbolCache: the entry is keyed by the text's first line",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "entries.set(uri, { fileName, mode, text, symbols });",
+  "to": "entries.set(text.split(\"\\n\")[0], { fileName, mode, text, symbols });",
+  "expect": "killed",
+  "why": "two uris with one first line share (and replace) an entry; killed by the uri-key row"
+ },
+ {
+  "name": "T01 the clock row's files are 10",
+  "file": "test/unit/s343-workspace-symbol-cache-rows.test.ts",
+  "from": "const FILES = 100;",
+  "to": "const FILES = 10;",
+  "expect": "killed",
+  "why": "a tenth of the files; killed by the row that reads the sizes and the limit"
+ },
+ {
+  "name": "T02 the clock row's cells are 5",
+  "file": "test/unit/s343-workspace-symbol-cache-rows.test.ts",
+  "from": "const CELLS = 50;",
+  "to": "const CELLS = 5;",
+  "expect": "killed",
+  "why": "a tenth of the lines; killed by the row that reads the sizes and the limit"
+ },
+ {
+  "name": "T03 the clock row's fraction is 1",
+  "file": "test/unit/s343-workspace-symbol-cache-rows.test.ts",
+  "from": "const FRACTION = 0.2;",
+  "to": "const FRACTION = 1;",
+  "expect": "killed",
+  "why": "the parent's passes (0.9 to 1.1 of pass 1) would pass; killed by the row that reads the sizes and the limit"
+ },
+ {
+  "name": "T04 the clock row makes three passes",
+  "file": "test/unit/s343-workspace-symbol-cache-rows.test.ts",
+  "from": "const KEYSTROKES = [\"sec\", \"secti\", \"section 1\", \"section 12\"];",
+  "to": "const KEYSTROKES = [\"sec\", \"secti\", \"section 1\"];",
+  "expect": "killed",
+  "why": "killed by the row that reads the sizes and by the hits it states"
+ },
+ {
+  "name": "T05 clockBreaks accepts a window that did not tick",
+  "file": "test/unit/s343-workspace-symbol-cache-rows.test.ts",
+  "from": "if (windows.length < 2 || !windows.every((w) => w > 0)) return",
+  "to": "if (false) return",
+  "expect": "killed",
+  "why": "a clock stuck at 0 passes every ratio; killed by the helper rows, not by the clock row, whose real clock always ticks"
+ },
+ {
+  "name": "T06 clockBreaks' limit is not strict",
+  "file": "test/unit/s343-workspace-symbol-cache-rows.test.ts",
+  "from": "filter(([, w]) => !(w < first * fraction))",
+  "to": "filter(([, w]) => w > first * fraction)",
+  "expect": "killed",
+  "why": "a pass exactly at the limit keeps the criterion; killed by the helper row at 20 over 100"
+ },
+ {
+  "name": "T07 timePasses reads every window as 0",
+  "file": "test/unit/s343-workspace-symbol-cache-rows.test.ts",
+  "from": "windows.push(now() - t0);",
+  "to": "windows.push(0);",
+  "expect": "killed",
+  "why": "every pass took no time; killed by the helper rows and by the clock row's tick check"
+ },
+ {
+  "name": "T08 timePasses reads the clock's total, not the pass's window",
+  "file": "test/unit/s343-workspace-symbol-cache-rows.test.ts",
+  "from": "windows.push(now() - t0);",
+  "to": "windows.push(now());",
+  "expect": "killed",
+  "why": "the windows are the running total of the clock; killed by the helper row on a clock only the stand-ins advance"
+ },
+ {
+  "name": "T09 the oracle resolves the engine from a fixed file name",
+  "file": "test/unit/s343-workspace-symbol-cache-rows.test.ts",
+  "from": "return flattenOutline(buildOutline(text, resolveDocumentEngine(fileName, text), mode));",
+  "to": "return flattenOutline(buildOutline(text, resolveDocumentEngine(\"a.qmd\", text), mode));",
+  "expect": "killed",
+  "why": "the old spelling disagrees with the cache on every document whose list depends on the file name; killed by the equality rows"
+ },
+ {
+  "name": "T10 the enumeration stops at three blocks",
+  "file": "test/unit/s343-workspace-symbol-cache-rows.test.ts",
+  "from": "const docs = sequences(BLOCKS, 4).map(",
+  "to": "const docs = sequences(BLOCKS, 3).map(",
+  "expect": "killed",
+  "why": "585 documents instead of 4,681; killed by the row that counts them"
+ },
+ {
+  "name": "T11 the enumeration has no lone fence",
+  "file": "test/unit/s343-workspace-symbol-cache-rows.test.ts",
+  "from": "  \"```\",\n  \"```{r}\\nknitr::opts_chunk$set(echo = FALSE)\\n```\",",
+  "to": "  \"```{r}\\nknitr::opts_chunk$set(echo = FALSE)\\n```\",",
+  "expect": "killed",
+  "why": "no document's list depends on the mode or the file name, so the key rows have nothing to tell apart; killed by the floors on the documents that differ"
+ },
+ {
+  "name": "T12 the seeded reads are 20",
+  "file": "test/unit/s343-workspace-symbol-cache-rows.test.ts",
+  "from": "for (let step = 0; step < 2000; step++) {",
+  "to": "for (let step = 0; step < 20; step++) {",
+  "expect": "killed",
+  "why": "killed by the floors on the changes and the hits"
+ },
+ {
+  "name": "T13 the seeded documents never change",
+  "file": "test/unit/s343-workspace-symbol-cache-rows.test.ts",
+  "from": "if (current === undefined || next() < 0.3) {",
+  "to": "if (current === undefined || next() < 0.0) {",
+  "expect": "killed",
+  "why": "killed by the floor on the changes"
+ },
+ {
+  "name": "T14 the bound of the small rows is 1,000 characters",
+  "file": "test/unit/s343-workspace-symbol-cache-rows.test.ts",
+  "from": "createWorkspaceSymbolCache({ ...s, maxChars: 100, maxFiles: 50 })",
+  "to": "createWorkspaceSymbolCache({ ...s, maxChars: 1000, maxFiles: 50 })",
+  "expect": "killed",
+  "why": "the 101-character text is kept; killed by the rows that sit on either side of the bound"
+ },
+ {
+  "name": "W01 workspace-symbols.ts: the cache is made inside the provider's method (one per query: it never hits)",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "    const results: vscode.SymbolInformation[] = [];\n",
+  "to": "    const results: vscode.SymbolInformation[] = [];\n    const symbolCache = createWorkspaceSymbolCache();\n",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (2 calls of createWorkspaceSymbolCache)"
+ },
+ {
+  "name": "W02 workspace-symbols.ts: the cache is made inside the register function",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "  context.subscriptions.push(\n    vscode.languages.registerWorkspaceSymbolProvider(",
+  "to": "  const symbolCache = createWorkspaceSymbolCache();\n  context.subscriptions.push(\n    vscode.languages.registerWorkspaceSymbolProvider(",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (2 calls of createWorkspaceSymbolCache)"
+ },
+ {
+  "name": "W03 workspace-symbols.ts: the cache is made over a stand-in computation",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "const symbolCache = createWorkspaceSymbolCache();",
+  "to": "const symbolCache = createWorkspaceSymbolCache({ flatSymbolsOf: () => [] });",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (is given arguments)"
+ },
+ {
+  "name": "W04 workspace-symbols.ts: the cache is a `let`",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "const symbolCache = createWorkspaceSymbolCache();",
+  "to": "let symbolCache = createWorkspaceSymbolCache();",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (module-level `const symbolCache`)"
+ },
+ {
+  "name": "W05 workspace-symbols.ts: the cache is called something else",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "const symbolCache = createWorkspaceSymbolCache();",
+  "to": "const cache = createWorkspaceSymbolCache();",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (module-level `const symbolCache`)"
+ },
+ {
+  "name": "W06 workspace-symbols.ts: the setting is read once for all files (outside the loop)",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "      const mode = resolveRenderMode(\n        vscode.workspace.getConfiguration(\"quarto\", uri).get<unknown>(RENDER_MODE_SETTING),\n      );\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (does not read the mode)"
+ },
+ {
+  "name": "W07 workspace-symbols.ts: the setting is read at the workspace's scope, not the file's",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "vscode.workspace.getConfiguration(\"quarto\", uri)",
+  "to": "vscode.workspace.getConfiguration(\"quarto\")",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (does not read the mode)"
+ },
+ {
+  "name": "W08 workspace-symbols.ts: the setting is not passed through resolveRenderMode",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "resolveRenderMode(\n        vscode.workspace.getConfiguration(\"quarto\", uri).get<unknown>(RENDER_MODE_SETTING),\n      )",
+  "to": "vscode.workspace.getConfiguration(\"quarto\", uri).get<unknown>(RENDER_MODE_SETTING) as never",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (does not read the mode)"
+ },
+ {
+  "name": "W09 workspace-symbols.ts: the key is the document's file name, not the uri",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "symbolCache.read(uri.toString(), document.fileName, docText, mode)",
+  "to": "symbolCache.read(document.fileName, document.fileName, docText, mode)",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (the symbols are not)"
+ },
+ {
+  "name": "W10 workspace-symbols.ts: the key is one constant for every file (every file replaces the last)",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "symbolCache.read(uri.toString(), document.fileName, docText, mode)",
+  "to": "symbolCache.read(\"workspace\", document.fileName, docText, mode)",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (the symbols are not)"
+ },
+ {
+  "name": "W11 workspace-symbols.ts: the file name is dropped from the key (the engine of an .Rmd is read from the wrong name)",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "symbolCache.read(uri.toString(), document.fileName, docText, mode)",
+  "to": "symbolCache.read(uri.toString(), \"\", docText, mode)",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (the symbols are not)"
+ },
+ {
+  "name": "W12 workspace-symbols.ts: the mode is dropped from the key",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "symbolCache.read(uri.toString(), document.fileName, docText, mode)",
+  "to": "symbolCache.read(uri.toString(), document.fileName, docText, \"execute\")",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (the symbols are not)"
+ },
+ {
+  "name": "W13 workspace-symbols.ts: the text is the previous one (the document is read before the loop)",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "symbolCache.read(uri.toString(), document.fileName, docText, mode)",
+  "to": "symbolCache.read(uri.toString(), document.fileName, document.lineAt(0).text, mode)",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (the symbols are not)"
+ },
+ {
+  "name": "W14 workspace-symbols.ts: the cache is asked for every symbol of the file once per symbol",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "      for (const symbol of symbolCache.read(uri.toString(), document.fileName, docText, mode)) {\n        if (!matchesWorkspaceQuery(symbol.name, query)) continue;",
+  "to": "      for (const symbol of symbolCache.read(uri.toString(), document.fileName, docText, mode)) {\n        symbolCache.read(uri.toString(), document.fileName, docText, mode);\n        if (!matchesWorkspaceQuery(symbol.name, query)) continue;",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (the cache is read inside the symbol loop)"
+ },
+ {
+  "name": "W15 workspace-symbols.ts: the query filter is dropped (every symbol of every file is returned)",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "        if (!matchesWorkspaceQuery(symbol.name, query)) continue;\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (does not skip on)"
+ },
+ {
+  "name": "W16 workspace-symbols.ts: the query filter is inverted",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "if (!matchesWorkspaceQuery(symbol.name, query)) continue;",
+  "to": "if (matchesWorkspaceQuery(symbol.name, query)) continue;",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (does not skip on)"
+ },
+ {
+  "name": "W17 workspace-symbols.ts: the query is filtered before the cache (the cache would hold one query's symbols)",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "      for (const symbol of symbolCache.read(uri.toString(), document.fileName, docText, mode)) {",
+  "to": "      for (const symbol of symbolCache.read(uri.toString(), document.fileName, docText, mode).filter((s) => matchesWorkspaceQuery(s.name, query))) {",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (the symbols are not)"
+ },
+ {
+  "name": "W18 workspace-symbols.ts: the adapter builds the outline itself again",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "      for (const symbol of symbolCache.read(",
+  "to": "      void buildOutline(docText);\n      for (const symbol of symbolCache.read(",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (the adapter calls buildOutline)"
+ },
+ {
+  "name": "W19 workspace-symbols.ts: the adapter resolves the engine itself again",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "      for (const symbol of symbolCache.read(",
+  "to": "      void resolveDocumentEngine(document.fileName, docText);\n      for (const symbol of symbolCache.read(",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (the adapter calls resolveDocumentEngine)"
+ },
+ {
+  "name": "W20 workspace-symbols.ts: the adapter flattens itself again",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "      for (const symbol of symbolCache.read(",
+  "to": "      void flattenOutline([]);\n      for (const symbol of symbolCache.read(",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (the adapter calls flattenOutline)"
+ },
+ {
+  "name": "W21 workspace-symbols.ts: the cache is not imported",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "  createWorkspaceSymbolCache,\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (createWorkspaceSymbolCache is not imported)"
+ },
+ {
+  "name": "W22 workspace-symbols.ts: the query filter is not imported",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "  matchesWorkspaceQuery,\n} from \"../core/workspace-symbols\";",
+  "to": "} from \"../core/workspace-symbols\";",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (matchesWorkspaceQuery is not imported)"
+ },
+ {
+  "name": "W23 workspace-symbols.ts: the model is imported again",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "import * as vscode from \"vscode\";\n",
+  "to": "import * as vscode from \"vscode\";\nimport { buildOutline } from \"../core/qmd/model\";\n",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (imports from ../core/qmd/model)"
+ },
+ {
+  "name": "W24 workspace-symbols.ts: the document is read from the disk, not VS Code's cache",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "const document = await vscode.workspace.openTextDocument(uri);",
+  "to": "const document = await vscode.workspace.openTextDocument(uri.fsPath);",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (does not read `const document)"
+ },
+ {
+  "name": "W25 workspace-symbols.ts: the text is read twice (a second getText for the key)",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "const docText = document.getText();",
+  "to": "const docText = document.getText() + document.getText();",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (does not read `const docText)"
+ },
+ {
+  "name": "W26 workspace-symbols.ts: the cancellation check is dropped",
+  "file": "src/providers/workspace-symbols.ts",
+  "from": "      if (token.isCancellationRequested) break;\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-workspace-symbols-wiring-pin.test.ts` names it (token.isCancellationRequested)"
+ }
+]
