@@ -10352,6 +10352,14 @@ type RegionsCacheEntry = {
  * single slot those two callers evict each other on every call — measured on the candidate
  * before this change, 10 extra full rescans over 5 alternating passes. Two slots, LRU by
  * construction (a hit promotes, a miss shifts the older out), makes the steady state zero.
+ *
+ * ⚠ UP TO FOUR since Session 343, under a memory bound (`qmd/regions-cache.ts` holds the policy and its three
+ * named constants). A SECOND visible `.qmd` is refreshed by the same handlers on every edit of the first
+ * (the cell tint of every visible editor; the Outline), so under two slots the first's two new scans (blind
+ * and engine-aware) evicted the second's every cycle and it paid a cold scan each time (probe sib05b, 2,000
+ * cells: 122 ms a cycle alone, 156 ms with a visible B). The two most recent entries are kept whatever their
+ * size; the third and fourth only while the total length of all the held texts is at most 8,388,608
+ * characters, so a megabytes-sized document keeps today's two.
  */
 let regionsCache: RegionsCacheEntry[] = [];
 
@@ -10375,8 +10383,9 @@ function scanRegions(text: string, engine: EngineHint = undefined, requested: Re
 function scanEntry(text: string, engine: EngineHint = undefined, requested: RenderMode = "execute"): RegionsCacheEntry {
   // Only the exact string `no-execute` selects the non-default reading, as in `resolveRenderMode`: it hides headings quarto shows when it is wrong, so no other value, however it got here, may select it.
   const mode: RenderMode = engine === "knitr" && requested === "no-execute" ? "no-execute" : "execute";
+  // The cheap parts of the key first: four entries may be asked, and two texts of one length compare as far as the first character that differs.
   const hitAt = regionsCache.findIndex(
-    (e) => e.text === text && e.engine === engine && e.mode === mode,
+    (e) => e.engine === engine && e.mode === mode && e.text === text,
   );
   if (hitAt >= 0) {
     const hit = regionsCache[hitAt];

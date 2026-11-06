@@ -308,17 +308,42 @@ describe(`Session 343 -- the memory bound: the third and fourth entries are kept
     expect([hits(A, ab), hits(A, aa, "knitr"), hits(B, bb), hits(B, ba, "knitr")]).toEqual([true, true, true, true]);
   });
 
-  it("one character over: the same four scans keep only the two most recent", () => {
+  it("one character over a quarter each for the second document (B is a quarter and a character): the four scans total over the budget, the oldest goes and the other three fit", () => {
     flush();
     const A = textOf(QUARTER, "A");
     const B = textOf(QUARTER + 1, "B");
     const ab = firstCell(A);
     const aa = firstCell(A, "knitr");
     const bb = firstCell(B);
-    const ba = firstCell(B, "knitr");
-    expect([hits(B, bb), hits(B, ba, "knitr")]).toEqual([true, true]);
-    expect(hits(A, aa, "knitr")).toBe(false);
+    const ba = firstCell(B, "knitr"); // 4 x a quarter + 2 over; without the oldest 3 x a quarter + 2: under
+    expect([hits(B, bb), hits(B, ba, "knitr"), hits(A, aa, "knitr")]).toEqual([true, true, true]);
     expect(hits(A, ab)).toBe(false);
+  });
+
+  it("three scans that fit exactly are kept and one character more drops the third too: A a quarter, B three eighths of the budget, then one character more", () => {
+    const EIGHTH = REGIONS_CACHE_TEXT_BUDGET / 8;
+    // [B aware, B blind, A aware] total 2 x 3 eighths + 2 eighths = the budget; the fourth scan (A blind) was dropped for being the oldest
+    flush();
+    const A = textOf(2 * EIGHTH, "A");
+    const fits = textOf(3 * EIGHTH, "B");
+    const ab = firstCell(A);
+    const aa = firstCell(A, "knitr");
+    const bb = firstCell(fits);
+    const ba = firstCell(fits, "knitr");
+    expect(2 * fits.length + A.length).toBe(REGIONS_CACHE_TEXT_BUDGET);
+    expect([hits(fits, bb), hits(fits, ba, "knitr"), hits(A, aa, "knitr")]).toEqual([true, true, true]);
+    expect(hits(A, ab)).toBe(false);
+    // the same with B one character longer: three do not fit, so only the two most recent stay
+    flush();
+    const over = textOf(3 * EIGHTH + 1, "B");
+    const ab2 = firstCell(A);
+    const aa2 = firstCell(A, "knitr");
+    const bb2 = firstCell(over);
+    const ba2 = firstCell(over, "knitr");
+    expect(2 * over.length + A.length).toBe(REGIONS_CACHE_TEXT_BUDGET + 2);
+    expect([hits(over, bb2), hits(over, ba2, "knitr")]).toEqual([true, true]);
+    expect(hits(A, aa2, "knitr")).toBe(false);
+    expect(hits(A, ab2)).toBe(false);
   });
 
   it("dropping the oldest is enough: four scans of 9,000,000 characters in all lose the oldest (1,500,000) and keep the other three (7,500,000)", () => {
