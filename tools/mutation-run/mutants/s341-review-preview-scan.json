@@ -109,7 +109,7 @@
   "from": "tail.push(chunk);\n        return null;",
   "to": "tail.push(chunk);\n        if (tail.length > 16) tail = [tail.join(\"\").slice(-1048576)];\n        return null;",
   "expect": "killed",
-  "why": "a cap above every line but the longest; run alone, killed by the rows of the block 'a Browse at line far longer than any cap, in chunks of one size, then its newline: the whole URL, at the newline' of preview-url-scanner-equivalence.test.ts (the 1,100,000-character URL rows; the one-character-chunk rows take 5 to 6 s under it, because the join it adds every 16 pieces is quadratic)"
+  "why": "a cap above every line but the longest; run alone, killed by the rows of the block 'a Browse at line far longer than any cap, in chunks of one size, then its newline: the whole URL, at the newline' of preview-url-scanner-equivalence.test.ts (the rows of the 1,100,000-character URL, at 4,096 and at 65,536 characters a chunk, and only those: the rows of 200,000 characters alone let it survive, seen with -t)"
  },
  {
   "name": "LL06 push: the completed text is capped to its last 65,536 characters",

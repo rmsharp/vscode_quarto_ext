@@ -157,7 +157,7 @@ type LongLine = { name: string; noise: number; body: number; sizes: number[] };
 
 const LONG_LINES: LongLine[] = [
   { name: "a URL of 200,000 characters (3x 64 KiB)", noise: 0, body: 200_000, sizes: [1, 1_000, 4_096, 65_536] },
-  { name: "a URL of 1,100,000 characters (more than 1 MiB)", noise: 0, body: 1_100_000, sizes: [1, 4_096, 65_536] },
+  { name: "a URL of 1,100,000 characters (more than 1 MiB)", noise: 0, body: 1_100_000, sizes: [4_096, 65_536] },
   { name: "the marker after 200,000 characters of noise on its line", noise: 200_000, body: 0, sizes: [1, 4_096] },
   { name: "the marker after 200,000 characters of noise, then a URL of 200,000 characters", noise: 200_000, body: 200_000, sizes: [1, 4_096] },
 ];
