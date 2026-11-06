@@ -18,7 +18,7 @@ type Engine = "knitr" | "jupyter" | "markdown" | "julia" | "ambiguous" | undefin
 
 const flatten = (symbols: OutlineSymbol[]): OutlineSymbol[] => symbols.flatMap((s) => (s.kind === "cell" ? [s] : flatten(s.children)));
 const cellSymbols = (text: string, engine: Engine, mode?: RenderMode): OutlineSymbol[] => flatten(buildOutline(text, engine, mode));
-const span = (cell: { startLine: number; endLine: number; lang: string }): string => `${cell.lang}[${cell.startLine}-${cell.endLine}]`;
+const span = (cell: { startLine: number; endLine: number; lang?: string }): string => `${cell.lang ?? ""}[${cell.startLine}-${cell.endLine}]`;
 const D = TYPE_IGNORE_DIRECTIVE;
 const nl = (k: number): string => "\n".repeat(k);
 

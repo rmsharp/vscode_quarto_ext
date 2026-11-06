@@ -12,6 +12,11 @@ import * as ts from "typescript";
 // built from that very cell. It does not run the provider: whether VS Code then shows the in-cell symbols is the behaviour check `test/integration/suite/outline.test.ts`, which opens a real VS Code window, takes over the
 // screen, and was NOT run for this change.
 //
+// Session 342, part (5): the builder is made over the very ENGINE and MODE the tree was built with (`createCellVdocBuilder(text, engine, mode)`, the pair `buildOutline(text, engine, mode)` is given), so that its cells and
+// option lines come from the scan the Outline just cached and not from a second, engine-blind one. The pins below say that `engine` is resolved ONCE in `provideDocumentSymbols`, that `mode` is the one declared there, and that
+// both calls are handed those two identifiers and nothing else (a literal, a second resolution, an `undefined` or a swapped pair would each let the two disagree again). They are the mutants of
+// `tools/mutation-run/mutants/s342-builder-engine.json`.
+//
 // The checks are one function, `problemsIn(source)`, which names every pin the source breaks. The live file must have none, and the rows below also hand it the live file with ONE edit each (the edits are the mutants of
 // `tools/mutation-run/mutants/s341-cell-vdoc.json` E01 to E04 and `s341-review-cell-vdoc.json` R62 to R64 and O01 to O03) and require it to name the pin that edit breaks: the pin can fail, and says which.
 
@@ -80,7 +85,10 @@ function problemsIn(source: string): string[] {
   } else if (builders.length === 1) {
     const [builder] = builders;
     if (enclosingFunction(builder) !== provide) problems.push("createCellVdocBuilder is not called directly in provideDocumentSymbols (inside an arrow function or another function it runs once per symbol)");
-    if (!argsAre(builder, id("text"))) problems.push("createCellVdocBuilder is not called over the document text (the identifier `text`)");
+    if (builder.arguments.length !== 3) problems.push("createCellVdocBuilder is not called with three arguments (text, engine, mode)");
+    if (!isId(builder.arguments[0], "text")) problems.push("createCellVdocBuilder is not called over the document text (the identifier `text`)");
+    if (!isId(builder.arguments[1], "engine")) problems.push("createCellVdocBuilder is not given the engine the tree was built with (the identifier `engine`)");
+    if (!isId(builder.arguments[2], "mode")) problems.push("createCellVdocBuilder is not given the mode the tree was built with (the identifier `mode`)");
     const declaration = builder.parent;
     const statement = declaration?.parent?.parent;
     if (!(declaration !== undefined && ts.isVariableDeclaration(declaration) && isId(declaration.name, "cellVdocs") && statement !== undefined && ts.isVariableStatement(statement) && statement.parent === provide.body)) {
@@ -94,6 +102,28 @@ function problemsIn(source: string): string[] {
     if (text === undefined || text.initializer === undefined || !isMethodCall(text.initializer, "document", "getText") || text.initializer.arguments.length !== 0) {
       problems.push("`text` is not `document.getText()` in provideDocumentSymbols");
     }
+  }
+  // 2b. (Session 342) `engine` is resolved ONCE, from the document's file name and text, among the statements of `provideDocumentSymbols`; `mode` is declared there too; the tree is built over exactly that pair
+  //     and the builder, made after both, over the same pair.
+  if (provide !== undefined && provide.body !== undefined) {
+    const declared = (name: string): ts.VariableDeclaration | undefined =>
+      collect(provide.body as ts.Node, (n): n is ts.VariableDeclaration => ts.isVariableDeclaration(n) && isId(n.name, name) && n.parent.parent.parent === provide.body)[0];
+    const engine = declared("engine");
+    const mode = declared("mode");
+    const resolutions = collect(sf, (n): n is ts.CallExpression => isPlainCall(n, "resolveDocumentEngine"));
+    if (resolutions.length !== 1) problems.push(`${resolutions.length} calls of resolveDocumentEngine, not one`);
+    if (engine === undefined || engine.initializer === undefined || !ts.isCallExpression(engine.initializer) || !isPlainCall(engine.initializer, "resolveDocumentEngine")) {
+      problems.push("`engine` is not `const engine = resolveDocumentEngine(...)` among the statements of provideDocumentSymbols");
+    } else if (!argsAre(engine.initializer, (n) => isProp(n, "document", "fileName"), id("text"))) {
+      problems.push("`engine` is not resolved from (document.fileName, text)");
+    }
+    if (mode === undefined || mode.initializer === undefined || !ts.isCallExpression(mode.initializer) || !isPlainCall(mode.initializer, "resolveRenderMode")) {
+      problems.push("`mode` is not `const mode = resolveRenderMode(...)` among the statements of provideDocumentSymbols");
+    }
+    const trees = collect(sf, (n): n is ts.CallExpression => isPlainCall(n, "buildOutline"));
+    if (trees.length !== 1 || !argsAre(trees[0], id("text"), id("engine"), id("mode"))) problems.push("the tree is not built by exactly one buildOutline(text, engine, mode)");
+    const made = collect(sf, (n): n is ts.CallExpression => isPlainCall(n, "createCellVdocBuilder"))[0];
+    if (made !== undefined && engine !== undefined && mode !== undefined && (made.getStart(sf) < engine.end || made.getStart(sf) < mode.end)) problems.push("the builder is made before `engine` and `mode` are declared");
   }
   const reads = collect(sf, (n): n is ts.CallExpression => ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) && n.expression.name.text === "getText");
   if (reads.length !== 1) problems.push(`${reads.length} reads of the document text (getText), not one`);
@@ -166,17 +196,32 @@ describe("Session 341 review -- the Outline provider's use of the per-cell vdoc 
   // The edits: each is the live file with ONE respelling, and the pin it must break. They are the mutants the runner applies to the file itself.
   const EDITS: Array<[string, string, string, string]> = [
     // [name, from, to, a word of the problem it must be named by]
-    ["E01: a builder over an empty text", "    const cellVdocs = createCellVdocBuilder(text);", "    const cellVdocs = createCellVdocBuilder(\"\");", "document text"],
+    ["E01: a builder over an empty text", "    const cellVdocs = createCellVdocBuilder(text, engine, mode);", "    const cellVdocs = createCellVdocBuilder(\"\", engine, mode);", "document text"],
     ["E02: the cell looked up one line below its start", "  const cell = cellVdocs.cellAt(cellSymbol.startLine);", "  const cell = cellVdocs.cellAt(cellSymbol.startLine + 1);", "cellVdocs.cellAt(cellSymbol.startLine)"],
     ["E03: the vdoc built from the cell with no code", "    cellVdocs.build(cell),\n  );", "    cellVdocs.build({ ...cell, code: \"\" }),\n  );", "cellVdocs.build(cell)"],
     ["E04: a builder per top-level symbol", "      visible.map((symbol) => toDocumentSymbol(symbol, document, cellVdocs)),", "      visible.map((symbol) => toDocumentSymbol(symbol, document, createCellVdocBuilder(document.getText()))),", "calls of createCellVdocBuilder"],
     ["R62: a builder per child symbol", "          symbol.children.map((child) => toDocumentSymbol(child, document, cellVdocs)),", "          symbol.children.map((child) => toDocumentSymbol(child, document, createCellVdocBuilder(document.getText()))),", "calls of createCellVdocBuilder"],
     ["R63: the cell looked up by the symbol's end line", "  const cell = cellVdocs.cellAt(cellSymbol.startLine);", "  const cell = cellVdocs.cellAt(cellSymbol.endLine);", "cellVdocs.cellAt(cellSymbol.startLine)"],
     ["R64: the vdoc built from a cell one line below", "    cellVdocs.build(cell),\n  );", "    cellVdocs.build({ ...cell, startLine: cell.startLine + 1 }),\n  );", "cellVdocs.build(cell)"],
-    ["O01: a builder per top-level symbol over the text", "      visible.map((symbol) => toDocumentSymbol(symbol, document, cellVdocs)),", "      visible.map((symbol) => toDocumentSymbol(symbol, document, createCellVdocBuilder(text))),", "calls of createCellVdocBuilder"],
+    ["O01: a builder per top-level symbol over the text", "      visible.map((symbol) => toDocumentSymbol(symbol, document, cellVdocs)),", "      visible.map((symbol) => toDocumentSymbol(symbol, document, createCellVdocBuilder(text, engine, mode))),", "calls of createCellVdocBuilder"],
     ["O02: a builder per cell inside the forward", "  const cell = cellVdocs.cellAt(cellSymbol.startLine);", "  const cell = createCellVdocBuilder(document.getText()).cellAt(cellSymbol.startLine);", "calls of createCellVdocBuilder"],
-    ["O03: the one builder over a second read of the document", "    const cellVdocs = createCellVdocBuilder(text);", "    const cellVdocs = createCellVdocBuilder(document.getText());", "document text"],
-    ["the builder made after the symbols are mapped", "    const cellVdocs = createCellVdocBuilder(text);\n    return Promise.all(\n      visible.map((symbol) => toDocumentSymbol(symbol, document, cellVdocs)),\n    );", "    const symbols = Promise.all(\n      visible.map((symbol) => toDocumentSymbol(symbol, document, cellVdocs)),\n    );\n    const cellVdocs = createCellVdocBuilder(text);\n    return symbols;", "before Promise.all"],
+    ["O03: the one builder over a second read of the document", "    const cellVdocs = createCellVdocBuilder(text, engine, mode);", "    const cellVdocs = createCellVdocBuilder(document.getText(), engine, mode);", "document text"],
+    ["the builder made after the symbols are mapped", "    const cellVdocs = createCellVdocBuilder(text, engine, mode);\n    return Promise.all(\n      visible.map((symbol) => toDocumentSymbol(symbol, document, cellVdocs)),\n    );", "    const symbols = Promise.all(\n      visible.map((symbol) => toDocumentSymbol(symbol, document, cellVdocs)),\n    );\n    const cellVdocs = createCellVdocBuilder(text, engine, mode);\n    return symbols;", "before Promise.all"],
+    // Session 342, part (5): the engine and the mode the builder is made over.
+    ["X01: the builder given neither engine nor mode", "    const cellVdocs = createCellVdocBuilder(text, engine, mode);", "    const cellVdocs = createCellVdocBuilder(text);", "not called with three arguments"],
+    ["X02: the builder given no mode", "    const cellVdocs = createCellVdocBuilder(text, engine, mode);", "    const cellVdocs = createCellVdocBuilder(text, engine);", "not called with three arguments"],
+    ["X03: the builder given an undefined engine", "    const cellVdocs = createCellVdocBuilder(text, engine, mode);", "    const cellVdocs = createCellVdocBuilder(text, undefined, mode);", "the identifier `engine`"],
+    ["X04: the builder given the engine knitr for every document", "    const cellVdocs = createCellVdocBuilder(text, engine, mode);", "    const cellVdocs = createCellVdocBuilder(text, \"knitr\", mode);", "the identifier `engine`"],
+    ["X05: the engine and the mode swapped", "    const cellVdocs = createCellVdocBuilder(text, engine, mode);", "    const cellVdocs = createCellVdocBuilder(text, mode as never, engine as never);", "the identifier `engine`"],
+    ["X06: the builder given the executing mode for every document", "    const cellVdocs = createCellVdocBuilder(text, engine, mode);", "    const cellVdocs = createCellVdocBuilder(text, engine, \"execute\");", "the identifier `mode`"],
+    ["X07: the builder given a second resolution of the engine", "    const cellVdocs = createCellVdocBuilder(text, engine, mode);", "    const cellVdocs = createCellVdocBuilder(text, resolveDocumentEngine(document.fileName, text), mode);", "calls of resolveDocumentEngine"],
+    ["X08: the tree built over an inline resolution", "    const tree = buildOutline(text, engine, mode);", "    const tree = buildOutline(text, resolveDocumentEngine(document.fileName, text), mode);", "the tree is not built by exactly one buildOutline(text, engine, mode)"],
+    ["X09: the tree built with no mode", "    const tree = buildOutline(text, engine, mode);", "    const tree = buildOutline(text, engine);", "the tree is not built by exactly one buildOutline(text, engine, mode)"],
+    ["X10: the engine resolved from an empty text", "    const engine = resolveDocumentEngine(document.fileName, text);", "    const engine = resolveDocumentEngine(document.fileName, \"\");", "`engine` is not resolved from (document.fileName, text)"],
+    ["X11: the engine resolved from the wrong file", "    const engine = resolveDocumentEngine(document.fileName, text);", "    const engine = resolveDocumentEngine(\"x.qmd\", text);", "`engine` is not resolved from (document.fileName, text)"],
+    ["X12: the engine declared after the builder", "    const engine = resolveDocumentEngine(document.fileName, text);\n    const tree = buildOutline(text, engine, mode);", "    const tree = buildOutline(text, \"knitr\" as never, mode);\n    const engine = resolveDocumentEngine(document.fileName, text);", "the tree is not built by exactly one buildOutline(text, engine, mode)"],
+    ["X13: the engine resolved inside a callback (once per symbol)", "    const engine = resolveDocumentEngine(document.fileName, text);", "    const engine = (() => resolveDocumentEngine(document.fileName, text))();", "`engine` is not `const engine = resolveDocumentEngine(...)`"],
+    ["X14: the mode read from a constant", "      vscode.workspace.getConfiguration(\"quarto\", document.uri).get<unknown>(RENDER_MODE_SETTING),\n    );", "      vscode.workspace.getConfiguration(\"quarto\", document.uri).get<unknown>(RENDER_MODE_SETTING),\n    ) && \"execute\";", "`mode` is not `const mode = resolveRenderMode(...)`"],
     ["the old pair back: findCellAtPosition", "  const cell = cellVdocs.cellAt(cellSymbol.startLine);", "  const cell = findCellAtPosition(document.getText(), cellSymbol.startLine);", "findCellAtPosition"],
     ["the old build back: buildCellVirtualContent", "    cellVdocs.build(cell),\n  );", "    buildCellVirtualContent(document.getText(), cell),\n  );", "buildCellVirtualContent"],
     ["toDocumentSymbol takes the text, not the builder", "  cellVdocs: CellVdocBuilder,\n): Promise<vscode.DocumentSymbol> {", "  cellVdocs: string,\n): Promise<vscode.DocumentSymbol> {", "toDocumentSymbol does not take"],
@@ -192,7 +237,7 @@ describe("Session 341 review -- the Outline provider's use of the per-cell vdoc 
   // A pin read from the syntax tree is not moved by what is not code.
   it("a comment, a string, a template and an unused identifier that spell the pinned calls do not satisfy the pin, and a comment that names the removed functions does not break it", () => {
     // the real call removed, a decoy of every kind left behind
-    const without = LIVE.replace("    const cellVdocs = createCellVdocBuilder(text);", "    // const cellVdocs = createCellVdocBuilder(text);\n    const decoy = \"createCellVdocBuilder(text)\" + `createCellVdocBuilder(text)`;\n    const alias = createCellVdocBuilder;\n    const cellVdocs = alias as unknown as CellVdocBuilder;\n    void decoy;");
+    const without = LIVE.replace("    const cellVdocs = createCellVdocBuilder(text, engine, mode);", "    // const cellVdocs = createCellVdocBuilder(text);\n    const decoy = \"createCellVdocBuilder(text)\" + `createCellVdocBuilder(text)`;\n    const alias = createCellVdocBuilder;\n    const cellVdocs = alias as unknown as CellVdocBuilder;\n    void decoy;");
     expect(without).not.toBe(LIVE);
     const broken = problemsIn(without);
     expect(broken.join("\n")).toContain("0 calls of createCellVdocBuilder");

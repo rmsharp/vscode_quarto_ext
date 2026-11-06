@@ -110,10 +110,13 @@ class QmdDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
     // by design and cannot resolve it anyway: the answer can turn on the FILE NAME (an `.Rmd`
     // is knitr before a byte is read), and importing the resolver there would close a cycle.
     // Only `"knitr"` changes anything; every other answer reproduces the pre-S273 Outline.
-    const tree = buildOutline(text, resolveDocumentEngine(document.fileName, text), mode);
+    const engine = resolveDocumentEngine(document.fileName, text);
+    const tree = buildOutline(text, engine, mode);
     const visible = showCells ? tree : hideCellsInOutline(tree);
     // ONE builder per call (Session 341): the cell lookup and the per-cell virtual document used to redo the whole text's work for each cell (cells x document).
-    const cellVdocs = createCellVdocBuilder(text);
+    // ⚠ Over the very `engine` and `mode` the tree above was built with (Session 342): its cells and option lines are read from that scan, which `buildOutline` has just cached, so the
+    // preparation is a cache hit and not a second full scan, and `cellAt(symbol.startLine)` finds the symbol's own cell where the engine-blind list would find none or another.
+    const cellVdocs = createCellVdocBuilder(text, engine, mode);
     return Promise.all(
       visible.map((symbol) => toDocumentSymbol(symbol, document, cellVdocs)),
     );

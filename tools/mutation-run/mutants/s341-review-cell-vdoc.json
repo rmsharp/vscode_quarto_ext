@@ -194,8 +194,8 @@
  {
   "name": "O03 outline.ts: the one builder is made over a second read of the document",
   "file": "src/providers/outline.ts",
-  "from": "    const cellVdocs = createCellVdocBuilder(text);",
-  "to": "    const cellVdocs = createCellVdocBuilder(document.getText());",
+  "from": "    const cellVdocs = createCellVdocBuilder(text, engine, mode);",
+  "to": "    const cellVdocs = createCellVdocBuilder(document.getText(), engine, mode);",
   "expect": "killed",
   "why": "the same answers over `document.getText()` a second time, a respelling that costs a second copy of the text and is killed on purpose: the pin says the builder is made over the `text` the model read (a second getText call, and the argument is not the identifier `text`)"
  },

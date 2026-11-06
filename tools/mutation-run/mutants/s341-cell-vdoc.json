@@ -386,8 +386,8 @@
  {
   "name": "E01 outline.ts: one builder is made over a text that is not the document's",
   "file": "src/providers/outline.ts",
-  "from": "    const cellVdocs = createCellVdocBuilder(text);",
-  "to": "    const cellVdocs = createCellVdocBuilder(\"\");",
+  "from": "    const cellVdocs = createCellVdocBuilder(text, engine, mode);",
+  "to": "    const cellVdocs = createCellVdocBuilder(\"\", engine, mode);",
   "expect": "killed",
   "why": "a builder over an empty text forwards every cell as empty; it was a RECORDED GAP at 89d38e3 (outline.ts imports vscode, so no unit test reaches it). Killed since the review round by test/unit/s341-outline-wiring-pin.test.ts, which reads the syntax tree of the file: the call must be over the identifier `text`. The behaviour under VS Code is test/integration/suite/outline.test.ts, which opens a real window and was not run"
  },
