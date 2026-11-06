@@ -1,0 +1,234 @@
+[
+ {
+  "name": "T01 cancel: the key is handed to clearTimeout",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      timers.clearTimeout(pending.get(key));\n      pending.delete(key);\n    }\n  };",
+  "to": "      timers.clearTimeout(key);\n      pending.delete(key);\n    }\n  };",
+  "expect": "killed",
+  "why": "the timer of a cancelled or replaced run is never cleared (a real timer would still fire)"
+ },
+ {
+  "name": "T02 dispose: the KEYS are cleared as handles",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      for (const handle of pending.values()) {",
+  "to": "      for (const handle of pending.keys()) {",
+  "expect": "killed",
+  "why": "disposed pending timers are not cleared"
+ },
+ {
+  "name": "T03 the entry is deleted after the run, in a finally",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          pending.delete(key);\n          try {\n            run();\n          } catch (error) {\n            onError(error);\n          }",
+  "to": "          try {\n            run();\n          } catch (error) {\n            onError(error);\n          } finally {\n            pending.delete(key);\n          }",
+  "expect": "killed",
+  "why": "a run that schedules its own key leaves a timer the table no longer knows (cancel and dispose cannot reach it): the dropped second run still runs, a disposed debouncer still runs it, and the timer that is running is cleared a second time; killed by the four 'a run that schedules its own key ...' rows of typing-debounce.test.ts (the throwing-run row passes under it)"
+ },
+ {
+  "name": "T04 the entry is deleted after a run that did not throw",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          pending.delete(key);\n          try {\n            run();\n          } catch (error) {",
+  "to": "          try {\n            run();\n            pending.delete(key);\n          } catch (error) {",
+  "expect": "killed",
+  "why": "the entry is deleted after a run that did not throw: the same four rows fail, and the throwing-run row too (a throwing run leaves a stale entry, so a later cancel and dispose clear a timer that has run: seen by the fake clock's stale-clear counter only); killed by those five rows of typing-debounce.test.ts"
+ },
+ {
+  "name": "T05 the scheduler keeps the last snapshot when no editor is active",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    evaluated = snapshot;\n  };",
+  "to": "    evaluated = snapshot ?? evaluated;\n  };",
+  "expect": "killed",
+  "why": "after the active editor goes away the next event with an editor compares with a snapshot of the editor before, and is evaluated at once instead of debounced; EQUIVALENT in the host (an active-editor change always evaluates at once, before any changed()), so the kill is of the module's own docstring clause 'undefined: none yet, or no editor was active'; killed by the row '(the module's contract, not reachable in the host) ...' of s342-typing-path-rows.test.ts"
+ },
+ {
+  "name": "T06 normalizeDelayMs: NaN is kept",
+  "file": "src/core/typing-debounce.ts",
+  "from": "  if (!(ms > 0)) {\n    return 0;\n  }",
+  "to": "  if (ms <= 0) {\n    return 0;\n  }",
+  "expect": "killed",
+  "why": "NaN reaches the timer"
+ },
+ {
+  "name": "T07 the default report drops the error",
+  "file": "src/core/typing-debounce.ts",
+  "from": "  console.error(\"Quarto: a debounced typing-path run failed\", error);",
+  "to": "  console.error(\"Quarto: a debounced typing-path run failed\");",
+  "expect": "killed",
+  "why": "the cause of a failed run is lost"
+ },
+ {
+  "name": "T08 the scheduler's debounced run is evaluated twice",
+  "file": "src/core/typing-debounce.ts",
+  "from": "        debouncer.schedule(CELL_CONTEXT_KEY, evaluate);",
+  "to": "        debouncer.schedule(CELL_CONTEXT_KEY, () => { evaluate(); evaluate(); });",
+  "expect": "killed",
+  "why": "the scan runs twice per pause"
+ },
+ {
+  "name": "T09 an edit event also marks the version as evaluated",
+  "file": "src/core/typing-debounce.ts",
+  "from": "        debouncer.schedule(CELL_CONTEXT_KEY, evaluate);",
+  "to": "        evaluated = now;\n        debouncer.schedule(CELL_CONTEXT_KEY, evaluate);",
+  "expect": "killed",
+  "why": "the cursor event that follows an edit is evaluated at once, not debounced"
+ },
+ {
+  "name": "E01 updateCellContext: the key follows the selection's anchor",
+  "file": "src/features/execution.ts",
+  "from": "      editor.selection.active.line,",
+  "to": "      editor.selection.anchor.line,",
+  "expect": "killed",
+  "why": "a selection made backwards sets the key from its far end; the value is not observable in the host (VS Code offers no read back of a context key); killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the ACTIVE end of the selection')"
+ },
+ {
+  "name": "E02 isInCodeCell: the key is true OUTSIDE a cell",
+  "file": "src/core/in-code-cell.ts",
+  "from": "findCellAtPosition(typeof text === \"function\" ? text() : text, line) !== null",
+  "to": "findCellAtPosition(typeof text === \"function\" ? text() : text, line) === null",
+  "expect": "killed",
+  "why": "ctrl+enter binds in prose and not in a cell; the predicate was inline in updateCellContext when the lens wrote this (a GAP: nothing read the value), it is core's isInCodeCell now; killed by every row of in-code-cell.test.ts that reads a line"
+ },
+ {
+  "name": "E03 isInCodeCell: only a markdown document",
+  "file": "src/core/in-code-cell.ts",
+  "from": "languageId === \"quarto\" &&",
+  "to": "languageId === \"markdown\" &&",
+  "expect": "killed",
+  "why": "the key is never true in a .qmd; killed by every quarto row of in-code-cell.test.ts"
+ },
+ {
+  "name": "E04 updateCellContext: the key is set to the negation of the answer",
+  "file": "src/features/execution.ts",
+  "from": "\"setContext\", IN_CELL_CONTEXT, inCell",
+  "to": "\"setContext\", IN_CELL_CONTEXT, !inCell",
+  "expect": "killed",
+  "why": "ctrl+enter binds in prose and not in a cell; killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not call executeCommand(\"setContext\", IN_CELL_CONTEXT, inCell)')"
+ },
+ {
+  "name": "E05 activeDocumentSnapshot: no document is a snapshot",
+  "file": "src/features/execution.ts",
+  "from": "  return document === undefined\n    ? undefined\n    : { key: document.uri.toString(), version: document.version };",
+  "to": "  return { key: document?.uri.toString() ?? \"\", version: document?.version ?? 0 };",
+  "expect": "killed",
+  "why": "no editor looks like an editor with an empty key: the scheduler never takes the no-editor path"
+ },
+ {
+  "name": "E06 updateCellContext: the language id handed to isInCodeCell is a literal markdown",
+  "file": "src/features/execution.ts",
+  "from": "      editor.document.languageId,\n      () => editor.document.getText(),",
+  "to": "      \"markdown\",\n      () => editor.document.getText(),",
+  "expect": "killed",
+  "why": "the key is never true in a .qmd; killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not hand isInCodeCell `editor.document.languageId`')"
+ },
+ {
+  "name": "E07 updateCellContext: the text is read for every language",
+  "file": "src/features/execution.ts",
+  "from": "      () => editor.document.getText(),\n",
+  "to": "      editor.document.getText(),\n",
+  "expect": "killed",
+  "why": "a getText of the active file at every cursor move and edit, whatever its language (the old inline test read the text only for a quarto document); the answers are unchanged, so only a pin can see it; killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name '`() => editor.document.getText()`')"
+ },
+ {
+  "name": "E08 updateCellContext: the missing editor is not checked first",
+  "file": "src/features/execution.ts",
+  "from": "    editor !== undefined &&\n    isInCodeCell(",
+  "to": "    isInCodeCell(",
+  "expect": "killed",
+  "why": "no active editor reads a property of undefined (it does not compile either); killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'is not `editor !== undefined && isInCodeCell(...)`')"
+ },
+ {
+  "name": "E09 isInCodeCell: the text is read before the language id is looked at",
+  "file": "src/core/in-code-cell.ts",
+  "from": "return languageId === \"quarto\" && findCellAtPosition(typeof text === \"function\" ? text() : text, line) !== null;",
+  "to": "return findCellAtPosition(typeof text === \"function\" ? text() : text, line) !== null && languageId === \"quarto\";",
+  "expect": "killed",
+  "why": "the same answers, but a function text is called for every language; killed by the 'any other language id: the function is never called' row of in-code-cell.test.ts"
+ },
+ {
+  "name": "E10 isInCodeCell: the language id is compared without regard to case",
+  "file": "src/core/in-code-cell.ts",
+  "from": "languageId === \"quarto\" &&",
+  "to": "languageId.toLowerCase() === \"quarto\" &&",
+  "expect": "killed",
+  "why": "a document of language 'Quarto' or 'QUARTO' has the key; killed by the 'Quarto' and 'QUARTO' rows of in-code-cell.test.ts (VS Code language ids are lower case and compared as written)"
+ },
+ {
+  "name": "E11 isInCodeCell: the line is rounded down",
+  "file": "src/core/in-code-cell.ts",
+  "from": "text() : text, line) !== null",
+  "to": "text() : text, Math.floor(line)) !== null",
+  "expect": "killed",
+  "why": "a fractional line just past a cell's closing fence (8.5 after line 8) is taken for the fence; killed by the fractional-line rows of in-code-cell.test.ts"
+ },
+ {
+  "name": "E12 isInCodeCell: a function text is ignored",
+  "file": "src/core/in-code-cell.ts",
+  "from": "typeof text === \"function\" ? text() : text",
+  "to": "typeof text === \"function\" ? \"\" : text",
+  "expect": "killed",
+  "why": "a function text reads as an empty document; killed by the function-text rows of in-code-cell.test.ts"
+ },
+ {
+  "name": "K01 isVisible: the document handler is guarded the wrong way round",
+  "file": "src/features/cell-background.ts",
+  "from": "    (editor) => editor.document === doc,",
+  "to": "    (editor) => editor.document !== doc,",
+  "expect": "killed",
+  "why": "an edit in a visible document is not tinted, one in a hidden document is; isVisible is read by no behaviour test (the integration test refreshes through the test hook, which does not call it); killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'isVisible is not')"
+ },
+ {
+  "name": "A01 filterOutOfCellEdits: a single edit is not checked",
+  "file": "src/providers/embedded.ts",
+  "from": "if (edits !== undefined && edits.length > 0) {",
+  "to": "if (edits !== undefined && edits.length > 1) {",
+  "expect": "killed",
+  "why": "an item with ONE additional edit (the usual auto-import, anchored at the module top, which identity-maps into the front matter) keeps an out-of-cell edit; the integration row hands the filter TWO edits and does not notice; killed by s342-range-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the edit guard of filterOutOfCellEdits')"
+ },
+ {
+  "name": "A02 filterOutOfCellEdits: the filter's result is not assigned",
+  "file": "src/providers/embedded.ts",
+  "from": "      item.additionalTextEdits = kept.length > 0 ? kept : undefined;",
+  "to": "      item.additionalTextEdits = kept.length > 0 ? edits : undefined;",
+  "expect": "killed",
+  "why": "`kept` is computed, then the unfiltered edits are kept: the guard is gone; probably also killed by test:integration (embedded.test.ts), which was not run; killed by s342-range-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'is not made from `kept` alone'); the A02 row there replaces the assignment by a regular expression, so that A05 is not scored as its kill"
+ },
+ {
+  "name": "A03 filterOutOfCellEdits: the first item is not walked",
+  "file": "src/providers/embedded.ts",
+  "from": "  for (const item of list.items) {\n    const edits = item.additionalTextEdits;",
+  "to": "  for (const item of list.items.slice(1)) {\n    const edits = item.additionalTextEdits;",
+  "expect": "killed",
+  "why": "the first completion item keeps its out-of-cell edits; the lens saw it killed, but only by the applicability check of the rows that quote the loop (their `from` no longer occurs), which is not a pin that names it; killed by s342-range-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not walk `list.items`')"
+ },
+ {
+  "name": "A04 filterOutOfCellEdits: the list is rebuilt incomplete",
+  "file": "src/providers/embedded.ts",
+  "from": "return new vscode.CompletionList(list.items, list.isIncomplete);",
+  "to": "return new vscode.CompletionList(list.items, true);",
+  "expect": "killed",
+  "why": "the server's isIncomplete is lost (the list is always rebuilt incomplete, so the client asks again on every keystroke); no test reads isIncomplete of the filtered list; killed by s342-range-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not end by returning `new vscode.CompletionList(list.items, list.isIncomplete)`')"
+ },
+ {
+  "name": "A05 filterOutOfCellEdits: an item with no kept edit keeps an empty list",
+  "file": "src/providers/embedded.ts",
+  "from": "item.additionalTextEdits = kept.length > 0 ? kept : undefined;",
+  "to": "item.additionalTextEdits = kept;",
+  "expect": "survives",
+  "why": "EQUIVALENT for VS Code: an empty additionalTextEdits array and none are the same to the editor, so the pin is made from `kept` alone and not from its spelling; a row of s342-range-wiring-pin.test.ts says the pin leaves it alone"
+ },
+ {
+  "name": "FA format-cell: the filter's result is not applied",
+  "file": "src/features/format-cell.ts",
+  "from": "  wsEdit.set(editor.document.uri, kept);",
+  "to": "  wsEdit.set(editor.document.uri, edits);",
+  "expect": "killed",
+  "why": "`kept` is computed and tested for emptiness, then the unfiltered edits are applied: the corruption guard is gone; probably also killed by test:integration (format-cell.test.ts), which was not run; killed by s342-range-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not apply `wsEdit.set(editor.document.uri, kept)`')"
+ },
+ {
+  "name": "FB format-cell: the emptiness test is on the unfiltered edits",
+  "file": "src/features/format-cell.ts",
+  "from": "  if (kept.length === 0) {\n    return;\n  }",
+  "to": "  if (edits.length === 0) {\n    return;\n  }",
+  "expect": "survives",
+  "why": "EQUIVALENT in observable behaviour: after the early return on an empty or missing `edits`, `edits.length === 0` can never be true, so the guard never fires and an all-out-of-cell edit list applies an EMPTY WorkspaceEdit, a no-op (not run in a real host: applyEdit of an empty set is believed to change nothing); a row of s342-range-wiring-pin.test.ts says the pin leaves it alone"
+ }
+]
