@@ -1,0 +1,290 @@
+[
+ {
+  "name": "B01 findAllCells: the engine is ignored",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return scanRegions(text, engine, mode).cells.slice();",
+  "to": "  return scanRegions(text, undefined, mode).cells.slice();",
+  "expect": "killed",
+  "why": "the list is always the engine-blind one; killed by the model rows and the builder rows on every document the scans disagree on"
+ },
+ {
+  "name": "B02 findAllCells: the mode is ignored",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return scanRegions(text, engine, mode).cells.slice();",
+  "to": "  return scanRegions(text, engine).cells.slice();",
+  "expect": "killed",
+  "why": "--no-execute reads the executing list; killed by the mode rows (the setup chunk, executing and not)"
+ },
+ {
+  "name": "B03 findAllCells: the engine and the mode swapped",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return scanRegions(text, engine, mode).cells.slice();",
+  "to": "  return scanRegions(text, mode as never, engine as never).cells.slice();",
+  "expect": "killed",
+  "why": "an engine that is the string execute, a mode that is knitr: nothing is read as it should; killed by the model rows"
+ },
+ {
+  "name": "B04 findAllCells: every document is read as knitr",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return scanRegions(text, engine, mode).cells.slice();",
+  "to": "  return scanRegions(text, \"knitr\", mode).cells.slice();",
+  "expect": "killed",
+  "why": "the engine-blind answer is no longer the answer when the engine is omitted; killed by the rows that read the blind list (the stray fence's [] and the indent-3 python cell)"
+ },
+ {
+  "name": "B05 findAllCells: the default mode is --no-execute",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function findAllCells(text: string, engine: EngineHint = undefined, mode: RenderMode = \"execute\"): Cell[] {",
+  "to": "export function findAllCells(text: string, engine: EngineHint = undefined, mode: RenderMode = \"no-execute\"): Cell[] {",
+  "expect": "killed",
+  "why": "an omitted mode reads --no-execute; killed by the rows that omit the mode (executing is the default)"
+ },
+ {
+  "name": "B06 findCellOptionLines: the engine is ignored",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return findAllCells(text, engine, mode).flatMap((cell) => cellOptionLinesOf(cell));",
+  "to": "  return findAllCells(text, undefined, mode).flatMap((cell) => cellOptionLinesOf(cell));",
+  "expect": "killed",
+  "why": "the option lines of the aware chunk are not found; killed by the option-line rows and the vdoc row of the python chunk"
+ },
+ {
+  "name": "B07 findCellOptionLines: the mode is ignored",
+  "file": "src/core/qmd/model.ts",
+  "from": "  return findAllCells(text, engine, mode).flatMap((cell) => cellOptionLinesOf(cell));",
+  "to": "  return findAllCells(text, engine).flatMap((cell) => cellOptionLinesOf(cell));",
+  "expect": "killed",
+  "why": "a #| line that exists only when the document executes is an option line under --no-execute; killed by the option-line row of the setup chunk"
+ },
+ {
+  "name": "B08 findCellOptionLines: the default mode is --no-execute",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function findCellOptionLines(text: string, engine: EngineHint = undefined, mode: RenderMode = \"execute\"): CellOptionLine[] {",
+  "to": "export function findCellOptionLines(text: string, engine: EngineHint = undefined, mode: RenderMode = \"no-execute\"): CellOptionLine[] {",
+  "expect": "killed",
+  "why": "an omitted mode reads --no-execute; killed by the option-line row that omits the mode"
+ },
+ {
+  "name": "C01 the builder reads its cells engine-blind",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "        cells: findAllCells(text, engine, mode),",
+  "to": "        cells: findAllCells(text),",
+  "expect": "killed",
+  "why": "the parent: a second scan, and the cell of a symbol is null or another cell; killed by the builder rows, the identity rows and the corpus"
+ },
+ {
+  "name": "C02 the builder reads its cells without the mode",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "        cells: findAllCells(text, engine, mode),",
+  "to": "        cells: findAllCells(text, engine),",
+  "expect": "killed",
+  "why": "--no-execute builds from the executing list; killed by the mode rows and the corpus (knitr/no-execute)"
+ },
+ {
+  "name": "C03 the builder reads its cells with the engine and the mode swapped",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "        cells: findAllCells(text, engine, mode),",
+  "to": "        cells: findAllCells(text, mode as never, engine as never),",
+  "expect": "killed",
+  "why": "nothing is read as it should; killed by the builder rows"
+ },
+ {
+  "name": "C04 the builder reads its option lines engine-blind",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "        options: optionLineSet(text, engine, mode),",
+  "to": "        options: optionLineSet(text),",
+  "expect": "killed",
+  "why": "a #| line of a chunk only the aware scan sees is code in its vdoc; killed by the python chunk's vdoc row and the setup chunk's"
+ },
+ {
+  "name": "C05 the builder reads its option lines without the mode",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "        options: optionLineSet(text, engine, mode),",
+  "to": "        options: optionLineSet(text, engine),",
+  "expect": "killed",
+  "why": "the option lines of the executing list under --no-execute: they matter only when one of them falls inside a cell the other list holds, which the named documents never do and the seeded corpus does (a #| line of an execute-only chunk inside a cell of the --no-execute list); killed by the corpus row. Expected to survive until the first run, which killed it"
+ },
+ {
+  "name": "C06 optionLineSet drops the engine and the mode",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  return new Set(findCellOptionLines(text, engine, mode).map((o) => o.line));",
+  "to": "  return new Set(findCellOptionLines(text).map((o) => o.line));",
+  "expect": "killed",
+  "why": "the same as C04 one function down; killed by the same rows"
+ },
+ {
+  "name": "C07 optionLineSet reads the pair swapped",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  return new Set(findCellOptionLines(text, engine, mode).map((o) => o.line));",
+  "to": "  return new Set(findCellOptionLines(text, mode as never, engine as never).map((o) => o.line));",
+  "expect": "killed",
+  "why": "nothing is read as it should; killed by the vdoc rows"
+ },
+ {
+  "name": "C08 the builder's engine is forgotten after the first read",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "export function createCellVdocBuilder(text: string, engine?: EngineHint, mode?: RenderMode): CellVdocBuilder {",
+  "to": "export function createCellVdocBuilder(text: string, _engine?: EngineHint, mode?: RenderMode): CellVdocBuilder {\n  const engine: EngineHint = undefined;",
+  "expect": "killed",
+  "why": "the optional parameter is declared and the value discarded (the seam again); killed by the builder rows"
+ },
+ {
+  "name": "C09 the builder's mode is forgotten",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "export function createCellVdocBuilder(text: string, engine?: EngineHint, mode?: RenderMode): CellVdocBuilder {",
+  "to": "export function createCellVdocBuilder(text: string, engine?: EngineHint, _mode?: RenderMode): CellVdocBuilder {\n  const mode: RenderMode | undefined = undefined;",
+  "expect": "killed",
+  "why": "an omitted mode for every document; killed by the mode rows"
+ },
+ {
+  "name": "X01 outline.ts: the builder given neither engine nor mode",
+  "file": "src/providers/outline.ts",
+  "from": "    const cellVdocs = createCellVdocBuilder(text, engine, mode);",
+  "to": "    const cellVdocs = createCellVdocBuilder(text);",
+  "expect": "killed",
+  "why": "the builder is engine-blind again; killed by the syntax-tree gate"
+ },
+ {
+  "name": "X02 outline.ts: the builder given no mode",
+  "file": "src/providers/outline.ts",
+  "from": "    const cellVdocs = createCellVdocBuilder(text, engine, mode);",
+  "to": "    const cellVdocs = createCellVdocBuilder(text, engine);",
+  "expect": "killed",
+  "why": "--no-execute documents read the executing list; killed by the gate"
+ },
+ {
+  "name": "X03 outline.ts: the builder given an undefined engine",
+  "file": "src/providers/outline.ts",
+  "from": "    const cellVdocs = createCellVdocBuilder(text, engine, mode);",
+  "to": "    const cellVdocs = createCellVdocBuilder(text, undefined, mode);",
+  "expect": "killed",
+  "why": "killed by the gate"
+ },
+ {
+  "name": "X04 outline.ts: the builder given knitr for every document",
+  "file": "src/providers/outline.ts",
+  "from": "    const cellVdocs = createCellVdocBuilder(text, engine, mode);",
+  "to": "    const cellVdocs = createCellVdocBuilder(text, \"knitr\", mode);",
+  "expect": "killed",
+  "why": "killed by the gate"
+ },
+ {
+  "name": "X05 outline.ts: the engine and the mode swapped",
+  "file": "src/providers/outline.ts",
+  "from": "    const cellVdocs = createCellVdocBuilder(text, engine, mode);",
+  "to": "    const cellVdocs = createCellVdocBuilder(text, mode as never, engine as never);",
+  "expect": "killed",
+  "why": "killed by the gate"
+ },
+ {
+  "name": "X06 outline.ts: the builder given the executing mode for every document",
+  "file": "src/providers/outline.ts",
+  "from": "    const cellVdocs = createCellVdocBuilder(text, engine, mode);",
+  "to": "    const cellVdocs = createCellVdocBuilder(text, engine, \"execute\");",
+  "expect": "killed",
+  "why": "killed by the gate"
+ },
+ {
+  "name": "X07 outline.ts: the builder given a second resolution of the engine",
+  "file": "src/providers/outline.ts",
+  "from": "    const cellVdocs = createCellVdocBuilder(text, engine, mode);",
+  "to": "    const cellVdocs = createCellVdocBuilder(text, resolveDocumentEngine(document.fileName, text), mode);",
+  "expect": "killed",
+  "why": "the two can drift; killed by the gate"
+ },
+ {
+  "name": "X08 outline.ts: the tree built over an inline resolution",
+  "file": "src/providers/outline.ts",
+  "from": "    const tree = buildOutline(text, engine, mode);",
+  "to": "    const tree = buildOutline(text, resolveDocumentEngine(document.fileName, text), mode);",
+  "expect": "killed",
+  "why": "killed by the gate"
+ },
+ {
+  "name": "X09 outline.ts: the tree built with no mode",
+  "file": "src/providers/outline.ts",
+  "from": "    const tree = buildOutline(text, engine, mode);",
+  "to": "    const tree = buildOutline(text, engine);",
+  "expect": "killed",
+  "why": "killed by the gate"
+ },
+ {
+  "name": "X10 outline.ts: the engine resolved from an empty text",
+  "file": "src/providers/outline.ts",
+  "from": "    const engine = resolveDocumentEngine(document.fileName, text);",
+  "to": "    const engine = resolveDocumentEngine(document.fileName, \"\");",
+  "expect": "killed",
+  "why": "killed by the gate"
+ },
+ {
+  "name": "X11 outline.ts: the engine resolved from the wrong file",
+  "file": "src/providers/outline.ts",
+  "from": "    const engine = resolveDocumentEngine(document.fileName, text);",
+  "to": "    const engine = resolveDocumentEngine(\"x.qmd\", text);",
+  "expect": "killed",
+  "why": "killed by the gate"
+ },
+ {
+  "name": "X12 outline.ts: the engine declared after the tree",
+  "file": "src/providers/outline.ts",
+  "from": "    const engine = resolveDocumentEngine(document.fileName, text);\n    const tree = buildOutline(text, engine, mode);",
+  "to": "    const tree = buildOutline(text, \"knitr\" as never, mode);\n    const engine = resolveDocumentEngine(document.fileName, text);",
+  "expect": "killed",
+  "why": "killed by the gate"
+ },
+ {
+  "name": "X13 outline.ts: the engine resolved inside a callback",
+  "file": "src/providers/outline.ts",
+  "from": "    const engine = resolveDocumentEngine(document.fileName, text);",
+  "to": "    const engine = (() => resolveDocumentEngine(document.fileName, text))();",
+  "expect": "killed",
+  "why": "killed by the gate"
+ },
+ {
+  "name": "X14 outline.ts: the mode narrowed to a constant",
+  "file": "src/providers/outline.ts",
+  "from": "      vscode.workspace.getConfiguration(\"quarto\", document.uri).get<unknown>(RENDER_MODE_SETTING),\n    );",
+  "to": "      vscode.workspace.getConfiguration(\"quarto\", document.uri).get<unknown>(RENDER_MODE_SETTING),\n    ) && \"execute\";",
+  "expect": "killed",
+  "why": "killed by the gate"
+ },
+ {
+  "name": "K01 the corpus is a tenth of the documents",
+  "file": "test/unit/s342-builder-engine-rows.test.ts",
+  "from": "  const COUNT = 3000;",
+  "to": "  const COUNT = 300;",
+  "expect": "killed",
+  "why": "the floors on symbols, mapped symbols and differing documents are not reached; killed by them"
+ },
+ {
+  "name": "K02 the corpus has no jupyter pair",
+  "file": "test/unit/s342-builder-engine-rows.test.ts",
+  "from": "    [undefined, \"execute\"], [\"ambiguous\", \"execute\"], [\"knitr\", \"execute\"], [\"knitr\", \"no-execute\"], [\"jupyter\", \"execute\"], [\"markdown\", \"execute\"], [\"julia\", \"execute\"],",
+  "to": "    [undefined, \"execute\"], [\"ambiguous\", \"execute\"], [\"knitr\", \"execute\"], [\"knitr\", \"no-execute\"], [\"markdown\", \"execute\"], [\"julia\", \"execute\"],",
+  "expect": "killed",
+  "why": "the pair that loses the most symbols is gone; killed by the per-pair floors"
+ },
+ {
+  "name": "K03 the corpus has no markdown pair",
+  "file": "test/unit/s342-builder-engine-rows.test.ts",
+  "from": "[\"jupyter\", \"execute\"], [\"markdown\", \"execute\"], [\"julia\", \"execute\"],",
+  "to": "[\"jupyter\", \"execute\"], [\"julia\", \"execute\"],",
+  "expect": "killed",
+  "why": "killed by the per-pair floors"
+ },
+ {
+  "name": "K04 the corpus has no --no-execute pair",
+  "file": "test/unit/s342-builder-engine-rows.test.ts",
+  "from": "[\"knitr\", \"execute\"], [\"knitr\", \"no-execute\"], [\"jupyter\", \"execute\"],",
+  "to": "[\"knitr\", \"execute\"], [\"jupyter\", \"execute\"],",
+  "expect": "killed",
+  "why": "killed by the per-pair floors"
+ },
+ {
+  "name": "K05 the corpus has no stray-fence blocks",
+  "file": "test/unit/s342-builder-engine-rows.test.ts",
+  "from": "      if (random() < 0.3) lines.splice(",
+  "to": "      if (random() < 0.0) lines.splice(",
+  "expect": "killed",
+  "why": "the knitr pairs lose almost nothing; killed by the per-pair floors"
+ }
+]
