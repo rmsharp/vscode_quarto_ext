@@ -16,7 +16,7 @@ import * as ts from "typescript";
 // real VS Code window, take over the screen, and were NOT run for this change.
 //
 // The checks are two functions, `problemsInCompletion(source)` and `problemsInFormat(source)`, each naming every pin the source breaks. The live files must have none, and the rows below also hand each the live file with ONE
-// edit and require it to name the pin that edit breaks: the pin can fail, and says which. The edits are the mutants of `tools/mutation-run/mutants/s342-range-lookup.json`, and (the rows named A01, A02, A04 and FA, the
+// edit and require it to name the pin that edit breaks: the pin can fail, and says which. The edits are the mutants of `tools/mutation-run/mutants/s342-range-lookup.json`, and (the rows named A01 to A04 and FA, the
 // lines around the filter call) of `tools/mutation-run/mutants/s342-review-typing.json`.
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -158,6 +158,7 @@ function problemsInCompletion(source: string): string[] {
 
   // 2b. The lines AROUND the filter call (the Session 342 review round, M-03): the guard that lets an item with ONE additional edit (the usual auto-import) through to the filter, the assignment that keeps what the filter kept
   //     and nothing else, and the list rebuilt with the server's own `isIncomplete`. An empty list or none for an item with no kept edit is the same to VS Code, so the assignment is pinned to be made from `kept` alone, not to its spelling.
+  if (walk === undefined || flat(walk.expression, sf) !== "list.items") problems.push("filterOutOfCellEdits does not walk `list.items` (every item of the list must have its edits checked, the first one too)");
   const guards = walk === undefined ? [] : collect(walk, (n): n is ts.IfStatement => ts.isIfStatement(n));
   if (guards.length !== 1 || flat(guards[0].expression, sf) !== "edits !== undefined && edits.length > 0") {
     problems.push("the edit guard of filterOutOfCellEdits is not `edits !== undefined && edits.length > 0` (an item with ONE additional edit, the usual auto-import, would keep an edit outside the cell)");
@@ -322,6 +323,12 @@ describe("Session 342 -- the edit checks' use of the range lookup, pinned by the
       "    if (edits !== undefined && edits.length > 0) {",
       "    if (edits !== undefined && edits.length > 1) {",
       "the edit guard of filterOutOfCellEdits",
+    ],
+    [
+      "A03: the first item is not walked (`list.items.slice(1)`): its out-of-cell edits are kept",
+      "  for (const item of list.items) {\n    const edits = item.additionalTextEdits;",
+      "  for (const item of list.items.slice(1)) {\n    const edits = item.additionalTextEdits;",
+      "does not walk `list.items`",
     ],
     [
       "A04: the list is rebuilt incomplete (the server's isIncomplete is lost)",
