@@ -1,7 +1,25 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { findCellOptionLines } from "../../src/core/qmd/model";
-import { type YamlRegion, createYamlRegionLookup, quartoYamlRegions } from "../../src/core/qmd/quarto-yaml-regions";
+import { type YamlRegion, createYamlRegionLookup, inQuartoYamlRegion, quartoYamlRegions } from "../../src/core/qmd/quarto-yaml-regions";
 import { collectValueSources } from "../../src/core/yaml-value-flags";
+
+// The wiring is counted, not timed: `quarto-yaml-regions` is wrapped so that every call through its exports is counted and then handed to the real function. `collectValueSources` imports the two functions from it, so
+// the count says how many lookups a call makes and whether it ever asks `inQuartoYamlRegion` itself. (The fallback inside the real `createYamlRegionLookup` calls the module's own binding, which is not counted.)
+const calls = vi.hoisted(() => ({ lookups: 0, direct: 0 }));
+vi.mock("../../src/core/qmd/quarto-yaml-regions", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/core/qmd/quarto-yaml-regions")>();
+  return {
+    ...actual,
+    createYamlRegionLookup: (regions: readonly YamlRegion[]) => {
+      calls.lookups++;
+      return actual.createYamlRegionLookup(regions);
+    },
+    inQuartoYamlRegion: (regions: readonly YamlRegion[], line: number) => {
+      calls.direct++;
+      return actual.inQuartoYamlRegion(regions, line);
+    },
+  };
+});
 
 // Session 342 -- part (2) of the BACKLOG item "What Session 341's review round found beside the Outline and preview cures". `collectValueSources` (src/core/yaml-value-flags.ts) drops the option lines of a cell whose fence
 // sits inside a quarto YAML region, and it asked `inQuartoYamlRegion(regions, line)` once per option line: a pass over every region each time, so regions times option lines. It runs on every debounced value-diagnostics
@@ -243,6 +261,47 @@ describe("Session 342 -- collectValueSources keeps the option lines of cells out
     expect(spans(text)).toEqual([[2, 8], [10, 16], [18, 24]]);
     expect(found(text)).toEqual([[5, 4], [13, 12], [21, 20]]);
     expect(kept(text)).toEqual([]);
+  });
+});
+
+describe("Session 342 -- collectValueSources makes ONE lookup per call and asks it, never the pass over every region (the wiring, counted)", () => {
+  beforeEach(() => {
+    calls.lookups = 0;
+    calls.direct = 0;
+  });
+
+  it("a document with 150 option lines to ask about (50 pairs of 3): one lookup is made, inQuartoYamlRegion is never called, and the answer is every option line", () => {
+    const sources = collectValueSources(pairText(50, 3));
+    const lookups = calls.lookups; // read back after the call
+    const direct = calls.direct;
+    expect(sources.cellLines).toHaveLength(150);
+    expect(lookups).toBe(1);
+    expect(direct).toBe(0);
+  });
+
+  it("a document with no region and no cell is one lookup too, and a document with regions and no option line to ask about is one", () => {
+    expect(collectValueSources("just prose\n").cellLines).toEqual([]);
+    expect(calls.lookups).toBe(1);
+    expect(calls.direct).toBe(0);
+    calls.lookups = 0;
+    expect(collectValueSources("---\nk: v\n---\n\nprose\n").cellLines).toEqual([]);
+    expect(calls.lookups).toBe(1);
+    expect(calls.direct).toBe(0);
+  });
+
+  it("two calls are two lookups: the lookup is made per call, never kept between calls", () => {
+    collectValueSources(pairText(3, 1));
+    collectValueSources(pairText(4, 2));
+    expect(calls.lookups).toBe(2);
+    expect(calls.direct).toBe(0);
+  });
+
+  it("the wrapper counts what it says: a call through the module's exports is counted, and it answers what the real function answers", () => {
+    const regions: YamlRegion[] = [{ startLine: 0, endLine: 2, terminated: true }];
+    expect(createYamlRegionLookup(regions)(1)).toBe(true);
+    expect(calls.lookups).toBe(1);
+    expect(inQuartoYamlRegion(regions, 3)).toBe(false);
+    expect(calls.direct).toBe(1);
   });
 });
 

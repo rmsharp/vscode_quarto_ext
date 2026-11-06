@@ -1,0 +1,482 @@
+[
+ {
+  "name": "S01 isOrdered: a region whose start is after its end is allowed",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "    if (!(startLine <= endLine) || (i > 0 && !(previousEnd < startLine))) {",
+  "to": "    if (i > 0 && !(previousEnd < startLine)) {",
+  "expect": "killed",
+  "why": "the lookup takes the binary search over arrays like 0..1, 10..3, 5..20 (the starts out of order) and answers 7 false where the oracle says true"
+ },
+ {
+  "name": "S02 isOrdered: the chain test is dropped",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "    if (!(startLine <= endLine) || (i > 0 && !(previousEnd < startLine))) {",
+  "to": "    if (!(startLine <= endLine)) {",
+  "expect": "killed",
+  "why": "unsorted, overlapping and nested arrays are searched by their starts: 0..10 then 3..4 answers 6 false where the oracle says true"
+ },
+ {
+  "name": "S03 isOrdered: a region may start at the line the previous one ends",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "!(previousEnd < startLine)",
+  "to": "!(previousEnd <= startLine)",
+  "expect": "survives",
+  "why": "EQUIVALENT in the answer: in a touching pair (end of one = start of the next) the last start at or below a line L is the second region exactly when L is at or above the shared line, which both regions hold, so the search finds a region that holds L whenever one does (argued, and no row disagrees: the named row of regions that touch at a line, E1's touching pairs over the pool and the seeded arrays with a touching pair all agree under it)"
+ },
+ {
+  "name": "S04 isOrdered: the chain test is reversed",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "!(previousEnd < startLine)",
+  "to": "!(previousEnd > startLine)",
+  "expect": "killed",
+  "why": "ordered arrays are refused (a slow pass, the same answer) and overlapping ones are accepted (a wrong answer)"
+ },
+ {
+  "name": "S05 isOrdered: the guard on the first region is dropped",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "(i > 0 && !(previousEnd < startLine))",
+  "to": "(!(previousEnd < startLine))",
+  "expect": "killed",
+  "why": "the first region is compared with the NaN that starts previousEnd, so every array is refused and every ask is a pass over every region: the same answers, slow (killed by the read-count and clock rows, not by an answer)"
+ },
+ {
+  "name": "S06 isOrdered: previousEnd starts at minus infinity",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "  let previousEnd = NaN;",
+  "to": "  let previousEnd = -Infinity;",
+  "expect": "survives",
+  "why": "EQUIVALENT: the first region's comparison is guarded by `i > 0`, so the starting value is never read"
+ },
+ {
+  "name": "S07 isOrdered: the end says no",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "    previousEnd = endLine;\n  }\n  return true;",
+  "to": "    previousEnd = endLine;\n  }\n  return false;",
+  "expect": "killed",
+  "why": "every array is refused: the same answers, slow (killed by the read-count and clock rows)"
+ },
+ {
+  "name": "S08 isOrdered: previousEnd is never updated",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "    previousEnd = endLine;\n",
+  "to": "",
+  "expect": "killed",
+  "why": "previousEnd stays NaN, so every array of two regions or more is refused: the same answers, slow (killed by the read-count and clock rows)"
+ },
+ {
+  "name": "S09 lookup: the ordered and the unordered swap their answers",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "  if (!isOrdered(regions)) {\n    return (line) => inQuartoYamlRegion(regions, line);",
+  "to": "  if (isOrdered(regions)) {\n    return (line) => inQuartoYamlRegion(regions, line);",
+  "expect": "killed",
+  "why": "an unordered array is searched by its starts and answered wrongly"
+ },
+ {
+  "name": "S10 lookup: always the pass over every region",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "  if (!isOrdered(regions)) {\n    return (line) => inQuartoYamlRegion(regions, line);",
+  "to": "  if (true) {\n    return (line) => inQuartoYamlRegion(regions, line);",
+  "expect": "killed",
+  "why": "the seam again: the same answers, slow (killed by the read-count and clock rows)"
+ },
+ {
+  "name": "S11 lookup: never the pass over every region",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "  if (!isOrdered(regions)) {\n    return (line) => inQuartoYamlRegion(regions, line);",
+  "to": "  if (false) {\n    return (line) => inQuartoYamlRegion(regions, line);",
+  "expect": "killed",
+  "why": "an unordered array is searched by its starts and answered wrongly"
+ },
+ {
+  "name": "S12 lookup: the order is checked at every ask",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "  if (!isOrdered(regions)) {\n    return (line) => inQuartoYamlRegion(regions, line);\n  }\n  return (line) => {\n    let low = 0;",
+  "to": "  return (line) => {\n    if (!isOrdered(regions)) {\n      return inQuartoYamlRegion(regions, line);\n    }\n    let low = 0;",
+  "expect": "killed",
+  "why": "the same answers, a pass over every region at every ask: killed by the read-count and clock rows"
+ },
+ {
+  "name": "S13 lookup: the fallback answers false",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "    return (line) => inQuartoYamlRegion(regions, line);",
+  "to": "    return () => false;",
+  "expect": "killed",
+  "why": "an unordered array holds nothing"
+ },
+ {
+  "name": "S14 search: the low end starts at the second region",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "    let low = 0;",
+  "to": "    let low = 1;",
+  "expect": "killed",
+  "why": "the first region is never found"
+ },
+ {
+  "name": "S15 search: the high end stops before the last region",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "    let high = regions.length - 1;",
+  "to": "    let high = regions.length - 2;",
+  "expect": "killed",
+  "why": "the last region is never found"
+ },
+ {
+  "name": "S16 search: nothing found starts at the first region",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "    let found = -1;",
+  "to": "    let found = 0;",
+  "expect": "killed",
+  "why": "a line above the first region is compared with the first region's end, and an empty array reads regions[0]"
+ },
+ {
+  "name": "S17 search: the loop stops with one candidate left",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "    while (low <= high) {",
+  "to": "    while (low < high) {",
+  "expect": "killed",
+  "why": "a one-region array is never searched"
+ },
+ {
+  "name": "S18 search: the middle is the high end",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "      const middle = low + ((high - low) >> 1);",
+  "to": "      const middle = low + ((high - low) >> 0);",
+  "expect": "killed",
+  "why": "a downward walk from the last region: the same answers, a pass over every region (killed by the read-count and clock rows)"
+ },
+ {
+  "name": "S19 search: the middle by an unsigned shift",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "      const middle = low + ((high - low) >> 1);",
+  "to": "      const middle = low + ((high - low) >>> 1);",
+  "expect": "survives",
+  "why": "EQUIVALENT: high - low is never negative inside the loop, and an array has fewer than 2^31 regions"
+ },
+ {
+  "name": "S20 search: a start is strictly below the line",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "      if (regions[middle].startLine <= line) {",
+  "to": "      if (regions[middle].startLine < line) {",
+  "expect": "killed",
+  "why": "a line on a region's first line is not found"
+ },
+ {
+  "name": "S21 search: the low end skips a region",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "        low = middle + 1;",
+  "to": "        low = middle + 2;",
+  "expect": "killed",
+  "why": "a region right after a candidate is skipped"
+ },
+ {
+  "name": "S22 search: the high end skips a region",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "        high = middle - 1;",
+  "to": "        high = middle - 2;",
+  "expect": "killed",
+  "why": "a region right before a candidate is skipped"
+ },
+ {
+  "name": "S23 search: the end is exclusive",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "    return found !== -1 && line <= regions[found].endLine;",
+  "to": "    return found !== -1 && line < regions[found].endLine;",
+  "expect": "killed",
+  "why": "a region's last line is outside it"
+ },
+ {
+  "name": "S24 search: no check that anything was found",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "    return found !== -1 && line <= regions[found].endLine;",
+  "to": "    return line <= regions[found].endLine;",
+  "expect": "killed",
+  "why": "a line above the first region reads regions[-1]"
+ },
+ {
+  "name": "S25 search: found is tested with >= 0",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "    return found !== -1 && line <= regions[found].endLine;",
+  "to": "    return found >= 0 && line <= regions[found].endLine;",
+  "expect": "survives",
+  "why": "EQUIVALENT: found is -1 or an index"
+ },
+ {
+  "name": "S26 search: the start is compared where the end should be",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "    return found !== -1 && line <= regions[found].endLine;",
+  "to": "    return found !== -1 && line <= regions[found].startLine;",
+  "expect": "killed",
+  "why": "only a region's first line is inside it"
+ },
+ {
+  "name": "S27 isOrdered: a NaN start is allowed",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "!(startLine <= endLine)",
+  "to": "startLine > endLine",
+  "expect": "killed",
+  "why": "a NaN bound passes the first test; [NaN..1, 2..2] is then searched by its starts, the NaN start is never at or below a line, and 2 is answered false where the oracle says true (killed by E1)"
+ },
+ {
+  "name": "S28 isOrdered: the chain test says >= for the negation",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "!(previousEnd < startLine)",
+  "to": "previousEnd >= startLine",
+  "expect": "survives",
+  "why": "EQUIVALENT: `!(a < b)` and `a >= b` differ only for a NaN, and a NaN bound has already failed the start-before-end test of its own region (a NaN end fails it for that region, a NaN start for that one)"
+ },
+ {
+  "name": "W01 collectValueSources: the filter keeps the option lines IN a region",
+  "file": "src/core/yaml-value-flags.ts",
+  "from": ".filter((o) => !inYamlRegion(o.cellStartLine))",
+  "to": ".filter((o) => inYamlRegion(o.cellStartLine))",
+  "expect": "killed",
+  "why": "the cells inside a region are kept and the others dropped"
+ },
+ {
+  "name": "W02 collectValueSources: the filter asks about the option line, not the fence",
+  "file": "src/core/yaml-value-flags.ts",
+  "from": "!inYamlRegion(o.cellStartLine)",
+  "to": "!inYamlRegion(o.line)",
+  "expect": "survives",
+  "why": "EQUIVALENT in the answer: an option line is a `#|` line directly under its cell's fence, and a region's delimiters are `---` lines, so no delimiter lies between a fence and any of its option lines and both are on the same side of every region: asking about the option line is the same question"
+ },
+ {
+  "name": "W03 collectValueSources: the lookup is made at every ask",
+  "file": "src/core/yaml-value-flags.ts",
+  "from": "  const inYamlRegion = createYamlRegionLookup(quartoYamlRegions(text));",
+  "to": "  const regions = quartoYamlRegions(text);\n  const inYamlRegion = (line: number): boolean => createYamlRegionLookup(regions)(line);",
+  "expect": "killed",
+  "why": "the order is checked at every ask: the same answers, regions times option lines again (killed by the wiring row, which counts 150 lookups for 150 option lines, and by the end-to-end clock rows)"
+ },
+ {
+  "name": "W04 collectValueSources: the old spelling",
+  "file": "src/core/yaml-value-flags.ts",
+  "from": "  const inYamlRegion = createYamlRegionLookup(quartoYamlRegions(text));",
+  "to": "  const regions = quartoYamlRegions(text);\n  const inYamlRegion = (line: number): boolean => regions.some((r) => line >= r.startLine && line <= r.endLine);",
+  "expect": "killed",
+  "why": "the parent again: the same answers, regions times option lines (killed by the wiring row, which counts no lookup at all, and by the end-to-end clock rows)"
+ },
+ {
+  "name": "W05 collectValueSources: two lookups are made",
+  "file": "src/core/yaml-value-flags.ts",
+  "from": "  const inYamlRegion = createYamlRegionLookup(quartoYamlRegions(text));",
+  "to": "  createYamlRegionLookup(quartoYamlRegions(text));\n  const inYamlRegion = createYamlRegionLookup(quartoYamlRegions(text));",
+  "expect": "killed",
+  "why": "the same answers and twice the work of making the lookup: killed by the wiring rows, which count one lookup a call (the clock rows cannot see a constant factor of two on the cheap part)"
+ },
+ {
+  "name": "T01 rows: the ratio limit is 100",
+  "file": "test/unit/s342-yaml-region-rows.test.ts",
+  "from": "const RATIO_LIMIT = 2;",
+  "to": "const RATIO_LIMIT = 100;",
+  "expect": "killed",
+  "why": "a limit that no run can break; killed by the sizes row"
+ },
+ {
+  "name": "T02 rows: the item's shape at a tenth of its size",
+  "file": "test/unit/s342-yaml-region-rows.test.ts",
+  "from": "const LITERAL_PAIRS = 64_000;",
+  "to": "const LITERAL_PAIRS = 6_400;",
+  "expect": "killed",
+  "why": "killed by the sizes row"
+ },
+ {
+  "name": "T03 rows: the lookup limit is 25 seconds",
+  "file": "test/unit/s342-yaml-region-rows.test.ts",
+  "from": "const LOOKUP_LIMIT_MS = 250;",
+  "to": "const LOOKUP_LIMIT_MS = 25_000;",
+  "expect": "killed",
+  "why": "killed by the lookup sizes row"
+ },
+ {
+  "name": "T04 rows: the lookup row asks 500 regions",
+  "file": "test/unit/s342-yaml-region-rows.test.ts",
+  "from": "const LOOKUP_REGIONS = 50_000;",
+  "to": "const LOOKUP_REGIONS = 500;",
+  "expect": "killed",
+  "why": "killed by the lookup sizes row"
+ },
+ {
+  "name": "T05 rows: the read bound is n",
+  "file": "test/unit/s342-yaml-region-rows.test.ts",
+  "from": "const readBound = (n: number): number => 2 * (Math.floor(Math.log2(n)) + 1) + 1;",
+  "to": "const readBound = (n: number): number => n;",
+  "expect": "killed",
+  "why": "killed by the bound row"
+ },
+ {
+  "name": "T06 rows: timeAgainstBaseline reads the run as 0",
+  "file": "test/unit/s342-yaml-region-rows.test.ts",
+  "from": "  return { result, ms: t2 - t1, baselineMs: t1 - t0 };",
+  "to": "  return { result, ms: 0, baselineMs: t1 - t0 };",
+  "expect": "killed",
+  "why": "a stuck total passes every ratio; killed by the helper's own rows and by every end-to-end row's `ms > 0`"
+ },
+ {
+  "name": "T07 rows: timeAgainstBaseline reads the baseline as 0",
+  "file": "test/unit/s342-yaml-region-rows.test.ts",
+  "from": "  return { result, ms: t2 - t1, baselineMs: t1 - t0 };",
+  "to": "  return { result, ms: t2 - t1, baselineMs: 0 };",
+  "expect": "killed",
+  "why": "killed by the helper's own rows and by every end-to-end row's `baselineMs > 0`"
+ },
+ {
+  "name": "T08 rows: timeAsks reads the total as 0",
+  "file": "test/unit/s342-yaml-region-rows.test.ts",
+  "from": "  return { ms: now() - t0, hits };",
+  "to": "  return { ms: 0, hits };",
+  "expect": "killed",
+  "why": "killed by the lookup helper's rows and the lookup row's `ms > 0`"
+ },
+ {
+  "name": "T09 rows: the ratio limit is not strict",
+  "file": "test/unit/s342-yaml-region-rows.test.ts",
+  "from": "return costRatio(run) < ratioLimit ? [] :",
+  "to": "return costRatio(run) <= ratioLimit ? [] :",
+  "expect": "killed",
+  "why": "killed by the row that tries exactly the limit"
+ },
+ {
+  "name": "T10 rows: a run read as 0 is allowed",
+  "file": "test/unit/s342-yaml-region-rows.test.ts",
+  "from": "if (!(run.ms > 0 && run.baselineMs > 0))",
+  "to": "if (!(run.baselineMs > 0))",
+  "expect": "killed",
+  "why": "killed by the row that gives clockBreaks a run of 0 ms"
+ },
+ {
+  "name": "T11 rows: the counting wrapper counts nothing",
+  "file": "test/unit/s342-yaml-region-rows.test.ts",
+  "from": "      if (typeof key === \"string\" && /^[0-9]+$/.test(key)) reads++;",
+  "to": "      if (typeof key === \"string\" && /^[0-9]+$/.test(key)) reads += 0;",
+  "expect": "killed",
+  "why": "killed by the wrapper's own row (the parent's function reads 10 of 10)"
+ },
+ {
+  "name": "T12 rows: the wrapper counts no lookup",
+  "file": "test/unit/s342-yaml-region-rows.test.ts",
+  "from": "      calls.lookups++;",
+  "to": "      calls.lookups += 0;",
+  "expect": "killed",
+  "why": "killed by the wiring rows and by the wrapper's own row"
+ },
+ {
+  "name": "T13 rows: the wrapper counts no direct call",
+  "file": "test/unit/s342-yaml-region-rows.test.ts",
+  "from": "      calls.direct++;",
+  "to": "      calls.direct += 0;",
+  "expect": "killed",
+  "why": "killed by the wrapper's own row (without it the wiring rows' `direct` of 0 would be a count of nothing)"
+ },
+ {
+  "name": "E01 equivalence: the oracle's start is exclusive",
+  "file": "test/unit/yaml-region-lookup-equivalence.test.ts",
+  "from": "  return regions.some((r) => line >= r.startLine && line <= r.endLine);",
+  "to": "  return regions.some((r) => line > r.startLine && line <= r.endLine);",
+  "expect": "killed",
+  "why": "killed by the named rows, the oracle's own rows and the differential"
+ },
+ {
+  "name": "E02 equivalence: orderedByDefinition allows touching",
+  "file": "test/unit/yaml-region-lookup-equivalence.test.ts",
+  "from": "    if (i > 0 && !(regions[i - 1].endLine < regions[i].startLine)) return false;",
+  "to": "    if (i > 0 && !(regions[i - 1].endLine <= regions[i].startLine)) return false;",
+  "expect": "killed",
+  "why": "the pinned count of ordered arrays moves; killed by E1 and E2"
+ },
+ {
+  "name": "E03 equivalence: orderedByDefinition allows a start after its end",
+  "file": "test/unit/yaml-region-lookup-equivalence.test.ts",
+  "from": "    if (!(regions[i].startLine <= regions[i].endLine)) return false;\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the pinned count of ordered arrays moves; killed by E1"
+ },
+ {
+  "name": "E04 equivalence: the bound pool has no NaN",
+  "file": "test/unit/yaml-region-lookup-equivalence.test.ts",
+  "from": "const BOUNDS = [-Infinity, -1, -0, 0, 0.5, 1, 2, NaN, Infinity];",
+  "to": "const BOUNDS = [-Infinity, -1, -0, 0, 0.5, 1, 2, 3, Infinity];",
+  "expect": "killed",
+  "why": "killed by the sizes row and the pinned counts of E1"
+ },
+ {
+  "name": "E05 equivalence: the line pool has no NaN",
+  "file": "test/unit/yaml-region-lookup-equivalence.test.ts",
+  "from": "const E1_LINES = [-Infinity, -1, -0.5, -0, 0, 0.25, 0.5, 1, 1.5, 2, 3, NaN, Infinity];",
+  "to": "const E1_LINES = [-Infinity, -1, -0.5, -0, 0, 0.25, 0.5, 1, 1.5, 2, 3, 4, Infinity];",
+  "expect": "killed",
+  "why": "killed by the pinned counts of E1"
+ },
+ {
+  "name": "E06 equivalence: a disagreement of the lookup is not recorded",
+  "file": "test/unit/yaml-region-lookup-equivalence.test.ts",
+  "from": "    if (got !== expected && tally.disagreements.length < 5)",
+  "to": "    if (false && got !== expected && tally.disagreements.length < 5)",
+  "expect": "killed",
+  "why": "the three wrong lookups no longer disagree; killed by the comparison-can-fail row"
+ },
+ {
+  "name": "E07 equivalence: the second pass over the seeded arrays is dropped",
+  "file": "test/unit/yaml-region-lookup-equivalence.test.ts",
+  "from": "      compareArray(regions, [...lines].reverse(), tally); // on a fresh lookup, in the opposite order\n",
+  "to": "",
+  "expect": "killed",
+  "why": "killed by the count of arrays compared"
+ },
+ {
+  "name": "E08 equivalence: the seeded arrays are a tenth",
+  "file": "test/unit/yaml-region-lookup-equivalence.test.ts",
+  "from": "  const COUNT = 30_000;",
+  "to": "  const COUNT = 3_000;",
+  "expect": "killed",
+  "why": "the floors on the defects and the shapes are not reached"
+ },
+ {
+  "name": "E09 equivalence: E2 starts at line 0",
+  "file": "test/unit/yaml-region-lookup-equivalence.test.ts",
+  "from": "      compareArray(regions, halfLines(-1, last + 1), tally);",
+  "to": "      compareArray(regions, halfLines(0, last + 1), tally);",
+  "expect": "killed",
+  "why": "the pinned counts of E2 move"
+ },
+ {
+  "name": "E10 equivalence: E3 stops at 299 regions",
+  "file": "test/unit/yaml-region-lookup-equivalence.test.ts",
+  "from": "    for (let m = 0; m <= 300; m++) {",
+  "to": "    for (let m = 0; m <= 299; m++) {",
+  "expect": "killed",
+  "why": "the pinned counts of E3 move"
+ },
+ {
+  "name": "E11 equivalence: E2 has no gap of 1",
+  "file": "test/unit/yaml-region-lookup-equivalence.test.ts",
+  "from": "    for (const gap of [1, 2, 3]) for (const width of [0, 1, 2]) SHAPES.push([gap, width]);",
+  "to": "    for (const gap of [2, 3]) for (const width of [0, 1, 2]) SHAPES.push([gap, width]);",
+  "expect": "killed",
+  "why": "the pinned counts of E2 move"
+ },
+ {
+  "name": "E12 equivalence: a tenth of the seeded documents",
+  "file": "test/unit/yaml-region-lookup-equivalence.test.ts",
+  "from": "  const DOCS = 20_000;",
+  "to": "  const DOCS = 2_000;",
+  "expect": "killed",
+  "why": "the floors on the documents are not reached"
+ },
+ {
+  "name": "E13 equivalence: the seeded arrays never touch",
+  "file": "test/unit/yaml-region-lookup-equivalence.test.ts",
+  "from": "          regions[i] = region(r.startLine, r.endLine);\n          if (i + 1 < regions.length) regions[i + 1] = region(r.endLine, regions[i + 1].endLine < r.endLine ? r.endLine : regions[i + 1].endLine);",
+  "to": "          regions[i] = region(r.startLine, r.endLine);",
+  "expect": "killed",
+  "why": "the touching defect does nothing; killed by the floor on the arrays that show a touching pair"
+ },
+ {
+  "name": "E14 equivalence: the seeded arrays have no NaN defect",
+  "file": "test/unit/yaml-region-lookup-equivalence.test.ts",
+  "from": "          regions[i] = region(NaN, r.endLine);",
+  "to": "          regions[i] = region(r.startLine, r.endLine);",
+  "expect": "killed",
+  "why": "the NaN-start defect does nothing"
+ }
+]

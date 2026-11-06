@@ -414,6 +414,19 @@ describe("Session 342 -- the regions of a document: the lookup answers them as t
 describe("Session 342 -- a seeded differential on hand-made arrays", () => {
   const SEED = 3421;
   const COUNT = 30_000;
+  /** The fewest arrays of each shape the draw must reach (about half of what it reaches at this seed). */
+  const SHAPE_FLOORS: Record<string, number> = {
+    duplicate: 700,
+    fraction: 2_500,
+    infinite: 3_000,
+    nan: 3_000,
+    nested: 4_000,
+    "negative-zero": 2_000,
+    overlapping: 800,
+    "start-after-end": 2_500,
+    touching: 2_000,
+    unsorted: 3_500,
+  };
 
   /** The double just above (`up`) or below `x`, by scaling: a hair, which the comparison tells from `x` itself for every finite non-zero `x` the generator draws. */
   const hair = (x: number, up: boolean): number => (x === 0 ? (up ? Number.MIN_VALUE : -Number.MIN_VALUE) : x * (up === x > 0 ? 1 + 2 ** -52 : 1 - 2 ** -52));
@@ -505,6 +518,42 @@ describe("Session 342 -- a seeded differential on hand-made arrays", () => {
     return lines;
   }
 
+  /** The shapes an array HAS, read from the array itself (not from the label of the draw that made it): the draw is only claimed to have reached a shape when the arrays show it. */
+  function shapesOf(regions: readonly YamlRegion[]): string[] {
+    const shapes = new Set<string>();
+    const bounds = regions.flatMap((r) => [r.startLine, r.endLine]);
+    if (bounds.some((b) => Number.isNaN(b))) shapes.add("nan");
+    if (bounds.some((b) => b === Infinity || b === -Infinity)) shapes.add("infinite");
+    if (bounds.some((b) => Object.is(b, -0))) shapes.add("negative-zero");
+    if (bounds.some((b) => Number.isFinite(b) && !Number.isInteger(b))) shapes.add("fraction");
+    if (regions.some((r) => r.startLine > r.endLine)) shapes.add("start-after-end");
+    for (let i = 0; i + 1 < regions.length; i++) {
+      const a = regions[i];
+      const b = regions[i + 1];
+      if (b.startLine < a.startLine) shapes.add("unsorted");
+      if (a.endLine === b.startLine) shapes.add("touching");
+      if (a.startLine < b.startLine && b.startLine < a.endLine && a.endLine < b.endLine) shapes.add("overlapping");
+      const inside = (outer: YamlRegion, inner: YamlRegion): boolean => outer.startLine <= inner.startLine && inner.endLine <= outer.endLine && (outer.startLine < inner.startLine || inner.endLine < outer.endLine);
+      if (inside(a, b) || inside(b, a)) shapes.add("nested");
+      if (a.startLine === b.startLine && a.endLine === b.endLine) shapes.add("duplicate");
+    }
+    return [...shapes];
+  }
+
+  /** The shape each defect of the draw must leave in the array it was applied to (read back with `shapesOf`): a defect that does nothing would be a label with no array behind it. */
+  const DEFECT_SHAPE: Record<string, string> = {
+    swap: "unsorted",
+    duplicate: "duplicate",
+    "start-after-end": "start-after-end",
+    "nan-start": "nan",
+    "nan-end": "nan",
+    "infinite-end": "infinite",
+    "infinite-start": "infinite",
+    "negative-zero": "negative-zero",
+    fraction: "fraction",
+    touch: "touching",
+  };
+
   /** The seeded arrays, each with the lines to ask of it (shuffled). */
   function* arrays(): Generator<{ regions: YamlRegion[]; defect: string; lines: number[] }> {
     const random = seededRandom(SEED);
@@ -517,10 +566,15 @@ describe("Session 342 -- a seeded differential on hand-made arrays", () => {
   it(`agrees with the old spelling and the source function on ${COUNT.toLocaleString("en-US")} arrays (ordered, ordered with one defect, wild), each asked in a shuffled order and again in the reverse order`, () => {
     const tally = newTally();
     const defects = new Map<string, number>();
+    const shapes = new Map<string, number>();
+    const showing = new Map<string, number>();
     let longOrdered = 0;
     let longest = 0;
     for (const { regions, defect, lines } of arrays()) {
       defects.set(defect, (defects.get(defect) ?? 0) + 1);
+      const shown = shapesOf(regions);
+      for (const shape of shown) shapes.set(shape, (shapes.get(shape) ?? 0) + 1);
+      if (DEFECT_SHAPE[defect] !== undefined && shown.includes(DEFECT_SHAPE[defect])) showing.set(defect, (showing.get(defect) ?? 0) + 1);
       longest = Math.max(longest, regions.length);
       if (regions.length >= 8 && orderedByDefinition(regions)) longOrdered++;
       compareArray(regions, lines, tally);
@@ -533,6 +587,11 @@ describe("Session 342 -- a seeded differential on hand-made arrays", () => {
     for (const defect of DEFECTS) expect(defects.get(defect) ?? 0).toBeGreaterThan(500);
     expect(defects.get("none") ?? 0).toBeGreaterThan(8_000);
     expect(defects.get("wild") ?? 0).toBeGreaterThan(3_000);
+    // and the arrays themselves must show them: how many of the arrays have each shape, read from the arrays (floors).
+    expect([...shapes.keys()].sort()).toEqual(Object.keys(SHAPE_FLOORS).sort());
+    // and a defect leaves its shape in nearly every array it was applied to: 8 in 10 at the least (a swap at the last region swaps it with itself, a touching defect at the last region touches nothing: 90.0 and 90.4 in 100 at this seed)
+    for (const defect of Object.keys(DEFECT_SHAPE)) expect(showing.get(defect) ?? 0, defect).toBeGreaterThan(0.8 * (defects.get(defect) ?? 0));
+    for (const [shape, floor] of Object.entries(SHAPE_FLOORS)) expect(shapes.get(shape) ?? 0, shape).toBeGreaterThan(floor);
     expect(longOrdered).toBeGreaterThan(4_000);
     expect(longest).toBeGreaterThanOrEqual(40);
     expect(tally.orderedArrays).toBeGreaterThan(15_000);
