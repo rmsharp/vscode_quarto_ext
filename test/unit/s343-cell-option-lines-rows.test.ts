@@ -21,8 +21,9 @@ import { seededRandom } from "./support/regex-equivalence";
 // builds the list: it is built by the first ask), and one CLOCK row: three warm calls against one warm scan lookup, read in the same process.
 //
 // THE CLOCK ROW. Three warm `findCellOptionLines` calls on a 2,000-cell document, as a ratio of one warm `findAllCells` lookup (a slice of 2,000 cells; the option lines are 4,000 elements, so a cure that copies them costs
-// about 2 lookups a call, 6 to 8 for the three). Measured at load 6 to 15 in a bare node process: the parent's ratio is about 2,000 to 4,000 (three flatMaps of 2.7 ms over a 0.002 ms lookup), the cure's 6 to 9. The
-// limit is 100: more than 10 times the cure and 20 times under the parent. Each round times both windows back to back and the row reads the MEDIAN round, so a pause in one window does not decide it. The clock's own
+// about 2 lookups a call, 6 for the three at most). Measured in vitest at load 4 to 9, eight runs: the parent's ratio is 15,400 to 16,300 (three flatMaps of
+// 2.7 ms over a 0.0002 ms lookup), the cure's 3.6 to 4.4. The limit is 100: more than 20 times the cure's figure and 150 times under the parent's. Each round times both windows back to back and the row reads the MEDIAN
+// round, so a pause in one window does not decide it. The clock's own
 // rows (`ratioOfWindows`, driven by a clock that only the stand-ins advance) are the second describe: a stuck clock, a window that did not tick, a clock that runs backwards (Learning 910).
 
 type Engine = Parameters<typeof findCellOptionLines>[1];
@@ -415,7 +416,7 @@ const CELLS = 2000;
 const RATIO_LIMIT = 100;
 
 describe(`Session 343 -- three warm findCellOptionLines calls on a ${CELLS.toLocaleString("en-US")}-cell document cost a few lookups of the scan, not three passes over its cells`, () => {
-  it(`the ratio of three calls to one findAllCells lookup is under ${RATIO_LIMIT} (the parent's is in the thousands, the cure's under 10: load 6 to 15)`, () => {
+  it(`the ratio of three calls to one findAllCells lookup is under ${RATIO_LIMIT} (the parent's is 15,000 and over, the cure's about 4: load 4 to 9)`, () => {
     const text = documentOf(CELLS);
     expect(findCellOptionLines(text)).toHaveLength(2 * CELLS); // the premise: 4,000 option lines, and the scan is warm after this call
     expect(findAllCells(text)).toHaveLength(CELLS);

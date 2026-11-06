@@ -12,6 +12,12 @@ import { seededRandom } from "./support/regex-equivalence";
 // two), and the third and fourth only while the TOTAL LENGTH of all the held texts is at most 8,388,608 characters (a megabytes-sized document keeps today's two). The policy is `promoted` and `admitted`
 // (src/core/qmd/regions-cache.ts), generic over the entry and given its limits, so that it is read here with small numbers; the cache in the model is wired to the real constants.
 //
+// AT THE CURE (the same probe, a fresh process each, median of 9, load 5 to 9): 500 cells 29.6 alone, 28.8 with a visible B (parent 30.9 and 38.2); 2,000 cells 122.6 and 120.8 (parent 126.8 and 155.9): the visible B costs its warm
+// lookup, about nothing. ⚠ THE BOUND SETS THE REACH. A document of 8,000 cells is 2,850,940 characters and of 6,000 cells 2,132,940, and the edit cycle holds A's two new scans, the one before them and B's one: four entries
+// of 2.1 million characters or more total over 8,388,608, so the fourth, which the cycle needs for a moment, is paid for by dropping the LEAST recently used entry, which is B's (it was touched before A's two new scans). At 6,000,
+// 7,500 and 8,000 cells the cycle with a visible B is as slow as the parent's (478 / 612 / 654 ms against 480 / 625 / 646). The cache serves a second visible document of up to 2,097,152 characters (about 5,900 cells of this
+// shape); a larger budget would reach further at four times the memory.
+//
 // This file holds the POLICY rows (`promoted` and `admitted` with limits small enough to write by hand, then against a naive reference spelling over seeded sequences of hits and misses), and the CACHE rows, which go through the
 // model's public entry `findAllCells(text, engine)` and tell a hit from a miss by the identity of the cell objects it returns (a hit hands back the scan's own cells; a miss makes another scan and other objects). Asking is
 // itself a hit or a miss, so the rows ask the keys they expect to hit first and the key they expect to miss last.
