@@ -44,6 +44,11 @@ const SETUP_CALL = [
   "---", "title: t", "---", "", "```{r setup, include=FALSE}", "knitr::opts_chunk$set(echo = F)", "```", "", "# Top", "", "```", "", "## Between", "", "```{r}", "```", "", "## After", "", "```{r}", "y <- 1", "```", "", "## Last", "",
 ].join("\n");
 
+/** knitr, the same shape with a `#| eval: false` line in the empty chunk. Executing: blind r[4-6] r[20-22]; aware r[4-6] r[14-16] r[20-22], and line 15 is the option line of the chunk the blind scan never saw. Under --no-execute: aware r[4-6] only. */
+const SETUP_OPTION = [
+  "---", "title: t", "---", "", "```{r setup, include=FALSE}", "knitr::opts_chunk$set(echo = F)", "```", "", "# Top", "", "```", "", "## Between", "", "```{r}", "#| eval: false", "```", "", "## After", "", "```{r}", "y <- 1", "```", "", "## Last", "",
+].join("\n");
+
 interface Named {
   name: string;
   text: string;
@@ -61,6 +66,8 @@ const NAMED: Named[] = [
   { name: "an indent-4 python cell under engine markdown", text: INDENT_MARKDOWN, engine: "markdown", blind: "python[4-6] python[10-13]", aware: "python[4-6]" },
   { name: "a setup chunk, executing", text: SETUP_CALL, engine: "knitr", mode: "execute", blind: "r[4-6] r[19-21]", aware: "r[4-6] r[14-15] r[19-21]" },
   { name: "the same setup chunk, --no-execute", text: SETUP_CALL, engine: "knitr", mode: "no-execute", blind: "r[4-6] r[19-21]", aware: "r[4-6]" },
+  { name: "a setup chunk and a chunk with a #| line, executing", text: SETUP_OPTION, engine: "knitr", mode: "execute", blind: "r[4-6] r[20-22]", aware: "r[4-6] r[14-16] r[20-22]" },
+  { name: "the same two chunks, --no-execute", text: SETUP_OPTION, engine: "knitr", mode: "no-execute", blind: "r[4-6] r[20-22]", aware: "r[4-6]" },
 ];
 
 describe("the documents are what the rows below say they are (the Session 342 premise: the two scans disagree on each of them)", () => {
@@ -101,6 +108,13 @@ describe("Session 342 -- findAllCells and findCellOptionLines read the scan the 
     expect(findCellOptionLines(STRAY_PY, undefined, "execute")).toEqual([]);
     expect(findCellOptionLines(STRAY_PY, "knitr").map((o) => o.line)).toEqual([7]);
     expect(findCellOptionLines(STRAY_PY, "knitr", "no-execute").map((o) => o.line)).toEqual([7]);
+  });
+
+  it("the option lines follow the mode too: the #| line of a chunk that exists only when the document executes", () => {
+    expect(findCellOptionLines(SETUP_OPTION, "knitr", "execute").map((o) => o.line)).toEqual([15]);
+    expect(findCellOptionLines(SETUP_OPTION, "knitr").map((o) => o.line)).toEqual([15]);
+    expect(findCellOptionLines(SETUP_OPTION, "knitr", "no-execute")).toEqual([]);
+    expect(findCellOptionLines(SETUP_OPTION)).toEqual([]);
   });
 
   it("an engine that changes nothing (ambiguous, julia, undefined) reads the blind list", () => {
@@ -198,6 +212,17 @@ describe("Session 342 -- createCellVdocBuilder given the engine and mode finds e
     expect([4, 14, 19].map((line) => omitted.cellAt(line)?.startLine ?? null)).toEqual([4, 14, 19]);
   });
 
+  it("the option lines of the chunk only the aware scan sees are blanked in its vdoc, and are code in the blind scan's", () => {
+    const aware = createCellVdocBuilder(SETUP_OPTION, "knitr", "execute");
+    const cell = aware.cellAt(15) as Cell;
+    expect(cell).toEqual({ startLine: 14, endLine: 16, lang: "r", code: "#| eval: false" });
+    expect(aware.build(cell)).toBe(nl(SETUP_OPTION.split("\n").length - 1)); // an r cell whose only line is an option line: 26 empty lines
+    // the blind builder has no such cell, and a hand-made copy of it is built with line 15 kept as code, because the blind scan does not know it is an option line
+    const blind = createCellVdocBuilder(SETUP_OPTION);
+    expect(blind.cellAt(15)).toBeNull();
+    expect(blind.build(cell)).toBe(`${nl(15)}#| eval: false${nl(10)}`);
+  });
+
   it("a mode with no knitr in it is no mode: --no-execute for jupyter reads the executing list", () => {
     const given = createCellVdocBuilder(INDENT_JUPYTER, "jupyter", "no-execute");
     expect(given.cellAt(1)).toEqual({ startLine: 1, endLine: 2, lang: "r", code: "" });
@@ -231,6 +256,13 @@ describe("Session 342 -- over a seeded corpus, every cell symbol of the Outline 
     "    ```{python}", "    ```", "  ```{r}", "  ```", "- ```{r}", "> ```{r}", "    ```{r}", "   ```{python}",
     "# Heading", "## Section", "prose", "", "", "",
   ];
+  // Blocks of the shape the knitr half of the change is for: a stray bare fence above a hidden chunk (R and python), above an empty chunk, and above a pair of chunks of which one is loud.
+  const KNITR_BLOCKS: string[][] = [
+    ["", "```", "", "## Under", "", "```{r demo, echo=FALSE}", "plot(pressure)", "```", "", "## After", ""],
+    ["", "```", "", "## Under", "", "```{python}", "#| echo: false", "x = 1", "```", "", "## After", ""],
+    ["", "```", "```{python}", "```", ""],
+    ["", "```", "", "```{r, include=FALSE}", "x <- 1", "```", "", "```{r, echo=TRUE}", "y <- 2", "```", ""],
+  ];
   const FRONT: string[][] = [
     [], [], ["---", "title: t", "---", ""], ["---", "title: t", "execute:", "  echo: false", "---", ""], ["---", "title: t", "engine: knitr", "---", ""], ["---", "title: t", "engine: markdown", "---", ""],
     ["---", "title: t", "jupyter: python3", "---", ""], ["---", "title: t", "jupyter: julia-1.9", "---", ""], ["---", "title: t", "knitr: true", "---", ""],
@@ -248,10 +280,12 @@ describe("Session 342 -- over a seeded corpus, every cell symbol of the Outline 
     let mapped = 0;
     let differing = 0;
     let lostByBlind = 0;
+    const lostIn = new Map<string, number>();
     for (let n = 0; n < COUNT; n++) {
       const lines = [...pick(FRONT)];
       const length = 2 + Math.floor(random() * 14);
       for (let k = 0; k < length; k++) lines.push(pick(POOL));
+      if (random() < 0.3) lines.splice(Math.floor(random() * (lines.length + 1)), 0, ...pick(KNITR_BLOCKS));
       const text = lines.join("\n");
       docs++;
       const blindSpans = findAllCells(text).map(span).join(" ");
@@ -265,7 +299,10 @@ describe("Session 342 -- over a seeded corpus, every cell symbol of the Outline 
           symbols++;
           // the control: how often the engine-blind lookup of the parent would NOT have found this symbol's cell (none, or another cell)
           const blindCell = findCellAtPosition(text, symbol.startLine);
-          if (blindCell === null || blindCell.startLine !== symbol.startLine || blindCell.endLine !== symbol.endLine || blindCell.lang !== symbol.lang) lostByBlind++;
+          if (blindCell === null || blindCell.startLine !== symbol.startLine || blindCell.endLine !== symbol.endLine || blindCell.lang !== symbol.lang) {
+            lostByBlind++;
+            lostIn.set(`${engine}/${mode}`, (lostIn.get(`${engine}/${mode}`) ?? 0) + 1);
+          }
           const cell = builder.cellAt(symbol.startLine);
           const where = `${JSON.stringify(text)} under ${engine ?? "no engine"}/${mode}, the symbol ${span(symbol)}`;
           if (cell === null) {
@@ -300,5 +337,7 @@ describe("Session 342 -- over a seeded corpus, every cell symbol of the Outline 
     expect(mapped).toBeGreaterThan(9_000);
     expect(differing).toBeGreaterThan(300);
     expect(lostByBlind).toBeGreaterThan(100); // symbols the blind lookup would have lost: the corpus holds the shapes the change is for
+    // and it holds them for each engine that has any: the pairs for which the blind lookup loses symbols (the others, ambiguous and julia and no engine, read the blind list)
+    expect(Object.fromEntries([...lostIn.entries()].map(([pair, lost]) => [pair, lost > 10]))).toEqual({ "knitr/execute": true, "knitr/no-execute": true, "jupyter/execute": true, "markdown/execute": true });
   }, 120_000);
 });
