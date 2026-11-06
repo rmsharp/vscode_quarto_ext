@@ -130,3 +130,238 @@ describe("Session 343 -- the context-key setter sends a key's value only when it
     expect(newSends).toBeLessThan(oldSends / 2);
   });
 });
+
+// ---- WHEN THE SEND FAILS -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+/** Let every promise reaction and one timer turn run. */
+const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+/** A thenable that is not a Promise: the host's `Thenable` is only that. It calls the rejection (or the fulfilment) callback it is given, at once or in a microtask. */
+function thenable(outcome: { reject: Error } | { resolve: unknown }, synchronous = false): { then(onFulfilled?: (value: unknown) => unknown, onRejected?: (reason: unknown) => unknown): void } {
+  return {
+    then(onFulfilled, onRejected) {
+      const run = (): void => {
+        if ("reject" in outcome) onRejected?.(outcome.reject);
+        else onFulfilled?.(outcome.resolve);
+      };
+      if (synchronous) run();
+      else queueMicrotask(run);
+    },
+  };
+}
+
+describe("Session 343 -- the context-key setter forgets a key whose send failed, so the next set sends again", () => {
+  it("a send whose promise rejects is forgotten: the next set of the same value sends again, and the one after that does not", async () => {
+    let n = 0;
+    const calls: boolean[] = [];
+    const set = createContextKeySetter((_key, value) => {
+      calls.push(value);
+      return n++ === 0 ? Promise.reject(new Error("setContext failed")) : Promise.resolve();
+    });
+    set("k", true);
+    await settle();
+    set("k", true); // the first send failed: the host may not have the value
+    expect(calls).toEqual([true, true]);
+    await settle();
+    set("k", true); // the second succeeded
+    expect(calls).toEqual([true, true]);
+  });
+
+  it("the same holds for a thenable that is not a Promise (the host's Thenable), rejecting later or at once", async () => {
+    for (const synchronous of [false, true]) {
+      const calls: boolean[] = [];
+      let n = 0;
+      const set = createContextKeySetter((_key, value) => {
+        calls.push(value);
+        return n++ === 0 ? thenable({ reject: new Error("no") }, synchronous) : thenable({ resolve: undefined }, synchronous);
+      });
+      set("k", false);
+      await settle();
+      set("k", false);
+      set("k", false);
+      expect(calls, `synchronous ${String(synchronous)}`).toEqual([false, false]);
+    }
+  });
+
+  it("a send whose promise resolves is remembered, with whatever it resolves to", async () => {
+    for (const result of [undefined, null, 0, "", false, {}, [], new Error("a resolved value that looks like a failure")]) {
+      const calls: boolean[] = [];
+      const set = createContextKeySetter((_key, value) => {
+        calls.push(value);
+        return Promise.resolve(result);
+      });
+      set("k", true);
+      await settle();
+      set("k", true);
+      expect(calls).toHaveLength(1);
+    }
+  });
+
+  it("a result that is not a thenable is remembered: nothing, a number, a string, null, an object whose `then` is not a function", async () => {
+    for (const result of [undefined, null, 0, 1, "", "then", false, true, {}, { then: 5 }, { then: null }, [], () => 0]) {
+      const calls: boolean[] = [];
+      const set = createContextKeySetter((_key, value) => {
+        calls.push(value);
+        return result;
+      });
+      set("k", true);
+      await settle();
+      set("k", true);
+      set("k", true);
+      expect(calls, String(result)).toHaveLength(1);
+    }
+  });
+
+  it("a send that throws propagates the error, and leaves the key unremembered: the next set of the same value sends again", () => {
+    const failure = new Error("setContext threw");
+    let throwing = true;
+    const calls: boolean[] = [];
+    const set = createContextKeySetter((_key, value) => {
+      calls.push(value);
+      if (throwing) throw failure;
+    });
+    expect(() => set("k", true)).toThrow(failure);
+    throwing = false;
+    set("k", true);
+    expect(calls).toEqual([true, true]);
+    set("k", true);
+    expect(calls).toHaveLength(2);
+  });
+
+  it("a send that throws also forgets a value the key held before: set true, a throwing set false, then set true sends again", () => {
+    const calls: boolean[] = [];
+    const set = createContextKeySetter((_key, value) => {
+      calls.push(value);
+      if (calls.length === 2) throw new Error("the second send throws");
+    });
+    set("k", true);
+    expect(() => set("k", false)).toThrow("the second send throws");
+    set("k", true);
+    expect(calls).toEqual([true, false, true]);
+  });
+
+  it("a rejection of one key does not forget another key", async () => {
+    const calls: Array<[string, boolean]> = [];
+    const set = createContextKeySetter((key, value) => {
+      calls.push([key, value]);
+      return key === "a" ? Promise.reject(new Error("a failed")) : Promise.resolve();
+    });
+    set("a", true);
+    set("b", true);
+    await settle();
+    set("a", true);
+    set("b", true);
+    expect(calls).toEqual([["a", true], ["b", true], ["a", true]]);
+  });
+
+  it("a value set again while its send is still in flight is not sent again, and if that send then rejects the next set sends", async () => {
+    let fail: (reason: Error) => void = () => undefined;
+    const calls: boolean[] = [];
+    const set = createContextKeySetter((_key, value) => {
+      calls.push(value);
+      return calls.length === 1 ? new Promise<void>((_resolve, reject) => (fail = reject)) : Promise.resolve();
+    });
+    set("k", true);
+    set("k", true);
+    set("k", true);
+    expect(calls).toEqual([true]);
+    fail(new Error("late"));
+    await settle();
+    set("k", true);
+    expect(calls).toEqual([true, true]);
+  });
+
+  it("a LATE rejection of an older send does not forget a newer one, not even when the newer send holds the same value (set true, set false, set true, then the first rejects)", async () => {
+    const rejectors: Array<(reason: Error) => void> = [];
+    const calls: boolean[] = [];
+    const set = createContextKeySetter((_key, value) => {
+      calls.push(value);
+      return calls.length === 1 ? new Promise<void>((_resolve, reject) => rejectors.push(reject)) : Promise.resolve();
+    });
+    set("k", true); // in flight
+    set("k", false);
+    set("k", true);
+    expect(calls).toEqual([true, false, true]);
+    rejectors[0](new Error("the first, long after"));
+    await settle();
+    set("k", true); // the host got the third send's value: nothing to resend
+    expect(calls).toEqual([true, false, true]);
+  });
+
+  it("the setter handles a rejection itself: no unhandled rejection reaches the process, for a rejecting promise or a rejecting thenable", async () => {
+    const unhandled: unknown[] = [];
+    const listener = (reason: unknown): void => void unhandled.push(reason);
+    process.on("unhandledRejection", listener);
+    try {
+      const set = createContextKeySetter((key) => (key === "p" ? Promise.reject(new Error("a promise")) : thenable({ reject: new Error("a thenable") })));
+      set("p", true);
+      set("t", true);
+      await settle();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", listener);
+    }
+  });
+
+  // The ORACLE again, with failures: every call has a fate (the send succeeds at once, succeeds later, rejects later, or throws), fixed by the call's place in the sequence, so the old spelling and the setter meet the same
+  // fate on the calls they both send. The host takes a value when a send SUCCEEDS. After every call has settled the host's values must be the old spelling's: a failed send is retried by the next set.
+  it("leaves the host's key values as the old spelling did after every call, with sends that succeed, reject or throw (10,000 seeded sequences)", async () => {
+    const random = seededRandom(3430);
+    const KEYS = ["quarto.inCodeCell", "quartoRenderScriptActive"];
+    type Fate = "ok" | "ok later" | "reject later" | "throw";
+    const FATES: Fate[] = ["ok", "ok", "ok later", "reject later", "throw"];
+    const problems: string[] = [];
+    let failures = 0;
+    for (let n = 0; n < 10_000 && problems.length < 5; n++) {
+      const host = { old: new Map<string, boolean>(), now: new Map<string, boolean>() };
+      let fate: Fate = "ok";
+      const sendInto = (state: Map<string, boolean>) => (key: string, value: boolean): unknown => {
+        if (fate === "throw") throw new Error("setContext threw");
+        if (fate === "ok") {
+          state.set(key, value);
+          return undefined;
+        }
+        const thisFate = fate;
+        return new Promise<void>((resolve, reject) =>
+          setImmediate(() => {
+            if (thisFate === "reject later") reject(new Error("rejected"));
+            else {
+              state.set(key, value);
+              resolve();
+            }
+          }),
+        );
+      };
+      const oldSend = sendInto(host.old);
+      const oldSet = (key: string, value: boolean): void => {
+        try {
+          (oldSend(key, value) as Promise<void> | undefined)?.catch(() => undefined);
+        } catch {
+          // the host's own error
+        }
+      };
+      const newSet = createContextKeySetter(sendInto(host.now));
+      const length = 4 + Math.floor(random() * 12);
+      const picked: string[] = [];
+      for (let i = 0; i < length; i++) {
+        const key = KEYS[Math.floor(random() * KEYS.length)];
+        const value = random() < 0.6 && host.old.has(key) ? (host.old.get(key) as boolean) : random() < 0.5;
+        fate = FATES[Math.floor(random() * FATES.length)];
+        if (fate !== "ok") failures++;
+        picked.push(`${key}=${String(value)}:${fate}`);
+        oldSet(key, value);
+        try {
+          newSet(key, value);
+        } catch {
+          // the host's own error
+        }
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        for (const k of KEYS) {
+          if (host.old.get(k) !== host.now.get(k)) problems.push(`after [${picked.join(", ")}] the host's ${k} is ${String(host.now.get(k))}, the old spelling's ${String(host.old.get(k))}`);
+        }
+      }
+    }
+    expect(problems).toEqual([]);
+    expect(failures).toBeGreaterThan(40_000);
+  }, 120_000);
+});
