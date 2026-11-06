@@ -152,11 +152,11 @@
   "why": "the gate of `s338-spreads-rows.test.ts` finds a call with a spread argument"
  },
  {
-  "name": "V02 provider: flattenOutline is a local function",
+  "name": "V02 provider: createWorkspaceSymbolCache is a local function",
   "file": "src/providers/workspace-symbols.ts",
-  "from": "import {\n  flattenOutline,\n  matchesWorkspaceQuery,\n} from \"../core/workspace-symbols\";",
-  "to": "import { matchesWorkspaceQuery } from \"../core/workspace-symbols\";\nconst flattenOutline = (outline: never[]): never[] => outline;",
+  "from": "import {\n  createWorkspaceSymbolCache,\n  matchesWorkspaceQuery,\n} from \"../core/workspace-symbols\";",
+  "to": "import { matchesWorkspaceQuery } from \"../core/workspace-symbols\";\nconst createWorkspaceSymbolCache = (): { read: () => never[] } => ({ read: () => [] });",
   "expect": "killed",
-  "why": "the gate finds no import of the core function and a local flatten"
+  "why": "the gate finds no import of the core function and a local stand-in (the entry read `flattenOutline` until Session 343, which moved the flatten behind the cache)"
  }
 ]

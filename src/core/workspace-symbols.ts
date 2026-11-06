@@ -8,7 +8,9 @@
  * `vscode.SymbolInformation`.
  */
 
-import type { OutlineSymbol } from "./qmd/model";
+import { resolveDocumentEngine } from "./document-engine-resolve";
+import { buildOutline, type OutlineSymbol } from "./qmd/model";
+import type { RenderMode } from "./render-mode";
 
 /** One symbol flattened out of an `OutlineSymbol` tree, with its container (parent) name attached. */
 export interface FlatOutlineSymbol {
@@ -81,4 +83,36 @@ export function appendFlatOutline(
 export function matchesWorkspaceQuery(name: string, query: string): boolean {
   if (query.length === 0) return true;
   return name.toLowerCase().includes(query.toLowerCase());
+}
+
+/**
+ * The flat symbols of one document: what a workspace-symbol pass computes of a file BEFORE the query is looked at
+ * (Session 343, SIB-03). `fileName` decides the engine (`resolveDocumentEngine`: an `.Rmd` is knitr by its name) and
+ * `mode` is the render mode the Outline reads the document for; neither depends on the query.
+ */
+export function flatSymbolsOf(fileName: string, text: string, mode: RenderMode): FlatOutlineSymbol[] {
+  return flattenOutline(buildOutline(text, resolveDocumentEngine(fileName, text), mode));
+}
+
+/** The things a workspace-symbol cache can be given: another computation (a stand-in for the rows), and its two bounds. */
+export interface WorkspaceSymbolCacheOptions {
+  flatSymbolsOf?: (fileName: string, text: string, mode: RenderMode) => FlatOutlineSymbol[];
+  /** The most characters of text the cache keeps, in all. */
+  maxChars?: number;
+  /** The most files the cache keeps. */
+  maxFiles?: number;
+}
+
+/** The query-independent symbols of the workspace's files, read through a cache keyed by the file's uri. */
+export interface WorkspaceSymbolCache {
+  read(uri: string, fileName: string, text: string, mode: RenderMode): readonly FlatOutlineSymbol[];
+}
+
+/**
+ * The seam of Session 343 (SIB-03): the adapter reads the flat symbols of every file through THIS interface, and in
+ * the first version of it the read is `flatSymbolsOf` and nothing is kept.
+ */
+export function createWorkspaceSymbolCache(options: WorkspaceSymbolCacheOptions = {}): WorkspaceSymbolCache {
+  const compute = options.flatSymbolsOf ?? flatSymbolsOf;
+  return { read: (_uri, fileName, text, mode) => compute(fileName, text, mode) };
 }

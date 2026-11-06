@@ -194,9 +194,12 @@ describe("Session 338 -- the provider flattens through the core function and spr
     .replace(/^[ \t]*\/\*[\s\S]*?\*\//gm, "")
     .replace(/^\s*\/\/.*$/gm, "");
 
-  it("flattenOutline is imported from the core module and called on the outline buildOutline built", () => {
-    expect(code).toMatch(/import\s*\{[^}]*\bflattenOutline\b[^}]*\}\s*from\s*"\.\.\/core\/workspace-symbols"/);
-    expect(code).toMatch(/flattenOutline\(\s*buildOutline\(/);
+  it("createWorkspaceSymbolCache is imported from the core module (Session 343), where flatSymbolsOf calls flattenOutline on the outline buildOutline built", () => {
+    expect(code).toMatch(/import\s*\{[^}]*\bcreateWorkspaceSymbolCache\b[^}]*\}\s*from\s*"\.\.\/core\/workspace-symbols"/);
+    const core = readFileSync(path.join(__dirname, "../../src/core/workspace-symbols.ts"), "utf8")
+      .replace(/^[ \t]*\/\*[\s\S]*?\*\//gm, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+    expect(core).toMatch(/flattenOutline\(\s*buildOutline\(/);
   });
 
   it("the provider defines no flatten of its own", () => {
