@@ -66,8 +66,8 @@
  {
   "name": "B-L02 fenceLanguage regex hoisted to module scope",
   "file": "src/core/document-engine.ts",
-  "from": "function languagesInMarkdown(text: string): string[] {\n  const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;\n",
-  "to": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;\nfunction languagesInMarkdown(text: string): string[] {\n",
+  "from": "export function languagesInMarkdown(text: string): string[] {\n  const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;\n",
+  "to": "const fenceLanguage = /^[\\t >]*```+\\s*\\{([a-zA-Z0-9_]+)([ ,].*)?\\}\\s*$/gm;\nexport function languagesInMarkdown(text: string): string[] {\n",
   "expect": "survives",
   "why": "EQUIVALENT: the exec loop always ends on a null match, which resets lastIndex to 0; building the regex per call is defensive only"
  },
