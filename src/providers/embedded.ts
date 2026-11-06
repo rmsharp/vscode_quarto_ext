@@ -40,6 +40,7 @@ import {
   createRangeLookup,
   embeddedCellAt,
 } from "../core/embedded/virtual-doc";
+import { documentText } from "../features/document-text";
 import { disposeVdocs, ensureVdoc } from "../features/embedded-vdoc";
 
 const QMD: vscode.DocumentSelector = { language: "quarto" };
@@ -125,7 +126,7 @@ class EmbeddedCompletionProvider implements vscode.CompletionItemProvider {
     _token: vscode.CancellationToken,
     context: vscode.CompletionContext,
   ): Promise<vscode.CompletionList | undefined> {
-    const text = document.getText();
+    const text = documentText(document);
     const hit = embeddedCellAt(text, position.line);
     // Off-region (prose, YAML, fence, `#|` line, unmapped cell): no items. This
     // is the inverse-gating contract, enforced BEFORE any await (Learning #27).

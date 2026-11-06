@@ -19,6 +19,7 @@ import {
   type RefLabel,
   refIdAt,
 } from "../core/refs";
+import { documentText } from "../features/document-text";
 
 const QMD: vscode.DocumentSelector = { language: "quarto" };
 
@@ -43,7 +44,7 @@ class CrossrefCompletionProvider implements vscode.CompletionItemProvider {
     document: vscode.TextDocument,
     position: vscode.Position,
   ): vscode.CompletionItem[] | undefined {
-    const text = document.getText();
+    const text = documentText(document);
     // Cross-refs apply only in prose/headings — not inside code cells, front
     // matter, or comments (where `@` is a decorator/macro/email).
     if (!isReferenceableLine(text, position.line)) {

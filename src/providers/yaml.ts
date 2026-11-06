@@ -28,6 +28,7 @@ import * as vscode from "vscode";
 import { resolveDocumentEngine } from "../core/document-engine-resolve";
 import { completionContextAt } from "../core/yaml-context";
 import type { SchemaField } from "../core/yaml-schema";
+import { documentText } from "../features/document-text";
 import { createSchemaSource, type SchemaSource } from "../features/yaml-schema-source";
 
 const QMD: vscode.DocumentSelector = { language: "quarto" };
@@ -61,7 +62,7 @@ class YamlCompletionProvider implements vscode.CompletionItemProvider {
     document: vscode.TextDocument,
     position: vscode.Position,
   ): Promise<vscode.CompletionItem[] | undefined> {
-    const text = document.getText();
+    const text = documentText(document);
     // The document's engine is what quarto scopes a cell's option schema to, so it is what
     // decides which keys to offer (S169) — the same `resolveDocumentEngine` the value
     // validator calls, so the two can no longer drift apart and squiggle a key we refuse to

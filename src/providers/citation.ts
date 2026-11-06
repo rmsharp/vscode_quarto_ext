@@ -24,6 +24,7 @@ import {
 } from "../core/citations";
 import { bibliographyPaths } from "../core/frontmatter";
 import { isReferenceableLine } from "../core/refs";
+import { documentText } from "../features/document-text";
 
 const QMD: vscode.DocumentSelector = { language: "quarto" };
 
@@ -56,7 +57,7 @@ class CitationCompletionProvider implements vscode.CompletionItemProvider {
     document: vscode.TextDocument,
     position: vscode.Position,
   ): Promise<vscode.CompletionItem[] | undefined> {
-    const text = document.getText();
+    const text = documentText(document);
     // Citations apply only in prose/headings — not inside code cells, front
     // matter, or comments (where `@` is a decorator/macro/email).
     if (!isReferenceableLine(text, position.line)) {
