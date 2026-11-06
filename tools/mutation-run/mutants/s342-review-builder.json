@@ -1,0 +1,306 @@
+[
+ {
+  "name": "V01 bodyCellOf: the option lines are read as soon as a cell is found",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    let found = mapped[at];",
+  "to": "    options ??= optionLineSet(text);\n    let found = mapped[at];",
+  "expect": "killed",
+  "why": "an ask on a fence line of a cell pays for the option lines (the old spelling asked for them last)"
+ },
+ {
+  "name": "V02 bodyCellOf: the option lines are read for an unmapped engine",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    if (found === null || line < found.firstBody || line > found.lastBody) {\n      return null; // an unmapped engine, or a fence line: not body",
+  "to": "    if (found === null) {\n      options ??= optionLineSet(text);\n    }\n    if (found === null || line < found.firstBody || line > found.lastBody) {\n      return null; // an unmapped engine, or a fence line: not body",
+  "expect": "killed",
+  "why": "an ask into an unmapped engine's body pays for the option lines"
+ },
+ {
+  "name": "V03 bodyCellOf: only a mapped cell is remembered",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "      mapped[at] = found;\n",
+  "to": "      if (found !== null) mapped[at] = found;\n",
+  "expect": "survives",
+  "why": "an unmapped cell's language is looked up again on every ask: a table lookup (an own-property test of a five-entry object), no split of the body; the answers and the reads of the model are the same, so no row can tell it from the original: an argued equivalent"
+ },
+ {
+  "name": "V04 bodyCellOf: the cache is keyed by the line, not the cell (cost only)",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    let found = mapped[at];\n    if (found === undefined) {\n      const cell = cells[at];\n      const el = cellLanguageId(cell.lang);\n      found = el === null ? null : { cell, el, firstBody: cell.startLine + 1, lastBody: cell.startLine + bodyLineCount(cell) };\n      mapped[at] = found;\n    }",
+  "to": "    let found = mapped[Math.floor(line)];\n    if (found === undefined) {\n      const cell = cells[at];\n      const el = cellLanguageId(cell.lang);\n      found = el === null ? null : { cell, el, firstBody: cell.startLine + 1, lastBody: cell.startLine + bodyLineCount(cell) };\n      mapped[Math.floor(line)] = found;\n    }",
+  "expect": "killed",
+  "why": "every line of a wide cell splits the body again: the same answers, cells times lines for a wide cell"
+ },
+ {
+  "name": "V05 bodyCellOf: the last body line is counted again on every ask (cost only)",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "line < found.firstBody || line > found.lastBody",
+  "to": "line < found.firstBody || line > found.cell.startLine + bodyLineCount(found.cell)",
+  "expect": "killed",
+  "why": "the split of the body is paid on each ask, whatever the cache holds"
+ },
+ {
+  "name": "V06 bodyCellOf: the last body line is the line before the closing fence",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "lastBody: cell.startLine + bodyLineCount(cell) }",
+  "to": "lastBody: cell.endLine - 1 }",
+  "expect": "killed",
+  "why": "differs for the one-blank-line body (documented edge) and for a cell with no closing fence"
+ },
+ {
+  "name": "V07 hitAt: the language is the engine token",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "{ lang: found.cell.lang, languageId: found.el.languageId, ext: found.el.ext }",
+  "to": "{ lang: found.cell.lang, languageId: found.cell.lang, ext: found.el.ext }",
+  "expect": "killed",
+  "why": "an ojs cell is named ojs, not javascript"
+ },
+ {
+  "name": "V08 rangeInLanguageBody: an empty range is not in the body",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "        if (found === null || found.el.languageId !== languageId) {\n          return false;\n        }\n      }\n      return true;",
+  "to": "        if (found === null || found.el.languageId !== languageId) {\n          return false;\n        }\n      }\n      return false;",
+  "expect": "killed",
+  "why": "a range with start above end has no line to refuse and is in the body"
+ },
+ {
+  "name": "V09 rangeInCellBody: an empty range is not in the body",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "        if (found.cell.startLine !== cell.startLine) {\n          return false; // a body line, but of a DIFFERENT cell\n        }\n      }\n      return true;",
+  "to": "        if (found.cell.startLine !== cell.startLine) {\n          return false; // a body line, but of a DIFFERENT cell\n        }\n      }\n      return false;",
+  "expect": "killed",
+  "why": "the same for the formatter's check"
+ },
+ {
+  "name": "V10 rangeInCellBody: a line that is not body is kept",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "        if (found === null) {\n          return false; // a fence, a `#|` directive, prose, YAML: never code we may rewrite\n        }",
+  "to": "        if (found === null) {\n          continue; // a fence, a `#|` directive, prose, YAML: never code we may rewrite\n        }",
+  "expect": "killed",
+  "why": "a formatter edit that touches a fence is kept (the corruption the guard exists for)"
+ },
+ {
+  "name": "V11 rangeInLanguageBody: the language is compared by the extension",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "found.el.languageId !== languageId",
+  "to": "found.el.ext !== languageId",
+  "expect": "killed",
+  "why": "the completion's languageId is never an extension"
+ },
+ {
+  "name": "V12 cellIndexAt: nothing found starts at the first cell",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  let found = -1;\n  while (low <= high) {\n    const middle = (low + high) >> 1;",
+  "to": "  let found = 0;\n  while (low <= high) {\n    const middle = (low + high) >> 1;",
+  "expect": "killed",
+  "why": "the builder's cellAt(line above the first cell) answers the first cell (the range lookup masks it with its body test)"
+ },
+ {
+  "name": "V13 cellIndexAt: the high end is one past the last cell",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  let high = cells.length - 1;\n  let found = -1;\n  while (low <= high) {\n    const middle = (low + high) >> 1;",
+  "to": "  let high = cells.length;\n  let found = -1;\n  while (low <= high) {\n    const middle = (low + high) >> 1;",
+  "expect": "killed",
+  "why": "a line at or below the last cell's start reads cells[length]"
+ },
+ {
+  "name": "V14 optionLineSet: the line of the cell's fence, not of the option",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "findCellOptionLines(text, engine, mode).map((o) => o.line)",
+  "to": "findCellOptionLines(text, engine, mode).map((o) => o.cellStartLine)",
+  "expect": "killed",
+  "why": "the set holds fence lines, the vdoc blanks them and keeps the option lines"
+ },
+ {
+  "name": "V15 the range lookup is engine-aware: its cells are knitr's",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    cells ??= findAllCells(text);",
+  "to": "    cells ??= findAllCells(text, \"knitr\");",
+  "expect": "killed",
+  "why": "the parent's embeddedCellAt is engine-BLIND; a lookup that reads knitr's list answers differently on the stray-fence shape"
+ },
+ {
+  "name": "V16 the range lookup is engine-aware: its cells are jupyter's",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    cells ??= findAllCells(text);",
+  "to": "    cells ??= findAllCells(text, \"jupyter\");",
+  "expect": "killed",
+  "why": "the indented opener under jupyter is dropped from the list"
+ },
+ {
+  "name": "V17 the range lookup is engine-aware: its option lines are knitr's",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    options ??= optionLineSet(text);",
+  "to": "    options ??= optionLineSet(text, \"knitr\");",
+  "expect": "killed",
+  "why": "the `#|` lines of a chunk only the aware scan sees"
+ },
+ {
+  "name": "V18 the range lookup reads the cells with --no-execute",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    cells ??= findAllCells(text);",
+  "to": "    cells ??= findAllCells(text, \"knitr\", \"no-execute\");",
+  "expect": "killed",
+  "why": "a knitr document under --no-execute"
+ },
+ {
+  "name": "V19 the builder's option lines are read for a name the Outline did not use (cost only)",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "        options: optionLineSet(text, engine, mode),",
+  "to": "        options: optionLineSet(text, engine ?? \"ambiguous\", mode),",
+  "expect": "killed",
+  "why": "undefined and 'ambiguous' read the same list but are two cache keys, so the option lines of a builder made with no engine are a second scan after buildOutline(text, undefined, mode); killed by the rows that count what the builder asks of the model (the option lines are asked for under [text, undefined, mode], not under 'ambiguous')"
+ },
+ {
+  "name": "V20 the builder's cells are read for a name the Outline did not use (cost only)",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "        cells: findAllCells(text, engine, mode),",
+  "to": "        cells: findAllCells(text, engine === \"ambiguous\" ? undefined : engine, mode),",
+  "expect": "killed",
+  "why": "'ambiguous' and undefined read the same list but are two cache keys"
+ },
+ {
+  "name": "V21 the builder reads the text once more for nothing (cost only)",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "        cells: findAllCells(text, engine, mode),\n      };",
+  "to": "        cells: findAllCells(text, engine, mode),\n      };\n      void findAllCells(text);",
+  "expect": "killed",
+  "why": "an extra engine-blind scan inside the builder's preparation: the answers are the same, and it is a full scan whenever the engine-blind list of the text is not already cached (13 to 25 ms at 2,000 cells); killed by the rows that count the calls (exactly one findAllCells, with [text, engine, mode], once per builder)"
+ },
+ {
+  "name": "V22 cellLanguageId of the lookup is case-folded",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "      const el = cellLanguageId(cell.lang);\n      found = el === null ? null : { cell, el, firstBody",
+  "to": "      const el = cellLanguageId(cell.lang.toLowerCase());\n      found = el === null ? null : { cell, el, firstBody",
+  "expect": "killed",
+  "why": "{Python} is not a python cell for the parent's embeddedCellAt: the model keeps the token as written and the engine map holds lower-case tokens; killed by the {Python} line of the exhaustive alphabet (H1, R1) and by the named rows of eight case-variant tokens"
+ },
+ {
+  "name": "M01 findAllCells: the default engine is knitr",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function findAllCells(text: string, engine: EngineHint = undefined, mode",
+  "to": "export function findAllCells(text: string, engine: EngineHint = \"knitr\", mode",
+  "expect": "killed",
+  "why": "every engine-blind surface (validation, Run Cell, cell background, cross-references) reads knitr's list"
+ },
+ {
+  "name": "M02 findAllCells: the default engine is jupyter",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function findAllCells(text: string, engine: EngineHint = undefined, mode",
+  "to": "export function findAllCells(text: string, engine: EngineHint = \"jupyter\", mode",
+  "expect": "killed",
+  "why": "an indented opener is dropped for every blind caller"
+ },
+ {
+  "name": "M03 findAllCells: the default engine is markdown",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function findAllCells(text: string, engine: EngineHint = undefined, mode",
+  "to": "export function findAllCells(text: string, engine: EngineHint = \"markdown\", mode",
+  "expect": "killed",
+  "why": "an indented non-handler cell is dropped for every blind caller"
+ },
+ {
+  "name": "M04 findCellOptionLines: the default engine is knitr",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function findCellOptionLines(text: string, engine: EngineHint = undefined, mode",
+  "to": "export function findCellOptionLines(text: string, engine: EngineHint = \"knitr\", mode",
+  "expect": "killed",
+  "why": "completion context and the embedded vdocs read knitr's option lines"
+ },
+ {
+  "name": "M05 findCellOptionLines: the default engine is jupyter",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function findCellOptionLines(text: string, engine: EngineHint = undefined, mode",
+  "to": "export function findCellOptionLines(text: string, engine: EngineHint = \"jupyter\", mode",
+  "expect": "killed",
+  "why": "the same under jupyter: an indented opener's cell is dropped from the option lines, so its #| line is code to the engine-blind consumers; killed by the option-line rows of the indented openers (the model, embeddedCellAt, the range lookup and the blind builder)"
+ },
+ {
+  "name": "M06 findCellOptionLines: the default engine is markdown",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function findCellOptionLines(text: string, engine: EngineHint = undefined, mode",
+  "to": "export function findCellOptionLines(text: string, engine: EngineHint = \"markdown\", mode",
+  "expect": "killed",
+  "why": "the same under markdown: an indented non-handler cell is dropped from the option lines, so its #| line is code to the engine-blind consumers; killed by the option-line rows of the indent-4 cell"
+ },
+ {
+  "name": "R01 isOrdered: the last region is never checked",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "  for (let i = 0; i < regions.length; i++) {\n    const { startLine, endLine } = regions[i];",
+  "to": "  for (let i = 0; i < regions.length - 1; i++) {\n    const { startLine, endLine } = regions[i];",
+  "expect": "killed",
+  "why": "a defect in the LAST region (start after end, or an overlap with the one before it) is called ordered and the binary search answers from it"
+ },
+ {
+  "name": "R02 isOrdered: the first pair is never checked",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "(i > 0 && !(previousEnd < startLine))",
+  "to": "(i > 1 && !(previousEnd < startLine))",
+  "expect": "killed",
+  "why": "the second region may overlap the first and the array is still called ordered"
+ },
+ {
+  "name": "R03 isOrdered: the chain compares the previous START, not its end",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "    previousEnd = endLine;\n  }\n  return true;",
+  "to": "    previousEnd = startLine;\n  }\n  return true;",
+  "expect": "killed",
+  "why": "an array of nested regions (the later one inside the earlier one) is called ordered; the search then answers from the inner one"
+ },
+ {
+  "name": "R04 isOrdered: the chain loses its memory after the second region (cost only)",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "    previousEnd = endLine;\n  }\n  return true;",
+  "to": "    previousEnd = i === 1 ? NaN : endLine;\n  }\n  return true;",
+  "expect": "killed",
+  "why": "a NaN carried into the third pair makes every array of three or more regions 'unordered': the answers are inQuartoYamlRegion's, the cost is the pass over every region"
+ },
+ {
+  "name": "R05 lookup: the end is inclusive and one more",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "    return found !== -1 && line <= regions[found].endLine;",
+  "to": "    return found !== -1 && line <= regions[found].endLine + 1;",
+  "expect": "killed",
+  "why": "the line just past a region's closing delimiter is called inside"
+ },
+ {
+  "name": "R06 lookup: a fraction is floored before the end test",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "    return found !== -1 && line <= regions[found].endLine;",
+  "to": "    return found !== -1 && Math.floor(line) <= regions[found].endLine;",
+  "expect": "killed",
+  "why": "2.5 against a region ending at line 2 is inside (the oracle: 2.5 <= 2 is false)"
+ },
+ {
+  "name": "R07 lookup: a fraction is ceiled before the start test",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "      if (regions[middle].startLine <= line) {",
+  "to": "      if (regions[middle].startLine <= Math.ceil(line)) {",
+  "expect": "killed",
+  "why": "0.5 against a region starting at line 1 finds that region (the oracle: 1 <= 0.5 is false)"
+ },
+ {
+  "name": "R08 lookup: the middle moves a quarter (cost only)",
+  "file": "src/core/qmd/quarto-yaml-regions.ts",
+  "from": "      const middle = low + ((high - low) >> 1);",
+  "to": "      const middle = low + ((high - low) >> 2);",
+  "expect": "killed",
+  "why": "the answers are the same and the search is log base 4/3 of the regions, not log base 2: 2.4x the reads at 50,000 regions"
+ },
+ {
+  "name": "R09 collectValueSources: the regions are handed over reversed (cost only)",
+  "file": "src/core/yaml-value-flags.ts",
+  "from": "createYamlRegionLookup(quartoYamlRegions(text))",
+  "to": "createYamlRegionLookup(quartoYamlRegions(text).reverse())",
+  "expect": "killed",
+  "why": "an unordered array takes the fallback pass over every region: same answers, the old cost, through the very call the cure was made for"
+ },
+ {
+  "name": "R10 collectValueSources: the option lines are read for knitr",
+  "file": "src/core/yaml-value-flags.ts",
+  "from": "findCellOptionLines(text).filter((o) => !inYamlRegion(o.cellStartLine))",
+  "to": "findCellOptionLines(text, \"knitr\").filter((o) => !inYamlRegion(o.cellStartLine))",
+  "expect": "killed",
+  "why": "validation's cell option lines must stay the ENGINE-BLIND list (S342 made the parameters optional so the default is the blind list); passing an engine changes the list on the stray-fence shapes"
+ }
+]
