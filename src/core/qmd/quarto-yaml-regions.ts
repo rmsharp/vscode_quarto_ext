@@ -130,3 +130,13 @@ export function quartoYamlRegions(text: string): YamlRegion[] {
 export function inQuartoYamlRegion(regions: readonly YamlRegion[], line: number): boolean {
   return regions.some((r) => line >= r.startLine && line <= r.endLine);
 }
+
+/**
+ * `inQuartoYamlRegion(regions, line)` for ONE array asked MANY times: make the lookup once, ask it for each line.
+ *
+ * `collectValueSources` asks once per cell option line, and `inQuartoYamlRegion` is a pass over every region, so the
+ * enumeration was regions times option lines. The array must not change while the lookup is in use (it is `readonly`).
+ */
+export function createYamlRegionLookup(regions: readonly YamlRegion[]): (line: number) => boolean {
+  return (line) => inQuartoYamlRegion(regions, line);
+}

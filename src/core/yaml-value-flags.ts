@@ -30,7 +30,7 @@
  * (plan §0/§7.1).
  */
 import { findCellOptionLines, trimEndBlanks, type CellOptionLine } from "./qmd/model";
-import { inQuartoYamlRegion, quartoYamlRegions } from "./qmd/quarto-yaml-regions";
+import { createYamlRegionLookup, quartoYamlRegions } from "./qmd/quarto-yaml-regions";
 import { findFrontMatterValueLines, type FrontMatterValueLine } from "./yaml-frontmatter-values";
 import {
   findNestedFrontMatterValueLines,
@@ -104,7 +104,7 @@ export function collectValueSources(text: string): ValueSources {
   // cell still renders as a real cell (measured). `findCellOptionLines` itself stays
   // untouched, so completion context and the embedded-LSP virtual documents — its
   // other two consumers — see the cell exactly as before (S177).
-  const regions = quartoYamlRegions(text);
+  const inYamlRegion = createYamlRegionLookup(quartoYamlRegions(text));
   // ⚠ **Quarto VALIDATES front matter only when the document starts with `---` at BYTE 0, even
   // though it RENDERS front matter that follows a blank line** (Session 171's measurement: 10 of
   // 17 swept keys render **exit 0** behind a leading blank, where the byte-0 twin is exit 1).
@@ -118,9 +118,7 @@ export function collectValueSources(text: string): ValueSources {
   return {
     text,
     lines: text.split(/\r?\n/),
-    cellLines: findCellOptionLines(text).filter(
-      (o) => !inQuartoYamlRegion(regions, o.cellStartLine),
-    ),
+    cellLines: findCellOptionLines(text).filter((o) => !inYamlRegion(o.cellStartLine)),
     fmValueLines: validatedFrontMatter ? findFrontMatterValueLines(text) : [],
     nestedLines: validatedFrontMatter ? findNestedFrontMatterValueLines(text) : [],
   };
