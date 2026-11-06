@@ -512,20 +512,24 @@ describe("Session 342 -- the cell tint after the debounce is what the old per-ed
 
 // ---- THE DEBOUNCER AGAINST A MODEL OF ITS SPEC ------------------------------------------------------------------------------------------------------------------------------------------------
 
-type DebounceOp = { op: "schedule"; key: string } | { op: "cancel"; key: string } | { op: "advance"; ms: number } | { op: "dispose" };
+// "again" is a schedule whose run schedules its own key once more, from inside the run (Session 343: five direct rows pin that elsewhere, and no sequence did), with a run that does not.
+type DebounceOp = { op: "schedule"; key: string; again?: true } | { op: "cancel"; key: string } | { op: "advance"; ms: number } | { op: "dispose" };
 
-/** The spec of a keyed trailing debouncer as a plain model: a table of `{ due, order, label }`, a run log, a clock. No timers. */
+/**
+ * The spec of a keyed trailing debouncer as a plain model: a table of `{ due, order, label, again }`, a run log, a clock. No timers. A run that schedules its own key again (`again`) does so once the run is over, at the
+ * moment it ran: the entry it leaves is due one delay after that moment, and it falls due inside the same advance if that moment plus the delay is inside the window.
+ */
 function modelOfSpec(delayMs: number) {
   let now = 0;
   let order = 0;
   let disposed = false;
-  const table = new Map<string, { due: number; order: number; label: string }>();
+  const table = new Map<string, { due: number; order: number; label: string; again?: string }>();
   const log: string[] = [];
   return {
     log,
-    schedule(key: string, label: string): void {
+    schedule(key: string, label: string, again?: string): void {
       if (disposed) return;
-      table.set(key, { due: now + delayMs, order: order++, label });
+      table.set(key, { due: now + delayMs, order: order++, label, again });
     },
     cancel(key: string): void {
       table.delete(key);
@@ -536,10 +540,17 @@ function modelOfSpec(delayMs: number) {
     },
     advance(ms: number): void {
       const target = now + ms;
-      const due = [...table.entries()].filter(([, entry]) => entry.due <= target).sort((a, b) => a[1].due - b[1].due || a[1].order - b[1].order);
-      for (const [key, entry] of due) {
+      for (;;) {
+        // the entry due soonest inside the window, ties by scheduling order: a run may leave an entry that falls due inside the window too
+        const due = [...table.entries()].filter(([, entry]) => entry.due <= target).sort((a, b) => a[1].due - b[1].due || a[1].order - b[1].order)[0];
+        if (due === undefined) break;
+        const [key, entry] = due;
         table.delete(key);
+        now = Math.max(now, entry.due);
         log.push(`${key}:${entry.label}`);
+        if (entry.again !== undefined) {
+          this.schedule(key, entry.again);
+        }
       }
       now = target;
     },
@@ -547,7 +558,7 @@ function modelOfSpec(delayMs: number) {
   };
 }
 
-function runDebounceOps(ops: readonly DebounceOp[], delayMs: number): { actual: string[]; expected: string[]; pendingActual: number[]; pendingExpected: number[] } {
+function runDebounceOps(ops: readonly DebounceOp[], delayMs: number): { actual: string[]; expected: string[]; pendingActual: number[]; pendingExpected: number[]; scheduled: number } {
   const clock: FakeClock = createFakeClock();
   const actual: string[] = [];
   const debouncer = createKeyedDebouncer({ timers: clock, delayMs });
@@ -555,12 +566,25 @@ function runDebounceOps(ops: readonly DebounceOp[], delayMs: number): { actual: 
   const pendingActual: number[] = [];
   const pendingExpected: number[] = [];
   let label = 0;
+  let scheduled = 0; // every call of `schedule`, the ones a run makes included
   for (const o of ops) {
     switch (o.op) {
       case "schedule": {
         const id = String(label++);
-        debouncer.schedule(o.key, () => actual.push(`${o.key}:${id}`));
-        model.schedule(o.key, id);
+        scheduled++;
+        if (o.again === true) {
+          // the run schedules its own key once more, from inside the run, with a run that does not
+          const again = String(label++);
+          debouncer.schedule(o.key, () => {
+            actual.push(`${o.key}:${id}`);
+            scheduled++;
+            debouncer.schedule(o.key, () => actual.push(`${o.key}:${again}`));
+          });
+          model.schedule(o.key, id, again);
+        } else {
+          debouncer.schedule(o.key, () => actual.push(`${o.key}:${id}`));
+          model.schedule(o.key, id);
+        }
         break;
       }
       case "cancel":
@@ -579,10 +603,10 @@ function runDebounceOps(ops: readonly DebounceOp[], delayMs: number): { actual: 
     pendingActual.push(clock.pending());
     pendingExpected.push(model.pending());
   }
-  return { actual, expected: model.log, pendingActual, pendingExpected };
+  return { actual, expected: model.log, pendingActual, pendingExpected, scheduled };
 }
 
-describe("Session 342 -- the keyed debouncer agrees with a model of its spec on seeded operation sequences (schedule, cancel, advance, dispose over three keys)", () => {
+describe("Session 342 -- the keyed debouncer agrees with a model of its spec on seeded operation sequences (schedule, a run that schedules its own key, cancel, advance, dispose over three keys)", () => {
   it("runs the same runs, in the same order, with the same number of timers pending after every operation, on 3,000 sequences of 5 to 60 operations at six delays", () => {
     const random = seededRandom(3423);
     const keys = ["a", "b", "c"];
@@ -590,6 +614,7 @@ describe("Session 342 -- the keyed debouncer agrees with a model of its spec on 
     const delays = [150, 0, 1, 50, 25.5, 100];
     let ran = 0;
     let replaced = 0;
+    let againOps = 0;
     const mismatches: string[] = [];
     for (let n = 0; n < 3_000; n++) {
       const ops: DebounceOp[] = [];
@@ -597,7 +622,8 @@ describe("Session 342 -- the keyed debouncer agrees with a model of its spec on 
       for (let k = 0; k < length; k++) {
         const draw = random();
         const key = keys[Math.floor(random() * keys.length)];
-        if (draw < 0.5) ops.push({ op: "schedule", key });
+        if (draw < 0.4) ops.push({ op: "schedule", key });
+        else if (draw < 0.5) ops.push({ op: "schedule", key, again: true });
         else if (draw < 0.6) ops.push({ op: "cancel", key });
         else if (draw < 0.995) ops.push({ op: "advance", ms: advances[Math.floor(random() * advances.length)] });
         else ops.push({ op: "dispose" });
@@ -606,7 +632,8 @@ describe("Session 342 -- the keyed debouncer agrees with a model of its spec on 
       const delayMs = delays[n % delays.length];
       const r = runDebounceOps(ops, delayMs);
       ran += r.actual.length;
-      replaced += ops.filter((o) => o.op === "schedule").length - r.actual.length;
+      againOps += ops.filter((o) => o.op === "schedule" && o.again === true).length;
+      replaced += r.scheduled - r.actual.length;
       if (JSON.stringify(r.actual) !== JSON.stringify(r.expected) || JSON.stringify(r.pendingActual) !== JSON.stringify(r.pendingExpected)) {
         if (mismatches.length < 3) mismatches.push(`delay ${delayMs}: ${JSON.stringify(ops)} -> ${JSON.stringify(r.actual)} against the model's ${JSON.stringify(r.expected)}`);
       }
@@ -615,6 +642,7 @@ describe("Session 342 -- the keyed debouncer agrees with a model of its spec on 
     // the draw reaches runs, and also drops schedules that never run (replaced, cancelled or disposed): floors, not counts of the generator
     expect(ran).toBeGreaterThan(10_000);
     expect(replaced).toBeGreaterThan(5_000);
+    expect(againOps).toBeGreaterThan(4_000); // the draw reaches runs that schedule their own key (a tenth of the operations)
   }, HEAVY_ROW_MS);
 
   it("the model itself: a table of one entry a key, the last schedule wins, the entries due run in order of due time and then of scheduling", () => {
@@ -634,5 +662,28 @@ describe("Session 342 -- the keyed debouncer agrees with a model of its spec on 
     m.advance(1_000);
     expect(m.log).toEqual(["b:2", "a:3"]);
     expect(m.pending()).toBe(0);
+  });
+
+  it("the model itself, a run that schedules its own key: the entry it leaves is due one delay after the run, runs in the same advance if that falls inside it, and leaves the key free", () => {
+    const m = modelOfSpec(100);
+    m.schedule("a", "1", "2");
+    m.advance(150); // a runs at 100 and leaves an entry due at 200
+    expect(m.log).toEqual(["a:1"]);
+    expect(m.pending()).toBe(1);
+    m.advance(50); // 200
+    expect(m.log).toEqual(["a:1", "a:2"]);
+    expect(m.pending()).toBe(0);
+    m.schedule("b", "3", "4");
+    m.advance(1_000); // both fall due inside the one advance
+    expect(m.log).toEqual(["a:1", "a:2", "b:3", "b:4"]);
+    m.schedule("c", "5", "6");
+    m.cancel("c");
+    m.dispose();
+    m.advance(1_000);
+    expect(m.log).toHaveLength(4);
+    const zero = modelOfSpec(0);
+    zero.schedule("a", "1", "2");
+    zero.advance(0); // a delay of zero: the entry the run leaves is due at once, inside the same advance
+    expect(zero.log).toEqual(["a:1", "a:2"]);
   });
 });
