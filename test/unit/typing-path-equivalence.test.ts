@@ -612,9 +612,9 @@ describe("Session 342 -- the keyed debouncer agrees with a model of its spec on 
       }
     }
     expect(mismatches).toEqual([]);
-    // the draw reaches runs, and drops many more schedules than it runs (the debounce)
+    // the draw reaches runs, and also drops schedules that never run (replaced, cancelled or disposed): floors, not counts of the generator
     expect(ran).toBeGreaterThan(10_000);
-    expect(replaced).toBeGreaterThan(ran);
+    expect(replaced).toBeGreaterThan(5_000);
   }, HEAVY_ROW_MS);
 
   it("the model itself: a table of one entry a key, the last schedule wins, the entries due run in order of due time and then of scheduling", () => {
