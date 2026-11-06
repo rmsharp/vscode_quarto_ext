@@ -1,0 +1,242 @@
+[
+ {
+  "name": "F01 buildCellVdoc: the first body line is not floored (the pre-cure bound)",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  const first = Math.max(Math.floor(cell.startLine) + 1, 0);",
+  "to": "  const first = Math.max(cell.startLine + 1, 0);",
+  "expect": "killed",
+  "why": "a start of 0.5 makes the loop start on 1.5 and `lines[1.5].trim()` throws; -5e-324 + 1 rounds to 1, so line 0 is dropped"
+ },
+ {
+  "name": "F02 buildCellVdoc: the first body line is the CEIL of the start",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  const first = Math.max(Math.floor(cell.startLine) + 1, 0);",
+  "to": "  const first = Math.max(Math.ceil(cell.startLine) + 1, 0);",
+  "expect": "killed",
+  "why": "a start of 0.5 begins the body on line 2, where the rule `i > 0.5` begins it on line 1"
+ },
+ {
+  "name": "F03 buildCellVdoc: the first body line is the floor of start + 1",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  const first = Math.max(Math.floor(cell.startLine) + 1, 0);",
+  "to": "  const first = Math.max(Math.floor(cell.startLine + 1), 0);",
+  "expect": "killed",
+  "why": "the sum rounds first: -5e-324 + 1 is 1, so a start of -5e-324 drops line 0 that `i > -5e-324` keeps"
+ },
+ {
+  "name": "F04 buildCellVdoc: the first body line is the TRUNC of the start",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  const first = Math.max(Math.floor(cell.startLine) + 1, 0);",
+  "to": "  const first = Math.max(Math.trunc(cell.startLine) + 1, 0);",
+  "expect": "killed",
+  "why": "trunc(-0.5) is -0, so a start of -0.5 begins the body on line 1, where `i > -0.5` begins it on line 0"
+ },
+ {
+  "name": "F05 buildCellVdoc: the last body line is the CEIL of the sum",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  const last = Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1);",
+  "to": "  const last = Math.ceil(Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1));",
+  "expect": "killed",
+  "why": "a start of 0.5 over two lines ends the body on line 3, where `i <= 2.5` ends it on line 2"
+ },
+ {
+  "name": "F06 buildCellVdoc: the last body line is the floor of the start plus the count",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  const last = Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1);",
+  "to": "  const last = Math.min(Math.floor(cell.startLine) + bodyLineCount(cell), lines.length - 1);",
+  "expect": "killed",
+  "why": "the floor of the start before the sum: 1.9999999999999998 + 2 rounds to 4 (a tie, to even), floor(1.9999999999999998) + 2 is 3"
+ },
+ {
+  "name": "F07 buildCellVdoc: the last body line is floored (a respelling)",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  const last = Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1);",
+  "to": "  const last = Math.floor(Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1));",
+  "expect": "survives",
+  "why": "EQUIVALENT: the loop compares it only with a whole `i`, and `i <= last` is `i <= floor(last)` for a whole `i` (NaN fails both); the cure at 2c85c77 had this floor and 5f6c7fc dropped it"
+ },
+ {
+  "name": "R05 cellAtLine: a pass over every cell instead of the binary search",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  let low = 0;\n  let high = cells.length - 1;\n  let found = -1;\n  while (low <= high) {\n    const middle = (low + high) >> 1;\n    if (cells[middle].startLine <= line) {\n      found = middle;\n      low = middle + 1;\n    } else {\n      high = middle - 1;\n    }\n  }\n",
+  "to": "  let found = -1;\n  for (let k = 0; k < cells.length; k++) {\n    if (cells[k].startLine <= line) found = k;\n  }\n",
+  "expect": "survives",
+  "why": "same answer, linear in the cells: only a clock row with tens of thousands of cells sees it"
+ },
+ {
+  "name": "R05b cellAtLine: a pass over the cells that stops at the first one below the line",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  let low = 0;\n  let high = cells.length - 1;\n  let found = -1;\n  while (low <= high) {\n    const middle = (low + high) >> 1;\n    if (cells[middle].startLine <= line) {\n      found = middle;\n      low = middle + 1;\n    } else {\n      high = middle - 1;\n    }\n  }\n",
+  "to": "  let found = -1;\n  for (let k = 0; k < cells.length; k++) {\n    if (cells[k].startLine > line) break;\n    found = k;\n  }\n",
+  "expect": "survives",
+  "why": "same answer, linear in the position of the answer: cheap at the top of the document, dear at the bottom"
+ },
+ {
+  "name": "R39 createCellVdocBuilder: cellAt takes a fresh scan on every call",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    cellAt: (line) => cellAtLine(read().cells, line),",
+  "to": "    cellAt: (line) => cellAtLine(findAllCells(text), line),",
+  "expect": "survives",
+  "why": "same answer; `findAllCells` hands back a copy of the model's cells, so it is linear in the cells for every call"
+ },
+ {
+  "name": "R39b createCellVdocBuilder: cellAt takes a copy of the prepared cells on every call",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    cellAt: (line) => cellAtLine(read().cells, line),",
+  "to": "    cellAt: (line) => cellAtLine(read().cells.slice(), line),",
+  "expect": "survives",
+  "why": "same answer, a copy of the cell list per call (the spelling of R39 that does not depend on how the model memoizes its scan)"
+ },
+ {
+  "name": "R35 createCellVdocBuilder: the text is read when the builder is made",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  return {\n    cellAt: (line) => cellAtLine(read().cells, line),",
+  "to": "  read();\n  return {\n    cellAt: (line) => cellAtLine(read().cells, line),",
+  "expect": "survives",
+  "why": "same answers; the documented laziness (a document with no code cell pays for none of it) is pinned by no row"
+ },
+ {
+  "name": "R38 createCellVdocBuilder: build caches by the cell object",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    build: (cell) => buildCellVdoc(read(), cell),",
+  "to": "    build: ((cache) => (cell: Cell): string => cache.get(cell) ?? (cache.set(cell, buildCellVdoc(read(), cell)), cache.get(cell)!))(new WeakMap<Cell, string>()),",
+  "expect": "survives",
+  "why": "same answer for a cell nobody changes between two builds; a Cell whose fields change between them is built from its old fields"
+ },
+ {
+  "name": "R16 buildCellVdoc: whitespace is a hand-written class (space, tab, CR, NBSP, U+2028)",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    if (!content && lines[i].trim() !== \"\") {",
+  "to": "    if (!content && lines[i].replace(/[ \\t\\r\\u00a0\\u2028]/g, \"\") !== \"\") {",
+  "expect": "survives",
+  "why": "a body line of only U+3000, U+FEFF, U+2029, \\v, \\f or U+2003 is whitespace to trim and content to the class: the python mute differs"
+ },
+ {
+  "name": "R27 buildCellVdoc: the engine is read case-insensitively",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  const mute = content && cellLanguageId(cell.lang)?.languageId === \"python\";",
+  "to": "  const mute = content && cellLanguageId(cell.lang.toLowerCase())?.languageId === \"python\";",
+  "expect": "survives",
+  "why": "a `{Python}` cell is muted; no row builds a cell whose engine differs from a mapped one only by case"
+ },
+ {
+  "name": "R40 createCellVdocBuilder: the option lines are read again on every build",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    build: (cell) => buildCellVdoc(read(), cell),",
+  "to": "    build: (cell) => buildCellVdoc({ ...read(), options: new Set(findCellOptionLines(text).map((o) => o.line)) }, cell),",
+  "expect": "killed",
+  "why": "cells times the document's cells again"
+ },
+ {
+  "name": "R41 createCellVdocBuilder: the text is split again on every build",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    build: (cell) => buildCellVdoc(read(), cell),",
+  "to": "    build: (cell) => buildCellVdoc({ ...read(), lines: text.split(\"\\n\") }, cell),",
+  "expect": "killed",
+  "why": "one split of the whole text per cell"
+ },
+ {
+  "name": "R34 buildCellVdoc: a newline run is pushed one newline at a time",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    parts.push(\"\\n\".repeat(at === 0 ? i : i - at + 1), lines[i]);",
+  "to": "    for (let k = at === 0 ? i : i - at + 1; k > 0; k--) parts.push(\"\\n\");\n    parts.push(lines[i]);",
+  "expect": "survives",
+  "why": "same answer, one push per blank line"
+ },
+ {
+  "name": "R33 buildCellVdoc: the loop over the body reads every line of the document",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  for (let i = first; i <= last; i++) {\n    if (options.has(i)) {",
+  "to": "  for (let i = 0; i < lines.length; i++) {\n    if (!(i >= first && i <= last)) {\n      continue;\n    }\n    if (options.has(i)) {",
+  "expect": "survives",
+  "why": "same answer, one comparison per document line per cell"
+ },
+ {
+  "name": "R62 outline.ts: a builder per child symbol over the document's text",
+  "file": "src/providers/outline.ts",
+  "from": "          symbol.children.map((child) => toDocumentSymbol(child, document, cellVdocs)),",
+  "to": "          symbol.children.map((child) => toDocumentSymbol(child, document, createCellVdocBuilder(document.getText()))),",
+  "expect": "survives",
+  "why": "a heading's children each re-read the text: cells times document under a heading"
+ },
+ {
+  "name": "R63 outline.ts: the cell is looked up by the symbol's end line",
+  "file": "src/providers/outline.ts",
+  "from": "  const cell = cellVdocs.cellAt(cellSymbol.startLine);",
+  "to": "  const cell = cellVdocs.cellAt(cellSymbol.endLine);",
+  "expect": "survives",
+  "why": "the symbol's span comes from the engine-aware outline scan and `cellAt` searches the engine-blind cells, so the two lines can name different cells"
+ },
+ {
+  "name": "R64 outline.ts: the vdoc is built from a cell one line below",
+  "file": "src/providers/outline.ts",
+  "from": "    cellVdocs.build(cell),\n  );",
+  "to": "    cellVdocs.build({ ...cell, startLine: cell.startLine + 1 }),\n  );",
+  "expect": "survives",
+  "why": "the forwarded vdoc holds the cell's body one line low"
+ },
+ {
+  "name": "O01 outline.ts: a builder per top-level symbol over the text",
+  "file": "src/providers/outline.ts",
+  "from": "      visible.map((symbol) => toDocumentSymbol(symbol, document, cellVdocs)),",
+  "to": "      visible.map((symbol) => toDocumentSymbol(symbol, document, createCellVdocBuilder(text))),",
+  "expect": "survives",
+  "why": "the spelling of E04 over `text`: one text read per top-level symbol"
+ },
+ {
+  "name": "O02 outline.ts: a builder per cell inside the forward",
+  "file": "src/providers/outline.ts",
+  "from": "  const cell = cellVdocs.cellAt(cellSymbol.startLine);",
+  "to": "  const cell = createCellVdocBuilder(document.getText()).cellAt(cellSymbol.startLine);",
+  "expect": "survives",
+  "why": "one text read per cell for the lookup alone: the cost of the old `findCellAtPosition`"
+ },
+ {
+  "name": "O03 outline.ts: the one builder is made over a second read of the document",
+  "file": "src/providers/outline.ts",
+  "from": "    const cellVdocs = createCellVdocBuilder(text);",
+  "to": "    const cellVdocs = createCellVdocBuilder(document.getText());",
+  "expect": "survives",
+  "why": "the same answers over `document.getText()` a second time (a respelling that costs a second copy of the text)"
+ },
+ {
+  "name": "S01 clock rows: the loop's total is a clock stuck at 0",
+  "file": "test/unit/s341-cell-vdoc-rows.test.ts",
+  "from": "  const ms = performance.now() - started;",
+  "to": "  const ms = 0;",
+  "expect": "survives",
+  "why": "the finding's own edit: on the parent's logic every clock row passes (14 of 14 at the seam), because nothing pins `ms`"
+ },
+ {
+  "name": "S02 clock rows: the ratio is taken against the loop's own total",
+  "file": "test/unit/s341-cell-vdoc-rows.test.ts",
+  "from": "    if (ratio) expect(run.ms).toBeLessThan(RATIO * run.firstMs);",
+  "to": "    if (ratio) expect(run.ms).toBeLessThan(RATIO * run.ms);",
+  "expect": "survives",
+  "why": "`ms < 100 * ms` is always true: the load-free twin of the one-second limit is gone and nothing sees it"
+ },
+ {
+  "name": "Q01 seeded draw: the body is 1 to 50 lines, not 1 to 40",
+  "file": "test/unit/cell-vdoc-builder-equivalence.test.ts",
+  "from": "      const length = 1 + Math.floor(random() * 40);",
+  "to": "      const length = 1 + Math.floor(random() * 50);",
+  "expect": "survives",
+  "why": "the title says 1 to 40 body lines and nothing reads the range back"
+ },
+ {
+  "name": "Q02 seeded draw: no document has a front matter",
+  "file": "test/unit/cell-vdoc-builder-equivalence.test.ts",
+  "from": "      if (random() < 0.3) lines.push(\"---\", \"title: t\", \"---\");",
+  "to": "      if (random() < 0) lines.push(\"---\", \"title: t\", \"---\");",
+  "expect": "survives",
+  "why": "the front matter's 3 lines are in the range the title states; with none the largest document has 40"
+ },
+ {
+  "name": "Q03 seeded draw: no hand-made cell has a fractional start line",
+  "file": "test/unit/cell-vdoc-builder-equivalence.test.ts",
+  "from": "      for (let k = 0; k < 2; k++) {\n        const startLine = Math.floor(random() * (total + 6)) - 2 + pick(FRACTIONS);",
+  "to": "      for (let k = 0; k < 0; k++) {\n        const startLine = Math.floor(random() * (total + 6)) - 2 + pick(FRACTIONS);",
+  "expect": "survives",
+  "why": "on the cured builder the draw agrees with the old spelling either way, so only a count of the cells it made can see it is gone"
+ }
+]
