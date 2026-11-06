@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import { type BrowseUrlScanner, createBrowseUrlScanner } from "../../src/core/preview-url";
 
@@ -247,42 +248,245 @@ describe("Session 341 — the stderr of `quarto preview` before the Browse at li
   });
 });
 
-// ---- THE WIRING. `src/features/preview.ts` imports `vscode`, so no unit test can run it: an adapter like that is pinned by its SOURCE TEXT only (Learning 899), and the text pins the SPELLING of the call site, not what
-// the handler does when VS Code runs it (`test:integration` does, `preview.test.ts`; it was not run for this change). The stderr handler must read the Browse at line through ONE scanner per spawn, fed the chunk it
-// just received and only until a URL has been shown, and must keep no accumulated stderr.
-describe("Session 341 — the stderr handler of src/features/preview.ts reads the Browse at line through one scanner per spawn (a source-text pin)", () => {
+// ---- THE WIRING. `src/features/preview.ts` imports `vscode`, so no unit test can run it, and no unit test can see what its stderr handler does when VS Code runs it: `test/integration/suite/preview.test.ts` is the behaviour check, and it was not
+// run for this change (it takes over the screen). What a unit test CAN do is read the adapter's SYNTAX TREE (the TypeScript compiler API, a devDependency), so that a comment, a string, a dead alias or an unused import can neither satisfy
+// the pin nor break it, which the first version of this gate (regular expressions that stripped comments from the text) could not promise (Learning 899: a source-text gate pins spelling, not behaviour; this one pins structure, and
+// structure is still not behaviour). The structure pinned: ONE scanner per spawn, `const urlScanner = createBrowseUrlScanner()` in the Promise executor; the stderr `data` handler turns its chunk into text with `toString()`, appends exactly that
+// text to the channel, and feeds exactly that text to the scanner, once in the whole file and only inside `if (!urlShown)`; the preview is shown with the URL the scanner answered, in the `if` on that answer that also sets `urlShown`;
+// nothing accumulates (the handler's only assignment is the flag, the executor keeps no state but `settled` and `urlShown`, the handler calls nothing that could keep text); the stdout handler never touches the scanner; and the
+// whole-buffer parser `parseBrowseUrl` is not named anywhere in code.
+
+type Group = "imports" | "scanner" | "handler" | "showing" | "accumulation" | "stdout";
+type Wiring = Record<Group, string[]>;
+
+/** Every node under `root` (itself included) that `test` accepts, in source order. */
+function collect<T extends ts.Node>(root: ts.Node, test: (node: ts.Node) => node is T): T[] {
+  const found: T[] = [];
+  const visit = (node: ts.Node): void => {
+    if (test(node)) found.push(node);
+    ts.forEachChild(node, visit);
+  };
+  visit(root);
+  return found;
+}
+
+/** `a.b.c` for a chain of names, `this` and property accesses (a `?.` reads as `.`); `<expr>.name` when the object is anything else (a call, an index). */
+function dotted(expression: ts.Expression): string {
+  if (ts.isIdentifier(expression)) return expression.text;
+  if (expression.kind === ts.SyntaxKind.ThisKeyword) return "this";
+  if (ts.isPropertyAccessExpression(expression)) return `${dotted(expression.expression)}.${expression.name.text}`;
+  if (ts.isNonNullExpression(expression) || ts.isParenthesizedExpression(expression)) return dotted(expression.expression);
+  return "<expr>";
+}
+
+const isName = (node: ts.Node | undefined, name: string): node is ts.Identifier => node !== undefined && ts.isIdentifier(node) && node.text === name;
+const isNot = (node: ts.Node, name: string): boolean => ts.isPrefixUnaryExpression(node) && node.operator === ts.SyntaxKind.ExclamationToken && isName(node.operand, name);
+const isAssignment = (node: ts.BinaryExpression): boolean => node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && node.operatorToken.kind <= ts.SyntaxKind.LastAssignment;
+const isConst = (list: ts.VariableDeclarationList): boolean => (list.flags & ts.NodeFlags.Const) !== 0;
+
+/** The `if` statements, inside `stop`, in whose THEN branch `node` sits (the innermost first). */
+function enclosingThens(node: ts.Node, stop: ts.Node): ts.IfStatement[] {
+  const ifs: ts.IfStatement[] = [];
+  for (let child: ts.Node = node, parent: ts.Node | undefined = node.parent; parent !== undefined && parent !== stop; child = parent, parent = parent.parent) {
+    if (ts.isIfStatement(parent) && parent.thenStatement === child) ifs.push(parent);
+  }
+  return ifs;
+}
+
+/** The only calls the stderr handler may make besides `<chunk>.toString()`: the channel, the scanner, the preview, the promise it returns, the error text and the settle of the spawn. */
+const HANDLER_MAY_CALL = new Set(["this.channel.append", "urlScanner.push", "this.showPreview", "<expr>.then", "this.channel.appendLine", "String", "settle"]);
+
+/** What is wrong with the spawn code of `src/features/preview.ts`, as sentences, by what they concern; nothing under any group means the wiring is as pinned. */
+function wiringProblems(source: string): Wiring {
+  const file = ts.createSourceFile("preview.ts", source, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TS);
+  const problems: Wiring = { imports: [], scanner: [], handler: [], showing: [], accumulation: [], stdout: [] };
+  const need = (group: Group, ok: boolean, message: string): void => {
+    if (!ok) problems[group].push(message);
+  };
+  const calls = collect(file, ts.isCallExpression);
+  const identifiers = collect(file, ts.isIdentifier);
+  const uses = (name: string): number => identifiers.filter((id) => id.text === name).length;
+  const dataHandlers = (channel: string): ts.CallExpression[] =>
+    calls.filter((c) => dotted(c.expression) === `child.${channel}.on` && c.arguments.length === 2 && ts.isStringLiteral(c.arguments[0]) && c.arguments[0].text === "data");
+
+  // The imports: the scanner, and nothing of the whole-buffer parser anywhere in code.
+  const fromScanner = collect(file, ts.isImportDeclaration).filter((d) => ts.isStringLiteral(d.moduleSpecifier) && d.moduleSpecifier.text === "../core/preview-url");
+  const imported = fromScanner.flatMap((d) => (d.importClause?.namedBindings && ts.isNamedImports(d.importClause.namedBindings) ? d.importClause.namedBindings.elements.map((e) => e.name.text) : ["<not a named import>"]));
+  need("imports", fromScanner.length === 1 && imported.join() === "createBrowseUrlScanner", `the import from ../core/preview-url must be exactly { createBrowseUrlScanner }, found [${imported.join()}] in ${fromScanner.length} import(s)`);
+  need("imports", uses("parseBrowseUrl") === 0, `the whole-buffer parser parseBrowseUrl is named ${uses("parseBrowseUrl")} time(s) in code`);
+
+  // One scanner per spawn: made once, as `const urlScanner`, inside the executor of a `new Promise`, and named nowhere else.
+  const makers = calls.filter((c) => isName(c.expression, "createBrowseUrlScanner"));
+  need("scanner", makers.length === 1, `createBrowseUrlScanner must be called exactly once, found ${makers.length} call(s)`);
+  need("scanner", uses("createBrowseUrlScanner") === 2, `createBrowseUrlScanner must be named exactly twice (its import and its one call), found ${uses("createBrowseUrlScanner")}`);
+  const maker = makers[0];
+  const declaration = maker?.parent;
+  need("scanner", maker !== undefined && declaration !== undefined && ts.isVariableDeclaration(declaration) && isName(declaration.name, "urlScanner") && isConst(declaration.parent as ts.VariableDeclarationList) && maker.arguments.length === 0, "the one scanner must be `const urlScanner = createBrowseUrlScanner();`");
+  let executor: ts.Node | undefined;
+  for (let up: ts.Node | undefined = maker?.parent; up !== undefined; up = up.parent) {
+    if (ts.isArrowFunction(up) && ts.isNewExpression(up.parent) && dotted(up.parent.expression) === "Promise") {
+      executor = up;
+      break;
+    }
+  }
+  need("scanner", executor !== undefined, "the scanner must be made inside the executor of a `new Promise`");
+  need("scanner", uses("urlScanner") === 2, `urlScanner must be named exactly twice (its declaration and its one push), found ${uses("urlScanner")}`);
+
+  // The stderr handler: an arrow function of one parameter with a block body, and exactly one of them in the file.
+  const stderrHandlers = dataHandlers("stderr");
+  need("handler", stderrHandlers.length === 1, `exactly one child.stderr data handler is expected, found ${stderrHandlers.length}`);
+  const handler = stderrHandlers[0]?.arguments[1];
+  const body = handler !== undefined && ts.isArrowFunction(handler) ? handler.body : undefined;
+  const parameter = handler !== undefined && ts.isArrowFunction(handler) && handler.parameters.length === 1 ? handler.parameters[0].name : undefined;
+  if (handler === undefined || body === undefined || !ts.isBlock(body) || parameter === undefined || !ts.isIdentifier(parameter)) {
+    need("handler", false, "the stderr handler must be an arrow function of one parameter with a block body");
+    return problems;
+  }
+  const chunk = parameter.text;
+
+  // `const <text> = <chunk>.toString();`: the chunk as VS Code hands it, nothing trimmed or cut.
+  let text = "";
+  for (const statement of body.statements) {
+    if (!ts.isVariableStatement(statement) || !isConst(statement.declarationList) || statement.declarationList.declarations.length !== 1) continue;
+    const only = statement.declarationList.declarations[0];
+    if (ts.isIdentifier(only.name) && only.initializer !== undefined && ts.isCallExpression(only.initializer) && dotted(only.initializer.expression) === `${chunk}.toString` && only.initializer.arguments.length === 0) {
+      text = only.name.text;
+    }
+  }
+  need("handler", text !== "", `the handler must start from \`const <text> = ${chunk}.toString();\``);
+  // The chunk text goes to the channel, as a statement of the handler (not inside the `if`), once.
+  const appends = body.statements.filter((s): s is ts.ExpressionStatement => ts.isExpressionStatement(s) && ts.isCallExpression(s.expression) && dotted(s.expression.expression) === "this.channel.append");
+  need("handler", appends.length === 1 && ts.isCallExpression(appends[0].expression) && appends[0].expression.arguments.length === 1 && isName(appends[0].expression.arguments[0], text), "the handler must append the chunk text to the channel, once, outside the if");
+
+  // The scanner is fed that text, once in the whole file, only inside `if (!urlShown)` of the stderr handler.
+  const pushes = calls.filter((c) => dotted(c.expression) === "urlScanner.push");
+  need("handler", pushes.length === 1, `urlScanner.push must be called exactly once in the file, found ${pushes.length} call(s)`);
+  const push = pushes[0];
+  let url = "";
+  if (push !== undefined) {
+    need("handler", push.arguments.length === 1 && isName(push.arguments[0], text), `urlScanner.push must be given the chunk text \`${text}\` and nothing else`);
+    need("handler", enclosingThens(push, handler).some((s) => isNot(s.expression, "urlShown")), "urlScanner.push must sit in the then-branch of `if (!urlShown)` inside the stderr handler");
+    if (ts.isVariableDeclaration(push.parent) && ts.isIdentifier(push.parent.name)) url = push.parent.name.text;
+    need("handler", url !== "", "the answer of urlScanner.push must be kept in a const");
+  }
+
+  // The preview is shown with that answer, in the `if` on it, which also sets `urlShown`.
+  const shows = calls.filter((c) => dotted(c.expression) === "this.showPreview");
+  need("showing", shows.length === 1, `this.showPreview must be called exactly once, found ${shows.length} call(s)`);
+  const show = shows[0];
+  if (show !== undefined) {
+    need("showing", show.arguments.length === 2 && isName(show.arguments[0], "session") && url !== "" && isName(show.arguments[1], url), `this.showPreview must be called with (session, ${url || "<the URL>"})`);
+    const onUrl = enclosingThens(show, handler).find((s) => url !== "" && isName(s.expression, url));
+    need("showing", onUrl !== undefined, `this.showPreview must sit in the then-branch of \`if (${url || "<the URL>"})\` inside the stderr handler`);
+    const sets = (s: ts.Statement): boolean =>
+      ts.isExpressionStatement(s) && ts.isBinaryExpression(s.expression) && s.expression.operatorToken.kind === ts.SyntaxKind.EqualsToken && isName(s.expression.left, "urlShown") && s.expression.right.kind === ts.SyntaxKind.TrueKeyword;
+    need("showing", onUrl !== undefined && ts.isBlock(onUrl.thenStatement) && onUrl.thenStatement.statements.some(sets), "the then-branch that shows the preview must set `urlShown = true`");
+  }
+
+  // No accumulation: the only assignment in the handler is the flag, the executor keeps no state but the two flags, and the handler calls nothing that could keep text.
+  const assigned = collect(handler, ts.isBinaryExpression).filter(isAssignment).map((b) => b.getText(file));
+  need("accumulation", assigned.length === 1 && assigned[0] === "urlShown = true", `the only assignment in the stderr handler may be \`urlShown = true\`, found [${assigned.join("; ")}]`);
+  if (executor !== undefined) {
+    const kept = collect(executor, ts.isVariableDeclarationList)
+      .filter((list) => !isConst(list))
+      .flatMap((list) => list.declarations.map((d) => d.name.getText(file)))
+      .sort();
+    need("accumulation", kept.join() === "settled,urlShown", `the executor may keep only the flags settled and urlShown in let or var, found [${kept.join()}]`);
+  }
+  const stray = collect(handler, ts.isCallExpression)
+    .map((c) => dotted(c.expression))
+    .filter((name) => name !== `${chunk}.toString` && !HANDLER_MAY_CALL.has(name));
+  need("accumulation", stray.length === 0, `the stderr handler calls [${stray.join(", ")}], which it may not`);
+
+  // The stdout handler has nothing to do with the scanner.
+  const stdoutHandlers = dataHandlers("stdout");
+  need("stdout", stdoutHandlers.length === 1, `exactly one child.stdout data handler is expected, found ${stdoutHandlers.length}`);
+  for (const stdout of stdoutHandlers) {
+    need("stdout", collect(stdout, ts.isIdentifier).every((id) => id.text !== "urlScanner"), "the stdout handler must not touch urlScanner");
+  }
+  return problems;
+}
+
+/** The groups under which the gate found something. */
+const flagged = (wiring: Wiring): Group[] => (Object.keys(wiring) as Group[]).filter((group) => wiring[group].length > 0);
+
+describe("Session 341 — preview.ts wiring, read from its syntax tree", () => {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
   const source = readFileSync(resolve(root, "src", "features", "preview.ts"), "utf8");
-  // Code only: block comments and whole-line comments dropped, then the blanks squeezed out for the contiguous pins.
-  const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
-  const squeezed = code.replace(/\s+/g, "");
+  const wiring = wiringProblems(source);
 
-  it("imports the scanner and no longer the whole-buffer parser", () => {
-    expect(code).toContain('import { createBrowseUrlScanner } from "../core/preview-url";');
-    expect(code).not.toContain("parseBrowseUrl");
+  it("imports: the scanner and nothing of the whole-buffer parser (no identifier named parseBrowseUrl)", () => {
+    expect(wiring.imports).toEqual([]);
   });
 
-  it("makes exactly one scanner, inside the Promise executor of one spawn and before its stderr handler", () => {
-    expect(code.split("createBrowseUrlScanner(").length - 1).toBe(1);
-    const executor = code.indexOf("return new Promise<void>((resolve) => {");
-    const scanner = code.indexOf("const urlScanner = createBrowseUrlScanner();");
-    const handler = code.indexOf('child.stderr?.on("data"');
-    expect(executor).toBeGreaterThan(-1);
-    expect(scanner).toBeGreaterThan(executor);
-    expect(handler).toBeGreaterThan(scanner);
+  it("scanner: exactly one, `const urlScanner`, made inside the Promise executor of one spawn, and named nowhere else", () => {
+    expect(wiring.scanner).toEqual([]);
   });
 
-  it("appends the chunk to the channel, then feeds the scanner that same chunk, only while no URL has been shown", () => {
-    const start = squeezed.indexOf('child.stderr?.on("data"');
-    const end = squeezed.indexOf('child.stdout?.on("data"');
-    expect(start).toBeGreaterThan(-1);
-    expect(end).toBeGreaterThan(start);
-    const handler = squeezed.slice(start, end);
-    expect(handler).toContain("consttext=buf.toString();this.channel.append(text);if(!urlShown){consturl=urlScanner.push(text);if(url){urlShown=true;");
+  it("handler: appends the chunk text to the channel, then feeds the scanner that same text, once in the file, only inside `if (!urlShown)`", () => {
+    expect(wiring.handler).toEqual([]);
   });
 
-  it("keeps no accumulated stderr", () => {
-    expect(code).not.toMatch(/\bstderr\s*\+?=[^=>]/);
-    expect(code).not.toMatch(/let\s+stderr\b/);
+  it("showing: the preview is shown with the URL the scanner answered, in the branch that sets urlShown", () => {
+    expect(wiring.showing).toEqual([]);
+  });
+
+  it("accumulation: none, the handler's only assignment is the flag, the executor keeps no other state, the handler calls nothing that keeps text", () => {
+    expect(wiring.accumulation).toEqual([]);
+  });
+
+  it("stdout: the handler touches nothing of the scanner", () => {
+    expect(wiring.stdout).toEqual([]);
+  });
+});
+
+// The gate itself, run over the real source with ONE edit applied: what it must refuse (`by` names the group that has to flag it) and what it must let through. V1 to V3, R58 and R59 are the review round's variants of the comment-stripping version of this gate (V1, V2 and R58
+// passed it; V3 failed it), V6 and V7 accumulate into a property, and W01 to W08 are the edits of `tools/mutation-run/mutants/s341-preview-scan.json`.
+interface Edit {
+  name: string;
+  from: string;
+  to: string;
+  verdict: "refused" | "accepted";
+  by?: Group;
+}
+
+const STDERR_OPEN = '      child.stderr?.on("data", (buf: Buffer) => {\n        const text = buf.toString();';
+const EDITS: Edit[] = [
+  { name: "V1 a dead stub scanner, the real call in a trailing comment, the factory kept alive by `void`", from: "const urlScanner = createBrowseUrlScanner();", to: "const urlScanner = { push: (_text: string): string | null => null }; // const urlScanner = createBrowseUrlScanner();\n      void createBrowseUrlScanner;", verdict: "refused", by: "scanner" },
+  { name: "V2 an accumulator under another name", from: STDERR_OPEN, to: '      let acc = "";\n      child.stderr?.on("data", (buf: Buffer) => {\n        acc += buf.toString();\n        if (acc.length < 0) {\n          return;\n        }\n        const text = buf.toString();', verdict: "refused", by: "accumulation" },
+  { name: "V3 a harmless trailing comment that names parseBrowseUrl", from: "let urlShown = false;", to: "let urlShown = false; // formerly fed to parseBrowseUrl", verdict: "accepted" },
+  { name: "V4 a block comment that holds the old call, the new factory and a push", from: "let urlShown = false;", to: "let urlShown = false; /* parseBrowseUrl(stderr); createBrowseUrlScanner(); urlScanner.push(x) */", verdict: "accepted" },
+  { name: "V5 a string that holds the old call", from: "let urlShown = false;", to: 'let urlShown = false;\n      const note = "parseBrowseUrl(stderr)";', verdict: "accepted" },
+  { name: "V6 the stderr is accumulated into a property with +=", from: STDERR_OPEN, to: '      child.stderr?.on("data", (buf: Buffer) => {\n        session.panel.title += buf.toString();\n        const text = buf.toString();', verdict: "refused", by: "accumulation" },
+  { name: "V7 the stderr is accumulated into a property with x = x + text", from: "this.channel.append(text);", to: "this.channel.append(text);\n        session.fsPath = session.fsPath + text;", verdict: "refused", by: "accumulation" },
+  { name: "R58 stdout chunks are fed to the scanner too", from: '      child.stdout?.on("data", (buf: Buffer) => {\n        this.channel.append(buf.toString());', to: '      child.stdout?.on("data", (buf: Buffer) => {\n        this.channel.append(buf.toString());\n        urlScanner.push(buf.toString());', verdict: "refused", by: "stdout" },
+  { name: "R59 showPreview gets the chunk and not the URL", from: "void this.showPreview(session, url).then(settle,", to: "void this.showPreview(session, text).then(settle,", verdict: "refused", by: "showing" },
+  { name: "W01 the scanner is fed an empty string", from: "const url = urlScanner.push(text);", to: 'const url = urlScanner.push("");', verdict: "refused", by: "handler" },
+  { name: "W02 the scanner is fed only AFTER a URL has been shown", from: "if (!urlShown) {", to: "if (urlShown) {", verdict: "refused", by: "handler" },
+  { name: "W03 the chunk is not appended to the channel", from: "this.channel.append(text);", to: "void 0;", verdict: "refused", by: "handler" },
+  { name: "W04 the chunk is trimmed before it is used", from: "const text = buf.toString();", to: "const text = buf.toString().trim();", verdict: "refused", by: "handler" },
+  { name: "W05 the flag is never set", from: "urlShown = true;", to: "urlShown = false;", verdict: "refused", by: "showing" },
+  { name: "W06 a second scanner is made", from: "const urlScanner = createBrowseUrlScanner();", to: "const urlScanner = createBrowseUrlScanner();\n      const spare = createBrowseUrlScanner();", verdict: "refused", by: "scanner" },
+  { name: "W07 the whole-buffer parser is imported again", from: 'import { createBrowseUrlScanner } from "../core/preview-url";', to: 'import { createBrowseUrlScanner, parseBrowseUrl } from "../core/preview-url";', verdict: "refused", by: "imports" },
+  { name: "W08 an accumulated stderr is kept again", from: "const urlScanner = createBrowseUrlScanner();", to: 'const urlScanner = createBrowseUrlScanner();\n      let stderr = "";', verdict: "refused", by: "accumulation" },
+];
+
+describe("Session 341 — the wiring gate, one edit at a time", () => {
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+  const source = readFileSync(resolve(root, "src", "features", "preview.ts"), "utf8");
+
+  it("lets the real source through", () => {
+    expect(flagged(wiringProblems(source))).toEqual([]);
+  });
+
+  it.each(EDITS.map((e) => [`${e.name}: ${e.verdict}`, e] as const))("%s", (_name, e) => {
+    // The edit applies to one place only, or this row would test something else.
+    expect(source.split(e.from).length - 1).toBe(1);
+    const found = flagged(wiringProblems(source.split(e.from).join(e.to)));
+    if (e.verdict === "refused") {
+      expect(found).toContain(e.by);
+    } else {
+      expect(found).toEqual([]);
+    }
   });
 });

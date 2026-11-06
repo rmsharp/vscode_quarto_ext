@@ -148,16 +148,16 @@
   "file": "src/features/preview.ts",
   "from": "const urlScanner = createBrowseUrlScanner();",
   "to": "const urlScanner = { push: (_text: string): string | null => null }; // const urlScanner = createBrowseUrlScanner();\n      void createBrowseUrlScanner;",
-  "expect": "survives",
-  "why": "the preview would never find its URL; the comment stripper leaves a TRAILING comment, so the spelling is still in the text (finding TD-4, V1)"
+  "expect": "killed",
+  "why": "the preview would never find its URL; the comment stripper of the first gate left a TRAILING comment, so the spelling was still in the text (finding TD-4, V1); run alone (under -t 'preview.ts wiring' as well as on the whole files), killed by the syntax-tree gate of `s341-preview-scan-rows.test.ts`, the row 'scanner: exactly one, `const urlScanner`, ...' (the tree holds no call of createBrowseUrlScanner: the one in the comment is not code) (the gate pins structure, not behaviour: `preview.ts` imports `vscode`, and the behaviour is only the integration suite's `preview.test.ts`, not run here)"
  },
  {
   "name": "WI02 adapter: an accumulator under another name",
   "file": "src/features/preview.ts",
   "from": "      child.stderr?.on(\"data\", (buf: Buffer) => {\n        const text = buf.toString();",
   "to": "      let acc = \"\";\n      child.stderr?.on(\"data\", (buf: Buffer) => {\n        acc += buf.toString();\n        if (acc.length < 0) {\n          return;\n        }\n        const text = buf.toString();",
-  "expect": "survives",
-  "why": "the whole stderr is accumulated again; the gate looks for the identifier stderr, not for the accumulation (finding TD-4, V2)"
+  "expect": "killed",
+  "why": "the whole stderr is accumulated again; the first gate looked for the identifier stderr, not for the accumulation (finding TD-4, V2); run alone, killed by the syntax-tree gate of `s341-preview-scan-rows.test.ts`, the row 'accumulation: none, the handler's only assignment is the flag, ...' (a `+=` in the handler and a `let` that is not one of the two flags) (the gate pins structure, not behaviour: `preview.ts` imports `vscode`, and the behaviour is only the integration suite's `preview.test.ts`, not run here)"
  },
  {
   "name": "WI03 adapter: a harmless trailing comment that names parseBrowseUrl",
@@ -165,30 +165,30 @@
   "from": "let urlShown = false;",
   "to": "let urlShown = false; // formerly fed to parseBrowseUrl",
   "expect": "survives",
-  "why": "EQUIVALENT: a comment is not code and changes nothing; the gate must not refuse it, and today it does (it strips whole-line comments only), so this verdict is a false kill (finding TD-4, V3)"
+  "why": "EQUIVALENT: a comment is not code and changes nothing, and the gate must not refuse it. The first gate (comment-stripping regular expressions) KILLED this mutant, a false kill, seen at ab280d0; the syntax-tree gate does not see comments, so run alone it SURVIVES, as it must (finding TD-4, V3)"
  },
  {
   "name": "WI04 adapter: stdout chunks are fed to the scanner too",
   "file": "src/features/preview.ts",
   "from": "      child.stdout?.on(\"data\", (buf: Buffer) => {\n        this.channel.append(buf.toString());",
   "to": "      child.stdout?.on(\"data\", (buf: Buffer) => {\n        this.channel.append(buf.toString());\n        urlScanner.push(buf.toString());",
-  "expect": "survives",
-  "why": "the scanner's partial line would take stdout bytes (stderr x/ and stdout noise give xnoise/); the pin reads only the stderr handler's slice (finding M-R58)"
+  "expect": "killed",
+  "why": "the scanner's partial line would take stdout bytes (stderr 'Browse at http://x' and '/y' with stdout 'noise' between them answer 'http://xnoise/y'); the first gate read only the stderr handler's slice (finding M-R58); run alone, killed by the syntax-tree gate of `s341-preview-scan-rows.test.ts`, the rows 'scanner: ...' (urlScanner named three times), 'handler: ...' (urlScanner.push called twice) and 'stdout: the handler touches nothing of the scanner' (the gate pins structure, not behaviour: `preview.ts` imports `vscode`, and the behaviour is only the integration suite's `preview.test.ts`, not run here)"
  },
  {
   "name": "WI05 adapter: showPreview gets the chunk and not the URL",
   "file": "src/features/preview.ts",
   "from": "void this.showPreview(session, url).then(settle,",
   "to": "void this.showPreview(session, text).then(settle,",
-  "expect": "survives",
-  "why": "the pin ends at `urlShown=true;`, so what follows in the handler is unpinned; only the integration preview test would see it (finding M-R59)"
+  "expect": "killed",
+  "why": "the preview is shown with the stderr chunk instead of the URL; the first gate ended at `urlShown=true;`, so what follows in the handler was unpinned (finding M-R59); run alone, killed by the syntax-tree gate of `s341-preview-scan-rows.test.ts`, the row 'showing: the preview is shown with the URL the scanner answered, in the branch that sets urlShown' (the gate pins structure, not behaviour: `preview.ts` imports `vscode`, and the behaviour is only the integration suite's `preview.test.ts`, not run here)"
  },
  {
   "name": "WI06 adapter: the stderr is accumulated into a property, as the handler's first statement",
   "file": "src/features/preview.ts",
   "from": "      child.stderr?.on(\"data\", (buf: Buffer) => {\n        const text = buf.toString();",
   "to": "      child.stderr?.on(\"data\", (buf: Buffer) => {\n        session.panel.title += buf.toString();\n        const text = buf.toString();",
-  "expect": "survives",
-  "why": "a `+=` on a string that is not a local, before the statements the contiguous pin reads; the gate pins the identifier stderr only (an insert AFTER `const text` breaks that pin's contiguity and is killed, as the first draft of this mutant was)"
+  "expect": "killed",
+  "why": "a `+=` on a string that is not a local, before the statements the first gate's contiguous pin read (an insert AFTER `const text` broke that pin's contiguity and was killed, as the first draft of this mutant was); run alone, killed by the syntax-tree gate of `s341-preview-scan-rows.test.ts`, the row 'accumulation: none, the handler's only assignment is the flag, ...' (the gate pins structure, not behaviour: `preview.ts` imports `vscode`, and the behaviour is only the integration suite's `preview.test.ts`, not run here)"
  }
 ]

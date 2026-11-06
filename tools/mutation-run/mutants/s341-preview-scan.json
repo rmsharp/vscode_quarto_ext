@@ -197,7 +197,7 @@
   "from": "const url = urlScanner.push(text);",
   "to": "const url = urlScanner.push(\"\");",
   "expect": "killed",
-  "why": "the preview would never find its URL; run alone, killed by the source-text pin of `s341-preview-scan-rows.test.ts`, the row 'appends the chunk to the channel, then feeds the scanner that same chunk, only while no URL has been shown' (the spelling of the call site: `preview.ts` imports `vscode`, so no unit test runs it, and the behaviour is only the integration suite's, not run here)"
+  "why": "the preview would never find its URL; run alone, killed by the syntax-tree gate of `s341-preview-scan-rows.test.ts`, the row 'handler: appends the chunk text to the channel, then feeds the scanner that same text, once in the file, only inside `if (!urlShown)`' (it pins the structure of the call site, not what VS Code does with it: `preview.ts` imports `vscode`, so no unit test runs the handler, and the behaviour is only the integration suite's `preview.test.ts`, not run here)"
  },
  {
   "name": "W02 adapter: the scanner is fed only AFTER a URL has been shown",
@@ -205,7 +205,7 @@
   "from": "if (!urlShown) {",
   "to": "if (urlShown) {",
   "expect": "killed",
-  "why": "the guard that stops feeding the scanner is inverted; run alone, killed by the source-text pin of `s341-preview-scan-rows.test.ts`, the row 'appends the chunk to the channel, then feeds the scanner that same chunk, only while no URL has been shown' (the spelling of the call site: `preview.ts` imports `vscode`, so no unit test runs it, and the behaviour is only the integration suite's, not run here)"
+  "why": "the guard that stops feeding the scanner is inverted; run alone, killed by the syntax-tree gate of `s341-preview-scan-rows.test.ts`, the row 'handler: appends the chunk text to the channel, then feeds the scanner that same text, once in the file, only inside `if (!urlShown)`' (it pins the structure of the call site, not what VS Code does with it: `preview.ts` imports `vscode`, so no unit test runs the handler, and the behaviour is only the integration suite's `preview.test.ts`, not run here)"
  },
  {
   "name": "W03 adapter: the chunk is not appended to the channel",
@@ -213,7 +213,7 @@
   "from": "this.channel.append(text);",
   "to": "void 0;",
   "expect": "killed",
-  "why": "the output channel would stay empty; run alone, killed by the source-text pin of `s341-preview-scan-rows.test.ts`, the row 'appends the chunk to the channel, then feeds the scanner that same chunk, only while no URL has been shown' (the spelling of the call site: `preview.ts` imports `vscode`, so no unit test runs it, and the behaviour is only the integration suite's, not run here)"
+  "why": "the output channel would stay empty; run alone, killed by the syntax-tree gate of `s341-preview-scan-rows.test.ts`, the row 'handler: appends the chunk text to the channel, then feeds the scanner that same text, once in the file, only inside `if (!urlShown)`' (it pins the structure of the call site, not what VS Code does with it: `preview.ts` imports `vscode`, so no unit test runs the handler, and the behaviour is only the integration suite's `preview.test.ts`, not run here)"
  },
  {
   "name": "W04 adapter: the chunk is trimmed before it is used",
@@ -221,7 +221,7 @@
   "from": "const text = buf.toString();",
   "to": "const text = buf.toString().trim();",
   "expect": "killed",
-  "why": "the newline that completes the URL line is cut off; run alone, killed by the source-text pin of `s341-preview-scan-rows.test.ts`, the row 'appends the chunk to the channel, then feeds the scanner that same chunk, only while no URL has been shown' (the spelling of the call site: `preview.ts` imports `vscode`, so no unit test runs it, and the behaviour is only the integration suite's, not run here)"
+  "why": "the newline that completes the URL line is cut off; run alone, killed by the syntax-tree gate of `s341-preview-scan-rows.test.ts`, the row 'handler: appends the chunk text to the channel, then feeds the scanner that same text, once in the file, only inside `if (!urlShown)`' and the row 'accumulation: none, the handler's only assignment is the flag, the executor keeps no other state, the handler calls nothing that keeps text' (`.trim` is a call the handler may not make) (it pins the structure of the call site, not what VS Code does with it: `preview.ts` imports `vscode`, so no unit test runs the handler, and the behaviour is only the integration suite's `preview.test.ts`, not run here)"
  },
  {
   "name": "W05 adapter: the flag is never set",
@@ -229,7 +229,7 @@
   "from": "urlShown = true;",
   "to": "urlShown = false;",
   "expect": "killed",
-  "why": "every later chunk would show the preview again; run alone, killed by the source-text pin of `s341-preview-scan-rows.test.ts`, the row 'appends the chunk to the channel, then feeds the scanner that same chunk, only while no URL has been shown' (the spelling of the call site: `preview.ts` imports `vscode`, so no unit test runs it, and the behaviour is only the integration suite's, not run here)"
+  "why": "every later chunk would show the preview again; run alone, killed by the syntax-tree gate of `s341-preview-scan-rows.test.ts`, the row 'showing: the preview is shown with the URL the scanner answered, in the branch that sets urlShown' and the row 'accumulation: ...' (`urlShown = false` is a second kind of assignment) (it pins the structure of the call site, not what VS Code does with it: `preview.ts` imports `vscode`, so no unit test runs the handler, and the behaviour is only the integration suite's `preview.test.ts`, not run here)"
  },
  {
   "name": "W06 adapter: a second scanner is made",
@@ -237,7 +237,7 @@
   "from": "const urlScanner = createBrowseUrlScanner();",
   "to": "const urlScanner = createBrowseUrlScanner();\n      const spare = createBrowseUrlScanner();",
   "expect": "killed",
-  "why": "two scanners in one spawn; run alone, killed by the source-text pin of `s341-preview-scan-rows.test.ts`, the row 'makes exactly one scanner, inside the Promise executor of one spawn and before its stderr handler' (the spelling of the call site: `preview.ts` imports `vscode`, so no unit test runs it, and the behaviour is only the integration suite's, not run here)"
+  "why": "two scanners in one spawn; run alone, killed by the syntax-tree gate of `s341-preview-scan-rows.test.ts`, the row 'scanner: exactly one, `const urlScanner`, made inside the Promise executor of one spawn, and named nowhere else' (it pins the structure of the call site, not what VS Code does with it: `preview.ts` imports `vscode`, so no unit test runs the handler, and the behaviour is only the integration suite's `preview.test.ts`, not run here)"
  },
  {
   "name": "W07 adapter: the whole-buffer parser is imported again",
@@ -245,7 +245,7 @@
   "from": "import { createBrowseUrlScanner } from \"../core/preview-url\";",
   "to": "import { createBrowseUrlScanner, parseBrowseUrl } from \"../core/preview-url\";",
   "expect": "killed",
-  "why": "the old parser is back in the file; run alone, killed by the source-text pin of `s341-preview-scan-rows.test.ts`, the row 'imports the scanner and no longer the whole-buffer parser' (the spelling of the call site: `preview.ts` imports `vscode`, so no unit test runs it, and the behaviour is only the integration suite's, not run here)"
+  "why": "the old parser is back in the file; run alone, killed by the syntax-tree gate of `s341-preview-scan-rows.test.ts`, the row 'imports: the scanner and nothing of the whole-buffer parser (no identifier named parseBrowseUrl)' (it pins the structure of the call site, not what VS Code does with it: `preview.ts` imports `vscode`, so no unit test runs the handler, and the behaviour is only the integration suite's `preview.test.ts`, not run here)"
  },
  {
   "name": "W08 adapter: an accumulated stderr is kept again",
@@ -253,7 +253,7 @@
   "from": "const urlScanner = createBrowseUrlScanner();",
   "to": "const urlScanner = createBrowseUrlScanner();\n      let stderr = \"\";",
   "expect": "killed",
-  "why": "a variable that could grow for the whole life of the preview; run alone, killed by the source-text pin of `s341-preview-scan-rows.test.ts`, the row 'keeps no accumulated stderr' (the spelling of the call site: `preview.ts` imports `vscode`, so no unit test runs it, and the behaviour is only the integration suite's, not run here)"
+  "why": "a variable that could grow for the whole life of the preview; run alone, killed by the syntax-tree gate of `s341-preview-scan-rows.test.ts`, the row 'accumulation: none, the handler's only assignment is the flag, the executor keeps no other state, the handler calls nothing that keeps text' (a `let` other than the two flags in the executor) (it pins the structure of the call site, not what VS Code does with it: `preview.ts` imports `vscode`, so no unit test runs the handler, and the behaviour is only the integration suite's `preview.test.ts`, not run here)"
  },
  {
   "name": "K01 rows: the limit is a hundred seconds",
