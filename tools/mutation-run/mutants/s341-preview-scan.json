@@ -69,7 +69,7 @@
   "from": "tail.push(chunk);\n        return null;",
   "to": "tail.push(chunk);\n        return parseBrowseUrl(tail.join(\"\"));",
   "expect": "killed",
-  "why": "the answer is the same (the joined tail has no newline, and a match needs one, so it is always null) but every push re-joins and re-reads the whole incomplete line: ONE line of 16 MiB in 4,096-character chunks and 256 KiB in one-byte chunks are quadratic again; run alone, killed by the clock rows only (13 s: the first clock row to run out of time)"
+  "why": "the answer is the same (the joined tail has no newline, and a match needs one, so it is always null) but every push re-joins and re-reads the whole incomplete line: ONE line of 16 MiB in 4,096-character chunks and 256 KiB in one-byte chunks are quadratic again; run alone (--bail 1), killed by the clock rows (13 s when only `s341-preview-scan-rows.test.ts` is run: the first clock row to run out of time) and, since the long-line block of `preview-url-scanner-equivalence.test.ts`, by its one-character-chunk rows too (200,000 pushes each re-join the whole kept line: 126 s when only that file is run, because a synchronous test cannot be interrupted and the run waits for it; 129 s with all three files); so with the three files the verdict comes after about two minutes, not 13 s"
  },
  {
   "name": "S10 push: the kept text goes AFTER the new lines",
