@@ -5,6 +5,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { isRenderScript } from "../../../src/core/render-script";
+import { type ContextCall, lastValueFor, withContextCapture } from "./context-capture";
 
 const EXTENSION_ID = "rmsharp.vscode-quarto-ext";
 
@@ -102,51 +103,6 @@ async function openActive(file: string): Promise<void> {
 
 /** The context key under test (Slice 2). */
 const KEY = "quartoRenderScriptActive";
-
-interface ContextCall {
-  key: string;
-  value: unknown;
-}
-
-/**
- * Capture `setContext` calls.
- *
- * VS Code offers NO way to read a context key back — `setContext` is a
- * write-only command and there is no `getContext` API — so the only faithful
- * observation point is the `executeCommand` call the extension itself makes.
- * We intercept it, RECORD the call, and still delegate to the real
- * implementation so the key genuinely updates (unlike create-project.test.ts's
- * `vscode.openFolder` interception, which must SUPPRESS the real call because it
- * would reload the window mid-suite; the mechanism is otherwise identical, and
- * is the established precedent for this in the repo).
- */
-async function withContextCapture<T>(
-  captured: ContextCall[],
-  body: () => Promise<T>,
-): Promise<T> {
-  const commandsAny = vscode.commands as unknown as Record<string, unknown>;
-  const original = commandsAny.executeCommand as (
-    command: string,
-    ...rest: unknown[]
-  ) => Thenable<unknown>;
-  commandsAny.executeCommand = (command: string, ...rest: unknown[]) => {
-    if (command === "setContext") {
-      captured.push({ key: rest[0] as string, value: rest[1] });
-    }
-    return original(command, ...rest);
-  };
-  try {
-    return await body();
-  } finally {
-    commandsAny.executeCommand = original;
-  }
-}
-
-/** The most recent value the extension pushed for `key` (`undefined` if never). */
-function lastValueFor(captured: ContextCall[], key: string): unknown {
-  const hits = captured.filter((c) => c.key === key);
-  return hits.length > 0 ? hits[hits.length - 1].value : undefined;
-}
 
 describe("quartoRenderScriptActive context key", () => {
   before(async () => {
