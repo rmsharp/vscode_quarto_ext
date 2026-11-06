@@ -62,8 +62,8 @@ function propertiesOf(object: ts.Expression | undefined, sf: ts.SourceFile): Rec
 }
 /** `const <name> = <call of callee>` directly among the statements of `fn` (so the object is made once per register call, not per event): a problem text, or undefined. */
 function madeDirectlyIn(fn: ts.FunctionDeclaration, sf: ts.SourceFile, name: string, callee: string): string | undefined {
-  const makes = callsOf(fn, sf, callee);
-  if (makes.length !== 1) return `${makes.length} calls of ${callee} in ${fn.name?.text ?? "the function"}, not one`;
+  const makes = callsOf(sf, sf, callee);
+  if (makes.length !== 1) return `${makes.length} calls of ${callee} in the file, not one`;
   const declaration = makes[0].parent;
   if (!(ts.isVariableDeclaration(declaration) && flat(declaration.name, sf) === name && declaration.parent.parent.parent === fn.body)) {
     return `${callee}() is not the initializer of \`const ${name}\` among the statements of ${fn.name?.text ?? "the function"} (made inside a handler it would keep no state between events)`;
@@ -173,5 +173,89 @@ describe("Session 343 -- how the adapters call the context-key setter, pinned by
 
   it("preview.ts keeps every setter pin: made once in the register function, handed to all three updates, the key set through it", () => {
     expect(problemsInPreviewSetter(PREVIEW)).toEqual([]);
+  });
+
+  it("the files parsed are the adapters: they parse without a syntax error and hold the functions the pins read", () => {
+    for (const [name, source] of [["context-key.ts", CONTEXT_KEY], ["execution.ts", EXECUTION], ["preview.ts", PREVIEW]] as const) {
+      expect((parse(name, source) as unknown as { parseDiagnostics: ts.Diagnostic[] }).parseDiagnostics).toEqual([]);
+    }
+    expect(functionNamed(parse("context-key.ts", CONTEXT_KEY), "createVscodeContextKeySetter")).toBeDefined();
+    for (const name of ["registerExecutionFeature", "updateCellContext"]) expect(functionNamed(parse("execution.ts", EXECUTION), name)).toBeDefined();
+    for (const name of ["registerPreviewFeature", "updateRenderScriptContext"]) expect(functionNamed(parse("preview.ts", PREVIEW), name)).toBeDefined();
+  });
+
+  // The edits: each is a live file with ONE respelling, and the pin it must break. They are the mutants of `tools/mutation-run/mutants/s343-context-setter.json`, which the runner applies to the file itself.
+  const CONTEXT_KEY_EDITS: Array<[string, string, string, string]> = [
+    // [name, from, to, a word of the problem it must be named by]
+    ["CK01: the send is a block that drops the command's result (a rejected setContext is never seen, so never forgotten)", "createContextKeySetter((key, value) =>\n    vscode.commands.executeCommand(\"setContext\", key, value),\n  );", "createContextKeySetter((key, value) => {\n    vscode.commands.executeCommand(\"setContext\", key, value);\n  });", "the send's body is not the executeCommand call itself"],
+    ["CK02: the send voids the command's result", "    vscode.commands.executeCommand(\"setContext\", key, value),\n", "    void vscode.commands.executeCommand(\"setContext\", key, value),\n", "the send's body is not the executeCommand call itself"],
+    ["CK03: the send is another command", "executeCommand(\"setContext\", key, value)", "executeCommand(\"quarto.setContext\", key, value)", "the send is not `vscode.commands.executeCommand(\"setContext\", key, value)`"],
+    ["CK04: the send hands the value before the key", "executeCommand(\"setContext\", key, value)", "executeCommand(\"setContext\", value, key)", "the send is not `vscode.commands.executeCommand(\"setContext\", key, value)`"],
+    ["CK05: the send sets one constant key", "executeCommand(\"setContext\", key, value)", "executeCommand(\"setContext\", \"quarto.inCodeCell\", value)", "the send is not `vscode.commands.executeCommand(\"setContext\", key, value)`"],
+    ["CK06: the send is handed to the host with no setter in front of it", "  return createContextKeySetter((key, value) =>\n    vscode.commands.executeCommand(\"setContext\", key, value),\n  );", "  return (key, value) => void vscode.commands.executeCommand(\"setContext\", key, value);", "0 calls of createContextKeySetter"],
+    ["CK07: the function takes the send as a parameter (the call sites could hand it anything)", "export function createVscodeContextKeySetter(): ContextKeySetter {", "export function createVscodeContextKeySetter(unused: number): ContextKeySetter {", "takes a parameter"],
+    ["CK08: a second setContext is sent beside the setter's", "  return createContextKeySetter((key, value) =>", "  void vscode.commands.executeCommand(\"setContext\", \"extra\", true);\n  return createContextKeySetter((key, value) =>", "does not call executeCommand exactly once"],
+  ];
+
+  const EXECUTION_SETTER_EDITS: Array<[string, string, string, string]> = [
+    ["XS01: the setter is made inside the evaluator (one per event, so it remembers nothing)", "  const setContextKey = createVscodeContextKeySetter();\n  const cellContext = createCellContextScheduler({", "  const cellContext = createCellContextScheduler({", "0 calls of createVscodeContextKeySetter in the file"],
+    ["XS02: the evaluator hands the update function a fresh setter on every call", "    evaluate: () => updateCellContext(setContextKey),", "    evaluate: () => updateCellContext(createVscodeContextKeySetter()),", "the scheduler's evaluate is not"],
+    ["XS03: the key is set through the host's command again", "  setContextKey(IN_CELL_CONTEXT, inCell);\n}", "  void vscode.commands.executeCommand(\"setContext\", IN_CELL_CONTEXT, inCell);\n}", "0 calls of setContextKey in updateCellContext"],
+    ["XS04: the key is set twice", "  setContextKey(IN_CELL_CONTEXT, inCell);\n}", "  setContextKey(IN_CELL_CONTEXT, inCell);\n  setContextKey(IN_CELL_CONTEXT, inCell);\n}", "2 calls of setContextKey in updateCellContext"],
+    ["XS05: the key is set through the setter AND the host's command", "  setContextKey(IN_CELL_CONTEXT, inCell);\n}", "  setContextKey(IN_CELL_CONTEXT, inCell);\n  void vscode.commands.executeCommand(\"setContext\", IN_CELL_CONTEXT, inCell);\n}", "updateCellContext calls executeCommand itself"],
+    ["XS06: the update function makes its own setter and takes none", "function updateCellContext(setContextKey: ContextKeySetter): void {\n  const editor = vscode.window.activeTextEditor;", "function updateCellContext(): void {\n  const setContextKey = createVscodeContextKeySetter();\n  const editor = vscode.window.activeTextEditor;", "updateCellContext does not take exactly the parameter `setContextKey`"],
+    ["XS07: the file builds its own setter over the host's command", "  const setContextKey = createVscodeContextKeySetter();", "  const setContextKey = createContextKeySetter((key: string, value: boolean) => vscode.commands.executeCommand(\"setContext\", key, value));", "execution.ts calls createContextKeySetter itself"],
+    ["XS08: the setter is made in the module (shared by every registration, and by a registration after a deactivation)", "export function registerExecutionFeature(", "const sharedSetter = createVscodeContextKeySetter();\nexport function registerExecutionFeature(", "2 calls of createVscodeContextKeySetter in the file"],
+    ["XS09: the setter is handed under another name's meaning: a literal function, not the setter", "    evaluate: () => updateCellContext(setContextKey),", "    evaluate: () => updateCellContext(() => undefined),", "the scheduler's evaluate is not"],
+  ];
+
+  const PREVIEW_SETTER_EDITS: Array<[string, string, string, string]> = [
+    ["PS01: the active-editor handler hands the update a fresh setter", "      updateRenderScriptContext(editor, setContextKey),", "      updateRenderScriptContext(editor, createVscodeContextKeySetter()),", "does not hand it `setContextKey`"],
+    ["PS02: the document handler hands the update a fresh setter", "        updateRenderScriptContext(active, setContextKey);", "        updateRenderScriptContext(active, createVscodeContextKeySetter());", "does not hand it `setContextKey`"],
+    ["PS03: the activation-time call hands the update a fresh setter", "  updateRenderScriptContext(vscode.window.activeTextEditor, setContextKey);", "  updateRenderScriptContext(vscode.window.activeTextEditor, createVscodeContextKeySetter());", "does not hand it `setContextKey`"],
+    ["PS04: the key is set through the host's command again", "  setContextKey(\n    RENDER_SCRIPT_CONTEXT,\n    isPreviewableRenderScript(editor?.document),\n  );", "  void vscode.commands.executeCommand(\n    \"setContext\",\n    RENDER_SCRIPT_CONTEXT,\n    isPreviewableRenderScript(editor?.document),\n  );", "0 calls of setContextKey in updateRenderScriptContext"],
+    ["PS05: the key is set to the negation of the answer (ctrl+shift+k previews in a plain file and runs the document command in a script)", "    isPreviewableRenderScript(editor?.document),\n  );\n}", "    !isPreviewableRenderScript(editor?.document),\n  );\n}", "does not call setContextKey(RENDER_SCRIPT_CONTEXT"],
+    ["PS06: another key is set (the keybinding never sees it)", "  setContextKey(\n    RENDER_SCRIPT_CONTEXT,", "  setContextKey(\n    \"quartoRenderScript\",", "does not call setContextKey(RENDER_SCRIPT_CONTEXT"],
+    ["PS07: a fourth call of the update function", "  updateRenderScriptContext(vscode.window.activeTextEditor, setContextKey);\n}", "  updateRenderScriptContext(vscode.window.activeTextEditor, setContextKey);\n  updateRenderScriptContext(undefined, setContextKey);\n}", "4 calls of updateRenderScriptContext"],
+    ["PS08: the setter is made in the module (shared by every registration)", "export function registerPreviewFeature(", "const sharedSetter = createVscodeContextKeySetter();\nexport function registerPreviewFeature(", "2 calls of createVscodeContextKeySetter in the file"],
+    ["PS09: the update function takes the setter first", "function updateRenderScriptContext(\n  editor: vscode.TextEditor | undefined,\n  setContextKey: ContextKeySetter,\n): void {", "function updateRenderScriptContext(\n  setContextKey: ContextKeySetter,\n  editor: vscode.TextEditor | undefined,\n): void {", "does not take exactly (editor, setContextKey)"],
+    ["PS10: the file builds its own setter over the host's command", "  const setContextKey = createVscodeContextKeySetter();", "  const setContextKey = createContextKeySetter((key: string, value: boolean) => vscode.commands.executeCommand(\"setContext\", key, value));", "preview.ts calls createContextKeySetter itself"],
+  ];
+
+  it.each(CONTEXT_KEY_EDITS)("context-key.ts, %s: the pin is broken, and is named", (_name, from, to, named) => {
+    expect(CONTEXT_KEY.split(from).length - 1).toBe(1); // the edit applies to the live file exactly once
+    const problems = problemsInContextKeyAdapter(CONTEXT_KEY.replace(from, () => to));
+    expect(problems.length).toBeGreaterThan(0);
+    expect(problems.join("\n")).toContain(named);
+  });
+
+  it.each(EXECUTION_SETTER_EDITS)("execution.ts, %s: the pin is broken, and is named", (_name, from, to, named) => {
+    expect(EXECUTION.split(from).length - 1).toBe(1);
+    const problems = problemsInExecutionSetter(EXECUTION.replace(from, () => to));
+    expect(problems.length).toBeGreaterThan(0);
+    expect(problems.join("\n")).toContain(named);
+  });
+
+  it.each(PREVIEW_SETTER_EDITS)("preview.ts, %s: the pin is broken, and is named", (_name, from, to, named) => {
+    expect(PREVIEW.split(from).length - 1).toBe(1);
+    const problems = problemsInPreviewSetter(PREVIEW.replace(from, () => to));
+    expect(problems.length).toBeGreaterThan(0);
+    expect(problems.join("\n")).toContain(named);
+  });
+
+  // A pin read from the syntax tree is not moved by what is not code.
+  it("a comment, a string, a template and an unused identifier that spell the setter's calls do not satisfy the pins, and a comment that names the old call does not break them", () => {
+    const exec = EXECUTION.replace("  setContextKey(IN_CELL_CONTEXT, inCell);\n}", "  // setContextKey(IN_CELL_CONTEXT, inCell);\n  const decoy = \"setContextKey(IN_CELL_CONTEXT, inCell)\" + `setContextKey(IN_CELL_CONTEXT, inCell)`;\n  void decoy;\n}");
+    expect(exec).not.toBe(EXECUTION);
+    expect(problemsInExecutionSetter(exec).join("\n")).toContain("0 calls of setContextKey in updateCellContext");
+    const commented = EXECUTION.replace("const IN_CELL_CONTEXT", "// void vscode.commands.executeCommand(\"setContext\", IN_CELL_CONTEXT, inCell) was here\nconst NOTE = 'executeCommand(\"setContext\")';\nconst IN_CELL_CONTEXT");
+    expect(commented).not.toBe(EXECUTION);
+    expect(problemsInExecutionSetter(commented)).toEqual([]);
+    const preview = PREVIEW.replace("  setContextKey(\n    RENDER_SCRIPT_CONTEXT,", "  // setContextKey(RENDER_SCRIPT_CONTEXT, isPreviewableRenderScript(editor?.document));\n  const decoy = \"setContextKey(\" + `setContextKey(`;\n  void decoy;\n  void vscode.commands.executeCommand(\n    \"setContext\",\n    RENDER_SCRIPT_CONTEXT,\n    isPreviewableRenderScript(editor?.document),\n  );\n  setContextKey(\n    RENDER_SCRIPT_CONTEXT,");
+    expect(preview).not.toBe(PREVIEW);
+    expect(problemsInPreviewSetter(preview).join("\n")).toContain("updateRenderScriptContext calls executeCommand itself");
+    const previewCommented = PREVIEW.replace("const RENDER_SCRIPT_CONTEXT", "// executeCommand(\"setContext\", RENDER_SCRIPT_CONTEXT, ...) was here\nconst RENDER_SCRIPT_CONTEXT");
+    expect(previewCommented).not.toBe(PREVIEW);
+    expect(problemsInPreviewSetter(previewCommented)).toEqual([]);
   });
 });

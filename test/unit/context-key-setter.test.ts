@@ -211,6 +211,18 @@ describe("Session 343 -- the context-key setter forgets a key whose send failed,
     }
   });
 
+  it("a thenable that is a FUNCTION (a callable with a `then`) is a thenable too: its rejection forgets the key", async () => {
+    const calls: boolean[] = [];
+    const set = createContextKeySetter((_key, value) => {
+      calls.push(value);
+      return Object.assign(() => undefined, { then: (_onFulfilled: unknown, onRejected: (reason: unknown) => void) => queueMicrotask(() => onRejected(new Error("callable"))) });
+    });
+    set("k", true);
+    await settle();
+    set("k", true);
+    expect(calls).toEqual([true, true]);
+  });
+
   it("a send that throws propagates the error, and leaves the key unremembered: the next set of the same value sends again", () => {
     const failure = new Error("setContext threw");
     let throwing = true;
@@ -237,6 +249,20 @@ describe("Session 343 -- the context-key setter forgets a key whose send failed,
     expect(() => set("k", false)).toThrow("the second send throws");
     set("k", true);
     expect(calls).toEqual([true, false, true]);
+  });
+
+  it("a send that throws for one key does not forget another key", () => {
+    const calls: Array<[string, boolean]> = [];
+    const set = createContextKeySetter((key, value) => {
+      calls.push([key, value]);
+      if (key === "a" && calls.length === 3) throw new Error("a threw");
+    });
+    set("a", true);
+    set("b", true);
+    expect(() => set("a", false)).toThrow("a threw");
+    set("b", true);
+    set("a", true);
+    expect(calls).toEqual([["a", true], ["b", true], ["a", false], ["a", true]]);
   });
 
   it("a rejection of one key does not forget another key", async () => {

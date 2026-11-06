@@ -1,0 +1,402 @@
+[
+ {
+  "name": "S01 the dedupe test is never true (every set sends)",
+  "file": "src/core/context-key-setter.ts",
+  "from": "if (sent.get(key)?.value === value) {",
+  "to": "if (false) {",
+  "expect": "killed",
+  "why": "the old behaviour: N equal sets send N times; killed by the count rows and the oracle's send floor; killed by context-key-setter.test.ts"
+ },
+ {
+  "name": "S02 the dedupe test is inverted (an equal value sends, a different one does not)",
+  "file": "src/core/context-key-setter.ts",
+  "from": "sent.get(key)?.value === value",
+  "to": "sent.get(key)?.value !== value",
+  "expect": "killed",
+  "why": "the first set sends (undefined differs from any value) and every flip after it is dropped; killed by context-key-setter.test.ts"
+ },
+ {
+  "name": "S03 a send is never remembered",
+  "file": "src/core/context-key-setter.ts",
+  "from": "    sent.set(key, entry);\n",
+  "to": "",
+  "expect": "killed",
+  "why": "every set sends: the count rows; killed by context-key-setter.test.ts"
+ },
+ {
+  "name": "S04 an unset key counts as false (a first false is not sent)",
+  "file": "src/core/context-key-setter.ts",
+  "from": "sent.get(key)?.value === value",
+  "to": "(sent.get(key)?.value ?? false) === value",
+  "expect": "killed",
+  "why": "the first set of a key to false sends nothing: killed by the 'first set sends even for false' row; killed by context-key-setter.test.ts"
+ },
+ {
+  "name": "S05 one last value for every key (keys are not independent)",
+  "file": "src/core/context-key-setter.ts",
+  "from": "sent.get(key)?.value === value",
+  "to": "[...sent.values()].pop()?.value === value",
+  "expect": "killed",
+  "why": "a second key set to the first key's value is not sent; killed by context-key-setter.test.ts"
+ },
+ {
+  "name": "S06 a throwing send leaves the key's previous value remembered",
+  "file": "src/core/context-key-setter.ts",
+  "from": "      sent.delete(key);\n      throw error;",
+  "to": "      throw error;",
+  "expect": "killed",
+  "why": "set true, a throwing set false, set true: the last is deduped against the first; killed by context-key-setter.test.ts"
+ },
+ {
+  "name": "S07 a throwing send is swallowed",
+  "file": "src/core/context-key-setter.ts",
+  "from": "      sent.delete(key);\n      throw error;",
+  "to": "      sent.delete(key);\n      return;",
+  "expect": "killed",
+  "why": "the adapters' event handler would never see the host's error: killed by the toThrow rows; killed by context-key-setter.test.ts"
+ },
+ {
+  "name": "S08 a throwing send forgets every key",
+  "file": "src/core/context-key-setter.ts",
+  "from": "      sent.delete(key);\n      throw error;",
+  "to": "      sent.clear();\n      throw error;",
+  "expect": "killed",
+  "why": "another key is sent again after one key's send threw; killed by context-key-setter.test.ts"
+ },
+ {
+  "name": "S09 a throwing send is rethrown as another error",
+  "file": "src/core/context-key-setter.ts",
+  "from": "      throw error;",
+  "to": "      throw new Error(\"send failed\");",
+  "expect": "killed",
+  "why": "the host's error is replaced: the rows compare the message; killed by context-key-setter.test.ts"
+ },
+ {
+  "name": "S10 a rejected send is not forgotten",
+  "file": "src/core/context-key-setter.ts",
+  "from": "        if (sent.get(key) === entry) {\n          sent.delete(key);\n        }",
+  "to": "        void entry;",
+  "expect": "killed",
+  "why": "the next set of the same value after a rejection sends nothing; killed by context-key-setter.test.ts"
+ },
+ {
+  "name": "S11 a rejection is compared by value (the ABA case: set true, set false, set true, then the first rejects)",
+  "file": "src/core/context-key-setter.ts",
+  "from": "if (sent.get(key) === entry) {",
+  "to": "if (sent.get(key)?.value === value) {",
+  "expect": "killed",
+  "why": "a late rejection of the first send forgets the third, which holds the same value; killed by context-key-setter.test.ts"
+ },
+ {
+  "name": "S12 a rejection always forgets (a late rejection forgets a newer send)",
+  "file": "src/core/context-key-setter.ts",
+  "from": "if (sent.get(key) === entry) {",
+  "to": "if (true) {",
+  "expect": "killed",
+  "why": "the late rejection of an older send makes the next set send again; killed by context-key-setter.test.ts"
+ },
+ {
+  "name": "S13 a rejection forgets every key",
+  "file": "src/core/context-key-setter.ts",
+  "from": "          sent.delete(key);\n        }\n      });",
+  "to": "          sent.clear();\n        }\n      });",
+  "expect": "killed",
+  "why": "another key is sent again after one key's promise rejected; killed by context-key-setter.test.ts"
+ },
+ {
+  "name": "S14 the key is forgotten on SUCCESS and a rejection is left unhandled",
+  "file": "src/core/context-key-setter.ts",
+  "from": "result.then(undefined, () => {",
+  "to": "result.then(() => {",
+  "expect": "killed",
+  "why": "a resolved send is sent again, and a rejection reaches the process; killed by context-key-setter.test.ts"
+ },
+ {
+  "name": "S15 the rejection handler is attached before the entry is stored",
+  "file": "src/core/context-key-setter.ts",
+  "from": "    const entry = { value };\n    sent.set(key, entry);\n    if (isThenable(result)) {\n      result.then(undefined, () => {\n        if (sent.get(key) === entry) {\n          sent.delete(key);\n        }\n      });\n    }",
+  "to": "    const entry = { value };\n    if (isThenable(result)) {\n      result.then(undefined, () => {\n        if (sent.get(key) === entry) {\n          sent.delete(key);\n        }\n      });\n    }\n    sent.set(key, entry);",
+  "expect": "killed",
+  "why": "a thenable that rejects at once (inside `then`) forgets nothing, and the entry is stored after it: killed by the synchronous-thenable row; killed by context-key-setter.test.ts"
+ },
+ {
+  "name": "S16 a thenable is any object with a `then` of any kind",
+  "file": "src/core/context-key-setter.ts",
+  "from": "typeof (value as { then?: unknown }).then === \"function\"",
+  "to": "typeof (value as { then?: unknown }).then !== \"undefined\"",
+  "expect": "killed",
+  "why": "{ then: 5 } is called: a TypeError out of set; killed by context-key-setter.test.ts"
+ },
+ {
+  "name": "S17 null is a thenable candidate",
+  "file": "src/core/context-key-setter.ts",
+  "from": " && value !== null && typeof",
+  "to": " && typeof",
+  "expect": "killed",
+  "why": "a send that returns null reads null.then; killed by context-key-setter.test.ts"
+ },
+ {
+  "name": "S18 a function is never a thenable",
+  "file": "src/core/context-key-setter.ts",
+  "from": "(typeof value === \"object\" || typeof value === \"function\")",
+  "to": "typeof value === \"object\"",
+  "expect": "killed",
+  "why": "a callable with a then is not seen: killed by the callable-thenable row; killed by context-key-setter.test.ts"
+ },
+ {
+  "name": "S19 nothing is a thenable (object AND function)",
+  "file": "src/core/context-key-setter.ts",
+  "from": "(typeof value === \"object\" || typeof value === \"function\")",
+  "to": "(typeof value === \"object\" && typeof value === \"function\")",
+  "expect": "killed",
+  "why": "no rejection is ever seen; killed by context-key-setter.test.ts"
+ },
+ {
+  "name": "S20 the remembered value is the negation",
+  "file": "src/core/context-key-setter.ts",
+  "from": "const entry = { value };",
+  "to": "const entry = { value: !value };",
+  "expect": "killed",
+  "why": "the next equal set sends again and a flip is dropped; killed by context-key-setter.test.ts"
+ },
+ {
+  "name": "S21 the entry is stored under the value, not the key",
+  "file": "src/core/context-key-setter.ts",
+  "from": "    sent.set(key, entry);\n",
+  "to": "    sent.set(String(value), entry);\n",
+  "expect": "killed",
+  "why": "every set sends; killed by context-key-setter.test.ts"
+ },
+ {
+  "name": "S22 the send is handed the value before the key",
+  "file": "src/core/context-key-setter.ts",
+  "from": "result = send(key, value);",
+  "to": "result = send(value as unknown as string, key as unknown as boolean);",
+  "expect": "killed",
+  "why": "the send's arguments are swapped; killed by context-key-setter.test.ts"
+ },
+ {
+  "name": "S23 the send is called twice",
+  "file": "src/core/context-key-setter.ts",
+  "from": "      result = send(key, value);",
+  "to": "      send(key, value);\n      result = send(key, value);",
+  "expect": "killed",
+  "why": "the count rows see two sends per set; killed by context-key-setter.test.ts"
+ },
+ {
+  "name": "CK01: the send is a block that drops the command's result (a rejected setContext is never seen, so never forgotten)",
+  "file": "src/features/context-key.ts",
+  "from": "createContextKeySetter((key, value) =>\n    vscode.commands.executeCommand(\"setContext\", key, value),\n  );",
+  "to": "createContextKeySetter((key, value) => {\n    vscode.commands.executeCommand(\"setContext\", key, value);\n  });",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the send's body is not the executeCommand call itself')"
+ },
+ {
+  "name": "CK02: the send voids the command's result",
+  "file": "src/features/context-key.ts",
+  "from": "    vscode.commands.executeCommand(\"setContext\", key, value),\n",
+  "to": "    void vscode.commands.executeCommand(\"setContext\", key, value),\n",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the send's body is not the executeCommand call itself')"
+ },
+ {
+  "name": "CK03: the send is another command",
+  "file": "src/features/context-key.ts",
+  "from": "executeCommand(\"setContext\", key, value)",
+  "to": "executeCommand(\"quarto.setContext\", key, value)",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the send is not `vscode.commands.executeCommand(\"setContext\", key, value)`')"
+ },
+ {
+  "name": "CK04: the send hands the value before the key",
+  "file": "src/features/context-key.ts",
+  "from": "executeCommand(\"setContext\", key, value)",
+  "to": "executeCommand(\"setContext\", value, key)",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the send is not `vscode.commands.executeCommand(\"setContext\", key, value)`')"
+ },
+ {
+  "name": "CK05: the send sets one constant key",
+  "file": "src/features/context-key.ts",
+  "from": "executeCommand(\"setContext\", key, value)",
+  "to": "executeCommand(\"setContext\", \"quarto.inCodeCell\", value)",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the send is not `vscode.commands.executeCommand(\"setContext\", key, value)`')"
+ },
+ {
+  "name": "CK06: the send is handed to the host with no setter in front of it",
+  "file": "src/features/context-key.ts",
+  "from": "  return createContextKeySetter((key, value) =>\n    vscode.commands.executeCommand(\"setContext\", key, value),\n  );",
+  "to": "  return (key, value) => void vscode.commands.executeCommand(\"setContext\", key, value);",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name '0 calls of createContextKeySetter')"
+ },
+ {
+  "name": "CK07: the function takes the send as a parameter (the call sites could hand it anything)",
+  "file": "src/features/context-key.ts",
+  "from": "export function createVscodeContextKeySetter(): ContextKeySetter {",
+  "to": "export function createVscodeContextKeySetter(unused: number): ContextKeySetter {",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'takes a parameter')"
+ },
+ {
+  "name": "CK08: a second setContext is sent beside the setter's",
+  "file": "src/features/context-key.ts",
+  "from": "  return createContextKeySetter((key, value) =>",
+  "to": "  void vscode.commands.executeCommand(\"setContext\", \"extra\", true);\n  return createContextKeySetter((key, value) =>",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not call executeCommand exactly once')"
+ },
+ {
+  "name": "XS01: the setter is made inside the evaluator (one per event, so it remembers nothing)",
+  "file": "src/features/execution.ts",
+  "from": "  const setContextKey = createVscodeContextKeySetter();\n  const cellContext = createCellContextScheduler({",
+  "to": "  const cellContext = createCellContextScheduler({",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name '0 calls of createVscodeContextKeySetter in the file')"
+ },
+ {
+  "name": "XS02: the evaluator hands the update function a fresh setter on every call",
+  "file": "src/features/execution.ts",
+  "from": "    evaluate: () => updateCellContext(setContextKey),",
+  "to": "    evaluate: () => updateCellContext(createVscodeContextKeySetter()),",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the scheduler's evaluate is not')"
+ },
+ {
+  "name": "XS03: the key is set through the host's command again",
+  "file": "src/features/execution.ts",
+  "from": "  setContextKey(IN_CELL_CONTEXT, inCell);\n}",
+  "to": "  void vscode.commands.executeCommand(\"setContext\", IN_CELL_CONTEXT, inCell);\n}",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name '0 calls of setContextKey in updateCellContext')"
+ },
+ {
+  "name": "XS04: the key is set twice",
+  "file": "src/features/execution.ts",
+  "from": "  setContextKey(IN_CELL_CONTEXT, inCell);\n}",
+  "to": "  setContextKey(IN_CELL_CONTEXT, inCell);\n  setContextKey(IN_CELL_CONTEXT, inCell);\n}",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name '2 calls of setContextKey in updateCellContext')"
+ },
+ {
+  "name": "XS05: the key is set through the setter AND the host's command",
+  "file": "src/features/execution.ts",
+  "from": "  setContextKey(IN_CELL_CONTEXT, inCell);\n}",
+  "to": "  setContextKey(IN_CELL_CONTEXT, inCell);\n  void vscode.commands.executeCommand(\"setContext\", IN_CELL_CONTEXT, inCell);\n}",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'updateCellContext calls executeCommand itself')"
+ },
+ {
+  "name": "XS06: the update function makes its own setter and takes none",
+  "file": "src/features/execution.ts",
+  "from": "function updateCellContext(setContextKey: ContextKeySetter): void {\n  const editor = vscode.window.activeTextEditor;",
+  "to": "function updateCellContext(): void {\n  const setContextKey = createVscodeContextKeySetter();\n  const editor = vscode.window.activeTextEditor;",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'updateCellContext does not take exactly the parameter `setContextKey`')"
+ },
+ {
+  "name": "XS07: the file builds its own setter over the host's command",
+  "file": "src/features/execution.ts",
+  "from": "  const setContextKey = createVscodeContextKeySetter();",
+  "to": "  const setContextKey = createContextKeySetter((key: string, value: boolean) => vscode.commands.executeCommand(\"setContext\", key, value));",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'execution.ts calls createContextKeySetter itself')"
+ },
+ {
+  "name": "XS08: the setter is made in the module (shared by every registration, and by a registration after a deactivation)",
+  "file": "src/features/execution.ts",
+  "from": "export function registerExecutionFeature(",
+  "to": "const sharedSetter = createVscodeContextKeySetter();\nexport function registerExecutionFeature(",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name '2 calls of createVscodeContextKeySetter in the file')"
+ },
+ {
+  "name": "XS09: the setter is handed under another name's meaning: a literal function, not the setter",
+  "file": "src/features/execution.ts",
+  "from": "    evaluate: () => updateCellContext(setContextKey),",
+  "to": "    evaluate: () => updateCellContext(() => undefined),",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the scheduler's evaluate is not')"
+ },
+ {
+  "name": "PS01: the active-editor handler hands the update a fresh setter",
+  "file": "src/features/preview.ts",
+  "from": "      updateRenderScriptContext(editor, setContextKey),",
+  "to": "      updateRenderScriptContext(editor, createVscodeContextKeySetter()),",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not hand it `setContextKey`')"
+ },
+ {
+  "name": "PS02: the document handler hands the update a fresh setter",
+  "file": "src/features/preview.ts",
+  "from": "        updateRenderScriptContext(active, setContextKey);",
+  "to": "        updateRenderScriptContext(active, createVscodeContextKeySetter());",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not hand it `setContextKey`')"
+ },
+ {
+  "name": "PS03: the activation-time call hands the update a fresh setter",
+  "file": "src/features/preview.ts",
+  "from": "  updateRenderScriptContext(vscode.window.activeTextEditor, setContextKey);",
+  "to": "  updateRenderScriptContext(vscode.window.activeTextEditor, createVscodeContextKeySetter());",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not hand it `setContextKey`')"
+ },
+ {
+  "name": "PS04: the key is set through the host's command again",
+  "file": "src/features/preview.ts",
+  "from": "  setContextKey(\n    RENDER_SCRIPT_CONTEXT,\n    isPreviewableRenderScript(editor?.document),\n  );",
+  "to": "  void vscode.commands.executeCommand(\n    \"setContext\",\n    RENDER_SCRIPT_CONTEXT,\n    isPreviewableRenderScript(editor?.document),\n  );",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name '0 calls of setContextKey in updateRenderScriptContext')"
+ },
+ {
+  "name": "PS05: the key is set to the negation of the answer (ctrl+shift+k previews in a plain file and runs the document command in a script)",
+  "file": "src/features/preview.ts",
+  "from": "    isPreviewableRenderScript(editor?.document),\n  );\n}",
+  "to": "    !isPreviewableRenderScript(editor?.document),\n  );\n}",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not call setContextKey(RENDER_SCRIPT_CONTEXT')"
+ },
+ {
+  "name": "PS06: another key is set (the keybinding never sees it)",
+  "file": "src/features/preview.ts",
+  "from": "  setContextKey(\n    RENDER_SCRIPT_CONTEXT,",
+  "to": "  setContextKey(\n    \"quartoRenderScript\",",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not call setContextKey(RENDER_SCRIPT_CONTEXT')"
+ },
+ {
+  "name": "PS07: a fourth call of the update function",
+  "file": "src/features/preview.ts",
+  "from": "  updateRenderScriptContext(vscode.window.activeTextEditor, setContextKey);\n}",
+  "to": "  updateRenderScriptContext(vscode.window.activeTextEditor, setContextKey);\n  updateRenderScriptContext(undefined, setContextKey);\n}",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name '4 calls of updateRenderScriptContext')"
+ },
+ {
+  "name": "PS08: the setter is made in the module (shared by every registration)",
+  "file": "src/features/preview.ts",
+  "from": "export function registerPreviewFeature(",
+  "to": "const sharedSetter = createVscodeContextKeySetter();\nexport function registerPreviewFeature(",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name '2 calls of createVscodeContextKeySetter in the file')"
+ },
+ {
+  "name": "PS09: the update function takes the setter first",
+  "file": "src/features/preview.ts",
+  "from": "function updateRenderScriptContext(\n  editor: vscode.TextEditor | undefined,\n  setContextKey: ContextKeySetter,\n): void {",
+  "to": "function updateRenderScriptContext(\n  setContextKey: ContextKeySetter,\n  editor: vscode.TextEditor | undefined,\n): void {",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not take exactly (editor, setContextKey)')"
+ },
+ {
+  "name": "PS10: the file builds its own setter over the host's command",
+  "file": "src/features/preview.ts",
+  "from": "  const setContextKey = createVscodeContextKeySetter();",
+  "to": "  const setContextKey = createContextKeySetter((key: string, value: boolean) => vscode.commands.executeCommand(\"setContext\", key, value));",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'preview.ts calls createContextKeySetter itself')"
+ }
+]
