@@ -532,3 +532,56 @@ describe("Session 343 -- how the adapters read a document's text, pinned by the 
     expect(problemsInBackgroundText(background)).toEqual([]);
   });
 });
+
+// ---- D3: THE CELL-BACKGROUND REFRESH PLAN ------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+/** The class `CellBackgroundDecorator` of cell-background.ts, and one of its members by name (a method or a property). */
+const classNamed = (sf: ts.SourceFile, name: string): ts.ClassDeclaration | undefined => collect(sf, (n): n is ts.ClassDeclaration => ts.isClassDeclaration(n) && n.name?.text === name)[0];
+const memberNamed = (cls: ts.ClassDeclaration, name: string): ts.ClassElement | undefined => cls.members.find((m) => m.name !== undefined && ts.isIdentifier(m.name) && m.name.text === name);
+/** The statements of a method's body, as written. */
+const bodyOf = (member: ts.ClassElement | undefined, sf: ts.SourceFile): string[] => (member !== undefined && ts.isMethodDeclaration(member) && member.body !== undefined ? member.body.statements.map((s) => flat(s, sf)) : ["?"]);
+
+/**
+ * Every pin `cell-background.ts` breaks about the refresh plan: ONE refresher per decorator (made in a property initializer, so its record of what is tinted lasts), handed the editors, the ranges and the apply, and the
+ * two refresh methods that only call it. The handler that schedules the document refresh is pinned beside the other handlers in `s342-typing-wiring-pin.test.ts`.
+ */
+function problemsInBackgroundRefresh(source: string): string[] {
+  const sf = parse("cell-background.ts", source);
+  const problems: string[] = [];
+  const decorator = classNamed(sf, "CellBackgroundDecorator");
+  if (decorator === undefined) return ["the class CellBackgroundDecorator is missing"];
+  const imports = collect(sf, (n): n is ts.ImportDeclaration => ts.isImportDeclaration(n)).filter((i) => ts.isStringLiteral(i.moduleSpecifier) && i.moduleSpecifier.text === "../core/cell-background-refresh");
+  if (imports.length !== 1) problems.push("cell-background.ts does not import ../core/cell-background-refresh exactly once");
+  // 1. One refresher, the initializer of a property of the class: made inside a method it would keep no record of what is tinted between calls.
+  const makes = callsOf(sf, sf, "createCellBackgroundRefresher");
+  const field = memberNamed(decorator, "refresher");
+  if (makes.length !== 1) {
+    problems.push(`${makes.length} calls of createCellBackgroundRefresher, not one`);
+  } else if (field === undefined || !ts.isPropertyDeclaration(field) || field.initializer !== makes[0]) {
+    problems.push("createCellBackgroundRefresher() is not the initializer of the property `refresher` of CellBackgroundDecorator (made in a method it would keep no record of what is tinted)");
+  } else {
+    const options = propertiesOf(makes[0].arguments[0], sf);
+    if (Object.keys(options).sort().join() !== "apply,rangesFor,visible") problems.push(`the refresher is made with the options ${Object.keys(options).sort().join()}, not apply,rangesFor,visible`);
+    if (options.rangesFor !== "(editor) => cellBackgroundRangesFor(editor.document)") problems.push("the refresher's rangesFor is not `(editor) => cellBackgroundRangesFor(editor.document)`");
+    if (options.apply !== "(editor, ranges) => editor.setDecorations(this.decorationType, ranges)") problems.push("the refresher's apply is not `(editor, ranges) => editor.setDecorations(this.decorationType, ranges)` (an arrow function, so the decoration type is read when it is applied: reload makes a new one)");
+    if (options.visible !== "() => vscode.window.visibleTextEditors.map((editor) => ({ key: editor.document.uri.toString(), languageId: editor.document.languageId, editor }))") {
+      problems.push("the refresher's visible is not the visible editors with the key of each document (its URI) and its language id");
+    }
+  }
+  // 2. The two refresh methods only call the refresher.
+  const refresh = memberNamed(decorator, "refresh");
+  if (bodyOf(refresh, sf).join() !== "return this.refresher.refreshAll();") problems.push("CellBackgroundDecorator.refresh is not exactly `return this.refresher.refreshAll();` (every other trigger refreshes every visible editor)");
+  const after = memberNamed(decorator, "refreshAfterEdit");
+  if (bodyOf(after, sf).join() !== "return this.refresher.refreshAfterEdit({ key: document.uri.toString(), languageId: document.languageId });") problems.push("CellBackgroundDecorator.refreshAfterEdit is not exactly `return this.refresher.refreshAfterEdit({ key: document.uri.toString(), languageId: document.languageId });`");
+  if (after !== undefined && ts.isMethodDeclaration(after) && (after.parameters.length !== 1 || flat(after.parameters[0].name, sf) !== "document")) problems.push("CellBackgroundDecorator.refreshAfterEdit does not take exactly the parameter `document`");
+  // 3. The tint is applied in one place, and the ranges are built in one place.
+  if (callsOf(sf, sf, "editor.setDecorations").length !== 1) problems.push(`${callsOf(sf, sf, "editor.setDecorations").length} calls of editor.setDecorations in the file, not one (the refresher's apply)`);
+  if (callsOf(sf, sf, "cellBackgroundRangesFor").length !== 1) problems.push(`${callsOf(sf, sf, "cellBackgroundRangesFor").length} calls of cellBackgroundRangesFor in the file, not one (the refresher's rangesFor)`);
+  return problems;
+}
+
+describe("Session 343 -- how the cell-background adapter calls the refresh plan, pinned by the syntax tree (a unit test cannot run it: it imports vscode)", () => {
+  it("cell-background.ts keeps every refresh pin: one refresher per decorator, its three options, the two refresh methods only calling it, the tint applied and the ranges built in one place each", () => {
+    expect(problemsInBackgroundRefresh(BACKGROUND)).toEqual([]);
+  });
+});
