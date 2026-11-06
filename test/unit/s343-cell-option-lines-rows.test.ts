@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import * as ts from "typescript";
 import { type CellOptionLine, cellOptionLinesOf, findAllCells, findCellOptionLines } from "../../src/core/qmd/model";
 import type { RenderMode } from "../../src/core/render-mode";
+import { clockBreaks as ratioBreaks, ratioOfWindows, spinning, type Windows } from "./support/ratio-windows";
 import { seededRandom } from "./support/regex-equivalence";
 
 // Session 343 -- part (3) of the BACKLOG item "What Session 342's review round found beside the typing-path cures", SIB-04. `findCellOptionLines(text, engine, mode)` was `findAllCells(text, engine, mode).flatMap(cellOptionLinesOf)`:
@@ -306,47 +307,12 @@ describe("Session 343 -- the option lines are built by the first ask, not by the
 });
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-// THE CLOCK. `ratioOfWindows` times, round after round, `calls` repeats of the work being measured and `lookups` repeats of the baseline, each in its own window of `now`, and reports the median ratio of a unit of work to
-// a unit of baseline. `now` is the clock in milliseconds: the rows run it on `performance.now()`, the helper's own rows on a clock only the stand-ins advance (Learning 910).
+// THE CLOCK. `ratioOfWindows` (`test/unit/support/ratio-windows.ts`, shared with `s343-completion-context-rows.test.ts`) times, round after round, `workRepeats` repeats of the work being measured and `baselineRepeats`
+// repeats of the baseline, each in its own window of `now`, and reports the median ratio of a unit of work to a unit of baseline. `now` is the clock in milliseconds: the rows run it on `performance.now()`, the helper's
+// own rows below on a clock only the stand-ins advance (Learning 910).
 
-interface Windows {
-  /** The median over the rounds of (work window / its repeats) over (baseline window / its repeats). */
-  ratio: number;
-  /** The smallest window of either kind, in milliseconds: 0 or less is a clock that did not tick. */
-  smallestWindowMs: number;
-  rounds: number;
-}
-
-function ratioOfWindows(work: () => void, workRepeats: number, baseline: () => void, baselineRepeats: number, rounds: number, now: () => number = () => performance.now()): Windows {
-  const ratios: number[] = [];
-  let smallest = Infinity;
-  for (let round = 0; round < rounds; round++) {
-    const t0 = now();
-    for (let i = 0; i < workRepeats; i++) work();
-    const t1 = now();
-    for (let i = 0; i < baselineRepeats; i++) baseline();
-    const t2 = now();
-    smallest = Math.min(smallest, t1 - t0, t2 - t1);
-    ratios.push((t1 - t0) / workRepeats / ((t2 - t1) / baselineRepeats));
-  }
-  ratios.sort((a, b) => a - b);
-  return { ratio: ratios[Math.floor(ratios.length / 2)], smallestWindowMs: smallest, rounds };
-}
-
-/** `[]` is a run that keeps the criterion: a clock that ticked in every window, and a median ratio under the limit. A window that did not tick keeps nothing (a clock stuck at 0 makes every ratio 0/0 or true). */
-function clockBreaks(run: Windows, ratioLimit: number): string[] {
-  if (!(run.smallestWindowMs > 0)) return [`a window of the clock did not tick (the smallest was ${run.smallestWindowMs} ms)`];
-  if (!Number.isFinite(run.ratio)) return [`the ratio is ${run.ratio}`];
-  return run.ratio < ratioLimit ? [] : [`three warm findCellOptionLines calls took ${run.ratio.toFixed(1)} times one warm findAllCells lookup, not under ${ratioLimit} times`];
-}
-
-/** A stand-in that spins `ms` milliseconds on the real clock. */
-const spinning = (ms: number) => (): void => {
-  const started = performance.now();
-  while (performance.now() - started < ms) {
-    /* spin */
-  }
-};
+/** The one clock criterion of the row below: the shared one, named for this row's work and baseline. */
+const clockBreaks = (run: Windows, ratioLimit: number): string[] => ratioBreaks(run, ratioLimit, "three warm findCellOptionLines calls over one warm findAllCells lookup");
 
 describe("the Session 343 clock helpers (the clock row's own clock is pinned here: Learning 910)", () => {
   it("ratioOfWindows reads each window on a clock only the stand-ins advance: the ratio is exact on any load", () => {
