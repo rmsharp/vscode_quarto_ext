@@ -9,9 +9,11 @@ import * as ts from "typescript";
 // unused identifier can neither satisfy nor break a pin made this way.
 //
 // ⚠ WHAT THIS DOES NOT SEE. It pins how the call sites are SPELLED: which handler calls which scheduler method, that no handler of the typing path calls anything that scans, that the immediate paths stay immediate and
-// that the debounced one is keyed by the document. It does not run the adapters: whether VS Code then tints the cells and gates the keybindings is `test/integration/suite/cell-background.test.ts` and
-// `execution.test.ts`, which open a real VS Code window, take over the screen, and were NOT run for this change. The behaviour the spelling stands for, in a copy of the wiring against the base's handlers verbatim, is
-// `typing-path-equivalence.test.ts`.
+// that the debounced one is keyed by the document. It does not run the adapters, and NOTHING ELSE DOES: no test, unit or integration, drives the adapters' `onDidChangeTextDocument` and selection wiring through a real
+// host, so a key or a tint that stopped following the typing would pass `npm run test:integration`. `test/integration/suite/cell-background.test.ts` applies the tint through `refreshCellBackgroundDecorationsForTesting()`
+// (the immediate path, which skips the document handler and `isVisible`; its own header says the `activate()` wiring is not asserted); `execution.test.ts` never observes `quarto.inCodeCell` (its closest row reads
+// `activationEvents`); `preview-script.test.ts` sees only that the key is SET on an active-editor change and never reads its value (VS Code offers no way to). The behaviour the spelling stands for, in a copy of the wiring
+// against the base's handlers verbatim, is `typing-path-equivalence.test.ts`; the key's VALUE is `in-code-cell.test.ts`.
 //
 // The checks are two functions, `problemsInExecution(source)` and `problemsInBackground(source)`, which name every pin the source breaks. The live files must have none, and the rows below also hand each the live file with
 // ONE edit (the edits are the mutants of `tools/mutation-run/mutants/s342-typing-path.json`) and require it to name the pin that edit breaks: the pin can fail, and says which.

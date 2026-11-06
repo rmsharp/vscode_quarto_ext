@@ -42,7 +42,11 @@ export function registerExecutionFeature(
   // `quarto.inCodeCell` is re-evaluated at once for navigation (a cursor move
   // that follows no edit, an active-editor change) and once the typing pauses for
   // anything that follows an edit: each keystroke's document and selection events
-  // used to scan the whole document. See core/typing-debounce.
+  // used to scan the whole document. The key can therefore be stale for up to the
+  // pause after an edit (the chords that read it, ctrl+enter, shift+enter,
+  // ctrl+shift+enter, ctrl+alt+c and ctrl+k ctrl+f, can fall through or show the
+  // "place the cursor" message), and a stream of events under a pause apart
+  // postpones it (no maximum wait). See core/typing-debounce.
   const cellContext = createCellContextScheduler({
     timers: realTimers,
     delayMs: TYPING_DEBOUNCE_MS,

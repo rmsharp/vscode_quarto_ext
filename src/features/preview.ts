@@ -510,9 +510,11 @@ function isPreviewableRenderScript(
 }
 
 /**
- * Keep `quartoRenderScriptActive` in sync with the active editor. Mirrors
- * `execution.ts`'s `updateCellContext` — including its guard: a background
- * editor's event must not clobber a key that describes the ACTIVE one.
+ * Keep `quartoRenderScriptActive` in sync with the active editor. Has the same
+ * guard as `execution.ts`'s `quarto.inCodeCell` key, which lives in that file's
+ * selection listener (`updateCellContext` takes no editor): a background editor's
+ * event must not clobber a key that describes the ACTIVE one. It does not share
+ * that key's debounce: it is set at once on every document event of the active editor.
  */
 function updateRenderScriptContext(
   editor: vscode.TextEditor | undefined,

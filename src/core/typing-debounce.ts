@@ -1,11 +1,19 @@
 /**
  * The typing path's scheduling, vscode-free (BACKLOG: "What Session 341's review round found beside the Outline and
  * preview cures", part 4). Two handlers ran a whole-document region scan on EVERY keystroke on the extension host's
- * event turn: `updateCellContext` (`features/execution.ts`: `findCellAtPosition`, then `setContext 'quarto.inCodeCell'`)
+ * event turn: `updateCellContext` (`features/execution.ts`: `findCellAtPosition`, now through `core/in-code-cell`'s
+ * `isInCodeCell`, then `setContext 'quarto.inCodeCell'`)
  * and the cell-background decorator's `refresh` (`features/cell-background.ts`: `cellBackgroundRanges`, then
  * `setDecorations` with every cell's range). The first call after an edit costs 12.7 / 31.7 / 155 ms at 500 / 2,000 /
- * 8,000 twenty-line cells (they share one scan through the two-entry cache); a warm call is under 0.1 ms. VS Code sends
- * a document event and a selection event for each keystroke, so a person typing paid one scan a keystroke.
+ * 8,000 twenty-line cells (they share one scan through the two-entry cache); a warm call is a fraction of a millisecond
+ * (under 0.1 ms at 500 and 2,000 cells; at 8,000, about 0.1 ms for the very same string object and about 0.2 ms for a text
+ * equal to the last one's but a distinct string, as `document.getText()` returns). VS Code sends a document event and a
+ * selection event for each keystroke, so a person typing paid one scan a keystroke.
+ *
+ * WHAT THE CURE COVERS: BURSTS. The debounce coalesces events that arrive LESS THAN `TYPING_DEBOUNCE_MS` (150 ms) apart: a
+ * held key, a paste, a replace-all, a snippet. Typing at a steady gap of 150 ms or more between edit events still pays one
+ * cold scan per keystroke exactly as before (the scan is only delayed by the pause); the burst rows' keystrokes are 10 ms
+ * apart, so "40 keystrokes, 1,052 ms to 39 ms" is a burst figure and says nothing about a steady typist.
  *
  * The cure is a TRAILING debounce of the edit-driven work, kept in this module so that it is unit-tested with a fake
  * clock (the §3.3 guardrail): the timers are injected (`Timers`), and the two adapters are reduced to wiring.
@@ -15,13 +23,24 @@
  *    decorator keys it by the document's URI.
  *  - `createCellContextScheduler`: decides, for each event that may change `quarto.inCodeCell`, whether to evaluate it
  *    AT ONCE or after the pause. An event that sees the same document at the same version as the last evaluation (a
- *    cursor move with no edit, a save) is evaluated at once: the scan is cached for that text, so it is cheap, and
- *    navigation stays fresh. Any other event (typing: the document event and the selection event both) is debounced,
- *    and the evaluation reads the ACTIVE editor as it is when the timer fires, so the last state wins. An
- *    active-editor change and the activation-time call evaluate at once and drop the pending run.
+ *    cursor move with no edit since the last evaluation, a save) is evaluated at once: the scan is cached for that
+ *    text, so it is cheap, and navigation stays fresh. A cursor move that follows an edit not yet evaluated is NOT
+ *    that case: it is debounced with the edit. Any other event (typing: the document event and the selection event
+ *    both) is debounced, and the evaluation reads the ACTIVE editor as it is when the timer fires, so the last state
+ *    wins. An active-editor change and the activation-time call evaluate at once and drop the pending run.
  *
- * What the debounce costs: the key can lag the cursor by up to `TYPING_DEBOUNCE_MS` after the last event that
- * follows an edit not yet evaluated; the tint of a fresh edit appears one pause after the typing stops.
+ * What the debounce costs:
+ *  - The key can lag the cursor by up to `TYPING_DEBOUNCE_MS` after the last event that follows an edit not yet
+ *    evaluated; the tint of a fresh edit appears one pause after the typing stops.
+ *  - There is NO MAXIMUM WAIT: it is a pure trailing debounce, so events that keep arriving less than 150 ms apart
+ *    postpone the evaluation (and the tint) for as long as they keep coming, and it runs 150 ms after the last of them.
+ *  - A STALE `quarto.inCodeCell` is what five keybindings consult (`ctrl+enter`, `shift+enter`, `ctrl+shift+enter`,
+ *    `ctrl+alt+c`, `ctrl+k ctrl+f`: `package.json`). Within 150 ms of an edit that moved the cursor into a cell (a
+ *    paste, a snippet, a freshly typed cell) the key can still be false, and the chord then falls through to the
+ *    editor's own binding for it instead of running the cell (what the editor does then was not run); within 150 ms of
+ *    an edit followed by a cursor move out of a cell (the move is debounced with the edit) it can still be true, and the
+ *    chord shows the "place the cursor inside a code cell" message. Typing inside a cell that stays a cell leaves the
+ *    key true and is unaffected.
  */
 
 /** The delay of the edit-driven work: a pause this long after the last keystroke runs it. */

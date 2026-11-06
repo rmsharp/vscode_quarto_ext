@@ -12,6 +12,9 @@ import { createFakeClock } from "./support/fake-timers";
 // (`cellBackgroundRanges(text)` -- a whole-document region scan, 12.7 / 31.7 / 155 ms at 500 / 2,000 / 8,000 twenty-line cells -- and then `setDecorations` with every cell's range), and `updateCellContext` did the
 // same scan for the `quarto.inCodeCell` key. `createKeyedDebouncer` is the core of the cure: a trailing debouncer with one pending run per key, on timers that a fake clock drives. Its rows are here; the sequences of
 // events that the cell-context key goes through are the rows of `s342-typing-path-rows.test.ts`.
+//
+// ⚠ A trailing debounce coalesces BURSTS: runs scheduled less than the delay (150 ms) apart. A key scheduled at a steady gap of the delay or more runs every time, exactly as often as without the debouncer. The burst row
+// below spaces its schedules 20 ms apart. There is no maximum wait: a stream of schedules under the delay apart postpones the run for as long as it lasts.
 
 describe("the fake clock (the rows below count on it: Learning 910 -- a row that counts evaluations is only as good as its clock)", () => {
   it("runs a timer due exactly at the end of the window, and not one due a millisecond later", () => {

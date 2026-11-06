@@ -12,8 +12,13 @@ import { createFakeClock } from "./support/fake-timers";
 // Session 342 -- the BACKLOG item "What Session 341's review round found beside the Outline and preview cures", part (4): "Two handlers on the typing path are not debounced". `updateCellContext`
 // (`src/features/execution.ts`) ran `findCellAtPosition(text, line)` and `setContext 'quarto.inCodeCell'` on every selection event, active-editor event and document edit; the cell-background decorator
 // (`src/features/cell-background.ts`) ran `cellBackgroundRanges(text)` and `setDecorations` with every cell's range on every edit of a visible document. Both read the whole document's region scan, and a scan
-// of a text it has not seen costs 12.7 / 31.7 / 155 ms at 500 / 2,000 / 8,000 twenty-line cells (a warm call is under 0.1 ms: the two share one scan through the two-entry cache). VS Code fires a document event
-// and a selection event for every keystroke, so a person typing in a long document paid the scan on the extension host's event turn, three evaluations a keystroke and one scan.
+// of a text it has not seen costs 12.7 / 31.7 / 155 ms at 500 / 2,000 / 8,000 twenty-line cells (a warm call is a fraction of a millisecond, below: the two share one scan through the two-entry cache). VS Code fires a
+// document event and a selection event for every keystroke, so a person typing in a long document paid the scan on the extension host's event turn, three evaluations a keystroke and one scan.
+//
+// ⚠ WHAT THE CURE COVERS, AND WHAT THESE ROWS SHOW: BURSTS. The debounce coalesces events that arrive LESS THAN 150 ms apart (a held key, a paste, a replace-all, a snippet). Typing at a steady gap of 150 ms or more still
+// pays one cold scan per keystroke exactly as before, only delayed by the pause. The burst rows' keystrokes are 10 ms apart (`clock.advance(10)`), so "40 keystrokes in 2,000 cells, 1,052 ms to 39 ms" is a burst
+// figure; no row here has a gap of 150 ms or more between keystrokes. There is also no maximum wait: events arriving less than 150 ms apart postpone the evaluation until 150 ms after the last of them, and "navigation
+// stays fresh" is true of a cursor move with no edit since the last evaluation only (a move after an edit is debounced with it).
 //
 // This file holds the SEQUENCES (a fake clock drives the cell-context scheduler through edits, cursor moves, editor switches and pauses and counts what it evaluated) and the CLOCK rows (the real scans, a burst
 // of keystrokes, a limit in milliseconds). The debouncer's own rows are `typing-debounce.test.ts`; how the two adapters are wired is pinned in `s342-typing-wiring-pin.test.ts`; the old spelling is the oracle of
@@ -575,7 +580,9 @@ describe("Session 342 -- a burst of keystrokes through the typing path on a smal
 
 // THE CLOCK. Measured at the base (Session 342, one fresh process per size, the first call after an edit, `findCellAtPosition` plus `cellBackgroundRanges`, a different exact text per call, the document a four-line
 // header and then N twenty-line python cells): 9.8 / 38.3 / 124.8 ms at 500 / 2,000 / 8,000 cells (medians of 6, load 3.5; the session owner's figures 12.7 / 31.7 / 155 ms), a warm call 0.04 / 0.16 / 0.6 ms.
-// A burst of K keystrokes at the base costs K of those scans.
+// The review round re-measured the warm call for a text equal to the last one's but a distinct string (what `document.getText()` returns), the medians at load 5 to 6: 0.01 to 0.02 / 0.05 to 0.08 / 0.18 to 0.21 ms at
+// 500 / 2,000 / 8,000 cells, and about 0.1 ms at 8,000 for the very same string object. The two sets disagree by up to 3x at 8,000 cells (0.6 against 0.2 ms); both say a fraction of a millisecond, and "under 0.1 ms" holds
+// at 500 and 2,000 cells only. A burst of K keystrokes at the base costs K of those scans.
 //
 // Measured through these very rows (Session 342, one fresh process each, load 5; the unit is the first cold evaluation, so it includes the first call's compilation): AT THE SEAM (every event does its work at once) 1,052 to 1,054 ms
 // and a ratio of 20.7 to 20.8 on the 40 keystrokes in 2,000 cells, 1,541 to 1,550 ms and 30.9 to 31.3 on the 30 in 4,000, the key evaluated 2K times and the tint refreshed K; AT THE CURE 38 to 40 ms and 0.76 to 0.79,
