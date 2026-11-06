@@ -1,0 +1,794 @@
+[
+ {
+  "name": "N01 normalizeDelayMs: only a negative reads as zero",
+  "file": "src/core/typing-debounce.ts",
+  "from": "  if (!(ms > 0)) {\n    return 0;\n  }",
+  "to": "  if (ms < 0) {\n    return 0;\n  }",
+  "expect": "killed",
+  "why": "NaN passes through as NaN (and -0 as -0); killed by the NaN and minus-zero rows of normalizeDelayMs and by the debouncer rows that read the delay the timer is asked for"
+ },
+ {
+  "name": "N02 normalizeDelayMs: zero is kept, so minus zero is too",
+  "file": "src/core/typing-debounce.ts",
+  "from": "  if (!(ms > 0)) {",
+  "to": "  if (!(ms >= 0)) {",
+  "expect": "killed",
+  "why": "minus zero is returned as minus zero (Object.is), killed by the minus-zero rows (a timer is never handed a minus zero)"
+ },
+ {
+  "name": "N03 normalizeDelayMs: a non-positive delay reads as one millisecond",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    return 0;\n  }\n  return ms >",
+  "to": "    return 1;\n  }\n  return ms >",
+  "expect": "killed",
+  "why": "zero, negative and NaN delays ask the timer for 1 ms; killed by the zero-delay and negative-delay rows"
+ },
+ {
+  "name": "N04 normalizeDelayMs: the longest delay is capped from its own value",
+  "file": "src/core/typing-debounce.ts",
+  "from": "ms > MAX_TIMER_DELAY_MS ? MAX_TIMER_DELAY_MS : ms",
+  "to": "ms >= MAX_TIMER_DELAY_MS ? MAX_TIMER_DELAY_MS : ms",
+  "expect": "survives",
+  "why": "EQUIVALENT: at ms === MAX_TIMER_DELAY_MS both spellings answer MAX_TIMER_DELAY_MS (the cap and the value are the same number), and every other value falls on the same side of both comparisons"
+ },
+ {
+  "name": "N05 normalizeDelayMs: no cap",
+  "file": "src/core/typing-debounce.ts",
+  "from": "  return ms > MAX_TIMER_DELAY_MS ? MAX_TIMER_DELAY_MS : ms;",
+  "to": "  return ms;",
+  "expect": "killed",
+  "why": "a delay past what a host timer holds (Infinity, 2^31, a year) is handed through; killed by the cap rows"
+ },
+ {
+  "name": "N06 MAX_TIMER_DELAY_MS is 2^31",
+  "file": "src/core/typing-debounce.ts",
+  "from": "export const MAX_TIMER_DELAY_MS = 2 ** 31 - 1;",
+  "to": "export const MAX_TIMER_DELAY_MS = 2 ** 31;",
+  "expect": "killed",
+  "why": "the constant row, and the cap rows that read the value one past it"
+ },
+ {
+  "name": "N07 normalizeDelayMs: a fraction is floored",
+  "file": "src/core/typing-debounce.ts",
+  "from": "? MAX_TIMER_DELAY_MS : ms;",
+  "to": "? MAX_TIMER_DELAY_MS : Math.floor(ms);",
+  "expect": "killed",
+  "why": "1.5 becomes 1 and 0.25 becomes 0; killed by the fraction rows (the host's timer rounds, not this)"
+ },
+ {
+  "name": "N08 normalizeDelayMs: the cap sits at 2^40",
+  "file": "src/core/typing-debounce.ts",
+  "from": "ms > MAX_TIMER_DELAY_MS ? MAX_TIMER_DELAY_MS : ms",
+  "to": "ms > 2 ** 40 ? MAX_TIMER_DELAY_MS : ms",
+  "expect": "killed",
+  "why": "2^31 and a year pass through uncapped; killed by the 'one past it' and 'a year' rows"
+ },
+ {
+  "name": "N09 TYPING_DEBOUNCE_MS is 200",
+  "file": "src/core/typing-debounce.ts",
+  "from": "export const TYPING_DEBOUNCE_MS = 150;",
+  "to": "export const TYPING_DEBOUNCE_MS = 200;",
+  "expect": "killed",
+  "why": "the constant row, and the sizes row of the clock rows"
+ },
+ {
+  "name": "N10 realTimers.setTimeout ignores the delay",
+  "file": "src/core/typing-debounce.ts",
+  "from": "setTimeout: (run, ms) => setTimeout(run, ms),",
+  "to": "setTimeout: (run, ms) => setTimeout(run, 0),",
+  "expect": "killed",
+  "why": "the host-timer row that sets a late and an early timer and reads the order they run in"
+ },
+ {
+  "name": "N11 realTimers.clearTimeout does nothing",
+  "file": "src/core/typing-debounce.ts",
+  "from": "clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),",
+  "to": "clearTimeout: (handle) => void handle,",
+  "expect": "killed",
+  "why": "the host-timer row that clears a timer and reads that it did not run"
+ },
+ {
+  "name": "D01 createKeyedDebouncer: the delay is not normalized",
+  "file": "src/core/typing-debounce.ts",
+  "from": "  const delayMs = normalizeDelayMs(options.delayMs);",
+  "to": "  const delayMs = options.delayMs;",
+  "expect": "killed",
+  "why": "the timer is asked for NaN, a negative, minus zero, Infinity as given; killed by the delay rows of the debouncer"
+ },
+ {
+  "name": "D02 createKeyedDebouncer: no default error report",
+  "file": "src/core/typing-debounce.ts",
+  "from": "options.onError ?? reportError;",
+  "to": "options.onError ?? (() => undefined);",
+  "expect": "killed",
+  "why": "a throwing run is swallowed silently; killed by the 'without an onError' rows (console.error is spied on)"
+ },
+ {
+  "name": "D03 createKeyedDebouncer: schedule works after dispose",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    schedule(key, run) {\n      if (disposed) {\n        return;\n      }\n      cancel(key);",
+  "to": "    schedule(key, run) {\n      cancel(key);",
+  "expect": "killed",
+  "why": "a schedule after dispose sets a timer and runs; killed by the dispose rows (no run, no timer)"
+ },
+ {
+  "name": "D04 createKeyedDebouncer: a schedule does not drop the pending run",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      cancel(key);\n      pending.set(",
+  "to": "      pending.set(",
+  "expect": "killed",
+  "why": "every schedule of a burst runs; killed by every burst row"
+ },
+ {
+  "name": "D05 createKeyedDebouncer: a run leaves its entry in the table",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          pending.delete(key);\n          try {",
+  "to": "          try {",
+  "expect": "killed",
+  "why": "the table keeps the handle of a timer that has run, and the next schedule or cancel of the key clears it (a stale clear); killed by the rows that count stale clears"
+ },
+ {
+  "name": "D06 createKeyedDebouncer: a throwing run is not caught",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          try {\n            run();\n          } catch (error) {\n            onError(error);\n          }",
+  "to": "          run();",
+  "expect": "killed",
+  "why": "the error leaves the timer and, on the fake clock, stops the rest of the advance; killed by the throw-isolation rows"
+ },
+ {
+  "name": "D07 createKeyedDebouncer: a caught error is not reported",
+  "file": "src/core/typing-debounce.ts",
+  "from": "            onError(error);",
+  "to": "            void error;",
+  "expect": "killed",
+  "why": "the throw rows read what onError received"
+ },
+ {
+  "name": "D08 createKeyedDebouncer: cancel clears whether or not anything is pending",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    if (pending.has(key)) {\n      timers.clearTimeout(pending.get(key));\n      pending.delete(key);\n    }",
+  "to": "    timers.clearTimeout(pending.get(key));\n    pending.delete(key);",
+  "expect": "killed",
+  "why": "a cancel (and so a first schedule) of an absent key clears a handle that is not there; killed by the rows that count stale clears"
+ },
+ {
+  "name": "D09 createKeyedDebouncer: cancel keeps the entry",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      timers.clearTimeout(pending.get(key));\n      pending.delete(key);\n    }\n  };",
+  "to": "      timers.clearTimeout(pending.get(key));\n    }\n  };",
+  "expect": "killed",
+  "why": "a second cancel of the key clears the handle again (a stale clear); killed by the stale-clear row"
+ },
+ {
+  "name": "D10 createKeyedDebouncer: dispose does not mark the debouncer disposed",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      disposed = true;\n      for (const handle",
+  "to": "      for (const handle",
+  "expect": "killed",
+  "why": "later schedules after dispose set timers and run; killed by the dispose rows"
+ },
+ {
+  "name": "D11 createKeyedDebouncer: dispose leaves the timers set",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      for (const handle of pending.values()) {\n        timers.clearTimeout(handle);\n      }\n      pending.clear();",
+  "to": "      pending.clear();",
+  "expect": "killed",
+  "why": "the pending runs still fire after dispose; killed by the dispose rows"
+ },
+ {
+  "name": "D12 createKeyedDebouncer: dispose leaves the table full",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      pending.clear();\n    },\n  };\n}\n\n/** The active editor's document",
+  "to": "    },\n  };\n}\n\n/** The active editor's document",
+  "expect": "killed",
+  "why": "a cancel after dispose clears a handle that was already cleared (a stale clear); killed by the stale-clear row"
+ },
+ {
+  "name": "D13 createKeyedDebouncer: the timer is asked for no delay",
+  "file": "src/core/typing-debounce.ts",
+  "from": "        }, delayMs),",
+  "to": "        }, 0),",
+  "expect": "killed",
+  "why": "every run is due at the next turn; killed by the delay rows and every pause row"
+ },
+ {
+  "name": "D14 createKeyedDebouncer: one slot for every key",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      pending.set(\n        key,\n        timers.setTimeout(",
+  "to": "      pending.set(\n        \"key\",\n        timers.setTimeout(",
+  "expect": "killed",
+  "why": "the table holds only the latest handle, so a schedule of another key cannot drop the first key's timer, and a cancel cannot find it; killed by the independence and cancel rows"
+ },
+ {
+  "name": "D15 createKeyedDebouncer: a run empties the whole table",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          pending.delete(key);\n          try {",
+  "to": "          pending.clear();\n          try {",
+  "expect": "killed",
+  "why": "the other keys' handles are forgotten, so a dispose from inside a run leaves them set; killed by the dispose-from-inside row and the model differential"
+ },
+ {
+  "name": "D16 createKeyedDebouncer: the default report goes to console.warn",
+  "file": "src/core/typing-debounce.ts",
+  "from": "  console.error(\"Quarto: a debounced typing-path run failed\", error);",
+  "to": "  console.warn(\"Quarto: a debounced typing-path run failed\", error);",
+  "expect": "killed",
+  "why": "the 'without an onError' rows spy on console.error"
+ },
+ {
+  "name": "S01 createCellContextScheduler: the evaluated version is never recorded",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    evaluated = snapshot;\n  };",
+  "to": "    void snapshot;\n  };",
+  "expect": "killed",
+  "why": "no event is ever 'the same version', so a cursor move is debounced; killed by the cursor-move rows"
+ },
+ {
+  "name": "S02 createCellContextScheduler: the version is recorded before the evaluation",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    const snapshot = options.activeSnapshot();\n    options.evaluate();\n    evaluated = snapshot;",
+  "to": "    evaluated = options.activeSnapshot();\n    options.evaluate();",
+  "expect": "killed",
+  "why": "a failed evaluation is taken for done and the next event is not retried; killed by the throw rows"
+ },
+ {
+  "name": "S03 createCellContextScheduler: the version is read after the evaluation",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    const snapshot = options.activeSnapshot();\n    options.evaluate();\n    evaluated = snapshot;",
+  "to": "    options.evaluate();\n    evaluated = options.activeSnapshot();",
+  "expect": "killed",
+  "why": "an edit that lands during the evaluation is recorded as evaluated; killed by the 'version the evaluation saw' row"
+ },
+ {
+  "name": "S04 createCellContextScheduler: no editor is not a reason to evaluate at once",
+  "file": "src/core/typing-debounce.ts",
+  "from": "        now === undefined ||\n",
+  "to": "",
+  "expect": "killed",
+  "why": "reading .key of an undefined snapshot throws; killed by the no-active-editor rows"
+ },
+ {
+  "name": "S05 createCellContextScheduler: a first event compares with nothing",
+  "file": "src/core/typing-debounce.ts",
+  "from": "(evaluated !== undefined && evaluated.key === now.key && evaluated.version === now.version)",
+  "to": "(evaluated.key === now.key && evaluated.version === now.version)",
+  "expect": "killed",
+  "why": "reading .key of an undefined evaluation throws; killed by the 'before anything was evaluated' row"
+ },
+ {
+  "name": "S06 createCellContextScheduler: any document at the same version counts as evaluated",
+  "file": "src/core/typing-debounce.ts",
+  "from": "evaluated !== undefined && evaluated.key === now.key && evaluated.version === now.version",
+  "to": "evaluated !== undefined && evaluated.version === now.version",
+  "expect": "killed",
+  "why": "a switch the scheduler did not hear about is taken for evaluated; killed by the different-document row"
+ },
+ {
+  "name": "S07 createCellContextScheduler: a different version counts as evaluated",
+  "file": "src/core/typing-debounce.ts",
+  "from": "evaluated.key === now.key && evaluated.version === now.version",
+  "to": "evaluated.key === now.key && evaluated.version !== now.version",
+  "expect": "killed",
+  "why": "typing is evaluated at once and a cursor move is debounced; killed by the burst and cursor-move rows"
+ },
+ {
+  "name": "S08 createCellContextScheduler: a version not above the evaluated one counts as evaluated",
+  "file": "src/core/typing-debounce.ts",
+  "from": "evaluated.version === now.version",
+  "to": "evaluated.version <= now.version",
+  "expect": "killed",
+  "why": "a newer version (typing) is evaluated at once; killed by every burst row"
+ },
+ {
+  "name": "S09 createCellContextScheduler: a version not below the evaluated one counts as evaluated",
+  "file": "src/core/typing-debounce.ts",
+  "from": "evaluated.version === now.version",
+  "to": "evaluated.version >= now.version",
+  "expect": "killed",
+  "why": "a document replaced by an older text is taken for evaluated; killed by the 'version lower than the one last evaluated' row"
+ },
+ {
+  "name": "S10 createCellContextScheduler: an immediate evaluation leaves the pending run",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    debouncer.cancel(CELL_CONTEXT_KEY);\n    evaluate();",
+  "to": "    evaluate();",
+  "expect": "killed",
+  "why": "the cancelled run still runs after an editor switch; killed by the editor-switch row (the count after the pause)"
+ },
+ {
+  "name": "S11 createCellContextScheduler: evaluateNow works after dispose",
+  "file": "src/core/typing-debounce.ts",
+  "from": "  const evaluateNow = (): void => {\n    if (disposed) {\n      return;\n    }\n    debouncer.cancel",
+  "to": "  const evaluateNow = (): void => {\n    debouncer.cancel",
+  "expect": "killed",
+  "why": "an active-editor change after dispose evaluates; killed by the dispose row"
+ },
+ {
+  "name": "S12 createCellContextScheduler: changed reads the editor after dispose",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    changed() {\n      if (disposed) {\n        return;\n      }\n      const now",
+  "to": "    changed() {\n      const now",
+  "expect": "killed",
+  "why": "an event after dispose reads the active editor (the guard of evaluateNow and the disposed debouncer hide the rest); killed by the snapshot-reads counter"
+ },
+ {
+  "name": "S13 createCellContextScheduler: dispose does not mark the scheduler disposed",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      disposed = true;\n      debouncer.dispose();\n    },\n  };\n}",
+  "to": "      debouncer.dispose();\n    },\n  };\n}",
+  "expect": "killed",
+  "why": "an immediate event after dispose evaluates; killed by the dispose row"
+ },
+ {
+  "name": "S14 createCellContextScheduler: dispose leaves the pending run",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      disposed = true;\n      debouncer.dispose();\n    },\n  };\n}",
+  "to": "      disposed = true;\n    },\n  };\n}",
+  "expect": "killed",
+  "why": "the pending evaluation runs after dispose; killed by the dispose-inside-the-window row"
+ },
+ {
+  "name": "S15 createCellContextScheduler: the debounced run is the bare evaluator",
+  "file": "src/core/typing-debounce.ts",
+  "from": "debouncer.schedule(CELL_CONTEXT_KEY, evaluate);",
+  "to": "debouncer.schedule(CELL_CONTEXT_KEY, options.evaluate);",
+  "expect": "killed",
+  "why": "the debounced evaluation records no version, so the next cursor move is debounced; killed by the 'cursor move after the burst's evaluation' row"
+ },
+ {
+  "name": "S16 createCellContextScheduler: errors are not handed to onError",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    onError: options.onError,\n  });\n  // The document",
+  "to": "  });\n  // The document",
+  "expect": "killed",
+  "why": "a debounced evaluation that throws goes to console.error; killed by the onError rows"
+ },
+ {
+  "name": "S17 createCellContextScheduler: the debouncer runs on no delay",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    delayMs: options.delayMs,\n    onError: options.onError,",
+  "to": "    delayMs: 0,\n    onError: options.onError,",
+  "expect": "killed",
+  "why": "every pause row and the delay row"
+ },
+ {
+  "name": "S18 createCellContextScheduler: the debouncer runs on the host's timers",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    timers: options.timers,\n    delayMs: options.delayMs,\n    onError",
+  "to": "    timers: realTimers,\n    delayMs: options.delayMs,\n    onError",
+  "expect": "killed",
+  "why": "the fake clock never sees a timer; killed by the sequence rows"
+ },
+ {
+  "name": "S19 createCellContextScheduler: the choice is inverted",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      if (followsNoEdit) {\n        evaluateNow();",
+  "to": "      if (!followsNoEdit) {\n        evaluateNow();",
+  "expect": "killed",
+  "why": "typing is evaluated at once and a cursor move is debounced"
+ },
+ {
+  "name": "S20 createCellContextScheduler: an immediate event does not cancel the pending run",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      if (followsNoEdit) {\n        evaluateNow();\n      } else {",
+  "to": "      if (followsNoEdit) {\n        evaluate();\n      } else {",
+  "expect": "killed",
+  "why": "with no active editor an event evaluates but leaves the pending run; killed by the no-active-editor row"
+ },
+ {
+  "name": "S21 createCellContextScheduler: evaluateNow is the bare evaluator",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    evaluateNow,\n    dispose() {",
+  "to": "    evaluateNow: evaluate,\n    dispose() {",
+  "expect": "killed",
+  "why": "an active-editor change neither cancels the pending run nor honours dispose; killed by the editor-switch and dispose rows"
+ },
+ {
+  "name": "T01 timeBurst: the burst is read as 0 ms",
+  "file": "test/unit/s342-typing-path-rows.test.ts",
+  "from": "  run.ms = now() - started;",
+  "to": "  run.ms = 0;",
+  "expect": "killed",
+  "why": "the helper rows: the burst is exactly the fake work the schedulers made it do (Learning 910)"
+ },
+ {
+  "name": "T02 timeBurst: the unit is read as 0 ms",
+  "file": "test/unit/s342-typing-path-rows.test.ts",
+  "from": "  const unitMs = now() - unitStarted;",
+  "to": "  const unitMs = 0;",
+  "expect": "killed",
+  "why": "the helper rows and, through the infinite ratio, the burst rows"
+ },
+ {
+  "name": "T03 the burst limit is 4,000 ms",
+  "file": "test/unit/s342-typing-path-rows.test.ts",
+  "from": "const LIMIT_MS = 400;",
+  "to": "const LIMIT_MS = 4000;",
+  "expect": "killed",
+  "why": "the sizes row pins 400"
+ },
+ {
+  "name": "T04 the ratio limit is 50",
+  "file": "test/unit/s342-typing-path-rows.test.ts",
+  "from": "const RATIO = 5;",
+  "to": "const RATIO = 50;",
+  "expect": "killed",
+  "why": "the sizes row pins 5"
+ },
+ {
+  "name": "T05 the burst has no pause after the last keystroke",
+  "file": "test/unit/s342-typing-path-rows.test.ts",
+  "from": "  clock.advance(TYPING_DEBOUNCE_MS); // the pause",
+  "to": "  clock.advance(0); // the pause",
+  "expect": "killed",
+  "why": "nothing is evaluated and nothing refreshed: killed by the counts of every burst row"
+ },
+ {
+  "name": "T06 the keystrokes are 1,000 ms apart",
+  "file": "test/unit/s342-typing-path-rows.test.ts",
+  "from": "    clock.advance(10);\n  }",
+  "to": "    clock.advance(1_000);\n  }",
+  "expect": "killed",
+  "why": "every keystroke is its own burst: killed by the counts"
+ },
+ {
+  "name": "T07 the burst counts two events a keystroke",
+  "file": "test/unit/s342-typing-path-rows.test.ts",
+  "from": "    run.events += 3;",
+  "to": "    run.events += 2;",
+  "expect": "killed",
+  "why": "the events counts"
+ },
+ {
+  "name": "T08 the burst forgets the tint's document event",
+  "file": "test/unit/s342-typing-path-rows.test.ts",
+  "from": "    tintScheduler.schedule(DOC_A, refreshTint); // the document event, for the tint\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the tint is never refreshed: killed by the refresh counts"
+ },
+ {
+  "name": "F01 the fake clock does not run a timer due exactly at the end of the window",
+  "file": "test/unit/support/fake-timers.ts",
+  "from": "timer.due <= target &&",
+  "to": "timer.due < target &&",
+  "expect": "killed",
+  "why": "the fake clock's own boundary row"
+ },
+ {
+  "name": "F02 the fake clock breaks ties by the latest creation",
+  "file": "test/unit/support/fake-timers.ts",
+  "from": "timer.id < next.id",
+  "to": "timer.id > next.id",
+  "expect": "killed",
+  "why": "the fake clock's order row and the key-order rows"
+ },
+ {
+  "name": "F03 the fake clock does not move to the end of the window",
+  "file": "test/unit/support/fake-timers.ts",
+  "from": "      now = target;\n    },\n  };",
+  "to": "    },\n  };",
+  "expect": "killed",
+  "why": "the fake clock's now() row"
+ },
+ {
+  "name": "F04 the fake clock forgets the delays it was asked for",
+  "file": "test/unit/support/fake-timers.ts",
+  "from": "      delays.push(ms);\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the delay rows"
+ },
+ {
+  "name": "F05 the fake clock does not count a stale clear",
+  "file": "test/unit/support/fake-timers.ts",
+  "from": "      if (!timers.delete(handle as number)) {\n        staleClears++;\n      }",
+  "to": "      timers.delete(handle as number);",
+  "expect": "killed",
+  "why": "the fake clock's stale-clear row"
+ },
+ {
+  "name": "X01: the selection handler evaluates at once",
+  "file": "src/features/execution.ts",
+  "from": "      if (e.textEditor === vscode.window.activeTextEditor) {\n        cellContext.changed();\n      }",
+  "to": "      if (e.textEditor === vscode.window.activeTextEditor) {\n        updateCellContext();\n      }",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the selection handler calls')"
+ },
+ {
+  "name": "X02: the selection handler is not guarded to the active editor",
+  "file": "src/features/execution.ts",
+  "from": "      if (e.textEditor === vscode.window.activeTextEditor) {\n        cellContext.changed();\n      }",
+  "to": "      if (e.textEditor) {\n        cellContext.changed();\n      }",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not guard on `e.textEditor')"
+ },
+ {
+  "name": "X03: the selection handler asks the scheduler to evaluate now (no debounce for typing)",
+  "file": "src/features/execution.ts",
+  "from": "      if (e.textEditor === vscode.window.activeTextEditor) {\n        cellContext.changed();\n      }",
+  "to": "      if (e.textEditor === vscode.window.activeTextEditor) {\n        cellContext.evaluateNow();\n      }",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the selection handler calls')"
+ },
+ {
+  "name": "X04: the active-editor handler only notes a change (the pending run is not dropped, the switch is not fresh)",
+  "file": "src/features/execution.ts",
+  "from": "onDidChangeActiveTextEditor(() => cellContext.evaluateNow())",
+  "to": "onDidChangeActiveTextEditor(() => cellContext.changed())",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the active-editor handler calls')"
+ },
+ {
+  "name": "X05: the document handler evaluates at once",
+  "file": "src/features/execution.ts",
+  "from": "      if (active && e.document === active.document) {\n        cellContext.changed();\n      }",
+  "to": "      if (active && e.document === active.document) {\n        updateCellContext();\n      }",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the document handler calls')"
+ },
+ {
+  "name": "X06: the document handler also scans",
+  "file": "src/features/execution.ts",
+  "from": "      if (active && e.document === active.document) {\n        cellContext.changed();\n      }",
+  "to": "      if (active && e.document === active.document) {\n        cellContext.changed();\n        findCellAtPosition(e.document.getText(), 0);\n      }",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the document handler calls')"
+ },
+ {
+  "name": "X07: the document handler is not guarded to the active document",
+  "file": "src/features/execution.ts",
+  "from": "      if (active && e.document === active.document) {\n        cellContext.changed();\n      }",
+  "to": "      if (active) {\n        cellContext.changed();\n      }",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not guard on `active && e.document')"
+ },
+ {
+  "name": "X08: the activation-time call is dropped",
+  "file": "src/features/execution.ts",
+  "from": "  cellContext.evaluateNow();\n}",
+  "to": "}",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the last statement of registerExecutionFeature')"
+ },
+ {
+  "name": "X09: the activation-time call only notes a change",
+  "file": "src/features/execution.ts",
+  "from": "  cellContext.evaluateNow();\n}",
+  "to": "  cellContext.changed();\n}",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the last statement of registerExecutionFeature')"
+ },
+ {
+  "name": "X10: the scheduler is not disposed with the extension",
+  "file": "src/features/execution.ts",
+  "from": "  context.subscriptions.push(\n    cellContext,\n",
+  "to": "  context.subscriptions.push(\n",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'cellContext is not among the subscriptions')"
+ },
+ {
+  "name": "X11: the scheduler runs on a literal delay",
+  "file": "src/features/execution.ts",
+  "from": "    delayMs: TYPING_DEBOUNCE_MS,\n    activeSnapshot",
+  "to": "    delayMs: 0,\n    activeSnapshot",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'delayMs is not TYPING_DEBOUNCE_MS')"
+ },
+ {
+  "name": "X12: the scheduler is evaluated through the wrong function",
+  "file": "src/features/execution.ts",
+  "from": "    evaluate: updateCellContext,\n",
+  "to": "    evaluate: () => undefined,\n",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'evaluate is not updateCellContext')"
+ },
+ {
+  "name": "X13: the snapshot's version is the document's line count",
+  "file": "src/features/execution.ts",
+  "from": "{ key: document.uri.toString(), version: document.version }",
+  "to": "{ key: document.uri.toString(), version: document.lineCount }",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'version is not document.version')"
+ },
+ {
+  "name": "X14: the snapshot's key is a constant",
+  "file": "src/features/execution.ts",
+  "from": "{ key: document.uri.toString(), version: document.version }",
+  "to": "{ key: \"active\", version: document.version }",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'key is not document.uri.toString()')"
+ },
+ {
+  "name": "X15: the evaluator reads the editor it is told, not the active one",
+  "file": "src/features/execution.ts",
+  "from": "function updateCellContext(): void {\n  const editor = vscode.window.activeTextEditor;",
+  "to": "function updateCellContext(editor: vscode.TextEditor | undefined = vscode.window.activeTextEditor): void {",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'takes a parameter')"
+ },
+ {
+  "name": "X16: the scheduler is made inside a function the register function calls (a new one wherever that function is called again)",
+  "file": "src/features/execution.ts",
+  "from": "  const cellContext = createCellContextScheduler({\n    timers: realTimers,\n    delayMs: TYPING_DEBOUNCE_MS,\n    activeSnapshot: activeDocumentSnapshot,\n    evaluate: updateCellContext,\n  });",
+  "to": "  const cellContext = (() =>\n    createCellContextScheduler({\n      timers: realTimers,\n      delayMs: TYPING_DEBOUNCE_MS,\n      activeSnapshot: activeDocumentSnapshot,\n      evaluate: updateCellContext,\n    }))();",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'not called directly')"
+ },
+ {
+  "name": "X17: a second scheduler",
+  "file": "src/features/execution.ts",
+  "from": "  cellContext.evaluateNow();\n}",
+  "to": "  createCellContextScheduler({ timers: realTimers, delayMs: 0, activeSnapshot: activeDocumentSnapshot, evaluate: updateCellContext });\n  cellContext.evaluateNow();\n}",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name '2 calls of createCellContextScheduler')"
+ },
+ {
+  "name": "X18: the scheduler's timers are not the host's",
+  "file": "src/features/execution.ts",
+  "from": "    timers: realTimers,\n    delayMs: TYPING_DEBOUNCE_MS,\n    activeSnapshot",
+  "to": "    timers: { setTimeout: () => 0, clearTimeout: () => undefined },\n    delayMs: TYPING_DEBOUNCE_MS,\n    activeSnapshot",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'timers are not realTimers')"
+ },
+ {
+  "name": "X19: updateCellContext called directly from the register function",
+  "file": "src/features/execution.ts",
+  "from": "  cellContext.evaluateNow();\n}",
+  "to": "  cellContext.evaluateNow();\n  updateCellContext();\n}",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the last statement of registerExecutionFeature')"
+ },
+ {
+  "name": "X20: the evaluator does not read the active editor",
+  "file": "src/features/execution.ts",
+  "from": "  const editor = vscode.window.activeTextEditor;\n  const inCell =",
+  "to": "  const editor = vscode.window.visibleTextEditors[0];\n  const inCell =",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not read `const editor = vscode.window.activeTextEditor`')"
+ },
+ {
+  "name": "B01: the document handler refreshes at once",
+  "file": "src/features/cell-background.ts",
+  "from": "        typing.schedule(event.document.uri.toString(), () => decorator.refresh());",
+  "to": "        decorator.refresh();",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name '0 calls of typing.schedule')"
+ },
+ {
+  "name": "B02: the document handler refreshes at once as well as scheduling",
+  "file": "src/features/cell-background.ts",
+  "from": "        typing.schedule(event.document.uri.toString(), () => decorator.refresh());",
+  "to": "        decorator.refresh();\n        typing.schedule(event.document.uri.toString(), () => decorator.refresh());",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'at once, outside the run')"
+ },
+ {
+  "name": "B03: the debounce is keyed by one constant (documents postpone each other)",
+  "file": "src/features/cell-background.ts",
+  "from": "typing.schedule(event.document.uri.toString(),",
+  "to": "typing.schedule(\"cells\",",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the document handler's key is not event.document.uri.toString()')"
+ },
+ {
+  "name": "B04: the debounce is keyed by the language, not the document",
+  "file": "src/features/cell-background.ts",
+  "from": "typing.schedule(event.document.uri.toString(),",
+  "to": "typing.schedule(event.document.languageId,",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the document handler's key')"
+ },
+ {
+  "name": "B05: the scheduled run scans instead of refreshing",
+  "file": "src/features/cell-background.ts",
+  "from": "() => decorator.refresh());",
+  "to": "() => cellBackgroundRangesFor(event.document));",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the document handler's run is not exactly')"
+ },
+ {
+  "name": "B06: the document handler is not guarded to visible documents",
+  "file": "src/features/cell-background.ts",
+  "from": "      if (isVisible(event.document)) {\n        typing.schedule",
+  "to": "      if (event.document) {\n        typing.schedule",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not guard on `isVisible(event.document)`')"
+ },
+ {
+  "name": "B07: the active-editor handler is debounced",
+  "file": "src/features/cell-background.ts",
+  "from": "onDidChangeActiveTextEditor(() => decorator.refresh())",
+  "to": "onDidChangeActiveTextEditor(() => typing.schedule(\"active\", () => decorator.refresh()))",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'onDidChangeActiveTextEditor handler is not exactly')"
+ },
+ {
+  "name": "B08: the visible-editors handler is debounced",
+  "file": "src/features/cell-background.ts",
+  "from": "onDidChangeVisibleTextEditors(() => decorator.refresh())",
+  "to": "onDidChangeVisibleTextEditors(() => typing.schedule(\"visible\", () => decorator.refresh()))",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'onDidChangeVisibleTextEditors handler is not exactly')"
+ },
+ {
+  "name": "B09: the settings reload is debounced",
+  "file": "src/features/cell-background.ts",
+  "from": "        decorator.reload();\n      }\n    }),\n  );",
+  "to": "        typing.schedule(\"reload\", () => decorator.reload());\n      }\n    }),\n  );",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the configuration handler calls')"
+ },
+ {
+  "name": "B10: the activation-time refresh is dropped",
+  "file": "src/features/cell-background.ts",
+  "from": "  activeDecorator = decorator;\n  decorator.refresh();\n",
+  "to": "  activeDecorator = decorator;\n",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'statements `decorator.refresh();`')"
+ },
+ {
+  "name": "B11: the debouncer is not disposed with the extension",
+  "file": "src/features/cell-background.ts",
+  "from": "    decorator,\n    typing,\n",
+  "to": "    decorator,\n",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'typing is not among the subscriptions')"
+ },
+ {
+  "name": "B12: the close handler is dropped",
+  "file": "src/features/cell-background.ts",
+  "from": "    vscode.workspace.onDidCloseTextDocument((document) =>\n      typing.cancel(document.uri.toString()),\n    ),\n",
+  "to": "",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'onDidCloseTextDocument is not given an arrow function')"
+ },
+ {
+  "name": "B13: the close handler cancels the wrong key",
+  "file": "src/features/cell-background.ts",
+  "from": "typing.cancel(document.uri.toString())",
+  "to": "typing.cancel(document.languageId)",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the close handler is not exactly')"
+ },
+ {
+  "name": "B14: the debouncer runs on a literal delay",
+  "file": "src/features/cell-background.ts",
+  "from": "    delayMs: TYPING_DEBOUNCE_MS,\n  });\n  context",
+  "to": "    delayMs: 0,\n  });\n  context",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'delayMs is not TYPING_DEBOUNCE_MS')"
+ },
+ {
+  "name": "B15: the debouncer is made inside the document handler (it keeps no state between events)",
+  "file": "src/features/cell-background.ts",
+  "from": "      if (isVisible(event.document)) {\n        typing.schedule(",
+  "to": "      if (isVisible(event.document)) {\n        const typing = createKeyedDebouncer({ timers: realTimers, delayMs: TYPING_DEBOUNCE_MS });\n        typing.schedule(",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name '2 calls of createKeyedDebouncer')"
+ },
+ {
+  "name": "B16: the test hook goes through the debouncer",
+  "file": "src/features/cell-background.ts",
+  "from": "  return activeDecorator.refresh();",
+  "to": "  return new Map();",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not return `activeDecorator.refresh()`')"
+ },
+ {
+  "name": "B17: reload no longer re-applies",
+  "file": "src/features/cell-background.ts",
+  "from": "    this.decorationType = createDecorationType(readCellBackgroundSettings());\n    this.refresh();",
+  "to": "    this.decorationType = createDecorationType(readCellBackgroundSettings());",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'reload does not call this.refresh()')"
+ },
+ {
+  "name": "B18: the debouncer's timers are not the host's",
+  "file": "src/features/cell-background.ts",
+  "from": "    timers: realTimers,\n    delayMs: TYPING_DEBOUNCE_MS,\n  });\n  context",
+  "to": "    timers: { setTimeout: () => 0, clearTimeout: () => undefined },\n    delayMs: TYPING_DEBOUNCE_MS,\n  });\n  context",
+  "expect": "killed",
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'timers are not realTimers')"
+ }
+]
