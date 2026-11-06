@@ -1,0 +1,402 @@
+[
+ {
+  "name": "P01 any other trigger refreshes nothing",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "  if (edited === undefined) {\n    return [...editors];",
+  "to": "  if (edited === undefined) {\n    return [];",
+  "expect": "killed",
+  "why": "an active-editor change, a settings change and the activation tint nothing: killed by the refreshAll rows and the plan table; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "P02 the other-trigger test is inverted",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "  if (edited === undefined) {\n    return [...editors];",
+  "to": "  if (edited !== undefined) {\n    return [...editors];",
+  "expect": "killed",
+  "why": "an edit refreshes every editor and every other trigger refreshes the editors of `undefined`'s key; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "P03 a document that is not quarto is refreshed whatever it holds",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "  if (edited.languageId !== \"quarto\" && !tinted.has(edited.key)) {",
+  "to": "  if (false) {",
+  "expect": "killed",
+  "why": "an edit in a python document applies to its own editor: the old cost, one editor smaller; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "P04 the guard is an OR (a quarto document that holds no tint is not refreshed)",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "  if (edited.languageId !== \"quarto\" && !tinted.has(edited.key)) {",
+  "to": "  if (edited.languageId !== \"quarto\" || !tinted.has(edited.key)) {",
+  "expect": "killed",
+  "why": "the first cell typed into a document with none is never tinted; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "P05 the tinted test is inverted",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "  if (edited.languageId !== \"quarto\" && !tinted.has(edited.key)) {",
+  "to": "  if (edited.languageId !== \"quarto\" && tinted.has(edited.key)) {",
+  "expect": "killed",
+  "why": "a document that holds a tint is not cleared, and one that holds none is refreshed; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "P06 a tint is never looked for (a document that is not quarto is never refreshed)",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "  if (edited.languageId !== \"quarto\" && !tinted.has(edited.key)) {",
+  "to": "  if (edited.languageId !== \"quarto\") {",
+  "expect": "killed",
+  "why": "a document that was quarto and was tinted keeps its tint after it changes language: killed by the cleared-after-language-change rows; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "P07 the language id is compared without its case",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "edited.languageId !== \"quarto\" &&",
+  "to": "edited.languageId.toLowerCase() !== \"quarto\" &&",
+  "expect": "killed",
+  "why": "a language id 'Quarto' is a quarto document: killed by the plan table's case row; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "P08 the key test is inverted",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "return editors.filter((editor) => editor.key === edited.key);",
+  "to": "return editors.filter((editor) => editor.key !== edited.key);",
+  "expect": "killed",
+  "why": "every other document's editors are refreshed; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "P09 an editor matches when its key STARTS with the edited key",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "return editors.filter((editor) => editor.key === edited.key);",
+  "to": "return editors.filter((editor) => editor.key.startsWith(edited.key));",
+  "expect": "killed",
+  "why": "an edit of file:///a refreshes file:///a.qmd: killed by the plan table's prefix row; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "P10 an editor matches when the edited key starts with its key",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "return editors.filter((editor) => editor.key === edited.key);",
+  "to": "return editors.filter((editor) => edited.key.startsWith(editor.key));",
+  "expect": "killed",
+  "why": "an edit of file:///a.qmd2 refreshes file:///a.qmd; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "P11 the keys are compared without their case",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "return editors.filter((editor) => editor.key === edited.key);",
+  "to": "return editors.filter((editor) => editor.key.toLowerCase() === edited.key.toLowerCase());",
+  "expect": "killed",
+  "why": "an edit of file:///A.qmd refreshes file:///a.qmd; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "P12 only the first editor of the document is refreshed",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "return editors.filter((editor) => editor.key === edited.key);",
+  "to": "return editors.filter((editor) => editor.key === edited.key).slice(0, 1);",
+  "expect": "killed",
+  "why": "the second editor of a split document keeps a stale tint; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "P13 the editors come back in reverse order",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "return editors.filter((editor) => editor.key === edited.key);",
+  "to": "return editors.filter((editor) => editor.key === edited.key).reverse();",
+  "expect": "killed",
+  "why": "the applies are made in the wrong order; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "P14 the editors of any other trigger come back in reverse order",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "    return [...editors];",
+  "to": "    return [...editors].reverse();",
+  "expect": "killed",
+  "why": "the applies of a full refresh are made in the wrong order; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "P15 an edit's key is its language id",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "return editors.filter((editor) => editor.key === edited.key);",
+  "to": "return editors.filter((editor) => editor.key === edited.languageId);",
+  "expect": "killed",
+  "why": "no editor is found; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "R01 the tinted record is never written",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "      if (ranges.length > 0) {\n        tinted.add(entry.key);\n      } else {\n        tinted.delete(entry.key);\n      }\n",
+  "to": "",
+  "expect": "killed",
+  "why": "a document that was quarto and was tinted is never cleared; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "R02 every apply is recorded as a tint",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "      if (ranges.length > 0) {",
+  "to": "      if (ranges.length >= 0) {",
+  "expect": "killed",
+  "why": "a quarto document whose cells were all deleted still counts as tinted: killed by the last-apply row; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "R03 a tint is never forgotten",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "      } else {\n        tinted.delete(entry.key);\n      }\n",
+  "to": "      }\n",
+  "expect": "killed",
+  "why": "a document cleared by an apply of no ranges still counts as tinted; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "R04 a tint is never recorded",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "        tinted.add(entry.key);\n      } else {",
+  "to": "        void 0;\n      } else {",
+  "expect": "killed",
+  "why": "a document that was quarto and was tinted is never cleared; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "R05 a full refresh does not forget the editors no longer shown",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "    if (edited === undefined) {\n      // A full refresh has seen every editor there is: a key with none shown holds no tint any more.\n      const keys = new Set(shown.map((entry) => entry.key));\n      for (const key of [...tinted]) {\n        if (!keys.has(key)) {\n          tinted.delete(key);\n        }\n      }\n    }\n",
+  "to": "",
+  "expect": "killed",
+  "why": "a document reopened under the key of a tinted one, in another language, is refreshed on account of the old tint; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "R06 only an edit's refresh forgets the editors no longer shown",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "    if (edited === undefined) {\n      // A full",
+  "to": "    if (edited !== undefined) {\n      // A full",
+  "expect": "killed",
+  "why": "a full refresh keeps the keys of editors that left; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "R07 the forgetting looks at the languages, not the keys",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "const keys = new Set(shown.map((entry) => entry.key));",
+  "to": "const keys = new Set(shown.map((entry) => entry.languageId));",
+  "expect": "killed",
+  "why": "every full refresh forgets every tint; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "R08 the forgetting keeps the keys that are NOT shown",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "        if (!keys.has(key)) {\n          tinted.delete(key);",
+  "to": "        if (keys.has(key)) {\n          tinted.delete(key);",
+  "expect": "killed",
+  "why": "every key that is shown is forgotten; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "R09 the visible editors are read a second time for the forgetting",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "const keys = new Set(shown.map((entry) => entry.key));",
+  "to": "const keys = new Set(options.visible().map((entry) => entry.key));",
+  "expect": "killed",
+  "why": "the editors are read twice by a full refresh; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "R10 the forgetting also runs after an edit's refresh (every key of an editor not shown is forgotten there too)",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "    if (edited === undefined) {\n      // A full",
+  "to": "    if (true) {\n      // A full",
+  "expect": "survives",
+  "why": "argued: an edit's refresh sees the same editors, so it forgets only the keys that no editor shows, which no row can tell from a later full refresh's work"
+ },
+ {
+  "name": "R11 the ranges returned for an editor are empty",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "      applied.set(entry.key, ranges);",
+  "to": "      applied.set(entry.key, []);",
+  "expect": "killed",
+  "why": "refreshAll and refreshAfterEdit return nothing applied; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "R12 the ranges are built twice",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "      const ranges = options.rangesFor(entry.editor);",
+  "to": "      options.rangesFor(entry.editor);\n      const ranges = options.rangesFor(entry.editor);",
+  "expect": "killed",
+  "why": "the build count of every row; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "R13 the ranges are applied twice",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "      options.apply(entry.editor, ranges);",
+  "to": "      options.apply(entry.editor, ranges);\n      options.apply(entry.editor, ranges);",
+  "expect": "killed",
+  "why": "the apply count of every row; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "R14 an edit's refresh is a full refresh",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "    refreshAfterEdit: (edited) => run(edited),",
+  "to": "    refreshAfterEdit: () => run(undefined),",
+  "expect": "killed",
+  "why": "every edit refreshes every editor; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "R15 a full refresh is an edit of a quarto document with no key",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "    refreshAll: () => run(undefined),",
+  "to": "    refreshAll: () => run({ key: \"\", languageId: \"quarto\" }),",
+  "expect": "killed",
+  "why": "a full refresh refreshes nothing; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "R16 the record is made again on every refresh",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "  const tinted = new Set<string>();\n  const run = (edited: EditedDocument | undefined): Map<string, R[]> => {\n",
+  "to": "  const run = (edited: EditedDocument | undefined): Map<string, R[]> => {\n    const tinted = new Set<string>();\n",
+  "expect": "killed",
+  "why": "nothing is remembered between refreshes; killed by cell-background-refresh.test.ts"
+ },
+ {
+  "name": "RF01: the refresher is made on every read of a getter (it keeps no record of what is tinted)",
+  "file": "src/features/cell-background.ts",
+  "from": "  private readonly refresher = createCellBackgroundRefresher({\n    visible: () => vscode.window.visibleTextEditors.map((editor) => ({ key: editor.document.uri.toString(), languageId: editor.document.languageId, editor })),\n    rangesFor: (editor) => cellBackgroundRangesFor(editor.document),\n    apply: (editor, ranges) => editor.setDecorations(this.decorationType, ranges),\n  });",
+  "to": "  private get refresher() {\n    return createCellBackgroundRefresher({\n      visible: () => vscode.window.visibleTextEditors.map((editor) => ({ key: editor.document.uri.toString(), languageId: editor.document.languageId, editor })),\n      rangesFor: (editor) => cellBackgroundRangesFor(editor.document),\n      apply: (editor, ranges) => editor.setDecorations(this.decorationType, ranges),\n    });\n  }",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'is not the initializer of the property `refresher`')"
+ },
+ {
+  "name": "RF02: the ranges are never built",
+  "file": "src/features/cell-background.ts",
+  "from": "    rangesFor: (editor) => cellBackgroundRangesFor(editor.document),",
+  "to": "    rangesFor: () => [],",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the refresher's rangesFor is not')"
+ },
+ {
+  "name": "RF03: the tint is applied with a decoration type captured when the refresher is made (reload makes a new one)",
+  "file": "src/features/cell-background.ts",
+  "from": "    apply: (editor, ranges) => editor.setDecorations(this.decorationType, ranges),",
+  "to": "    apply: (editor, ranges) => editor.setDecorations(vscode.window.createTextEditorDecorationType({}), ranges),",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the refresher's apply is not')"
+ },
+ {
+  "name": "RF04: the tint is applied with no ranges",
+  "file": "src/features/cell-background.ts",
+  "from": "editor.setDecorations(this.decorationType, ranges)",
+  "to": "editor.setDecorations(this.decorationType, [])",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the refresher's apply is not')"
+ },
+ {
+  "name": "RF05: an editor's key is its file name (an untitled or virtual document has none that is its URI)",
+  "file": "src/features/cell-background.ts",
+  "from": "key: editor.document.uri.toString(), languageId: editor.document.languageId, editor })),",
+  "to": "key: editor.document.fileName, languageId: editor.document.languageId, editor })),",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the refresher's visible is not')"
+ },
+ {
+  "name": "RF06: every editor's language id is quarto",
+  "file": "src/features/cell-background.ts",
+  "from": "languageId: editor.document.languageId, editor })),",
+  "to": "languageId: \"quarto\", editor })),",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the refresher's visible is not')"
+ },
+ {
+  "name": "RF07: only the first visible editor is offered",
+  "file": "src/features/cell-background.ts",
+  "from": "vscode.window.visibleTextEditors.map(",
+  "to": "vscode.window.visibleTextEditors.slice(0, 1).map(",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the refresher's visible is not')"
+ },
+ {
+  "name": "RF08: refresh() answers nothing",
+  "file": "src/features/cell-background.ts",
+  "from": "    return this.refresher.refreshAll();",
+  "to": "    return new Map();",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'CellBackgroundDecorator.refresh is not exactly')"
+ },
+ {
+  "name": "RF09: refresh() is the plan of an edit (an active-editor change would refresh one document)",
+  "file": "src/features/cell-background.ts",
+  "from": "    return this.refresher.refreshAll();",
+  "to": "    return this.refresher.refreshAfterEdit({ key: \"\", languageId: \"quarto\" });",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'CellBackgroundDecorator.refresh is not exactly')"
+ },
+ {
+  "name": "RF10: an edit is told the document is a quarto one whatever it is",
+  "file": "src/features/cell-background.ts",
+  "from": "this.refresher.refreshAfterEdit({ key: document.uri.toString(), languageId: document.languageId })",
+  "to": "this.refresher.refreshAfterEdit({ key: document.uri.toString(), languageId: \"quarto\" })",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'CellBackgroundDecorator.refreshAfterEdit is not exactly')"
+ },
+ {
+  "name": "RF11: an edit refreshes every editor again",
+  "file": "src/features/cell-background.ts",
+  "from": "    return this.refresher.refreshAfterEdit({ key: document.uri.toString(), languageId: document.languageId });",
+  "to": "    return this.refresher.refreshAll();",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'CellBackgroundDecorator.refreshAfterEdit is not exactly')"
+ },
+ {
+  "name": "RF12: an edit is told another document's key",
+  "file": "src/features/cell-background.ts",
+  "from": "refreshAfterEdit({ key: document.uri.toString(), languageId: document.languageId })",
+  "to": "refreshAfterEdit({ key: document.fileName, languageId: document.languageId })",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'CellBackgroundDecorator.refreshAfterEdit is not exactly')"
+ },
+ {
+  "name": "RF13: refresh() sets decorations itself as well",
+  "file": "src/features/cell-background.ts",
+  "from": "  refresh(): Map<string, vscode.Range[]> {\n    return this.refresher.refreshAll();",
+  "to": "  refresh(): Map<string, vscode.Range[]> {\n    for (const editor of vscode.window.visibleTextEditors) {\n      editor.setDecorations(this.decorationType, []);\n    }\n    return this.refresher.refreshAll();",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'calls of editor.setDecorations in the file, not one')"
+ },
+ {
+  "name": "RF14: an edit builds the document's ranges itself as well",
+  "file": "src/features/cell-background.ts",
+  "from": "    return this.refresher.refreshAfterEdit({ key: document.uri.toString(), languageId: document.languageId });",
+  "to": "    void cellBackgroundRangesFor(document);\n    return this.refresher.refreshAfterEdit({ key: document.uri.toString(), languageId: document.languageId });",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'CellBackgroundDecorator.refreshAfterEdit is not exactly')"
+ },
+ {
+  "name": "RF15: the import of the refresher is dropped",
+  "file": "src/features/cell-background.ts",
+  "from": "import { createCellBackgroundRefresher } from \"../core/cell-background-refresh\";\n",
+  "to": "",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not import ../core/cell-background-refresh')"
+ },
+ {
+  "name": "RF16: refreshAfterEdit takes a second parameter",
+  "file": "src/features/cell-background.ts",
+  "from": "  refreshAfterEdit(document: vscode.TextDocument): Map<string, vscode.Range[]> {",
+  "to": "  refreshAfterEdit(document: vscode.TextDocument, extra?: number): Map<string, vscode.Range[]> {",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not take exactly the parameter `document`')"
+ },
+ {
+  "name": "RF17: a second refresher is made at registration",
+  "file": "src/features/cell-background.ts",
+  "from": "  const decorator = new CellBackgroundDecorator();\n",
+  "to": "  const decorator = new CellBackgroundDecorator();\n  void createCellBackgroundRefresher({ visible: () => [], rangesFor: () => [], apply: () => undefined });\n",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name '2 calls of createCellBackgroundRefresher')"
+ },
+ {
+  "name": "RF18: the refresher gets a fourth option",
+  "file": "src/features/cell-background.ts",
+  "from": "    apply: (editor, ranges) => editor.setDecorations(this.decorationType, ranges),\n  });",
+  "to": "    apply: (editor, ranges) => editor.setDecorations(this.decorationType, ranges),\n    extra: 1,\n  } as never);",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the refresher is made with the options')"
+ },
+ {
+  "name": "RF19: the ranges are built a second time in the file",
+  "file": "src/features/cell-background.ts",
+  "from": "  refresh(): Map<string, vscode.Range[]> {",
+  "to": "  private unused(editor: vscode.TextEditor): vscode.Range[] {\n    return cellBackgroundRangesFor(editor.document);\n  }\n\n  refresh(): Map<string, vscode.Range[]> {",
+  "expect": "killed",
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name '2 calls of cellBackgroundRangesFor in the file')"
+ }
+]

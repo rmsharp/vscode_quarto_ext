@@ -229,6 +229,7 @@ describe("Session 343 -- the plan: which editors, in their order", () => {
     ["an edit of a markdown document tinted by another key: nothing", { key: "file:///c.md", languageId: "markdown" }, ["file:///a.qmd"], []],
     ["an edit of a document that is not shown: nothing", { key: "file:///nowhere.qmd", languageId: "quarto" }, [], []],
     ["an edit of a quarto document whose key only starts like a shown one: nothing", { key: "file:///a.qmd2", languageId: "quarto" }, [], []],
+    ["an edit of a quarto document whose key is only the start of a shown one: nothing", { key: "file:///a", languageId: "quarto" }, [], []],
     ["an edit of a quarto document whose key differs by case: nothing", { key: "file:///A.qmd", languageId: "quarto" }, [], []],
     ["an edit of a document in the tinted set that is not shown: nothing", { key: "file:///gone.py", languageId: "python" }, ["file:///gone.py"], []],
     ["an edit whose language id only resembles quarto: a non-quarto document", { key: "file:///b.py", languageId: "Quarto" }, [], []],

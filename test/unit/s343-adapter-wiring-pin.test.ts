@@ -584,4 +584,50 @@ describe("Session 343 -- how the cell-background adapter calls the refresh plan,
   it("cell-background.ts keeps every refresh pin: one refresher per decorator, its three options, the two refresh methods only calling it, the tint applied and the ranges built in one place each", () => {
     expect(problemsInBackgroundRefresh(BACKGROUND)).toEqual([]);
   });
+
+  it("the decorator class and its refresh methods are there to be read", () => {
+    const sf = parse("cell-background.ts", BACKGROUND);
+    const decorator = classNamed(sf, "CellBackgroundDecorator");
+    expect(decorator).toBeDefined();
+    for (const name of ["refresher", "refresh", "refreshAfterEdit", "reload"]) expect(memberNamed(decorator as ts.ClassDeclaration, name), name).toBeDefined();
+  });
+
+  // The edits: each is a live file with ONE respelling, and the pin it must break. They are the mutants of `tools/mutation-run/mutants/s343-refresh-plan.json`, which the runner applies to the file itself.
+  const BACKGROUND_REFRESH_EDITS: Array<[string, string, string, string]> = [
+    ["RF01: the refresher is made on every read of a getter (it keeps no record of what is tinted)", "  private readonly refresher = createCellBackgroundRefresher({\n    visible: () => vscode.window.visibleTextEditors.map((editor) => ({ key: editor.document.uri.toString(), languageId: editor.document.languageId, editor })),\n    rangesFor: (editor) => cellBackgroundRangesFor(editor.document),\n    apply: (editor, ranges) => editor.setDecorations(this.decorationType, ranges),\n  });", "  private get refresher() {\n    return createCellBackgroundRefresher({\n      visible: () => vscode.window.visibleTextEditors.map((editor) => ({ key: editor.document.uri.toString(), languageId: editor.document.languageId, editor })),\n      rangesFor: (editor) => cellBackgroundRangesFor(editor.document),\n      apply: (editor, ranges) => editor.setDecorations(this.decorationType, ranges),\n    });\n  }", "is not the initializer of the property `refresher`"],
+    ["RF02: the ranges are never built", "    rangesFor: (editor) => cellBackgroundRangesFor(editor.document),", "    rangesFor: () => [],", "the refresher's rangesFor is not"],
+    ["RF03: the tint is applied with a decoration type captured when the refresher is made (reload makes a new one)", "    apply: (editor, ranges) => editor.setDecorations(this.decorationType, ranges),", "    apply: (editor, ranges) => editor.setDecorations(vscode.window.createTextEditorDecorationType({}), ranges),", "the refresher's apply is not"],
+    ["RF04: the tint is applied with no ranges", "editor.setDecorations(this.decorationType, ranges)", "editor.setDecorations(this.decorationType, [])", "the refresher's apply is not"],
+    ["RF05: an editor's key is its file name (an untitled or virtual document has none that is its URI)", "key: editor.document.uri.toString(), languageId: editor.document.languageId, editor })),", "key: editor.document.fileName, languageId: editor.document.languageId, editor })),", "the refresher's visible is not"],
+    ["RF06: every editor's language id is quarto", "languageId: editor.document.languageId, editor })),", "languageId: \"quarto\", editor })),", "the refresher's visible is not"],
+    ["RF07: only the first visible editor is offered", "vscode.window.visibleTextEditors.map(", "vscode.window.visibleTextEditors.slice(0, 1).map(", "the refresher's visible is not"],
+    ["RF08: refresh() answers nothing", "    return this.refresher.refreshAll();", "    return new Map();", "CellBackgroundDecorator.refresh is not exactly"],
+    ["RF09: refresh() is the plan of an edit (an active-editor change would refresh one document)", "    return this.refresher.refreshAll();", "    return this.refresher.refreshAfterEdit({ key: \"\", languageId: \"quarto\" });", "CellBackgroundDecorator.refresh is not exactly"],
+    ["RF10: an edit is told the document is a quarto one whatever it is", "this.refresher.refreshAfterEdit({ key: document.uri.toString(), languageId: document.languageId })", "this.refresher.refreshAfterEdit({ key: document.uri.toString(), languageId: \"quarto\" })", "CellBackgroundDecorator.refreshAfterEdit is not exactly"],
+    ["RF11: an edit refreshes every editor again", "    return this.refresher.refreshAfterEdit({ key: document.uri.toString(), languageId: document.languageId });", "    return this.refresher.refreshAll();", "CellBackgroundDecorator.refreshAfterEdit is not exactly"],
+    ["RF12: an edit is told another document's key", "refreshAfterEdit({ key: document.uri.toString(), languageId: document.languageId })", "refreshAfterEdit({ key: document.fileName, languageId: document.languageId })", "CellBackgroundDecorator.refreshAfterEdit is not exactly"],
+    ["RF13: refresh() sets decorations itself as well", "  refresh(): Map<string, vscode.Range[]> {\n    return this.refresher.refreshAll();", "  refresh(): Map<string, vscode.Range[]> {\n    for (const editor of vscode.window.visibleTextEditors) {\n      editor.setDecorations(this.decorationType, []);\n    }\n    return this.refresher.refreshAll();", "calls of editor.setDecorations in the file, not one"],
+    ["RF14: an edit builds the document's ranges itself as well", "    return this.refresher.refreshAfterEdit({ key: document.uri.toString(), languageId: document.languageId });", "    void cellBackgroundRangesFor(document);\n    return this.refresher.refreshAfterEdit({ key: document.uri.toString(), languageId: document.languageId });", "CellBackgroundDecorator.refreshAfterEdit is not exactly"],
+    ["RF15: the import of the refresher is dropped", "import { createCellBackgroundRefresher } from \"../core/cell-background-refresh\";\n", "", "does not import ../core/cell-background-refresh"],
+    ["RF16: refreshAfterEdit takes a second parameter", "  refreshAfterEdit(document: vscode.TextDocument): Map<string, vscode.Range[]> {", "  refreshAfterEdit(document: vscode.TextDocument, extra?: number): Map<string, vscode.Range[]> {", "does not take exactly the parameter `document`"],
+    ["RF17: a second refresher is made at registration", "  const decorator = new CellBackgroundDecorator();\n", "  const decorator = new CellBackgroundDecorator();\n  void createCellBackgroundRefresher({ visible: () => [], rangesFor: () => [], apply: () => undefined });\n", "2 calls of createCellBackgroundRefresher"],
+    ["RF18: the refresher gets a fourth option", "    apply: (editor, ranges) => editor.setDecorations(this.decorationType, ranges),\n  });", "    apply: (editor, ranges) => editor.setDecorations(this.decorationType, ranges),\n    extra: 1,\n  } as never);", "the refresher is made with the options"],
+    ["RF19: the ranges are built a second time in the file", "  refresh(): Map<string, vscode.Range[]> {", "  private unused(editor: vscode.TextEditor): vscode.Range[] {\n    return cellBackgroundRangesFor(editor.document);\n  }\n\n  refresh(): Map<string, vscode.Range[]> {", "2 calls of cellBackgroundRangesFor in the file"],
+  ];
+
+  it.each(BACKGROUND_REFRESH_EDITS)("cell-background.ts, %s: the pin is broken, and is named", (_name, from, to, named) => {
+    expect(BACKGROUND.split(from).length - 1).toBe(1);
+    const problems = problemsInBackgroundRefresh(BACKGROUND.replace(from, () => to));
+    expect(problems.length).toBeGreaterThan(0);
+    expect(problems.join("\n")).toContain(named);
+  });
+
+  it("a comment, a string and an unused identifier that spell the refresher's calls do not satisfy the pins, and a comment that names the old loop does not break them", () => {
+    const decoy = BACKGROUND.replace("    return this.refresher.refreshAll();", "    // return this.refresher.refreshAll();\n    const unused = \"return this.refresher.refreshAll();\" + `this.refresher.refreshAll()`;\n    void unused;\n    return new Map();");
+    expect(decoy).not.toBe(BACKGROUND);
+    expect(problemsInBackgroundRefresh(decoy).join("\n")).toContain("CellBackgroundDecorator.refresh is not exactly");
+    const commented = BACKGROUND.replace("function isVisible(", "// for (const editor of vscode.window.visibleTextEditors) { editor.setDecorations(type, ranges) } was here\nconst NOTE = 'editor.setDecorations(this.decorationType, ranges)';\nfunction isVisible(");
+    expect(commented).not.toBe(BACKGROUND);
+    expect(problemsInBackgroundRefresh(commented)).toEqual([]);
+  });
 });
