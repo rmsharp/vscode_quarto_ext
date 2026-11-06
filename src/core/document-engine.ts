@@ -547,8 +547,13 @@ const INCLUDE_SHORTCODE = /\{\{<\s*include\b/;
  * The Set preserves FIRST-APPEARANCE order, which is the whole reason the answer is
  * order-dependent, and the regex is built per call because a `/g` regex carries `lastIndex`
  * across calls (quarto resets it twice by hand for the same reason).
+ *
+ * Exported (Session 343) as the seam of `test/unit/s343-languages-set-rows.test.ts`, which compares the list itself,
+ * in first-appearance order, with the spelling it replaced: through `resolveDocumentEngine` alone the list is
+ * unobservable (the two loops over it read only which of `r` and `julia` comes first, and whether any language is
+ * neither `ojs` nor a handler).
  */
-function languagesInMarkdown(text: string): string[] {
+export function languagesInMarkdown(text: string): string[] {
   const fenceLanguage = /^[\t >]*```+\s*\{([a-zA-Z0-9_]+)([ ,].*)?\}\s*$/gm;
   const languages: string[] = [];
   let match = fenceLanguage.exec(text);
