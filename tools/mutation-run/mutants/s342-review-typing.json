@@ -98,10 +98,10 @@
  {
   "name": "E04 updateCellContext: the key is set to the negation of the answer",
   "file": "src/features/execution.ts",
-  "from": "\"setContext\", IN_CELL_CONTEXT, inCell",
-  "to": "\"setContext\", IN_CELL_CONTEXT, !inCell",
+  "from": "setContextKey(IN_CELL_CONTEXT, inCell)",
+  "to": "setContextKey(IN_CELL_CONTEXT, !inCell)",
   "expect": "killed",
-  "why": "ctrl+enter binds in prose and not in a cell; killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not call executeCommand(\"setContext\", IN_CELL_CONTEXT, inCell)')"
+  "why": "ctrl+enter binds in prose and not in a cell; killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not call setContextKey(IN_CELL_CONTEXT, inCell)')"
  },
  {
   "name": "E05 activeDocumentSnapshot: no document is a snapshot",

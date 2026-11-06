@@ -578,10 +578,10 @@
  {
   "name": "X12: the scheduler is evaluated through the wrong function",
   "file": "src/features/execution.ts",
-  "from": "    evaluate: updateCellContext,\n",
+  "from": "    evaluate: () => updateCellContext(setContextKey),\n",
   "to": "    evaluate: () => undefined,\n",
   "expect": "killed",
-  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'evaluate is not updateCellContext')"
+  "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'evaluate is not `() => updateCellContext(setContextKey)`')"
  },
  {
   "name": "X13: the snapshot's version is the document's line count",
@@ -602,16 +602,16 @@
  {
   "name": "X15: the evaluator reads the editor it is told, not the active one",
   "file": "src/features/execution.ts",
-  "from": "function updateCellContext(): void {\n  const editor = vscode.window.activeTextEditor;",
-  "to": "function updateCellContext(editor: vscode.TextEditor | undefined = vscode.window.activeTextEditor): void {",
+  "from": "function updateCellContext(setContextKey: ContextKeySetter): void {\n  const editor = vscode.window.activeTextEditor;",
+  "to": "function updateCellContext(setContextKey: ContextKeySetter, editor: vscode.TextEditor | undefined = vscode.window.activeTextEditor): void {",
   "expect": "killed",
   "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'takes a parameter')"
  },
  {
   "name": "X16: the scheduler is made inside a function the register function calls (a new one wherever that function is called again)",
   "file": "src/features/execution.ts",
-  "from": "  const cellContext = createCellContextScheduler({\n    timers: realTimers,\n    delayMs: TYPING_DEBOUNCE_MS,\n    maxWaitMs: TYPING_MAX_WAIT_MS,\n    activeSnapshot: activeDocumentSnapshot,\n    evaluate: updateCellContext,\n  });",
-  "to": "  const cellContext = (() =>\n    createCellContextScheduler({\n      timers: realTimers,\n      delayMs: TYPING_DEBOUNCE_MS,\n      maxWaitMs: TYPING_MAX_WAIT_MS,\n      activeSnapshot: activeDocumentSnapshot,\n      evaluate: updateCellContext,\n    }))();",
+  "from": "  const cellContext = createCellContextScheduler({\n    timers: realTimers,\n    delayMs: TYPING_DEBOUNCE_MS,\n    maxWaitMs: TYPING_MAX_WAIT_MS,\n    activeSnapshot: activeDocumentSnapshot,\n    evaluate: () => updateCellContext(setContextKey),\n  });",
+  "to": "  const cellContext = (() =>\n    createCellContextScheduler({\n      timers: realTimers,\n      delayMs: TYPING_DEBOUNCE_MS,\n      maxWaitMs: TYPING_MAX_WAIT_MS,\n      activeSnapshot: activeDocumentSnapshot,\n      evaluate: () => updateCellContext(setContextKey),\n    }))();",
   "expect": "killed",
   "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'not called directly')"
  },
@@ -619,7 +619,7 @@
   "name": "X17: a second scheduler",
   "file": "src/features/execution.ts",
   "from": "  cellContext.evaluateNow();\n}",
-  "to": "  createCellContextScheduler({ timers: realTimers, delayMs: 0, activeSnapshot: activeDocumentSnapshot, evaluate: updateCellContext });\n  cellContext.evaluateNow();\n}",
+  "to": "  createCellContextScheduler({ timers: realTimers, delayMs: 0, activeSnapshot: activeDocumentSnapshot, evaluate: () => updateCellContext(setContextKey) });\n  cellContext.evaluateNow();\n}",
   "expect": "killed",
   "why": "killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name '2 calls of createCellContextScheduler')"
  },

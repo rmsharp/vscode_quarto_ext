@@ -99,7 +99,7 @@ function problemsInExecution(source: string): string[] {
     if (options.timers !== "realTimers") problems.push("the scheduler's timers are not realTimers");
     if (options.delayMs !== "TYPING_DEBOUNCE_MS") problems.push("the scheduler's delayMs is not TYPING_DEBOUNCE_MS");
     if (options.activeSnapshot !== "activeDocumentSnapshot") problems.push("the scheduler's activeSnapshot is not activeDocumentSnapshot");
-    if (options.evaluate !== "updateCellContext") problems.push("the scheduler's evaluate is not updateCellContext");
+    if (options.evaluate !== "() => updateCellContext(setContextKey)") problems.push("the scheduler's evaluate is not `() => updateCellContext(setContextKey)`");
     if (Object.keys(options).sort().join() !== "activeSnapshot,delayMs,evaluate,maxWaitMs,timers") problems.push(`the scheduler is made with the options ${Object.keys(options).sort().join()}, not activeSnapshot,delayMs,evaluate,maxWaitMs,timers`);
   }
 
@@ -151,13 +151,13 @@ function problemsInExecution(source: string): string[] {
   if (last === undefined || !ts.isExpressionStatement(last) || flat(last.expression, sf) !== "cellContext.evaluateNow()") problems.push("the last statement of registerExecutionFeature is not `cellContext.evaluateNow();`");
 
   // 7. No handler or statement of the register function reaches the scan itself: `updateCellContext` is handed to the scheduler and never called, and the scan is not called in the function.
-  for (const name of ["updateCellContext", "findCellAtPosition", "findAllCells"]) {
+  for (const name of ["findCellAtPosition", "findAllCells"]) {
     const direct = callsOf(register.body, sf, name);
     if (direct.length > 0) problems.push(`registerExecutionFeature calls ${name} (${direct.length} times); only the scheduler may reach it`);
   }
   const references = identifiersNamed(sf, "updateCellContext");
   if (references.length !== 2) problems.push(`${references.length} mentions of updateCellContext in the file, not two (its declaration and the scheduler's evaluate)`);
-  if (callsOf(sf, sf, "updateCellContext").length > 0) problems.push("updateCellContext is called directly somewhere in the file");
+  if (callsOf(sf, sf, "updateCellContext").length !== 1) problems.push("updateCellContext is not called exactly once in the file (by the scheduler's evaluate, which hands it the setter)");
 
   // 8. The snapshot reader reads the active document's URI and version, and the evaluator takes no editor (it reads the ACTIVE one when it runs).
   const snapshot = functionNamed(sf, "activeDocumentSnapshot");
@@ -175,7 +175,7 @@ function problemsInExecution(source: string): string[] {
   if (update === undefined || update.body === undefined) {
     problems.push("updateCellContext is missing");
   } else {
-    if (update.parameters.length !== 0) problems.push("updateCellContext takes a parameter (it must read the active editor itself, when it runs)");
+    if (update.parameters.length !== 1 || flat(update.parameters[0].name, sf) !== "setContextKey") problems.push("updateCellContext takes a parameter other than the setter (it must read the active editor itself, when it runs)");
     const reads = collect(update.body, (n): n is ts.VariableDeclaration => ts.isVariableDeclaration(n) && flat(n.name, sf) === "editor");
     if (reads.length !== 1 || reads[0].initializer === undefined || flat(reads[0].initializer, sf) !== "vscode.window.activeTextEditor") problems.push("updateCellContext does not read `const editor = vscode.window.activeTextEditor`");
     // The VALUE of the key (the review round, M-02): nothing, unit or integration, could read it, because VS Code offers no way to read a context key back. The question is core's `isInCodeCell(languageId, text, line)`, whose
@@ -196,9 +196,9 @@ function problemsInExecution(source: string): string[] {
     if (asked === undefined || !ts.isBinaryExpression(asked) || asked.operatorToken.kind !== ts.SyntaxKind.AmpersandAmpersandToken || flat(asked.left, sf) !== "editor !== undefined" || !ts.isCallExpression(asked.right) || flat(asked.right.expression, sf) !== "isInCodeCell") {
       problems.push("`const inCell` in updateCellContext is not `editor !== undefined && isInCodeCell(...)` (there may be no editor, and the answer is isInCodeCell's own)");
     }
-    const sets = callsOf(update.body, sf, "vscode.commands.executeCommand");
-    if (sets.length !== 1) problems.push("updateCellContext does not call executeCommand exactly once");
-    else if (sets[0].arguments.map((argument) => flat(argument, sf)).join() !== '"setContext",IN_CELL_CONTEXT,inCell') problems.push('updateCellContext does not call executeCommand("setContext", IN_CELL_CONTEXT, inCell) (the key is set to the answer, not to its negation or to another key)');
+    const sets = callsOf(update.body, sf, "setContextKey");
+    if (sets.length !== 1) problems.push("updateCellContext does not call setContextKey exactly once");
+    else if (sets[0].arguments.map((argument) => flat(argument, sf)).join() !== "IN_CELL_CONTEXT,inCell") problems.push("updateCellContext does not call setContextKey(IN_CELL_CONTEXT, inCell) (the key is set to the answer, not to its negation or to another key)");
   }
   // 9. The key the code sets is the key the keybindings read.
   const keyName = collect(sf, (n): n is ts.VariableDeclaration => ts.isVariableDeclaration(n) && flat(n.name, sf) === "IN_CELL_CONTEXT");
@@ -373,25 +373,25 @@ describe("Session 342 -- how execution.ts and cell-background.ts call the typing
     ["X08: the activation-time call is dropped", "  cellContext.evaluateNow();\n}", "}", "the last statement of registerExecutionFeature"],
     ["X09: the activation-time call only notes a change", "  cellContext.evaluateNow();\n}", "  cellContext.changed();\n}", "the last statement of registerExecutionFeature"],
     ["X10: the scheduler is not disposed with the extension", "  context.subscriptions.push(\n    cellContext,\n", "  context.subscriptions.push(\n", "cellContext is not among the subscriptions"],
-    ["X11: the scheduler runs on a literal delay", "    delayMs: TYPING_DEBOUNCE_MS,\n    maxWaitMs", "    delayMs: 0,\n    maxWaitMs","delayMs is not TYPING_DEBOUNCE_MS"],
-    ["X12: the scheduler is evaluated through the wrong function", "    evaluate: updateCellContext,\n", "    evaluate: () => undefined,\n", "evaluate is not updateCellContext"],
+    ["X11: the scheduler runs on a literal delay", "    delayMs: TYPING_DEBOUNCE_MS,\n    maxWaitMs", "    delayMs: 0,\n    maxWaitMs", "delayMs is not TYPING_DEBOUNCE_MS"],
+    ["X12: the scheduler is evaluated through the wrong function", "    evaluate: () => updateCellContext(setContextKey),\n", "    evaluate: () => undefined,\n", "evaluate is not `() => updateCellContext(setContextKey)`"],
     ["X13: the snapshot's version is the document's line count", "{ key: document.uri.toString(), version: document.version }", "{ key: document.uri.toString(), version: document.lineCount }", "version is not document.version"],
     ["X14: the snapshot's key is a constant", "{ key: document.uri.toString(), version: document.version }", "{ key: \"active\", version: document.version }", "key is not document.uri.toString()"],
-    ["X15: the evaluator reads the editor it is told, not the active one", "function updateCellContext(): void {\n  const editor = vscode.window.activeTextEditor;", "function updateCellContext(editor: vscode.TextEditor | undefined = vscode.window.activeTextEditor): void {", "takes a parameter"],
-    ["X16: the scheduler is made inside a function the register function calls (a new one wherever that function is called again)", "  const cellContext = createCellContextScheduler({\n    timers: realTimers,\n    delayMs: TYPING_DEBOUNCE_MS,\n    maxWaitMs: TYPING_MAX_WAIT_MS,\n    activeSnapshot: activeDocumentSnapshot,\n    evaluate: updateCellContext,\n  });", "  const cellContext = (() =>\n    createCellContextScheduler({\n      timers: realTimers,\n      delayMs: TYPING_DEBOUNCE_MS,\n      maxWaitMs: TYPING_MAX_WAIT_MS,\n      activeSnapshot: activeDocumentSnapshot,\n      evaluate: updateCellContext,\n    }))();", "not called directly"],
-    ["X17: a second scheduler", "  cellContext.evaluateNow();\n}", "  createCellContextScheduler({ timers: realTimers, delayMs: 0, activeSnapshot: activeDocumentSnapshot, evaluate: updateCellContext });\n  cellContext.evaluateNow();\n}", "2 calls of createCellContextScheduler"],
-    ["X18: the scheduler's timers are not the host's", "    timers: realTimers,\n    delayMs: TYPING_DEBOUNCE_MS,\n    maxWaitMs", "    timers: { setTimeout: () => 0, clearTimeout: () => undefined },\n    delayMs: TYPING_DEBOUNCE_MS,\n    maxWaitMs","timers are not realTimers"],
+    ["X15: the evaluator reads the editor it is told, not the active one", "function updateCellContext(setContextKey: ContextKeySetter): void {\n  const editor = vscode.window.activeTextEditor;", "function updateCellContext(setContextKey: ContextKeySetter, editor: vscode.TextEditor | undefined = vscode.window.activeTextEditor): void {", "takes a parameter"],
+    ["X16: the scheduler is made inside a function the register function calls (a new one wherever that function is called again)", "  const cellContext = createCellContextScheduler({\n    timers: realTimers,\n    delayMs: TYPING_DEBOUNCE_MS,\n    maxWaitMs: TYPING_MAX_WAIT_MS,\n    activeSnapshot: activeDocumentSnapshot,\n    evaluate: () => updateCellContext(setContextKey),\n  });", "  const cellContext = (() =>\n    createCellContextScheduler({\n      timers: realTimers,\n      delayMs: TYPING_DEBOUNCE_MS,\n      maxWaitMs: TYPING_MAX_WAIT_MS,\n      activeSnapshot: activeDocumentSnapshot,\n      evaluate: () => updateCellContext(setContextKey),\n    }))();", "not called directly"],
+    ["X17: a second scheduler", "  cellContext.evaluateNow();\n}", "  createCellContextScheduler({ timers: realTimers, delayMs: 0, activeSnapshot: activeDocumentSnapshot, evaluate: () => updateCellContext(setContextKey) });\n  cellContext.evaluateNow();\n}", "2 calls of createCellContextScheduler"],
+    ["X18: the scheduler's timers are not the host's", "    timers: realTimers,\n    delayMs: TYPING_DEBOUNCE_MS,\n    activeSnapshot", "    timers: { setTimeout: () => 0, clearTimeout: () => undefined },\n    delayMs: TYPING_DEBOUNCE_MS,\n    maxWaitMs", "timers are not realTimers"],
     ["X19: updateCellContext called directly from the register function", "  cellContext.evaluateNow();\n}", "  cellContext.evaluateNow();\n  updateCellContext();\n}", "the last statement of registerExecutionFeature"],
     ["X20: the evaluator does not read the active editor", "  const editor = vscode.window.activeTextEditor;\n  const inCell =", "  const editor = vscode.window.visibleTextEditors[0];\n  const inCell =", "does not read `const editor = vscode.window.activeTextEditor`"],
     // The VALUE of the key (the review round, M-02; mutants E01 to E04 of `tools/mutation-run/mutants/s342-review-typing.json` and their neighbours): what `updateCellContext` hands the core predicate and what it sets.
     ["E01: the key follows the selection's ANCHOR, not its active end (a selection made backwards sets the key from its far end)", "      () => editor.document.getText(),\n      editor.selection.active.line,\n", "      () => editor.document.getText(),\n      editor.selection.anchor.line,\n", "the ACTIVE end of the selection"],
     ["E03: the language id handed is another language's (the key is never true in a .qmd)", "      editor.document.languageId,\n      () => editor.document.getText(),", "      \"markdown\",\n      () => editor.document.getText(),", "does not hand isInCodeCell `editor.document.languageId`"],
-    ["E04: the key is set to the NEGATION of the answer (ctrl+enter binds in prose and not in a cell)", "\"setContext\", IN_CELL_CONTEXT, inCell", "\"setContext\", IN_CELL_CONTEXT, !inCell", "does not call executeCommand(\"setContext\", IN_CELL_CONTEXT, inCell)"],
+    ["E04: the key is set to the NEGATION of the answer (ctrl+enter binds in prose and not in a cell)", "setContextKey(IN_CELL_CONTEXT, inCell)", "setContextKey(IN_CELL_CONTEXT, !inCell)", "does not call setContextKey(IN_CELL_CONTEXT, inCell)"],
     ["E05: another key is set (the keybindings never see it)", "const IN_CELL_CONTEXT = \"quarto.inCodeCell\";", "const IN_CELL_CONTEXT = \"quarto.inCell\";", "IN_CELL_CONTEXT is not the key 'quarto.inCodeCell'"],
     ["E06: the text is read for every language (a getText of every file at every cursor move)", "      () => editor.document.getText(),\n", "      editor.document.getText(),\n", "`() => editor.document.getText()`"],
     ["E07: the missing editor is not checked first", "    editor !== undefined &&\n    isInCodeCell(", "    isInCodeCell(", "is not `editor !== undefined && isInCodeCell(...)`"],
-    ["E08: the old inline scan is back beside the predicate", "  void vscode.commands.executeCommand(\"setContext\", IN_CELL_CONTEXT, inCell);", "  void findCellAtPosition(\"\", 0);\n  void vscode.commands.executeCommand(\"setContext\", IN_CELL_CONTEXT, inCell);", "calls findCellAtPosition itself"],
-    ["E09: the question is asked twice", "  void vscode.commands.executeCommand(\"setContext\", IN_CELL_CONTEXT, inCell);", "  void isInCodeCell(\"quarto\", \"\", 0);\n  void vscode.commands.executeCommand(\"setContext\", IN_CELL_CONTEXT, inCell);", "2 calls of isInCodeCell"],
+    ["E08: the old inline scan is back beside the predicate", "  setContextKey(IN_CELL_CONTEXT, inCell);", "  void findCellAtPosition(\"\", 0);\n  setContextKey(IN_CELL_CONTEXT, inCell);", "calls findCellAtPosition itself"],
+    ["E09: the question is asked twice", "  setContextKey(IN_CELL_CONTEXT, inCell);", "  void isInCodeCell(\"quarto\", \"\", 0);\n  setContextKey(IN_CELL_CONTEXT, inCell);", "2 calls of isInCodeCell"],
   ];
 
   const BACKGROUND_EDITS: Array<[string, string, string, string]> = [

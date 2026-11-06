@@ -26,6 +26,7 @@ import {
   pickDelegate,
 } from "../core/execution-delegate";
 import { isInCodeCell } from "../core/in-code-cell";
+import type { ContextKeySetter } from "../core/context-key-setter";
 import {
   type EditorSnapshot,
   TYPING_DEBOUNCE_MS,
@@ -33,6 +34,7 @@ import {
   createCellContextScheduler,
   realTimers,
 } from "../core/typing-debounce";
+import { createVscodeContextKeySetter } from "./context-key";
 
 /** Context key gating the cell keybindings, true only when the cursor is in a cell. */
 const IN_CELL_CONTEXT = "quarto.inCodeCell";
@@ -49,12 +51,13 @@ export function registerExecutionFeature(
   // "place the cursor" message), and during a stream of events under a pause apart
   // for at most TYPING_MAX_WAIT_MS: the evaluation then runs although the events
   // keep coming. See core/typing-debounce.
+  const setContextKey = createVscodeContextKeySetter();
   const cellContext = createCellContextScheduler({
     timers: realTimers,
     delayMs: TYPING_DEBOUNCE_MS,
     maxWaitMs: TYPING_MAX_WAIT_MS,
     activeSnapshot: activeDocumentSnapshot,
-    evaluate: updateCellContext,
+    evaluate: () => updateCellContext(setContextKey),
   });
   context.subscriptions.push(
     cellContext,
@@ -440,9 +443,10 @@ function activeDocumentSnapshot(): EditorSnapshot | undefined {
  * Set `quarto.inCodeCell` from the ACTIVE editor's state as it is now. The question is
  * core's `isInCodeCell` (unit-tested: nothing can read a context key back); the text is
  * handed as a function, which it calls only for a Quarto document, as this function's
- * inline test always did.
+ * inline test always did. The key is set through the register function's setter, which
+ * sends `setContext` to the host only when the value is not the one it last sent.
  */
-function updateCellContext(): void {
+function updateCellContext(setContextKey: ContextKeySetter): void {
   const editor = vscode.window.activeTextEditor;
   const inCell =
     editor !== undefined &&
@@ -451,5 +455,5 @@ function updateCellContext(): void {
       () => editor.document.getText(),
       editor.selection.active.line,
     );
-  void vscode.commands.executeCommand("setContext", IN_CELL_CONTEXT, inCell);
+  setContextKey(IN_CELL_CONTEXT, inCell);
 }

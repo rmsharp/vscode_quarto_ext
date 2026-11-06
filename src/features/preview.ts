@@ -24,12 +24,14 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 import { buildPreviewHtml } from "../core/preview-html";
 import { buildPreviewArgs, parseDeclaredFormats } from "../core/preview-format";
+import type { ContextKeySetter } from "../core/context-key-setter";
 import { createBrowseUrlScanner } from "../core/preview-url";
 import {
   isRenderScript,
   isRenderScriptExtension,
 } from "../core/render-script";
 import { QuartoNotFound, resolveBinary } from "../quarto/cli";
+import { createVscodeContextKeySetter } from "./context-key";
 
 const CHANNEL_NAME = "Quarto Preview";
 /**
@@ -395,6 +397,7 @@ export function registerPreviewFeature(
   const channel = vscode.window.createOutputChannel(CHANNEL_NAME);
   const manager = new PreviewManager(channel);
   activeManager = manager;
+  const setContextKey = createVscodeContextKeySetter();
 
   context.subscriptions.push(
     channel,
@@ -414,7 +417,7 @@ export function registerPreviewFeature(
     // Keep `quartoRenderScriptActive` fresh so ctrl+shift+k binds to
     // `previewScript` on a render script and to `preview` everywhere else.
     vscode.window.onDidChangeActiveTextEditor((editor) =>
-      updateRenderScriptContext(editor),
+      updateRenderScriptContext(editor, setContextKey),
     ),
     // Render-script-ness is a property of the TEXT, so an edit alone can change
     // it with no editor switch — typing `# %% [markdown]` atop a plain .py file
@@ -422,11 +425,11 @@ export function registerPreviewFeature(
     vscode.workspace.onDidChangeTextDocument((e) => {
       const active = vscode.window.activeTextEditor;
       if (active && e.document === active.document) {
-        updateRenderScriptContext(active);
+        updateRenderScriptContext(active, setContextKey);
       }
     }),
   );
-  updateRenderScriptContext(vscode.window.activeTextEditor);
+  updateRenderScriptContext(vscode.window.activeTextEditor, setContextKey);
 }
 
 async function previewActiveDocument(manager: PreviewManager): Promise<void> {
@@ -514,16 +517,18 @@ function isPreviewableRenderScript(
  * guard as `execution.ts`'s `quarto.inCodeCell` key, which lives in that file's
  * selection listener (`updateCellContext` takes no editor): a background editor's
  * event must not clobber a key that describes the ACTIVE one. It does not share
- * that key's debounce: it is set at once on every document event of the active editor.
+ * that key's debounce: the predicate is asked at once on every document event of the
+ * active editor, and the key is set through the register function's setter, which sends
+ * `setContext` to the host only when the value is not the one it last sent.
  */
 function updateRenderScriptContext(
   editor: vscode.TextEditor | undefined,
+  setContextKey: ContextKeySetter,
 ): void {
   if (editor !== undefined && editor !== vscode.window.activeTextEditor) {
     return;
   }
-  void vscode.commands.executeCommand(
-    "setContext",
+  setContextKey(
     RENDER_SCRIPT_CONTEXT,
     isPreviewableRenderScript(editor?.document),
   );
