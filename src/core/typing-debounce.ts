@@ -4,10 +4,24 @@
  * event turn: `updateCellContext` (`features/execution.ts`: `findCellAtPosition`, then `setContext 'quarto.inCodeCell'`)
  * and the cell-background decorator's `refresh` (`features/cell-background.ts`: `cellBackgroundRanges`, then
  * `setDecorations` with every cell's range). The first call after an edit costs 12.7 / 31.7 / 155 ms at 500 / 2,000 /
- * 8,000 twenty-line cells (they share one scan through the two-entry cache); a warm call is under 0.1 ms.
+ * 8,000 twenty-line cells (they share one scan through the two-entry cache); a warm call is under 0.1 ms. VS Code sends
+ * a document event and a selection event for each keystroke, so a person typing paid one scan a keystroke.
  *
- * ⚠ THIS IS THE SEAM (Learning 913): the interfaces the adapters are routed through, with the OLD behaviour inside --
- * every event does its work at once. The cure replaces the bodies, not the interfaces.
+ * The cure is a TRAILING debounce of the edit-driven work, kept in this module so that it is unit-tested with a fake
+ * clock (the §3.3 guardrail): the timers are injected (`Timers`), and the two adapters are reduced to wiring.
+ *
+ *  - `createKeyedDebouncer`: one pending run per key; scheduling a key again drops the pending run and starts the
+ *    delay over, so a burst runs once, one delay after its last event, with the last run. The cell-background
+ *    decorator keys it by the document's URI.
+ *  - `createCellContextScheduler`: decides, for each event that may change `quarto.inCodeCell`, whether to evaluate it
+ *    AT ONCE or after the pause. An event that sees the same document at the same version as the last evaluation (a
+ *    cursor move with no edit, a save) is evaluated at once: the scan is cached for that text, so it is cheap, and
+ *    navigation stays fresh. Any other event (typing: the document event and the selection event both) is debounced,
+ *    and the evaluation reads the ACTIVE editor as it is when the timer fires, so the last state wins. An
+ *    active-editor change and the activation-time call evaluate at once and drop the pending run.
+ *
+ * What the debounce costs: the key can lag the cursor by up to `TYPING_DEBOUNCE_MS` after the last event that
+ * follows an edit not yet evaluated; the tint of a fresh edit appears one pause after the typing stops.
  */
 
 /** The delay of the edit-driven work: a pause this long after the last keystroke runs it. */
@@ -31,15 +45,23 @@ export const realTimers: Timers = {
 /** The longest delay a host timer holds (2^31 - 1 ms, 24.8 days): a Node timer resets a longer one to 1 ms. */
 export const MAX_TIMER_DELAY_MS = 2 ** 31 - 1;
 
-/** What a delay means to a timer: see the cure. At the seam it is the delay as given. */
+/**
+ * What a delay means to a timer. NaN, zero, minus zero, a negative and minus infinity mean no wait beyond the next
+ * timer turn (0: the run is still trailing and still replaces a pending one, it is never synchronous); a delay past
+ * what a host timer holds, infinity included, is the longest one it holds; a fraction is kept, the host's timer rounds
+ * it.
+ */
 export function normalizeDelayMs(ms: number): number {
-  return ms;
+  if (!(ms > 0)) {
+    return 0;
+  }
+  return ms > MAX_TIMER_DELAY_MS ? MAX_TIMER_DELAY_MS : ms;
 }
 
 export interface KeyedDebouncerOptions {
   readonly timers: Timers;
   readonly delayMs: number;
-  /** Where a throwing run is reported. */
+  /** Where a throwing run is reported (default: `console.error`). */
   readonly onError?: (error: unknown) => void;
 }
 
@@ -53,11 +75,51 @@ export interface KeyedDebouncer {
   dispose(): void;
 }
 
-export function createKeyedDebouncer(_options: KeyedDebouncerOptions): KeyedDebouncer {
+function reportError(error: unknown): void {
+  console.error("Quarto: a debounced typing-path run failed", error);
+}
+
+export function createKeyedDebouncer(options: KeyedDebouncerOptions): KeyedDebouncer {
+  const { timers } = options;
+  const delayMs = normalizeDelayMs(options.delayMs);
+  const onError = options.onError ?? reportError;
+  const pending = new Map<string, TimerHandle>();
+  let disposed = false;
+
+  const cancel = (key: string): void => {
+    if (pending.has(key)) {
+      timers.clearTimeout(pending.get(key));
+      pending.delete(key);
+    }
+  };
+
   return {
-    schedule: (_key, run) => run(),
-    cancel: () => undefined,
-    dispose: () => undefined,
+    schedule(key, run) {
+      if (disposed) {
+        return;
+      }
+      cancel(key);
+      pending.set(
+        key,
+        timers.setTimeout(() => {
+          // The run is over before it runs: it may schedule its own key again, and a throw leaves the key free.
+          pending.delete(key);
+          try {
+            run();
+          } catch (error) {
+            onError(error);
+          }
+        }, delayMs),
+      );
+    },
+    cancel,
+    dispose() {
+      disposed = true;
+      for (const handle of pending.values()) {
+        timers.clearTimeout(handle);
+      }
+      pending.clear();
+    },
   };
 }
 
@@ -74,6 +136,7 @@ export interface CellContextOptions {
   activeSnapshot(): EditorSnapshot | undefined;
   /** Re-evaluate the context key from the ACTIVE editor's state as it is now. */
   evaluate(): void;
+  /** Where a throwing debounced evaluation is reported (default: `console.error`). */
   readonly onError?: (error: unknown) => void;
 }
 
@@ -87,10 +150,52 @@ export interface CellContextScheduler {
   dispose(): void;
 }
 
+/** The one key of the scheduler's debouncer: there is one context key. */
+const CELL_CONTEXT_KEY = "quarto.inCodeCell";
+
 export function createCellContextScheduler(options: CellContextOptions): CellContextScheduler {
+  const debouncer = createKeyedDebouncer({
+    timers: options.timers,
+    delayMs: options.delayMs,
+    onError: options.onError,
+  });
+  // The document and version the last SUCCESSFUL evaluation saw (`undefined`: none yet, or no editor was active).
+  let evaluated: EditorSnapshot | undefined;
+  let disposed = false;
+
+  const evaluate = (): void => {
+    const snapshot = options.activeSnapshot();
+    options.evaluate();
+    evaluated = snapshot;
+  };
+
+  const evaluateNow = (): void => {
+    if (disposed) {
+      return;
+    }
+    debouncer.cancel(CELL_CONTEXT_KEY);
+    evaluate();
+  };
+
   return {
-    changed: () => options.evaluate(),
-    evaluateNow: () => options.evaluate(),
-    dispose: () => undefined,
+    changed() {
+      if (disposed) {
+        return;
+      }
+      const now = options.activeSnapshot();
+      const followsNoEdit =
+        now === undefined ||
+        (evaluated !== undefined && evaluated.key === now.key && evaluated.version === now.version);
+      if (followsNoEdit) {
+        evaluateNow();
+      } else {
+        debouncer.schedule(CELL_CONTEXT_KEY, evaluate);
+      }
+    },
+    evaluateNow,
+    dispose() {
+      disposed = true;
+      debouncer.dispose();
+    },
   };
 }
