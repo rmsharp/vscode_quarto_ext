@@ -272,6 +272,39 @@ describe("createCellContextScheduler -- when the quarto.inCodeCell key is evalua
     expect(s.clock.pending()).toBe(0);
   });
 
+  it("a version lower than the one last evaluated (a document replaced by an older text) is not the version evaluated: the event is debounced", () => {
+    const s = session();
+    s.state.version = 5;
+    s.scheduler.evaluateNow();
+    s.state.version = 3;
+    s.select(2);
+    expect(s.seen).toHaveLength(1);
+    expect(s.clock.pending()).toBe(1);
+    s.clock.advance(TYPING_DEBOUNCE_MS);
+    expect(s.seen).toHaveLength(2);
+    expect(s.seen[1]).toEqual({ key: DOC_A, version: 3, line: 2 });
+  });
+
+  it("records the version the evaluation SAW, not the one after it: an edit that lands during the evaluation is not taken for evaluated", () => {
+    let editDuringEvaluation = false;
+    const s = session({
+      evaluate: (state) => {
+        if (editDuringEvaluation) state.version++;
+      },
+    });
+    s.scheduler.evaluateNow(); // version 1 evaluated
+    editDuringEvaluation = true;
+    s.select(4); // the same version: evaluated at once, and the version moves to 2 while it runs
+    editDuringEvaluation = false;
+    expect(s.seen).toHaveLength(2);
+    s.select(5); // version 2 was never evaluated: debounced
+    expect(s.seen).toHaveLength(2);
+    expect(s.clock.pending()).toBe(1);
+    s.clock.advance(TYPING_DEBOUNCE_MS);
+    expect(s.seen).toHaveLength(3);
+    expect(s.seen[2]).toEqual({ key: DOC_A, version: 2, line: 5 });
+  });
+
   it("with no active editor an event evaluates at once (clearing the key costs no scan) and cancels the pending run", () => {
     const s = session();
     s.scheduler.evaluateNow();
