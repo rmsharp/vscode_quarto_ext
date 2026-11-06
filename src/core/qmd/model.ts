@@ -46,6 +46,7 @@ import { divOpenerVerdict } from "./attribute-block";
 import { ColumnStack } from "./column-stack";
 import { jupyterKernelLanguage } from "./jupyter-kernel";
 import { quartoYamlRegions } from "./quarto-yaml-regions";
+import { admitted, promoted } from "./regions-cache";
 import { IDENTIFIER_RUN, isRun, runClass, runEnd } from "./unicode-run";
 
 /**
@@ -10352,7 +10353,7 @@ type RegionsCacheEntry = {
  * before this change, 10 extra full rescans over 5 alternating passes. Two slots, LRU by
  * construction (a hit promotes, a miss shifts the older out), makes the steady state zero.
  */
-let regionsCache: [RegionsCacheEntry?, RegionsCacheEntry?] = [];
+let regionsCache: RegionsCacheEntry[] = [];
 
 /**
  * The parsed regions of `text`, served from the single-entry cache on a repeat
@@ -10375,15 +10376,15 @@ function scanEntry(text: string, engine: EngineHint = undefined, requested: Rend
   // Only the exact string `no-execute` selects the non-default reading, as in `resolveRenderMode`: it hides headings quarto shows when it is wrong, so no other value, however it got here, may select it.
   const mode: RenderMode = engine === "knitr" && requested === "no-execute" ? "no-execute" : "execute";
   const hitAt = regionsCache.findIndex(
-    (e) => e !== undefined && e.text === text && e.engine === engine && e.mode === mode,
+    (e) => e.text === text && e.engine === engine && e.mode === mode,
   );
   if (hitAt >= 0) {
-    const hit = regionsCache[hitAt] as RegionsCacheEntry;
-    if (hitAt !== 0) regionsCache = [hit, regionsCache[0]];
+    const hit = regionsCache[hitAt];
+    if (hitAt !== 0) regionsCache = promoted(regionsCache, hitAt);
     return hit;
   }
   const entry: RegionsCacheEntry = { text, engine, mode, regions: computeRegions(text, engine, mode) };
-  regionsCache = [entry, regionsCache[0]];
+  regionsCache = admitted(regionsCache, entry);
   return entry;
 }
 
