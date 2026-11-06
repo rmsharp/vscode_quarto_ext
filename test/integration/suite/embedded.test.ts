@@ -346,6 +346,25 @@ describe("Quarto: embedded-cell completion forwarding (6e-1, python)", () => {
     );
   });
 
+  it("drops a lone out-of-cell auto-import edit (the usual single front-matter edit) and leaves the item with no secondary edit, the completion itself still offered", async () => {
+    registerStandIn();
+    // The usual shape: ONE secondary edit, the auto-import anchored at the module top, which
+    // identity-maps to .qmd line 0 = the front matter. The two-edit row above keeps its other
+    // edit alive, so only this row reaches the case where the filter empties the list.
+    standInExtraEdits = [new vscode.TextEdit(new vscode.Range(0, 0, 0, 0), "import os\n")];
+    const doc = await openInMemory(DOC);
+
+    const list = await complete(doc, 9, 3, ".");
+
+    const item = (list?.items ?? []).find((i) => i.detail === STANDIN_DETAIL);
+    assert.ok(item, "the completion itself should still be offered");
+    assert.strictEqual(
+      (item.additionalTextEdits ?? []).length,
+      0,
+      "the lone front-matter edit is dropped: accepting the completion must not write into the YAML",
+    );
+  });
+
   it("reflects an edit to the cell on the next completion (rebuild-per-request, no stale virtual document)", async () => {
     registerStandIn();
     const doc = await openInMemory(
