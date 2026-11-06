@@ -21,7 +21,7 @@
   "from": "const end = chunk.lastIndexOf(\"\\n\") + 1;",
   "to": "const end = chunk.lastIndexOf(\"\\n\");",
   "expect": "killed",
-  "why": "a chunk with no newline gets `end` -1 (not 0), a chunk that is only a newline gets 0 and is kept as a tail; run alone, killed by the clock-helper row 'feed hands back every push's answer and a clock that covers the pushes'"
+  "why": "a chunk with no newline gets `end` -1 (not 0), a chunk that is only a newline gets 0 and is kept as a tail; run alone, killed by the helper row 'feed hands back every push's answer, the real scanner's and a stand-in's, and pushes each chunk once, in order'"
  },
  {
   "name": "S04 push: the no-newline test is `end <= 0`",
@@ -101,7 +101,7 @@
   "from": "const completed = tail.join(\"\") + chunk.slice(0, end);",
   "to": "const completed = tail.join(\"\") + chunk.slice(0, end - 1);",
   "expect": "killed",
-  "why": "the newline that ends every match is cut off, so nothing ever matches; run alone, killed by the clock-helper row 'feed hands back every push's answer and a clock that covers the pushes'"
+  "why": "the newline that ends every match is cut off, so nothing ever matches; run alone, killed by the helper row 'feed hands back every push's answer, the real scanner's and a stand-in's, and pushes each chunk once, in order'"
  },
  {
   "name": "S14 push: the first character of the new lines is cut",
@@ -109,7 +109,7 @@
   "from": "const completed = tail.join(\"\") + chunk.slice(0, end);",
   "to": "const completed = tail.join(\"\") + chunk.slice(1, end);",
   "expect": "killed",
-  "why": "the first character of every chunk with a newline is lost; run alone, killed by the clock-helper row 'feed hands back every push's answer and a clock that covers the pushes'"
+  "why": "the first character of every chunk with a newline is lost; run alone, killed by the helper row 'feed hands back every push's answer, the real scanner's and a stand-in's, and pushes each chunk once, in order'"
  },
  {
   "name": "S15 push: the incomplete tail of a chunk is dropped",
@@ -181,7 +181,7 @@
   "from": "return parseBrowseUrl(completed);",
   "to": "return parseBrowseUrl(tail.join(\"\"));",
   "expect": "killed",
-  "why": "the completed lines are not read at all; run alone, killed by the clock-helper row 'feed hands back every push's answer and a clock that covers the pushes'"
+  "why": "the completed lines are not read at all; run alone, killed by the helper row 'feed hands back every push's answer, the real scanner's and a stand-in's, and pushes each chunk once, in order'"
  },
  {
   "name": "S24 push: a chunk with no newline is concatenated to the kept text at once",

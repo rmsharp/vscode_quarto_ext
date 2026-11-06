@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createBrowseUrlScanner } from "../../src/core/preview-url";
+import { type BrowseUrlScanner, createBrowseUrlScanner } from "../../src/core/preview-url";
 
 // Session 341 — the BACKLOG item "Slow shapes and residuals found by Session 339's review round", part (3). `quarto preview` writes its startup noise to stderr in chunks. The adapter (`src/features/preview.ts`)
 // used to append every chunk to one string and run `parseBrowseUrl(stderr)` on the WHOLE string until the `Browse at <url>` line arrived: `output.replace(ANSI_PATTERN, "")` copies the buffer and the unanchored
@@ -73,25 +73,27 @@ function cut(text: string, size: number): string[] {
 
 type Feed = { answers: Array<string | null>; totalMs: number; firstMs: number; lastMs: number };
 
-/** Push every chunk into a fresh scanner, timing the whole feed and its first and last tenth. The clock covers the pushes only. */
-function feed(chunks: readonly string[]): Feed {
-  const scanner = createBrowseUrlScanner();
+/**
+ * Push every chunk into a scanner (a fresh real one unless a stand-in is given), timing the whole feed and its first and last tenth by `now` (the real clock unless a fake is given). The clock covers the pushes only.
+ * The scanner and the clock are parameters so that the helper's own numbers can be pinned: with the real scanner and the real clock alone, a clock that read 0 would still pass every row that is decided by the total.
+ */
+function feed(chunks: readonly string[], scanner: BrowseUrlScanner = createBrowseUrlScanner(), now: () => number = () => performance.now()): Feed {
   const n = chunks.length;
   const tenth = Math.max(1, Math.floor(n / 10));
   const answers: Array<string | null> = new Array<string | null>(n);
-  const t0 = performance.now();
+  const t0 = now();
   for (let i = 0; i < tenth; i++) {
     answers[i] = scanner.push(chunks[i]);
   }
-  const t1 = performance.now();
+  const t1 = now();
   for (let i = tenth; i < n - tenth; i++) {
     answers[i] = scanner.push(chunks[i]);
   }
-  const t2 = performance.now();
+  const t2 = now();
   for (let i = n - tenth; i < n; i++) {
     answers[i] = scanner.push(chunks[i]);
   }
-  const t3 = performance.now();
+  const t3 = now();
   return { answers, totalMs: t3 - t0, firstMs: t1 - t0, lastMs: t3 - t2 };
 }
 
@@ -108,11 +110,55 @@ function answeredOnlyAtTheMarker(answers: ReadonlyArray<string | null>): { early
 const lastTenthWithin = (firstMs: number, lastMs: number): boolean => lastMs < 4 * firstMs + 100;
 
 describe("the Session 341 clock helper", () => {
-  it("feed hands back every push's answer and a clock that covers the pushes", () => {
-    const { answers, totalMs } = feed(["a\n", "b", "\n", MARKER_PLAIN]);
-    expect(answers).toEqual([null, null, null, URL]);
-    expect(totalMs).toBeGreaterThanOrEqual(0);
-    expect(totalMs).toBeLessThan(1000);
+  it("feed hands back every push's answer, the real scanner's and a stand-in's, and pushes each chunk once, in order", () => {
+    expect(feed(["a\n", "b", "\n", MARKER_PLAIN]).answers).toEqual([null, null, null, URL]);
+    const seen: string[] = [];
+    const standIn: BrowseUrlScanner = {
+      push: (chunk) => {
+        seen.push(chunk);
+        return chunk === "c" ? "answered" : null;
+      },
+    };
+    expect(feed(["a", "b", "c", "d"], standIn).answers).toEqual([null, null, "answered", null]);
+    expect(seen).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("feed's three numbers are exact under a clock that only the pushes advance (push number i costs i): the first tenth, the last tenth and the whole feed", () => {
+    // 20 pushes: a tenth is 2, so the first window is pushes 1 and 2 (1 + 2), the last window pushes 19 and 20 (19 + 20) and the whole feed 1 + 2 + ... + 20. The clock starts at 1000: only differences count.
+    let clock = 1000;
+    let pushed = 0;
+    const costly: BrowseUrlScanner = {
+      push: () => {
+        pushed++;
+        clock += pushed;
+        return null;
+      },
+    };
+    const twenty = feed(new Array<string>(20).fill("x"), costly, () => clock);
+    expect({ totalMs: twenty.totalMs, firstMs: twenty.firstMs, lastMs: twenty.lastMs }).toEqual({ totalMs: 210, firstMs: 3, lastMs: 39 });
+    // Fewer than ten pushes: a tenth is still one push (the first window is push 1, the last window push 3).
+    clock = 7;
+    pushed = 0;
+    const three = feed(["x", "x", "x"], costly, () => clock);
+    expect({ totalMs: three.totalMs, firstMs: three.firstMs, lastMs: three.lastMs }).toEqual({ totalMs: 6, firstMs: 1, lastMs: 3 });
+  });
+
+  it("feed's real clock covers the time the pushes take: a stand-in that spins 2 ms per push, 20 pushes", () => {
+    const spinning: BrowseUrlScanner = {
+      push: () => {
+        const until = performance.now() + 2;
+        while (performance.now() < until) {
+          // spin: the push takes at least 2 ms by the same clock
+        }
+        return null;
+      },
+    };
+    const { totalMs, firstMs, lastMs } = feed(new Array<string>(20).fill("x"), spinning);
+    // A tenth is 2 pushes: at least 4 ms in each outer window and 32 in the middle one, 40 in all. Load can only raise a number here, never lower it, so the bounds stay exact.
+    expect(firstMs).toBeGreaterThanOrEqual(4);
+    expect(lastMs).toBeGreaterThanOrEqual(4);
+    expect(totalMs - firstMs - lastMs).toBeGreaterThanOrEqual(32);
+    expect(totalMs).toBeGreaterThanOrEqual(40);
   });
 
   it("answeredOnlyAtTheMarker names the pushes that answered early", () => {
@@ -162,6 +208,8 @@ describe("Session 341 — the stderr of `quarto preview` before the Browse at li
       expect(early).toEqual([]);
       expect(last).toBe(URL);
       expect(totalMs).toBeLessThan(LIMIT_MS);
+      // A clock that never ticked over megabytes of text is not a clock: the helper rows above pin its arithmetic, this keeps a row decided by the total alone from passing on a stuck one.
+      expect(totalMs).toBeGreaterThan(0);
       if (row.ratio) {
         // The old logic took 17x to 24x the first tenth here and seconds in absolute terms.
         expect(lastTenthWithin(firstMs, lastMs)).toBe(true);

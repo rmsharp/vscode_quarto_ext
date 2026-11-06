@@ -4,56 +4,72 @@
   "file": "test/unit/s341-preview-scan-rows.test.ts",
   "from": "totalMs: t3 - t0,",
   "to": "totalMs: 0,",
-  "expect": "survives",
-  "why": "a stuck clock: the ONE-line row (ratio false, decided by totalMs alone) passes on the old whole-buffer logic with it; the helper row only asserts 0 <= totalMs < 1000 (finding C03, TD-1(b))"
+  "expect": "killed",
+  "why": "a stuck clock: the ONE-line row (ratio false, decided by the total alone) passed the old whole-buffer logic with it; run alone, killed by the helper row 'feed's three numbers are exact under a clock that only the pushes advance' (run without --bail it is also failed by the helper row 'feed's real clock covers the time the pushes take' and by the clock rows' own check that the total is above 0)"
  },
  {
   "name": "CL02 rows: feed's whole-run clock is the first tenth only",
   "file": "test/unit/s341-preview-scan-rows.test.ts",
   "from": "totalMs: t3 - t0,",
   "to": "totalMs: t1 - t0,",
-  "expect": "survives",
-  "why": "the ONE-line 16 MiB row passes the old logic's 13 s of work with it (finding TD-1(b), variant (c))"
+  "expect": "killed",
+  "why": "the ONE-line 16 MiB row passed the old logic's 13 s of work with it; run alone, killed by the helper row 'feed's three numbers are exact under a clock that only the pushes advance' (without --bail also by the helper row 'feed's real clock covers the time the pushes take')"
  },
  {
   "name": "CL03 rows: feed's first-tenth clock reads 0",
   "file": "test/unit/s341-preview-scan-rows.test.ts",
   "from": "firstMs: t1 - t0,",
   "to": "firstMs: 0,",
-  "expect": "survives",
-  "why": "the ratio then compares the last tenth with nothing but the 100 ms floor; no row asserts the first-tenth number"
+  "expect": "killed",
+  "why": "the ratio compared the last tenth with nothing but the 100 ms floor; run alone, killed by the helper row 'feed's three numbers are exact under a clock that only the pushes advance'"
  },
  {
   "name": "CL04 rows: feed's last-tenth clock reads 0",
   "file": "test/unit/s341-preview-scan-rows.test.ts",
   "from": "lastMs: t3 - t2 }",
   "to": "lastMs: 0 }",
-  "expect": "survives",
-  "why": "the ratio is then always met, so a quadratic scanner is judged by the whole-run limit alone"
+  "expect": "killed",
+  "why": "the ratio was always met; run alone, killed by the helper row 'feed's three numbers are exact under a clock that only the pushes advance'"
  },
  {
   "name": "CL05 rows: feed's last-tenth clock is the whole run",
   "file": "test/unit/s341-preview-scan-rows.test.ts",
   "from": "lastMs: t3 - t2 }",
   "to": "lastMs: t3 - t0 }",
-  "expect": "survives",
-  "why": "the last-tenth number then contains the first nine tenths; no row asserts it"
+  "expect": "killed",
+  "why": "the last-tenth number contained the first nine tenths; run alone, killed by the helper row 'feed's three numbers are exact under a clock that only the pushes advance' (without --bail also by the helper row 'feed's real clock covers the time the pushes take')"
  },
  {
   "name": "CL06 rows: feed's windows are a fifth of the pushes",
   "file": "test/unit/s341-preview-scan-rows.test.ts",
   "from": "const tenth = Math.max(1, Math.floor(n / 10));",
   "to": "const tenth = Math.max(1, Math.floor(n / 5));",
-  "expect": "survives",
-  "why": "the first and last windows are twice as long as their name says; no row asserts the window size"
+  "expect": "killed",
+  "why": "the first and last windows were twice as long as their name says; run alone, killed by the helper row 'feed's three numbers are exact under a clock that only the pushes advance'"
  },
  {
   "name": "CL07 rows: feed's clock stops where it started",
   "file": "test/unit/s341-preview-scan-rows.test.ts",
-  "from": "const t3 = performance.now();",
+  "from": "const t3 = now();",
   "to": "const t3 = t0;",
-  "expect": "survives",
-  "why": "the whole-run and last-tenth numbers are zero or negative; the helper row accepts totalMs of 0"
+  "expect": "killed",
+  "why": "the whole-run and last-tenth numbers are zero or negative; run alone, killed by the helper row 'feed's three numbers are exact under a clock that only the pushes advance'"
+ },
+ {
+  "name": "CL08 rows: feed's default clock reads 0",
+  "file": "test/unit/s341-preview-scan-rows.test.ts",
+  "from": "now: () => number = () => performance.now()",
+  "to": "now: () => number = () => 0",
+  "expect": "killed",
+  "why": "the real clock is never read; no fake is given to the clock rows, so only the row that spins sees it; run alone, killed by the helper row 'feed's real clock covers the time the pushes take'"
+ },
+ {
+  "name": "CL09 rows: feed pushes a chunk a second time in the middle window",
+  "file": "test/unit/s341-preview-scan-rows.test.ts",
+  "from": "for (let i = tenth; i < n - tenth; i++) {\n    answers[i] = scanner.push(chunks[i]);",
+  "to": "for (let i = tenth; i < n - tenth; i++) {\n    scanner.push(chunks[i]);\n    answers[i] = scanner.push(chunks[i]);",
+  "expect": "killed",
+  "why": "the middle window pushes every chunk twice; run alone, killed by the helper row 'feed hands back every push's answer, the real scanner's and a stand-in's, and pushes each chunk once, in order'"
  },
  {
   "name": "LL01 push: the kept tail is capped to its last 65,536 characters (after 16 pieces)",
