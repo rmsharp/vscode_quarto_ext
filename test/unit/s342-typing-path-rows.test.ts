@@ -328,6 +328,23 @@ describe("createCellContextScheduler -- when the quarto.inCodeCell key is evalua
     expect(s.clock.pending()).toBe(1);
   });
 
+  // The Session 342 review round (mutation lens, M-06): the source comment says `evaluated` is `undefined` when "none yet, or no editor was active". The row above is the "none yet" half. Under VS Code's event contract the
+  // "no editor was active" half is not reachable (going from no editor to an editor always fires onDidChangeActiveTextEditor, which evaluates at once, before any `changed()`), so a scheduler that kept the snapshot from before
+  // would be EQUIVALENT in the host; this row pins the module's own contract, the comment, not a behaviour a person can see.
+  it("(the module's contract, not reachable in the host) an evaluation that sees no editor forgets the version before it: the editor back at that version is debounced, not taken for evaluated", () => {
+    const s = session();
+    s.scheduler.evaluateNow(); // (A, 1) evaluated
+    s.state.active = false;
+    s.scheduler.evaluateNow(); // no editor: nothing is recorded
+    s.state.active = true; // the snapshot is (A, 1) again
+    s.scheduler.changed();
+    expect(s.seen).toHaveLength(2); // the activation and the no-editor evaluation: this event waits
+    expect(s.clock.pending()).toBe(1);
+    s.clock.advance(TYPING_DEBOUNCE_MS);
+    expect(s.seen).toHaveLength(3);
+    expect(s.clock.pending()).toBe(0);
+  });
+
   it("asks the timer for the delay it was made with (40 ms here), once for each event that is debounced", () => {
     const s = session({ delayMs: 40 });
     s.scheduler.evaluateNow();
