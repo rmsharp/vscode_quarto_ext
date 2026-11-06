@@ -100,7 +100,7 @@ describe("the fake clock (the rows below count on it: Learning 910 -- a row that
 });
 
 describe("TYPING_DEBOUNCE_MS", () => {
-  it("is 150 ms: a pause shorter than a keystroke's gap on a slow typist, far under what a person notices of a tint or a context key", () => {
+  it("is 150 ms: the one delay both adapters hand their timers", () => {
     expect(TYPING_DEBOUNCE_MS).toBe(150);
   });
 });

@@ -38,6 +38,10 @@ const IN_CELL_CONTEXT = "quarto.inCodeCell";
 export function registerExecutionFeature(
   context: vscode.ExtensionContext,
 ): void {
+  // `quarto.inCodeCell` is re-evaluated at once for navigation (a cursor move
+  // that follows no edit, an active-editor change) and once the typing pauses for
+  // anything that follows an edit: each keystroke's document and selection events
+  // used to scan the whole document. See core/typing-debounce.
   const cellContext = createCellContextScheduler({
     timers: realTimers,
     delayMs: TYPING_DEBOUNCE_MS,
