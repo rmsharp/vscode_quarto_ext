@@ -478,5 +478,45 @@
   "to": "          regions[i] = region(r.startLine, r.endLine);",
   "expect": "killed",
   "why": "the NaN-start defect does nothing"
+ },
+ {
+  "name": "E15 equivalence: the end-to-end row's old filter keeps everything",
+  "file": "test/unit/yaml-region-lookup-equivalence.test.ts",
+  "from": "      const old = all.filter((o) => !oldInQuartoYamlRegion(regions, o.cellStartLine));",
+  "to": "      const old = all;",
+  "expect": "killed",
+  "why": "collectValueSources now drops cells the 'old' filter keeps; killed by the end-to-end row"
+ },
+ {
+  "name": "E16 equivalence: the end-to-end row records no disagreement",
+  "file": "test/unit/yaml-region-lookup-equivalence.test.ts",
+  "from": "      if (!sameOptionLines(got, old) && bucket.length < 5) bucket.push(",
+  "to": "      if (false && !sameOptionLines(got, old) && bucket.length < 5) bucket.push(",
+  "expect": "killed",
+  "why": "the inverted filter is no longer seen to differ; killed by the row's own check that the comparison can fail (five recorded)"
+ },
+ {
+  "name": "E17 equivalence: the end-to-end row's comparison is vacuous",
+  "file": "test/unit/yaml-region-lookup-equivalence.test.ts",
+  "from": "a.length === b.length && a.every((o, i) => o.line === b[i].line && o.cellStartLine === b[i].cellStartLine && o.cellLang === b[i].cellLang);",
+  "to": "true;",
+  "expect": "killed",
+  "why": "every pair of lists is the same; killed by the row's own check that the comparison can fail"
+ },
+ {
+  "name": "E18 equivalence: a tenth of the end-to-end documents",
+  "file": "test/unit/yaml-region-lookup-equivalence.test.ts",
+  "from": "  const CELL_DOCS = 15_000;",
+  "to": "  const CELL_DOCS = 1_500;",
+  "expect": "killed",
+  "why": "the floors on the documents are not reached"
+ },
+ {
+  "name": "E19 equivalence: the end-to-end row reads findCellOptionLines, not collectValueSources",
+  "file": "test/unit/yaml-region-lookup-equivalence.test.ts",
+  "from": "      const now = collectValueSources(text).cellLines;",
+  "to": "      const now = all;",
+  "expect": "killed",
+  "why": "the cure's filter is not read; killed by the documents whose option lines a region drops"
  }
 ]

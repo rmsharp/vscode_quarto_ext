@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { type YamlRegion, createYamlRegionLookup, inQuartoYamlRegion, quartoYamlRegions } from "../../src/core/qmd/quarto-yaml-regions";
+import { findCellOptionLines } from "../../src/core/qmd/model";
+import { collectValueSources } from "../../src/core/yaml-value-flags";
 import { countStrings, seededRandom } from "./support/regex-equivalence";
 
 // The enumerations take a few seconds each on a loaded machine; the sibling equivalence files give their heavy rows the same ceiling.
@@ -340,6 +342,21 @@ describe("Session 342 -- the regions of a document: the lookup answers them as t
   // The pool of the long documents: mostly delimiters and plain lines, a fence now and then, so that an array of 16 regions or more is common.
   const LONG_POOL = ["---", "---", "---", "---", "---", "--- ", "", "", "k: v", "prose", "prose again", "# Heading", "```{python}", "```"];
 
+  // about half of what the draw reaches at this seed: 10,069 documents with an option line, 3,221 with one dropped, 8,825 with one kept, 1,977 with both, at most 7 regions in one
+  const CELL_OPTIONS_FLOOR = 5_000;
+  const CELL_DROPPED_FLOOR = 1_600;
+  const CELL_KEPT_FLOOR = 4_400;
+  const CELL_BOTH_FLOOR = 1_000;
+
+  /** Seeded texts of `minLength` to `minLength + spread - 1` pieces drawn from `pool` (a piece may be several lines), one `\n` between pieces. */
+  function* seededTexts(count: number, minLength: number, spread: number, pool: readonly string[]): Generator<{ text: string }> {
+    const random = seededRandom(SEED + 1);
+    for (let n = 0; n < count; n++) {
+      const length = minLength + Math.floor(random() * spread);
+      yield { text: Array.from({ length }, () => pool[Math.floor(random() * pool.length)]).join("\n") };
+    }
+  }
+
   /** The seeded documents of `minLength` to `minLength + spread - 1` lines: the regions `quartoYamlRegions` finds in each, and the lines to ask (-1 to two past the end). */
   function* documents(count: number, minLength: number, spread: number, pool: readonly string[] = POOL): Generator<{ regions: YamlRegion[]; lines: number[] }> {
     const random = seededRandom(SEED);
@@ -376,6 +393,52 @@ describe("Session 342 -- the regions of a document: the lookup answers them as t
     expect(unterminated).toBeGreaterThan(UNTERMINATED_FLOOR);
     expect(touching).toBeGreaterThan(TOUCHING_FLOOR);
     expect(tally.inside).toBeGreaterThan(INSIDE_FLOOR);
+  }, HEAVY_ROW_MS);
+
+  // The caller's whole question, end to end: the OLD filter of `collectValueSources`, copied verbatim from the source before the lookup (`findCellOptionLines(text).filter((o) => !inQuartoYamlRegion(regions, o.cellStartLine))`),
+  // against the option lines `collectValueSources(text)` keeps now, over documents that mix cells, option lines, `---` pairs, fences and prose, so that regions swallow some cells and not others.
+  const CELL_POOL = [
+    "```{python}\n#| echo: false\nx = 1\n```", "```{python}\n#| echo: false\nx = 1\n```", "```{r}\n#| a: 1\n#| b: 2\ny\n```", "```{python}\nx = 1\n```", "```{python}\n#| fig-cap: |\n#|   more\nx\n```",
+    "  ```{python}\n#| z: 1\n```", "```{ojs}\n//| w: 1\n1\n```", "---\nk: v\n---", "---\nk: v\n---", "---\nk: v", "---", "---", "prose", "", "# Heading", "~~~", "```", "k: v", "<!--", "-->",
+  ];
+  const CELL_DOCS = 15_000;
+
+  it(`${CELL_DOCS.toLocaleString("en-US")} seeded documents of cells, option lines and \`---\` pairs: collectValueSources keeps the option lines the old filter kept, the same objects in the same order`, () => {
+    let withOptions = 0;
+    let withDropped = 0;
+    let withKept = 0;
+    let withBoth = 0;
+    let mostRegions = 0;
+    const disagreements: string[] = [];
+    const invertedDisagreements: string[] = [];
+    type OptionLines = readonly ReturnType<typeof findCellOptionLines>[number][];
+    const sameOptionLines = (a: OptionLines, b: OptionLines): boolean => a.length === b.length && a.every((o, i) => o.line === b[i].line && o.cellStartLine === b[i].cellStartLine && o.cellLang === b[i].cellLang);
+    /** Record in `bucket` (the first five only) that `got` is not `old`, with the text. */
+    const check = (got: OptionLines, old: OptionLines, text: string, bucket: string[]): void => {
+      if (!sameOptionLines(got, old) && bucket.length < 5) bucket.push(`${JSON.stringify(text)}: old ${JSON.stringify(old.map((o) => [o.line, o.cellStartLine]))}, got ${JSON.stringify(got.map((o) => [o.line, o.cellStartLine]))}`);
+    };
+    for (const { text } of seededTexts(CELL_DOCS, 0, 13, CELL_POOL)) {
+      const regions = quartoYamlRegions(text);
+      const all = findCellOptionLines(text);
+      const old = all.filter((o) => !oldInQuartoYamlRegion(regions, o.cellStartLine));
+      const now = collectValueSources(text).cellLines;
+      if (all.length > 0) withOptions++;
+      if (old.length < all.length) withDropped++;
+      if (old.length > 0) withKept++;
+      if (old.length > 0 && old.length < all.length) withBoth++;
+      mostRegions = Math.max(mostRegions, regions.length);
+      check(now, old, text, disagreements);
+      // the comparison can fail: the INVERTED filter (the option lines the old one dropped) is the old one's complement, so it differs from it on every document that has an option line
+      check(all.filter((o) => oldInQuartoYamlRegion(regions, o.cellStartLine)), old, text, invertedDisagreements);
+    }
+    expect(disagreements).toEqual([]);
+    expect(invertedDisagreements).toHaveLength(5);
+    // The draw must reach the shapes it is for: floors (documents with an option line, with one dropped, with one kept, with both, and the most regions in one).
+    expect(withOptions).toBeGreaterThan(CELL_OPTIONS_FLOOR);
+    expect(withDropped).toBeGreaterThan(CELL_DROPPED_FLOOR);
+    expect(withKept).toBeGreaterThan(CELL_KEPT_FLOOR);
+    expect(withBoth).toBeGreaterThan(CELL_BOTH_FLOOR);
+    expect(mostRegions).toBeGreaterThanOrEqual(4);
   }, HEAVY_ROW_MS);
 
   it(`${BIG_DOCS.toLocaleString("en-US")} seeded documents of 150 to 599 lines: an array of 16 regions or more is answered by at most the bound of reads on every line (the binary search, not a pass over the regions), and by the old spelling's answer`, () => {
