@@ -100,24 +100,24 @@
   "file": "src/core/embedded/virtual-doc.ts",
   "from": "    build: (cell) => buildCellVdoc(read(), cell),",
   "to": "    build: ((cache) => (cell: Cell): string => cache.get(cell) ?? (cache.set(cell, buildCellVdoc(read(), cell)), cache.get(cell)!))(new WeakMap<Cell, string>()),",
-  "expect": "survives",
-  "why": "same answer for a cell nobody changes between two builds; a Cell whose fields change between them is built from its old fields"
+  "expect": "killed",
+  "why": "build cached by the cell object: the old function read the cell's fields on every call, so a Cell whose code, engine or start line changes between two builds is built from its current fields; the model's cells are never mutated by the project, but the docstring says `byte for byte` for every Cell. Killed by the row that changes one Cell three times (it was argued equivalent in the review round)"
  },
  {
   "name": "R16 buildCellVdoc: whitespace is a hand-written class (space, tab, CR, NBSP, U+2028)",
   "file": "src/core/embedded/virtual-doc.ts",
   "from": "    if (!content && lines[i].trim() !== \"\") {",
   "to": "    if (!content && lines[i].replace(/[ \\t\\r\\u00a0\\u2028]/g, \"\") !== \"\") {",
-  "expect": "survives",
-  "why": "a body line of only U+3000, U+FEFF, U+2029, \\v, \\f or U+2003 is whitespace to trim and content to the class: the python mute differs"
+  "expect": "killed",
+  "why": "a hand-written class of five characters: a body line of only U+3000, U+FEFF, U+2029, a vertical tab, a form feed or U+2003 is whitespace to `trim` and content to the class, so the python mute differs. Killed by the whitespace rows, one per character `trim` strips that can stand alone in a body line (23, from a run over U+0000 to U+FFFF: 25 stripped, less the line feed and the carriage return); it survived every row of 89d38e3, which held five of them"
  },
  {
   "name": "R27 buildCellVdoc: the engine is read case-insensitively",
   "file": "src/core/embedded/virtual-doc.ts",
   "from": "  const mute = content && cellLanguageId(cell.lang)?.languageId === \"python\";",
   "to": "  const mute = content && cellLanguageId(cell.lang.toLowerCase())?.languageId === \"python\";",
-  "expect": "survives",
-  "why": "a `{Python}` cell is muted; no row builds a cell whose engine differs from a mapped one only by case"
+  "expect": "killed",
+  "why": "a `{Python}`, `{PYTHON}` or `{pYthon}` cell is muted: the language map is case-sensitive (`cellLanguageId('Python')` is null), so such a cell gets no mute and keeps its body. Not reachable by a user (the Outline never builds a cell whose engine does not map); killed by the engine-case row, which states the three vdocs"
  },
  {
   "name": "R40 createCellVdocBuilder: the option lines are read again on every build",
@@ -350,5 +350,13 @@
   "to": "const CELLAT_LIMIT_MS = 500_000;",
   "expect": "killed",
   "why": "no cellAt mutant would reach it; killed by the row that reads the constant"
+ },
+ {
+  "name": "R16c buildCellVdoc: whitespace is the regular expression \\s",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    if (!content && lines[i].trim() !== \"\") {",
+  "to": "    if (!content && lines[i].replace(/\\s/g, \"\") !== \"\") {",
+  "expect": "survives",
+  "why": "EQUIVALENT: `\\s` matches exactly the WhiteSpace and LineTerminator code points `String.prototype.trim` strips; checked over every code point of U+0000 to U+10FFFF on Node 22 (0 disagree, 25 below U+10000), so no row can tell the two apart"
  }
 ]

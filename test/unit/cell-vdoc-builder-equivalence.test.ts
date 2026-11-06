@@ -358,6 +358,79 @@ describe("Session 341 -- the named rows: the builder, buildCellVirtualContent an
     }
   });
 
+  // The mute is gated on a body line that is not whitespace, and "whitespace" is what `String.prototype.trim` strips: the WhiteSpace of ECMAScript (tab, vertical tab, form feed, space, no-break space, the zero-width no-break
+  // space U+FEFF, and every Unicode space separator: U+1680, U+2000 to U+200A, U+202F, U+205F, U+3000) and its LineTerminators (U+2028 and U+2029 inside a line). A hand-written class of five of them (space, tab, CR, NBSP,
+  // U+2028) is the mutant that these rows are for. The characters trim does NOT strip, though a reader may think they are blank, are the controls: a body of only one of them is CODE and the python cell is muted.
+  const TRIM_SPACE: Array<[string, string]> = [
+    ["a tab", "\t"], ["a vertical tab", "\v"], ["a form feed", "\f"], ["a space", " "], ["a no-break space U+00A0", NBSP], ["U+1680 ogham space mark", "\u1680"],
+    ["U+2000 en quad", "\u2000"], ["U+2001 em quad", "\u2001"], ["U+2002 en space", "\u2002"], ["U+2003 em space", "\u2003"], ["U+2004 three-per-em space", "\u2004"], ["U+2005 four-per-em space", "\u2005"],
+    ["U+2006 six-per-em space", "\u2006"], ["U+2007 figure space", "\u2007"], ["U+2008 punctuation space", "\u2008"], ["U+2009 thin space", "\u2009"], ["U+200A hair space", "\u200a"],
+    ["U+2028 line separator", LS], ["U+2029 paragraph separator", "\u2029"], ["U+202F narrow no-break space", "\u202f"], ["U+205F medium mathematical space", "\u205f"], ["U+3000 ideographic space", "\u3000"],
+    ["U+FEFF zero-width no-break space", "\ufeff"], ["a run of three kinds", "\t\u3000\ufeff"],
+  ];
+  const NOT_TRIM_SPACE: Array<[string, string]> = [
+    ["U+180E mongolian vowel separator (not a space since Unicode 6.3)", "\u180e"], ["U+200B zero-width space", "\u200b"], ["U+0085 next line", "\u0085"], ["U+2060 word joiner", "\u2060"],
+    ["U+00AD soft hyphen", "\u00ad"], ["U+200C zero-width non-joiner", "\u200c"], ["a NUL", "\u0000"], ["a space and an x", " x"], ["a no-break space and a dot", `${NBSP}.`],
+  ];
+
+  it.each(TRIM_SPACE.map((row) => [row[0], row[1]] as const))("a python body line of only %s is whitespace for the mute: kept as it is, and no mute", (_label, line) => {
+    const text = `\`\`\`{python}\n${line}\n\`\`\`\n`;
+    const [cell] = findAllCells(text);
+    expect(cell.code).toBe(line); // the model reads the line as the body (a line that is only whitespace is not an empty body)
+    const expected = `\n${line}\n\n`;
+    expect(createCellVdocBuilder(text).build(cell)).toBe(expected);
+    expect(oldBuildCellVirtualContent(text, cell)).toBe(expected);
+  });
+
+  it.each(NOT_TRIM_SPACE.map((row) => [row[0], row[1]] as const))("a python body line of only %s is code: it is kept, and the cell gets the mute", (_label, line) => {
+    const text = `\`\`\`{python}\n${line}\n\`\`\`\n`;
+    const [cell] = findAllCells(text);
+    expect(cell.code).toBe(line);
+    const expected = `${D}\n${line}\n\n`;
+    expect(createCellVdocBuilder(text).build(cell)).toBe(expected);
+    expect(oldBuildCellVirtualContent(text, cell)).toBe(expected);
+  });
+
+  it("the whitespace rows hold every character `trim` strips that can stand alone in a body line (all but the line feed and the carriage return, which end a line), and the other rows hold none", () => {
+    const stripped: string[] = [];
+    for (let code = 0; code <= 0xffff; code++) {
+      const ch = String.fromCharCode(code);
+      if (ch.trim() === "") stripped.push(ch);
+    }
+    const held = new Set(TRIM_SPACE.flatMap(([, line]) => [...line]));
+    expect(stripped.filter((ch) => ch !== "\n" && ch !== "\r" && !held.has(ch))).toEqual([]);
+    expect(stripped).toHaveLength(25); // the 23 of the rows, the line feed and the carriage return
+    for (const [, line] of NOT_TRIM_SPACE) expect(line.trim()).not.toBe("");
+  });
+
+  it("an engine that differs from a mapped one only by case is no mapped engine: no mute, and the body is kept (the Outline never builds such a cell, so this is the builder's own contract)", () => {
+    const text = "```{Python}\nx = 1\n```\n```{PYTHON}\ny = 2\n```\n```{pYthon}\nz = 3\n```\n";
+    const cells = findAllCells(text);
+    expect(cells.map((cell) => cell.lang)).toEqual(["Python", "PYTHON", "pYthon"]);
+    for (const cell of cells) expect(cellLanguageId(cell.lang)).toBeNull(); // the premise: the language map is case-sensitive
+    const builder = createCellVdocBuilder(text);
+    // 0 fence | 1 `x = 1` | 2 fence | 3 fence | 4 `y = 2` | 5 fence | 6 fence | 7 `z = 3` | 8 fence | 9 (empty): ten lines
+    expect(cells.map((cell) => builder.build(cell))).toEqual([`\nx = 1${nl(8)}`, `${nl(4)}y = 2${nl(5)}`, `${nl(7)}z = 3${nl(2)}`]);
+    expect(cells.map((cell) => oldBuildCellVirtualContent(text, cell))).toEqual(cells.map((cell) => builder.build(cell)));
+  });
+
+  it("a Cell whose fields change between two builds is built from its current fields, as the old function built it (a build is not remembered by the cell object)", () => {
+    const text = "p\n```{python}\nx = 1\ny = 2\n```\n";
+    const builder = createCellVdocBuilder(text);
+    const cell: Cell = { ...findAllCells(text)[0] };
+    const before = builder.build(cell);
+    expect(before).toBe(`${D}\n\nx = 1\ny = 2\n\n`);
+    cell.code = "x = 1"; // one line of code: the second body line is no longer body
+    expect(builder.build(cell)).toBe(`${D}\n\nx = 1${nl(3)}`);
+    expect(builder.build(cell)).toBe(oldBuildCellVirtualContent(text, cell));
+    cell.lang = "r";
+    expect(builder.build(cell)).toBe(`${nl(2)}x = 1${nl(3)}`);
+    expect(builder.build(cell)).toBe(oldBuildCellVirtualContent(text, cell));
+    cell.startLine = 2;
+    expect(builder.build(cell)).toBe(oldBuildCellVirtualContent(text, cell));
+    expect(builder.build(cell)).not.toBe(before);
+  });
+
   it("a hand-made cell shaped like an unterminated cell (its end line the last line, the closing fence missing) is built from its start line and its code alone", () => {
     const text = "p\n```{python}\nx = 1\ny = 2";
     const builder = createCellVdocBuilder(text);
