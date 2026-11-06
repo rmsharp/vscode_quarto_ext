@@ -47,6 +47,12 @@ this session's Phase 0, 37 commits ahead before the close-out commits; the dashb
 the read refusal: read in slices, edit with a Python script (`python3 -I -`). After answering a direct question, STOP and wait (memory).
 
 
+### What Session 342 Did
+**Deliverable:** g02 of the backlog ordering plan, twenty-sixth session: parts (2) to (5) of the BACKLOG item "What Session 341's review round found beside the Outline and preview cures, none of them in its diff" -- the YAML-region lookup per cell option line, the cell-edit and formatter-edit lookups, the two undebounced typing-path handlers and the engine-blind cell list (IN PROGRESS)
+**Started:** 2026-11-05
+**Status:** Session claimed. Work beginning. Strict TDD: time the literal shapes at HEAD first, one fresh process per probe (Learnings 840, 903), profile before reading the cure, seam first for anything behind a `vscode` adapter (Learning 913), rows RED on the parent on the clock alone with their own clock pinned (Learning 910), the old spelling kept as the cure's oracle, `mutation-lists-apply` right after any cherry-pick, a review round, then close out. Part (1) is a question for the operator and stays in the item.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
 ### What Session 341 Did
 **Deliverable:** g02 of the backlog ordering plan, twenty-fifth session: parts (2) and (3) of the BACKLOG item "Slow shapes and residuals found by Session 339's review round, none of them in its diff" -- the Outline provider
 built a whole-document virtual document for every code cell, and `quarto preview` re-parsed the whole accumulated stderr on every chunk -- DONE; claim `c20f0e8`
