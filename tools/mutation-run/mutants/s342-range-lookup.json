@@ -1,0 +1,554 @@
+[
+ {
+  "name": "L01 bodyCellOf: the first cell can never be found",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    if (at < 0) {\n      return null;\n    }\n    let found = mapped[at];",
+  "to": "    if (at < 1) {\n      return null;\n    }\n    let found = mapped[at];",
+  "expect": "killed",
+  "why": "a body line of the first cell answers null; killed by the named rows and every enumerated document whose first cell has a body (the oracle)"
+ },
+ {
+  "name": "L02 bodyCellOf: the cells are read again on every ask",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    cells ??= findAllCells(text);",
+  "to": "    cells = findAllCells(text);",
+  "expect": "killed",
+  "why": "the answers are the same and each ask copies the cell list; killed by the counted rows (one scan for the whole lookup)"
+ },
+ {
+  "name": "L03 bodyCellOf: the option lines are read again on every body line",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    options ??= optionLineSet(text);",
+  "to": "    options = optionLineSet(text);",
+  "expect": "killed",
+  "why": "the answers are the same and each body line pays for every cell's option lines; killed by the counted rows and by the clock rows (a ratio of hundreds)"
+ },
+ {
+  "name": "L04 bodyCellOf: the option lines are read before the cell is searched (eager)",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    cells ??= findAllCells(text);\n    const at = cellIndexAt(cells, line);",
+  "to": "    cells ??= findAllCells(text);\n    options ??= optionLineSet(text);\n    const at = cellIndexAt(cells, line);",
+  "expect": "killed",
+  "why": "the answers are the same and a list whose edits all sit on a fence or in prose pays for the option lines; killed by the counted rows (no option-line read for fences, prose, an unmapped engine)"
+ },
+ {
+  "name": "L05 bodyCellOf: a cell's language and body line count are not kept",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "      mapped[at] = found;\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the answers are the same and the code of the cell is split again for every line asked; killed by the counted rows (a cell's code is read once)"
+ },
+ {
+  "name": "L06 bodyCellOf: the first body line is a fence",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "line < found.firstBody || line > found.lastBody",
+  "to": "line <= found.firstBody || line > found.lastBody",
+  "expect": "killed",
+  "why": "the first line under the fence (or the option line above it) is not body; killed by the named rows and the oracle"
+ },
+ {
+  "name": "L07 bodyCellOf: the last body line is a fence",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "line < found.firstBody || line > found.lastBody",
+  "to": "line < found.firstBody || line >= found.lastBody",
+  "expect": "killed",
+  "why": "the last body line is not body; killed by the named rows and the oracle"
+ },
+ {
+  "name": "L08 bodyCellOf: the opening fence is the first body line",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "firstBody: cell.startLine + 1,",
+  "to": "firstBody: cell.startLine,",
+  "expect": "killed",
+  "why": "the fence line answers a hit (the option-line set does not hold it); killed by the named rows and the oracle"
+ },
+ {
+  "name": "L09 bodyCellOf: the closing fence is a body line",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "lastBody: cell.startLine + bodyLineCount(cell) }",
+  "to": "lastBody: cell.startLine + bodyLineCount(cell) + 1 }",
+  "expect": "killed",
+  "why": "the closing fence answers a hit; killed by the named rows and the oracle"
+ },
+ {
+  "name": "L10 bodyCellOf: an option line is a body line and a body line is not",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "return options.has(line) ? null : found;",
+  "to": "return options.has(line) ? found : null;",
+  "expect": "killed",
+  "why": "the answer inverts on every body line; killed by the named rows and the oracle"
+ },
+ {
+  "name": "L11 bodyCellOf: an unmapped engine is not refused",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "if (found === null || line < found.firstBody",
+  "to": "if (line < (found?.firstBody ?? 0)",
+  "expect": "killed",
+  "why": "an unmapped cell reads its body as a hit or throws on the null; killed by the rows with a {bash} cell and the oracle"
+ },
+ {
+  "name": "L12 hitAt: the engine token is replaced by the language",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "return found === null ? null : { lang: found.cell.lang,",
+  "to": "return found === null ? null : { lang: found.el.languageId,",
+  "expect": "killed",
+  "why": "an ojs cell answers lang javascript; killed by the ojs row and the oracle's shape comparison"
+ },
+ {
+  "name": "L13 hitAt: the extension is the language",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "ext: found.el.ext };",
+  "to": "ext: found.el.languageId };",
+  "expect": "killed",
+  "why": "the extension of python becomes python; killed by the named rows and the oracle"
+ },
+ {
+  "name": "L14 rangeInLanguageBody: the language test is inverted",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "if (found === null || found.el.languageId !== languageId) {",
+  "to": "if (found === null || found.el.languageId === languageId) {",
+  "expect": "killed",
+  "why": "a range in the language's body is refused; killed by the named rows and the oracle"
+ },
+ {
+  "name": "L15 rangeInLanguageBody: the last line of the range is not asked",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "rangeInLanguageBody: (start, end, languageId) => {\n      for (let line = start; line <= end; line++) {",
+  "to": "rangeInLanguageBody: (start, end, languageId) => {\n      for (let line = start; line < end; line++) {",
+  "expect": "killed",
+  "why": "a range that ends on a fence is kept; killed by the named rows and the oracle"
+ },
+ {
+  "name": "L16 rangeInLanguageBody: the first line of the range is not asked",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "rangeInLanguageBody: (start, end, languageId) => {\n      for (let line = start; line <= end; line++) {",
+  "to": "rangeInLanguageBody: (start, end, languageId) => {\n      for (let line = start + 1; line <= end; line++) {",
+  "expect": "killed",
+  "why": "a range that starts on a fence is kept; killed by the named rows and the oracle"
+ },
+ {
+  "name": "L17 rangeInLanguageBody: every second line is asked",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "rangeInLanguageBody: (start, end, languageId) => {\n      for (let line = start; line <= end; line++) {",
+  "to": "rangeInLanguageBody: (start, end, languageId) => {\n      for (let line = start; line <= end; line += 2) {",
+  "expect": "killed",
+  "why": "a fence between two body lines is stepped over; killed by the oracle (the range 7 to 10 and the like)"
+ },
+ {
+  "name": "L18 rangeInCellBody: the last line of the range is not asked",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "rangeInCellBody: (start, end, cell) => {\n      for (let line = start; line <= end; line++) {",
+  "to": "rangeInCellBody: (start, end, cell) => {\n      for (let line = start; line < end; line++) {",
+  "expect": "killed",
+  "why": "a range that ends on a fence or in another cell is kept; killed by the named rows and the oracle"
+ },
+ {
+  "name": "L19 rangeInCellBody: the ownership test is inverted",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "if (found.cell.startLine !== cell.startLine) {",
+  "to": "if (found.cell.startLine === cell.startLine) {",
+  "expect": "killed",
+  "why": "the cell's own body is refused; killed by the named rows and the oracle"
+ },
+ {
+  "name": "L20 rangeInCellBody: the ownership is the cell object, not its start line",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "if (found.cell.startLine !== cell.startLine) {",
+  "to": "if (found.cell !== cell) {",
+  "expect": "killed",
+  "why": "the model hands the lookup its own cell objects, so a copy of the cell (a hand-made one with the start line, which is all the old check read) is refused; killed by the ghost-cell row and the oracle's hand-made cells"
+ },
+ {
+  "name": "L21 rangeInCellBody: any cell's body is the cell's",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "if (found.cell.startLine !== cell.startLine) {",
+  "to": "if (false) {",
+  "expect": "killed",
+  "why": "the body of a different cell, even of the same language, is kept; killed by the named rows and the oracle"
+ },
+ {
+  "name": "L22 cellIndexAt: a line past the cell's end still finds it",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "return found >= 0 && line <= cells[found].endLine ? found : -1;",
+  "to": "return found >= 0 ? found : -1;",
+  "expect": "killed",
+  "why": "prose below a cell and the lines after the last cell answer the cell; killed by the cellAt rows of Session 341 and the oracle"
+ },
+ {
+  "name": "L23 cellIndexAt: a cell starts strictly above its first line",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "if (cells[middle].startLine <= line) {",
+  "to": "if (cells[middle].startLine < line) {",
+  "expect": "killed",
+  "why": "the fence line is not in its cell; killed by the cellAt rows of Session 341 and the oracle"
+ },
+ {
+  "name": "L24 cellIndexAt: the middle is not an integer",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "const middle = (low + high) >> 1;",
+  "to": "const middle = (low + high) / 2;",
+  "expect": "killed",
+  "why": "an odd sum gives a half index and reading the start line of undefined throws; killed by any document with two or more cells"
+ },
+ {
+  "name": "L25 optionLineSet: the option lines are one line down",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "return new Set(findCellOptionLines(text).map((o) => o.line));",
+  "to": "return new Set(findCellOptionLines(text).map((o) => o.line + 1));",
+  "expect": "killed",
+  "why": "the first body line is blanked and the option line is code; killed by the named rows, the oracle and the builder's rows"
+ },
+ {
+  "name": "L26 the lookup reads an empty text",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    cells ??= findAllCells(text);",
+  "to": "    cells ??= findAllCells(\"\");",
+  "expect": "killed",
+  "why": "no cell is ever found; killed by every row with a hit"
+ },
+ {
+  "name": "L27 the per-cell cache is shared by every lookup",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "export function createRangeLookup(text: string): RangeLookup {\n  let cells: readonly Cell[] | undefined;\n  let options: ReadonlySet<number> | undefined;\n  const mapped: Array<MappedCell | null | undefined> = [];",
+  "to": "const SHARED_MAPPED: Array<MappedCell | null | undefined> = [];\nexport function createRangeLookup(text: string): RangeLookup {\n  let cells: readonly Cell[] | undefined;\n  let options: ReadonlySet<number> | undefined;\n  const mapped = SHARED_MAPPED;",
+  "expect": "killed",
+  "why": "the language and body of cell 0 of the first text answer for cell 0 of every other; killed by the rows that ask two texts and by the oracle"
+ },
+ {
+  "name": "L28 the option lines are shared by every lookup",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "    options ??= optionLineSet(text);",
+  "to": "    options ??= ((globalThis as { __sharedOptions?: ReadonlySet<number> }).__sharedOptions ??= optionLineSet(text));",
+  "expect": "killed",
+  "why": "the first text's option lines answer for every later text; killed by the oracle (a second document's option lines are read as the first one's)"
+ },
+ {
+  "name": "L29 bodyCellOf: the parent's per-line scan back",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "  const bodyCellOf = (line: number): MappedCell | null => {\n    cells ??= findAllCells(text);",
+  "to": "  const bodyCellOf = (line: number): MappedCell | null => {\n    const hit = embeddedCellAt(text, line);\n    if (hit === null) {\n      return null;\n    }\n    const owner = findCellAtPosition(text, line) as Cell;\n    return { cell: owner, el: cellLanguageId(owner.lang) as EmbeddedLang, firstBody: 0, lastBody: 0 };\n  };\n  const unusedBodyCellOf = (line: number): MappedCell | null => {\n    cells ??= findAllCells(text);",
+  "expect": "killed",
+  "why": "the answers are the old ones and the cost is cells times lines again; killed by the six clock rows and the counted rows (findCellAtPosition is asked per line)"
+ },
+ {
+  "name": "L30 bodyLineCount: a body line too many",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "return cell.code === \"\" ? 0 : cell.code.split(\"\\n\").length;",
+  "to": "return cell.code === \"\" ? 0 : cell.code.split(\"\\n\").length + 1;",
+  "expect": "killed",
+  "why": "the closing fence is body in every vdoc and every lookup; killed by the oracle and Session 341's builder rows"
+ },
+ {
+  "name": "L31 cellAtLine: the first cell is never answered",
+  "file": "src/core/embedded/virtual-doc.ts",
+  "from": "return at >= 0 ? cells[at] : null;",
+  "to": "return at > 0 ? cells[at] : null;",
+  "expect": "killed",
+  "why": "the builder's lookup (shared search) loses the first cell; killed by Session 341's cellAt rows and differential"
+ },
+ {
+  "name": "P01 the old per-line check back in the completion filter",
+  "file": "src/providers/embedded.ts",
+  "from": "      const kept = edits.filter((e) =>\n        lookup.rangeInLanguageBody(e.range.start.line, e.range.end.line, languageId),\n      );",
+  "to": "      const kept = edits.filter((e) => {\n        for (let line = e.range.start.line; line <= e.range.end.line; line++) {\n          const hit = embeddedCellAt(text, line);\n          if (hit === null || hit.languageId !== languageId) return false;\n        }\n        return true;\n      });",
+  "expect": "killed",
+  "why": "the answers are the old ones and the cost is cells times lines again; killed by the syntax-tree pin (filterOutOfCellEdits calls embeddedCellAt)"
+ },
+ {
+  "name": "P02 a lookup per edit",
+  "file": "src/providers/embedded.ts",
+  "from": "      const kept = edits.filter((e) =>\n        lookup.rangeInLanguageBody(e.range.start.line, e.range.end.line, languageId),\n      );",
+  "to": "      const kept = edits.filter((e) =>\n        createRangeLookup(text).rangeInLanguageBody(e.range.start.line, e.range.end.line, languageId),\n      );",
+  "expect": "killed",
+  "why": "the answers are the same and every edit pays for the cells; killed by the pin (two calls of createRangeLookup)"
+ },
+ {
+  "name": "P03 a lookup per item",
+  "file": "src/providers/embedded.ts",
+  "from": "  const lookup = createRangeLookup(text);\n  for (const item of list.items) {\n    const edits = item.additionalTextEdits;",
+  "to": "  for (const item of list.items) {\n    const lookup = createRangeLookup(text);\n    const edits = item.additionalTextEdits;",
+  "expect": "killed",
+  "why": "the answers are the same and every item pays for the cells; killed by the pin (the lookup is not a statement of the function's body)"
+ },
+ {
+  "name": "P04 a lookup over an empty text",
+  "file": "src/providers/embedded.ts",
+  "from": "  const lookup = createRangeLookup(text);\n  for (const item of list.items) {",
+  "to": "  const lookup = createRangeLookup(\"\");\n  for (const item of list.items) {",
+  "expect": "killed",
+  "why": "every edit is refused; killed by the pin (not over the call's own text)"
+ },
+ {
+  "name": "P05 the end line is the start line",
+  "file": "src/providers/embedded.ts",
+  "from": "lookup.rangeInLanguageBody(e.range.start.line, e.range.end.line, languageId)",
+  "to": "lookup.rangeInLanguageBody(e.range.start.line, e.range.start.line, languageId)",
+  "expect": "killed",
+  "why": "a multi-line edit is checked on its first line only; killed by the pin"
+ },
+ {
+  "name": "P06 the lines swapped",
+  "file": "src/providers/embedded.ts",
+  "from": "lookup.rangeInLanguageBody(e.range.start.line, e.range.end.line, languageId)",
+  "to": "lookup.rangeInLanguageBody(e.range.end.line, e.range.start.line, languageId)",
+  "expect": "killed",
+  "why": "every multi-line edit has no line to refuse and is kept; killed by the pin"
+ },
+ {
+  "name": "P07 python for every completion's language",
+  "file": "src/providers/embedded.ts",
+  "from": "lookup.rangeInLanguageBody(e.range.start.line, e.range.end.line, languageId)",
+  "to": "lookup.rangeInLanguageBody(e.range.start.line, e.range.end.line, \"python\")",
+  "expect": "killed",
+  "why": "an r completion's edits are checked against python cells; killed by the pin"
+ },
+ {
+  "name": "P08 the cell check where the language check belongs",
+  "file": "src/providers/embedded.ts",
+  "from": "lookup.rangeInLanguageBody(e.range.start.line, e.range.end.line, languageId)",
+  "to": "lookup.rangeInCellBody(e.range.start.line, e.range.end.line, languageId)",
+  "expect": "killed",
+  "why": "the wrong check with the wrong argument; killed by the pin"
+ },
+ {
+  "name": "P09 the lookup made after the items are walked",
+  "file": "src/providers/embedded.ts",
+  "from": "  const lookup = createRangeLookup(text);\n  for (const item of list.items) {",
+  "to": "  for (const item of list.items) {\n    void item;\n  }\n  const lookup = createRangeLookup(text);\n  for (const item of list.items) {",
+  "expect": "killed",
+  "why": "the lookup is made after a first walk of the items; killed by the pin (made after the edits are filtered)"
+ },
+ {
+  "name": "P10 the filter handed an empty text",
+  "file": "src/providers/embedded.ts",
+  "from": "    return filterOutOfCellEdits(list, text, hit.languageId);",
+  "to": "    return filterOutOfCellEdits(list, \"\", hit.languageId);",
+  "expect": "killed",
+  "why": "every secondary edit is dropped; killed by the pin on the provider's call"
+ },
+ {
+  "name": "P11 the filter handed python for the hit's language",
+  "file": "src/providers/embedded.ts",
+  "from": "    return filterOutOfCellEdits(list, text, hit.languageId);",
+  "to": "    return filterOutOfCellEdits(list, text, \"python\");",
+  "expect": "killed",
+  "why": "every non-python completion loses its secondary edits; killed by the pin on the provider's call"
+ },
+ {
+  "name": "P12 a per-line gate call in the hover provider",
+  "file": "src/providers/embedded.ts",
+  "from": "    const hit = embeddedCellAt(text, position.line);\n    if (hit === null) {\n      return undefined;\n    }\n    const vdocUri = await vdocFor(document, text, hit);\n    if (vdocUri === undefined) {\n      return undefined;\n    }\n    const hovers",
+  "to": "    const hit = embeddedCellAt(text, position.line);\n    for (let line = 0; line < 3; line++) embeddedCellAt(text, line);\n    if (hit === null) {\n      return undefined;\n    }\n    const vdocUri = await vdocFor(document, text, hit);\n    if (vdocUri === undefined) {\n      return undefined;\n    }\n    const hovers",
+  "expect": "killed",
+  "why": "a scan per line in a gate; killed by the pin (an embeddedCellAt call that is not embeddedCellAt(text, position.line))"
+ },
+ {
+  "name": "P13 findCellAtPosition used in the completion adapter",
+  "file": "src/providers/embedded.ts",
+  "from": "function filterOutOfCellEdits(",
+  "to": "const unused = (t: string): unknown => findCellAtPosition(t, 0);\nfunction filterOutOfCellEdits(",
+  "expect": "killed",
+  "why": "the old ownership scan back in the file; killed by the pin (the identifier is used)"
+ },
+ {
+  "name": "P14 the old helper back",
+  "file": "src/providers/embedded.ts",
+  "from": "function filterOutOfCellEdits(",
+  "to": "function rangeInSameLangBody(): boolean {\n  return true;\n}\nfunction filterOutOfCellEdits(",
+  "expect": "killed",
+  "why": "the per-line helper declared again; killed by the pin"
+ },
+ {
+  "name": "P15 the filter takes its parameters in another order",
+  "file": "src/providers/embedded.ts",
+  "from": "  text: string,\n  languageId: string,\n): vscode.CompletionList | undefined {\n  if (list === undefined) {",
+  "to": "  languageId: string,\n  text: string,\n): vscode.CompletionList | undefined {\n  if (list === undefined) {",
+  "expect": "killed",
+  "why": "the call site and the function disagree on what is the text; killed by the pin"
+ },
+ {
+  "name": "F01 the old per-line check back in the format filter",
+  "file": "src/features/format-cell.ts",
+  "from": "  const kept = edits.filter((e) => lookup.rangeInCellBody(e.range.start.line, e.range.end.line, cell));",
+  "to": "  const kept = edits.filter((e) => {\n    for (let line = e.range.start.line; line <= e.range.end.line; line++) {\n      if (embeddedCellAt(text, line) === null) return false;\n      const owner = findCellAtPosition(text, line);\n      if (owner === null || owner.startLine !== cell.startLine) return false;\n    }\n    return true;\n  });",
+  "expect": "killed",
+  "why": "the answers are the old ones and the cost is cells times lines again; killed by the syntax-tree pin (two calls of embeddedCellAt, one per line)"
+ },
+ {
+  "name": "F02 a lookup per edit",
+  "file": "src/features/format-cell.ts",
+  "from": "  const kept = edits.filter((e) => lookup.rangeInCellBody(e.range.start.line, e.range.end.line, cell));",
+  "to": "  const kept = edits.filter((e) => createRangeLookup(text).rangeInCellBody(e.range.start.line, e.range.end.line, cell));",
+  "expect": "killed",
+  "why": "the answers are the same and every edit pays for the cells; killed by the pin"
+ },
+ {
+  "name": "F03 a lookup over an empty text",
+  "file": "src/features/format-cell.ts",
+  "from": "  const lookup = createRangeLookup(text);",
+  "to": "  const lookup = createRangeLookup(\"\");",
+  "expect": "killed",
+  "why": "every edit is refused; killed by the pin"
+ },
+ {
+  "name": "F04 the end line is the start line... of the end",
+  "file": "src/features/format-cell.ts",
+  "from": "lookup.rangeInCellBody(e.range.start.line, e.range.end.line, cell)",
+  "to": "lookup.rangeInCellBody(e.range.end.line, e.range.end.line, cell)",
+  "expect": "killed",
+  "why": "a multi-line edit is checked on its last line only; killed by the pin"
+ },
+ {
+  "name": "F05 the lines swapped",
+  "file": "src/features/format-cell.ts",
+  "from": "lookup.rangeInCellBody(e.range.start.line, e.range.end.line, cell)",
+  "to": "lookup.rangeInCellBody(e.range.end.line, e.range.start.line, cell)",
+  "expect": "killed",
+  "why": "every multi-line edit has no line to refuse and is kept; killed by the pin"
+ },
+ {
+  "name": "F06 a cell that is nobody's",
+  "file": "src/features/format-cell.ts",
+  "from": "lookup.rangeInCellBody(e.range.start.line, e.range.end.line, cell)",
+  "to": "lookup.rangeInCellBody(e.range.start.line, e.range.end.line, { ...cell, startLine: -1 })",
+  "expect": "killed",
+  "why": "every edit is refused; killed by the pin"
+ },
+ {
+  "name": "F07 the language check where the cell check belongs",
+  "file": "src/features/format-cell.ts",
+  "from": "lookup.rangeInCellBody(e.range.start.line, e.range.end.line, cell)",
+  "to": "lookup.rangeInLanguageBody(e.range.start.line, e.range.end.line, hit.languageId)",
+  "expect": "killed",
+  "why": "an edit in a sibling cell of the same language is kept: the document-corruption bug of Session 87; killed by the pin"
+ },
+ {
+  "name": "F08 the lookup made after the filter",
+  "file": "src/features/format-cell.ts",
+  "from": "  const lookup = createRangeLookup(text);\n  const kept = edits.filter((e) => lookup.rangeInCellBody(e.range.start.line, e.range.end.line, cell));",
+  "to": "  const kept = edits.filter((e) => lookup.rangeInCellBody(e.range.start.line, e.range.end.line, cell));\n  const lookup = createRangeLookup(text);",
+  "expect": "killed",
+  "why": "a temporal dead zone at run time; killed by the pin (made after the edits are filtered)"
+ },
+ {
+  "name": "F09 the lookup made inside an arrow function",
+  "file": "src/features/format-cell.ts",
+  "from": "  const lookup = createRangeLookup(text);",
+  "to": "  const lookup = (() => createRangeLookup(text))();",
+  "expect": "killed",
+  "why": "the same lookup through an arrow; killed by the pin (not called directly in formatCellAtCursor)"
+ },
+ {
+  "name": "F10 the cell looked up one line below the cursor",
+  "file": "src/features/format-cell.ts",
+  "from": "  const cell = findCellAtPosition(text, position.line);",
+  "to": "  const cell = findCellAtPosition(text, position.line + 1);",
+  "expect": "killed",
+  "why": "the edits are checked against the next cell; killed by the pin"
+ },
+ {
+  "name": "F11 a second embeddedCellAt call",
+  "file": "src/features/format-cell.ts",
+  "from": "  const cell = findCellAtPosition(text, position.line);",
+  "to": "  const cell = findCellAtPosition(text, position.line);\n  void embeddedCellAt(text, position.line + 2);",
+  "expect": "killed",
+  "why": "an extra scan; killed by the pin (two calls of embeddedCellAt)"
+ },
+ {
+  "name": "F12 the old helper back",
+  "file": "src/features/format-cell.ts",
+  "from": "async function formatCellAtCursor(): Promise<void> {",
+  "to": "function rangeWithinCell(): boolean {\n  return true;\n}\nasync function formatCellAtCursor(): Promise<void> {",
+  "expect": "killed",
+  "why": "the per-line helper declared again; killed by the pin"
+ },
+ {
+  "name": "F13 the text read twice",
+  "file": "src/features/format-cell.ts",
+  "from": "  const kept = edits.filter(",
+  "to": "  void editor.document.getText();\n  const kept = edits.filter(",
+  "expect": "killed",
+  "why": "a second copy of the document text; killed by the pin"
+ },
+ {
+  "name": "C01 the limit raised a thousandfold",
+  "file": "test/unit/s342-range-lookup-rows.test.ts",
+  "from": "const LIMIT_MS = 1000;",
+  "to": "const LIMIT_MS = 1_000_000;",
+  "expect": "killed",
+  "why": "the net under the ratio is gone; killed by the sizes row and the criteria rows (the limit is named in their messages)"
+ },
+ {
+  "name": "C02 the ratio limit raised a thousandfold",
+  "file": "test/unit/s342-range-lookup-rows.test.ts",
+  "from": "const RATIO = 20;",
+  "to": "const RATIO = 20_000;",
+  "expect": "killed",
+  "why": "the clock rows no longer tell the parent from the cure; killed by the sizes row and the criteria rows"
+ },
+ {
+  "name": "C03 the loop total stuck at 0",
+  "file": "test/unit/s342-range-lookup-rows.test.ts",
+  "from": "  const ms = now() - started;\n  return { lookup, ms, firstMs, answers };",
+  "to": "  const ms = 0;\n  return { lookup, ms, firstMs, answers };",
+  "expect": "killed",
+  "why": "every clock row passes on the parent's logic unless the clock itself is pinned (Learning 910); killed by the helper rows, the clock rows (a total below the first ask) and the controls"
+ },
+ {
+  "name": "C04 the first ask stuck at 0",
+  "file": "test/unit/s342-range-lookup-rows.test.ts",
+  "from": "    if (answers.length === 1) firstMs = now() - started;",
+  "to": "    if (answers.length === 1) firstMs = 0;",
+  "expect": "killed",
+  "why": "the ratio is infinite and every clock row fails on the cure; killed by the helper rows and the clock rows"
+ },
+ {
+  "name": "C05 the criterion 'the loop is not below its first ask' dropped",
+  "file": "test/unit/s342-range-lookup-rows.test.ts",
+  "from": "  if (!(run.ms >= run.firstMs)) broken.push(`the loop read ${run.ms} ms, less than its first ask (${run.firstMs} ms)`);\n",
+  "to": "",
+  "expect": "killed",
+  "why": "a total stuck at 0 passes the other criteria; killed by the criteria row for a clock that did not run"
+ },
+ {
+  "name": "C06 the number of edits cut to 3",
+  "file": "test/unit/s342-range-lookup-rows.test.ts",
+  "from": "const EDITS = 300;",
+  "to": "const EDITS = 3;",
+  "expect": "killed",
+  "why": "the parent's ratio falls to the number of edits; killed by the sizes row"
+ },
+ {
+  "name": "C07 the sizes cut to 5, 20 and 80 cells",
+  "file": "test/unit/s342-range-lookup-rows.test.ts",
+  "from": "const SIZES = [500, 2000, 8000];",
+  "to": "const SIZES = [5, 20, 80];",
+  "expect": "killed",
+  "why": "the parent costs nothing on these; killed by the sizes row"
+ },
+ {
+  "name": "C08 every completion edit is expected to be kept",
+  "file": "test/unit/s342-range-lookup-rows.test.ts",
+  "from": "    expected.push(!refused);",
+  "to": "    expected.push(true);",
+  "expect": "killed",
+  "why": "the stated answers claim the refused edits are kept; killed by the answers read before the clock"
+ },
+ {
+  "name": "C09 the refused edit is one body line",
+  "file": "test/unit/s342-range-lookup-rows.test.ts",
+  "from": "    const last = refused ? first + 1 : first;",
+  "to": "    const last = first;",
+  "expect": "killed",
+  "why": "the edit that runs onto the closing fence is no longer asked, so the stated answers disagree with the lookup; killed by the answers"
+ },
+ {
+  "name": "C10 the wide cell is never made",
+  "file": "test/unit/s342-range-lookup-rows.test.ts",
+  "from": "    if (i === (n >> 1) - 1) {",
+  "to": "    if (i === n + 5) {",
+  "expect": "killed",
+  "why": "the format loop has no wide cell to ask about; killed by the model-found-it check of the loop's setup"
+ }
+]
