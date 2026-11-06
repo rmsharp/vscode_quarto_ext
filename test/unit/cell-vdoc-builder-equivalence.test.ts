@@ -523,10 +523,13 @@ describe("Session 341 -- a seeded differential on larger documents", () => {
   const CODES = ["", "a", "a\nb\nc", "\n", "   ", "x = 1\n#| echo: false"];
   const FRACTIONS = [-0.75, -0.5, -0.25, 0.25, 0.5, 0.75, 1e-9, -1e-9, 1 - 2 ** -53, -(2 ** -53)];
 
-  it(`agrees with the old spelling and with findCellAtPosition on ${SEEDED_COUNT.toLocaleString("en-US")} documents of 1 to 40 lines, and on six hand-made cells of each`, () => {
+  it(`agrees with the old spelling and with findCellAtPosition on ${SEEDED_COUNT.toLocaleString("en-US")} documents (a body of 1 to 40 lines, and a 3-line front matter before it in 30% of them, so 1 to 43 lines), and on six hand-made cells of each`, () => {
     const random = seededRandom(SEED);
     const pick = <T,>(items: readonly T[]): T => items[Math.floor(random() * items.length)];
     const tally = newTally();
+    let fewest = Infinity;
+    let most = 0;
+    let fractional = 0;
     for (let n = 0; n < SEEDED_COUNT; n++) {
       const lines: string[] = [];
       if (random() < 0.3) lines.push("---", "title: t", "---");
@@ -535,6 +538,8 @@ describe("Session 341 -- a seeded differential on larger documents", () => {
       let text = "";
       for (let k = 0; k < lines.length; k++) text += lines[k] + (k < lines.length - 1 ? pick(EOLS) : "");
       const total = text.split("\n").length;
+      fewest = Math.min(fewest, total);
+      most = Math.max(most, total);
       const handMade: Cell[] = [];
       for (let k = 0; k < 4; k++) {
         const startLine = Math.floor(random() * (total + 6)) - 2;
@@ -544,6 +549,7 @@ describe("Session 341 -- a seeded differential on larger documents", () => {
       // Two more whose start line is NOT a whole line number: a whole one moved by a fraction (either way, and by a hair that rounds back in `start + lines`).
       for (let k = 0; k < 2; k++) {
         const startLine = Math.floor(random() * (total + 6)) - 2 + pick(FRACTIONS);
+        if (!Number.isInteger(startLine)) fractional++;
         const code = pick(CODES);
         handMade.push({ startLine, endLine: startLine + 1 + code.split("\n").length, lang: pick(ENGINES), code });
       }
@@ -551,6 +557,10 @@ describe("Session 341 -- a seeded differential on larger documents", () => {
     }
     expect(tally.disagreements).toEqual([]);
     expect(tally.docs).toBe(SEEDED_COUNT);
+    // The range the title states: the body draws 1 to 40 lines (`1 + floor(random * 40)`), the front matter adds 3, and both ends are drawn.
+    expect([fewest, most]).toEqual([1, 43]);
+    // The cells whose start line is a fraction: two a document (60,000), minus the hairs (`-2^-53` and `1 - 2^-53`) that round back to a whole number on every line but the first ones: 49,257 at this seed.
+    expect(fractional).toBeGreaterThan(1.5 * SEEDED_COUNT);
     // The draw must reach the shapes it is for: floors, not pinned counts (the generator is Mulberry32 over a pool, not a definition a second program is asked to reproduce).
     expect(tally.cells).toBeGreaterThan(10_000);
     expect(tally.mutes).toBeGreaterThan(2_000);

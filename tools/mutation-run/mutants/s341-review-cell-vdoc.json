@@ -220,24 +220,24 @@
   "file": "test/unit/cell-vdoc-builder-equivalence.test.ts",
   "from": "      const length = 1 + Math.floor(random() * 40);",
   "to": "      const length = 1 + Math.floor(random() * 50);",
-  "expect": "survives",
-  "why": "the title says 1 to 40 body lines and nothing reads the range back"
+  "expect": "killed",
+  "why": "the title says a body of 1 to 40 lines and nothing read the range back (C08: a 3-line front matter makes the whole documents 1 to 43); killed by the row's pin of the fewest and the most lines drawn, [1, 43]"
  },
  {
   "name": "Q02 seeded draw: no document has a front matter",
   "file": "test/unit/cell-vdoc-builder-equivalence.test.ts",
   "from": "      if (random() < 0.3) lines.push(\"---\", \"title: t\", \"---\");",
   "to": "      if (random() < 0) lines.push(\"---\", \"title: t\", \"---\");",
-  "expect": "survives",
-  "why": "the front matter's 3 lines are in the range the title states; with none the largest document has 40"
+  "expect": "killed",
+  "why": "with no front matter the largest document has 40 lines, not 43; killed by the pin of the range drawn, [1, 43]"
  },
  {
   "name": "Q03 seeded draw: no hand-made cell has a fractional start line",
   "file": "test/unit/cell-vdoc-builder-equivalence.test.ts",
   "from": "      for (let k = 0; k < 2; k++) {\n        const startLine = Math.floor(random() * (total + 6)) - 2 + pick(FRACTIONS);",
   "to": "      for (let k = 0; k < 0; k++) {\n        const startLine = Math.floor(random() * (total + 6)) - 2 + pick(FRACTIONS);",
-  "expect": "survives",
-  "why": "on the cured builder the draw agrees with the old spelling either way, so only a count of the cells it made can see it is gone"
+  "expect": "killed",
+  "why": "on the cured builder the draw agrees with the old spelling with or without its fractional hand-made cells, so only a count of the cells it made sees them gone; killed by the floor on that count (49,257 of 60,000 at this seed, the floor 45,000)"
  },
  {
   "name": "S02b loopRatio: the first call over the loop",
