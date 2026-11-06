@@ -298,6 +298,43 @@ describe("Session 343 -- which files share an entry, and what the bound drops", 
     expect(fs.reads()).toBe(17);
   });
 
+  it("a file that CHANGED counts as just used: with 16 held, the OLDEST rewritten and a 17th file read, the one dropped is the next oldest (f1), not the file just rewritten (f0)", async () => {
+    const fs = many();
+    const cache = createCitationCache(fs);
+    for (let i = 0; i <= 15; i++) await cache.read([`f${i}.bib`], DIR);
+    fs.set("f0.bib", { content: bibtex([["k0", "rewritten"]]), mtimeMs: 999 });
+    await cache.read(["f0.bib"], DIR); // a miss: read again, and the newest entry now
+    await cache.read(["f16.bib"], DIR); // the 17th file
+    expect(fs.reads()).toBe(18);
+    await cache.read(["f0.bib"], DIR);
+    expect(fs.reads()).toBe(18); // f0 is still there
+    await cache.read(["f1.bib"], DIR);
+    expect(fs.reads()).toBe(19); // f1 is the one that went
+  });
+
+  it("a modification time that moves by a fraction of a millisecond is a change (file systems report sub-millisecond times): 1000.25, 1000.75 and 1000.2500001 are three signatures", async () => {
+    const fs = fakeFs({ "a.bib": { content: bibtex([["a1", "t"]]), mtimeMs: 1000.25, size: 10 } });
+    const cache = createCitationCache(fs);
+    await cache.read(["a.bib"], DIR);
+    fs.set("a.bib", { content: bibtex([["a1", "t"]]), mtimeMs: 1000.75, size: 10 });
+    await cache.read(["a.bib"], DIR);
+    fs.set("a.bib", { content: bibtex([["a1", "t"]]), mtimeMs: 1000.2500001, size: 10 });
+    await cache.read(["a.bib"], DIR);
+    expect(fs.reads()).toBe(3);
+  });
+
+  it("a file whose stat carries no signature is kept nowhere, so read after 16 held files it does not push the oldest one out", async () => {
+    const fs = many();
+    fs.set("odd.bib", { content: bibtex([["odd", "no signature"]]), mtimeMs: 1 });
+    const none = { mtimeMs: undefined, size: undefined } as unknown as BibliographyStat;
+    const cache = createCitationCache({ readFile: fs.readFile, stat: (absolute) => (absolute.endsWith("odd.bib") ? Promise.resolve(none) : fs.stat(absolute)) });
+    for (let i = 0; i <= 15; i++) await cache.read([`f${i}.bib`], DIR);
+    expect((await cache.read(["odd.bib"], DIR)).map((c) => c.key)).toEqual(["odd"]);
+    const before = fs.reads();
+    await cache.read(["f0.bib"], DIR);
+    expect(fs.reads()).toBe(before); // f0 is still held
+  });
+
   it("a document that declares MORE files than the bound gets every one of them, in order, at the first ask and at the second", async () => {
     const fs = many();
     const cache = createCitationCache(fs);
