@@ -1,0 +1,482 @@
+[
+ {
+  "name": "K01 TYPING_MAX_WAIT_MS is 2000",
+  "file": "src/core/typing-debounce.ts",
+  "from": "export const TYPING_MAX_WAIT_MS = 1000;",
+  "to": "export const TYPING_MAX_WAIT_MS = 2000;",
+  "expect": "killed",
+  "why": "the constant row, and every stream row that counts the runs of 30 s (15 against 30)"
+ },
+ {
+  "name": "K02 TYPING_MAX_WAIT_MS is the debounce delay",
+  "file": "src/core/typing-debounce.ts",
+  "from": "export const TYPING_MAX_WAIT_MS = 1000;",
+  "to": "export const TYPING_MAX_WAIT_MS = 150;",
+  "expect": "killed",
+  "why": "the constant row (it must exceed the delay) and the stream rows"
+ },
+ {
+  "name": "K03 TYPING_MAX_WAIT_MS is 100",
+  "file": "src/core/typing-debounce.ts",
+  "from": "export const TYPING_MAX_WAIT_MS = 1000;",
+  "to": "export const TYPING_MAX_WAIT_MS = 100;",
+  "expect": "killed",
+  "why": "the constant row and the stream rows (a run every 100 ms)"
+ },
+ {
+  "name": "M01 maxWaitMs: not normalized",
+  "file": "src/core/typing-debounce.ts",
+  "from": "  const maxWaitMs = options.maxWaitMs === undefined ? undefined : normalizeDelayMs(options.maxWaitMs);",
+  "to": "  const maxWaitMs = options.maxWaitMs;",
+  "expect": "killed",
+  "why": "NaN, minus zero, a negative, minus infinity and infinity reach the timer as they are; killed by the table of maxWaitMs values (the delays asked)"
+ },
+ {
+  "name": "M02 maxWaitMs: undefined is the longest delay",
+  "file": "src/core/typing-debounce.ts",
+  "from": "options.maxWaitMs === undefined ? undefined : normalizeDelayMs(options.maxWaitMs);",
+  "to": "normalizeDelayMs(options.maxWaitMs ?? Infinity);",
+  "expect": "killed",
+  "why": "every debouncer opens a window with a timer 24.8 days long; killed by the control rows (the delays asked, the timers pending)"
+ },
+ {
+  "name": "M03 maxWaitMs: undefined is zero",
+  "file": "src/core/typing-debounce.ts",
+  "from": "options.maxWaitMs === undefined ? undefined : normalizeDelayMs(options.maxWaitMs);",
+  "to": "options.maxWaitMs === undefined ? 0 : normalizeDelayMs(options.maxWaitMs);",
+  "expect": "killed",
+  "why": "every debouncer without a maximum wait runs at the next timer turn; killed by the control rows and the existing debouncer rows"
+ },
+ {
+  "name": "M04 maxWaitMs: infinity is no window",
+  "file": "src/core/typing-debounce.ts",
+  "from": "options.maxWaitMs === undefined ? undefined : normalizeDelayMs(options.maxWaitMs);",
+  "to": "options.maxWaitMs === undefined || options.maxWaitMs === Infinity ? undefined : normalizeDelayMs(options.maxWaitMs);",
+  "expect": "killed",
+  "why": "an infinite maximum wait asks the timer for nothing; killed by the infinity row of the table (it must ask for the longest delay a host timer holds)"
+ },
+ {
+  "name": "M05 maxWaitMs: never shorter than the delay",
+  "file": "src/core/typing-debounce.ts",
+  "from": "normalizeDelayMs(options.maxWaitMs);\n  const onError",
+  "to": "Math.max(delayMs, normalizeDelayMs(options.maxWaitMs));\n  const onError",
+  "expect": "killed",
+  "why": "a maximum wait of zero, NaN or 100 reads as the delay; killed by the zero and shorter-than-the-delay rows"
+ },
+ {
+  "name": "M06 maxWaitMs: a fraction is floored",
+  "file": "src/core/typing-debounce.ts",
+  "from": "normalizeDelayMs(options.maxWaitMs);\n  const onError",
+  "to": "Math.floor(normalizeDelayMs(options.maxWaitMs));\n  const onError",
+  "expect": "killed",
+  "why": "1.5 reaches the timer as 1; killed by the fraction row of the table"
+ },
+ {
+  "name": "W-A01 schedule: the window is never opened",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      if (maxWaitMs !== undefined) {\n        const open",
+  "to": "      if (maxWaitMs === undefined) {\n        const open",
+  "expect": "killed",
+  "why": "the test inverted: a debouncer with a maximum wait has none and one without opens a window with an undefined delay; killed by the stream rows"
+ },
+ {
+  "name": "W-A02 schedule: the first run of the window is kept",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          open.run = run;",
+  "to": "          void run;",
+  "expect": "killed",
+  "why": "the window's timer runs the first schedule of its window, not the latest; killed by the stream rows (the run's label) and the scheduler rows (the state it reads)"
+ },
+ {
+  "name": "W-A03 schedule: every schedule opens a new window",
+  "file": "src/core/typing-debounce.ts",
+  "from": "        if (open !== undefined) {\n          open.run = run;",
+  "to": "        if (open !== undefined && false) {\n          open.run = run;",
+  "expect": "killed",
+  "why": "the window is restarted (an orphaned timer each time, the table overwritten): the window's timer of the first schedule still fires, and the delays asked grow; killed by the delays row and the stream rows"
+ },
+ {
+  "name": "W-A04 schedule: the window's timer is asked for the delay",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          }, maxWaitMs);",
+  "to": "          }, delayMs);",
+  "expect": "killed",
+  "why": "the window ends at the trailing delay, so the maximum wait is not a maximum wait; killed by the delays rows and the stream rows"
+ },
+ {
+  "name": "W-A05 schedule: the window's timer is asked for twice the maximum wait",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          }, maxWaitMs);",
+  "to": "          }, maxWaitMs * 2);",
+  "expect": "killed",
+  "why": "an unbroken stream runs once every 2 s; killed by the stream rows"
+ },
+ {
+  "name": "W-A06 schedule: the window's callback leaves the trailing timer",
+  "file": "src/core/typing-debounce.ts",
+  "from": "            dropTrailing(key);\n            settle(key, window.run);",
+  "to": "            settle(key, window.run);",
+  "expect": "killed",
+  "why": "the trailing timer of the last schedule still fires and runs the key a second time, 150 ms after the window's run; killed by the stream rows (twice the runs) and the pending-timer rows"
+ },
+ {
+  "name": "W-A07 schedule: the window's callback runs the first run it was opened with",
+  "file": "src/core/typing-debounce.ts",
+  "from": "            settle(key, window.run);",
+  "to": "            settle(key, run);",
+  "expect": "killed",
+  "why": "the run handed to the first schedule of the window runs, not the latest; killed by the stream rows (the label of each run)"
+ },
+ {
+  "name": "W-A08 schedule: the window's callback clears the timer that is running",
+  "file": "src/core/typing-debounce.ts",
+  "from": "            dropTrailing(key);\n            settle(key, window.run);",
+  "to": "            closeWindow(key);\n            dropTrailing(key);\n            settle(key, window.run);",
+  "expect": "killed",
+  "why": "the window's own timer is cleared while it runs, a stale clear the host ignores and the fake clock counts; killed by the staleClears rows only"
+ },
+ {
+  "name": "W-A09 schedule: the trailing callback leaves the window",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          closeWindow(key);\n          settle(key, run);",
+  "to": "          settle(key, run);",
+  "expect": "killed",
+  "why": "the window's timer of a key that has run still fires and runs the key again at the end of its window; killed by the lone-schedule row and the pending-timer rows"
+ },
+ {
+  "name": "W-A10 schedule: a schedule restarts the window too",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      dropTrailing(key);\n      pending.set(",
+  "to": "      dropTrailing(key);\n      closeWindow(key);\n      pending.set(",
+  "expect": "killed",
+  "why": "the window is closed by every schedule and opened again: the maximum wait is a second trailing debounce; killed by the stream rows (no run before the stream ends)"
+ },
+ {
+  "name": "W-A11 settle: the window is left in the table after the run",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    pending.delete(key);\n    windows.delete(key);\n    try {",
+  "to": "    pending.delete(key);\n    try {",
+  "expect": "killed",
+  "why": "after the window's timer ran, the table still holds its window: the next schedule only replaces its run and no new window opens; killed by the stream rows (the second run never comes)"
+ },
+ {
+  "name": "W-A12 settle: the trailing entry is left in the table after the run",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    pending.delete(key);\n    windows.delete(key);\n    try {",
+  "to": "    windows.delete(key);\n    try {",
+  "expect": "killed",
+  "why": "the table forgets the run only when it has run: a run that schedules its own key finds a timer that has fired and clears it (stale clear), and cancel and dispose clear it again; killed by the staleClears rows"
+ },
+ {
+  "name": "W-A13 settle: both tables are emptied by a run",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    pending.delete(key);\n    windows.delete(key);\n    try {",
+  "to": "    pending.clear();\n    windows.clear();\n    try {",
+  "expect": "killed",
+  "why": "a run forgets the other keys' timers; killed by the per-key rows"
+ },
+ {
+  "name": "W-A14 settle: the entries are deleted after the run, in a finally",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    pending.delete(key);\n    windows.delete(key);\n    try {\n      run();\n    } catch (error) {\n      onError(error);\n    }",
+  "to": "    try {\n      run();\n    } catch (error) {\n      onError(error);\n    } finally {\n      pending.delete(key);\n      windows.delete(key);\n    }",
+  "expect": "killed",
+  "why": "a run that schedules its own key leaves a table that no longer knows its timers (the delete after the run removes the new entries): the dropped runs still run, cancel and dispose cannot reach them; killed by the rows for a run that schedules its own key, and by the sequence test"
+ },
+ {
+  "name": "W-A15 settle: the window entry is deleted after the run",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    pending.delete(key);\n    windows.delete(key);\n    try {\n      run();\n    } catch (error) {\n      onError(error);\n    }",
+  "to": "    pending.delete(key);\n    try {\n      run();\n    } catch (error) {\n      onError(error);\n    }\n    windows.delete(key);",
+  "expect": "killed",
+  "why": "a run that schedules its own key opens a window that the delete after the run removes (the timer stays, the table forgets it): the next schedule opens a second window; killed by the rows for a run that schedules its own key with a maximum wait"
+ },
+ {
+  "name": "W-A16 settle: a throwing run is not caught",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    try {\n      run();\n    } catch (error) {\n      onError(error);\n    }\n  };",
+  "to": "    run();\n  };",
+  "expect": "killed",
+  "why": "the error escapes the timer; killed by the throwing-run rows"
+ },
+ {
+  "name": "W-C01 closeWindow: the window's timer is not cleared",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      timers.clearTimeout(window.timer);\n      windows.delete(key);\n    }\n  };",
+  "to": "      windows.delete(key);\n    }\n  };",
+  "expect": "killed",
+  "why": "a cancelled or run key's window timer still fires; killed by the cancel rows and the lone-schedule row"
+ },
+ {
+  "name": "W-C02 closeWindow: the window is cleared but kept in the table",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      timers.clearTimeout(window.timer);\n      windows.delete(key);\n    }\n  };",
+  "to": "      timers.clearTimeout(window.timer);\n    }\n  };",
+  "expect": "killed",
+  "why": "the next schedule finds a window whose timer is gone and opens none: the key has no maximum wait after a cancel; killed by the cancel-in-a-stream row"
+ },
+ {
+  "name": "W-C03 closeWindow: the key is handed to clearTimeout",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      timers.clearTimeout(window.timer);\n      windows.delete(key);\n    }\n  };",
+  "to": "      timers.clearTimeout(key);\n      windows.delete(key);\n    }\n  };",
+  "expect": "killed",
+  "why": "the window's timer is never cleared; killed by the cancel rows"
+ },
+ {
+  "name": "W-C04 cancel: the window is left open",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    cancel(key) {\n      dropTrailing(key);\n      closeWindow(key);\n    },",
+  "to": "    cancel(key) {\n      dropTrailing(key);\n    },",
+  "expect": "killed",
+  "why": "a cancelled run runs at the end of its window; killed by the cancel rows"
+ },
+ {
+  "name": "W-C05 cancel: the trailing timer is left",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    cancel(key) {\n      dropTrailing(key);\n      closeWindow(key);\n    },",
+  "to": "    cancel(key) {\n      closeWindow(key);\n    },",
+  "expect": "killed",
+  "why": "a cancelled run runs one delay after its last schedule; killed by the cancel rows (and the older cancel rows)"
+ },
+ {
+  "name": "W-C06 cancel: only the key's window is closed, all of them",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    cancel(key) {\n      dropTrailing(key);\n      closeWindow(key);\n    },",
+  "to": "    cancel(key) {\n      dropTrailing(key);\n      for (const other of [...windows.keys()]) closeWindow(other);\n    },",
+  "expect": "killed",
+  "why": "cancelling one key closes every key's window; killed by the cancel-leaves-the-other-keys row"
+ },
+ {
+  "name": "W-C07 dispose: the windows' timers are left",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      for (const window of windows.values()) {\n        timers.clearTimeout(window.timer);\n      }\n      windows.clear();",
+  "to": "      windows.clear();",
+  "expect": "killed",
+  "why": "a disposed debouncer runs the keys at the end of their windows; killed by the dispose rows"
+ },
+ {
+  "name": "W-C08 dispose: the windows table is left full",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      windows.clear();\n    },",
+  "to": "    },",
+  "expect": "killed",
+  "why": "after a dispose, a cancel finds a window whose timer has been cleared and clears it again (a stale clear the host ignores); killed by the staleClears check of the dispose row only"
+ },
+ {
+  "name": "W-C09 dispose: the windows are cleared as handles",
+  "file": "src/core/typing-debounce.ts",
+  "from": "        timers.clearTimeout(window.timer);\n      }\n      windows.clear();",
+  "to": "        timers.clearTimeout(window);\n      }\n      windows.clear();",
+  "expect": "killed",
+  "why": "the window object is handed to clearTimeout as if it were the handle: the timer stays set; killed by the dispose rows"
+ },
+ {
+  "name": "W-C10 dispose: the debouncer is not marked disposed",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      disposed = true;\n      for (const handle of pending.values()) {",
+  "to": "      for (const handle of pending.values()) {",
+  "expect": "killed",
+  "why": "later schedules open timers again (the older rows pin it too); killed by the dispose rows"
+ },
+ {
+  "name": "W-C11 dropTrailing: the entry stays when the timer is cleared",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      timers.clearTimeout(pending.get(key));\n      pending.delete(key);\n    }\n  };\n\n  const closeWindow",
+  "to": "      timers.clearTimeout(pending.get(key));\n    }\n  };\n\n  const closeWindow",
+  "expect": "killed",
+  "why": "a dropped trailing timer is dropped again by the next schedule or cancel (a stale clear); killed by the staleClears rows"
+ },
+ {
+  "name": "S-01 scheduler: the maximum wait is not handed on",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    delayMs: options.delayMs,\n    maxWaitMs: options.maxWaitMs,\n    onError: options.onError,",
+  "to": "    delayMs: options.delayMs,\n    onError: options.onError,",
+  "expect": "killed",
+  "why": "the scheduler has no maximum wait whatever it is given; killed by the scheduler rows (the stream, the lag bound, the pending timers)"
+ },
+ {
+  "name": "S-02 scheduler: the maximum wait handed on is the delay",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    maxWaitMs: options.maxWaitMs,",
+  "to": "    maxWaitMs: options.delayMs,",
+  "expect": "killed",
+  "why": "the scheduler's window is its delay; killed by the scheduler rows (30 evaluations of a 30 s stream become 0)"
+ },
+ {
+  "name": "S-03 scheduler: every scheduler has the constant maximum wait",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    maxWaitMs: options.maxWaitMs,",
+  "to": "    maxWaitMs: TYPING_MAX_WAIT_MS,",
+  "expect": "killed",
+  "why": "a scheduler made without a maxWaitMs gets one; killed by the control rows (the delays asked) and the older scheduler rows that count the timers"
+ },
+ {
+  "name": "S-04 scheduler: the maximum wait handed on is the pause of 40 ms",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    maxWaitMs: options.maxWaitMs,",
+  "to": "    maxWaitMs: 40,",
+  "expect": "killed",
+  "why": "the scheduler's window is 40 ms whatever it is given; killed by the scheduler rows"
+ },
+ {
+  "name": "W01 scheduler: no maximum wait",
+  "file": "src/features/execution.ts",
+  "from": "    maxWaitMs: TYPING_MAX_WAIT_MS,\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the scheduler is the pure trailing debounce again; killed by the wiring pin (s343-max-wait-wiring-pin) and the older pin's option list"
+ },
+ {
+  "name": "W02 scheduler: the maximum wait is a literal",
+  "file": "src/features/execution.ts",
+  "from": "    maxWaitMs: TYPING_MAX_WAIT_MS,\n",
+  "to": "    maxWaitMs: 1000,\n",
+  "expect": "killed",
+  "why": "a literal 1000 stands for the constant; killed by the wiring pin only (the older pin names the option, not its value)"
+ },
+ {
+  "name": "W03 scheduler: the maximum wait is the debounce delay",
+  "file": "src/features/execution.ts",
+  "from": "    maxWaitMs: TYPING_MAX_WAIT_MS,\n",
+  "to": "    maxWaitMs: TYPING_DEBOUNCE_MS,\n",
+  "expect": "killed",
+  "why": "the window is the delay; killed by the wiring pin"
+ },
+ {
+  "name": "W04 scheduler: the maximum wait is undefined",
+  "file": "src/features/execution.ts",
+  "from": "    maxWaitMs: TYPING_MAX_WAIT_MS,\n",
+  "to": "    maxWaitMs: undefined,\n",
+  "expect": "killed",
+  "why": "the option is spelled and says nothing; killed by the wiring pin"
+ },
+ {
+  "name": "W05 scheduler: the constant is not imported",
+  "file": "src/features/execution.ts",
+  "from": "  TYPING_MAX_WAIT_MS,\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the name is then a free identifier (a compile error the bundle would report; vitest does not); killed by the wiring pin"
+ },
+ {
+  "name": "W06 scheduler: the constant is renamed on import",
+  "file": "src/features/execution.ts",
+  "from": "  TYPING_MAX_WAIT_MS,\n",
+  "to": "  TYPING_DEBOUNCE_MS as TYPING_MAX_WAIT_MS,\n",
+  "expect": "killed",
+  "why": "the option reads the delay under the constant's name; killed by the wiring pin"
+ },
+ {
+  "name": "W07 scheduler: the option is given twice",
+  "file": "src/features/execution.ts",
+  "from": "    maxWaitMs: TYPING_MAX_WAIT_MS,\n",
+  "to": "    maxWaitMs: TYPING_MAX_WAIT_MS,\n    maxWaitMs: TYPING_MAX_WAIT_MS,\n",
+  "expect": "killed",
+  "why": "a duplicate property (the later one wins; a compile error); killed by the wiring pin"
+ },
+ {
+  "name": "W08 debouncer: no maximum wait",
+  "file": "src/features/cell-background.ts",
+  "from": "    maxWaitMs: TYPING_MAX_WAIT_MS,\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the debouncer is the pure trailing debounce again; killed by the wiring pin (s343-max-wait-wiring-pin) and the older pin's option list"
+ },
+ {
+  "name": "W09 debouncer: the maximum wait is a literal",
+  "file": "src/features/cell-background.ts",
+  "from": "    maxWaitMs: TYPING_MAX_WAIT_MS,\n",
+  "to": "    maxWaitMs: 1000,\n",
+  "expect": "killed",
+  "why": "a literal 1000 stands for the constant; killed by the wiring pin only (the older pin names the option, not its value)"
+ },
+ {
+  "name": "W10 debouncer: the maximum wait is the debounce delay",
+  "file": "src/features/cell-background.ts",
+  "from": "    maxWaitMs: TYPING_MAX_WAIT_MS,\n",
+  "to": "    maxWaitMs: TYPING_DEBOUNCE_MS,\n",
+  "expect": "killed",
+  "why": "the window is the delay; killed by the wiring pin"
+ },
+ {
+  "name": "W11 debouncer: the maximum wait is undefined",
+  "file": "src/features/cell-background.ts",
+  "from": "    maxWaitMs: TYPING_MAX_WAIT_MS,\n",
+  "to": "    maxWaitMs: undefined,\n",
+  "expect": "killed",
+  "why": "the option is spelled and says nothing; killed by the wiring pin"
+ },
+ {
+  "name": "W12 debouncer: the constant is not imported",
+  "file": "src/features/cell-background.ts",
+  "from": "  TYPING_MAX_WAIT_MS,\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the name is then a free identifier (a compile error the bundle would report; vitest does not); killed by the wiring pin"
+ },
+ {
+  "name": "W13 debouncer: the constant is renamed on import",
+  "file": "src/features/cell-background.ts",
+  "from": "  TYPING_MAX_WAIT_MS,\n",
+  "to": "  TYPING_DEBOUNCE_MS as TYPING_MAX_WAIT_MS,\n",
+  "expect": "killed",
+  "why": "the option reads the delay under the constant's name; killed by the wiring pin"
+ },
+ {
+  "name": "W14 debouncer: the option is given twice",
+  "file": "src/features/cell-background.ts",
+  "from": "    maxWaitMs: TYPING_MAX_WAIT_MS,\n",
+  "to": "    maxWaitMs: TYPING_MAX_WAIT_MS,\n    maxWaitMs: TYPING_MAX_WAIT_MS,\n",
+  "expect": "killed",
+  "why": "a duplicate property (the later one wins; a compile error); killed by the wiring pin"
+ },
+ {
+  "name": "Y01 model: a run that schedules its own key leaves no entry",
+  "file": "test/unit/typing-path-equivalence.test.ts",
+  "from": "        if (entry.again !== undefined) {\n          this.schedule(key, entry.again);\n        }",
+  "to": "        void entry.again;",
+  "expect": "killed",
+  "why": "the model forgets the entry the run leaves while the real debouncer keeps it; killed by the sequence test itself (it must disagree)"
+ },
+ {
+  "name": "Y02 model: the entry a run leaves is due from the end of the window, not from the run",
+  "file": "test/unit/typing-path-equivalence.test.ts",
+  "from": "        now = Math.max(now, entry.due);\n        log.push",
+  "to": "        log.push",
+  "expect": "killed",
+  "why": "the model's clock is behind when a run schedules its key, so the entry is due too soon; killed by the sequence test itself"
+ },
+ {
+  "name": "Y03 model: the advance runs only the entries that were due at its start",
+  "file": "test/unit/typing-path-equivalence.test.ts",
+  "from": "      for (;;) {\n        // the entry due soonest",
+  "to": "      for (let once = 0; once < 1; once++) {\n        // the entry due soonest",
+  "expect": "killed",
+  "why": "the model runs one entry a call; killed by the sequence test itself (and the model's own rows)"
+ },
+ {
+  "name": "Z01 settle: pending.delete(key) moved after run() (the hand mutant of task two)",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    pending.delete(key);\n    windows.delete(key);\n    try {\n      run();\n    } catch (error) {\n      onError(error);\n    }",
+  "to": "    windows.delete(key);\n    try {\n      run();\n    } catch (error) {\n      onError(error);\n    }\n    pending.delete(key);",
+  "expect": "killed",
+  "why": "a run that schedules its own key leaves a table that forgets the new timer: the dropped run still runs. Killed by the NEW sequence test of typing-path-equivalence.test.ts (1 failed, three mismatches) and NOT by the same test at its previous commit (2 passed): that is what the operation adds. Also killed by the direct rows of typing-debounce.test.ts"
+ },
+ {
+  "name": "E01 schedule: the placeholder timer of a new window is null",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          const window = { timer: undefined as TimerHandle, run };",
+  "to": "          const window = { timer: null as TimerHandle, run };",
+  "expect": "survives",
+  "why": "EQUIVALENT: the placeholder is overwritten by the next statement and nothing reads it in between (a timer never runs synchronously, on a host or on the fake clock)"
+ },
+ {
+  "name": "Y04 model: the clock moves to the entry's due time without the max",
+  "file": "test/unit/typing-path-equivalence.test.ts",
+  "from": "        now = Math.max(now, entry.due);\n        log.push",
+  "to": "        now = entry.due;\n        log.push",
+  "expect": "survives",
+  "why": "EQUIVALENT: an entry's due time is never before the model's clock (it was set to the clock at its scheduling plus a delay that is not negative, and an entry due inside an earlier advance has run), so the max is always the due time"
+ }
+]
