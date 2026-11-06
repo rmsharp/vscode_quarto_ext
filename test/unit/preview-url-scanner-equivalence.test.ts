@@ -139,6 +139,35 @@ describe("Session 341 — the named cases (the first answer is the one the old s
   });
 });
 
+// ---- LONG MARKER LINES. Every Browse at line of the named cases and of the seeded documents is under 400 characters, and the one long line of the named cases is noise ("x"). A scanner that BOUNDS the unfinished line it keeps (the obvious
+// memory-saving variant of the cure: keep the last 64 KiB, or the first, or cap the pieces) answers the same on all of those and loses a marker whose line is longer than its cap, while `parseBrowseUrl` has no cap: the whole line is the
+// URL. So each row sends ONE line, in chunks of one size, and its newline alone in the last chunk; the answer is the whole URL at that last push. The oracle is `parseBrowseUrl` called ONCE (without the newline: null; with it: the URL):
+// the old spelling's call per chunk costs the pushes times the length, about 10^11 steps for one-byte chunks. Before the last push every pushed text is a prefix of the line, which holds no newline, so the old spelling is null there. ----
+type LongLine = { name: string; noise: number; body: number; sizes: number[] };
+
+const LONG_LINES: LongLine[] = [
+  { name: "a URL of 200,000 characters (3x 64 KiB)", noise: 0, body: 200_000, sizes: [1, 1_000, 4_096, 65_536] },
+  { name: "a URL of 1,100,000 characters (more than 1 MiB)", noise: 0, body: 1_100_000, sizes: [1, 4_096, 65_536] },
+  { name: "the marker after 200,000 characters of noise on its line", noise: 200_000, body: 0, sizes: [1, 4_096] },
+  { name: "the marker after 200,000 characters of noise, then a URL of 200,000 characters", noise: 200_000, body: 200_000, sizes: [1, 4_096] },
+];
+
+describe("Session 341 — a Browse at line far longer than any cap, in chunks of one size, then its newline: the whole URL, at the newline", () => {
+  const rows = LONG_LINES.flatMap((long) => long.sizes.map((size) => [long.name, size, long] as const));
+
+  it.each(rows)("%s, in chunks of %i character(s)", (_name, size, long) => {
+    const url = `http://x/${"y".repeat(long.body)}`;
+    const line = `${"x".repeat(long.noise)}Browse at ${url}`;
+    const chunks = [...inPieces(line, size), "\n"];
+    const got = scannerFirst(chunks);
+    // Numbers and flags, so that a failure does not print a megabyte.
+    expect({ at: got?.at, length: got?.url.length, whole: got?.url === url }).toEqual({ at: chunks.length - 1, length: url.length, whole: true });
+    // The oracle, once: no newline, no answer; with the newline, the same URL.
+    expect(parseBrowseUrl(line) === null).toBe(true);
+    expect(parseBrowseUrl(chunks.join("")) === url).toBe(true);
+  });
+});
+
 // ---- THE ENUMERATIONS: every string of up to N tokens, every split of it into 1 to 3 chunks (empty chunks included). ----
 
 /** Every way to cut `text` into exactly one, two or three chunks (a cut may fall anywhere, so a chunk may be empty): 1 + (n + 1) + (n + 1)(n + 2) / 2 splits for n characters. */

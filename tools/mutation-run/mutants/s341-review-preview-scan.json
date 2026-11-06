@@ -76,48 +76,48 @@
   "file": "src/core/preview-url.ts",
   "from": "tail.push(chunk);\n        return null;",
   "to": "tail.push(chunk);\n        if (tail.length > 16) tail = [tail.join(\"\").slice(-65536)];\n        return null;",
-  "expect": "survives",
-  "why": "a marker line longer than 64 KiB loses its start; no row has a Browse at line that long (the 100,000-character line holds only x, the seeded lines are at most 400 characters) (finding M-R43, TD-3)"
+  "expect": "killed",
+  "why": "a marker line longer than 64 KiB lost its start (no row had a Browse at line that long); run alone, killed by the rows of the block 'a Browse at line far longer than any cap, in chunks of one size, then its newline: the whole URL, at the newline' of preview-url-scanner-equivalence.test.ts, by its one-character-chunk rows and by its 4,096-character-chunk rows"
  },
  {
   "name": "LL02 push: the kept tail is capped to its last 4,096 characters (checked every 1,024 pieces)",
   "file": "src/core/preview-url.ts",
   "from": "tail.push(chunk);\n        return null;",
   "to": "tail.push(chunk);\n        if (tail.length > 1024) tail = [tail.join(\"\").slice(-4096)];\n        return null;",
-  "expect": "survives",
-  "why": "the same family with a small cap that only one-byte chunks reach (finding TD-3)"
+  "expect": "killed",
+  "why": "the same family with a small cap that only one-byte chunks reach (4,096-character chunks give at most 270 pieces here, never 1,024); run alone, killed by the ONE-character-chunk rows of the rows of the block 'a Browse at line far longer than any cap, in chunks of one size, then its newline: the whole URL, at the newline' of preview-url-scanner-equivalence.test.ts and by no other row (the 4,096-character-chunk rows alone let it survive, seen with -t)"
  },
  {
   "name": "LL03 push: the kept tail is capped to its last 65,536 characters (after 64 pieces)",
   "file": "src/core/preview-url.ts",
   "from": "tail.push(chunk);\n        return null;",
   "to": "tail.push(chunk);\n        if (tail.length > 64) {\n          tail = [tail.join(\"\").slice(-65536)];\n        }\n        return null;",
-  "expect": "survives",
-  "why": "the reviewer's first variant (finding TD-3)"
+  "expect": "killed",
+  "why": "the reviewer's first variant (finding TD-3: after 64 pieces, the last 65,536 characters); run alone, killed by the rows of the block 'a Browse at line far longer than any cap, in chunks of one size, then its newline: the whole URL, at the newline' of preview-url-scanner-equivalence.test.ts, by its one-character-chunk rows and by its 4,096-character-chunk rows"
  },
  {
   "name": "LL04 push: the kept tail is capped to its FIRST 65,536 characters",
   "file": "src/core/preview-url.ts",
   "from": "tail.push(chunk);\n        return null;",
   "to": "tail.push(chunk);\n        if (tail.length > 16) tail = [tail.join(\"\").slice(0, 65536)];\n        return null;",
-  "expect": "survives",
-  "why": "a long line of noise that ENDS in the marker loses the marker; no row has a line like that"
+  "expect": "killed",
+  "why": "a long line of noise that ENDS in the marker lost the marker (no row had a line like that); run alone, killed by the rows of the block 'a Browse at line far longer than any cap, in chunks of one size, then its newline: the whole URL, at the newline' of preview-url-scanner-equivalence.test.ts (the rows 'the marker after 200,000 characters of noise ...'), at one-character and at 4,096-character chunks"
  },
  {
   "name": "LL05 push: the kept tail is capped to its last 1 MiB (checked every 16 pieces)",
   "file": "src/core/preview-url.ts",
   "from": "tail.push(chunk);\n        return null;",
   "to": "tail.push(chunk);\n        if (tail.length > 16) tail = [tail.join(\"\").slice(-1048576)];\n        return null;",
-  "expect": "survives",
-  "why": "a cap above every line the rows send; only a marker line of more than 1 MiB loses its start"
+  "expect": "killed",
+  "why": "a cap above every line but the longest; run alone, killed by the rows of the block 'a Browse at line far longer than any cap, in chunks of one size, then its newline: the whole URL, at the newline' of preview-url-scanner-equivalence.test.ts (the 1,100,000-character URL rows; the one-character-chunk rows take 5 to 6 s under it, because the join it adds every 16 pieces is quadratic)"
  },
  {
   "name": "LL06 push: the completed text is capped to its last 65,536 characters",
   "file": "src/core/preview-url.ts",
   "from": "const completed = tail.join(\"\") + chunk.slice(0, end);",
   "to": "const completed = (tail.join(\"\") + chunk.slice(0, end)).slice(-65536);",
-  "expect": "survives",
-  "why": "the lines being tested are cut to their end; a marker whose start is more than 64 KiB before its newline is never seen"
+  "expect": "killed",
+  "why": "the lines being tested were cut to their end, so a marker whose start is more than 64 KiB before its newline was never seen; run alone, killed by the rows of the block 'a Browse at line far longer than any cap, in chunks of one size, then its newline: the whole URL, at the newline' of preview-url-scanner-equivalence.test.ts, at one-character and at 4,096-character chunks"
  },
  {
   "name": "SP01 push: the new text's whole escapes are stripped before the join",
