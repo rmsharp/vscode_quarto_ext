@@ -32,6 +32,7 @@ import {
 } from "../core/render-script";
 import { QuartoNotFound, resolveBinary } from "../quarto/cli";
 import { createVscodeContextKeySetter } from "./context-key";
+import { documentText } from "./document-text";
 
 const CHANNEL_NAME = "Quarto Preview";
 /**
@@ -483,8 +484,9 @@ async function previewActiveScript(manager: PreviewManager): Promise<void> {
  * user is looking at an old revision.
  *
  * ⚠ ORDER IS LOAD-BEARING, and only for COST — every ordering yields the same
- * boolean. `isRenderScriptExtension` must come BEFORE `doc.getText()`, because
- * `getText()` builds a string of the entire buffer and this predicate runs on every
+ * boolean. `isRenderScriptExtension` must come BEFORE `documentText(doc)`, because
+ * `getText()` (which that builds, once a version, through the shared memo of
+ * `document-text.ts`) makes a string of the entire buffer and this predicate runs on every
  * keystroke of the active document (`updateRenderScriptContext`). Calling it first
  * would allocate a whole 20 MB log or .json on each keypress, on VS Code's
  * single-threaded extension host, only to discover the extension was never
@@ -499,7 +501,8 @@ async function previewActiveScript(manager: PreviewManager): Promise<void> {
  * own property, so it cannot be spied on (probed firsthand). It is instead pinned at
  * the cheap end: `isRenderScriptExtension` is unit-tested exhaustively, including the
  * superset property that makes putting it first SOUND (it can never veto a file the
- * full detector would accept).
+ * full detector would accept), and the ORDER itself is pinned from the syntax tree
+ * (`test/unit/s343-adapter-wiring-pin.test.ts`: the text is the last operand of the chain).
  */
 function isPreviewableRenderScript(
   doc: vscode.TextDocument | undefined,
@@ -508,7 +511,7 @@ function isPreviewableRenderScript(
     doc !== undefined &&
     doc.uri.scheme === "file" &&
     isRenderScriptExtension(doc.uri.fsPath) &&
-    isRenderScript(doc.uri.fsPath, doc.getText())
+    isRenderScript(doc.uri.fsPath, documentText(doc))
   );
 }
 

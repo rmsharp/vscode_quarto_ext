@@ -35,6 +35,7 @@ import {
   createKeyedDebouncer,
   realTimers,
 } from "../core/typing-debounce";
+import { documentText } from "./document-text";
 
 /** Read and resolve the `quarto.cells.background.*` settings from configuration. */
 function readCellBackgroundSettings(): CellBackgroundSettings {
@@ -56,7 +57,7 @@ export function cellBackgroundRangesFor(doc: vscode.TextDocument): vscode.Range[
   if (doc.languageId !== "quarto" || !readCellBackgroundSettings().enabled) {
     return [];
   }
-  return cellBackgroundRanges(doc.getText()).map(
+  return cellBackgroundRanges(documentText(doc)).map(
     (range) => new vscode.Range(range.startLine, 0, range.endLine, 0),
   );
 }

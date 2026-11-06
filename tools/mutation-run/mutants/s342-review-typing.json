@@ -114,18 +114,18 @@
  {
   "name": "E06 updateCellContext: the language id handed to isInCodeCell is a literal markdown",
   "file": "src/features/execution.ts",
-  "from": "      editor.document.languageId,\n      () => editor.document.getText(),",
-  "to": "      \"markdown\",\n      () => editor.document.getText(),",
+  "from": "      editor.document.languageId,\n      () => documentText(editor.document),",
+  "to": "      \"markdown\",\n      () => documentText(editor.document),",
   "expect": "killed",
   "why": "the key is never true in a .qmd; killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not hand isInCodeCell `editor.document.languageId`')"
  },
  {
   "name": "E07 updateCellContext: the text is read for every language",
   "file": "src/features/execution.ts",
-  "from": "      () => editor.document.getText(),\n",
-  "to": "      editor.document.getText(),\n",
+  "from": "      () => documentText(editor.document),\n",
+  "to": "      documentText(editor.document),\n",
   "expect": "killed",
-  "why": "a getText of the active file at every cursor move and edit, whatever its language (the old inline test read the text only for a quarto document); the answers are unchanged, so only a pin can see it; killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name '`() => editor.document.getText()`')"
+  "why": "a getText of the active file at every cursor move and edit, whatever its language (the old inline test read the text only for a quarto document); the answers are unchanged, so only a pin can see it; killed by s342-typing-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name '`() => documentText(editor.document)`')"
  },
  {
   "name": "E08 updateCellContext: the missing editor is not checked first",

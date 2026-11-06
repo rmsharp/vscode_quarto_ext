@@ -35,6 +35,7 @@ import {
   realTimers,
 } from "../core/typing-debounce";
 import { createVscodeContextKeySetter } from "./context-key";
+import { documentText } from "./document-text";
 
 /** Context key gating the cell keybindings, true only when the cursor is in a cell. */
 const IN_CELL_CONTEXT = "quarto.inCodeCell";
@@ -442,8 +443,9 @@ function activeDocumentSnapshot(): EditorSnapshot | undefined {
 /**
  * Set `quarto.inCodeCell` from the ACTIVE editor's state as it is now. The question is
  * core's `isInCodeCell` (unit-tested: nothing can read a context key back); the text is
- * handed as a function, which it calls only for a Quarto document, as this function's
- * inline test always did. The key is set through the register function's setter, which
+ * handed as a function over the shared document-text memo, which `isInCodeCell` calls only
+ * for a Quarto document, as this function's inline test always did, and which builds the
+ * string once a version of the document and not on every selection event. The key is set through the register function's setter, which
  * sends `setContext` to the host only when the value is not the one it last sent.
  */
 function updateCellContext(setContextKey: ContextKeySetter): void {
@@ -452,7 +454,7 @@ function updateCellContext(setContextKey: ContextKeySetter): void {
     editor !== undefined &&
     isInCodeCell(
       editor.document.languageId,
-      () => editor.document.getText(),
+      () => documentText(editor.document),
       editor.selection.active.line,
     );
   setContextKey(IN_CELL_CONTEXT, inCell);

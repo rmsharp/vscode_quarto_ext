@@ -335,7 +335,9 @@ function problemsInPreviewText(source: string): string[] {
   const returns = collect(predicate.body, (n): n is ts.ReturnStatement => ts.isReturnStatement(n));
   const chain: string[] = [];
   const flatten = (e: ts.Expression): void => {
-    if (ts.isBinaryExpression(e) && e.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) {
+    if (ts.isParenthesizedExpression(e)) {
+      flatten(e.expression);
+    } else if (ts.isBinaryExpression(e) && e.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) {
       flatten(e.left);
       flatten(e.right);
     } else {
