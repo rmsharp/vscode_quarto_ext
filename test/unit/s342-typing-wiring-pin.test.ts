@@ -281,6 +281,28 @@ function problemsInBackground(source: string): string[] {
   }
   const reloadMethod = methodNamed(sf, "CellBackgroundDecorator", "reload");
   if (reloadMethod === undefined || reloadMethod.body === undefined || callsOf(reloadMethod.body, sf, "this.refresh").length !== 1) problems.push("CellBackgroundDecorator.reload does not call this.refresh() (a settings change re-applies at once)");
+
+  // 7. `isVisible`, which the document handler's guard calls (the Session 342 review round, M-03): a document is visible iff some visible editor shows it, compared with `===`. A guard the wrong way round tints the documents nobody
+  //    sees and skips the one being typed in, and the integration test refreshes through the test hook, which does not call it.
+  const visible = functionNamed(sf, "isVisible");
+  const visibleParameter = visible?.parameters.length === 1 && ts.isIdentifier(visible.parameters[0].name) ? visible.parameters[0].name.text : "?";
+  const visibleReturns = visible?.body === undefined ? [] : collect(visible.body, (n): n is ts.ReturnStatement => ts.isReturnStatement(n));
+  const visibleSome = visibleReturns.length === 1 ? visibleReturns[0].expression : undefined;
+  const visibleTest = visibleSome !== undefined && ts.isCallExpression(visibleSome) && visibleSome.arguments.length === 1 ? visibleSome.arguments[0] : undefined;
+  const editorParameter = visibleTest !== undefined && ts.isArrowFunction(visibleTest) && visibleTest.parameters.length === 1 && ts.isIdentifier(visibleTest.parameters[0].name) ? visibleTest.parameters[0].name.text : "?";
+  const visibleBody = visibleTest !== undefined && ts.isArrowFunction(visibleTest) ? visibleTest.body : undefined;
+  if (
+    visibleSome === undefined ||
+    !ts.isCallExpression(visibleSome) ||
+    flat(visibleSome.expression, sf) !== "vscode.window.visibleTextEditors.some" ||
+    visibleBody === undefined ||
+    !ts.isBinaryExpression(visibleBody) ||
+    visibleBody.operatorToken.kind !== ts.SyntaxKind.EqualsEqualsEqualsToken ||
+    flat(visibleBody.left, sf) !== `${editorParameter}.document` ||
+    flat(visibleBody.right, sf) !== visibleParameter
+  ) {
+    problems.push("isVisible is not `vscode.window.visibleTextEditors.some((editor) => editor.document === doc)` (the document handler tints only the documents that are shown)");
+  }
   return problems;
 }
 
@@ -350,6 +372,8 @@ describe("Session 342 -- how execution.ts and cell-background.ts call the typing
     ["B16: the test hook goes through the debouncer", "  return activeDecorator.refresh();", "  return new Map();", "does not return `activeDecorator.refresh()`"],
     ["B17: reload no longer re-applies", "    this.decorationType = createDecorationType(readCellBackgroundSettings());\n    this.refresh();", "    this.decorationType = createDecorationType(readCellBackgroundSettings());", "reload does not call this.refresh()"],
     ["B18: the debouncer's timers are not the host's", "    timers: realTimers,\n    delayMs: TYPING_DEBOUNCE_MS,\n  });\n  context", "    timers: { setTimeout: () => 0, clearTimeout: () => undefined },\n    delayMs: TYPING_DEBOUNCE_MS,\n  });\n  context", "timers are not realTimers"],
+    // The Session 342 review round (mutation lens, M-03): the body of `isVisible`, which the document handler's guard calls. A mutant of `tools/mutation-run/mutants/s342-review-typing.json` (K01).
+    ["K01: isVisible compares with `!==` (an edit in a visible document is not tinted, one in a hidden document is)", "    (editor) => editor.document === doc,", "    (editor) => editor.document !== doc,", "isVisible is not"],
   ];
 
   it.each(EXECUTION_EDITS)("execution.ts, %s: the pin is broken, and is named", (_name, from, to, named) => {

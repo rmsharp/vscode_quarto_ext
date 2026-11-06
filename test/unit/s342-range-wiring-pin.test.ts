@@ -16,7 +16,8 @@ import * as ts from "typescript";
 // real VS Code window, take over the screen, and were NOT run for this change.
 //
 // The checks are two functions, `problemsInCompletion(source)` and `problemsInFormat(source)`, each naming every pin the source breaks. The live files must have none, and the rows below also hand each the live file with ONE
-// edit and require it to name the pin that edit breaks: the pin can fail, and says which. The edits are the mutants of `tools/mutation-run/mutants/s342-range-lookup.json`.
+// edit and require it to name the pin that edit breaks: the pin can fail, and says which. The edits are the mutants of `tools/mutation-run/mutants/s342-range-lookup.json`, and (the rows named A01, A02, A04 and FA, the
+// lines around the filter call) of `tools/mutation-run/mutants/s342-review-typing.json`.
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const COMPLETION = readFileSync(resolve(root, "src", "providers", "embedded.ts"), "utf8");
@@ -36,6 +37,8 @@ function collect<T extends ts.Node>(node: ts.Node, test: (n: ts.Node) => n is T)
 }
 
 const isId = (node: ts.Node | undefined, name: string): boolean => node !== undefined && ts.isIdentifier(node) && node.text === name;
+/** The text of a node with every run of whitespace collapsed: a syntax node's own spelling, not a search over the file. */
+const flat = (node: ts.Node, sf: ts.SourceFile): string => node.getText(sf).replace(/\s+/g, " ");
 const isProp = (node: ts.Node | undefined, object: string, name: string): boolean => node !== undefined && ts.isPropertyAccessExpression(node) && isId(node.expression, object) && node.name.text === name;
 /** `object.name(...)` */
 const isMethodCall = (node: ts.Node | undefined, object: string, name: string): node is ts.CallExpression => node !== undefined && ts.isCallExpression(node) && isProp(node.expression, object, name);
@@ -149,6 +152,26 @@ function problemsInCompletion(source: string): string[] {
     if (inner === undefined || !isMethodCall(inner, "lookup", "rangeInLanguageBody") || !argsAre(inner, rangeLine(param, "start"), rangeLine(param, "end"), id("languageId"))) {
       problems.push("the edit filter is not lookup.rangeInLanguageBody(e.range.start.line, e.range.end.line, languageId)");
     }
+    const owner = edits[0].call.parent;
+    if (!(ts.isVariableDeclaration(owner) && isId(owner.name, "kept"))) problems.push("the edit filter's result is not `const kept` in filterOutOfCellEdits");
+  }
+
+  // 2b. The lines AROUND the filter call (the Session 342 review round, M-03): the guard that lets an item with ONE additional edit (the usual auto-import) through to the filter, the assignment that keeps what the filter kept
+  //     and nothing else, and the list rebuilt with the server's own `isIncomplete`. An empty list or none for an item with no kept edit is the same to VS Code, so the assignment is pinned to be made from `kept` alone, not to its spelling.
+  const guards = walk === undefined ? [] : collect(walk, (n): n is ts.IfStatement => ts.isIfStatement(n));
+  if (guards.length !== 1 || flat(guards[0].expression, sf) !== "edits !== undefined && edits.length > 0") {
+    problems.push("the edit guard of filterOutOfCellEdits is not `edits !== undefined && edits.length > 0` (an item with ONE additional edit, the usual auto-import, would keep an edit outside the cell)");
+  }
+  const assigns = collect(filter.body, (n): n is ts.BinaryExpression => ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && flat(n.left, sf) === "item.additionalTextEdits");
+  if (assigns.length !== 1) {
+    problems.push(`${assigns.length} assignments to item.additionalTextEdits in filterOutOfCellEdits, not one`);
+  } else {
+    const made = collect(assigns[0].right, (n): n is ts.Identifier => ts.isIdentifier(n)).map((n) => n.text);
+    if (!made.includes("kept") || made.includes("edits")) problems.push("what filterOutOfCellEdits assigns to item.additionalTextEdits is not made from `kept` alone (the filter's result is thrown away when the unfiltered `edits` are kept)");
+  }
+  const lastStatement = filter.body.statements[filter.body.statements.length - 1];
+  if (lastStatement === undefined || !ts.isReturnStatement(lastStatement) || lastStatement.expression === undefined || flat(lastStatement.expression, sf) !== "new vscode.CompletionList(list.items, list.isIncomplete)") {
+    problems.push("filterOutOfCellEdits does not end by returning `new vscode.CompletionList(list.items, list.isIncomplete)` (the server's isIncomplete would be lost)");
   }
 
   // 3. The provider hands the filter its own text and the hit's language.
@@ -199,6 +222,15 @@ function problemsInFormat(source: string): string[] {
     if (inner === undefined || !isMethodCall(inner, "lookup", "rangeInCellBody") || !argsAre(inner, rangeLine(param, "start"), rangeLine(param, "end"), id("cell"))) {
       problems.push("the edit filter is not lookup.rangeInCellBody(e.range.start.line, e.range.end.line, cell)");
     }
+    const owner = filters[0].call.parent;
+    if (!(ts.isVariableDeclaration(owner) && isId(owner.name, "kept"))) problems.push("the edit filter's result is not `const kept` in formatCellAtCursor");
+  }
+
+  // 4. What the command applies is what the filter kept (the Session 342 review round, M-03): the corruption guard is only a guard if its result is the edit set. (The early return on an empty `kept` is not pinned: with the
+  //    unfiltered `edits` in its test it can never be true, and an empty edit applied is a no-op.)
+  const sets = collect(command.body, (n): n is ts.CallExpression => isMethodCall(n, "wsEdit", "set"));
+  if (sets.length !== 1 || !argsAre(sets[0], (n) => flat(n, sf) === "editor.document.uri", id("kept"))) {
+    problems.push("formatCellAtCursor does not apply `wsEdit.set(editor.document.uri, kept)` once (the filter's result must be what is applied)");
   }
   return problems;
 }
@@ -284,6 +316,25 @@ describe("Session 342 -- the edit checks' use of the range lookup, pinned by the
     ["P13: findCellAtPosition imported and used", "function filterOutOfCellEdits(", "const unused = (t: string): unknown => findCellAtPosition(t, 0);\nfunction filterOutOfCellEdits(", "findCellAtPosition"],
     ["P14: the old helper back", "function filterOutOfCellEdits(", "function rangeInSameLangBody(): boolean {\n  return true;\n}\nfunction filterOutOfCellEdits(", "rangeInSameLangBody is back"],
     ["P15: the filter takes its parameters in another order", "  text: string,\n  languageId: string,\n): vscode.CompletionList | undefined {\n  if (list === undefined) {", "  languageId: string,\n  text: string,\n): vscode.CompletionList | undefined {\n  if (list === undefined) {", "does not take (list, text, languageId)"],
+    // The Session 342 review round (mutation lens, M-03): the lines AROUND the filter call. These are mutants of `tools/mutation-run/mutants/s342-review-typing.json` (A01, A02, A04).
+    [
+      "A01: an item with exactly ONE additional edit is not checked (the guard is `edits.length > 1`): the usual auto-import, anchored at the module top, would keep an edit in the front matter",
+      "    if (edits !== undefined && edits.length > 0) {",
+      "    if (edits !== undefined && edits.length > 1) {",
+      "the edit guard of filterOutOfCellEdits",
+    ],
+    [
+      "A02: the filter's result is thrown away (`kept` is computed, then the unfiltered `edits` are kept)",
+      "      item.additionalTextEdits = kept.length > 0 ? kept : undefined;",
+      "      item.additionalTextEdits = kept.length > 0 ? edits : undefined;",
+      "is not made from `kept` alone",
+    ],
+    [
+      "A04: the list is rebuilt incomplete (the server's isIncomplete is lost)",
+      "  return new vscode.CompletionList(list.items, list.isIncomplete);",
+      "  return new vscode.CompletionList(list.items, true);",
+      "does not end by returning `new vscode.CompletionList(list.items, list.isIncomplete)`",
+    ],
   ];
 
   const FORMAT_EDITS: Array<[string, string, string, string]> = [
@@ -335,6 +386,13 @@ describe("Session 342 -- the edit checks' use of the range lookup, pinned by the
     ["F11: a second embeddedCellAt call", "  const cell = findCellAtPosition(text, position.line);", "  const cell = findCellAtPosition(text, position.line);\n  void embeddedCellAt(text, position.line + 2);", "2 calls of embeddedCellAt, not one"],
     ["F12: the helper back", "async function formatCellAtCursor(): Promise<void> {", "function rangeWithinCell(): boolean {\n  return true;\n}\nasync function formatCellAtCursor(): Promise<void> {", "rangeWithinCell is back"],
     ["F13: the text read twice", "  const kept = edits.filter(", "  void editor.document.getText();\n  const kept = edits.filter(", "2 reads of the document text"],
+    // The Session 342 review round (mutation lens, M-03): the line AFTER the filter call. A mutant of `tools/mutation-run/mutants/s342-review-typing.json` (FA).
+    [
+      "FA: the filter's result is not applied (`kept` is computed and tested, then the unfiltered `edits` are set): the corruption guard is gone",
+      "  wsEdit.set(editor.document.uri, kept);",
+      "  wsEdit.set(editor.document.uri, edits);",
+      "does not apply `wsEdit.set(editor.document.uri, kept)`",
+    ],
   ];
 
   it.each(COMPLETION_EDITS)("%s: the pin is broken, and is named", (_name, from, to, named) => {
@@ -349,6 +407,16 @@ describe("Session 342 -- the edit checks' use of the range lookup, pinned by the
     const problems = problemsInFormat(FORMAT.replace(from, () => to));
     expect(problems.length).toBeGreaterThan(0);
     expect(problems.join("\n")).toContain(named);
+  });
+
+  // Two respellings the pins leave ALONE, on purpose (the review round's argued survivors, `A05` and `FB` of `tools/mutation-run/mutants/s342-review-typing.json`): a pin that named them would redden a harmless refactor.
+  it("an item with no kept edit that keeps an EMPTY list instead of none (A05) is the same to VS Code, and an emptiness test on the unfiltered edits (FB) can never be true after the early return: neither is a pin", () => {
+    const empty = COMPLETION.replace("      item.additionalTextEdits = kept.length > 0 ? kept : undefined;", "      item.additionalTextEdits = kept;");
+    expect(empty).not.toBe(COMPLETION);
+    expect(problemsInCompletion(empty)).toEqual([]);
+    const unfiltered = FORMAT.replace("  if (kept.length === 0) {\n    return;\n  }", "  if (edits.length === 0) {\n    return;\n  }");
+    expect(unfiltered).not.toBe(FORMAT);
+    expect(problemsInFormat(unfiltered)).toEqual([]);
   });
 
   // A pin read from the syntax tree is not moved by what is not code.
