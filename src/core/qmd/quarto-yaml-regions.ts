@@ -132,11 +132,49 @@ export function inQuartoYamlRegion(regions: readonly YamlRegion[], line: number)
 }
 
 /**
+ * An array is ORDERED when every region has `startLine <= endLine` and every region after the first starts STRICTLY after the one before it ends. `quartoYamlRegions` returns one every time (it pushes a region at the
+ * line that closes it and opens the next one on a later line). A NaN bound fails both comparisons, so such an array is not ordered.
+ */
+function isOrdered(regions: readonly YamlRegion[]): boolean {
+  let previousEnd = NaN;
+  for (let i = 0; i < regions.length; i++) {
+    const { startLine, endLine } = regions[i];
+    if (!(startLine <= endLine) || (i > 0 && !(previousEnd < startLine))) {
+      return false;
+    }
+    previousEnd = endLine;
+  }
+  return true;
+}
+
+/**
  * `inQuartoYamlRegion(regions, line)` for ONE array asked MANY times: make the lookup once, ask it for each line.
  *
- * `collectValueSources` asks once per cell option line, and `inQuartoYamlRegion` is a pass over every region, so the
- * enumeration was regions times option lines. The array must not change while the lookup is in use (it is `readonly`).
+ * `collectValueSources` asks once per cell option line, and `inQuartoYamlRegion` is a pass over every region, so the enumeration cost regions times option lines (64,000 pairs of a `---` region and a cell with an
+ * option line took 4.2 s, 2.9 to 4.0 s of it this filter). The answer is exactly `inQuartoYamlRegion`'s, for every array and every line:
+ *   - an ORDERED array (see `isOrdered`, checked ONCE here) is answered by a binary search for the last region whose start is at or below the line: in an ordered array the regions that start at or below a line are a
+ *     prefix of it, every one of them but the last ends before the next one starts, so only the last of them can hold the line, and it holds it when the line is at or below its end. A line that is NaN is at or above no start,
+ *     so nothing is found and the answer is false, as `some` finds no region that holds it.
+ *   - any other array (unsorted, overlapping, nested, a start after its end, a NaN bound) is answered by `inQuartoYamlRegion` itself, a pass over every region: slower, and the oracle's answer by construction.
+ * The array must not change while the lookup is in use (the parameter is `readonly`), and its elements are regions: `quartoYamlRegions`'s output is the one caller's array.
  */
 export function createYamlRegionLookup(regions: readonly YamlRegion[]): (line: number) => boolean {
-  return (line) => inQuartoYamlRegion(regions, line);
+  if (!isOrdered(regions)) {
+    return (line) => inQuartoYamlRegion(regions, line);
+  }
+  return (line) => {
+    let low = 0;
+    let high = regions.length - 1;
+    let found = -1;
+    while (low <= high) {
+      const middle = low + ((high - low) >> 1);
+      if (regions[middle].startLine <= line) {
+        found = middle;
+        low = middle + 1;
+      } else {
+        high = middle - 1;
+      }
+    }
+    return found !== -1 && line <= regions[found].endLine;
+  };
 }

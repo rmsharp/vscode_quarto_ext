@@ -337,12 +337,15 @@ describe("Session 342 -- the regions of a document: the lookup answers them as t
     "```", "```", "```{r}", "~~~", "````", "<!--", "-->", "#| echo: false",
   ];
 
+  // The pool of the long documents: mostly delimiters and plain lines, a fence now and then, so that an array of 16 regions or more is common.
+  const LONG_POOL = ["---", "---", "---", "---", "---", "--- ", "", "", "k: v", "prose", "prose again", "# Heading", "```{python}", "```"];
+
   /** The seeded documents of `minLength` to `minLength + spread - 1` lines: the regions `quartoYamlRegions` finds in each, and the lines to ask (-1 to two past the end). */
-  function* documents(count: number, minLength: number, spread: number): Generator<{ regions: YamlRegion[]; lines: number[] }> {
+  function* documents(count: number, minLength: number, spread: number, pool: readonly string[] = POOL): Generator<{ regions: YamlRegion[]; lines: number[] }> {
     const random = seededRandom(SEED);
     for (let n = 0; n < count; n++) {
       const length = minLength + Math.floor(random() * spread);
-      const text = Array.from({ length }, () => POOL[Math.floor(random() * POOL.length)]).join("\n");
+      const text = Array.from({ length }, () => pool[Math.floor(random() * pool.length)]).join("\n");
       const total = text.split("\n").length;
       yield { regions: quartoYamlRegions(text), lines: Array.from({ length: total + 3 }, (_, k) => k - 1) };
     }
@@ -380,7 +383,7 @@ describe("Session 342 -- the regions of a document: the lookup answers them as t
     let long = 0;
     let most = 0;
     let asked = 0;
-    for (const { regions, lines } of documents(BIG_DOCS, 150, 450)) {
+    for (const { regions, lines } of documents(BIG_DOCS, 150, 450, LONG_POOL)) {
       most = Math.max(most, regions.length);
       if (regions.length < 16) continue;
       long++;

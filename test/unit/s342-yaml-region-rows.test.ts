@@ -19,10 +19,10 @@ import { collectValueSources } from "../../src/core/yaml-value-flags";
 //
 // WHY A RATIO AND NOT A LIMIT. The linear part (`quartoYamlRegions` plus `findCellOptionLines`) is 18 to 24 microseconds a pair, so the parent is only 1.7 and 2.4 times the cure at 16,000 and 32,000 pairs
 // (cure 292 / 569 ms, parent 484 / 1,374 ms) and an absolute limit between them would sit under 1.3 and 1.6 times from each. Each clock row measures, in the same process and the same breath, the linear part on a fresh text of its own shape and then `collectValueSources` on another fresh text: the
-// ratio of the second to the first. A machine that is slow all through moves both and cancels (Learning 877); it is NOT load-proof. At 64,000 pairs the parent's ratio is 3.8 to 4.4 and the cure's is 1.0; the shape of
-// four option lines to a pair at 32,000 pairs and the shape of eight to a pair at 16,000 push the parent's ratio to 4 or more with fewer pairs (5.8 and 6.2 in the run that showed these rows RED). At 16,000 and 32,000 pairs of the item's literal shape the parent's ratio
-// is 1.6 to 2.0 and 2.3 to 3.0 against the cure's 0.76 to 1.04: too close to carry a row, so those two sizes of the literal shape are not clock rows and the shapes with more option lines to a pair stand
-// for them. The lookup alone (50,000 hand-made regions, no model in the clock) has the margin the end-to-end rows cannot: the parent takes 5.5 s there against a limit of 250 ms.
+// ratio of the second to the first. A machine that is slow all through moves both and cancels (Learning 877); it is NOT load-proof. At 64,000 pairs the parent's ratio is 3.8 to 4.4 and the cure's 0.99 to 1.03; the shape of
+// four option lines to a pair at 32,000 pairs and the shape of eight to a pair at 16,000 push the parent's ratio to 5.3 to 6.5 and 4.1 to 4.3 in a bare node process (load 6 to 7; 6.1 and 5.9 in the vitest run that showed these rows RED),
+// against the cure's 0.96 to 1.12 and 0.90 to 1.05. At 16,000 and 32,000 pairs of the item's literal shape the parent's ratio is 1.6 to 2.0 and 2.3 to 3.0 against the cure's 0.76 to 1.04: too close to carry a row, so those two sizes of the literal shape are not clock rows and the shapes with more option lines to a pair stand
+// for them. The lookup alone (50,000 hand-made regions, no model in the clock) has the margin the end-to-end rows cannot: the parent takes 1.8 to 2.7 s there in a bare node process and 5.5 s under vitest, the cure 2.9 to 4.8 ms (load 6 to 7), against a limit of 250 ms.
 
 /** A pair is `---`, `k: v`, `---`, a blank line, the fence, `k` option lines, `x = 1`, the closing fence, a blank line: 8 + k lines. Pair `i` starts on line `(8 + k) * i`. */
 function pairText(pairs: number, optionLines: number): string {
@@ -375,7 +375,7 @@ const linearScans = (text: string): void => {
 /** A text no earlier call has seen (the model's scan is memoised on the exact text): the base with a line of prose that carries the tag. */
 const fresh = (base: string, tag: string): string => `${base}\nprose ${tag}\n`;
 
-/** The ratio limit of the end-to-end rows: the parent's is 3.8 to 4.4 on the first shape and 4 or more on the others, the cure's 0.9 to 1.04 (measured: see the header). */
+/** The ratio limit of the end-to-end rows: the parent's is 3.8 to 4.4 on the first shape, 5.3 to 6.5 on the second and 4.1 to 4.3 on the third, the cure's 0.90 to 1.12 on all three (measured at load 6 to 7: see the header). */
 const RATIO_LIMIT = 2;
 const LITERAL_PAIRS = 64_000;
 const DENSE_PAIRS = 32_000;
