@@ -396,6 +396,72 @@ describe("createKeyedDebouncer -- a run is over before it runs", () => {
     clock.advance(TYPING_DEBOUNCE_MS);
     expect(ran).toEqual(["a", "b, from a"]);
   });
+
+  // The Session 342 review round (mutation lens, M-01): the row above never schedules again before the second run, cancels or disposes, and never reads `staleClears()`, so a table that forgets the timer of a run's own
+  // reschedule (the entry deleted AFTER the run, in a `finally` or not) passed every row. No caller of the debouncer reschedules from inside its run today; these rows pin the comment in the source ("it may schedule its own key again").
+  it("a run that schedules its own key, and then the key is scheduled again before that second run: ONE run follows, the LAST (the dropped second run is dropped for good)", () => {
+    const { clock, ran, debouncer } = setup();
+    let again = true;
+    const first = (): void => {
+      ran.push("first");
+      if (again) {
+        again = false;
+        debouncer.schedule("a", () => ran.push("second"));
+      }
+    };
+    debouncer.schedule("a", first);
+    clock.advance(TYPING_DEBOUNCE_MS); // first runs and schedules second
+    expect(clock.pending()).toBe(1);
+    debouncer.schedule("a", () => ran.push("third")); // must drop second
+    expect(clock.pending()).toBe(1);
+    clock.advance(TYPING_DEBOUNCE_MS * 2);
+    expect(ran).toEqual(["first", "third"]);
+  });
+
+  it("a run that schedules its own key, and then dispose: the rescheduled run never runs", () => {
+    const { clock, ran, debouncer } = setup();
+    debouncer.schedule("a", () => {
+      ran.push("first");
+      debouncer.schedule("a", () => ran.push("second"));
+    });
+    clock.advance(TYPING_DEBOUNCE_MS);
+    debouncer.dispose();
+    expect(clock.pending()).toBe(0);
+    clock.advance(TYPING_DEBOUNCE_MS * 2);
+    expect(ran).toEqual(["first"]);
+  });
+
+  it("a run that schedules its own key, and then cancel: the rescheduled run never runs", () => {
+    const { clock, ran, debouncer } = setup();
+    debouncer.schedule("a", () => {
+      ran.push("first");
+      debouncer.schedule("a", () => ran.push("second"));
+    });
+    clock.advance(TYPING_DEBOUNCE_MS);
+    debouncer.cancel("a");
+    expect(clock.pending()).toBe(0);
+    clock.advance(TYPING_DEBOUNCE_MS * 2);
+    expect(ran).toEqual(["first"]);
+  });
+
+  it("a run that schedules its own key never clears the timer that is running (no stale clear)", () => {
+    const { clock, debouncer } = setup();
+    debouncer.schedule("a", () => debouncer.schedule("a", () => undefined));
+    clock.advance(TYPING_DEBOUNCE_MS);
+    expect(clock.staleClears()).toBe(0);
+    expect(clock.pending()).toBe(1); // only the rescheduled run
+  });
+
+  it("a throwing run leaves no entry behind: a later cancel and dispose clear nothing that has run", () => {
+    const { clock, debouncer } = setup(TYPING_DEBOUNCE_MS, () => undefined);
+    debouncer.schedule("a", () => {
+      throw new Error("boom");
+    });
+    clock.advance(TYPING_DEBOUNCE_MS);
+    debouncer.cancel("a");
+    debouncer.dispose();
+    expect(clock.staleClears()).toBe(0);
+  });
 });
 
 describe("createKeyedDebouncer -- a throwing run does not stop later runs", () => {
