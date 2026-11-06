@@ -378,38 +378,3 @@ cap of 24 verifications left the 12 mutation findings M04 to M15 to the runner i
 re-run by me in the six lists; P1 and P2 are refactors under the oracle with the oracle green before and after and the timings re-measured by me).
 **Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** three workflows (3 workers, 898,512 tokens, 416 tool calls, 1 h 9 min; the review, 54 agents, 6,042,009 tokens, 1,563 tool calls, 4 h 13 min; 3 workers, 765,690
 tokens, 365 tool calls, 52 min; 7.7 million subagent tokens in all), nine list runs of 3 to 15 minutes, no quarto renders, the machine at load 7 to 380.
-
-## Session 337 Handoff Evaluation (by Session 338)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers (at HEAD `79b7b86`, gap 0), no `pending` receipt, the ratchet citation (2/2, results
-`bba236856bad`), the real-document score (2423 of 2438, re-run at the end), the baseline (139 files, 15,252 tests, exit 1) and the picker all held. Candidate (a), the new Up Next item, was placed by
-finishing a feature, and it took the whole session; its estimate of two sessions was one, with five workers.
-**Helped:** the written recipe (an index loop, the old pattern as the oracle, a code-unit sweep, rows on both byte widths) and the Session 337 files as templates let five workers start from one brief;
-gotcha 4 (the runner tests the COMMITTED source) and gotcha 5 (reset the worktree's empty branch) held; gotcha 7 (rows with the engine hint and a character above U+00FF) was the right instruction for every
-part; the siblings lens's method (a syntax-tree walk with a control on the parent) was reusable as it stood.
-**Missing:** the item's figures were not all re-measured before they were written down: "reads 60,000,000" was a probe limit (a one-byte line never throws), the spread figures 125,742 and 125,770 did not
-reproduce (110,383 to 110,560; 106,319 through the real adapter), and `buildOutline` and `findHeadings` also reach the chunk header's label. Nothing said that the sites hide each other (four chains), which
-decides whether a row can reach a site at all. **Wrong:** the "173 commits ahead" of `origin/master` in gotcha 13 was stale (level at Phase 0). I still hit one zsh trap named in gotcha 3 (`set -- $var`).
-**ROI: high.**
-
-## Session 338 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** Had each site bisected at the parent first, in fresh processes with the lower bound verified, and re-measured every first-throw figure myself, which found what the item had wrong; built the shared reader and its tests and mutants
-myself first so that five workers did not write the same sticky pattern five times; briefed five workers with the clean-room rule repeated in every prompt (the reviewers' too), one part and its own files
-each; checked the workers from my side instead of trusting their reports (RED numbers re-run on `fe6aaec`, which caught the "passes on the parent" claim, the 143 for 145 and the oracle's three assertion
-failures; every first-throw figure re-measured; the five lists run alone, one at a time; the whole suite on the merged tree, which found the one anchor collision); ran a six-lens review and acted on what
-stood (the citation loop moved into the core and tested with a fake reader, six survivors of the mutation lens pinned and killed, a provider gate, limits and figures corrected, the guard and the residuals
-filed rather than fixed: 1 and done); re-measured the heading-spread figure myself (110,038, not the claims lens's 110,076 or the comment's 125,700).
-**Went wrong.** (1) A merge made a mutation anchor ambiguous again (Learnings 883, 891); four worker commits say the lists apply and on the merged tree they did not (Learning 901). (2) The claims lens
-raised eleven findings on the workers' commits and comments, ten of which stood against both refuters (Learning 901), and my own first provider gate failed on the committed provider because of a
-comment-stripping regexp (Learning 900) before it
-passed. (3) Part A's decision to push in a loop (`7a14505`) was committed before the only test that sees it (`99537a1`): a TDD deviation by a worker, disclosed. (4) I used `set -- $var` in zsh once; it ran
-the whole suite where a part was meant. (5) The two workflows ran for hours with few status lines from me and the harness nudged me several times. (6) The summary I carried across the context break lost
-the exact review counts; I re-read the journal instead of trusting it. (7) The retired constants' names stayed in three test comments and three BACKLOG items until the review round found them.
-**Known residuals (filed or stated):** the BACKLOG Up Next items (the standing guard, three quadratic), four Polish items, 27 plus 21 mutants argued equivalent, the review's nits left alone, the Session
-333 and 334 items, the S322 item's part (1), the S311 item's parts (4), (10), (11); `test:integration` and `test:lsp` NOT run.
-**TDD:** RED before GREEN for every cure (rows and oracle committed RED first on the parent; re-run from my side) and for `readCitations` (ten rows RED with "readCitations is not a function" before the
-function existed); the review's six survivor rows and the provider gate are green on arrival, their RED is a mutant (20 mutants, all killed); one worker deviation in part A (above).
-**Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** two workflows (5 workers; 70 agents, 7.6 million subagent tokens, 3,012 tool calls, about 2 h 45 min), six lists of 6 to 11
-minutes and a 3-minute review list, no quarto renders, the machine at load 8 to 16.
