@@ -47,6 +47,14 @@
 /** The delay of the edit-driven work: a pause this long after the last keystroke runs it. */
 export const TYPING_DEBOUNCE_MS = 150;
 
+/**
+ * The longest an unbroken stream of edit events may postpone the edit-driven work: the first event after a run starts a
+ * window, and the work runs at the end of it even if events are still arriving less than `TYPING_DEBOUNCE_MS` apart.
+ * One second is the lead's choice (Session 343), not a measured optimum: long enough that a burst (a held key, a paste, a
+ * snippet) is still one run, short enough that a typist who never pauses sees the key and the tint at most a second late.
+ */
+export const TYPING_MAX_WAIT_MS = 1000;
+
 /** What a timer is called by: the host's own handle, or a fake clock's. */
 export type TimerHandle = unknown;
 
@@ -81,6 +89,8 @@ export function normalizeDelayMs(ms: number): number {
 export interface KeyedDebouncerOptions {
   readonly timers: Timers;
   readonly delayMs: number;
+  /** The longest a key's run may be postponed by later schedules (default: no limit). */
+  readonly maxWaitMs?: number;
   /** Where a throwing run is reported (default: `console.error`). */
   readonly onError?: (error: unknown) => void;
 }
@@ -152,6 +162,8 @@ export interface EditorSnapshot {
 export interface CellContextOptions {
   readonly timers: Timers;
   readonly delayMs: number;
+  /** The longest the evaluation may be postponed by later events (default: no limit). */
+  readonly maxWaitMs?: number;
   /** The active editor's document and its version, or `undefined` when no editor is active. */
   activeSnapshot(): EditorSnapshot | undefined;
   /** Re-evaluate the context key from the ACTIVE editor's state as it is now. */
@@ -177,6 +189,7 @@ export function createCellContextScheduler(options: CellContextOptions): CellCon
   const debouncer = createKeyedDebouncer({
     timers: options.timers,
     delayMs: options.delayMs,
+    maxWaitMs: options.maxWaitMs,
     onError: options.onError,
   });
   // The document and version the last SUCCESSFUL evaluation saw (`undefined`: none yet, or no editor was active).
