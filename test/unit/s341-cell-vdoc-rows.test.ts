@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { findAllCells, findCellAtPosition } from "../../src/core/qmd/model";
+import { type Cell, findAllCells, findCellAtPosition } from "../../src/core/qmd/model";
 import {
+  type CellVdocBuilder,
   TYPE_IGNORE_DIRECTIVE,
   buildCellVirtualContent,
   createCellVdocBuilder,
@@ -103,23 +104,134 @@ describe("createCellVdocBuilder -- the answers (Session 341)", () => {
 // (one fresh process each, the same four shapes). The loop against its first call, which no load moves: 844 / 825 / 838 on the first three shapes at the parent, 2.1 / 2.1 / 2.4 on the cure; the limit is 100.
 // Every row states its ANSWER before the clock: the number of builds, the total length of the strings, and the exact non-empty lines of three sampled cells (the first, the middle, the last), read back after the loop.
 
-const timed = <T>(run: () => T): { result: T; ms: number } => {
-  const started = performance.now();
-  const result = run();
-  return { result, ms: performance.now() - started };
-};
+/** What one run of the adapter's loop measured: the builder it made, the whole loop's milliseconds, the milliseconds up to the end of the first build, and how many builds it did and how many characters they held. */
+interface TimedLoop {
+  builder: CellVdocBuilder;
+  ms: number;
+  firstMs: number;
+  builds: number;
+  chars: number;
+}
 
-describe("the Session 341 clock helper", () => {
-  it("timed reports the milliseconds the run took and hands back its result", () => {
-    const { result, ms } = timed(() => {
-      const started = performance.now();
-      while (performance.now() - started < 30) {
-        /* spin */
-      }
-      return "done";
+/**
+ * The adapter's loop with the clock on it: `make` builds the builder INSIDE the clock (a builder that read the text when it was made would pay for it here), then, for every start line, `cellAt` and `build`.
+ * `now` is the clock in milliseconds: the rows run it on `performance.now()`, and the helper's own rows on a clock that only the fake builder advances, so that what it reads is exact on any load.
+ */
+function timeLoop(make: () => CellVdocBuilder, starts: readonly number[], now: () => number = () => performance.now()): TimedLoop {
+  let firstMs = 0;
+  let builds = 0;
+  let chars = 0;
+  let sink = 0;
+  const started = now();
+  const builder = make();
+  for (const start of starts) {
+    const cell = builder.cellAt(start);
+    if (cell === null) continue;
+    const vdoc = builder.build(cell);
+    chars += vdoc.length;
+    sink ^= vdoc.charCodeAt(vdoc.length >> 1); // reads the middle of the string: a string built by concatenation is really laid out here
+    builds++;
+    if (builds === 1) firstMs = now() - started;
+  }
+  const ms = now() - started;
+  expect(typeof sink).toBe("number");
+  return { builder, ms, firstMs, builds, chars };
+}
+
+/** The whole loop against its first call: a builder that pays for the document once makes every later cell cheap (a ratio near 2 to 3), the parent pays the same for each (a ratio near the number of cells or above). */
+const loopRatio = (run: { ms: number; firstMs: number }): number => run.ms / run.firstMs;
+
+/** The last tenth of a run of calls costs about what the first tenth did: at most 4x, and a 100 ms floor keeps a garbage-collection pause from deciding it (the helper part 3 uses). */
+const lastTenthWithin = (firstMs: number, lastMs: number): boolean => lastMs < 4 * firstMs + 100;
+
+/** A fake builder: it spins `construct` ms in its construction and `ask` / `build` ms in each call, on the real clock, and answers a cell on every line. */
+function spinningBuilder(construct: number, ask: number, build: number): () => CellVdocBuilder {
+  const spin = (ms: number): void => {
+    const started = performance.now();
+    while (performance.now() - started < ms) {
+      /* spin */
+    }
+  };
+  return () => {
+    spin(construct);
+    return {
+      cellAt: (line: number): Cell | null => {
+        spin(ask);
+        return { startLine: line, endLine: line + 2, lang: "python", code: "x" };
+      },
+      build: (): string => {
+        spin(build);
+        return "vdoc";
+      },
+    };
+  };
+}
+
+describe("the Session 341 clock helpers (the clock rows' own clock is pinned here: Session 341 review, C02 / TD-1)", () => {
+  it("timeLoop reads the builder's construction, the first call and every call after it, on a clock only the fake builder advances: the numbers are exact on any load", () => {
+    let t = 1000;
+    const make = (): CellVdocBuilder => {
+      t += 20; // the construction
+      return {
+        cellAt: (line) => {
+          t += 3;
+          return { startLine: line, endLine: line + 2, lang: "python", code: "x" };
+        },
+        build: () => {
+          t += 7;
+          return "vdoc";
+        },
+      };
+    };
+    const run = timeLoop(make, [0, 10, 20, 30], () => t);
+    expect(run.builds).toBe(4);
+    expect(run.chars).toBe(16);
+    expect(run.firstMs).toBe(20 + 3 + 7);
+    expect(run.ms).toBe(20 + 4 * (3 + 7));
+  });
+
+  it("timeLoop counts a build only for a cell found, and the first call is the first BUILD: a start line with no cell costs its lookup and no build", () => {
+    let t = 0;
+    const make = (): CellVdocBuilder => ({
+      cellAt: (line) => {
+        t += 1;
+        return line === 10 ? null : { startLine: line, endLine: line + 2, lang: "python", code: "x" };
+      },
+      build: () => {
+        t += 100;
+        return "vd";
+      },
     });
-    expect(result).toBe("done");
-    expect(ms).toBeGreaterThanOrEqual(25);
+    const run = timeLoop(make, [10, 20, 10, 30], () => t);
+    expect(run.builds).toBe(2);
+    expect(run.chars).toBe(4);
+    expect(run.firstMs).toBe(2 + 100); // the lookup that found nothing, then the lookup and the build of the first cell found
+    expect(run.ms).toBe(4 + 2 * 100); // four lookups, two builds
+  });
+
+  it("timeLoop's default clock is real time: a builder that spins 20 ms in its construction and 20 ms per build is read as at least that, and the first call is not the total", () => {
+    const run = timeLoop(spinningBuilder(20, 0, 20), [0, 1, 2]);
+    expect(run.builds).toBe(3);
+    expect(run.ms).toBeGreaterThanOrEqual(20 + 3 * 20 - 1);
+    expect(run.firstMs).toBeGreaterThanOrEqual(20 + 20 - 1);
+    // the two builds after the first take 40 ms whatever the load, so the total exceeds the first call by that much (a first call read as the total, or as 0 or as 1e9, cannot)
+    expect(run.ms - run.firstMs).toBeGreaterThanOrEqual(40 - 1);
+  });
+
+  it("loopRatio is the whole loop over its first call: 4,619 ms over 5.5 is 840, a builder that pays once is about 2", () => {
+    expect(loopRatio({ ms: 100, firstMs: 4 })).toBe(25);
+    expect(loopRatio({ ms: 4619, firstMs: 5.5 })).toBeCloseTo(839.8, 1);
+    expect(loopRatio({ ms: 28, firstMs: 14 })).toBe(2);
+    expect(loopRatio({ ms: 4, firstMs: 100 })).toBe(0.04);
+    expect(loopRatio({ ms: 10, firstMs: 0 })).toBe(Infinity); // a first call read as 0 is no ratio at all, and fails every limit
+  });
+
+  it("lastTenthWithin accepts up to four times the first tenth plus 100 ms, and refuses what a pass over every cell costs at the bottom of the document (739 against 42 ms)", () => {
+    expect(lastTenthWithin(10, 139.9)).toBe(true);
+    expect(lastTenthWithin(10, 140)).toBe(false);
+    expect(lastTenthWithin(0, 99.9)).toBe(true);
+    expect(lastTenthWithin(0, 100)).toBe(false);
+    expect(lastTenthWithin(41.5, 739)).toBe(false);
   });
 });
 
@@ -211,23 +323,7 @@ function runAdapterLoop(shape: Shape): { ms: number; firstMs: number; builds: nu
   expect(starts).toHaveLength(shape.cells);
   expect(starts[0]).toBe(shape.startLineOf(0));
   expect(starts[shape.cells - 1]).toBe(shape.startLineOf(shape.cells - 1));
-  let firstMs = 0;
-  let builds = 0;
-  let chars = 0;
-  let sink = 0;
-  const started = performance.now();
-  const builder = createCellVdocBuilder(shape.text);
-  for (const start of starts) {
-    const cell = builder.cellAt(start);
-    if (cell === null) continue;
-    const vdoc = builder.build(cell);
-    chars += vdoc.length;
-    sink ^= vdoc.charCodeAt(vdoc.length >> 1); // reads the middle of the string: a string built by concatenation is really laid out here
-    builds++;
-    if (builds === 1) firstMs = performance.now() - started;
-  }
-  const ms = performance.now() - started;
-  expect(typeof sink).toBe("number");
+  const { builder, ms, firstMs, builds, chars } = timeLoop(() => createCellVdocBuilder(shape.text), starts);
   // Read the answer back AFTER the clock, on three cells: the first, the middle, the last.
   const mute = shape.lang === "python";
   let checked = 0;
@@ -258,7 +354,7 @@ describe("Session 341 -- the Outline's per-cell virtual documents cost cells tim
     expect(run.checked).toBe(3);
     expect(run.ms).toBeLessThan(LIMIT_MS);
     // A ratio no load of the machine moves (Learning 877): the whole loop against its first call. A builder that pays for the document once makes every later cell cheap; the parent pays the same for each.
-    if (ratio) expect(run.ms).toBeLessThan(RATIO * run.firstMs);
+    if (ratio) expect(loopRatio(run)).toBeLessThan(RATIO);
   }, 120_000);
 
   // CONTROLS: shapes that cost the parent little. They pass on it, and they say that the fixtures are not what is slow.

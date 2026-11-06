@@ -474,10 +474,10 @@
  {
   "name": "K08 clock rows: the first call is not timed",
   "file": "test/unit/s341-cell-vdoc-rows.test.ts",
-  "from": "    if (builds === 1) firstMs = performance.now() - started;",
+  "from": "    if (builds === 1) firstMs = now() - started;",
   "to": "    if (builds === 1) firstMs = 1e9;",
-  "expect": "survives",
-  "why": "RECORDED GAP, not an equivalence: a first call of 1e9 ms makes the ratio test `ms < 100 * firstMs` always true, so the load-independent twin of the one-second limit (Learning 877) is lost, and no tree this session has can show it, because the one-second line fails first on the parent (4.6 s) and holds on the cure (10.8 ms). The ratio only decides on a machine more than 4 times faster than the one the rows were written on"
+  "expect": "killed",
+  "why": "a first call read as 1e9 ms makes the ratio test always true, which lost the load-independent twin of the one-second limit (Learning 877). It was a RECORDED GAP at 89d38e3: nothing could show it, because the one-second line fails first on the parent and holds on the cure. Killed since the review round (C02 / TD-1) by the timeLoop rows: the exact-clock row expects a first call of 30 ms and reads 1e9, and the real-clock row expects the loop to exceed the first call by 39 ms and does not"
  },
  {
   "name": "K09 clock rows: the loop does not lay the string out",

@@ -202,18 +202,18 @@
  {
   "name": "S01 clock rows: the loop's total is a clock stuck at 0",
   "file": "test/unit/s341-cell-vdoc-rows.test.ts",
-  "from": "  const ms = performance.now() - started;",
+  "from": "  const ms = now() - started;",
   "to": "  const ms = 0;",
-  "expect": "survives",
-  "why": "the finding's own edit: on the parent's logic every clock row passes (14 of 14 at the seam), because nothing pins `ms`"
+  "expect": "killed",
+  "why": "the finding's own edit (C02 / TD-1): a loop total read as 0. At 89d38e3 it left every clock row green on the parent's logic (14 of 14 at the seam commit 00f85d4); with the timeLoop rows the same edit at the seam is `3 failed | 15 passed (18)`: the exact row expects 60 and reads 0, the counting row 204, the real-clock row at least 79"
  },
  {
-  "name": "S02 clock rows: the ratio is taken against the loop's own total",
+  "name": "S02 loopRatio: the ratio is the loop over itself",
   "file": "test/unit/s341-cell-vdoc-rows.test.ts",
-  "from": "    if (ratio) expect(run.ms).toBeLessThan(RATIO * run.firstMs);",
-  "to": "    if (ratio) expect(run.ms).toBeLessThan(RATIO * run.ms);",
-  "expect": "survives",
-  "why": "`ms < 100 * ms` is always true: the load-free twin of the one-second limit is gone and nothing sees it"
+  "from": "const loopRatio = (run: { ms: number; firstMs: number }): number => run.ms / run.firstMs;",
+  "to": "const loopRatio = (run: { ms: number; firstMs: number }): number => run.ms / run.ms;",
+  "expect": "killed",
+  "why": "`ms / ms` is 1 for every run, so a ratio assertion could never fail (the first spelling of this mutant, `RATIO * run.ms` at the call site, survived 89d38e3); killed by the loopRatio row (100 over 4 is 25, 4619 over 5.5 is 840)"
  },
  {
   "name": "Q01 seeded draw: the body is 1 to 50 lines, not 1 to 40",
@@ -238,5 +238,37 @@
   "to": "      for (let k = 0; k < 0; k++) {\n        const startLine = Math.floor(random() * (total + 6)) - 2 + pick(FRACTIONS);",
   "expect": "survives",
   "why": "on the cured builder the draw agrees with the old spelling either way, so only a count of the cells it made can see it is gone"
+ },
+ {
+  "name": "S02b loopRatio: the first call over the loop",
+  "file": "test/unit/s341-cell-vdoc-rows.test.ts",
+  "from": "const loopRatio = (run: { ms: number; firstMs: number }): number => run.ms / run.firstMs;",
+  "to": "const loopRatio = (run: { ms: number; firstMs: number }): number => run.firstMs / run.ms;",
+  "expect": "killed",
+  "why": "the inverted ratio is under 1 for every run; killed by the loopRatio row"
+ },
+ {
+  "name": "S03 timeLoop: the first call is read as 0",
+  "file": "test/unit/s341-cell-vdoc-rows.test.ts",
+  "from": "    if (builds === 1) firstMs = now() - started;",
+  "to": "    if (builds === 1) firstMs = 0;",
+  "expect": "killed",
+  "why": "a first call of 0 makes the ratio infinite, so every ratio assertion fails; killed by the exact-clock rows (the first call is 30 ms there) and by every ratio row"
+ },
+ {
+  "name": "S04 timeLoop: the builder is made before the clock starts",
+  "file": "test/unit/s341-cell-vdoc-rows.test.ts",
+  "from": "  const started = now();\n  const builder = make();",
+  "to": "  const builder = make();\n  const started = now();",
+  "expect": "killed",
+  "why": "a builder that read the text when it was made would pay for it outside the clock; killed by the exact-clock row (the 20 ms of the fake construction are in `ms` and in `firstMs`) and the real-clock row"
+ },
+ {
+  "name": "S05 timeLoop: the default clock is stuck at 0",
+  "file": "test/unit/s341-cell-vdoc-rows.test.ts",
+  "from": "now: () => number = () => performance.now()): TimedLoop {",
+  "to": "now: () => number = () => 0): TimedLoop {",
+  "expect": "killed",
+  "why": "the clock the clock rows run on is `performance.now()` by default and no row passes one; killed by the real-clock row (a builder that spins 20 ms per build is read as 0 ms)"
  }
 ]
