@@ -11,12 +11,28 @@ push) must not come from the code under test, or a comparison could pass by both
                   then only spaces, tabs and carriage returns up to the end of the line. The leftmost "Browse at" that completes wins.
     the answer:   the first complete line that matches. It is answered at the first push whose text, all pushes so far joined, reaches that line's newline.
 
+WHERE THIS DEFINITION IS NARROWER THAN THE SHIPPED PATTERN (review round, C10). The URL run above is "anything but space, tab, CR, LF", and that is what `matches()` implements. `BROWSE_PATTERN` in
+`src/core/preview-url.ts` writes the run as `\\S+?`, and JavaScript's `\\S` also excludes VT, FF, NBSP, U+1680, U+2000 to U+200A, U+2028, U+2029, U+202F, U+205F, U+3000 and U+FEFF. So "Browse at http://x", one of those
+characters, "y" and a newline is answered here (at 21 characters) and is null for `parseBrowseUrl`, as was compared one character at a time. No alphabet below holds any of them: every character of every list is ASCII,
+and the only control or blank characters in them are ESC, tab, LF, CR and the space, so no pinned count depends on the difference. An alphabet that adds one of those characters must first make `matches()` agree with `\\S`.
+
     python3 -I tools/preview-scan-count/count_answers.py              # every count, about 2 seconds
     python3 -I tools/preview-scan-count/count_answers.py E1           # one of them (E1, E2, E3, E4)
 
 It prints one line per count: the label, the pairs compared, how many the old spelling answered, and where it answered. Compare them with the numbers of the test: the `compared`, `answered` and `answeredAt` of the three
 entries of `ENUMERATIONS` (E1 and E3 are token enumerations of up to five tokens, E2 puts two escapes into the marker line; `answeredAt` is how many were answered at the first, the second and the third push) and the
 two literals of the seeded row (E4: the `answered` documents of `SEEDED_COUNT`, and the sum of the pushes at which they were answered).
+
+E5 (the review round's spliced escapes, M-R44 and M-R45: the test's `E5_BASE` with ONE escape spliced into another put in at any place) is not one of COUNTS: it is the same `count_enumeration` over another generator, so its
+numbers are recounted by calling this script's own functions. From the repository root this prints `(82104, 22392, [582, 3748, 18062])`, the `compared`, `answered` and `answeredAt` of the test's E5 entry:
+
+    python3 -I -c "
+    import sys; sys.dont_write_bytecode = True; sys.path.insert(0, 'tools/preview-scan-count')
+    import count_answers as c
+    splices = lambda outer, inner: [outer[:k] + inner + outer[k:] for k in range(1, len(outer))]
+    inserts = splices('\\x1b[0m', '\\x1b[0m') + splices('\\x1b[32m', '\\x1b[39m')
+    base = 'x\\nBrowse at http://x\\n'
+    print(c.count_enumeration(base[:i] + x + base[i:] for i in range(len(base) + 1) for x in inserts))"
 
 The seeded count reproduces the test's generator: Mulberry32 (`seededRandom` of `test/unit/support/regex-equivalence.ts`) seeded with 341, then the same lists and the same draws in the same order as the seeded row of
 the test. If the lists, the draws or the seed change, change them here too.

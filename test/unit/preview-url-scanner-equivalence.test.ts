@@ -119,6 +119,13 @@ const CASES: Case[] = [
   { name: "a marker line and the start of a second one in one chunk: the URL, at once", chunks: ["Browse at http://first/\nBrowse at http://sec"], first: { at: 0, url: "http://first/" } },
   { name: "a marker line with the beginning of the next line in the same chunk, whose newline comes later", chunks: ["noise\nBrowse at http://", "first/\nmore"], first: { at: 1, url: "http://first/" } },
   { name: "empty chunks between the pieces change nothing", chunks: ["", "Browse at ", "", "http://localhost:3958/", "", "\n", ""], first: { at: 5, url: URL } },
+  // A WHOLE escape spliced into a CUT one (review round, M-R44 / M-R45). Stripping is ONE pass over the joined text: the inner escape goes, and the outer one's two pieces meet and read as an escape that no second pass removes. A scanner that
+  // strips the new text, or the text it keeps, BEFORE the join strips twice and answers differently, so these are the cases that pin "the pieces are joined first, raw, and stripped once".
+  { name: "a whole escape spliced into a cut one inside the marker: the pieces left are not stripped again, so no marker: null", chunks: ["Brow\x1b[0\x1b[0mmse at http://x\n"], first: null },
+  { name: "the same with the cut escape ending one chunk and the whole one starting the next: null", chunks: ["Brow\x1b[0", "\x1b[0mmse at http://x\n"], first: null },
+  { name: "the same in the kept tail after a newline, completed by the next chunk: null", chunks: ["x\nBrow\x1b[0\x1b[0m", "mse at http://x\n"], first: null },
+  { name: "a whole escape spliced into a cut one at the end of the URL: the answer keeps the pieces left (ESC [ 0 m)", chunks: ["Browse at http://x\x1b[0\x1b[0mm\n"], first: { at: 0, url: "http://x\x1b[0m" } },
+  { name: "the same in the kept tail after a newline, its newline in the next chunk", chunks: ["x\nBrowse at http://x\x1b[0\x1b[0mm", "\n"], first: { at: 1, url: "http://x\x1b[0m" } },
   { name: "no chunks at all", chunks: [], first: null },
   { name: "noise lines only: null at every push", chunks: ["processing file: sample.qmd\n", "Output created: sample.html\n", "\x1b[32mWatching files for changes\x1b[39m\n"], first: null },
 ];
@@ -218,6 +225,20 @@ const E2_INSERTS = ["\x1b[0m", "\x1b[3m", "\x1b[", "\x1b", "[0m", "\x1b[32;1m"];
 // E3: the whole marker line as one token beside the characters an escape is made of, so that broken escapes sit before, after and between marker lines.
 const E3_TOKENS = ["Browse at http://x\n", "\x1b", "[", "3", "m", "x"];
 const MAX_TOKENS = 5;
+// E5 (review round, M-R44 / M-R45): the line `x\nBrowse at http://x\n` (a line before the marker, so that a kept tail follows a newline) with ONE spliced escape put in at any place. A spliced escape is a whole escape inside another one, at every cut of
+// the outer one: `ESC`, `ESC [`, `ESC [ 0` around a whole `ESC [ 0 m`, and `ESC`, `ESC [`, `ESC [ 3`, `ESC [ 3 2` around a whole `ESC [ 3 9 m` of the longer `ESC [ 3 2 m`. E2 cannot reach these: it puts its two inserts into the base line, side by side or apart, never one inside the other.
+const E5_BASE = "x\nBrowse at http://x\n";
+const splices = (outer: string, inner: string): string[] => Array.from({ length: outer.length - 1 }, (_, i) => outer.slice(0, i + 1) + inner + outer.slice(i + 1));
+const E5_INSERTS = [...splices("\x1b[0m", "\x1b[0m"), ...splices("\x1b[32m", "\x1b[39m")];
+
+/** The base line with ONE of the inserts put at every place of it. */
+function* everyInsertion1(base: string, inserts: readonly string[]): Generator<string> {
+  for (let i = 0; i <= base.length; i++) {
+    for (const x of inserts) {
+      yield base.slice(0, i) + x + base.slice(i);
+    }
+  }
+}
 
 /** The base line with `x` put at place `i` and `y` at place `j` (of the BASE, i <= j), for every `x` and `y` of the list. */
 function* everyInsertion(base: string, inserts: readonly string[]): Generator<string> {
@@ -232,12 +253,13 @@ function* everyInsertion(base: string, inserts: readonly string[]): Generator<st
   }
 }
 
-// What the old spelling answered over each enumeration, recounted by `tools/preview-scan-count/count_answers.py` (which shares no code with this file): pairs compared, pairs the old spelling ever answered, and how many
-// of those at the first, the second and the third push.
+// What the old spelling answered over each enumeration, recounted by `tools/preview-scan-count/count_answers.py` (which shares no code with this file; E5 by the recipe in its docstring, which calls the script's own functions): pairs compared,
+// pairs the old spelling ever answered, and how many of those at the first, the second and the third push.
 const ENUMERATIONS: Array<{ label: string; strings: () => Iterable<string>; compared: number; answered: number; answeredAt: number[] }> = [
   { label: "E1: the marker, blanks, CR, LF, a URL and noise (up to five tokens)", strings: () => everyString(E1_TOKENS, MAX_TOKENS), compared: 3_631_958, answered: 13_028, answeredAt: [392, 2652, 9984] },
   { label: "E2: the marker line with two escapes, whole or cut, put in at any two places", strings: () => everyInsertion(E2_BASE, E2_INSERTS), compared: 3_096_450, answered: 1_283_674, answeredAt: [16_497, 188_017, 1_079_160] },
   { label: "E3: the whole marker line beside the characters of an escape (up to five tokens)", strings: () => everyString(E3_TOKENS, MAX_TOKENS), compared: 3_221_508, answered: 3_118_725, answeredAt: [716_475, 1_192_650, 1_209_600] },
+  { label: "E5: the marker line with ONE spliced escape (a whole escape inside another), put in at any place", strings: () => everyInsertion1(E5_BASE, E5_INSERTS), compared: 82_104, answered: 22_392, answeredAt: [582, 3_748, 18_062] },
 ];
 
 describe("Session 341 — every split into one to three chunks of every string of an enumeration, against the old spelling", () => {

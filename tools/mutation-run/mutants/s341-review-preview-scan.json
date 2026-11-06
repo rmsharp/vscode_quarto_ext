@@ -124,16 +124,16 @@
   "file": "src/core/preview-url.ts",
   "from": "const completed = tail.join(\"\") + chunk.slice(0, end);",
   "to": "const completed = tail.join(\"\") + chunk.slice(0, end).replace(/\\x1b\\[[0-9;]*m/g, \"\");",
-  "expect": "survives",
-  "why": "a whole escape spliced into a cut one (ESC [ 0, a whole escape, m) is stripped here and then again by parseBrowseUrl; no generator makes one (finding M-R44-R45)"
+  "expect": "killed",
+  "why": "a whole escape spliced into a cut one (ESC [ 0, a whole escape, m) is stripped here and then again by parseBrowseUrl, so the answer differs from the old spelling's; no generator made one (finding M-R44-R45); run alone, killed by the named cases 'a whole escape spliced into a cut one inside the marker ...' and 'the same with the cut escape ending one chunk and the whole one starting the next', and by the E5 enumeration (20,571 of its 82,104 pairs disagree, measured with a scratch script); the named cases alone and E5 alone each kill it (seen with -t)"
  },
  {
   "name": "SP02 push: the kept tail's whole escapes are stripped when it is kept",
   "file": "src/core/preview-url.ts",
   "from": "tail = end < chunk.length ? [chunk.slice(end)] : [];",
   "to": "tail = end < chunk.length ? [chunk.slice(end).replace(/\\x1b\\[[0-9;]*m/g, \"\")] : [];",
-  "expect": "survives",
-  "why": "the same family on the other side of the join (finding M-R44-R45)"
+  "expect": "killed",
+  "why": "the same family on the other side of the join: the kept tail is stripped when it is kept (finding M-R44-R45); run alone, killed by the named case 'the same in the kept tail after a newline, completed by the next chunk' and by the E5 enumeration (17,196 of its 82,104 pairs disagree, measured with a scratch script); the named cases alone and E5 alone each kill it (seen with -t)"
  },
  {
   "name": "EA01 push: the unfinished line is read as if its newline had arrived (answers early)",
