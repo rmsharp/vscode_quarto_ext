@@ -8,7 +8,7 @@
  * `core/qmd/model` region model, and this file translates the core
  * `OutlineSymbol` tree into `vscode.DocumentSymbol`s — forwarding each
  * mapped-language cell's body into its own per-cell virtual document
- * (`core/embedded/virtual-doc.ts` `buildCellVirtualContent`, slice 2) and
+ * (`core/embedded/virtual-doc.ts` `createCellVdocBuilder`: one builder per call, `cellAt` and `build` per cell, Session 341; slice 2 had `buildCellVirtualContent`) and
  * splicing the result in as that cell node's children.
  *
  * In-cell symbols ride the SAME real `file:` virtual document as every other

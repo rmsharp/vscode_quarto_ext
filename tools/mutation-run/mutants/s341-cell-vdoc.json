@@ -388,32 +388,32 @@
   "file": "src/providers/outline.ts",
   "from": "    const cellVdocs = createCellVdocBuilder(text);",
   "to": "    const cellVdocs = createCellVdocBuilder(\"\");",
-  "expect": "survives",
-  "why": "RECORDED GAP, not an equivalence: `providers/outline.ts` imports `vscode` and no unit test reaches it; only test/integration/suite/outline.test.ts, which opens a real VS Code window and takes over the screen, reads these symbols, and it was not run in this session"
+  "expect": "killed",
+  "why": "a builder over an empty text forwards every cell as empty; it was a RECORDED GAP at 89d38e3 (outline.ts imports vscode, so no unit test reaches it). Killed since the review round by test/unit/s341-outline-wiring-pin.test.ts, which reads the syntax tree of the file: the call must be over the identifier `text`. The behaviour under VS Code is test/integration/suite/outline.test.ts, which opens a real window and was not run"
  },
  {
   "name": "E02 outline.ts: the cell is looked up one line down",
   "file": "src/providers/outline.ts",
   "from": "  const cell = cellVdocs.cellAt(cellSymbol.startLine);",
   "to": "  const cell = cellVdocs.cellAt(cellSymbol.startLine + 1);",
-  "expect": "survives",
-  "why": "RECORDED GAP like E01: the adapter has no unit test; test/integration/suite/outline.test.ts would see a cell forwarded from its first body line, which is still inside the cell, so it may need a row that names the vdoc content"
+  "expect": "killed",
+  "why": "the cell looked up one line down (it is still the same cell for a cell of two or more lines, which is why an integration row could miss it); a RECORDED GAP at 89d38e3, killed since the review round by the syntax-tree pin: the lookup must be `const cell = cellVdocs.cellAt(cellSymbol.startLine)`"
  },
  {
   "name": "E03 outline.ts: the vdoc handed to ensureVdoc is built from a cell with no code",
   "file": "src/providers/outline.ts",
   "from": "    cellVdocs.build(cell),\n  );",
   "to": "    cellVdocs.build({ ...cell, code: \"\" }),\n  );",
-  "expect": "survives",
-  "why": "RECORDED GAP like E01: no unit test reaches the adapter; the integration suite would see no in-cell symbols from a real language server"
+  "expect": "killed",
+  "why": "the vdoc handed to ensureVdoc is built from a cell with no code, so no in-cell symbols from a real language server; a RECORDED GAP at 89d38e3, killed since the review round by the syntax-tree pin: the third argument of ensureVdoc must be `cellVdocs.build(cell)`"
  },
  {
   "name": "E04 outline.ts: a builder per cell",
   "file": "src/providers/outline.ts",
   "from": "      visible.map((symbol) => toDocumentSymbol(symbol, document, cellVdocs)),",
   "to": "      visible.map((symbol) => toDocumentSymbol(symbol, document, createCellVdocBuilder(document.getText()))),",
-  "expect": "survives",
-  "why": "RECORDED GAP like E01, and the one the clock rows would catch if they could reach the adapter: a builder per top-level symbol re-reads the text for each, and nothing in the unit run calls provideDocumentSymbols"
+  "expect": "killed",
+  "why": "a builder per top-level symbol re-reads the text for each: 4,198.9 ms against 10.3 ms at 2,000 six-line cells that are all top-level symbols (the review's harness, load 15.9; with every cell under one heading it costs nothing). It was a RECORDED GAP at 89d38e3, killed since the review round by the syntax-tree pin: two calls of createCellVdocBuilder, one of them inside an arrow function"
  },
  {
   "name": "K01 clock rows: the six-line shape has a tenth of its cells",

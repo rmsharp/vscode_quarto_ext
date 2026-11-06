@@ -156,48 +156,48 @@
   "file": "src/providers/outline.ts",
   "from": "          symbol.children.map((child) => toDocumentSymbol(child, document, cellVdocs)),",
   "to": "          symbol.children.map((child) => toDocumentSymbol(child, document, createCellVdocBuilder(document.getText()))),",
-  "expect": "survives",
-  "why": "a heading's children each re-read the text: cells times document under a heading"
+  "expect": "killed",
+  "why": "a heading's children each re-read the text: cells times document under a heading (the review's R62; E04 is the same cost one level up). Killed by the syntax-tree pin of src/providers/outline.ts: two calls of createCellVdocBuilder, and the recursion into symbol.children no longer hands cellVdocs down"
  },
  {
   "name": "R63 outline.ts: the cell is looked up by the symbol's end line",
   "file": "src/providers/outline.ts",
   "from": "  const cell = cellVdocs.cellAt(cellSymbol.startLine);",
   "to": "  const cell = cellVdocs.cellAt(cellSymbol.endLine);",
-  "expect": "survives",
-  "why": "the symbol's span comes from the engine-aware outline scan and `cellAt` searches the engine-blind cells, so the two lines can name different cells"
+  "expect": "killed",
+  "why": "NOT equivalent, although the review's argument for it said so (\"cellAt answers the same cell for every line of it\"): the symbol's span comes from the engine-aware outline scan and `cellAt` searches the engine-blind cells, so the two can bound a cell differently. A fuzz over 60,000 random documents x 3 engine hints x 2 render modes (scratch, seed 2025) found 241,818 cell symbols, 2,464 of which have `cellAt(endLine)` different from `cellAt(startLine)`, and 416 whose start line names no blind cell at all; the first: a jupyter document whose symbol spans [5, 15] and whose blind cell spans [5, 12], where `cellAt(15)` is null. Killed by the syntax-tree pin (the lookup must be `cellVdocs.cellAt(cellSymbol.startLine)`); the behaviour under VS Code is test/integration/suite/outline.test.ts, which was not run"
  },
  {
   "name": "R64 outline.ts: the vdoc is built from a cell one line below",
   "file": "src/providers/outline.ts",
   "from": "    cellVdocs.build(cell),\n  );",
   "to": "    cellVdocs.build({ ...cell, startLine: cell.startLine + 1 }),\n  );",
-  "expect": "survives",
-  "why": "the forwarded vdoc holds the cell's body one line low"
+  "expect": "killed",
+  "why": "the forwarded vdoc holds the cell's body one line low; killed by the syntax-tree pin (the third argument of ensureVdoc must be `cellVdocs.build(cell)` over the very cell looked up). The integration suite is the behaviour check and was not run"
  },
  {
   "name": "O01 outline.ts: a builder per top-level symbol over the text",
   "file": "src/providers/outline.ts",
   "from": "      visible.map((symbol) => toDocumentSymbol(symbol, document, cellVdocs)),",
   "to": "      visible.map((symbol) => toDocumentSymbol(symbol, document, createCellVdocBuilder(text))),",
-  "expect": "survives",
-  "why": "the spelling of E04 over `text`: one text read per top-level symbol"
+  "expect": "killed",
+  "why": "the spelling of E04 over `text`: one text read per top-level symbol (4,198.9 ms against 10.3 ms at 2,000 six-line cells that are all top-level symbols, the review's harness, load 15.9); killed by the syntax-tree pin (two calls of createCellVdocBuilder, and the builder made inside an arrow function)"
  },
  {
   "name": "O02 outline.ts: a builder per cell inside the forward",
   "file": "src/providers/outline.ts",
   "from": "  const cell = cellVdocs.cellAt(cellSymbol.startLine);",
   "to": "  const cell = createCellVdocBuilder(document.getText()).cellAt(cellSymbol.startLine);",
-  "expect": "survives",
-  "why": "one text read per cell for the lookup alone: the cost of the old `findCellAtPosition`"
+  "expect": "killed",
+  "why": "one text read per cell for the lookup alone, the cost of the old `findCellAtPosition`; killed by the syntax-tree pin (two calls of createCellVdocBuilder, two reads of the document text, and the lookup is no longer `cellVdocs.cellAt`)"
  },
  {
   "name": "O03 outline.ts: the one builder is made over a second read of the document",
   "file": "src/providers/outline.ts",
   "from": "    const cellVdocs = createCellVdocBuilder(text);",
   "to": "    const cellVdocs = createCellVdocBuilder(document.getText());",
-  "expect": "survives",
-  "why": "the same answers over `document.getText()` a second time (a respelling that costs a second copy of the text)"
+  "expect": "killed",
+  "why": "the same answers over `document.getText()` a second time, a respelling that costs a second copy of the text and is killed on purpose: the pin says the builder is made over the `text` the model read (a second getText call, and the argument is not the identifier `text`)"
  },
  {
   "name": "S01 clock rows: the loop's total is a clock stuck at 0",
