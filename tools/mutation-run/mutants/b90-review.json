@@ -354,8 +354,8 @@
  {
   "name": "A-L31 languagesInMarkdown last appearance wins the order",
   "file": "src/core/document-engine.ts",
-  "from": "if (!languages.includes(language)) {\n      languages.push(language);\n    }",
-  "to": "const seen = languages.indexOf(language);\n    if (seen >= 0) {\n      languages.splice(seen, 1);\n    }\n    languages.push(language);",
+  "from": "if (!seen.has(language)) {\n      seen.add(language);\n      languages.push(language);\n    }",
+  "to": "const at = languages.indexOf(language);\n    if (at >= 0) {\n      languages.splice(at, 1);\n    }\n    languages.push(language);",
   "expect": "killed",
   "why": "killed by a row of test/unit/cell-header-literal-pins.test.ts (or cell-header-option-tail.test.ts) in Session 316"
  },

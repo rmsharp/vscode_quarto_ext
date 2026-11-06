@@ -50,18 +50,18 @@
  {
   "name": "A-L28 languagesInMarkdown no de-duplication",
   "file": "src/core/document-engine.ts",
-  "from": "if (!languages.includes(language)) {",
+  "from": "if (!seen.has(language)) {",
   "to": "if (true) {",
-  "expect": "survives",
-  "why": "EQUIVALENT: engineFromLanguages takes the first r or julia, else the first language that is not ojs or a handler language, so repeats cannot change the answer (120,000 documents, 0 differences)"
+  "expect": "killed",
+  "why": "Session 343 respelled this (the Array.includes test became a Set) and it is NO LONGER EQUIVALENT: it was, while only engineFromLanguages could see the list (it takes the first r or julia, else the first language that is not ojs or a handler language, so repeats cannot change the ENGINE: 120,000 documents, 0 differences), and languagesInMarkdown is now exported, so the rows of test/unit/s343-languages-set-rows.test.ts compare the list itself and kill it"
  },
  {
   "name": "A-L29 languagesInMarkdown de-duplicates on the raw spelling",
   "file": "src/core/document-engine.ts",
-  "from": "if (!languages.includes(language)) {",
-  "to": "if (!languages.includes(match[1])) {",
-  "expect": "survives",
-  "why": "EQUIVALENT: the same argument as A-L28, since repeats are unobservable"
+  "from": "if (!seen.has(language)) {",
+  "to": "if (!seen.has(match[1])) {",
+  "expect": "killed",
+  "why": "Session 343 respelled this (the Set) and it is NO LONGER EQUIVALENT, for the reason of A-L28: the two case variants of one language are two entries of the exported list, and the rows of test/unit/s343-languages-set-rows.test.ts compare the list"
  },
  {
   "name": "B-L02 fenceLanguage regex hoisted to module scope",

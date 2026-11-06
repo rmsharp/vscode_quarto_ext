@@ -556,10 +556,15 @@ const INCLUDE_SHORTCODE = /\{\{<\s*include\b/;
 export function languagesInMarkdown(text: string): string[] {
   const fenceLanguage = /^[\t >]*```+\s*\{([a-zA-Z0-9_]+)([ ,].*)?\}\s*$/gm;
   const languages: string[] = [];
+  // Membership is a Set (Session 343): `languages.includes` read the whole list for every fence, so a document of
+  // n DISTINCT fence languages cost n squared (64,000 of them took 4.3 s; the same fences in one language, 0.2 s).
+  // The array stays beside it: it is the answer, in FIRST-APPEARANCE order, and the callers take a `readonly string[]`.
+  const seen = new Set<string>();
   let match = fenceLanguage.exec(text);
   while (match !== null) {
     const language = match[1].toLowerCase();
-    if (!languages.includes(language)) {
+    if (!seen.has(language)) {
+      seen.add(language);
       languages.push(language);
     }
     match = fenceLanguage.exec(text);
