@@ -94,6 +94,12 @@ export function flatSymbolsOf(fileName: string, text: string, mode: RenderMode):
   return flattenOutline(buildOutline(text, resolveDocumentEngine(fileName, text), mode));
 }
 
+/** The most characters of document text the cache keeps, in all: 8,388,608 (8 Mi), where a file of 1,255 lines is about 16,500. */
+export const WORKSPACE_SYMBOL_CACHE_MAX_CHARS = 8_388_608;
+
+/** The most files the cache keeps. */
+export const WORKSPACE_SYMBOL_CACHE_MAX_FILES = 4_096;
+
 /** The things a workspace-symbol cache can be given: another computation (a stand-in for the rows), and its two bounds. */
 export interface WorkspaceSymbolCacheOptions {
   flatSymbolsOf?: (fileName: string, text: string, mode: RenderMode) => FlatOutlineSymbol[];
