@@ -17,18 +17,18 @@ import { type BrowseUrlScanner, createBrowseUrlScanner } from "../../src/core/pr
 //   65,536-byte chunks, lines with SGR:    1,699 / 8,126 ms at 8 / 16 MiB;
 //   ONE line with no newline, 4,096-byte chunks: 197 / 741 / 3,093 ms at 2 / 4 / 8 MiB;
 //   ONE-byte chunks, plain lines:          22,412 ms at 256 KiB, 89,588 ms at 512 KiB (4x per doubling; about six minutes at 1 MiB, so the row stops at 256 KiB).
-// The sizes the rows use (below) were taken from those figures and re-timed in the rows themselves against the seam commit `70bab96` (the old logic behind `createBrowseUrlScanner`), load 6.4 to 7.8:
+// The sizes the rows use (below) were taken from those figures and re-timed in the rows themselves against the seam commit `d912bbf` (the old logic behind `createBrowseUrlScanner`; the rows of `d22f0c9` were RED on it), load 6.4 to 7.8:
 //   12 MiB plain, 4,096-byte chunks 8.8 s; 4 MiB SGR, 4,096-byte chunks 6.2 s; 48 MiB plain, 65,536-byte chunks 8.9 s; 16 MiB SGR, 65,536-byte chunks 9.5 s; ONE 16 MiB line 12.2 s; 256 KiB in one-byte chunks 15.5 s.
 // That is 6x to 16x the limit. The last tenth of the pushes took 17x to 24x the first tenth on the shapes the ratio is asserted on (12 MiB plain: 3,143 against 129 ms; 4 MiB SGR: 1,155 against 66 ms; one-byte
 // chunks: 4,377 against 195 ms), checked with the clock assertion switched off.
 // The cure (`createBrowseUrlScanner` as committed with these rows), the same six shapes, one fresh process each outside the test: 9 / 12 / 23 / 43 / 20 / 11 ms at load 14 (23x to 110x under the limit), the last
-// tenth of the pushes costing what the first does. The whole file, twelve rows with their 96 MiB of generated text, runs in 0.14 s at load 19.
+// tenth of the pushes costing what the first does. The whole file, 39 tests of which six clock rows generate the 96 MiB of text, runs in 226 to 234 ms of test time (vitest's own figure, six runs alone; 1.4 to 1.5 s wall with the import of typescript) at load 6.9 to 7.7; it ran in 0.14 s, as 17 tests, at load 19.
 //
 // WHAT THE ANSWER IS (Learning 903: the site is reached only while no complete `Browse at <url>` line has arrived, so every row ends on the marker). The scanner answers null for every push until the marker line
 // is complete, and the URL at the push that completes it; the rows read that last answer back (Learning 907), after the whole stream of noise went through.
 //
 // WHAT THE CLOCK CAN SEE. The limit is one second for the whole feed (the chunks are cut before the clock starts). A second, machine-independent reading is the SHAPE of the cost: the last tenth of the pushes against
-// the first tenth. A linear scanner takes about the same for both; the old logic took 17x to 24x longer for the last (Learning 877: a CPU five times faster would let a clock row pass a quadratic reader, a ratio would not).
+// the first tenth. A linear scanner takes about the same for both; the old logic took 17x to 24x longer for the last. A ratio is one which load cannot fake (Learning 877, which says no more than that); the speed of the machine cannot fake it either, and that part is this file's own argument: the weakest clock row feeds the old logic 6.2 s of work against a 1 s limit, so a CPU about six times faster would let that row pass a quadratic reader, and the ratio does not move with the CPU.
 
 const LIMIT_MS = 1000;
 const URL = "http://localhost:3958/";
@@ -38,7 +38,7 @@ const MARKER_SGR = `\x1b[32mBrowse at \x1b[39m\x1b[4m\x1b[32m${URL}\x1b[39m\x1b[
 const MIB = 1024 * 1024;
 const KIB = 1024;
 
-// The sizes the clock rows are built on, each chosen so that the old logic takes 6x to 16x the limit (see the figures above) and the cure takes far under it. A row near the end of the file pins them, and each clock row checks that it really fed that much.
+// The sizes the clock rows are built on, each chosen so that the old logic takes 6x to 16x the limit (see the figures above) and the cure takes far under it. A row near the end of the file pins them, and each clock row checks that it really fed that much. Each size is a MINIMUM: `noise` repeats whole blocks (257 characters for the plain block, 322 for the SGR one), so a row feeds up to one block more than its title says (65, 68, 3, 272 and 253 characters more for the five rows made of blocks).
 const CHUNK_SMALL = 4 * KIB;
 const CHUNK_LARGE = 64 * KIB;
 const SIZES = { plain4k: 12 * MIB, sgr4k: 4 * MIB, plain64k: 48 * MIB, sgr64k: 16 * MIB, oneLine: 16 * MIB, oneByte: 256 * KIB };
@@ -190,7 +190,7 @@ describe("Session 341 — the stderr of `quarto preview` before the Browse at li
     // ONE enormous line with no newline in it, 4,096 characters at a time. Nothing can be answered until its newline comes, and the line is then read once: the cost is in the LAST pushes by design, so the
     // ratio of the last tenth to the first does not apply; the clock does (the old logic re-read the whole line on every chunk).
     { site: "ONE line of 16 MiB with no newline in 4,096-character chunks, then a newline and the marker", bytes: SIZES.oneLine, chunkSize: CHUNK_SMALL, build: () => ({ noise: cut("x".repeat(SIZES.oneLine), CHUNK_SMALL), tail: ["\n", MARKER_PLAIN] }), ratio: false },
-    // One character at a time: 262,144 pushes (256 KiB) of the plain lines, then the marker one character at a time too.
+    // One character at a time: at least 262,144 characters of the plain lines (256 KiB; whole blocks make it 262,397), then the 33 characters of the marker one at a time too: 262,430 pushes.
     { site: "ONE-byte chunks, 256 KiB of plain startup lines, then the marker", bytes: SIZES.oneByte, chunkSize: 1, build: () => ({ noise: cut(noise(PLAIN_BLOCK, SIZES.oneByte), 1), tail: [...MARKER_PLAIN] }), ratio: true },
   ];
 
@@ -233,8 +233,11 @@ describe("Session 341 — the stderr of `quarto preview` before the Browse at li
     expect(totalMs).toBeLessThan(LIMIT_MS);
   });
 
-  it("control: 1 MiB of lines with SGR escapes in 65,536-byte chunks (sixteen pushes), then the marker, is answered at the marker", () => {
-    const { answers } = feed([...cut(noise(SGR_BLOCK, MIB), 64 * KIB), MARKER_SGR]);
+  it("control: 1 MiB of lines with SGR escapes in 65,536-byte chunks (17 pushes of noise, 16 of 65,536 characters and one of 178), then the marker, is answered at the marker", () => {
+    const pushes = [...cut(noise(SGR_BLOCK, MIB), 64 * KIB), MARKER_SGR];
+    expect(pushes.length).toBe(18);
+    expect(pushes[16].length).toBe(178);
+    const { answers } = feed(pushes);
     const { early, last } = answeredOnlyAtTheMarker(answers);
     expect(early).toEqual([]);
     expect(last).toBe(URL);

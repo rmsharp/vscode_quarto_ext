@@ -189,7 +189,7 @@
   "from": "tail.push(chunk);",
   "to": "tail = [tail.join(\"\") + chunk];",
   "expect": "survives",
-  "why": "EQUIVALENT in the answer and in the cost: the concatenation of strings is a rope in V8 and `join` of one element returns it unflattened, so no push reads the line; the single flatten is at the newline, as before (run alone with the runner: SURVIVES, as argued)"
+  "why": "EQUIVALENT in the answer and in complexity, NOT in cost on every shape: the concatenation of strings is a rope in V8 and `join` of one element returns it unflattened, so no push reads the line, and the single flatten is at the newline, as before (run alone with the runner: SURVIVES, as argued). Measured with one fresh process each, `process.resourceUsage().maxRSS` for the memory, load 7.3 to 9.2 read at the start of each process: ONE line of 4 MiB in one-byte chunks, the cure 139.8 to 143.0 ms and 196 to 197 MB, this mutant 322.9 to 332.8 ms and 241 to 242 MB (2.3x the time, 22% more memory); 12 MiB in one-byte chunks, the cure 427.8 to 439.5 ms and 551 MB, this mutant 952.2 to 975.4 ms and 601 MB (2.2x, 9% more); 3x the size gives 3.05x the time for the cure and 2.9x for the mutant, so both are linear; ONE line of 16 MiB in 4,096-character chunks, the cure 17.9 to 18.5 ms and 86 to 87 MB, this mutant 16.4 to 16.7 ms and 69 to 70 MB (0.9x, the mutant is a little faster and lighter there). The mechanism in the first sentence is the original argument and was not measured; the cost figures above were measured"
  },
  {
   "name": "W01 adapter: the scanner is fed an empty string",

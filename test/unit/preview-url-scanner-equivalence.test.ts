@@ -6,9 +6,12 @@ import { everyString, seededRandom } from "./support/regex-equivalence";
 // one string and re-parse the WHOLE string (`parseBrowseUrl(stderr)`) until the `Browse at <url>` line arrived: the cost was the bytes so far times the chunks. `createBrowseUrlScanner()` answers the same question
 // from the NEW text only. This file pins the ANSWERS (the sibling `s341-preview-scan-rows.test.ts` holds the clock).
 //
-// WHAT IS PINNED. For ANY string S and ANY split of S into chunks (empty chunks and one character at a time included), the scanner's FIRST non-null answer comes at the same push at which `parseBrowseUrl(everything
-// pushed so far)` first becomes non-null, and is the same URL (the leftmost match: two marker lines in one chunk give the first); every push before that answers null. What the scanner answers AFTER its first non-null
-// answer is unspecified (the adapter stops feeding it), and nothing here pins it.
+// WHAT IS PINNED. For the strings and the splits this file generates (the named cases; every split into one to three chunks, empty chunks included, of every string of the enumerations E1 to E5; 30,000 seeded documents cut at random,
+// one character at a time among the cuts; and the long-line rows, one line of up to 1,100,019 characters in chunks of 1 to 65,536) the scanner's FIRST non-null answer comes at the same push at which `parseBrowseUrl(everything pushed so far)`
+// first becomes non-null, and is the same URL (the leftmost match: two marker lines in one chunk give the first). That is also all that "every push before it answers null" says: a first answer at the same push leaves no earlier push that
+// answered, so the enumerations and the seeded documents pin it by comparing first answers, and the named-case row 'answers null at every push before the first answer' checks it against the old spelling's recorded answer.
+// NOT REACHED: a Browse at line longer than 400 characters appears only in the long-line rows (and one named case of 100,000 characters of noise); the seeded lines are at most 400 characters and the strings of E1 to E5 at most 95, so no
+// enumeration varies a very long line, and nothing here is "ANY string". What the scanner answers AFTER its first non-null answer is unspecified (the adapter stops feeding it), and nothing here pins it.
 //
 // WHY THE SCANNER MAY TEST ONLY THE NEW LINES. `BROWSE_PATTERN` (`/Browse at[ \t]+(https?:\/\/\S+?)[ \t\r]*\n/`) cannot span a newline (`\S` and `[ \t\r]` both exclude it, and the pattern ends on one) and an SGR escape
 // (`\x1b\[[0-9;]*m`) cannot contain one, so stripping the escapes and matching the pattern line by line gives what doing both on the whole buffer gives, and a chunk boundary inside "Browse at", inside the URL, inside an
@@ -218,8 +221,9 @@ const HEAVY_ROW_MS = 120_000;
 
 // E1: the marker, the blanks that may follow it, a carriage return, a newline, a URL and noise. Up to five tokens: "Browse at", blank, URL and "\n" make the marker line, "\r" makes the CRLF line.
 const E1_TOKENS = ["Browse at", " ", "\t", "\r", "\n", "http://x", "x"];
-// E2 is not a token enumeration: the line `Browse at http://x\n` with TWO of these put in it, at any two places (the first at or before the second): a whole SGR escape, a cut one (a bare ESC, an ESC and a
-// bracket, an ESC, a bracket and a digit), the tail of one with no ESC, and an escape with two parameters. Every cut of the marker and of the URL falls inside or beside an escape somewhere.
+// E2 is not a token enumeration: the line `Browse at http://x\n` with TWO of these put in it, at any two places (the first at or before the second): two whole SGR escapes (`ESC[0m`, `ESC[3m`), two
+// cut ones (a bare `ESC` and an `ESC[`), the tail of one with no ESC (`[0m`) and an escape with two parameters (`ESC[32;1m`). A cut at a digit (`ESC[3`) is not an insert: it comes about only where a chunk boundary falls inside a whole
+// insert. Every cut of the marker and of the URL falls inside or beside an escape somewhere.
 const E2_BASE = "Browse at http://x\n";
 const E2_INSERTS = ["\x1b[0m", "\x1b[3m", "\x1b[", "\x1b", "[0m", "\x1b[32;1m"];
 // E3: the whole marker line as one token beside the characters an escape is made of, so that broken escapes sit before, after and between marker lines.
