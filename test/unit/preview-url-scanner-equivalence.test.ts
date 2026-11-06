@@ -137,11 +137,11 @@ describe("Session 341 — the named cases (the first answer is the one the old s
   });
 
   it("answers null at every push before the first answer, for every case", () => {
+    // "The first answer" is the OLD spelling's (`c.first`, which the row above checks against the old spelling), not the scanner's own: cut at the scanner's own first non-null answer the slice would be null by definition and the row could not fail.
     for (const c of CASES) {
       const got = answers(c.chunks);
-      const first = firstAnswer(got);
-      const upTo = first === null ? got.length : first.at;
-      expect(got.slice(0, upTo).every((a) => a === null)).toBe(true);
+      const before = c.first === null ? got.length : c.first.at;
+      expect({ case: c.name, answers: got.slice(0, before) }).toEqual({ case: c.name, answers: new Array<null>(before).fill(null) });
     }
   });
 });

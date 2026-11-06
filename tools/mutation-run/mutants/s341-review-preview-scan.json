@@ -140,8 +140,8 @@
   "file": "src/core/preview-url.ts",
   "from": "tail.push(chunk);\n        return null;",
   "to": "tail.push(chunk);\n        return parseBrowseUrl(tail.join(\"\") + \"\\n\");",
-  "expect": "survives",
-  "why": "answers at the push that brings the last character of the URL, before its newline; the row 'answers null at every push before the first answer, for every case' cannot see it (its slice ends at the first non-null answer by definition); run with -t on that row alone, it SURVIVES (finding TD-6)"
+  "expect": "killed",
+  "why": "answers at the push that brings the last character of the URL, before its newline; the row 'answers null at every push before the first answer, for every case' could not see it (its slice ended at the scanner's own first non-null answer, null by definition); run with -t on that row alone, killed (it now cuts the slice at the OLD spelling's first answer, `c.first`); the whole file kills it too (27 s, the enumerations being slow under it)"
  },
  {
   "name": "WI01 adapter: a dead stub scanner, the real call in a trailing comment, the factory kept alive by `void`",
