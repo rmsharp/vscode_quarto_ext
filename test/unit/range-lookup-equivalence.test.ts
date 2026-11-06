@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { cellLanguageId } from "../../src/core/embedded/lang-map";
 import { type Cell, findAllCells, findCellAtPosition, findCellOptionLines } from "../../src/core/qmd/model";
-import { type EmbeddedHit, createRangeLookup, embeddedCellAt } from "../../src/core/embedded/virtual-doc";
+import { type EmbeddedHit, createRangeLookup } from "../../src/core/embedded/virtual-doc";
 import { LS, NBSP, countStrings, everyString, seededRandom } from "./support/regex-equivalence";
 
 // The enumerations take a few seconds each on a loaded machine; the sibling equivalence files give their heavy rows the same ceiling.
