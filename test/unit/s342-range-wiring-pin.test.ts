@@ -324,12 +324,6 @@ describe("Session 342 -- the edit checks' use of the range lookup, pinned by the
       "the edit guard of filterOutOfCellEdits",
     ],
     [
-      "A02: the filter's result is thrown away (`kept` is computed, then the unfiltered `edits` are kept)",
-      "      item.additionalTextEdits = kept.length > 0 ? kept : undefined;",
-      "      item.additionalTextEdits = kept.length > 0 ? edits : undefined;",
-      "is not made from `kept` alone",
-    ],
-    [
       "A04: the list is rebuilt incomplete (the server's isIncomplete is lost)",
       "  return new vscode.CompletionList(list.items, list.isIncomplete);",
       "  return new vscode.CompletionList(list.items, true);",
@@ -407,6 +401,18 @@ describe("Session 342 -- the edit checks' use of the range lookup, pinned by the
     const problems = problemsInFormat(FORMAT.replace(from, () => to));
     expect(problems.length).toBeGreaterThan(0);
     expect(problems.join("\n")).toContain(named);
+  });
+
+  // A02 is not a from/to row, because its `from` would be the very text that A05 respells (`kept.length > 0 ? kept : undefined`), and a `from` that is no longer in the file fails its applicability check: A05, an argued
+  // equivalent, would be scored as a kill of this row. The assignment's right-hand side is replaced whatever its spelling.
+  it("A02: the filter's result is thrown away (the unfiltered `edits` are assigned, whatever the ternary around them): the pin is broken, and is named", () => {
+    const assignment = /item\.additionalTextEdits = [^;]*;/;
+    expect(assignment.test(COMPLETION)).toBe(true);
+    const problems = problemsInCompletion(COMPLETION.replace(assignment, "item.additionalTextEdits = edits;"));
+    expect(problems.length).toBeGreaterThan(0);
+    expect(problems.join("\n")).toContain("is not made from `kept` alone");
+    const ternary = problemsInCompletion(COMPLETION.replace(assignment, "item.additionalTextEdits = kept.length > 0 ? edits : undefined;"));
+    expect(ternary.join("\n")).toContain("is not made from `kept` alone");
   });
 
   // Two respellings the pins leave ALONE, on purpose (the review round's argued survivors, `A05` and `FB` of `tools/mutation-run/mutants/s342-review-typing.json`): a pin that named them would redden a harmless refactor.
