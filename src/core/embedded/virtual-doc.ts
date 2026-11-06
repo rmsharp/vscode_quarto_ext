@@ -120,13 +120,55 @@ export interface RangeLookup {
   rangeInCellBody(start: number, end: number, cell: Cell): boolean;
 }
 
+/** A cell whose engine maps to a forwarding target, with what a question about one of its lines needs: its first and last body line (the very `startLine + 1` and `startLine + bodyLineCount` of `embeddedCellAt`). */
+interface MappedCell {
+  cell: Cell;
+  el: EmbeddedLang;
+  firstBody: number;
+  lastBody: number;
+}
+
+/**
+ * What is read from the text, and when. Nothing at construction. The first question reads the model's cells (the scan the adapters' own gate has already paid for, so it is a cache hit there) and binary-searches
+ * them, as the Session 341 builder does: the model's cells come in document order and never overlap, so the only cell that can hold a line is the last one that starts at or above it. Each cell is looked at once
+ * (its language, and the line count of its code, which is a `split` of the whole body and is therefore NOT repeated for every line asked about it). The set of option lines is read when a question first gets
+ * as far as a body line of a mapped cell: a completion list whose edits all sit on a fence, in prose or at line 0 never pays for it, because the old spelling asked for them last, too.
+ *
+ * Each question costs a binary search over the cells and a set lookup: the number of cells no longer multiplies the number of lines asked.
+ */
 export function createRangeLookup(text: string): RangeLookup {
+  let cells: readonly Cell[] | undefined;
+  let options: ReadonlySet<number> | undefined;
+  const mapped: Array<MappedCell | null | undefined> = [];
+  /** The cell of which `line` is an interior body line, or `null`: the old `embeddedCellAt` without the object it builds. */
+  const bodyCellOf = (line: number): MappedCell | null => {
+    cells ??= findAllCells(text);
+    const at = cellIndexAt(cells, line);
+    if (at < 0) {
+      return null;
+    }
+    let found = mapped[at];
+    if (found === undefined) {
+      const cell = cells[at];
+      const el = cellLanguageId(cell.lang);
+      found = el === null ? null : { cell, el, firstBody: cell.startLine + 1, lastBody: cell.startLine + bodyLineCount(cell) };
+      mapped[at] = found;
+    }
+    if (found === null || line < found.firstBody || line > found.lastBody) {
+      return null; // an unmapped engine, or a fence line: not body
+    }
+    options ??= optionLineSet(text);
+    return options.has(line) ? null : found; // a `#|` / `//|` option line belongs to YAML
+  };
   return {
-    hitAt: (line) => embeddedCellAt(text, line),
+    hitAt: (line) => {
+      const found = bodyCellOf(line);
+      return found === null ? null : { lang: found.cell.lang, languageId: found.el.languageId, ext: found.el.ext };
+    },
     rangeInLanguageBody: (start, end, languageId) => {
       for (let line = start; line <= end; line++) {
-        const hit = embeddedCellAt(text, line);
-        if (hit === null || hit.languageId !== languageId) {
+        const found = bodyCellOf(line);
+        if (found === null || found.el.languageId !== languageId) {
           return false;
         }
       }
@@ -134,11 +176,11 @@ export function createRangeLookup(text: string): RangeLookup {
     },
     rangeInCellBody: (start, end, cell) => {
       for (let line = start; line <= end; line++) {
-        if (embeddedCellAt(text, line) === null) {
+        const found = bodyCellOf(line);
+        if (found === null) {
           return false; // a fence, a `#|` directive, prose, YAML: never code we may rewrite
         }
-        const owner = findCellAtPosition(text, line);
-        if (owner === null || owner.startLine !== cell.startLine) {
+        if (found.cell.startLine !== cell.startLine) {
           return false; // a body line, but of a DIFFERENT cell
         }
       }
@@ -319,6 +361,12 @@ interface CellVdocState {
  * `Infinity` and `-Infinity` (past every end, before every start).
  */
 function cellAtLine(cells: readonly Cell[], line: number): Cell | null {
+  const at = cellIndexAt(cells, line);
+  return at >= 0 ? cells[at] : null;
+}
+
+/** The index of the cell `cellAtLine` answers, or -1 when there is none: the search itself, shared with the range lookup, which wants the index (a per-cell cache is keyed by it) and not the cell. */
+function cellIndexAt(cells: readonly Cell[], line: number): number {
   let low = 0;
   let high = cells.length - 1;
   let found = -1;
@@ -331,7 +379,12 @@ function cellAtLine(cells: readonly Cell[], line: number): Cell | null {
       high = middle - 1;
     }
   }
-  return found >= 0 && line <= cells[found].endLine ? cells[found] : null;
+  return found >= 0 && line <= cells[found].endLine ? found : -1;
+}
+
+/** The lines the model reads as `#|` / `//|` cell options, as a set: what every vdoc blanks, and what a body line must not be. */
+function optionLineSet(text: string): ReadonlySet<number> {
+  return new Set(findCellOptionLines(text).map((o) => o.line));
 }
 
 /**
@@ -389,7 +442,7 @@ export function createCellVdocBuilder(text: string): CellVdocBuilder {
     if (state === undefined) {
       state = {
         lines: text.split("\n"),
-        options: new Set(findCellOptionLines(text).map((o) => o.line)),
+        options: optionLineSet(text),
         cells: findAllCells(text),
       };
     }

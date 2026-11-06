@@ -97,7 +97,7 @@ async function formatCellAtCursor(): Promise<void> {
     );
     return;
   }
-  // ONE lookup for the whole edit list (Session 342): the questions are about NUMBERS, so `core/embedded/virtual-doc.ts` answers them and a unit test reaches them.
+  // ONE lookup for the whole edit list (Session 342): `core/embedded/virtual-doc.ts`'s `createRangeLookup` answers the questions about NUMBERS, reading the cells once and answering each line from a search over them (a formatter edit of a few hundred lines in a document of thousands of cells cost seconds, a scan per line).
   const lookup = createRangeLookup(text);
   const kept = edits.filter((e) => lookup.rangeInCellBody(e.range.start.line, e.range.end.line, cell));
   if (kept.length === 0) {

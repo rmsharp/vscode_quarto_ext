@@ -167,6 +167,10 @@ describe("createRangeLookup -- the answers (Session 342)", () => {
 // `findCellAtPosition` per line) 938 ms at 2,000 cells. The model's scan is warmed first in every row: it is the model's cost, the same for every spelling, and both adapters have paid it before the lookup is made (the
 // gate `embeddedCellAt(text, position.line)` runs first in each).
 //
+// The two loops below as they ran, whole loop / first ask / ratio, one fresh process each, load 4.0 to 4.3. At the seam: completion 183 / 1.6 / 116 ms at 500 cells, 721 / 4.5 / 159 at 2,000, 2,904 / 14.4 / 201 at 8,000;
+// format 129 / 1.6 / 83 at 500, 482 / 5.0 / 97 at 2,000, 1,935 / 14.9 / 130 at 8,000. At the cure, the same six: 2.0 / 1.6 / 1.2, 5.2 / 4.8 / 1.1, 15.1 / 14.6 / 1.0 and 1.7 / 1.6 / 1.1, 4.8 / 4.7 / 1.0, 15.3 / 15.2 / 1.0.
+// What the cure's first ask holds is the preparation (the cells, and the option lines when an ask first reaches a body line), 1.6 / 4.8 / 14.6 ms at the three sizes: the edits after it cost 3 to 6 microseconds apiece.
+//
 // A row's clock is TWO criteria. The loop under one second (`LIMIT_MS`: the parent breaks it only on the largest document, so it is a net and not the reason), and the loop against its FIRST ask in the same process
 // (`RATIO`): a lookup that pays for the text once makes every later ask cheap, so the loop costs about what the first ask did, while the parent pays about the same for every ask and the loop is that many times the first.
 // A machine that is slow all through moves both and cancels (Learning 877). The first ask includes making the lookup, so a lookup that read the text when it was made would not hide its cost from the ratio either.
@@ -281,8 +285,8 @@ describe("the Session 342 clock helpers (the clock rows' own clock is pinned her
 });
 
 const LIMIT_MS = 1000;
-/** The ratio limit: the whole loop against its first ask. The parent's is the number of lines asked (300 asks, or a 200-line range after a one-line one: about 200 to 400), the cure's about 1 to 2. */
-const RATIO = 30;
+/** The ratio limit: the whole loop against its first ask. The parent's is 83 to 201 on the six shapes (the number of lines asked, less the cold first ask), the cure's 1.0 to 1.2: 20 sits 4x under the parent's lowest and 17x over the cure's highest. */
+const RATIO = 20;
 
 /**
  * Which of the clock criteria a run breaks, each named with its numbers. `[]` is a run that keeps all of them. The first two say that the clock ran at all: a clock stuck at 0 (or a total read as 0, or below the first ask)
@@ -299,22 +303,26 @@ function clockBreaks(run: { ms: number; firstMs: number }): string[] {
 
 describe("the Session 342 clock criteria (clockBreaks), fed the numbers the parent and the cure were measured at", () => {
   it("the parent's measurements break the ratio on every shape, and the limit on the largest; the cure's break neither", () => {
-    expect(clockBreaks({ ms: 177, firstMs: 0.6 })).toHaveLength(1); // 300 edits at 500 cells at the parent: the ratio only
-    expect(clockBreaks({ ms: 696, firstMs: 2.3 })).toHaveLength(1); // 300 edits at 2,000 cells
-    expect(clockBreaks({ ms: 2850, firstMs: 9.5 })).toHaveLength(2); // 300 edits at 8,000 cells: the limit and the ratio
-    expect(clockBreaks({ ms: 2.9, firstMs: 2.2 })).toEqual([]); // the same at the cure
+    expect(clockBreaks({ ms: 183, firstMs: 1.6 })).toHaveLength(1); // 300 edits at 500 cells at the parent: the ratio only
+    expect(clockBreaks({ ms: 721, firstMs: 4.5 })).toHaveLength(1); // 300 edits at 2,000 cells
+    expect(clockBreaks({ ms: 2904, firstMs: 14.4 })).toHaveLength(2); // 300 edits at 8,000 cells: the limit and the ratio
+    expect(clockBreaks({ ms: 129, firstMs: 1.6 })).toHaveLength(1); // the format loop at 500 cells at the parent, the lowest ratio (83)
+    expect(clockBreaks({ ms: 1935, firstMs: 14.9 })).toHaveLength(2); // the format loop at 8,000 cells
+    expect(clockBreaks({ ms: 2.0, firstMs: 1.6 })).toEqual([]); // the same at the cure
+    expect(clockBreaks({ ms: 5.2, firstMs: 4.8 })).toEqual([]);
+    expect(clockBreaks({ ms: 15.3, firstMs: 15.2 })).toEqual([]);
   });
 
   it("each criterion fails alone: a slow run with a slow first ask breaks the limit only, a fast run that pays the same for every ask breaks the ratio only", () => {
     expect(clockBreaks({ ms: 2000, firstMs: 1500 })).toEqual(["the loop took 2000.0 ms, not under 1000 ms"]);
-    expect(clockBreaks({ ms: 300, firstMs: 5 })).toEqual(["the loop took 60.0 times its first ask, not under 30 times"]);
+    expect(clockBreaks({ ms: 300, firstMs: 5 })).toEqual(["the loop took 60.0 times its first ask, not under 20 times"]);
   });
 
   it("both limits are strict", () => {
     expect(clockBreaks({ ms: 999.9, firstMs: 100 })).toEqual([]);
     expect(clockBreaks({ ms: 1000, firstMs: 100 })).toHaveLength(1);
-    expect(clockBreaks({ ms: 149, firstMs: 5 })).toEqual([]); // 29.8 times
-    expect(clockBreaks({ ms: 150, firstMs: 5 })).toHaveLength(1); // exactly 30 times
+    expect(clockBreaks({ ms: 99, firstMs: 5 })).toEqual([]); // 19.8 times
+    expect(clockBreaks({ ms: 100, firstMs: 5 })).toHaveLength(1); // exactly 20 times
   });
 
   it("a clock that did not run keeps nothing: a first ask or a total read as 0, a total below the first ask, NaN", () => {
@@ -440,12 +448,13 @@ describe("Session 342 -- the completion edit filter and the formatter edit check
     const shape = shapeOf(CONTROL_CELLS, WIDE_LINES);
     const run = runLoop(shape, loop);
     expect(run.answers).toEqual(run.expected);
+    expect(run.ms).toBeGreaterThan(0); // the clock ran (a total read as 0 would pass the limit below)
     expect(run.ms).toBeLessThan(LIMIT_MS);
   }, 120_000);
 
   // The rows above fix the sizes and the limits: 20 cells, or a limit of 100 s, would pass the parent too. Every size is a named constant, read here, so a changed one fails this row.
   it("keeps the sizes and the limits the clock rows are built on", () => {
-    expect([LIMIT_MS, RATIO, EDITS, REFUSED_EVERY, WIDE_LINES, CONTROL_CELLS, BODY_LINES, CELL_LINES, HEADER_LINES]).toEqual([1000, 30, 300, 10, 200, 50, 18, 24, 4]);
+    expect([LIMIT_MS, RATIO, EDITS, REFUSED_EVERY, WIDE_LINES, CONTROL_CELLS, BODY_LINES, CELL_LINES, HEADER_LINES]).toEqual([1000, 20, 300, 10, 200, 50, 18, 24, 4]);
     expect(SIZES).toEqual([500, 2000, 8000]);
     expect(SIZES.map((n) => linesOf(n, WIDE_LINES))).toEqual([12_210, 48_210, 192_210]);
     expect(shapeOf(2, 3).text.split("\n")).toHaveLength(linesOf(2, 3));

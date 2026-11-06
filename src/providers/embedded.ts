@@ -363,7 +363,7 @@ function filterOutOfCellEdits(
   if (list === undefined) {
     return undefined;
   }
-  // ONE lookup for the whole list (Session 342), asked about NUMBERS: the range check is `core/embedded/virtual-doc.ts`'s `createRangeLookup`, which a unit test reaches.
+  // ONE lookup for the whole list (Session 342), asked about NUMBERS: `core/embedded/virtual-doc.ts`'s `createRangeLookup`, which a unit test reaches. It reads the cells and the option lines once, when an edit first asks (a list whose edits all sit on a fence or in prose never pays for the option lines), and answers each line of each edit from a search over the cells, not a scan of them.
   const lookup = createRangeLookup(text);
   for (const item of list.items) {
     const edits = item.additionalTextEdits;
