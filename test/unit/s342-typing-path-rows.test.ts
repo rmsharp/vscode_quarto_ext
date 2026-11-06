@@ -496,11 +496,15 @@ describe("Session 342 -- a burst of keystrokes through the typing path on a smal
 // THE CLOCK. Measured at the base (Session 342, one fresh process per size, the first call after an edit, `findCellAtPosition` plus `cellBackgroundRanges`, a different exact text per call, the document a four-line
 // header and then N twenty-line python cells): 9.8 / 38.3 / 124.8 ms at 500 / 2,000 / 8,000 cells (medians of 6, load 3.5; the session owner's figures 12.7 / 31.7 / 155 ms), a warm call 0.04 / 0.16 / 0.6 ms.
 // A burst of K keystrokes at the base costs K of those scans.
+//
+// Measured through these very rows (Session 342, one fresh process each, load 5; the unit is the first cold evaluation, so it includes the first call's compilation): AT THE SEAM (every event does its work at once) 1,052 to 1,054 ms
+// and a ratio of 20.7 to 20.8 on the 40 keystrokes in 2,000 cells, 1,541 to 1,550 ms and 30.9 to 31.3 on the 30 in 4,000, the key evaluated 2K times and the tint refreshed K; AT THE CURE 38 to 40 ms and 0.76 to 0.79,
+// 55 to 59 ms and 0.82 to 0.89, once each. The limit is 400 ms and is not raised to make a row pass: the seam is 2.6 to 3.9 times over it and the cure 6.8 to 10.5 times under; the ratio and the limit each fail the seam alone.
 
 /** The limit of the burst, in milliseconds. */
 const LIMIT_MS = 400;
-/** The burst against one evaluation of a new text, in the same process: the base pays about K of them, the cure about one. */
-const RATIO = 10;
+/** The burst against one evaluation of a new text, in the same process: the base pays K of them (a ratio of 20.7 to 31.3 on the two shapes), the cure about one (0.76 to 0.89), so 5 sits 4.1 to 6.3x under the base and 5.6 to 6.6x over the cure. */
+const RATIO = 5;
 
 /** Which of the two clock criteria a burst breaks, each named with its numbers: the burst under `LIMIT_MS`, and the burst against one cold evaluation under `RATIO`. `[]` is a run that keeps both. */
 function burstBreaks(run: { ms: number; unitMs: number }): string[] {
@@ -519,14 +523,14 @@ describe("the Session 342 clock criteria (burstBreaks), fed the numbers the base
 
   it("each criterion fails alone: a slow run of a slow scan breaks the limit only, a fast run that pays the scan every time breaks the ratio only", () => {
     expect(burstBreaks({ ms: 900, unitMs: 300 })).toEqual(["the burst took 900.0 ms, not under 400 ms"]);
-    expect(burstBreaks({ ms: 90, unitMs: 3 })).toEqual(["the burst took 30.0 times one evaluation, not under 10 times"]);
+    expect(burstBreaks({ ms: 90, unitMs: 3 })).toEqual(["the burst took 30.0 times one evaluation, not under 5 times"]);
   });
 
   it("both limits are strict, and a unit read as 0 or a burst read as NaN keeps neither", () => {
     expect(burstBreaks({ ms: 399.9, unitMs: 100 })).toEqual([]);
     expect(burstBreaks({ ms: 400, unitMs: 100 })).toHaveLength(1);
-    expect(burstBreaks({ ms: 99.9, unitMs: 10 })).toEqual([]);
-    expect(burstBreaks({ ms: 100, unitMs: 10 })).toHaveLength(1); // exactly 10 times
+    expect(burstBreaks({ ms: 49.9, unitMs: 10 })).toEqual([]);
+    expect(burstBreaks({ ms: 50, unitMs: 10 })).toHaveLength(1); // exactly 5 times
     expect(burstBreaks({ ms: 5, unitMs: 0 })).toHaveLength(1);
     expect(burstBreaks({ ms: NaN, unitMs: 5 })).toHaveLength(2);
   });
@@ -638,7 +642,7 @@ describe("Session 342 -- every keystroke paid a whole-document region scan on th
   }, 60_000);
 
   it("keeps the sizes and the limits the clock rows are built on", () => {
-    expect([LIMIT_MS, RATIO, TYPING_DEBOUNCE_MS]).toEqual([400, 10, 150]);
+    expect([LIMIT_MS, RATIO, TYPING_DEBOUNCE_MS]).toEqual([400, 5, 150]);
     expect(BURST_ROWS.map((row) => [row.cells, row.keystrokes])).toEqual([
       [2000, 40],
       [4000, 30],
