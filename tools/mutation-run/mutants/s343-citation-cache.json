@@ -1,0 +1,514 @@
+[
+ {
+  "name": "K01 createCitationCache: the modification time is not compared",
+  "file": "src/core/citations.ts",
+  "from": "kept.mtimeMs === mtimeMs && ",
+  "to": "",
+  "expect": "killed",
+  "why": "a file rewritten with a new time and the same size is served from the entry; killed by the changed-time row and the seeded histories"
+ },
+ {
+  "name": "K02 createCitationCache: the size is not compared",
+  "file": "src/core/citations.ts",
+  "from": " && kept.size === size) {",
+  "to": ") {",
+  "expect": "killed",
+  "why": "a file whose size alone moved is served stale; killed by the changed-size row, every size row and the seeded histories"
+ },
+ {
+  "name": "K03 createCitationCache: an older time counts as unchanged (>=)",
+  "file": "src/core/citations.ts",
+  "from": "kept.mtimeMs === mtimeMs",
+  "to": "kept.mtimeMs >= mtimeMs",
+  "expect": "killed",
+  "why": "a restored backup (an OLDER time) is served from the entry; killed by the changed-time row's last step"
+ },
+ {
+  "name": "K04 createCitationCache: the time is compared to the millisecond (floor)",
+  "file": "src/core/citations.ts",
+  "from": "kept.mtimeMs === mtimeMs",
+  "to": "Math.floor(kept.mtimeMs) === Math.floor(mtimeMs)",
+  "expect": "killed",
+  "why": "file systems report fractions of a millisecond, and a rewrite 0.5 ms later is not seen; killed by the fraction row"
+ },
+ {
+  "name": "K05 createCitationCache: the time is compared with Object.is",
+  "file": "src/core/citations.ts",
+  "from": "kept.mtimeMs === mtimeMs",
+  "to": "Object.is(kept.mtimeMs, mtimeMs)",
+  "expect": "killed",
+  "why": "a NaN equals itself and a stat that cannot say is served from the entry for good, and 0 differs from -0; killed by the NaN and minus-zero rows"
+ },
+ {
+  "name": "K06 createCitationCache: the size is compared with Object.is",
+  "file": "src/core/citations.ts",
+  "from": "kept.size === size",
+  "to": "Object.is(kept.size, size)",
+  "expect": "killed",
+  "why": "the same, for the size; killed by the size NaN and size minus zero rows"
+ },
+ {
+  "name": "K07 createCitationCache: a hit does not move the entry to the end",
+  "file": "src/core/citations.ts",
+  "from": "      entries.delete(absolute);\n      entries.set(absolute, kept); // most recently used\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the bound drops the oldest READ and not the least recently USED; killed by the row that asks f0 again after f15"
+ },
+ {
+  "name": "K08 createCitationCache: a miss keeps the old entry's place in the order",
+  "file": "src/core/citations.ts",
+  "from": "    entries.delete(absolute);\n    if (known) {",
+  "to": "    if (known) {",
+  "expect": "killed",
+  "why": "Map.set on an existing key keeps its position, so a rewritten file stays where it was; killed by the row that rewrites the oldest and reads a 17th file"
+ },
+ {
+  "name": "K09 createCitationCache: nothing is ever kept",
+  "file": "src/core/citations.ts",
+  "from": "entries.set(absolute, { mtimeMs, size, citations });",
+  "to": "void citations;",
+  "expect": "killed",
+  "why": "every ask reads and parses again; killed by every count row"
+ },
+ {
+  "name": "K10 createCitationCache: the bound is 17 files",
+  "file": "src/core/citations.ts",
+  "from": "entries.size > CITATION_CACHE_MAX_FILES",
+  "to": "entries.size > CITATION_CACHE_MAX_FILES + 1",
+  "expect": "killed",
+  "why": "f0 survives the 17th file; killed by the 17-file rows"
+ },
+ {
+  "name": "K11 createCitationCache: the bound is 15 files",
+  "file": "src/core/citations.ts",
+  "from": "entries.size > CITATION_CACHE_MAX_FILES",
+  "to": "entries.size > CITATION_CACHE_MAX_FILES - 1",
+  "expect": "killed",
+  "why": "a document with 16 bibliographies reads one of them again at every ask; killed by the rows that hold 16 files"
+ },
+ {
+  "name": "K12 createCitationCache: no bound",
+  "file": "src/core/citations.ts",
+  "from": "while (entries.size > CITATION_CACHE_MAX_FILES) {",
+  "to": "while (false) {",
+  "expect": "killed",
+  "why": "the 17th file drops nothing; killed by the 17-file rows"
+ },
+ {
+  "name": "K13 createCitationCache: the newest entry is dropped, not the oldest",
+  "file": "src/core/citations.ts",
+  "from": "entries.delete(oldest.value);",
+  "to": "entries.delete([...entries.keys()].pop() as string);",
+  "expect": "killed",
+  "why": "the file just read is the one dropped; killed by the 17-file rows (f16 is read again)"
+ },
+ {
+  "name": "K14 createCitationCache: the whole cache is cleared when the bound is passed",
+  "file": "src/core/citations.ts",
+  "from": "entries.delete(oldest.value);",
+  "to": "entries.clear();",
+  "expect": "killed",
+  "why": "every held file is read again after the 17th; killed by the 17-file rows"
+ },
+ {
+  "name": "K15 createCitationCache: the `done` guard of the eviction loop is removed",
+  "file": "src/core/citations.ts",
+  "from": "        if (oldest.done === true) break;\n",
+  "to": "",
+  "expect": "survives",
+  "why": "EQUIVALENT: the loop runs only while the map holds more than 16 entries, so its iterator is never done"
+ },
+ {
+  "name": "K16 createCitationCache: a file that cannot be read keeps its stale entry",
+  "file": "src/core/citations.ts",
+  "from": "          entries.delete(absolute);\n        }\n      }\n      return dedupeByKey(merged);",
+  "to": "        }\n      }\n      return dedupeByKey(merged);",
+  "expect": "killed",
+  "why": "a file that vanished and comes back with the very numbers it had is served from the old entry; killed by the vanished-file and locked-file rows"
+ },
+ {
+  "name": "K17 createCitationCache: a file that cannot be read stops the loop",
+  "file": "src/core/citations.ts",
+  "from": "          entries.delete(absolute);\n        }\n      }\n      return dedupeByKey(merged);",
+  "to": "          entries.delete(absolute);\n          break;\n        }\n      }\n      return dedupeByKey(merged);",
+  "expect": "killed",
+  "why": "the files declared after a missing or locked one add nothing; killed by the locked-file row and the enumerated documents"
+ },
+ {
+  "name": "K18 createCitationCache: no cross-file de-duplication",
+  "file": "src/core/citations.ts",
+  "from": "return dedupeByKey(merged);",
+  "to": "return merged;",
+  "expect": "killed",
+  "why": "a key two files share is listed twice; killed by the enumerated documents and the shared-key row"
+ },
+ {
+  "name": "K19 createCitationCache: the last citation of a key wins across files",
+  "file": "src/core/citations.ts",
+  "from": "return dedupeByKey(merged);",
+  "to": "return dedupeByKey(merged.slice().reverse()).reverse();",
+  "expect": "killed",
+  "why": "the second file's title for the shared key wins; killed by the shared-key rows and the enumerated documents"
+ },
+ {
+  "name": "K20 createCitationCache: the citations are spread into a call (the Session 338 throw)",
+  "file": "src/core/citations.ts",
+  "from": "appendCitations(merged, await citationsOf(absolute));",
+  "to": "merged.push(...(await citationsOf(absolute)));",
+  "expect": "killed",
+  "why": "a file of 110,428 entries or more throws RangeError, which the empty catch swallows and the file adds nothing; killed by the 120,000-entry row"
+ },
+ {
+  "name": "K21 createCitationCache: the citations are not frozen",
+  "file": "src/core/citations.ts",
+  "from": ".map((citation) => Object.freeze(citation))",
+  "to": ".map((citation) => citation)",
+  "expect": "killed",
+  "why": "a caller that edits a citation corrupts the entry; killed by the frozen row"
+ },
+ {
+  "name": "K22 createCitationCache: the signature is read AFTER the content",
+  "file": "src/core/citations.ts",
+  "from": "entries.set(absolute, { mtimeMs, size, citations });",
+  "to": "entries.set(absolute, { ...(await options.stat(absolute)), citations });",
+  "expect": "killed",
+  "why": "a file rewritten between the read and the second stat is kept under the new signature with the old content, and served stale; killed by the race row and by the stat counts"
+ },
+ {
+  "name": "K23 createCitationCache: the directory of the document is ignored",
+  "file": "src/core/citations.ts",
+  "from": "absolute = path.resolve(dir, relPath);",
+  "to": "absolute = path.resolve(relPath);",
+  "expect": "killed",
+  "why": "every path resolves against the working directory; killed by nearly every row"
+ },
+ {
+  "name": "K24 createCitationCache: any two values count as a signature",
+  "file": "src/core/citations.ts",
+  "from": "const known = typeof mtimeMs === \"number\" && typeof size === \"number\";",
+  "to": "const known = true;",
+  "expect": "killed",
+  "why": "a stat with no numbers is kept under `undefined` and served for good; killed by the no-signature row"
+ },
+ {
+  "name": "K25 createCitationCache: a signature is anything but undefined",
+  "file": "src/core/citations.ts",
+  "from": "const known = typeof mtimeMs === \"number\" && typeof size === \"number\";",
+  "to": "const known = mtimeMs !== undefined && size !== undefined;",
+  "expect": "killed",
+  "why": "strings and null are kept as signatures; killed by the odd-stat row"
+ },
+ {
+  "name": "K26 createCitationCache: a file with no signature is stored and takes a slot",
+  "file": "src/core/citations.ts",
+  "from": "    if (known) {\n      entries.set(",
+  "to": "    if (true) {\n      entries.set(",
+  "expect": "killed",
+  "why": "the entry is never hit (the hit test needs a signature) but it pushes the oldest file out; killed by the no-signature slot row"
+ },
+ {
+  "name": "K27 createCitationCache: the entry holds the stat object itself, not its numbers",
+  "file": "src/core/citations.ts",
+  "from": "entries.set(absolute, { mtimeMs, size, citations });",
+  "to": "entries.set(absolute, Object.assign(signature as unknown as CachedBibliography, { citations }));",
+  "expect": "killed",
+  "why": "a stat that returns one object it edits in place always compares equal to itself; killed by the in-place stat row"
+ },
+ {
+  "name": "K28 createCitationCache: the file is not parsed",
+  "file": "src/core/citations.ts",
+  "from": "parseCitations(await options.readFile(absolute)).map(",
+  "to": "[].map(",
+  "expect": "killed",
+  "why": "every file adds nothing; killed by every answer row"
+ },
+ {
+  "name": "K29 createCitationCache: an error from a file stops the whole ask",
+  "file": "src/core/citations.ts",
+  "from": "        } catch {\n          // A file that cannot be stat'ed or read adds nothing, and what was kept for it is stale from now on.",
+  "to": "        } catch (error) {\n          throw error;\n          // A file that cannot be stat'ed or read adds nothing, and what was kept for it is stale from now on.",
+  "expect": "killed",
+  "why": "a missing bibliography breaks completion; killed by the missing-file rows"
+ },
+ {
+  "name": "K30 createCitationCache: the bound constant is 8",
+  "file": "src/core/citations.ts",
+  "from": "export const CITATION_CACHE_MAX_FILES = 16;",
+  "to": "export const CITATION_CACHE_MAX_FILES = 8;",
+  "expect": "killed",
+  "why": "a document with 9 bibliographies reads one of them again at every ask; killed by the 16-file rows"
+ },
+ {
+  "name": "T01 the enumeration stops at three paths",
+  "file": "test/unit/s343-citation-cache-rows.test.ts",
+  "from": "const all = sequences(POOL, 4);",
+  "to": "const all = sequences(POOL, 3);",
+  "expect": "killed",
+  "why": "156 documents instead of 781; killed by the row's own count"
+ },
+ {
+  "name": "T02 the seeded histories are 5",
+  "file": "test/unit/s343-citation-cache-rows.test.ts",
+  "from": "for (let history = 0; history < 500; history++) {",
+  "to": "for (let history = 0; history < 5; history++) {",
+  "expect": "killed",
+  "why": "killed by the floors on the moves and the hits"
+ },
+ {
+  "name": "T03 each seeded history asks once",
+  "file": "test/unit/s343-citation-cache-rows.test.ts",
+  "from": "for (let ask = 0; ask < 12; ask++) {",
+  "to": "for (let ask = 0; ask < 1; ask++) {",
+  "expect": "killed",
+  "why": "no ask can be a hit; killed by the floor on the hits"
+ },
+ {
+  "name": "T04 no seeded file ever changes",
+  "file": "test/unit/s343-citation-cache-rows.test.ts",
+  "from": "if (roll < 0.25 && current !== undefined) {",
+  "to": "if (roll < 0.0 && current !== undefined) {",
+  "expect": "killed",
+  "why": "killed by the floor on the moves (and the hits are all the files' first reads)"
+ },
+ {
+  "name": "T05 the seeded model may return a file to a signature it had",
+  "file": "test/unit/s343-citation-cache-rows.test.ts",
+  "from": " && !(had.get(name)?.has(`${current.mtimeMs}:${content.length}`) ?? false); // the size alone moves, to a size not had under this time",
+  "to": "; // the size alone moves",
+  "expect": "killed",
+  "why": "the history in which the size alone moves twice under one time is the pinned blind spot, and it disagrees with readCitations; killed by the seeded row itself at seed 343"
+ },
+ {
+  "name": "T06 the stand-in stat reports a size of 0",
+  "file": "test/unit/s343-citation-cache-rows.test.ts",
+  "from": "return { mtimeMs: file.mtimeMs, size: file.size ?? file.content.length };",
+  "to": "return { mtimeMs: file.mtimeMs, size: file.size ?? 0 };",
+  "expect": "killed",
+  "why": "no change of content is a change of size; killed by the seeded histories and the enumerated documents' shared cache"
+ },
+ {
+  "name": "T07 the big bibliography has 100,000 entries (below the spread's throw)",
+  "file": "test/unit/s343-citation-cache-rows.test.ts",
+  "from": "const entries = Array.from({ length: 120_000 }, ",
+  "to": "const entries = Array.from({ length: 100_000 }, ",
+  "expect": "killed",
+  "why": "the row's lengths say 120,000; killed by them (and a spread cure would pass 100,000, which the row's size is there to prevent)"
+ },
+ {
+  "name": "T08 the unreadable stand-in is readable",
+  "file": "test/unit/s343-citation-cache-rows.test.ts",
+  "from": "if (file === undefined || file.unreadable === true) throw new Error(\"ENOENT: \" + absolute);",
+  "to": "if (file === undefined) throw new Error(\"ENOENT: \" + absolute);",
+  "expect": "killed",
+  "why": "the locked file's citations are listed; killed by the locked-file rows and the enumerated documents"
+ },
+ {
+  "name": "P01 citation.ts: the cache is made inside loadCitations (one per request: it never hits)",
+  "file": "src/providers/citation.ts",
+  "from": "  return citationCache.read(relPaths, path.dirname(document.uri.fsPath));",
+  "to": "  const citationCache = createCitationCache({ readFile: (file) => fs.readFile(file, \"utf8\"), stat: (file) => fs.stat(file) });\n  return citationCache.read(relPaths, path.dirname(document.uri.fsPath));",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (2 calls of createCitationCache)"
+ },
+ {
+  "name": "P02 citation.ts: the cache is made inside provideCompletionItems",
+  "file": "src/providers/citation.ts",
+  "from": "    const citations = await loadCitations(document, text);",
+  "to": "    const citationCache = createCitationCache({ readFile: (file) => fs.readFile(file, \"utf8\"), stat: (file) => fs.stat(file) });\n    const citations = await loadCitations(document, text);",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (provideCompletionItems makes a cache)"
+ },
+ {
+  "name": "P03 citation.ts: the reader is not UTF-8",
+  "file": "src/providers/citation.ts",
+  "from": "readFile: (file) => fs.readFile(file, \"utf8\"),",
+  "to": "readFile: (file) => fs.readFile(file, \"latin1\"),",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (readFile is not)"
+ },
+ {
+  "name": "P04 citation.ts: the reader returns a Buffer",
+  "file": "src/providers/citation.ts",
+  "from": "readFile: (file) => fs.readFile(file, \"utf8\"),",
+  "to": "readFile: (file) => fs.readFile(file),",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (readFile is not)"
+ },
+ {
+  "name": "P05 citation.ts: the stat is the link's own (lstat), not the file's",
+  "file": "src/providers/citation.ts",
+  "from": "stat: (file) => fs.stat(file),",
+  "to": "stat: (file) => fs.lstat(file),",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (stat is not)"
+ },
+ {
+  "name": "P06 citation.ts: the stat is a constant (the signature never changes)",
+  "file": "src/providers/citation.ts",
+  "from": "stat: (file) => fs.stat(file),",
+  "to": "stat: () => Promise.resolve({ mtimeMs: 0, size: 0 }),",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (stat is not)"
+ },
+ {
+  "name": "P07 citation.ts: the cache is made without the stat",
+  "file": "src/providers/citation.ts",
+  "from": "  stat: (file) => fs.stat(file),\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (options)"
+ },
+ {
+  "name": "P08 citation.ts: the cache is made with a third option",
+  "file": "src/providers/citation.ts",
+  "from": "  stat: (file) => fs.stat(file),\n",
+  "to": "  stat: (file) => fs.stat(file),\n  maxFiles: 1,\n",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (options)"
+ },
+ {
+  "name": "P09 citation.ts: the cache is a `let`, so it can be replaced",
+  "file": "src/providers/citation.ts",
+  "from": "const citationCache = createCitationCache(",
+  "to": "let citationCache = createCitationCache(",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (module-level `const citationCache`)"
+ },
+ {
+  "name": "P10 citation.ts: the cache is called something else (the read reads another)",
+  "file": "src/providers/citation.ts",
+  "from": "const citationCache = createCitationCache(",
+  "to": "const cache = createCitationCache(",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (module-level `const citationCache`)"
+ },
+ {
+  "name": "P11 citation.ts: loadCitations reads around the cache",
+  "file": "src/providers/citation.ts",
+  "from": "  return citationCache.read(relPaths, path.dirname(document.uri.fsPath));",
+  "to": "  return readCitations(relPaths, path.dirname(document.uri.fsPath), (file) => fs.readFile(file, \"utf8\"));",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (the last statement of loadCitations)"
+ },
+ {
+  "name": "P12 citation.ts: the directory is the working directory",
+  "file": "src/providers/citation.ts",
+  "from": "citationCache.read(relPaths, path.dirname(document.uri.fsPath))",
+  "to": "citationCache.read(relPaths, process.cwd())",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (the last statement of loadCitations)"
+ },
+ {
+  "name": "P13 citation.ts: the directory is the document's path, not its directory",
+  "file": "src/providers/citation.ts",
+  "from": "citationCache.read(relPaths, path.dirname(document.uri.fsPath))",
+  "to": "citationCache.read(relPaths, document.uri.fsPath)",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (the last statement of loadCitations)"
+ },
+ {
+  "name": "P14 citation.ts: the guard for a document that is not a file is dropped (a remote document would be stat'ed)",
+  "file": "src/providers/citation.ts",
+  "from": "  if (relPaths.length === 0 || document.uri.scheme !== \"file\") {",
+  "to": "  if (relPaths.length === 0) {",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (the second statement of loadCitations)"
+ },
+ {
+  "name": "P15 citation.ts: the guard for a document with no bibliography is dropped (an empty list would be read)",
+  "file": "src/providers/citation.ts",
+  "from": "  if (relPaths.length === 0 || document.uri.scheme !== \"file\") {",
+  "to": "  if (document.uri.scheme !== \"file\") {",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (the second statement of loadCitations)"
+ },
+ {
+  "name": "P16 citation.ts: the guard comes after the read",
+  "file": "src/providers/citation.ts",
+  "from": "  const relPaths = bibliographyPaths(text);\n  if (relPaths.length === 0 || document.uri.scheme !== \"file\") {\n    return [];\n  }\n  return citationCache.read(relPaths, path.dirname(document.uri.fsPath));",
+  "to": "  const relPaths = bibliographyPaths(text);\n  const read = citationCache.read(relPaths, path.dirname(document.uri.fsPath));\n  if (relPaths.length === 0 || document.uri.scheme !== \"file\") {\n    return [];\n  }\n  return read;",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (the last statement of loadCitations)"
+ },
+ {
+  "name": "P17 citation.ts: the declared paths are read from the whole text's first line",
+  "file": "src/providers/citation.ts",
+  "from": "  const relPaths = bibliographyPaths(text);",
+  "to": "  const relPaths = bibliographyPaths(text.split(\"\\n\")[0]);",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (the first statement of loadCitations)"
+ },
+ {
+  "name": "P18 citation.ts: readCitations is imported again",
+  "file": "src/providers/citation.ts",
+  "from": "  citationCompletionContext,\n  createCitationCache,\n",
+  "to": "  citationCompletionContext,\n  createCitationCache,\n  readCitations,\n",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (readCitations is still imported)"
+ },
+ {
+  "name": "P19 citation.ts: createCitationCache is not imported",
+  "file": "src/providers/citation.ts",
+  "from": "  citationCompletionContext,\n  createCitationCache,\n",
+  "to": "  citationCompletionContext,\n",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (createCitationCache is not imported)"
+ },
+ {
+  "name": "P20 citation.ts: fs is the callback API",
+  "file": "src/providers/citation.ts",
+  "from": "import { promises as fs } from \"node:fs\";",
+  "to": "import * as fs from \"node:fs\";",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (`fs` is not)"
+ },
+ {
+  "name": "P21 citation.ts: the request reads the cache before it checks the line is in a citation context",
+  "file": "src/providers/citation.ts",
+  "from": "    const context = citationCompletionContext(lineText, position.character);\n    if (context === null) {\n      return undefined;\n    }\n    const citations = await loadCitations(document, text);\n",
+  "to": "    const citations = await loadCitations(document, text);\n    const context = citationCompletionContext(lineText, position.character);\n    if (context === null) {\n      return undefined;\n    }\n",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (BEFORE loadCitations)"
+ },
+ {
+  "name": "P22 citation.ts: loadCitations is not awaited",
+  "file": "src/providers/citation.ts",
+  "from": "    const citations = await loadCitations(document, text);",
+  "to": "    const citations = loadCitations(document, text) as unknown as Citation[];",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (is not awaited)"
+ },
+ {
+  "name": "P23 citation.ts: loadCitations is not given the document",
+  "file": "src/providers/citation.ts",
+  "from": "    const citations = await loadCitations(document, text);",
+  "to": "    const citations = await loadCitations(undefined as never, text);",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (does not call `loadCitations(document,)"
+ },
+ {
+  "name": "P24 citation.ts: loadCitations is asked twice",
+  "file": "src/providers/citation.ts",
+  "from": "    const citations = await loadCitations(document, text);",
+  "to": "    await loadCitations(document, text);\n    const citations = await loadCitations(document, text);",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (2 calls of loadCitations)"
+ },
+ {
+  "name": "P25 citation.ts: the citation-context check is dropped (every line reads the cache)",
+  "file": "src/providers/citation.ts",
+  "from": "    const context = citationCompletionContext(lineText, position.character);\n",
+  "to": "    const context = { start: 0, end: 0, typed: \"\" };\n",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (citationCompletionContext is not asked)"
+ },
+ {
+  "name": "P26 citation.ts: the adapter parses a bibliography itself",
+  "file": "src/providers/citation.ts",
+  "from": "  return citationCache.read(relPaths, path.dirname(document.uri.fsPath));",
+  "to": "  void parseCitations(\"\");\n  return citationCache.read(relPaths, path.dirname(document.uri.fsPath));",
+  "expect": "killed",
+  "why": "the syntax-tree pin of `s343-citation-wiring-pin.test.ts` names it (parseCitations)"
+ }
+]
