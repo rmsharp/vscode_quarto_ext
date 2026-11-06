@@ -50,32 +50,32 @@
  {
   "name": "V07 cellAtLine: the first cell is never answered",
   "file": "src/core/embedded/virtual-doc.ts",
-  "from": "  return found >= 0 && line <= cells[found].endLine ? cells[found] : null;",
-  "to": "  return found > 0 && line <= cells[found].endLine ? cells[found] : null;",
+  "from": "  return found >= 0 && line <= cells[found].endLine ? found : -1;",
+  "to": "  return found > 0 && line <= cells[found].endLine ? found : -1;",
   "expect": "killed",
   "why": "index 0 is a cell that was found; killed like V01"
  },
  {
   "name": "V08 cellAtLine: the closing fence line is outside the cell",
   "file": "src/core/embedded/virtual-doc.ts",
-  "from": "  return found >= 0 && line <= cells[found].endLine ? cells[found] : null;",
-  "to": "  return found >= 0 && line < cells[found].endLine ? cells[found] : null;",
+  "from": "  return found >= 0 && line <= cells[found].endLine ? found : -1;",
+  "to": "  return found >= 0 && line < cells[found].endLine ? found : -1;",
   "expect": "killed",
   "why": "findCellAtPosition is inclusive of the closing fence (R2); killed by the cellAt rows and every enumerated document with a cell"
  },
  {
   "name": "V09 cellAtLine: a line past the cell still answers it",
   "file": "src/core/embedded/virtual-doc.ts",
-  "from": "  return found >= 0 && line <= cells[found].endLine ? cells[found] : null;",
-  "to": "  return found >= 0 ? cells[found] : null;",
+  "from": "  return found >= 0 && line <= cells[found].endLine ? found : -1;",
+  "to": "  return found >= 0 ? found : -1;",
   "expect": "killed",
   "why": "prose under a cell answers the cell; killed by the cellAt row (line 4 of the five-line text) and the differential"
  },
  {
   "name": "V10 cellAtLine: the end line is compared with the start line",
   "file": "src/core/embedded/virtual-doc.ts",
-  "from": "  return found >= 0 && line <= cells[found].endLine ? cells[found] : null;",
-  "to": "  return found >= 0 && line <= cells[found].startLine ? cells[found] : null;",
+  "from": "  return found >= 0 && line <= cells[found].endLine ? found : -1;",
+  "to": "  return found >= 0 && line <= cells[found].startLine ? found : -1;",
   "expect": "killed",
   "why": "only the fence line answers; killed by the body-line lookups of the named rows and the differential"
  },
@@ -338,7 +338,7 @@
  {
   "name": "C03 createCellVdocBuilder: no option line is known",
   "file": "src/core/embedded/virtual-doc.ts",
-  "from": "        options: new Set(findCellOptionLines(text).map((o) => o.line)),",
+  "from": "        options: optionLineSet(text, engine, mode),",
   "to": "        options: new Set<number>(),",
   "expect": "killed",
   "why": "every option line is kept as code; killed like B09"
@@ -346,8 +346,8 @@
  {
   "name": "C04 createCellVdocBuilder: the cells are not in document order",
   "file": "src/core/embedded/virtual-doc.ts",
-  "from": "        cells: findAllCells(text),",
-  "to": "        cells: findAllCells(text).reverse(),",
+  "from": "        cells: findAllCells(text, engine, mode),",
+  "to": "        cells: findAllCells(text, engine, mode).reverse(),",
   "expect": "killed",
   "why": "the binary search needs the order the model gives; killed by every document with two cells (E1, E2, the named rows, the clock rows)"
  },
@@ -370,7 +370,7 @@
  {
   "name": "C07 createCellVdocBuilder: the cells come from an empty list",
   "file": "src/core/embedded/virtual-doc.ts",
-  "from": "        cells: findAllCells(text),",
+  "from": "        cells: findAllCells(text, engine, mode),",
   "to": "        cells: [],",
   "expect": "killed",
   "why": "cellAt answers null everywhere; killed by every cellAt row"

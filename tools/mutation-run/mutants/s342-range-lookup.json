@@ -194,8 +194,8 @@
  {
   "name": "L25 optionLineSet: the option lines are one line down",
   "file": "src/core/embedded/virtual-doc.ts",
-  "from": "return new Set(findCellOptionLines(text).map((o) => o.line));",
-  "to": "return new Set(findCellOptionLines(text).map((o) => o.line + 1));",
+  "from": "return new Set(findCellOptionLines(text, engine, mode).map((o) => o.line));",
+  "to": "return new Set(findCellOptionLines(text, engine, mode).map((o) => o.line + 1));",
   "expect": "killed",
   "why": "the first body line is blanked and the option line is code; killed by the named rows, the oracle and the builder's rows"
  },
