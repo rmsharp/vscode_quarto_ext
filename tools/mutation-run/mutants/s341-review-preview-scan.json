@@ -165,7 +165,7 @@
   "from": "let urlShown = false;",
   "to": "let urlShown = false; // formerly fed to parseBrowseUrl",
   "expect": "survives",
-  "why": "EQUIVALENT: a comment is not code and changes nothing, and the gate must not refuse it. The first gate (comment-stripping regular expressions) KILLED this mutant, a false kill, seen at ab280d0; the syntax-tree gate does not see comments, so run alone it SURVIVES, as it must (finding TD-4, V3)"
+  "why": "EQUIVALENT: a comment is not code and changes nothing, and the gate must not refuse it. The first gate (comment-stripping regular expressions) KILLED this mutant, a false kill, seen at 84305cf; the syntax-tree gate does not see comments, so run alone it SURVIVES, as it must (finding TD-4, V3)"
  },
  {
   "name": "WI04 adapter: stdout chunks are fed to the scanner too",

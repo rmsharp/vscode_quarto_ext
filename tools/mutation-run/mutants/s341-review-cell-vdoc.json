@@ -5,7 +5,7 @@
   "from": "  const first = Math.max(Math.floor(cell.startLine) + 1, 0);",
   "to": "  const first = Math.max(cell.startLine + 1, 0);",
   "expect": "killed",
-  "why": "the pre-cure bound: a start of 0.5 makes the loop start on 1.5 and `lines[1.5].trim()` throws, a start of 4.5 keeps nothing, and -5e-324 + 1 rounds to 1 so line 0 is dropped. 13 failed | 89 passed in cell-vdoc-builder-equivalence.test.ts: the fractional named rows (r and python at 0.5, 1.5, 4.5, -0.5, 2.5, 0.75, 2.75, the largest double below 2, the smallest negative double), the moved-cell row and the seeded draw (the same 13 failed at 064af6e on this very bound)"
+  "why": "the pre-cure bound: a start of 0.5 makes the loop start on 1.5 and `lines[1.5].trim()` throws, a start of 4.5 keeps nothing, and -5e-324 + 1 rounds to 1 so line 0 is dropped. 13 failed | 89 passed in cell-vdoc-builder-equivalence.test.ts: the fractional named rows (r and python at 0.5, 1.5, 4.5, -0.5, 2.5, 0.75, 2.75, the largest double below 2, the smallest negative double), the moved-cell row and the seeded draw (the same 13 failed at 1033e20 on this very bound)"
  },
  {
   "name": "F02 buildCellVdoc: the first body line is the CEIL of the start",
@@ -53,7 +53,7 @@
   "from": "  const last = Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1);",
   "to": "  const last = Math.floor(Math.min(cell.startLine + bodyLineCount(cell), lines.length - 1));",
   "expect": "survives",
-  "why": "EQUIVALENT: the loop compares it only with a whole `i`, and `i <= last` is `i <= floor(last)` for a whole `i` (NaN fails both); the cure at 2c85c77 had this floor and 5f6c7fc dropped it"
+  "why": "EQUIVALENT: the loop compares it only with a whole `i`, and `i <= last` is `i <= floor(last)` for a whole `i` (NaN fails both); the cure at 09dada7 had this floor and d7500cd dropped it"
  },
  {
   "name": "R05 cellAtLine: a pass over every cell instead of the binary search",
