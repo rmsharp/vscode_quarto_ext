@@ -4,7 +4,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import * as ts from "typescript";
 
-// Session 343, parts (2) to (4) of "What Session 342's review round found beside the typing-path cures". `src/features/execution.ts`, `preview.ts`, `cell-background.ts` and `context-key.ts` import `vscode`, so no unit test can
+// Session 343, parts (2) to (4) of "What Session 342's review round found beside the typing-path cures" (D1 the document-text memo, D2 the context-key setter, D3 the cell-background refresh plan). `src/features/execution.ts`,
+// `preview.ts`, `cell-background.ts` and `context-key.ts` import `vscode`, so no unit test can
 // run them: how they call the core functions this session adds is pinned here by their SOURCE, read with the TypeScript compiler API (`ts.createSourceFile`, then the syntax tree), not with a text search (Learning 911).
 // A comment, a string or an unused identifier can neither satisfy nor break a pin made this way. `s342-typing-wiring-pin.test.ts` is the model, and still pins the handlers, the scheduler and the debouncer these pins sit beside.
 //
@@ -20,6 +21,8 @@ const read = (...parts: string[]): string => (existsSync(resolve(root, ...parts)
 const EXECUTION = read("src", "features", "execution.ts");
 const PREVIEW = read("src", "features", "preview.ts");
 const CONTEXT_KEY = read("src", "features", "context-key.ts");
+const DOCUMENT_TEXT = read("src", "features", "document-text.ts");
+const BACKGROUND = read("src", "features", "cell-background.ts");
 
 const parse = (name: string, source: string): ts.SourceFile => ts.createSourceFile(name, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 
@@ -71,7 +74,7 @@ function madeDirectlyIn(fn: ts.FunctionDeclaration, sf: ts.SourceFile, name: str
   return undefined;
 }
 
-// ---- PART (3): THE CONTEXT-KEY SETTER --------------------------------------------------------------------------------------------------------------------------------------------------------------
+// ---- D2: THE CONTEXT-KEY SETTER --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 /** Every pin `src/features/context-key.ts` breaks: the ONE place that sends `setContext`, and sends it through core's setter with the result returned. */
 function problemsInContextKeyAdapter(source: string): string[] {
@@ -257,5 +260,131 @@ describe("Session 343 -- how the adapters call the context-key setter, pinned by
     const previewCommented = PREVIEW.replace("const RENDER_SCRIPT_CONTEXT", "// executeCommand(\"setContext\", RENDER_SCRIPT_CONTEXT, ...) was here\nconst RENDER_SCRIPT_CONTEXT");
     expect(previewCommented).not.toBe(PREVIEW);
     expect(problemsInPreviewSetter(previewCommented)).toEqual([]);
+  });
+});
+
+// ---- D1: THE DOCUMENT-TEXT MEMO ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+/** Every pin `src/features/document-text.ts` breaks: ONE memo for the module (so the three features share an entry), asked with the document and a thunk over the same document's `getText`, and no runtime `vscode`. */
+function problemsInDocumentTextAdapter(source: string): string[] {
+  const sf = parse("document-text.ts", source);
+  const problems: string[] = [];
+  const text = functionNamed(sf, "documentText");
+  if (text === undefined || text.body === undefined) return ["documentText is missing"];
+  // 1. One memo, made at the top level of the module: made inside the function it would keep nothing between calls.
+  const makes = callsOf(sf, sf, "createDocumentTextMemo");
+  if (makes.length !== 1) {
+    problems.push(`${makes.length} calls of createDocumentTextMemo, not one`);
+  } else {
+    const declaration = makes[0].parent;
+    if (!(ts.isVariableDeclaration(declaration) && declaration.parent.parent.parent === sf && makes[0].arguments.length === 0)) problems.push("createDocumentTextMemo() is not the initializer of a top-level constant of the module (made inside documentText it would keep nothing between calls)");
+  }
+  // 2. documentText(document) returns the memo's answer for that document, with a thunk that reads the SAME document's text, so the read happens only on a miss.
+  if (text.parameters.length !== 1) problems.push("documentText does not take exactly one parameter (the document)");
+  const document = text.parameters.length === 1 ? flat(text.parameters[0].name, sf) : "?";
+  const memo = makes.length === 1 && ts.isVariableDeclaration(makes[0].parent) ? flat(makes[0].parent.name, sf) : "?";
+  const returns = collect(text.body, (n): n is ts.ReturnStatement => ts.isReturnStatement(n));
+  const asks = callsOf(text.body, sf, `${memo}.textOf`);
+  if (returns.length !== 1 || asks.length !== 1 || returns[0].expression !== asks[0]) {
+    problems.push("documentText does not return the memo's `textOf(...)` answer itself");
+  } else {
+    const given = asks[0].arguments.map((a) => flat(a, sf));
+    if (given.length !== 2) problems.push("textOf is not given the document and a thunk");
+    if (given[0] !== document) problems.push("textOf is not asked about the document documentText was given");
+    if (given[1] !== `() => ${document}.getText()`) problems.push(`textOf is not given \`() => ${document}.getText()\` (the thunk must read the same document, and only be called on a miss)`);
+  }
+  if (callsOf(sf, sf, "getText").length + callsOf(sf, sf, `${document}.getText`).length !== 1) problems.push("getText is not called exactly once in the file (inside the thunk)");
+  // 3. The module loads without the host: its only import of `vscode` is a type import, which is erased.
+  const imports = collect(sf, (n): n is ts.ImportDeclaration => ts.isImportDeclaration(n));
+  const vscodeImports = imports.filter((i) => ts.isStringLiteral(i.moduleSpecifier) && i.moduleSpecifier.text === "vscode");
+  if (vscodeImports.some((i) => i.importClause === undefined || !i.importClause.isTypeOnly)) problems.push("document-text.ts imports vscode at runtime (a type import is erased; the module must load without the host)");
+  if (!imports.some((i) => ts.isStringLiteral(i.moduleSpecifier) && i.moduleSpecifier.text === "../core/document-text-memo")) problems.push("document-text.ts does not import ../core/document-text-memo");
+  return problems;
+}
+
+/** The text of `name`'s import of `documentText`: whether `source` imports it from ./document-text. */
+const importsDocumentText = (sf: ts.SourceFile): boolean =>
+  collect(sf, (n): n is ts.ImportDeclaration => ts.isImportDeclaration(n)).some(
+    (i) => ts.isStringLiteral(i.moduleSpecifier) && i.moduleSpecifier.text === "./document-text" && i.importClause?.namedBindings !== undefined && ts.isNamedImports(i.importClause.namedBindings) && i.importClause.namedBindings.elements.some((e) => e.name.text === "documentText"),
+  );
+
+/** Every pin `execution.ts` breaks about the text: the cursor-move key reads it through the memo, in a thunk, and not otherwise. */
+function problemsInExecutionText(source: string): string[] {
+  const sf = parse("execution.ts", source);
+  const problems: string[] = [];
+  const update = functionNamed(sf, "updateCellContext");
+  if (update === undefined || update.body === undefined) return ["updateCellContext is missing"];
+  if (!importsDocumentText(sf)) problems.push("execution.ts does not import documentText from ./document-text");
+  const asks = callsOf(update.body, sf, "isInCodeCell");
+  if (asks.length !== 1) {
+    problems.push(`${asks.length} calls of isInCodeCell in updateCellContext, not one`);
+  } else if (flat(asks[0].arguments[1], sf) !== "() => documentText(editor.document)") {
+    problems.push("updateCellContext does not hand isInCodeCell `() => documentText(editor.document)` (a thunk over the memo: read only for a quarto document, and only once a version)");
+  }
+  if (callsOf(update.body, sf, "editor.document.getText").length !== 0) problems.push("updateCellContext calls getText itself (a whole-buffer join on every cursor move)");
+  return problems;
+}
+
+/** Every pin `preview.ts` breaks about the text: the predicate reads it through the memo, after the extension prefilter. */
+function problemsInPreviewText(source: string): string[] {
+  const sf = parse("preview.ts", source);
+  const problems: string[] = [];
+  const predicate = functionNamed(sf, "isPreviewableRenderScript");
+  if (predicate === undefined || predicate.body === undefined) return ["isPreviewableRenderScript is missing"];
+  if (!importsDocumentText(sf)) problems.push("preview.ts does not import documentText from ./document-text");
+  const returns = collect(predicate.body, (n): n is ts.ReturnStatement => ts.isReturnStatement(n));
+  const chain: string[] = [];
+  const flatten = (e: ts.Expression): void => {
+    if (ts.isBinaryExpression(e) && e.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) {
+      flatten(e.left);
+      flatten(e.right);
+    } else {
+      chain.push(flat(e, sf));
+    }
+  };
+  if (returns.length === 1 && returns[0].expression !== undefined) flatten(returns[0].expression);
+  const prefilter = chain.indexOf("isRenderScriptExtension(doc.uri.fsPath)");
+  const detect = chain.indexOf("isRenderScript(doc.uri.fsPath, documentText(doc))");
+  if (detect === -1) problems.push("isPreviewableRenderScript does not end in `isRenderScript(doc.uri.fsPath, documentText(doc))` (the text is read through the memo)");
+  if (prefilter === -1 || (detect !== -1 && prefilter > detect)) problems.push("the extension prefilter `isRenderScriptExtension(doc.uri.fsPath)` does not come before the read of the text (a 20 MB log would be joined on every keystroke)");
+  if (detect !== -1 && detect !== chain.length - 1) problems.push("the read of the text is not the last operand of the && chain");
+  if (callsOf(predicate.body, sf, "doc.getText").length !== 0) problems.push("isPreviewableRenderScript calls getText itself (a whole-buffer join on every keystroke)");
+  return problems;
+}
+
+/** Every pin `cell-background.ts` breaks about the text: the ranges are built from the memo's text, after the language and settings guard. */
+function problemsInBackgroundText(source: string): string[] {
+  const sf = parse("cell-background.ts", source);
+  const problems: string[] = [];
+  const ranges = functionNamed(sf, "cellBackgroundRangesFor");
+  if (ranges === undefined || ranges.body === undefined) return ["cellBackgroundRangesFor is missing"];
+  if (!importsDocumentText(sf)) problems.push("cell-background.ts does not import documentText from ./document-text");
+  const asks = callsOf(ranges.body, sf, "cellBackgroundRanges");
+  if (asks.length !== 1) {
+    problems.push(`${asks.length} calls of cellBackgroundRanges in cellBackgroundRangesFor, not one`);
+  } else {
+    if (asks[0].arguments.map((a) => flat(a, sf)).join() !== "documentText(doc)") problems.push("cellBackgroundRangesFor does not hand cellBackgroundRanges `documentText(doc)`");
+    const guard = ranges.body.statements.find((s): s is ts.IfStatement => ts.isIfStatement(s));
+    if (guard === undefined || flat(guard.expression, sf) !== 'doc.languageId !== "quarto" || !readCellBackgroundSettings().enabled' || guard.pos > asks[0].pos) problems.push("the language and settings guard does not come before the read of the text");
+  }
+  if (callsOf(ranges.body, sf, "doc.getText").length !== 0) problems.push("cellBackgroundRangesFor calls getText itself (a whole-buffer join on every refresh)");
+  return problems;
+}
+
+describe("Session 343 -- how the adapters read a document's text, pinned by the syntax tree (a unit test cannot run them: they import vscode)", () => {
+  it("document-text.ts keeps every pin: one memo for the module, asked with the document and a thunk over its getText, no runtime import of vscode", () => {
+    expect(problemsInDocumentTextAdapter(DOCUMENT_TEXT)).toEqual([]);
+  });
+
+  it("execution.ts keeps every text pin: the cursor-move key reads the text through the memo, in a thunk", () => {
+    expect(problemsInExecutionText(EXECUTION)).toEqual([]);
+  });
+
+  it("preview.ts keeps every text pin: the predicate reads the text through the memo, after the extension prefilter", () => {
+    expect(problemsInPreviewText(PREVIEW)).toEqual([]);
+  });
+
+  it("cell-background.ts keeps every text pin: the ranges come from the memo's text, after the language and settings guard", () => {
+    expect(problemsInBackgroundText(BACKGROUND)).toEqual([]);
   });
 });
