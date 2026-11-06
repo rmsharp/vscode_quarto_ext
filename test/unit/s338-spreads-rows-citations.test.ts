@@ -113,13 +113,13 @@ describe("Session 338 -- the adapter routes the accumulation through the core fu
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/^\s*\/\/.*$/gm, "");
 
-  it("loadCitations hands the declared paths and the document's directory to readCitations, with fs.readFile as the reader", () => {
-    expect(code).toContain("readCitations(relPaths, path.dirname(document.uri.fsPath), (file) =>");
+  it("loadCitations hands the declared paths and the document's directory to the cache that wraps readCitations (Session 343), with fs.readFile as the reader", () => {
+    expect(code).toContain("citationCache.read(relPaths, path.dirname(document.uri.fsPath))");
     expect(code).toContain('fs.readFile(file, "utf8")');
   });
 
-  it("readCitations is imported from the core module, and the adapter keeps no loop of its own over the files", () => {
-    expect(code).toMatch(/import\s*\{[^}]*\breadCitations\b[^}]*\}\s*from\s*"\.\.\/core\/citations"/);
+  it("createCitationCache (which reads through readCitations' loop) is imported from the core module, and the adapter keeps no loop of its own over the files", () => {
+    expect(code).toMatch(/import\s*\{[^}]*\bcreateCitationCache\b[^}]*\}\s*from\s*"\.\.\/core\/citations"/);
     expect(code).not.toMatch(/for\s*\(\s*const\s+\w+\s+of\s+relPaths/);
     expect(code).not.toContain("parseCitations");
   });

@@ -94,6 +94,31 @@ export async function readCitations(
   return dedupeByKey(all);
 }
 
+/** What identifies a bibliography file's content without reading it: its modification time (milliseconds) and its size (bytes). */
+export interface BibliographyStat {
+  mtimeMs: number;
+  size: number;
+}
+
+/** The two things the cache needs of the file system, handed in by the adapter so that the cache can run without `vscode` (`fs.readFile` as UTF-8 text, and `fs.stat`). */
+export interface CitationCacheOptions {
+  readFile: (absolutePath: string) => Promise<string>;
+  stat: (absolutePath: string) => Promise<BibliographyStat>;
+}
+
+/** The bibliographies of a document, read through a cache: the same answer as {@link readCitations}. */
+export interface CitationCache {
+  read(relPaths: readonly string[], dir: string): Promise<Citation[]>;
+}
+
+/**
+ * The seam of Session 343 (SIB-07): the adapter reads its bibliographies through THIS interface, and in the first
+ * version of it the read is still `readCitations` and nothing is kept.
+ */
+export function createCitationCache(options: CitationCacheOptions): CitationCache {
+  return { read: (relPaths, dir) => readCitations(relPaths, dir, options.readFile) };
+}
+
 /** Keep only the first citation for each key, preserving order. */
 function dedupeByKey(citations: Citation[]): Citation[] {
   const seen = new Set<string>();

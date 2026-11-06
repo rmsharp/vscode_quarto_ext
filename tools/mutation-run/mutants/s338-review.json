@@ -138,8 +138,8 @@
  {
   "name": "W01 adapter: the directory handed to readCitations is the working directory",
   "file": "src/providers/citation.ts",
-  "from": "readCitations(relPaths, path.dirname(document.uri.fsPath), (file) =>",
-  "to": "readCitations(relPaths, process.cwd(), (file) =>",
+  "from": "citationCache.read(relPaths, path.dirname(document.uri.fsPath))",
+  "to": "citationCache.read(relPaths, process.cwd())",
   "expect": "killed",
   "why": "the wiring gate of `s338-spreads-rows-citations.test.ts` reads the call"
  },

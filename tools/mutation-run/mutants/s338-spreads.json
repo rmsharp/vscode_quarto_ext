@@ -298,10 +298,10 @@
  {
   "name": "A04 loadCitations: appendCitations is not imported",
   "file": "src/providers/citation.ts",
-  "from": "  citationCompletionContext,\n  readCitations,\n} from \"../core/citations\";",
+  "from": "  citationCompletionContext,\n  createCitationCache,\n} from \"../core/citations\";",
   "to": "  citationCompletionContext,\n} from \"../core/citations\";",
   "expect": "killed",
-  "why": "the adapter no longer imports `readCitations`: the wiring gate of `s338-spreads-rows-citations.test.ts` (re-anchored in the review of Session 338, when the loop moved to the core)"
+  "why": "the adapter no longer imports `createCitationCache` (`readCitations` until Session 343, which put the cache between the adapter and it): the wiring gate of `s338-spreads-rows-citations.test.ts` (re-anchored in the review of Session 338, when the loop moved to the core, and in Session 343)"
  },
  {
   "name": "A05 loadCitations: the path is parsed, not the content",

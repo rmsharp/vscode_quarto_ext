@@ -20,12 +20,22 @@ import * as vscode from "vscode";
 import {
   type Citation,
   citationCompletionContext,
-  readCitations,
+  createCitationCache,
 } from "../core/citations";
 import { bibliographyPaths } from "../core/frontmatter";
 import { isReferenceableLine } from "../core/refs";
 
 const QMD: vscode.DocumentSelector = { language: "quarto" };
+
+/**
+ * ONE cache for every document and every request (Session 343): a cache made per request would never hit. It is
+ * keyed by the bibliography's absolute path and read through `fs`; what it keeps and when it re-reads is
+ * `createCitationCache` in `core/citations`.
+ */
+const citationCache = createCitationCache({
+  readFile: (file) => fs.readFile(file, "utf8"),
+  stat: (file) => fs.stat(file),
+});
 
 /** Register the citation completion provider, tied to the extension lifetime. */
 export function registerCitationProviders(
@@ -99,9 +109,7 @@ async function loadCitations(
   if (relPaths.length === 0 || document.uri.scheme !== "file") {
     return [];
   }
-  return readCitations(relPaths, path.dirname(document.uri.fsPath), (file) =>
-    fs.readFile(file, "utf8"),
-  );
+  return citationCache.read(relPaths, path.dirname(document.uri.fsPath));
 }
 
 /** Translate one core `Citation` into a `vscode.CompletionItem`. */
