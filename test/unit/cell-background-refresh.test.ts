@@ -463,6 +463,7 @@ describe("Session 343 -- the plan: which editors, in their order", () => {
 // another language is cleared by its own next edit, not by another document's.) Both debouncers are built as the adapter builds its own, with the delay AND `TYPING_MAX_WAIT_MS` (both, because the rows compare the two
 // worlds' timer counts at every step, and a window on one side only is a second timer there). The enumeration and the seeded sequences are too short for the window to come due (a probe that counted the timers asked for
 // 1,000 ms read 381,366 set and none fired): in them it is a pending timer and never a run. The row of a stream of edits 60 ms apart drives it, once, in both worlds; `typing-path-equivalence.test.ts` drives it on timelines.
+// That the adapter itself passes the option is `s343-max-wait-wiring-pin.test.ts`'s to say; no pin reads THIS copy, and what notices the window missing from it is these rows (OW01 to OW03 of `s344-refresh-snapshot.json`).
 describe("Session 343 -- the tint after the debounce is what the old per-edit refresh of every editor left (the oracle: the base's refresh() loop and handler)", () => {
   type Event = "edit Q1" | "edit Q2" | "edit P" | "switch editor" | "hide Q2" | "show Q2" | "split Q1" | "unsplit Q1" | "reload" | "pause 60" | "pause 200";
   const EVENTS: readonly Event[] = ["edit Q1", "edit Q2", "edit P", "switch editor", "hide Q2", "show Q2", "split Q1", "unsplit Q1", "reload", "pause 60", "pause 200"];
