@@ -626,8 +626,13 @@ function tintWorld() {
   const newApplied = new Map<string, Array<{ startLine: number; endLine: number }>>();
   let oldRefreshes = 0;
   let newRefreshes = 0;
+  // Session 344: when each refresh happened and in which order (`seq`), for the audit; `advancing` is true inside a clock step, where only a timer can refresh.
+  const oldEvals: OracleEval[] = [];
+  const newEvals: NewEval[] = [];
+  let seq = 0;
+  let advancing = false;
 
-  // ---- The OLD spelling, copied VERBATIM from the base `10e6b9c` (`src/features/cell-background.ts`): `cellBackgroundRangesFor` without the settings, `refresh`, and the document handler. ----
+  // ---- The OLD spelling, copied VERBATIM from the base `10e6b9c` (`src/features/cell-background.ts`): `cellBackgroundRangesFor` without the settings, `refresh`, and the document handler (the counter and the audit's log are the test's own). ----
   const cellBackgroundRangesFor = (doc: FakeDocument): Array<{ startLine: number; endLine: number }> => {
     if (doc.languageId !== "quarto") {
       return [];
@@ -646,6 +651,7 @@ function tintWorld() {
   const oldRefresh = (): void => {
     oldRefreshes++;
     refreshInto(oldApplied);
+    oldEvals.push({ at: clock.now(), seq: seq++ });
   };
   const isVisible = (doc: FakeDocument): boolean => visible.some((editor) => editor === doc);
   const oldOnDocument = (doc: FakeDocument): void => {
@@ -655,14 +661,15 @@ function tintWorld() {
   };
 
   // ---- The NEW wiring: how `registerCellBackgroundFeature` calls the debouncer. ----
-  const newRefresh = (): void => {
+  const newRefresh = (firedBy = ""): void => {
     newRefreshes++;
     refreshInto(newApplied);
+    newEvals.push({ at: clock.now(), seq: seq++, byTimer: advancing, key: firedBy });
   };
   const typing = createKeyedDebouncer({ timers: clock, delayMs: TYPING_DEBOUNCE_MS, maxWaitMs: TYPING_MAX_WAIT_MS });
   const newOnDocument = (doc: FakeDocument): void => {
     if (isVisible(doc)) {
-      typing.schedule(doc.uri.toString(), () => newRefresh());
+      typing.schedule(doc.uri.toString(), () => newRefresh(doc.uri.toString()));
     }
   };
 
@@ -673,52 +680,69 @@ function tintWorld() {
     immediate();
     immediateNew();
   };
-  function apply(event: TintEvent): void {
+  const advance = (ms: number): void => {
+    advancing = true;
+    try {
+      clock.advance(ms);
+    } finally {
+      advancing = false;
+    }
+  };
+  /** Apply one event; answers the document it edited and the key it cancelled, which the audit reads (an edit of a document that is not visible arms nothing, and the audit sees that from the logs). */
+  function apply(event: TintEvent | GapEvent): { edited?: string; cancelled?: string } {
+    const gap = gapOf(event);
+    if (gap !== undefined) {
+      advance(gap);
+      return {};
+    }
     switch (event) {
       case "edit A":
         docA.version++;
         oldOnDocument(docA);
         newOnDocument(docA);
-        return;
+        return { edited: docA.uri.toString() };
       case "edit B":
         docB.version++;
         oldOnDocument(docB);
         newOnDocument(docB);
-        return;
+        return { edited: docB.uri.toString() };
       case "switch editor": // onDidChangeActiveTextEditor: immediate
         both(oldRefresh, newRefresh);
-        return;
+        return {};
       case "hide B":
         visible = visible.filter((d) => d !== docB);
         both(oldRefresh, newRefresh); // onDidChangeVisibleTextEditors
-        return;
+        return {};
       case "show B":
         if (!isVisible(docB)) visible = [...visible, docB];
         both(oldRefresh, newRefresh);
-        return;
+        return {};
       case "close A":
         visible = visible.filter((d) => d !== docA);
         both(oldRefresh, newRefresh); // the editor leaves the visible list
         typing.cancel(docA.uri.toString()); // onDidCloseTextDocument (the old code had no such handler)
-        return;
+        return { cancelled: docA.uri.toString() };
       case "open A":
         if (!isVisible(docA)) visible = [docA, ...visible];
         both(oldRefresh, newRefresh);
-        return;
+        return {};
       case "reload": // a colour setting changed: immediate
         both(oldRefresh, newRefresh);
-        return;
+        return {};
       case "pause 60":
-        clock.advance(60);
-        return;
+        advance(60);
+        return {};
       case "pause 200":
-        clock.advance(200);
-        return;
+        advance(200);
+        return {};
     }
+    return {};
   }
   return {
     clock,
     apply,
+    oldEvals,
+    newEvals,
     visible: () => visible,
     oldApplied,
     newApplied,
@@ -727,12 +751,15 @@ function tintWorld() {
   };
 }
 
-function checkTintSequence(events: readonly TintEvent[]): { problems: string[]; pendingAtEnd: boolean; saved: number } {
+function checkTintSequence(events: readonly (TintEvent | GapEvent)[]): Checked {
   const w = tintWorld();
   const problems: string[] = [];
-  const at = (i: number): string => `after [${events.slice(0, i + 1).join(", ")}]`;
+  const audit = createTimelineAudit({ perKey: true, maxTimers: 4 });
+  const at = (i: number): string => prefixLabel(events, i);
+  audit.after({ label: () => "at the first refresh", isEvent: false, now: w.clock.now(), pending: w.clock.pending(), staleClears: w.clock.staleClears(), oldEvals: w.oldEvals, newEvals: w.newEvals });
   for (let i = 0; i < events.length; i++) {
-    w.apply(events[i]);
+    const done = w.apply(events[i]);
+    audit.after({ label: () => at(i), isEvent: !isClockStep(events[i]), edited: done.edited, cancelled: done.cancelled, now: w.clock.now(), pending: w.clock.pending(), staleClears: w.clock.staleClears(), oldEvals: w.oldEvals, newEvals: w.newEvals });
     if (w.clock.pending() === 0) {
       for (const doc of w.visible()) {
         const key = doc.uri.toString();
@@ -752,9 +779,11 @@ function checkTintSequence(events: readonly TintEvent[]): { problems: string[]; 
     const key = doc.uri.toString();
     if (JSON.stringify(w.newApplied.get(key)) !== JSON.stringify(truthRanges(doc))) problems.push(`after [${events.join(", ")}] and a pause: ${key} is tinted ${JSON.stringify(w.newApplied.get(key))}, not ${JSON.stringify(truthRanges(doc))}`);
   }
+  audit.after({ label: () => `${at(events.length - 1)} and a pause`, isEvent: false, now: w.clock.now(), pending: w.clock.pending(), staleClears: w.clock.staleClears(), oldEvals: w.oldEvals, newEvals: w.newEvals });
+  problems.push(...audit.problems.slice(0, 3));
   const { old, new: now } = w.refreshes();
   w.dispose();
-  return { problems, pendingAtEnd, saved: old - now };
+  return { problems, pendingAtEnd, saved: old - now, tally: audit.tally };
 }
 
 /** The enumeration of every sequence of 5 events, run once for the two rows that read it. */
@@ -805,7 +834,87 @@ describe("Session 342 -- the cell tint after the debounce is what the old per-ed
   }, HEAVY_ROW_MS);
 });
 
-// ---- THE DEBOUNCER AGAINST A MODEL OF ITS SPEC ------------------------------------------------------------------------------------------------------------------------------------------------
+// Session 344: the same for the tint. The timers here are one pair a DOCUMENT (the debouncer is keyed by the document's URI) and a run refreshes every visible editor, so the audit runs per key and the oldest unevaluated
+// refresh is the oracle's, whichever document's edit it was.
+describe("Session 344 -- the cell tint through unbroken streams of edits: the maximum wait is driven (the oracle: the base's refresh and document handler, verbatim)", () => {
+  it("an edit of one document every 100 ms for 4 s is refreshed by the WINDOW at 1,000, 2,000, 3,000 and 4,000 ms and by nothing else, while the oracle refreshes at every one of its 40 edits", () => {
+    const events: Array<TintEvent | GapEvent> = [];
+    for (let k = 0; k < 40; k++) events.push("edit A", "gap 100");
+    const w = tintWorld();
+    for (const event of events) w.apply(event);
+    expect(w.newEvals.filter((e) => e.byTimer).map((e) => e.at)).toEqual([1_000, 2_000, 3_000, 4_000]);
+    expect(w.newEvals.filter((e) => !e.byTimer)).toHaveLength(1); // the decorator's own first refresh
+    expect(w.oldEvals).toHaveLength(1 + 40);
+    expect(w.clock.pending()).toBe(0);
+    const r = checkTintSequence(events);
+    expect(r.problems).toEqual([]);
+    expect(r.tally.windowRuns).toBe(4);
+    expect(r.tally.trailingRuns).toBe(0);
+    expect(r.tally.longestStream).toBe(3_900);
+  });
+
+  it("two documents edited in turn every 50 ms each have a window of their own, opened at THEIR first edit: A's runs at 1,000, 2,000 and 3,000 and B's 50 ms after each", () => {
+    const events: Array<TintEvent | GapEvent> = [];
+    for (let k = 0; k < 40; k++) events.push("edit A", "gap 50", "edit B", "gap 50");
+    const w = tintWorld();
+    for (const event of events) w.apply(event);
+    expect(w.newEvals.filter((e) => e.byTimer).map((e) => `${e.at} ${e.key}`)).toEqual([
+      "1000 file:///a.qmd",
+      "1050 file:///b.qmd",
+      "2000 file:///a.qmd",
+      "2050 file:///b.qmd",
+      "3000 file:///a.qmd",
+      "3050 file:///b.qmd",
+      "4000 file:///a.qmd",
+    ]);
+    const r = checkTintSequence(events);
+    expect(r.problems).toEqual([]);
+    expect(r.tally.windowRuns).toBe(8); // the pause that ends every checked timeline lets B's last window end, at 4,050
+  });
+
+  it("a gap of 150 ms ends a stream: the trailing timer refreshes after each edit, a delay after it, and the window is never the one that runs", () => {
+    const events: Array<TintEvent | GapEvent> = [];
+    for (let k = 0; k < 20; k++) events.push("edit A", "gap 150");
+    const r = checkTintSequence(events);
+    expect(r.problems).toEqual([]);
+    expect(r.tally.windowRuns).toBe(0);
+    expect(r.tally.trailingRuns).toBe(20);
+  });
+
+  it("agrees with the oracle and keeps the window on 2,000 seeded timelines of streams, pauses, switches, hidden and closed editors and reloads (every step checked)", () => {
+    const random = seededRandom(3442);
+    const edits: TintEvent[] = ["edit A", "edit A", "edit B"];
+    const others: TintEvent[] = ["switch editor", "hide B", "show B", "close A", "open A", "reload", "pause 60"];
+    const problems: string[] = [];
+    let pastTheWindow = 0;
+    let windowRuns = 0;
+    let trailingRuns = 0;
+    let longest = 0;
+    let oldestStale = 0;
+    let steps = 0;
+    for (let n = 0; n < 2_000; n++) {
+      const events = longTimeline(random, edits, others, 60);
+      steps += events.length;
+      const r = checkTintSequence(events);
+      if (r.problems.length > 0 && problems.length < 5) problems.push(...r.problems.slice(0, 2));
+      if (r.tally.longestStream >= TYPING_MAX_WAIT_MS) pastTheWindow++;
+      windowRuns += r.tally.windowRuns;
+      trailingRuns += r.tally.trailingRuns;
+      longest = Math.max(longest, r.tally.longestStream);
+      oldestStale = Math.max(oldestStale, r.tally.oldestStale);
+    }
+    expect(problems).toEqual([]);
+    // floors, not counts of the generator (see the key's row)
+    expect(pastTheWindow).toBeGreaterThan(1_000);
+    expect(windowRuns).toBeGreaterThan(2_000);
+    expect(trailingRuns).toBeGreaterThan(5_000);
+    expect(longest).toBeGreaterThanOrEqual(3 * TYPING_MAX_WAIT_MS);
+    expect(oldestStale).toBeGreaterThan(TYPING_MAX_WAIT_MS - TYPING_DEBOUNCE_MS);
+    expect(steps).toBeGreaterThan(300_000);
+  }, HEAVY_ROW_MS);
+});
+
+// ---- THE DEBOUNCER AGAINST A MODEL OF ITS SPEC------------------------------------------------------------------------------------------------------------------------------------------------
 
 // "again" is a schedule whose run schedules its own key once more, from inside the run (Session 343: five direct rows pin that elsewhere, and no sequence did), with a run that does not.
 type DebounceOp = { op: "schedule"; key: string; again?: true } | { op: "cancel"; key: string } | { op: "advance"; ms: number } | { op: "dispose" };
