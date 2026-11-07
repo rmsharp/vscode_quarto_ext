@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
-import { isRenderScript } from "../../../src/core/render-script";
+import { isRenderScriptDocument } from "../../../src/core/render-script";
 import { type ContextCall, lastValueFor, withContextCapture } from "./context-capture";
 
 const EXTENSION_ID = "rmsharp.vscode-quarto-ext";
@@ -258,12 +258,13 @@ describe("quartoRenderScriptActive context key", () => {
         await waitFor(() => lastValueFor(captured, KEY) === false, 5000);
       });
 
-      // Precondition: the PURE detector accepts this buffer — so a failure here
-      // can only mean the scheme guard is missing, not that the detector said no.
+      // Precondition: the detector the adapter runs (the lazy reader, over this
+      // real document) accepts this buffer — so a failure here can only mean the
+      // scheme guard is missing, not that the detector said no.
       assert.ok(
-        isRenderScript(doc.uri.fsPath, doc.getText()),
-        "precondition: the pure detector must accept this buffer, so that the " +
-          "scheme guard is the only thing that can make the key false",
+        isRenderScriptDocument(doc.uri.fsPath, doc),
+        "precondition: the detector the adapter runs must accept this buffer, so " +
+          "that the scheme guard is the only thing that can make the key false",
       );
       assert.strictEqual(
         lastValueFor(captured, KEY),
@@ -375,7 +376,7 @@ describe("Quarto: Preview Script command", () => {
     this.timeout(30000);
 
     // An untitled buffer whose PATH ends in .r and whose TEXT is a valid spin
-    // script: isRenderScript(fsPath, text) returns true for it. Only the adapter's
+    // script: isRenderScriptDocument(fsPath, document) returns true for it. Only the adapter's
     // `uri.scheme !== "file"` guard refuses it. This is the same guard that stops
     // the built-in Git extension's read-only `git:` diff of a spin script (whose
     // fsPath IS the working-tree path) from previewing the working-tree file while
@@ -404,13 +405,14 @@ describe("Quarto: Preview Script command", () => {
       await vscode.workspace.applyEdit(edit);
       await vscode.window.showTextDocument(doc);
 
-      // Precondition: the PURE detector accepts it — so the test can only pass
-      // because of the scheme guard, not because the detector happened to say no.
+      // Precondition: the detector the adapter runs accepts it — so the test can
+      // only pass because of the scheme guard, not because the detector happened to
+      // say no.
       assert.strictEqual(doc.uri.scheme, "untitled");
       assert.ok(
-        isRenderScript(doc.uri.fsPath, doc.getText()),
-        "precondition: the pure detector must accept this buffer, so that the " +
-          "scheme guard is the only thing that can refuse it",
+        isRenderScriptDocument(doc.uri.fsPath, doc),
+        "precondition: the detector the adapter runs must accept this buffer, so " +
+          "that the scheme guard is the only thing that can refuse it",
       );
 
       const errors: string[] = [];
