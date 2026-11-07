@@ -1,0 +1,210 @@
+[
+ {
+  "name": "EQ01 the window's timer is never started",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          window.timer = timers.setTimeout(() => {\n            dropTrailing(key);\n            settle(key, window.run);\n          }, maxWaitMs);\n",
+  "to": "",
+  "expect": "killed",
+  "why": "an unbroken stream is never evaluated until it ends; the window record exists but holds no timer"
+ },
+ {
+  "name": "EQ02 the trailing timer's callback leaves the window open",
+  "file": "src/core/typing-debounce.ts",
+  "from": "        timers.setTimeout(() => {\n          closeWindow(key);\n          settle(key, run);\n        }, delayMs),",
+  "to": "        timers.setTimeout(() => {\n          settle(key, run);\n        }, delayMs),",
+  "expect": "killed",
+  "why": "the window's timer outlives the run the trailing timer made and fires a second run a maximum wait after the first event, with no state waiting"
+ },
+ {
+  "name": "EQ03 every schedule restarts the window",
+  "file": "src/core/typing-debounce.ts",
+  "from": "        const open = windows.get(key);\n",
+  "to": "        closeWindow(key);\n        const open = windows.get(key);\n",
+  "expect": "killed",
+  "why": "the window never reaches its end while events keep coming less than a delay apart: the maximum wait does not bound anything"
+ },
+ {
+  "name": "EQ04 the window is armed twice",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          windows.set(key, window);\n",
+  "to": "          windows.set(key, window);\n          timers.setTimeout(() => {\n            dropTrailing(key);\n            settle(key, window.run);\n          }, maxWaitMs);\n",
+  "expect": "killed",
+  "why": "a second window timer nobody tracks fires a maximum wait after the first event and runs the key again, after the state was evaluated by the tracked one"
+ },
+ {
+  "name": "EQ05 the window is never recorded",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          windows.set(key, window);\n",
+  "to": "",
+  "expect": "killed",
+  "why": "every schedule arms a new window timer and none is ever cleared: more than two timers wait, and each runs the key"
+ },
+ {
+  "name": "EQ06 a run leaves the window in the table",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    pending.delete(key);\n    windows.delete(key);\n    try {",
+  "to": "    pending.delete(key);\n    try {",
+  "expect": "killed",
+  "why": "after the first run through the window's timer the table still holds the entry, so no later schedule opens a window and a second unbroken stream is never evaluated until it ends"
+ },
+ {
+  "name": "EQ07 the window's callback leaves the trailing timer running",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          window.timer = timers.setTimeout(() => {\n            dropTrailing(key);\n            settle(key, window.run);",
+  "to": "          window.timer = timers.setTimeout(() => {\n            settle(key, window.run);",
+  "expect": "killed",
+  "why": "the trailing timer, whose handle the run forgets, fires after the window's run and runs the key again with no state waiting (a pending timer and nothing unevaluated)"
+ },
+ {
+  "name": "EQ08 a run leaves the trailing handle in the table",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    pending.delete(key);\n    windows.delete(key);\n    try {",
+  "to": "    windows.delete(key);\n    try {",
+  "expect": "killed",
+  "why": "the next schedule of the key clears a handle that is no longer a pending timer; seen only by the fake clock's stale-clear counter"
+ },
+ {
+  "name": "EQ09 closing a window does not clear its timer",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      timers.clearTimeout(window.timer);\n      windows.delete(key);",
+  "to": "      windows.delete(key);",
+  "expect": "killed",
+  "why": "the window's timer outlives the run the trailing timer made, or the cancel, and fires a second run with no state waiting"
+ },
+ {
+  "name": "EQ10 cancel leaves the window open",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      dropTrailing(key);\n      closeWindow(key);\n    },\n    dispose() {",
+  "to": "      dropTrailing(key);\n    },\n    dispose() {",
+  "expect": "killed",
+  "why": "an immediate evaluation (an editor switch) or a closed document in the middle of a stream leaves the window's timer, which fires a run with no state waiting"
+ },
+ {
+  "name": "EQ11 the window's timer is asked for the delay",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          }, maxWaitMs);\n          windows.set(key, window);",
+  "to": "          }, delayMs);\n          windows.set(key, window);",
+  "expect": "killed",
+  "why": "a stream is evaluated every delay and not every maximum wait: a run comes neither a delay after the last event nor a maximum wait after the first"
+ },
+ {
+  "name": "EQ12 the window's timer is asked for the maximum wait plus the delay",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          }, maxWaitMs);\n          windows.set(key, window);",
+  "to": "          }, maxWaitMs + delayMs);\n          windows.set(key, window);",
+  "expect": "killed",
+  "why": "the unevaluated state is older than the maximum wait when the window runs it"
+ },
+ {
+  "name": "EQ13 the window's timer is asked for one millisecond less than the maximum wait",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          }, maxWaitMs);\n          windows.set(key, window);",
+  "to": "          }, maxWaitMs - 1);\n          windows.set(key, window);",
+  "expect": "killed",
+  "why": "the window runs a millisecond before the maximum wait after the first event: no unevaluated state is ever older than the maximum wait, so only the timing rule (a run comes a delay after the last event or a maximum wait after the first) sees it"
+ },
+ {
+  "name": "EQ14 the cell-context scheduler does not hand the maximum wait on",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    maxWaitMs: options.maxWaitMs,\n    onError: options.onError,",
+  "to": "    onError: options.onError,",
+  "expect": "killed",
+  "why": "the cell-context key is a pure trailing debounce: an unbroken stream of keystrokes leaves it stale until the stream ends"
+ },
+ {
+  "name": "EQ15 the cell-context scheduler cancels the pending evaluation before each debounced event",
+  "file": "src/core/typing-debounce.ts",
+  "from": "        debouncer.schedule(CELL_CONTEXT_KEY, evaluate);",
+  "to": "        debouncer.cancel(CELL_CONTEXT_KEY);\n        debouncer.schedule(CELL_CONTEXT_KEY, evaluate);",
+  "expect": "killed",
+  "why": "every document event and every selection event after an edit closes the window: the window restarts at each event, as in EQ03, but through the scheduler"
+ },
+ {
+  "name": "EQ16 evaluateNow leaves the pending evaluation",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    debouncer.cancel(CELL_CONTEXT_KEY);\n    evaluate();",
+  "to": "    evaluate();",
+  "expect": "killed",
+  "why": "an editor switch evaluates at once and leaves the trailing timer and the window: both fire later and evaluate again with nothing waiting"
+ },
+ {
+  "name": "EQ17 a window opens only while no other key waits",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      if (maxWaitMs !== undefined) {\n        const open",
+  "to": "      if (maxWaitMs !== undefined && pending.size === 1) {\n        const open",
+  "expect": "killed",
+  "why": "with two documents edited together the second one's window is missing: its stream is evaluated by the first one's window or not at all, and its own run does not come a maximum wait after its first edit"
+ },
+ {
+  "name": "EQ18 the cell-background decorator's wiring copy leaves the maximum wait out",
+  "file": "test/unit/typing-path-equivalence.test.ts",
+  "from": "const typing = createKeyedDebouncer({ timers: clock, delayMs: TYPING_DEBOUNCE_MS, maxWaitMs: TYPING_MAX_WAIT_MS });",
+  "to": "const typing = createKeyedDebouncer({ timers: clock, delayMs: TYPING_DEBOUNCE_MS });",
+  "expect": "killed",
+  "why": "the copy of how `registerCellBackgroundFeature` builds its debouncer is the pure trailing one: the tint of a document edited in an unbroken stream is not re-applied until the stream ends"
+ },
+ {
+  "name": "EQ19 the cell-context wiring copy leaves the maximum wait out",
+  "file": "test/unit/typing-path-equivalence.test.ts",
+  "from": "    maxWaitMs: TYPING_MAX_WAIT_MS,\n    activeSnapshot:",
+  "to": "    activeSnapshot:",
+  "expect": "killed",
+  "why": "the copy of how `registerExecutionFeature` builds its scheduler is the pure trailing one: the key is not re-evaluated until the stream ends"
+ },
+ {
+  "name": "EQ20 the cell-background decorator's wiring copy does not cancel a closed document's pending run",
+  "file": "test/unit/typing-path-equivalence.test.ts",
+  "from": "        typing.cancel(docA.uri.toString()); // onDidCloseTextDocument (the old code had no such handler)\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the closed document's trailing timer and window stay and fire a refresh nobody is waiting for (a timer pending with no state to evaluate)"
+ },
+ {
+  "name": "EQ21 the window's callback closes the window instead of dropping the trailing timer",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          window.timer = timers.setTimeout(() => {\n            dropTrailing(key);\n            settle(key, window.run);",
+  "to": "          window.timer = timers.setTimeout(() => {\n            closeWindow(key);\n            settle(key, window.run);",
+  "expect": "killed",
+  "why": "the window clears its own, already fired, timer and leaves the trailing one, which fires a second run with no state waiting; the clear of a timer that is not pending is seen by the fake clock's counter too"
+ },
+ {
+  "name": "EQ22 closing a window leaves its record in the table",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      timers.clearTimeout(window.timer);\n      windows.delete(key);",
+  "to": "      timers.clearTimeout(window.timer);",
+  "expect": "killed",
+  "why": "after a cancel (an editor switch, a closed document) the table still holds the cleared window, so the next stream opens none and is evaluated only when it ends"
+ },
+ {
+  "name": "EQ23 cancel closes the windows of every key",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      dropTrailing(key);\n      closeWindow(key);\n    },\n    dispose() {",
+  "to": "      dropTrailing(key);\n      for (const other of [...windows.keys()]) {\n        closeWindow(other);\n      }\n    },\n    dispose() {",
+  "expect": "killed",
+  "why": "closing one document in the middle of another's stream drops the other's window: its stream is evaluated only when it ends"
+ },
+ {
+  "name": "EQ24 dropping a trailing timer leaves its handle in the table",
+  "file": "src/core/typing-debounce.ts",
+  "from": "      timers.clearTimeout(pending.get(key));\n      pending.delete(key);",
+  "to": "      timers.clearTimeout(pending.get(key));",
+  "expect": "killed",
+  "why": "after a cancel the next drop clears a handle that is not a pending timer; seen only by the fake clock's stale-clear counter"
+ },
+ {
+  "name": "EQ25 the window's timer is asked for twice the maximum wait",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          }, maxWaitMs);\n          windows.set(key, window);",
+  "to": "          }, maxWaitMs * 2);\n          windows.set(key, window);",
+  "expect": "killed",
+  "why": "the unevaluated state of an unbroken stream is twice the maximum wait old when the window runs it"
+ },
+ {
+  "name": "EQ26 a window runs the first run it was opened with",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          open.run = run;\n",
+  "to": "",
+  "expect": "survives",
+  "why": "argued equivalent HERE: both worlds hand the debouncer a run that reads the live state when it runs (the scheduler's `evaluate`, the tint's refresh of every visible editor), so the first run and the latest are the same function of the world; `s343-max-wait.test.ts` kills it with runs that differ"
+ }
+]

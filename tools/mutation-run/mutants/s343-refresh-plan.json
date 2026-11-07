@@ -189,7 +189,7 @@
   "from": "const keys = new Set(shown.map((entry) => entry.key));",
   "to": "const keys = new Set(options.visible().map((entry) => entry.key));",
   "expect": "killed",
-  "why": "the editors are read twice by a full refresh; killed by cell-background-refresh.test.ts"
+  "why": "the editors are read twice by a full refresh and the record is forgotten by the second reading; killed by the Session 344 rows of cell-background-refresh.test.ts (\"a refresh acts on one reading of the visible editors\": the record of what a full refresh tinted is the reading it applied to). Until Session 344 the only thing that killed it was the count of `visible()` reads (`toBe(1)`), an implementation detail; with the counts removed and the behaviour rows in, the list is unchanged: 49 killed, 1 survives (R10)"
  },
  {
   "name": "R10 the forgetting also runs after an edit's refresh (every key of an editor not shown is forgotten there too)",

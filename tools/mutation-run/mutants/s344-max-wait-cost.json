@@ -1,0 +1,114 @@
+[
+ {
+  "name": "CS01 TYPING_MAX_WAIT_MS is 2000",
+  "file": "src/core/typing-debounce.ts",
+  "from": "export const TYPING_MAX_WAIT_MS = 1000;",
+  "to": "export const TYPING_MAX_WAIT_MS = 2000;",
+  "expect": "killed",
+  "why": "a stream pays half the evaluations the table quotes (15 in 30 s, not 30)"
+ },
+ {
+  "name": "CS02 TYPING_MAX_WAIT_MS is 500",
+  "file": "src/core/typing-debounce.ts",
+  "from": "export const TYPING_MAX_WAIT_MS = 1000;",
+  "to": "export const TYPING_MAX_WAIT_MS = 500;",
+  "expect": "killed",
+  "why": "a stream pays twice the evaluations the table quotes (60 in 30 s, not 30); the ceiling row of the constants' own bound moves with the constant, the quoted figures do not"
+ },
+ {
+  "name": "CS03 TYPING_MAX_WAIT_MS is 1001",
+  "file": "src/core/typing-debounce.ts",
+  "from": "export const TYPING_MAX_WAIT_MS = 1000;",
+  "to": "export const TYPING_MAX_WAIT_MS = 1001;",
+  "expect": "killed",
+  "why": "a gap of 1 ms pays 29 evaluations, not the ceiling of 30; killed by the ceiling assertion and the quoted figures"
+ },
+ {
+  "name": "CS04 TYPING_DEBOUNCE_MS is 151",
+  "file": "src/core/typing-debounce.ts",
+  "from": "export const TYPING_DEBOUNCE_MS = 150;",
+  "to": "export const TYPING_DEBOUNCE_MS = 151;",
+  "expect": "killed",
+  "why": "a gap of 150 ms becomes a stream the window bounds, and pays 30 evaluations in 30 s, not one an event"
+ },
+ {
+  "name": "CS05 TYPING_DEBOUNCE_MS is 149",
+  "file": "src/core/typing-debounce.ts",
+  "from": "export const TYPING_DEBOUNCE_MS = 150;",
+  "to": "export const TYPING_DEBOUNCE_MS = 149;",
+  "expect": "killed",
+  "why": "a gap of 149 ms is no stream any more and pays one an event (201), not 28 in 30 s"
+ },
+ {
+  "name": "CS06 the window's timer is never started",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          window.timer = timers.setTimeout(() => {\n            dropTrailing(key);\n            settle(key, window.run);\n          }, maxWaitMs);\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the debouncer is the pure trailing one: a stream under 150 ms apart pays nothing until it ends"
+ },
+ {
+  "name": "CS07 every schedule restarts the window",
+  "file": "src/core/typing-debounce.ts",
+  "from": "        const open = windows.get(key);\n",
+  "to": "        closeWindow(key);\n        const open = windows.get(key);\n",
+  "expect": "killed",
+  "why": "the window never reaches its end in a stream: nothing is paid until it ends"
+ },
+ {
+  "name": "CS08 the window's timer is asked for the delay",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          }, maxWaitMs);\n          windows.set(key, window);",
+  "to": "          }, delayMs);\n          windows.set(key, window);",
+  "expect": "killed",
+  "why": "a stream pays an evaluation every delay: 200 in 30 s at a gap of 100 ms, not 30"
+ },
+ {
+  "name": "CS09 the window's timer is asked for twice the maximum wait",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          }, maxWaitMs);\n          windows.set(key, window);",
+  "to": "          }, maxWaitMs * 2);\n          windows.set(key, window);",
+  "expect": "killed",
+  "why": "a stream pays half the evaluations"
+ },
+ {
+  "name": "CS10 a run leaves the window in the table",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    pending.delete(key);\n    windows.delete(key);\n    try {",
+  "to": "    pending.delete(key);\n    try {",
+  "expect": "killed",
+  "why": "after the first window no other opens: a stream pays one evaluation before it ends"
+ },
+ {
+  "name": "CS11 the trailing timer's callback leaves the window open",
+  "file": "src/core/typing-debounce.ts",
+  "from": "        timers.setTimeout(() => {\n          closeWindow(key);\n          settle(key, run);\n        }, delayMs),",
+  "to": "        timers.setTimeout(() => {\n          settle(key, run);\n        }, delayMs),",
+  "expect": "killed",
+  "why": "a stream with gaps of 150 ms or more pays a second, stray evaluation at the end of every window: more than one an event"
+ },
+ {
+  "name": "CS12 the window's callback leaves the trailing timer running",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          window.timer = timers.setTimeout(() => {\n            dropTrailing(key);\n            settle(key, window.run);",
+  "to": "          window.timer = timers.setTimeout(() => {\n            settle(key, window.run);",
+  "expect": "killed",
+  "why": "the trailing timer runs the key again after every window: a stream under 150 ms apart pays about twice the evaluations, and the count after it ends is off by one"
+ },
+ {
+  "name": "CS13 the window is armed twice",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          windows.set(key, window);\n",
+  "to": "          windows.set(key, window);\n          timers.setTimeout(() => {\n            dropTrailing(key);\n            settle(key, window.run);\n          }, maxWaitMs);\n",
+  "expect": "killed",
+  "why": "a second window timer nobody tracks runs the key again: more evaluations than one a window"
+ },
+ {
+  "name": "CS14 the window's timer is asked for one millisecond less than the maximum wait",
+  "file": "src/core/typing-debounce.ts",
+  "from": "          }, maxWaitMs);\n          windows.set(key, window);",
+  "to": "          }, maxWaitMs - 1);\n          windows.set(key, window);",
+  "expect": "killed",
+  "why": "a window of 999 ms ends on an event of a stream whose gap divides 999 (a gap of 3, 9, 27, 37 or 111 ms: 30 runs where the windows say 29, 29, 29, 28 and 27), so the next window opens a gap sooner; the counts see a single millisecond there. Killed by the whole-gap row, which prints those five gaps"
+ }
+]

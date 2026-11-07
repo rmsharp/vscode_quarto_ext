@@ -1,0 +1,50 @@
+[
+ {
+  "name": "SN01 the record's forgetting reads the visible editors a second time",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "const keys = new Set(shown.map((entry) => entry.key));",
+  "to": "const keys = new Set(options.visible().map((entry) => entry.key));",
+  "expect": "killed",
+  "why": "the same edit as R09 of s343-refresh-plan.json, which three counts of `visible()` reads used to kill alone: a document the pass tinted is forgotten when a later reading no longer shows it, so its next edit after a language change clears nothing; killed by the record rows"
+ },
+ {
+  "name": "SN02 the editors to refresh come from a second reading",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "for (const entry of editorsToRefresh(edited, shown, tinted)) {",
+  "to": "for (const entry of editorsToRefresh(edited, options.visible(), tinted)) {",
+  "expect": "killed",
+  "why": "the pass applies to the editors a later reading shows and forgets by the first; killed by the rows that give the first reading and a later one different lists"
+ },
+ {
+  "name": "SN03 an edit's refresh reads the visible editors again",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "for (const entry of editorsToRefresh(edited, shown, tinted)) {",
+  "to": "for (const entry of editorsToRefresh(edited, edited === undefined ? shown : options.visible(), tinted)) {",
+  "expect": "killed",
+  "why": "only an edit's refresh acts on a later reading; killed by the edit rows (the document that the first reading does not show, and the one it shows twice)"
+ },
+ {
+  "name": "SN04 the visible editors are read once and kept for every later refresh",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "const shown = options.visible();",
+  "to": "const shown = ((options as { shownBefore?: ReadonlyArray<VisibleEditor<E>> }).shownBefore ??= options.visible());",
+  "expect": "killed",
+  "why": "a refresh acts on the list as it was at the first one: an editor closed since is applied to and one opened since is missed; killed by the row that changes the list between refreshes (it replaces the count of reads: 1 then 2)"
+ },
+ {
+  "name": "SN05 a full refresh reads the visible editors and an edit's does not",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "const shown = options.visible();",
+  "to": "const shown = edited === undefined ? options.visible() : [];",
+  "expect": "killed",
+  "why": "an edit's refresh sees no editor; killed by every edit row (and was killed by the count of reads: 1 then 2, as the same edit)"
+ },
+ {
+  "name": "SN06 a reading nobody uses (the visible editors are read twice and the second answer is ignored)",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "const shown = options.visible();",
+  "to": "const shown = options.visible();\n    options.visible();",
+  "expect": "survives",
+  "why": "argued equivalent, ON PURPOSE: the old counts (1, 1 and 2) killed this and no behaviour tells it from a refresh that reads once; a refresh that reads twice and acts on one answer is correct, and the rows deliberately do not count reads"
+ }
+]
