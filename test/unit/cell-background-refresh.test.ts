@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { type EditedDocument, createCellBackgroundRefresher, editorsToRefresh } from "../../src/core/cell-background-refresh";
-import { TYPING_DEBOUNCE_MS, createKeyedDebouncer } from "../../src/core/typing-debounce";
+import { TYPING_DEBOUNCE_MS, TYPING_MAX_WAIT_MS, createKeyedDebouncer } from "../../src/core/typing-debounce";
 import { createFakeClock } from "./support/fake-timers";
 import { seededRandom } from "./support/regex-equivalence";
 
@@ -460,7 +460,9 @@ describe("Session 343 -- the plan: which editors, in their order", () => {
 // The ORACLE: the old spelling, run beside the new wiring on the same events. `refresh()` of the base looped over the visible editors, and the document handler scheduled it, keyed by the document, for any visible document.
 // Fake clocks drive both debouncers; the events are the ones the adapter hears, and the property is the one the cure must keep: once no timer is pending, every visible editor holds the tint the old spelling gave it,
 // while the new wiring applies no more often, and strictly less on some sequences. (Language changes are not in the events: they are rows above, because there the two differ BY DESIGN -- a document turned into
-// another language is cleared by its own next edit, not by another document's.)
+// another language is cleared by its own next edit, not by another document's.) Both debouncers are built as the adapter builds its own, with the delay AND `TYPING_MAX_WAIT_MS` (both, because the rows compare the two
+// worlds' timer counts at every step, and a window on one side only is a second timer there). No sequence of the rows below is long enough for the window to come due, so in them it is a pending timer and never a run;
+// `typing-path-equivalence.test.ts` drives it.
 describe("Session 343 -- the tint after the debounce is what the old per-edit refresh of every editor left (the oracle: the base's refresh() loop and handler)", () => {
   type Event = "edit Q1" | "edit Q2" | "edit P" | "switch editor" | "hide Q2" | "show Q2" | "split Q1" | "unsplit Q1" | "reload" | "pause 60" | "pause 200";
   const EVENTS: readonly Event[] = ["edit Q1", "edit Q2", "edit P", "switch editor", "hide Q2", "show Q2", "split Q1", "unsplit Q1", "reload", "pause 60", "pause 200"];
@@ -486,13 +488,13 @@ describe("Session 343 -- the tint after the debounce is what the old per-edit re
         oldApplies++;
       }
     };
-    const typingOld = createKeyedDebouncer({ timers: clockOld, delayMs: TYPING_DEBOUNCE_MS });
+    const typingOld = createKeyedDebouncer({ timers: clockOld, delayMs: TYPING_DEBOUNCE_MS, maxWaitMs: TYPING_MAX_WAIT_MS });
     const isVisible = (doc: FakeDocument): boolean => visible.some((editor) => editor.doc === doc);
     const oldOnDocument = (doc: FakeDocument): void => {
       if (isVisible(doc)) typingOld.schedule(doc.key, () => oldRefresh());
     };
 
-    // ---- The NEW wiring: how the adapter builds the refresher and calls it. ----
+    // ---- The NEW wiring: how the adapter builds the refresher and its debouncer (the delay and `TYPING_MAX_WAIT_MS`, as `registerCellBackgroundFeature` does) and calls them. ----
     const refresher = createCellBackgroundRefresher<FakeEditor, number>({
       visible: () => visible.map((editor) => ({ key: editor.doc.key, languageId: editor.doc.languageId, editor })),
       rangesFor: (editor) => rangesOf(editor.doc),
@@ -501,7 +503,7 @@ describe("Session 343 -- the tint after the debounce is what the old per-edit re
         newApplies++;
       },
     });
-    const typingNew = createKeyedDebouncer({ timers: clockNew, delayMs: TYPING_DEBOUNCE_MS });
+    const typingNew = createKeyedDebouncer({ timers: clockNew, delayMs: TYPING_DEBOUNCE_MS, maxWaitMs: TYPING_MAX_WAIT_MS });
     const newOnDocument = (doc: FakeDocument): void => {
       if (isVisible(doc)) typingNew.schedule(doc.key, () => refresher.refreshAfterEdit({ key: doc.key, languageId: doc.languageId }));
     };
