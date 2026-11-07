@@ -242,6 +242,10 @@ function spinHeaderAfterQuote(cursor: Cursor): boolean {
  * line, on 25.6 million document and file-name pairs (21.2 million drawn exhaustively over four alphabets, 2.5 million in the two-edit neighbourhood of eight scripts, 1.8 million for every
  * UTF-16 code unit in the gaps of a script, and 120,000 seeded documents) and on the sizes a cap would fall between (lines of up to 3,000,000 columns; documents of up to 5,000,000 lines); and it
  * counts the lines read, against a model of "decided" built from the oracle alone.
+ *
+ * THE COST of a document that is read to its end (the shapes above) is one `lineAt` per line and one `indexOf` or `skipSpace` pass over each line's text. The rows COUNT those reads and time nothing,
+ * and the document they hand over builds nothing per `lineAt`, so what a real `vscode.TextLine` costs on these rare documents was not measured in a host; a `TextLine` built eagerly (ranges and
+ * positions per call) could make them slower than the old join.
  */
 export function isRenderScriptDocument(fileName: string, document: RenderScriptSource): boolean {
   const ext = extensionOf(fileName);
