@@ -168,13 +168,24 @@ interface PendingBibliography {
  *
  * ⚠ **THE BLIND SPOT.** A file rewritten to the SAME size that leaves the modification time, the size AND the change time as
  * they were is not seen. The change time cannot be set from user space, so what is left is a rewrite within the same tick
- * of the file system's clock (within one millisecond, at its granularity), as with any build tool that decides by stat;
- * a tool that sets the MODIFICATION time itself (cp -p, rsync -t, touch -r, tar, unzip) moves the change time and is seen
- * (Session 343's review round: the first spelling kept two numbers and missed it). `ino` is not part of the signature: a
- * symlink retargeted to a same-size file with the same three numbers is served as the old file. `===` is the comparison,
- * so a `NaN` (a stat that cannot say) is never equal to itself and the file is read at every ask, and `0` and `-0` are
- * one signature. A stat that does not carry the first two numbers is no signature at all: the file is read at every ask
- * and nothing is kept for it. A change time the stat does not carry (`undefined`) is equal to itself.
+ * of the file system's clock, as with any build tool that decides by stat. The tick is the file system's. Measured in
+ * Session 344 (probes in fresh processes): on APFS none of 2,000 pairs of same-size files written back to back carried one
+ * change time (of 2,000 other pairs, given one modification time by two consecutive `utimes` calls, the nearest change times
+ * were 8 microseconds apart); on an HFS+ volume, whose timestamps are whole seconds, all 300 pairs did.
+ *
+ * Not blind: a tool that sets the MODIFICATION time itself (cp -p, rsync -t, touch -r, tar, unzip) moves the change time and
+ * is seen (Session 343's review round: the first spelling kept two numbers and missed it). So is a change of permissions:
+ * `chmod 000` leaves the modification time and the size alone, but a chmod always moves the change time (by 3.4 to 3.5 ms
+ * in each of three fresh processes on APFS), so the cache reads again, the read fails and the file adds nothing, as in
+ * `readCitations`. And so is a symbolic link retargeted to another file of the same size: `stat` follows the link, so its
+ * numbers are its target's, and the retarget goes unseen only when the two targets carry the same modification time AND the
+ * same change time, that is, were last changed within one tick of the clock. On APFS no pair of 2,000 did; on the HFS+ volume
+ * all 300 did, and a link retargeted between such a pair was served as the old file. `ino` would tell those two apart and is
+ * not part of the signature (Session 343's decision, kept: the case needs that coincidence of ticks).
+ *
+ * `===` is the comparison, so a `NaN` (a stat that cannot say) is never equal to itself and the file is read at every ask,
+ * and `0` and `-0` are one signature. A stat that does not carry the first two numbers is no signature at all: the file is
+ * read at every ask and nothing is kept for it. A change time the stat does not carry (`undefined`) is equal to itself.
  *
  * The cache is keyed by the file's ABSOLUTE path, so two documents that declare one file by two spellings share an
  * entry, and it holds at most {@link CITATION_CACHE_MAX_FILES} files, least recently used first out (a `Map` iterates in
