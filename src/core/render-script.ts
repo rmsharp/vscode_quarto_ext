@@ -216,24 +216,27 @@ function spinHeaderAfterQuote(cursor: Cursor): boolean {
 }
 
 /**
- * `isRenderScript(fileName, document's text)` for a document read line by line (BACKLOG: "What Session 342's review round found beside the typing-path cures", part (8)(a), SIB-08),
- * and the same answer for every document and file name: `isRenderScript(fileName, lines.join(eol))` for either end of line, with `lines` the text of lines 0 to `lineCount - 1`.
+ * `isRenderScript(fileName, text)` for a document read line by line (BACKLOG: "What Session 342's review round found beside the typing-path cures", part (8)(a), SIB-08).
+ * It is meant to answer exactly what `isRenderScript(fileName, lines.join(eol))` answers for either end of line, with `lines` the text of lines 0 to `lineCount - 1`; the evidence is
+ * at the end of this comment.
  *
  * WHY IT EXISTS. `vscode.TextDocument.getText()` joins the whole buffer into a new string on every call, and the render-script predicate asked it on every keystroke of a `.py`, `.jl` or `.r`
  * document, to answer a question about the FIRST LINES: both patterns are anchored at the start. This reads `lineAt(i).text` for the lines the answer needs and stops.
  *
- * THE ALGORITHM, and why it is this one. A hand-written left-to-right scan of the two patterns, with no backtracking, one pass, each line fetched once and in order:
+ * THE ALGORITHM, and why it is this one. A hand-written left-to-right scan of the two patterns, one pass, each line fetched once and in order:
  *  - Both patterns begin `^\s*#`, and what follows the `#` tells the two apart (`'` is the spin header, anything else the percent cell), so one scan serves both. The opener of each
  *    pattern is deterministic: at every step the characters that could continue it (whitespace, `#`, `%`, `'`, `-`, `[`) are disjoint from the ones that could not, so it needs no backtracking.
- *  - A line break is one whitespace character (`"\n"` and `"\r\n"` both are, and no pattern counts them), so `\s*` and `\s+` run over line breaks, and a literal (`%%`, `[markdown]`,
+ *  - A line break is whitespace (`"\n"` and `"\r\n"` both are, and neither pattern counts how much), so `\s*` and `\s+` run over line breaks, and a literal (`%%`, `[markdown]`,
  *    `---`, `#'`) never does. That is why the end of the line is not an end of the scan, and why a lone `%` at the end of a line is a rejection without a read of the next line.
  *  - The percent cell is decided by the line that holds its `]`, or by the first character that cannot continue it. The spin header's closer `#'\s*---` may be ANYWHERE later in the document,
- *    so a header opened and never closed reads to the end, exactly as `SPIN_HEADER.test` scanned to the end: only that rare file reads the document. `indexOf("#'")` finds the next candidate
- *    in a line, each failed candidate resumes where it failed, so a line is scanned once: no shape is quadratic (a million blank lines, a million lines of `#'`).
+ *    so a header opened and never closed reads to the end, as the regular expression scans to the end: only that rare file reads the document. `indexOf("#'")` finds the next candidate
+ *    in a line and a failed candidate resumes where it failed, so the closer search passes over no character twice and no line is fetched twice (rows read a million blank lines and a
+ *    million lines of `#'` and `#' x` once each).
  *  - A prefix-by-prefix test of the regular expressions was not taken: it re-reads, and a regular expression cannot say "not yet" from "never".
  *
- * PROVED, not argued: `test/unit/s344-render-script-lazy.test.ts` holds it to the old function (kept there verbatim as the oracle) on 21.2 million document and file-name pairs over four alphabets,
- * the two-edit neighbourhood of eight scripts, every UTF-16 code unit in the gaps of a script and 120,000 seeded documents, each with both ends of line; and counts the lines read.
+ * THE EVIDENCE is a differential, not a proof: `test/unit/s344-render-script-lazy.test.ts` holds it to the old function (kept there verbatim as the oracle), each document with both ends of
+ * line, on 21.2 million document and file-name pairs drawn exhaustively over four alphabets, the two-edit neighbourhood of eight scripts, every UTF-16 code unit in the gaps of a script and
+ * 120,000 seeded documents; and it counts the lines read, against a model of "decided" built from the oracle alone.
  */
 export function isRenderScriptDocument(fileName: string, document: RenderScriptSource): boolean {
   const ext = extensionOf(fileName);
