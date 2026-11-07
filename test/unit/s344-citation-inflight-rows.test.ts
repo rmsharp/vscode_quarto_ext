@@ -95,6 +95,28 @@ describe("Session 344 -- asks that overlap share ONE read and ONE parse", () => 
     expect(answers[0]).toEqual(await readCitations(["a.bib"], DIR, fs.readFile));
   });
 
+  it("a file read once and then EDITED, asked five times at once: the five asks meet the stale entry and share ONE read, as five first asks to a file with no entry do", async () => {
+    const fs = fakeFs({ "a.bib": { content: bibtex([["v1", "One"]]), mtimeMs: 10 } });
+    const cache = createCitationCache(fs);
+    expect(keys(await cache.read(["a.bib"], DIR))).toEqual(["v1"]);
+    fs.set("a.bib", { content: bibtex([["v2", "Two"]]), mtimeMs: 20 });
+    const answers = await Promise.all([1, 2, 3, 4, 5].map(() => cache.read(["a.bib"], DIR)));
+    expect(answers.map(keys)).toEqual([["v2"], ["v2"], ["v2"], ["v2"], ["v2"]]);
+    expect(fs.reads()).toBe(2); // the first read, and ONE for the five
+  });
+
+  for (const [label, file, count] of [
+    ["an EMPTY file (size 0)", { content: "", mtimeMs: 10 }, 0],
+    ["a file stamped with the epoch (modification time 0)", { content: bibtex([["e1", "Epoch"]]), mtimeMs: 0 }, 1],
+  ] as const) {
+    it(`five overlapping first asks to ${label} read it once: a zero is a signature like any other number`, async () => {
+      const fs = fakeFs({ "e.bib": file });
+      const cache = createCitationCache(fs);
+      const answers = await Promise.all([1, 2, 3, 4, 5].map(() => cache.read(["e.bib"], DIR)));
+      expect([fs.reads(), answers.map((answer) => answer.length)]).toEqual([1, [count, count, count, count, count]]);
+    });
+  }
+
   it("a file rewritten between two asks' stats while a read is in flight is read AGAIN: the second ask is never served what the read started under the old numbers parsed (modification time)", async () => {
     const fs = fakeFs({ "a.bib": { content: bibtex([["old1", "Old"]]), mtimeMs: 10 } });
     const cache = createCitationCache(fs);
@@ -140,6 +162,27 @@ describe("Session 344 -- asks that overlap share ONE read and ONE parse", () => 
     expect((await second).map((c) => c.key)).toEqual(["new1"]);
     expect(fs.reads()).toBe(2);
   });
+
+  // The share test is an EQUALITY on each of the three numbers: a file replaced by one whose number is OLDER (cp -p, rsync -t, tar, unzip from an older copy) or SMALLER is as much a change as a later or larger one.
+  // The first two rows are on a stat without a change time (the contract of the pure API: compared on the two numbers it has; `fs.stat` always carries one, which moves too), the third is on one that carries it.
+  for (const [label, was, now] of [
+    ["modification time", { mtimeMs: 20, size: 100 }, { mtimeMs: 10, size: 100 }],
+    ["size", { mtimeMs: 10, size: 101 }, { mtimeMs: 10, size: 100 }],
+    ["change time", { mtimeMs: 10, size: 100, ctimeMs: 501 }, { mtimeMs: 10, size: 100, ctimeMs: 500 }],
+  ] as const) {
+    it(`a file replaced while a read is in flight, its ${label} going DOWN, is read again: the second ask is never handed what the read started under the higher number parsed`, async () => {
+      const fs = fakeFs({ "a.bib": { content: bibtex([["old1", "Old"]]), ...was } });
+      const cache = createCitationCache(fs);
+      fs.hold();
+      const first = cache.read(["a.bib"], DIR);
+      await flush();
+      fs.set("a.bib", { content: bibtex([["new1", "New"]]), ...now });
+      const second = cache.read(["a.bib"], DIR);
+      await flush();
+      fs.openAll();
+      expect([keys(await first), keys(await second), fs.reads()]).toEqual([["old1"], ["new1"], 2]);
+    });
+  }
 
   it("a stat that cannot say (no numbers, a string, a NaN in any of the three) is no signature to share under: three overlapping asks read three times, as they would without the sharing", async () => {
     const odd: unknown[] = [{}, { mtimeMs: 1 }, { size: 1 }, { mtimeMs: "1", size: "1" }, { mtimeMs: null, size: null }, { mtimeMs: NaN, size: 3 }, { mtimeMs: 1, size: NaN }, { mtimeMs: 1, size: 3, ctimeMs: NaN }];
@@ -201,6 +244,45 @@ describe("Session 344 -- asks that overlap share ONE read and ONE parse", () => 
     expect(fs.reads()).toBe(before);
   });
 
+  it("a superseded read that settles FIRST, while the newer one is still in flight, keeps no entry: the file back at R1's numbers (other content, the same size) is read again, not served what R1 parsed", async () => {
+    const fs = fakeFs({ "a.bib": { content: bibtex([["aaaa", "A"]]), mtimeMs: 10 } });
+    const cache = createCitationCache(fs);
+    fs.hold();
+    const first = cache.read(["a.bib"], DIR);
+    await flush();
+    fs.set("a.bib", { content: bibtex([["cccc", "C"]]), mtimeMs: 20 });
+    const second = cache.read(["a.bib"], DIR);
+    await flush();
+    expect(fs.reads()).toBe(2); // the premise: R1 under time 10 and R2 under time 20, both in flight
+    fs.open(0);
+    expect(keys(await first)).toEqual(["aaaa"]);
+    fs.hold(false);
+    fs.set("a.bib", { content: bibtex([["bbbb", "B"]]), mtimeMs: 10 }); // R1's numbers again, as bytes of the same length
+    expect(keys(await cache.read(["a.bib"], DIR))).toEqual(["bbbb"]);
+    fs.openAll();
+    await second;
+  });
+
+  it("the same, seen on a full cache: a superseded read that settles first takes no slot, so a file the bound would drop for it is still a hit while the newer read is in flight", async () => {
+    const fs = fakeFs(Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`f${i}.bib`, { content: bibtex([[`k${i}`, `title ${i}`]]), mtimeMs: 1 + i }])));
+    const cache = createCitationCache(fs);
+    for (let i = 0; i < CITATION_CACHE_MAX_FILES; i++) await cache.read([`f${i}.bib`], DIR);
+    expect(fs.reads()).toBe(16); // the cache holds f0 to f15
+    fs.hold();
+    const first = cache.read(["f16.bib"], DIR);
+    await flush();
+    fs.set("f16.bib", { content: bibtex([["k16", "rewritten"]]), mtimeMs: 100 });
+    const second = cache.read(["f16.bib"], DIR);
+    await flush();
+    expect(fs.reads()).toBe(18); // the premise: R1 and R2 of f16 in flight
+    fs.open(0);
+    await first;
+    expect(keys(await cache.read(["f0.bib"], DIR))).toEqual(["k0"]);
+    expect(fs.reads()).toBe(18); // f0 was not dropped to make room for R1's entry
+    fs.openAll();
+    expect(keys(await second)).toEqual(["k16"]);
+  });
+
   it("a superseded read that FAILS after the newer read settled does not drop the newer read's entry: R2 settles, then R1 fails (its ask adds nothing, as it would alone), and the next ask under the new numbers is a hit", async () => {
     const fs = fakeFs({ "a.bib": { content: bibtex([["old1", "Old"]]), mtimeMs: 10 } });
     const cache = createCitationCache(fs);
@@ -248,6 +330,20 @@ describe("Session 344 -- asks that overlap share ONE read and ONE parse", () => 
     const cache = createCitationCache(fs);
     const [a, b] = await Promise.all([cache.read(["a.bib"], DIR), cache.read(["b.bib"], DIR)]);
     expect([keys(a), keys(b), fs.reads()]).toEqual([["a1"], ["b1"], 2]);
+  });
+
+  it("two files whose paths differ only in CASE, with the same three numbers, asked at once, are two reads with two answers: a read is shared by the whole path, not by a lower-cased spelling of it", async () => {
+    const fs = fakeFs({ "Refs.bib": { content: bibtex([["upper", "U"]]), mtimeMs: 7, size: 100, ctimeMs: 9 }, "refs.bib": { content: bibtex([["lower", "L"]]), mtimeMs: 7, size: 100, ctimeMs: 9 } });
+    const cache = createCitationCache(fs);
+    const [a, b] = await Promise.all([cache.read(["Refs.bib"], DIR), cache.read(["refs.bib"], DIR)]);
+    expect([keys(a), keys(b), fs.reads()]).toEqual([["upper"], ["lower"], 2]);
+  });
+
+  it("two files of ONE name in two directories, with the same three numbers, asked at once, are two reads with two answers: a read is shared by the whole path, not by its base name", async () => {
+    const fs = fakeFs({ "x/refs.bib": { content: bibtex([["xx", "X"]]), mtimeMs: 7, size: 100, ctimeMs: 9 }, "y/refs.bib": { content: bibtex([["yy", "Y"]]), mtimeMs: 7, size: 100, ctimeMs: 9 } });
+    const cache = createCitationCache(fs);
+    const [a, b] = await Promise.all([cache.read(["x/refs.bib"], DIR), cache.read(["y/refs.bib"], DIR)]);
+    expect([keys(a), keys(b), fs.reads()]).toEqual([["xx"], ["yy"], 2]);
   });
 
   it("two caches share nothing even while a read is in flight: the same file asked of each at once is read twice", async () => {
@@ -313,6 +409,19 @@ describe("Session 344 -- nothing is left in flight, and the bound is the bound i
     expect(fs.reads()).toBe(17);
     await cache.read(["f0.bib"], DIR);
     expect(fs.reads()).toBe(18);
+  });
+
+  it("the reads in flight are not bounded by the cache's 16 files: 17 files, each asked twice, all in flight at once (the reads held open), are 17 reads", async () => {
+    const fs = many();
+    const cache = createCitationCache(fs);
+    fs.hold();
+    const asks: Array<Promise<unknown>> = [];
+    for (let i = 0; i <= 16; i++) asks.push(cache.read([`f${i}.bib`], DIR), cache.read([`f${i}.bib`], DIR));
+    await flush();
+    expect(fs.reads()).toBe(17); // the premise: 17 reads in flight for 34 asks
+    fs.openAll();
+    await Promise.all(asks);
+    expect(fs.reads()).toBe(17);
   });
 
   it("a read that failed leaves no record behind, whatever the number of sharers: it is attempted again at every later ask, and asks that overlap the retry share the RETRY", async () => {

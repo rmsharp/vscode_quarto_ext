@@ -216,6 +216,86 @@
   "why": "EQUIVALENT: a read with no signature is recorded nowhere, so the edit swallows its failure as a superseded read's, and the commit that follows takes the `!known` branch, which drops the entry of the file and answers [] exactly as the catch of `read` did; same reads and same answers on 3 histories (an entry, then a stat that cannot say with a read that fails, then the first numbers back; a NaN size that fails twice and then reads; an entry, a string-valued stat that fails, the first numbers, a null stat, the first numbers). The `known &&` is kept because it says what the guard means"
  },
  {
+  "name": "I28 createCitationCache: the share test takes a modification time at least the read's",
+  "file": "src/core/citations.ts",
+  "from": "running.mtimeMs === mtimeMs && ",
+  "to": "running.mtimeMs >= mtimeMs && ",
+  "expect": "killed",
+  "why": "a file replaced by one with an OLDER time (cp -p, rsync -t, tar, unzip from an older copy), the other numbers equal, is handed the read's content; killed by the modification-time row of 'going DOWN' (I06 is the mirror: at most)"
+ },
+ {
+  "name": "I29 createCitationCache: the share test takes a size at least the read's",
+  "file": "src/core/citations.ts",
+  "from": " && running.size === size",
+  "to": " && running.size >= size",
+  "expect": "killed",
+  "why": "a file replaced by a SMALLER one, the other numbers equal, is handed the read's content; killed by the size row of 'going DOWN' (the mirror, at most, is killed by the size row)"
+ },
+ {
+  "name": "I30 createCitationCache: the share test takes a change time at least the read's",
+  "file": "src/core/citations.ts",
+  "from": " && running.ctimeMs === ctimeMs",
+  "to": " && (running.ctimeMs ?? -Infinity) >= (ctimeMs ?? -Infinity)",
+  "expect": "killed",
+  "why": "a change time that STEPS BACK, the other numbers equal, is handed the read's content; killed by the change-time row of 'going DOWN' (the mirror, at most, is killed by the change-time row)"
+ },
+ {
+  "name": "I31 createCitationCache: an ask shares a read only if it has no stale entry of the file",
+  "file": "src/core/citations.ts",
+  "from": "if (running !== undefined && running.mtimeMs",
+  "to": "if (kept === undefined && running !== undefined && running.mtimeMs",
+  "expect": "killed",
+  "why": "the answers are the same but a file that was read once and then edited costs one read and one parse per overlapping ask, not one: the cost the cure exists to remove; killed by the row of a file read once and then edited"
+ },
+ {
+  "name": "I32 createCitationCache: reads are recorded and shared by the lower-case path",
+  "file": "src/core/citations.ts",
+  "from": "const pending = new Map<string, PendingBibliography>();",
+  "to": "const pending = new (class extends Map<string, PendingBibliography> { get(k: string) { return super.get(k.toLowerCase()); } set(k: string, v: PendingBibliography) { return super.set(k.toLowerCase(), v); } delete(k: string) { return super.delete(k.toLowerCase()); } })();",
+  "expect": "killed",
+  "why": "two files whose paths differ only in case, with the same three numbers, asked at once: the second ask is handed the first file's citations; killed by the case row"
+ },
+ {
+  "name": "I33 createCitationCache: reads are recorded and shared by the file's base name",
+  "file": "src/core/citations.ts",
+  "from": "const pending = new Map<string, PendingBibliography>();",
+  "to": "const pending = new (class extends Map<string, PendingBibliography> { get(k: string) { return super.get(path.basename(k)); } set(k: string, v: PendingBibliography) { return super.set(path.basename(k), v); } delete(k: string) { return super.delete(path.basename(k)); } })();",
+  "expect": "killed",
+  "why": "x/refs.bib and y/refs.bib with the same three numbers, asked at once: the second ask is handed the first file's citations; killed by the base-name row (I05 and the path.dirname key are killed by the different-files row)"
+ },
+ {
+  "name": "I34 createCitationCache: a read is not shared with an ask that stats a size of 0",
+  "file": "src/core/citations.ts",
+  "from": "if (running !== undefined && running.mtimeMs",
+  "to": "if (size > 0 && running !== undefined && running.mtimeMs",
+  "expect": "killed",
+  "why": "an empty file is read once per overlapping ask (nothing to parse, so the cost is the reads alone); killed by the empty-file row"
+ },
+ {
+  "name": "I35 createCitationCache: a read is not shared with an ask that stats a modification time of 0",
+  "file": "src/core/citations.ts",
+  "from": "if (running !== undefined && running.mtimeMs",
+  "to": "if (mtimeMs !== 0 && running !== undefined && running.mtimeMs",
+  "expect": "killed",
+  "why": "a file stamped with the epoch (a reproducible build) is read and parsed once per overlapping ask: the full cost of the cure's problem; killed by the epoch row"
+ },
+ {
+  "name": "I36 createCitationCache: at most 16 reads are recorded at a time",
+  "file": "src/core/citations.ts",
+  "from": "if (known) pending.set(absolute, read);",
+  "to": "if (known && pending.size < 16) pending.set(absolute, read);",
+  "expect": "killed",
+  "why": "the 17th read in flight is offered to no one, so its second ask reads again (18 reads for 17 files); killed by the 17-files-in-flight row (16 files in flight are the same in both)"
+ },
+ {
+  "name": "I37 createCitationCache: any read recorded for the file lets a settling read keep its entry",
+  "file": "src/core/citations.ts",
+  "from": "if (!known || pending.get(absolute) === read) {",
+  "to": "if (!known || pending.has(absolute)) {",
+  "expect": "killed",
+  "why": "R1 settling while R2 is in flight commits an entry under its old numbers: the file back at them is served R1's content, and on a full cache the commit drops another file early; killed by the two rows of a superseded read that settles first"
+ },
+ {
   "name": "T01 the stale model never rewrites a file",
   "file": "test/unit/s344-citation-inflight-rows.test.ts",
   "from": "} else if (roll < 0.75) {\n          write(name);",
