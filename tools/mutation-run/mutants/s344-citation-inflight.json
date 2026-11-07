@@ -1,0 +1,210 @@
+[
+ {
+  "name": "I01 createCitationCache: no read is ever shared",
+  "file": "src/core/citations.ts",
+  "from": "if (running !== undefined && running.mtimeMs",
+  "to": "if (false && running !== undefined && running.mtimeMs",
+  "expect": "killed",
+  "why": "N overlapping first asks read N times; killed by the five-asks row, the group model and the real-file row"
+ },
+ {
+  "name": "I02 createCitationCache: the share test leaves the modification time out",
+  "file": "src/core/citations.ts",
+  "from": "running.mtimeMs === mtimeMs && ",
+  "to": "",
+  "expect": "killed",
+  "why": "an ask that stat'ed a later modification time is handed the older read; killed by the modification-time row and the stale model"
+ },
+ {
+  "name": "I03 createCitationCache: the share test leaves the size out",
+  "file": "src/core/citations.ts",
+  "from": " && running.size === size",
+  "to": "",
+  "expect": "killed",
+  "why": "an ask that stat'ed another size is handed the older read; killed by the size row"
+ },
+ {
+  "name": "I04 createCitationCache: the share test leaves the change time out",
+  "file": "src/core/citations.ts",
+  "from": " && running.ctimeMs === ctimeMs",
+  "to": "",
+  "expect": "killed",
+  "why": "an ask that stat'ed another change time is handed the older read; killed by the change-time row"
+ },
+ {
+  "name": "I05 createCitationCache: the share test looks at ANY read under way, whatever its file",
+  "file": "src/core/citations.ts",
+  "from": "const running = pending.get(absolute);",
+  "to": "const running = [...pending.values()][0];",
+  "expect": "killed",
+  "why": "two different files with the same three numbers, asked at once, are handed one file's citations; killed by the two-files row"
+ },
+ {
+  "name": "I06 createCitationCache: the share test is an inequality on the modification time",
+  "file": "src/core/citations.ts",
+  "from": "running.mtimeMs === mtimeMs && ",
+  "to": "running.mtimeMs <= mtimeMs && ",
+  "expect": "killed",
+  "why": "an ask that stat'ed a LATER time is handed the older read, one that stat'ed an earlier time is not; killed by the modification-time row (the later time)"
+ },
+ {
+  "name": "I07 createCitationCache: the record keeps a modification time of 0",
+  "file": "src/core/citations.ts",
+  "from": "const read: PendingBibliography = { mtimeMs, size, ctimeMs, citations: (async () =>",
+  "to": "const read: PendingBibliography = { mtimeMs: 0, size, ctimeMs, citations: (async () =>",
+  "expect": "killed",
+  "why": "no ask's numbers equal the record's, so nothing is shared; killed by the five-asks row"
+ },
+ {
+  "name": "I08 createCitationCache: the record keeps a size of -1",
+  "file": "src/core/citations.ts",
+  "from": "const read: PendingBibliography = { mtimeMs, size, ctimeMs, citations: (async () =>",
+  "to": "const read: PendingBibliography = { mtimeMs, size: -1, ctimeMs, citations: (async () =>",
+  "expect": "killed",
+  "why": "no ask's size equals the record's, so nothing is shared; killed by the five-asks row"
+ },
+ {
+  "name": "I09 createCitationCache: the record keeps no change time",
+  "file": "src/core/citations.ts",
+  "from": "const read: PendingBibliography = { mtimeMs, size, ctimeMs, citations: (async () =>",
+  "to": "const read: PendingBibliography = { mtimeMs, size, ctimeMs: undefined, citations: (async () =>",
+  "expect": "killed",
+  "why": "a real stat carries a change time, which the record does not: nothing is shared on a real file system, while the stand-ins that carry none still share; killed by the real-file row"
+ },
+ {
+  "name": "I10 createCitationCache: a read with no signature is recorded too",
+  "file": "src/core/citations.ts",
+  "from": "    if (known) pending.set(absolute, read);",
+  "to": "    pending.set(absolute, read);",
+  "expect": "killed",
+  "why": "asks whose stat cannot say all equal the record's undefineds and share one read; killed by the stat-that-cannot-say row"
+ },
+ {
+  "name": "I11 createCitationCache: no read is ever recorded",
+  "file": "src/core/citations.ts",
+  "from": "    if (known) pending.set(absolute, read);",
+  "to": "    void read;",
+  "expect": "killed",
+  "why": "nothing is shared; killed by the five-asks row (and the commit never happens: every hit row)"
+ },
+ {
+  "name": "I12 createCitationCache: a newer read does not take the record of an older one",
+  "file": "src/core/citations.ts",
+  "from": "    if (known) pending.set(absolute, read);",
+  "to": "    if (known && !pending.has(absolute)) pending.set(absolute, read);",
+  "expect": "killed",
+  "why": "R2 under the new numbers is never recorded, so an ask under them cannot join it, and R2 does not keep its entry; killed by the superseded-read rows"
+ },
+ {
+  "name": "I13 createCitationCache: the record is made once for all caches",
+  "file": "src/core/citations.ts",
+  "from": "export function createCitationCache(options: CitationCacheOptions): CitationCache {\n  const entries = new Map<string, CachedBibliography>();\n  const pending = new Map<string, PendingBibliography>();",
+  "to": "const pending = new Map<string, PendingBibliography>();\nexport function createCitationCache(options: CitationCacheOptions): CitationCache {\n  const entries = new Map<string, CachedBibliography>();",
+  "expect": "killed",
+  "why": "two caches asked at once for the same file share a read; killed by the two-caches row"
+ },
+ {
+  "name": "I14 createCitationCache: a settled read stays recorded",
+  "file": "src/core/citations.ts",
+  "from": "      if (pending.get(absolute) === read) pending.delete(absolute); // settled, whichever way: nothing is left in flight",
+  "to": "      void read; // settled, whichever way: nothing is left in flight",
+  "expect": "killed",
+  "why": "a read that settled stays recorded, so a file the bound dropped is handed the settled promise at the next ask under the same numbers and never read again; killed by the 17th-file row of s343-citation-cache-rows and by the row of a stat that stops saying"
+ },
+ {
+  "name": "I15 createCitationCache: a settling read removes whatever is recorded for the file",
+  "file": "src/core/citations.ts",
+  "from": "      if (pending.get(absolute) === read) pending.delete(absolute); // settled",
+  "to": "      pending.delete(absolute); // settled",
+  "expect": "killed",
+  "why": "R1 settling removes R2's record, so an ask under R2's numbers starts a third read; killed by the superseded-read row"
+ },
+ {
+  "name": "I16 createCitationCache: a read that FAILED stays recorded",
+  "file": "src/core/citations.ts",
+  "from": "      return citations;\n    } finally {\n      if (pending.get(absolute) === read) pending.delete(absolute); // settled, whichever way: nothing is left in flight",
+  "to": "      if (pending.get(absolute) === read) pending.delete(absolute);\n      return citations;\n    } finally {\n      void read;",
+  "expect": "killed",
+  "why": "only a read that succeeded is removed; the next ask shares the rejected promise and the file is never read again; killed by the shared-failure row and by the locked-file row of s343-citation-cache-rows"
+ },
+ {
+  "name": "I17 createCitationCache: the record is removed when the read starts, not when it settles",
+  "file": "src/core/citations.ts",
+  "from": "    if (known) pending.set(absolute, read);",
+  "to": "    if (known) pending.set(absolute, read);\n    pending.delete(absolute);",
+  "expect": "killed",
+  "why": "nothing is shared and no read keeps its entry; killed by the five-asks row"
+ },
+ {
+  "name": "I18 createCitationCache: a superseded read keeps its entry too",
+  "file": "src/core/citations.ts",
+  "from": "if (!known || pending.get(absolute) === read) {",
+  "to": "if (true) {",
+  "expect": "killed",
+  "why": "R1 settling after R2 replaces R2's entry with the older numbers and content; killed by the superseded-read-settles-last row"
+ },
+ {
+  "name": "I19 createCitationCache: a read with no signature needs a record to touch the entries",
+  "file": "src/core/citations.ts",
+  "from": "if (!known || pending.get(absolute) === read) {",
+  "to": "if (pending.get(absolute) === read) {",
+  "expect": "killed",
+  "why": "a file whose stat stops saying keeps its older entry, and is served from it when the numbers come back; killed by the stat-stops-saying row"
+ },
+ {
+  "name": "I20 createCitationCache: no read keeps an entry",
+  "file": "src/core/citations.ts",
+  "from": "if (!known || pending.get(absolute) === read) {",
+  "to": "if (!known) {",
+  "expect": "killed",
+  "why": "every ask reads and parses again; killed by the count rows of s343-citation-cache-rows and by the superseded-read row"
+ },
+ {
+  "name": "I21 createCitationCache: an ask that shares is handed a copy of each citation",
+  "file": "src/core/citations.ts",
+  "from": "      return running.citations;\n",
+  "to": "      return running.citations.then((list) => list.map((citation) => ({ ...citation })));\n",
+  "expect": "killed",
+  "why": "the lists hold equal objects and not the same ones (a second parse's worth of objects), and they are not frozen; killed by the five-asks row (identity and frozen)"
+ },
+ {
+  "name": "I22 createCitationCache: a failed read is turned into an empty answer",
+  "file": "src/core/citations.ts",
+  "from": "citations: (async () => parseCitations(await options.readFile(absolute)).map((citation) => Object.freeze(citation)))() };",
+  "to": "citations: (async () => { try { return parseCitations(await options.readFile(absolute)).map((citation) => Object.freeze(citation)); } catch { return []; } })() };",
+  "expect": "killed",
+  "why": "a locked file is kept as empty under its numbers and not read again; killed by the shared-failure row and by the locked-file row of s343-citation-cache-rows"
+ },
+ {
+  "name": "I23 createCitationCache: a shared read answers only the asks that came after the first",
+  "file": "src/core/citations.ts",
+  "from": "      return citations;\n    } finally {",
+  "to": "      return citations.slice(1);\n    } finally {",
+  "expect": "killed",
+  "why": "every ask loses its first citation; killed by the five-asks row and by the count rows of s343-citation-cache-rows"
+ },
+ {
+  "name": "I24 createCitationCache: a read under way is shared by path alone",
+  "file": "src/core/citations.ts",
+  "from": "if (running !== undefined && running.mtimeMs === mtimeMs && running.size === size && running.ctimeMs === ctimeMs) {",
+  "to": "if (running !== undefined) {",
+  "expect": "killed",
+  "why": "an ask that stat'ed other numbers is handed the older read, content included; killed by the three one-number rows, and by the stale model alone (run with only the two seeded models selected)"
+ },
+ {
+  "name": "T01 the stale model never rewrites a file",
+  "file": "test/unit/s344-citation-inflight-rows.test.ts",
+  "from": "} else if (roll < 0.75) {\n          write(name);",
+  "to": "} else if (false) {\n          write(name);",
+  "expect": "killed",
+  "why": "no ask is answered after a rewrite, so the model proves nothing about staleness; killed by its guard on rewrites in flight"
+ },
+ {
+  "name": "T02 the stale model asks nothing",
+  "file": "test/unit/s344-citation-inflight-rows.test.ts",
+  "from": "if (roll < 0.5) {\n          const atAsk",
+  "to": "if (roll < 0) {\n          const atAsk",
+  "expect": "killed",
+  "why": "no ask is made; killed by its guard on the number of asks"
+ }
+]
