@@ -29,7 +29,7 @@
   "from": "export const TYPING_DEBOUNCE_MS = 150;",
   "to": "export const TYPING_DEBOUNCE_MS = 151;",
   "expect": "killed",
-  "why": "a gap of 150 ms becomes a stream the window bounds, and pays 30 evaluations in 30 s, not one an event"
+  "why": "a gap of 150 ms becomes a stream the window bounds, and pays 28 evaluations in 30 s (29 in all; its windows are 1,050 ms apart), not one an event (200 before it ends, 201 in all)"
  },
  {
   "name": "CS05 TYPING_DEBOUNCE_MS is 149",
@@ -61,7 +61,7 @@
   "from": "          }, maxWaitMs);\n          windows.set(key, window);",
   "to": "          }, delayMs);\n          windows.set(key, window);",
   "expect": "killed",
-  "why": "a stream pays an evaluation every delay: 200 in 30 s at a gap of 100 ms, not 30"
+  "why": "a stream pays an evaluation per window of the delay instead of the maximum wait: 200 in 30 s at gaps of 10 and 50 ms, 150 at 100 and 100 at 149, where the base pays 30, 30, 30 and 28"
  },
  {
   "name": "CS09 the window's timer is asked for twice the maximum wait",
@@ -93,7 +93,7 @@
   "from": "          window.timer = timers.setTimeout(() => {\n            dropTrailing(key);\n            settle(key, window.run);",
   "to": "          window.timer = timers.setTimeout(() => {\n            settle(key, window.run);",
   "expect": "killed",
-  "why": "the trailing timer runs the key again after every window: a stream under 150 ms apart pays about twice the evaluations, and the count after it ends is off by one"
+  "why": "the window's run forgets the trailing timer without clearing it, so after the first window the debounce stops cancelling (at a gap of 100 ms the runs are at 1,000, 1,050, 1,150, 1,250 ... one every 100 ms): a stream under 150 ms apart pays 7 to 10 times the evaluations (195 to 291 in 30 s at the gaps probed, 10, 50, 100, 120, 140 and 149 ms, against 26 to 30), and two runs after it ends where the base makes one"
  },
  {
   "name": "CS13 the window is armed twice",
