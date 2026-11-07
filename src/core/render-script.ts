@@ -236,8 +236,9 @@ function spinHeaderAfterQuote(cursor: Cursor): boolean {
  *  - A prefix-by-prefix test of the regular expressions was not taken: it re-reads, and a regular expression cannot say "not yet" from "never".
  *
  * THE EVIDENCE is a differential, not a proof: `test/unit/s344-render-script-lazy.test.ts` holds it to the old function (kept there verbatim as the oracle), each document with both ends of
- * line, on 21.2 million document and file-name pairs drawn exhaustively over four alphabets, the two-edit neighbourhood of eight scripts, every UTF-16 code unit in the gaps of a script and
- * 120,000 seeded documents; and it counts the lines read, against a model of "decided" built from the oracle alone.
+ * line, on 25.6 million document and file-name pairs (21.2 million drawn exhaustively over four alphabets, 2.5 million in the two-edit neighbourhood of eight scripts, 1.8 million for every
+ * UTF-16 code unit in the gaps of a script, and 120,000 seeded documents) and on the sizes a cap would fall between (lines of up to 3,000,000 columns; documents of up to 5,000,000 lines); and it
+ * counts the lines read, against a model of "decided" built from the oracle alone.
  */
 export function isRenderScriptDocument(fileName: string, document: RenderScriptSource): boolean {
   const ext = extensionOf(fileName);

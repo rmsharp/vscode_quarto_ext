@@ -93,7 +93,7 @@
   "from": "this.column < this.text.length ? isSpace(this.code()) : this.line + 1 < this.document.lineCount;",
   "to": "this.column < this.text.length ? isSpace(this.code()) : true;",
   "expect": "survives",
-  "why": "EQUIVALENT: atSpace is asked at the end of a line only by percentCellAfterHash, which calls skipSpace next; they differ only at the end of the LAST line, where `true` lets skipSpace run, find no line and answer false, which is the `return false` the `false` answer reaches. No answer and no read differs: survives the 21.2 million pairs and every count row"
+  "why": "EQUIVALENT: atSpace is asked at the end of a line only by percentCellAfterHash, which calls skipSpace next; they differ only at the end of the LAST line, where `true` lets skipSpace run, find no line and answer false, which is the `return false` the `false` answer reaches. No answer and no read differs: survives the whole differential (25.6 million pairs: the exhaustive, neighbourhood, code-unit and seeded passes) and every count row"
  },
  {
   "name": "K07 Cursor: atSpace looks one column past the end of the line",
@@ -125,7 +125,7 @@
   "from": "      if (!this.nextLine()) return false;\n",
   "to": "      if (!this.nextLine()) return true;\n",
   "expect": "survives",
-  "why": "EQUIVALENT: when the document ends skipSpace answers true at the end of the last line, where code() is NaN, and each caller's next test fails on NaN as it fails on the `false` (not a hash; fewer than two percent signs; not a bracket; no `---`; the closer search's indexOf finds nothing and nextLine() is false). No answer and no read differs: survives the 21.2 million pairs and every count row"
+  "why": "EQUIVALENT: when the document ends skipSpace answers true at the end of the last line, where code() is NaN, and each caller's next test fails on NaN as it fails on the `false` (not a hash; fewer than two percent signs; not a bracket; no `---`; the closer search's indexOf finds nothing and nextLine() is false). No answer and no read differs: survives the whole differential (25.6 million pairs: the exhaustive, neighbourhood, code-unit and seeded passes) and every count row"
  },
  {
   "name": "K11 Cursor: skipSpace skips one whitespace character and no more",
@@ -277,7 +277,7 @@
   "from": "  if (cursor.column < cursor.text.length) {\n    cursor.column++;",
   "to": "  if (cursor.column <= cursor.text.length) {\n    cursor.column++;",
   "expect": "survives",
-  "why": "EQUIVALENT: at the end of a line the column moves one past the end, where the closer search's indexOf finds nothing and steps to the next line, which is where it steps from the end of the line itself. No answer and no read differs: survives the 21.2 million pairs and every count row"
+  "why": "EQUIVALENT: at the end of a line the column moves one past the end, where the closer search's indexOf finds nothing and steps to the next line, which is where it steps from the end of the line itself. No answer and no read differs: survives the whole differential (25.6 million pairs: the exhaustive, neighbourhood, code-unit and seeded passes) and every count row"
  },
  {
   "name": "Q06 spin: the closer search skips a candidate at the column",
@@ -405,7 +405,7 @@
   "from": "percent && percentCellAfterHash(cursor)",
   "to": "percentCellAfterHash(cursor)",
   "expect": "survives",
-  "why": "EQUIVALENT: past the early return `percent` is true for every extension, because the one extension that makes `spin` true, `.r`, is also in PERCENT_EXTENSIONS. No answer and no read differs: survives the 21.2 million pairs and every count row"
+  "why": "EQUIVALENT: past the early return `percent` is true for every extension, because the one extension that makes `spin` true, `.r`, is also in PERCENT_EXTENSIONS. No answer and no read differs: survives the whole differential (25.6 million pairs: the exhaustive, neighbourhood, code-unit and seeded passes) and every count row"
  },
  {
   "name": "R10 isRenderScriptDocument: a file no pattern claims is read before it is refused",
