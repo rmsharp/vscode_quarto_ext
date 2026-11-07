@@ -27,12 +27,11 @@ import { buildPreviewArgs, parseDeclaredFormats } from "../core/preview-format";
 import type { ContextKeySetter } from "../core/context-key-setter";
 import { createBrowseUrlScanner } from "../core/preview-url";
 import {
-  isRenderScript,
+  isRenderScriptDocument,
   isRenderScriptExtension,
 } from "../core/render-script";
 import { QuartoNotFound, resolveBinary } from "../quarto/cli";
 import { createVscodeContextKeySetter } from "./context-key";
-import { documentText } from "./document-text";
 
 const CHANNEL_NAME = "Quarto Preview";
 /**
@@ -451,8 +450,8 @@ async function previewActiveDocument(manager: PreviewManager): Promise<void> {
  * The sibling of `previewActiveDocument`: same `PreviewManager.openPreview`, a
  * different gate. `quarto.preview` gates on `languageId === "quarto"`, which a
  * `.py`/`.jl`/`.r` script can never satisfy; this one gates on the file actually
- * having render-script STRUCTURE (`isRenderScript`, which keys on the extension
- * and the leading percent/spin marker). The two gates are disjoint by
+ * having render-script STRUCTURE (`isRenderScriptDocument`, which keys on the
+ * extension and the leading percent/spin marker). The two gates are disjoint by
  * construction — `.qmd`/`.rmd` are not render-script extensions — so no file is
  * ever claimed by both commands.
  */
@@ -483,26 +482,34 @@ async function previewActiveScript(manager: PreviewManager): Promise<void> {
  * fsPath is the working-tree path — and preview the working-tree file while the
  * user is looking at an old revision.
  *
- * ⚠ ORDER IS LOAD-BEARING, and only for COST — every ordering yields the same
- * boolean. `isRenderScriptExtension` must come BEFORE `documentText(doc)`, because
- * `getText()` (which that builds, once a version, through the shared memo of
- * `document-text.ts`) makes a string of the entire buffer and this predicate runs on every
- * keystroke of the active document (`updateRenderScriptContext`). Calling it first
- * would allocate a whole 20 MB log or .json on each keypress, on VS Code's
- * single-threaded extension host, only to discover the extension was never
- * `.py`/`.jl`/`.r`. `updateCellContext` — the precedent this key is modelled on —
- * short-circuits on `languageId === "quarto"` before its own `getText()` for exactly
- * this reason; the first cut of this function dropped that prefilter (adversarial
- * review, Session 85).
+ * NO TEXT IS BUILT HERE (Session 344, SIB-08). This predicate runs on every
+ * keystroke of the active document (`updateRenderScriptContext`). Until Session 344
+ * it asked for the whole buffer (`getText()`, then the shared memo of
+ * `document-text.ts`, which gives a keystroke no gain: every keystroke is a new
+ * version) of every `.py`, `.jl` and `.r` file to answer a question about its first
+ * lines, which cost 12 to 20 ms a keystroke at 500,000 lines (`lines.join` standing
+ * in for `getText`, in a fresh process). It now hands the DOCUMENT to
+ * `isRenderScriptDocument` (`core/render-script`), which reads `lineCount` and
+ * `lineAt(i).text` for the lines the answer needs and stops: one line for an
+ * ordinary script, the lines of the marker or header for a render script, and the
+ * whole document only for a spin header opened and never closed or a document of
+ * nothing but blank lines.
  *
- * This is a pure performance property with NO behavioural signature: deleting the
- * prefilter leaves every test green, because the answer is unchanged. It cannot be
- * pinned by a test — the ext-host `TextDocument.getText` is a frozen, non-configurable
- * own property, so it cannot be spied on (probed firsthand). It is instead pinned at
- * the cheap end: `isRenderScriptExtension` is unit-tested exhaustively, including the
- * superset property that makes putting it first SOUND (it can never veto a file the
- * full detector would accept), and the ORDER itself is pinned from the syntax tree
- * (`test/unit/s343-adapter-wiring-pin.test.ts`: the text is the last operand of the chain).
+ * ⚠ The ORDER of the chain is no longer load-bearing for cost, and is still pinned:
+ * the document defined, the `file` scheme, `isRenderScriptExtension`, then the lazy
+ * read. `isRenderScriptDocument` reads nothing for a name no pattern claims, so a
+ * 20 MB log or .json costs no read with the extension test first or without it. It
+ * stays first as the cheaper question, and because the syntax-tree pin
+ * (`test/unit/s343-adapter-wiring-pin.test.ts`, the PT group) holds the shape of the
+ * chain. `isRenderScriptExtension` is a strict superset of what the full detector
+ * accepts (unit-tested), so putting it first can never veto a real script, and every
+ * ordering yields the same boolean.
+ *
+ * That nothing on this path builds the buffer is pinned twice: in `core/` by counts of
+ * the lines read (`test/unit/s344-render-script-lazy.test.ts`), and here from the
+ * syntax tree (the document is the second argument of the last operand, and none of
+ * this function, `updateRenderScriptContext` and `previewActiveScript` calls
+ * `getText` or `documentText`).
  */
 function isPreviewableRenderScript(
   doc: vscode.TextDocument | undefined,
@@ -511,7 +518,7 @@ function isPreviewableRenderScript(
     doc !== undefined &&
     doc.uri.scheme === "file" &&
     isRenderScriptExtension(doc.uri.fsPath) &&
-    isRenderScript(doc.uri.fsPath, documentText(doc))
+    isRenderScriptDocument(doc.uri.fsPath, doc)
   );
 }
 

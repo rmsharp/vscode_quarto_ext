@@ -288,20 +288,20 @@
   "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'updateCellContext calls getText itself')"
  },
  {
-  "name": "PT01: the predicate reads getText again (no memo)",
+  "name": "PT01: the predicate builds the text with getText again (a whole-buffer join on every keystroke)",
   "file": "src/features/preview.ts",
-  "from": "isRenderScript(doc.uri.fsPath, documentText(doc))",
+  "from": "isRenderScriptDocument(doc.uri.fsPath, doc)",
   "to": "isRenderScript(doc.uri.fsPath, doc.getText())",
   "expect": "killed",
-  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not end in `isRenderScript(doc.uri.fsPath, documentText(doc))`')"
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not end in `isRenderScriptDocument(doc.uri.fsPath, doc)`') (re-anchored in Session 344: the predicate hands the document to the lazy detector, and the Session 343 spelling `documentText(doc)` is gone from preview.ts)"
  },
  {
-  "name": "PT02: the extension prefilter comes after the read (a 20 MB log is joined on every keystroke)",
+  "name": "PT02: the extension prefilter comes after the lazy read",
   "file": "src/features/preview.ts",
-  "from": "    isRenderScriptExtension(doc.uri.fsPath) &&\n    isRenderScript(doc.uri.fsPath, documentText(doc))",
-  "to": "    isRenderScript(doc.uri.fsPath, documentText(doc)) &&\n    isRenderScriptExtension(doc.uri.fsPath)",
+  "from": "    isRenderScriptExtension(doc.uri.fsPath) &&\n    isRenderScriptDocument(doc.uri.fsPath, doc)",
+  "to": "    isRenderScriptDocument(doc.uri.fsPath, doc) &&\n    isRenderScriptExtension(doc.uri.fsPath)",
   "expect": "killed",
-  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not come before the read of the text')"
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not come before the lazy read of the document') (re-anchored in Session 344)"
  },
  {
   "name": "PT03: the extension prefilter is dropped",
@@ -309,15 +309,15 @@
   "from": "    isRenderScriptExtension(doc.uri.fsPath) &&\n",
   "to": "",
   "expect": "killed",
-  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not come before the read of the text')"
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'does not come before the lazy read of the document') (the message respelled in Session 344)"
  },
  {
-  "name": "PT04: the import of documentText is dropped",
+  "name": "PT04: the import of isRenderScriptDocument is dropped",
   "file": "src/features/preview.ts",
-  "from": "import { documentText } from \"./document-text\";\n",
+  "from": "  isRenderScriptDocument,\n",
   "to": "",
   "expect": "killed",
-  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'preview.ts does not import documentText')"
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'preview.ts does not import isRenderScriptDocument') (re-anchored in Session 344: preview.ts no longer imports documentText)"
  },
  {
   "name": "PT05: getText is called in the chain before the prefilter",
@@ -328,12 +328,12 @@
   "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'isPreviewableRenderScript calls getText itself')"
  },
  {
-  "name": "PT06: a further operand follows the read of the text",
+  "name": "PT06: a further operand follows the lazy read",
   "file": "src/features/preview.ts",
-  "from": "isRenderScript(doc.uri.fsPath, documentText(doc))\n",
-  "to": "isRenderScript(doc.uri.fsPath, documentText(doc)) &&\n    doc.uri.fsPath !== \"\"\n",
+  "from": "isRenderScriptDocument(doc.uri.fsPath, doc)\n",
+  "to": "isRenderScriptDocument(doc.uri.fsPath, doc) &&\n    doc.uri.fsPath !== \"\"\n",
   "expect": "killed",
-  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the read of the text is not the last operand')"
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'the lazy read of the document is not the last operand') (re-anchored in Session 344)"
  },
  {
   "name": "BT01: the ranges are built from getText again (no memo)",

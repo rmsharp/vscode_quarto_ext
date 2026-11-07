@@ -305,6 +305,12 @@ function problemsInDocumentTextAdapter(source: string): string[] {
   return problems;
 }
 
+/** Whether `sf` has an import declaration from `module` whose named bindings include `name`. */
+const importsNamed = (sf: ts.SourceFile, module: string, name: string): boolean =>
+  collect(sf, (n): n is ts.ImportDeclaration => ts.isImportDeclaration(n)).some(
+    (i) => ts.isStringLiteral(i.moduleSpecifier) && i.moduleSpecifier.text === module && i.importClause?.namedBindings !== undefined && ts.isNamedImports(i.importClause.namedBindings) && i.importClause.namedBindings.elements.some((e) => e.name.text === name),
+  );
+
 /** The text of `name`'s import of `documentText`: whether `source` imports it from ./document-text. */
 const importsDocumentText = (sf: ts.SourceFile): boolean =>
   collect(sf, (n): n is ts.ImportDeclaration => ts.isImportDeclaration(n)).some(
@@ -329,13 +335,18 @@ function problemsInExecutionText(source: string): string[] {
   return problems;
 }
 
-/** Every pin `preview.ts` breaks about the text: the predicate reads it through the memo, after the extension prefilter. */
+/**
+ * Every pin `preview.ts` breaks about the text. Session 344 (SIB-08): the predicate builds NO text. It hands the document itself to `isRenderScriptDocument` (`core/render-script`), which reads the lines it needs
+ * through `lineCount` and `lineAt`, after the scheme and the extension prefilter; and nothing on the path from a keystroke to the answer (the predicate, the context update, the command's gate) calls `getText` or
+ * `documentText`. (Session 343 pinned the predicate reading `documentText(doc)`, the shared memo, as the last operand: the memo gave a keystroke no gain, every keystroke being a new version.)
+ */
 function problemsInPreviewText(source: string): string[] {
   const sf = parse("preview.ts", source);
   const problems: string[] = [];
   const predicate = functionNamed(sf, "isPreviewableRenderScript");
   if (predicate === undefined || predicate.body === undefined) return ["isPreviewableRenderScript is missing"];
-  if (!importsDocumentText(sf)) problems.push("preview.ts does not import documentText from ./document-text");
+  if (!importsNamed(sf, "../core/render-script", "isRenderScriptDocument")) problems.push("preview.ts does not import isRenderScriptDocument from ../core/render-script");
+  if (importsDocumentText(sf)) problems.push("preview.ts imports documentText from ./document-text (the render-script predicate builds no text, and nothing else in the file reads the memo)");
   const returns = collect(predicate.body, (n): n is ts.ReturnStatement => ts.isReturnStatement(n));
   const chain: string[] = [];
   const flatten = (e: ts.Expression): void => {
@@ -350,11 +361,20 @@ function problemsInPreviewText(source: string): string[] {
   };
   if (returns.length === 1 && returns[0].expression !== undefined) flatten(returns[0].expression);
   const prefilter = chain.indexOf("isRenderScriptExtension(doc.uri.fsPath)");
-  const detect = chain.indexOf("isRenderScript(doc.uri.fsPath, documentText(doc))");
-  if (detect === -1) problems.push("isPreviewableRenderScript does not end in `isRenderScript(doc.uri.fsPath, documentText(doc))` (the text is read through the memo)");
-  if (prefilter === -1 || (detect !== -1 && prefilter > detect)) problems.push("the extension prefilter `isRenderScriptExtension(doc.uri.fsPath)` does not come before the read of the text (a 20 MB log would be joined on every keystroke)");
-  if (detect !== -1 && detect !== chain.length - 1) problems.push("the read of the text is not the last operand of the && chain");
-  if (getTextCalls(predicate.body).length !== 0) problems.push("isPreviewableRenderScript calls getText itself (a whole-buffer join on every keystroke)");
+  const detect = chain.indexOf("isRenderScriptDocument(doc.uri.fsPath, doc)");
+  if (detect === -1) problems.push("isPreviewableRenderScript does not end in `isRenderScriptDocument(doc.uri.fsPath, doc)` (the document itself is handed over and read line by line)");
+  if (prefilter === -1 || (detect !== -1 && prefilter > detect)) problems.push("the extension prefilter `isRenderScriptExtension(doc.uri.fsPath)` does not come before the lazy read of the document");
+  if (detect !== -1 && detect !== chain.length - 1) problems.push("the lazy read of the document is not the last operand of the && chain");
+  // The whole path from a keystroke (and from the command) to the answer builds no text.
+  for (const name of ["isPreviewableRenderScript", "updateRenderScriptContext", "previewActiveScript"]) {
+    const fn = functionNamed(sf, name);
+    if (fn === undefined || fn.body === undefined) {
+      problems.push(`${name} is missing`);
+      continue;
+    }
+    if (getTextCalls(fn.body).length !== 0) problems.push(`${name} calls getText itself (a whole-buffer join on every keystroke)`);
+    if (callsOf(fn.body, sf, "documentText").length !== 0) problems.push(`${name} calls documentText (a whole-buffer join on every keystroke)`);
+  }
   return problems;
 }
 
@@ -409,7 +429,7 @@ describe("Session 343 -- how the adapters read a document's text, pinned by the 
     expect(problemsInExecutionText(EXECUTION)).toEqual([]);
   });
 
-  it("preview.ts keeps every text pin: the predicate reads the text through the memo, after the extension prefilter", () => {
+  it("preview.ts keeps every text pin: the predicate hands the document to the lazy detector after the extension prefilter, and no text is built on the path", () => {
     expect(problemsInPreviewText(PREVIEW)).toEqual([]);
   });
 
@@ -452,12 +472,18 @@ describe("Session 343 -- how the adapters read a document's text, pinned by the 
   ];
 
   const PREVIEW_TEXT_EDITS: Array<[string, string, string, string]> = [
-    ["PT01: the predicate reads getText again (no memo)", "isRenderScript(doc.uri.fsPath, documentText(doc))", "isRenderScript(doc.uri.fsPath, doc.getText())", "does not end in `isRenderScript(doc.uri.fsPath, documentText(doc))`"],
-    ["PT02: the extension prefilter comes after the read (a 20 MB log is joined on every keystroke)", "    isRenderScriptExtension(doc.uri.fsPath) &&\n    isRenderScript(doc.uri.fsPath, documentText(doc))", "    isRenderScript(doc.uri.fsPath, documentText(doc)) &&\n    isRenderScriptExtension(doc.uri.fsPath)", "does not come before the read of the text"],
-    ["PT03: the extension prefilter is dropped", "    isRenderScriptExtension(doc.uri.fsPath) &&\n", "", "does not come before the read of the text"],
-    ["PT04: the import of documentText is dropped", "import { documentText } from \"./document-text\";\n", "", "preview.ts does not import documentText"],
-    ["PT05: getText is called in the chain before the prefilter", "    doc.uri.scheme === \"file\" &&\n", "    doc.uri.scheme === \"file\" &&\n    doc.getText() !== null &&\n", "isPreviewableRenderScript calls getText itself"],
-    ["PT06: a further operand follows the read of the text", "isRenderScript(doc.uri.fsPath, documentText(doc))\n", "isRenderScript(doc.uri.fsPath, documentText(doc)) &&\n    doc.uri.fsPath !== \"\"\n", "the read of the text is not the last operand"],
+    ["PT01: the predicate builds the text with getText again (a whole-buffer join on every keystroke)", "isRenderScriptDocument(doc.uri.fsPath, doc)", "isRenderScript(doc.uri.fsPath, doc.getText())", "does not end in `isRenderScriptDocument(doc.uri.fsPath, doc)`"],
+    ["PT02: the predicate reads the text through the shared memo again (no gain for a new version)", "isRenderScriptDocument(doc.uri.fsPath, doc)", "isRenderScript(doc.uri.fsPath, documentText(doc))", "does not end in `isRenderScriptDocument(doc.uri.fsPath, doc)`"],
+    ["PT03: the lazy detector is handed another document", "isRenderScriptDocument(doc.uri.fsPath, doc)", "isRenderScriptDocument(doc.uri.fsPath, vscode.window.activeTextEditor!.document)", "does not end in `isRenderScriptDocument(doc.uri.fsPath, doc)`"],
+    ["PT04: the extension prefilter comes after the lazy read", "    isRenderScriptExtension(doc.uri.fsPath) &&\n    isRenderScriptDocument(doc.uri.fsPath, doc)", "    isRenderScriptDocument(doc.uri.fsPath, doc) &&\n    isRenderScriptExtension(doc.uri.fsPath)", "does not come before the lazy read of the document"],
+    ["PT05: the extension prefilter is dropped", "    isRenderScriptExtension(doc.uri.fsPath) &&\n", "", "does not come before the lazy read of the document"],
+    ["PT06: the import of isRenderScriptDocument is dropped", "  isRenderScriptDocument,\n", "", "preview.ts does not import isRenderScriptDocument"],
+    ["PT07: getText is called in the chain before the prefilter", "    doc.uri.scheme === \"file\" &&\n", "    doc.uri.scheme === \"file\" &&\n    doc.getText() !== null &&\n", "isPreviewableRenderScript calls getText itself"],
+    ["PT08: documentText is called in the chain before the prefilter", "    doc.uri.scheme === \"file\" &&\n", "    doc.uri.scheme === \"file\" &&\n    documentText(doc) !== \"\" &&\n", "isPreviewableRenderScript calls documentText"],
+    ["PT09: a further operand follows the lazy read", "isRenderScriptDocument(doc.uri.fsPath, doc)\n", "isRenderScriptDocument(doc.uri.fsPath, doc) &&\n    doc.uri.fsPath !== \"\"\n", "the lazy read of the document is not the last operand"],
+    ["PT10: the import of documentText comes back", "import { createVscodeContextKeySetter } from \"./context-key\";\n", "import { createVscodeContextKeySetter } from \"./context-key\";\nimport { documentText } from \"./document-text\";\n", "preview.ts imports documentText"],
+    ["PT11: the context update builds the text beside the predicate", "  setContextKey(\n    RENDER_SCRIPT_CONTEXT,", "  void editor?.document.getText();\n  setContextKey(\n    RENDER_SCRIPT_CONTEXT,", "updateRenderScriptContext calls getText itself"],
+    ["PT12: the command's gate reads the text through the memo beside the predicate", "  const doc = vscode.window.activeTextEditor?.document;\n  if (!isPreviewableRenderScript(doc)) {", "  const doc = vscode.window.activeTextEditor?.document;\n  void (doc && documentText(doc));\n  if (!isPreviewableRenderScript(doc)) {", "previewActiveScript calls documentText"],
   ];
 
   const BACKGROUND_TEXT_EDITS: Array<[string, string, string, string]> = [
