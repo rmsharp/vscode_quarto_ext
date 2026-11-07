@@ -8,48 +8,60 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 342 closed out.** g02's twenty-sixth session is done: parts (2) to (5) of the BACKLOG item "What Session 341's review round found beside the Outline and preview cures" left the item (part
-(1), a QUESTION for you, and the records (6) and (7) stay; numbering kept): `createYamlRegionLookup`, `createRangeLookup`, a 150 ms trailing debounce (`src/core/typing-debounce.ts`) and `createCellVdocBuilder(text,
-engine, mode)`. Three cure workers, a six-lens review round (`wf_e3b87390-7d5`, 72 agents) and a two-worker fix round (`wf_e641a092-f9c`); `test:integration` run with your go-ahead: 562 passing. `BACKLOG.md`
-"Active" is empty: present candidates via AskUserQuestion at Phase 0, ranked by the plan, each saying which rule placed it.
-**⚠ Two things that are not what the item promised.** (A) The debounce cures BURSTS (a held key, a paste, a replace-all), not steady typing: at gaps of 150 ms or more every keystroke still pays one cold scan (1
-evaluation per 1,000 keystrokes below 150 ms, 1,000 at 150 ms or more; the rows' keystrokes are 10 ms apart). The 150 ms is my choice, and `quarto.inCodeCell` can lag an edit by up to 150 ms; the new item's part (1)
-is the question. (B) Part (5) is a CORRECTNESS change and not a speed one: `resolveDocumentEngine` has already cached the engine-blind scan in the real flow (2.53 against 2.50 ms at 2,000 cells; only a text that
-begins with whitespace saved time). The Outline's in-cell children now come from the symbol's OWN cell where the blind lookup found none or another one; 3 of 3,383 corpus documents are affected, all knitr.
-**What's next (derived from the plan, not a promise):** g02 is still in flight; its items are taken in the plan's table order. Candidates (the picker shows three and a catch-all): (a) the NEW Up Next item "What
-Session 342's review round found beside the typing-path cures": part (1) is a QUESTION for you (leave steady typing alone, a longer delay, or a cached or incremental scan), parts (2) to (4) are small (estimate one
-session together), (5) needs a host, (6) is the R6 (g) wiring change; (b) what stays of the Session 341 item (part (1), the vdoc's trailing newlines, a question; records (6), (7)); (c) the Up Next item "The knitr
-silent-chunk reader copies the whole map of assigned names for every `echo=FALSE` R chunk" (estimate one session); (d) "Nothing in the repository notices a twelfth class-plus under the `u` flag or a twelfth call
-with a spread argument"; (e) the S322 item's part (1), the S311 item's parts (4), (10), (11), the Session 333 and 334 items. Polish: the S339 item's part (4), "`npm test` exits 1 with every test green", "Residuals
-of Session 338's eleven cures". Time the literal shape THROUGH THE ADAPTER'S WHOLE CALL SEQUENCE at HEAD first (Learnings 840, 916). After those, the terminal bounded session files ONE RESIDUAL record, owns the
-sweep's unrun 68% (rule P5) and stops. Decisions as the plan says: D2, D3 before g03.
+**Task:** **NONE -- Session 343 closed out.** g02's twenty-seventh session is done: parts (2) to (4) of the BACKLOG item "What Session 342's review round found beside the typing-path cures, none of them in its diff" left the item,
+except SIB-01, which was MEASURED and is not curable by reordering the providers (part (3) shrank to it; parts (1), (5), (6), (7) stay, a new part (8) holds the review round's leftovers; numbering kept). Four cure workers
+(`wf_8a330af9-f7f`), a seven-lens review round (`wf_619ec364-b19`, 51 agents) and a fix round of mine; `test:integration` run with your go-ahead: 564 passing. `BACKLOG.md` "Active" is empty: present candidates via
+AskUserQuestion at Phase 0, ranked by the plan, each saying which rule placed it.
+**⚠ Things that are not what the item promised.** (A) SIB-01, the first completion request's cold scan, is NOT cured: the whole request fell only 12.7 to 11.0, 51.7 to 44.8 and 247 to 190 ms at 500 / 2,000 / 8,000
+cells (three of four joins and the work after the scan); part (1)'s cached or incremental scan is what removes it. (B) I chose `TYPING_MAX_WAIT_MS = 1000` and it is UNMEASURED: a stream under 150 ms apart now pays
+one cold scan a second. (C) The refresh plan has ONE behaviour change by design (part (8)(d)): an edit no longer refreshes other documents' editors. (D) Four of my own choices need your eye: the scan cache's four
+entries under 8,388,608 characters, the workspace-symbol cache's bounds (8,388,608 characters, 4,096 files), the citation signature (modification time, size, change time) and the memo keyed by the document object.
+**What's next (derived from the plan, not a promise):** g02 is still in flight; its items are taken in the plan's table order. Candidates (the picker shows three and a catch-all): (a) what stays of the Session 342
+item: part (1), the QUESTION (leave steady typing alone, a longer delay, or a cached or incremental scan: the last is also what SIB-01 waits for, and is a session of its own, design and measure first), parts (5),
+(6), (7) and the new (8); (b) what stays of the Session 341 item (part (1), the vdoc's trailing newlines, a question; records (6), (7)); (c) the Up Next item "The knitr silent-chunk reader copies the whole map of
+assigned names for every `echo=FALSE` R chunk" (estimate one session); (d) "Nothing in the repository notices a twelfth class-plus under the `u` flag or a twelfth call with a spread argument"; (e) the S322 item's
+part (1), the S311 item's parts (4), (10), (11), the Session 333 and 334 items. Polish: the S339 item's part (4), "`npm test` exits 1 with every test green", "Residuals of Session 338's eleven cures". Time the
+literal shape THROUGH THE ADAPTER'S WHOLE CALL SEQUENCE at HEAD first (Learnings 840, 916, 926). After those, the terminal bounded session files ONE RESIDUAL record, owns the sweep's unrun 68% (rule P5) and stops.
+Decisions as the plan says: D2, D3 before g03.
 **⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard dirties `methodology/dashboard_history.jsonl`, `context_budget.py` dirties `methodology/.context-budget-history.jsonl` (both go in a
 close-out commit).
-(2) No harness of this session is in the repo except the Python recounts (`tools/*-count`) and the oracle files. Rebuild (Learning 848): `git archive <sha> src | tar -x`, a `node_modules` symlink, esbuild on the
-entry; one fresh process per probe; the region scan memoises on the exact text, so vary the text per timed call. A worker's worktree starts BEHIND HEAD (all five did): reset it to the named sha first (Learning 891).
-(3) SHELL (zsh): an unmatched glob is an error, `echo =====` is not found, `set -- $var` does NOT split (put a loop with arguments in a `bash script.sh`), a shell-variable `rm -rf` is refused (use `git worktree
-remove`), a leading `sleep` is blocked. I hit three of these again this session. The Write and Edit tools drop a trailing space (Learning 778): edit with a Python replace and assert the count.
-(4) The mutation runner tests the COMMITTED source: commit first, use each list's README row for its `--tests` set and `--cmd 'npx vitest run --bail 1 --maxWorkers=2'`, run ONE list at a time, in a scratch worktree
-(`git worktree add --detach <scratchpad>/mut master` plus a `node_modules` symlink) so the main tree stays free. This session's six lists: 59 / 6, 98 / 1, 27 / 2, 36 / 0, 69 / 0, 37 / 1 killed / surviving.
-`mutation-lists-apply` is 95 tests and goes red when a refactor moves a quoted line, OLDER lists included (Learning 918).
-(5) Pins: Learnings 907 to 915 as before; new: 916 time through the caller's whole sequence, 917 a trailing debounce cures bursts (write the keystroke gap beside the figure), 918 a refactor breaks older lists, 919 a
-clock baseline is the model's own residue, 920 an extraction can make a guarded read eager.
-(6) BASELINE `npm test`: 195 files and 17,774 tests pass, `Errors 1 error` (`Timeout calling "onTaskUpdate"`) and EXIT CODE 1 (Learning 892; 183 files and 17,202 tests at Session 341's end). `npm test` drives the
-one-minute load to about 60: wait before a list run. A new test file must run under 25 s alone; `s342-yaml-region-rows.test.ts` peaks at 712 to 720 MB resident.
-(7) The foreign worktree `.claude/worktrees/wf_f559ba89-653-5` is still not mine: ask before removing it. This session's six worktrees and branches were removed after `git cherry` showed all 47 worker commits on
-master. (8) Residuals: the BACKLOG items (the Session 342 round's seven parts, what stays of the Session 341 round, the knitr copy, the standing guard, the Polish lists); survivors are argued in each list's `why`
-and its README row.
-(9) `test:integration` WAS run, with go-ahead (562 passing, 2 minutes on the screen); no integration row drives the debounce's document and selection wiring. `test:lsp` NOT run (needs your own Pylance). (10)
-Real-document score: `REALDOC_DATA=scratchpad/s265 REALDOC_ORDINALS=scratchpad/s251/realfiles.txt tools/realdoc-score/run.sh head` prints 2423 of 2438 (99.38%), unchanged.
-(11) The plan: update its status column AND its in-flight, next-group and g02 order-table rows at each close-out (done: "twenty-six sessions done"). (12) `master` is NOT pushed: 95 commits ahead of `origin/master`
-before the close-out commits; the dashboard copy is v2.22.0 against canonical v2.23.0 (not synced). (13) `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in
-slices, edit with a Python script (`python3 -I -`). After answering a direct question, STOP and wait (memory).
+(2) No harness of this session is in the repo. Rebuild (Learning 848): `git archive <sha> src | tar -x`, a `node_modules` symlink, esbuild on the entry, one fresh process per probe; give esbuild an ABSOLUTE
+`--outfile` (my `build.sh` `cd`s into the tree, so a relative one landed `head.cjs` in the repo root once: moved, never committed). A worker's worktree starts BEHIND HEAD (all four did): reset it to the named sha
+first (Learning 891), and give it a real or linked `node_modules` before any runner (an empty `.vite` directory there is a BASELINE RED, Learning 927).
+(3) SHELL (zsh): an unmatched glob is an error, `echo =====` is not found, `set -- $var` does NOT split, a variable `rm -rf` is refused, a leading `sleep` is blocked, and a wait loop on `pgrep -f "npm test"` never
+ends (the shell's own command line holds the string). The Write and Edit tools drop a trailing space (Learning 778): edit with a Python replace and assert the count.
+(4) The mutation runner tests the COMMITTED source and each list's README row names its `--tests` set: use it, with `--cmd 'npx vitest run --bail 1 --maxWorkers=2'`, ONE list at a time. `s343-regions-cache.json`
+needs BOTH `s343-regions-cache-rows` and `s343-cell-option-lines-rows` (W03); run `b90-equivalent.json` whole-suite with `--exclude test/unit/mutation-lists-apply.test.ts` (Learning 922). This session: eleven new
+lists plus `s343-review.json` (10 / 1); `mutation-lists-apply` is 107 tests and goes red when a refactor moves a quoted line (Learning 918).
+(5) Pins: Learnings 907 to 920 as before; new: 921 a dedupe blinds a test that watches the send, 922 a list is as good as its `--tests` set, 923 a `(mtime, size)` key, 924 run the pin after a conflict in its table,
+925 a cure's justification can be overtaken, 926 a per-provider cure is not a request cure, 927 `node_modules` in a worktree.
+(6) BASELINE `npm test`: 210 files and 18,347 tests pass and `Errors 1 error` (`Timeout calling "onTaskUpdate"`, Learning 892; 195 files and 17,774 tests at Session 342's end). `npm test` drives the one-minute load
+to about 60 and this machine is SHARED (load 5 to 300 from other users during my runs): wait before a list run. A new test file must run under 25 s alone.
+(7) The foreign worktree `.claude/worktrees/wf_f559ba89-653-5` is still not mine: ask before removing it. This session's four worker worktrees and branches were removed after a by-subject check showed all 61 worker
+commits on master (`git cherry` shows two conflict-edited ones as changed). (8) Residuals: the BACKLOG items (the Session 342 round's parts (1), (3), (5) to (8), what stays of the Session 341 round, the knitr copy,
+the standing guard, the Polish lists); survivors are argued in each list's `why` and its README row.
+(9) `test:integration` WAS run with your go-ahead (564 passing, 2 minutes on the screen, exit 0); it covers the five rewritten rows and the lone front-matter edit row but not the maximum wait. `test:lsp` NOT run
+(needs your own Pylance). (10) Real-document score: `REALDOC_DATA=scratchpad/s265 REALDOC_ORDINALS=scratchpad/s251/realfiles.txt tools/realdoc-score/run.sh head` prints 2423 of 2438 (99.38%), unchanged. (11) The
+plan: update its status column AND its in-flight, next-group and g02 order-table rows at each close-out (done: "twenty-seven sessions done").
+(12) `npm run package` is RED in a worktree whose `node_modules` is a symlink (`check-package`'s `npm list` marks every devDependency extraneous): run it in the main checkout. (13) `master` is NOT pushed: 169
+commits ahead of `origin/master` before the close-out commits; the dashboard copy is v2.22.0 against canonical v2.23.0 (not synced). (14) `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are
+past the read refusal: read in slices, edit with a Python script (`python3 -I -`). After answering a direct question, STOP and wait (memory).
 
 ### What Session 343 Did
-**Deliverable:** g02 of the backlog ordering plan, twenty-seventh session: parts (2) to (4) of the BACKLOG item "What Session 342's review round found beside the typing-path cures, none of them in its diff" -- the smaller costs of the typing-path handlers, the completion providers' whole-document scans and the sibling costs (IN PROGRESS)
-**Started:** 2026-11-06
-**Status:** Session claimed. Work beginning. Strict TDD: time each literal shape at HEAD first, one fresh process per probe, through the caller's whole call sequence (Learnings 840, 903, 916), profile before reading the cure, seam first for anything behind a `vscode` adapter (Learning 913), rows RED on the parent on the clock alone with their own clock pinned (Learning 910), the old spelling kept as the cure's oracle, `mutation-lists-apply` right after any cherry-pick (Learning 918), a review round, then close out. Part (1) was put to the operator at Phase 1: leave the 150 ms debounce as shipped (it cures bursts, not steady typing) and do parts (2) to (4); it stays in the item as a measurement question. Parts (5) and (6) need a host or the R6 (g) wiring change, and (7) is records: all stay in the item.
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Deliverable:** g02 of the backlog ordering plan, twenty-seventh session: parts (2) to (4) of the BACKLOG item "What Session 342's review round found beside the typing-path cures, none of them in its diff" -- the
+typing path's smaller costs, the completion path's per-request costs and four sibling caches -- DONE except SIB-01, which was measured and is not curable by reordering; claim `762ed59`
+**Started:** 2026-11-06 (closed 2026-11-06)
+**Status:** Closed out. Timed every shape at the parent in fresh processes through the caller's whole call sequence (SIB-01 became "measured, not curable by reordering"); four cure workers in isolated worktrees,
+strict TDD with the seam first (`wf_8a330af9-f7f`, 61 commits, 1,685,954 subagent tokens); all 19 worker RED counts, three seam counts and A's 12 | 48 re-run from my side; two conflicts resolved by me and one slip
+of mine (a pin row's `from`) found by the first full `npm test`; my provider adoption RED first (14 failed | 2 passed). Eleven new mutation lists and the touched entries of thirteen older ones run alone (58 / 2, 50
+/ 0, 52 / 2, 49 / 1, 19 / 4, 34 / 3, 30 / 2, 25 / 2, 63 / 1, 72 / 3, 10 / 0 killed / surviving; 0 contradict; two harness traps are Learning 922). A seven-lens review round (`wf_619ec364-b19`, 51 agents, 45
+findings: 29 confirmed, 16 partly, none refuted): no wrong answer in the shipped code; the new integration rows could not pass under the new setter, eight mutants survived, the citation signature had a wider blind
+spot, and comments described the parent's world. A fix round of mine, TDD: the change time in the signature (2 failed | 51 passed first), eight rows (`s343-review.json` 10 / 1), the integration rows made
+transitions, the equivalence copies given the maximum wait, the statements corrected. `test:integration` RUN with your go-ahead: 564 passing. `npm test` 18,347 passing in 210 files (the known worker-timeout error); a third run at load 94 to 300
+from other users failed 170 timing rows in 24 old files, which all pass on a two-worker re-run (5,274 tests);
+`npm run package` 44 files; real-document score unchanged (2423 of 2438). Learnings 921 to 927.
+**Ledger:** `CHANGELOG.md` 2026-11-06 -- one entry per action (the claim entry replaced by the outcome entry; one each for the review round, the fix round, the SESSION_NOTES trim and the quality-gate run), recorded
+in the close-out commits.
 
 ### What Session 342 Did
 **Deliverable:** g02 of the backlog ordering plan, twenty-sixth session: parts (2) to (5) of the BACKLOG item "What Session 341's review round found beside the Outline and preview cures, none of them in
@@ -304,6 +316,39 @@ One new item filed (eight regexes and a paragraph reader). `npm test` 11,403 pas
 **Status:** Closed out. Five patterns respelled (`4627675d`), exhaustive proof plus near-miss and gap-grid rows, 51 + 4 mutants (49 + 3 killed, 3 argued equivalent), a five-lens review round that closed three test gaps.
 Nine more families filed. `npm test` 11,347 passing plus one load-flake clock row (11,348 in 85 files); `npm run package` 44 files; real-document score unchanged.
 **Ledger:** `CHANGELOG.md` 2026-10-16 -- one entry per action (the claim entry replaced), recorded in the close-out commit.
+
+## Session 342 Handoff Evaluation (by Session 343)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers (at HEAD `fe44611`, gap 0), no `pending` receipt, the ratchet citation (2/2, equal to the
+receipt) and the picker all held; the item's figures reproduced (a stream every 100 ms gave 0 evaluations before it ended) and the baselines (`npm test` with one worker-timeout error, the real-document score 2423 of
+2438, 562 integration rows plus my two) were exactly what it said, which let me tell my own failure from the known one.
+**Helped:** the picker candidates with the rule that placed each; gotchas 2 (rebuild the harness from `git archive` plus esbuild), 4 (the runner tests the COMMITTED source; `mutation-lists-apply` forces
+re-anchoring: it was 95 tests at the start and 107 now), 6 and 7 (the baseline, the foreign worktree) and "a worker's worktree starts BEHIND HEAD (all five did)", which held again for all four; Learnings 916 and 917
+shaped every brief and the timing probes.
+**Missing:** (1) The item filed SIB-01 as a per-provider reorder ("paid before the provider looks at the cursor's own line"). No order inside a provider takes the scan off a request that asks four providers: I wrote
+the brief on that reading, then read the registrations and timed the whole request, and the part became a measurement (Learning 926). (2) Every figure is per surface, none for the whole request. (3) Line numbers had
+moved (`citation.ts:52` was 59). (4) "(2) to (4) small, estimate one session together" held only because four workers ran in parallel (1.7 million subagent tokens, about an hour) and a review round followed.
+**Wrong:** the SIB-01 framing; the item's idea that the memo helps `updateRenderScriptContext` per keystroke was half true (each keystroke is a new version). **ROI: medium-high.**
+
+## Session 343 Self-Assessment
+
+**Score: 7/10.**
+**Went right.** Timed the shapes at the parent through the whole call sequence before briefing, which overturned SIB-01 and half of the memo's premise; seam first, every worker RED re-run from my side (19 commits,
+three seam counts, A's 12 | 48), the merge checked by subject, `mutation-lists-apply` right after the picks; the lead's own work RED first (the provider pin 14 failed | 2 passed, the citation change-time rows 2
+failed | 51 passed); all 24 list runs alone in the runner's own worktree, and the two surprises (W03, the apply gate) traced to the harness and not accepted as results; the review round's one change that mattered
+(the blinded integration rows) found, repaired and then run in the real host with your go-ahead (564 passing); asked before the screen.
+**Went wrong.** (1) I briefed SIB-01 as a reorder before reading the registrations. (2) I resolved the X18 conflict by fixing the `to` and not the `from` and ran only `check-types` and the apply gate: the first full
+`npm test` found it (Learning 924). (3) My README row for `b90-equivalent` carried a third cell that GitHub drops, and my first run of `s343-regions-cache.json` used a test set without the file W03's `why` names.
+(4) Before the merge nobody asked who OBSERVES the new send: four older integration rows quote `withContextCapture`, and the setter's brief did not name them (Learning 921). (5) A relative esbuild `--outfile` wrote
+`head.cjs` into the repo root (moved, never committed) and a self-matching `pgrep` wait loop ran until I killed it. (6) About seven stretches of tool work ran without a status line before the harness nudged: the
+memory says one sentence before any long stretch and I did not hold to it. (7) `TYPING_MAX_WAIT_MS = 1000` is a choice with no measurement behind it; I said so in the comment, the item and here. (8) One verifier per
+finding is a thinner check than Session 342's two: none refuted anything (Learning 915).
+**Known residuals:** the BACKLOG item (parts (1), (3), (5) to (8)), what stays of the Session 341 item, the other Up Next and Polish items, the survivors (in each list's `why`), `test:lsp` NOT run; no integration
+row drives the maximum wait.
+**TDD:** RED before GREEN for every cure part (workers) and for my provider pin (14 failed | 2 passed) and the citation change-time rows (2 failed | 51 passed); the rows added for survivors are green on arrival by
+nature and their RED is the mutant (`s343-review.json`: 10 killed); the integration rows were rewritten without a RED (they could not be run before the go-ahead) and ran green in the host.
+**Host:** `test:integration` RUN with go-ahead (564 passing, exit 0); `test:lsp` NOT run. **Cost:** two workflows (cures 4 workers 1,685,954 subagent tokens, 759 tool calls; review 51 agents 5,466,948, 1,401:
+7,152,902 in all), about 30 list runs, two `npm test`, one integration run, one `npm run package`, no quarto renders, load 5 to 300 on a shared machine.
 
 ## Session 341 Handoff Evaluation (by Session 342)
 
