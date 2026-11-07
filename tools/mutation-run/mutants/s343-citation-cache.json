@@ -10,8 +10,8 @@
  {
   "name": "K02 createCitationCache: the size is not compared",
   "file": "src/core/citations.ts",
-  "from": " && kept.size === size) {",
-  "to": ") {",
+  "from": " && kept.size === size && kept.ctimeMs",
+  "to": " && kept.ctimeMs",
   "expect": "killed",
   "why": "a file whose size alone moved is served stale; killed by the changed-size row, every size row and the seeded histories"
  },
@@ -66,7 +66,7 @@
  {
   "name": "K09 createCitationCache: nothing is ever kept",
   "file": "src/core/citations.ts",
-  "from": "entries.set(absolute, { mtimeMs, size, citations });",
+  "from": "entries.set(absolute, { mtimeMs, size, ctimeMs, citations });",
   "to": "void citations;",
   "expect": "killed",
   "why": "every ask reads and parses again; killed by every count row"
@@ -170,7 +170,7 @@
  {
   "name": "K22 createCitationCache: the signature is read AFTER the content",
   "file": "src/core/citations.ts",
-  "from": "entries.set(absolute, { mtimeMs, size, citations });",
+  "from": "entries.set(absolute, { mtimeMs, size, ctimeMs, citations });",
   "to": "entries.set(absolute, { ...(await options.stat(absolute)), citations });",
   "expect": "killed",
   "why": "a file rewritten between the read and the second stat is kept under the new signature with the old content, and served stale; killed by the race row and by the stat counts"
@@ -210,7 +210,7 @@
  {
   "name": "K27 createCitationCache: the entry holds the stat object itself, not its numbers",
   "file": "src/core/citations.ts",
-  "from": "entries.set(absolute, { mtimeMs, size, citations });",
+  "from": "entries.set(absolute, { mtimeMs, size, ctimeMs, citations });",
   "to": "entries.set(absolute, Object.assign(signature as unknown as CachedBibliography, { citations }));",
   "expect": "killed",
   "why": "a stat that returns one object it edits in place always compares equal to itself; killed by the in-place stat row"
@@ -282,8 +282,8 @@
  {
   "name": "T06 the stand-in stat reports a size of 0",
   "file": "test/unit/s343-citation-cache-rows.test.ts",
-  "from": "return { mtimeMs: file.mtimeMs, size: file.size ?? file.content.length };",
-  "to": "return { mtimeMs: file.mtimeMs, size: file.size ?? 0 };",
+  "from": "size: file.size ?? file.content.length,",
+  "to": "size: file.size ?? 0,",
   "expect": "killed",
   "why": "no change of content is a change of size; killed by the seeded histories and the enumerated documents' shared cache"
  },

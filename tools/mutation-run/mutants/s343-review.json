@@ -1,0 +1,90 @@
+[
+ {
+  "name": "R-C05 the cache joins the declared path instead of resolving it: an absolute path or a path that climbs out is dropped",
+  "file": "src/core/citations.ts",
+  "from": "absolute = path.resolve(dir, relPath);",
+  "to": "absolute = path.join(dir, relPath);",
+  "expect": "killed",
+  "why": "Session 343 review round, mutation lens: this edit SURVIVED every shipped row; killed by s343-citation-cache-rows.test.ts: the absolute-path row"
+ },
+ {
+  "name": "R-C04 a bibliography that parses to no citations is not kept",
+  "file": "src/core/citations.ts",
+  "from": "    if (known) {\n      entries.set(absolute, { mtimeMs, size, ctimeMs, citations });",
+  "to": "    if (known && citations.length > 0) {\n      entries.set(absolute, { mtimeMs, size, ctimeMs, citations });",
+  "expect": "killed",
+  "why": "Session 343 review round, mutation lens: this edit SURVIVED every shipped row; killed by s343-citation-cache-rows.test.ts: the parses-to-nothing row"
+ },
+ {
+  "name": "R-W01 one eviction in place of a loop: an add that needs two or more leaves the held text over the bound",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "        while (keptChars > maxChars || entries.size > maxFiles) {",
+  "to": "        for (let once = 0; once < 1 && (keptChars > maxChars || entries.size > maxFiles); once++) {",
+  "expect": "killed",
+  "why": "Session 343 review round, mutation lens: this edit SURVIVED every shipped row; killed by s343-workspace-symbol-cache-rows.test.ts: the several-files row"
+ },
+ {
+  "name": "R-W02 a replaced entry gives back the NEW length: the total drifts",
+  "file": "src/core/workspace-symbols.ts",
+  "from": "        keptChars -= kept.text.length;\n",
+  "to": "        keptChars -= text.length;\n",
+  "expect": "killed",
+  "why": "Session 343 review round, mutation lens: this edit SURVIVED every shipped row; killed by s343-workspace-symbol-cache-rows.test.ts: the length-change row"
+ },
+ {
+  "name": "R-F02 a tint of one range is not recorded as tinted",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "      if (ranges.length > 0) {\n        tinted.add(entry.key);",
+  "to": "      if (ranges.length > 1) {\n        tinted.add(entry.key);",
+  "expect": "killed",
+  "why": "Session 343 review round, mutation lens: this edit SURVIVED every shipped row; killed by cell-background-refresh.test.ts: the one-range row"
+ },
+ {
+  "name": "R-F03 the record is made before apply: an apply that throws leaves the record saying untinted",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "      options.apply(entry.editor, ranges);\n      applied.set(entry.key, ranges);\n      if (ranges.length > 0) {\n        tinted.add(entry.key);\n      } else {\n        tinted.delete(entry.key);\n      }\n",
+  "to": "      if (ranges.length > 0) {\n        tinted.add(entry.key);\n      } else {\n        tinted.delete(entry.key);\n      }\n      options.apply(entry.editor, ranges);\n      applied.set(entry.key, ranges);\n",
+  "expect": "killed",
+  "why": "Session 343 review round, mutation lens: this edit SURVIVED every shipped row; killed by cell-background-refresh.test.ts: the apply-throws row"
+ },
+ {
+  "name": "R-F06 a full refresh clears the whole record when one key is not visible",
+  "file": "src/core/cell-background-refresh.ts",
+  "from": "        if (!keys.has(key)) {\n          tinted.delete(key);",
+  "to": "        if (!keys.has(key)) {\n          tinted.clear();",
+  "expect": "killed",
+  "why": "Session 343 review round, mutation lens: this edit SURVIVED every shipped row; killed by cell-background-refresh.test.ts: the forgets-only-the-invisible row"
+ },
+ {
+  "name": "R-G01 a hit on the second entry is not promoted",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (hitAt !== 0) regionsCache = promoted(regionsCache, hitAt);",
+  "to": "    if (hitAt > 1) regionsCache = promoted(regionsCache, hitAt);",
+  "expect": "killed",
+  "why": "Session 343 review round, mutation lens: this edit SURVIVED every shipped row; killed by s343-regions-cache-rows.test.ts: the second-entry row"
+ },
+ {
+  "name": "R-K1 the citation cache does not compare the change time",
+  "file": "src/core/citations.ts",
+  "from": " && kept.size === size && kept.ctimeMs === ctimeMs) {",
+  "to": " && kept.size === size) {",
+  "expect": "killed",
+  "why": "killed by s343-citation-cache-rows.test.ts: the changed-CHANGE-time row (a same-size rewrite that keeps the mtime and moves the ctime is read again)"
+ },
+ {
+  "name": "R-K2 the citation cache keeps no change time with the entry",
+  "file": "src/core/citations.ts",
+  "from": "entries.set(absolute, { mtimeMs, size, ctimeMs, citations });",
+  "to": "entries.set(absolute, { mtimeMs, size, ctimeMs: undefined, citations });",
+  "expect": "killed",
+  "why": "killed by s343-citation-cache-rows.test.ts: a stat that carries a change time is then never equal to the kept one, so 'nothing moved: one read' reads twice"
+ },
+ {
+  "name": "R-D10 dropTrailing tests the handle's value, not the table's key",
+  "file": "src/core/typing-debounce.ts",
+  "from": "    if (pending.has(key)) {\n      timers.clearTimeout(pending.get(key));",
+  "to": "    if (pending.get(key) !== undefined) {\n      timers.clearTimeout(pending.get(key));",
+  "expect": "survives",
+  "why": "EQUIVALENT in the extension: real timers hand back objects and the fake clock numbers, so a handle is never undefined; legal under `TimerHandle = unknown` and unobservable (Session 343 review round, MUT-09, INFO)"
+ }
+]

@@ -67,11 +67,13 @@ export function appendCitations(target: Citation[], more: readonly Citation[]): 
 /**
  * The citations of every bibliography a document declares, de-duplicated by citekey (first wins), in
  * declared/file order. Each path in `relPaths` is resolved against `dir`, the document's own directory,
- * and read with `readFile`, which the adapter hands in (`fs.readFile`) so that this loop can run without
- * `vscode`. A missing or unreadable bibliography is skipped — a broken bibliography must never break
- * completion. The loop was the adapter's `loadCitations` until the review of Session 338, which found
- * that six behaviour mutants of it passed every unit test: only a gate that read the adapter's SOURCE
- * noticed the cure's call.
+ * and read with `readFile`, so that this loop can run without `vscode`. A missing or unreadable bibliography
+ * is skipped — a broken bibliography must never break completion. The loop was the adapter's `loadCitations`
+ * until the review of Session 338, which found that six behaviour mutants of it passed every unit test: only
+ * a gate that read the adapter's SOURCE noticed the cure's call. ⚠ Since Session 343 NO production code calls
+ * it (`createCitationCache` is the adapter's reader, and `s343-citation-wiring-pin.test.ts` forbids this call
+ * there): it is kept as the ORACLE of `s343-citation-cache-rows.test.ts`, which compares every answer of the
+ * cache with it.
  *
  * ⚠ The `catch` is EMPTY on purpose and it covers the append too, as it did in the adapter: it is what
  * swallowed the `RangeError` of the old spread (see {@link appendCitations}), so a throw from the parser
@@ -94,10 +96,15 @@ export async function readCitations(
   return dedupeByKey(all);
 }
 
-/** What identifies a bibliography file's content without reading it: its modification time (milliseconds) and its size (bytes). */
+/**
+ * What identifies a bibliography file's content without reading it: its modification time (milliseconds), its size (bytes) and, when the file system says, its CHANGE time (`ctimeMs`).
+ * The change time is what a tool that sets the modification time itself cannot reach (cp -p, rsync -t, touch -r, tar, unzip, a reproducible-build normaliser): a same-size replacement
+ * by one of them keeps the first two numbers and moves the third. `fs.stat` always reports it; a stand-in that does not is compared on the two numbers it has.
+ */
 export interface BibliographyStat {
   mtimeMs: number;
   size: number;
+  ctimeMs?: number;
 }
 
 /** The two things the cache needs of the file system, handed in by the adapter so that the cache can run without `vscode` (`fs.readFile` as UTF-8 text, and `fs.stat`). */
@@ -118,6 +125,7 @@ export const CITATION_CACHE_MAX_FILES = 16;
 interface CachedBibliography {
   mtimeMs: number;
   size: number;
+  ctimeMs: number | undefined;
   citations: readonly Citation[];
 }
 
@@ -128,8 +136,9 @@ interface CachedBibliography {
  * on every completion request: at 20,000 entries of five lines each the parse alone is 40 ms, proportional to the bytes.
  *
  * For each declared path, in order:
- *  - the file is `stat`ed FIRST. If the cache holds it under the same modification time AND the same size, its parsed
- *    citations are reused and the file is not read. Otherwise it is read and parsed, and the entry replaced.
+ *  - the file is `stat`ed FIRST. If the cache holds it under the same modification time AND the same size AND the same
+ *    change time, its parsed citations are reused and the file is not read. Otherwise it is read and parsed, and the
+ *    entry replaced.
  *  - **the signature kept is the one read BEFORE the content.** A file rewritten between the `stat` and the read is then
  *    kept under the old signature, the next ask sees the new one and reads it again; read after the content, it would
  *    be kept under the new signature with the old content, and served stale for good.
@@ -139,11 +148,15 @@ interface CachedBibliography {
  * The cross-file de-duplication by key (first wins, in declared order) is done at EVERY ask over the entries, not kept:
  * the same two cached files answer differently when they are declared the other way round.
  *
- * ⚠ **THE ONE BLIND SPOT.** A file rewritten within one millisecond to the SAME size, which leaves the modification time
- * (to the granularity of the file system) and the size as they were, is not seen. Every build tool that decides by stat
- * has it. `===` is the comparison, so a `NaN` (a stat that cannot say) is never equal to itself and the file is read at
- * every ask, and `0` and `-0` are one signature. A stat that does not carry two numbers is no signature at all: the
- * file is read at every ask and nothing is kept for it.
+ * ⚠ **THE BLIND SPOT.** A file rewritten to the SAME size that leaves the modification time, the size AND the change time as
+ * they were is not seen. The change time cannot be set from user space, so what is left is a rewrite within the same tick
+ * of the file system's clock (within one millisecond, at its granularity), as with any build tool that decides by stat;
+ * a tool that sets the MODIFICATION time itself (cp -p, rsync -t, touch -r, tar, unzip) moves the change time and is seen
+ * (Session 343's review round: the first spelling kept two numbers and missed it). `ino` is not part of the signature: a
+ * symlink retargeted to a same-size file with the same three numbers is served as the old file. `===` is the comparison,
+ * so a `NaN` (a stat that cannot say) is never equal to itself and the file is read at every ask, and `0` and `-0` are
+ * one signature. A stat that does not carry the first two numbers is no signature at all: the file is read at every ask
+ * and nothing is kept for it. A change time the stat does not carry (`undefined`) is equal to itself.
  *
  * The cache is keyed by the file's ABSOLUTE path, so two documents that declare one file by two spellings share an
  * entry, and it holds at most {@link CITATION_CACHE_MAX_FILES} files, least recently used first out (a `Map` iterates in
@@ -159,10 +172,10 @@ export function createCitationCache(options: CitationCacheOptions): CitationCach
   /** The parsed citations of one file, from the entry if its signature is unchanged and from the file if not; throws if the file cannot be `stat`ed or read. */
   async function citationsOf(absolute: string): Promise<readonly Citation[]> {
     const signature = await options.stat(absolute);
-    const { mtimeMs, size } = signature;
+    const { mtimeMs, size, ctimeMs } = signature;
     const known = typeof mtimeMs === "number" && typeof size === "number";
     const kept = entries.get(absolute);
-    if (known && kept !== undefined && kept.mtimeMs === mtimeMs && kept.size === size) {
+    if (known && kept !== undefined && kept.mtimeMs === mtimeMs && kept.size === size && kept.ctimeMs === ctimeMs) {
       entries.delete(absolute);
       entries.set(absolute, kept); // most recently used
       return kept.citations;
@@ -170,7 +183,7 @@ export function createCitationCache(options: CitationCacheOptions): CitationCach
     const citations = parseCitations(await options.readFile(absolute)).map((citation) => Object.freeze(citation));
     entries.delete(absolute);
     if (known) {
-      entries.set(absolute, { mtimeMs, size, citations });
+      entries.set(absolute, { mtimeMs, size, ctimeMs, citations });
       while (entries.size > CITATION_CACHE_MAX_FILES) {
         const oldest = entries.keys().next();
         if (oldest.done === true) break;
