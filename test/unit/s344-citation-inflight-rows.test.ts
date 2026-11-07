@@ -208,6 +208,14 @@ describe("Session 344 -- asks that overlap share ONE read and ONE parse", () => 
     expect([keys(a), keys(b), fs.reads()]).toEqual([["a1"], ["b1"], 2]);
   });
 
+  it("two caches share nothing even while a read is in flight: the same file asked of each at once is read twice", async () => {
+    const fs = fakeFs({ "a.bib": { content: bibtex([["a1", "A"]]), mtimeMs: 7 } });
+    const one = createCitationCache(fs);
+    const two = createCitationCache(fs);
+    const [first, second] = await Promise.all([one.read(["a.bib"], DIR), two.read(["a.bib"], DIR)]);
+    expect([keys(first), keys(second), fs.reads()]).toEqual([["a1"], ["a1"], 2]);
+  });
+
   it("a file whose stat stops saying drops its entry (the read that follows is its own): when the numbers come back as they were, the file is read again, not served from the entry kept before", async () => {
     let stat: unknown = { mtimeMs: 100, size: 50 };
     let content = bibtex([["a", "A"]]);
