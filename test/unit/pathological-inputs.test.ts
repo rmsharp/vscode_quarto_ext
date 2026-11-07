@@ -1590,7 +1590,7 @@ describe("Session 328 — refused fence openers with no blank line between them"
 
   it("builds a different text for every row", () => {
     const small = FENCE_ROWS.map((row) => row.build(FENCE_FEW));
-    // The TEXT alone, not the entry with it: `scanRegions` keeps the last two scans by text (`regionsCache`), so a row whose text another row read just before it is served from the cache and cannot be RED (the first draft's `indexLabels` row passed on the parent for that reason).
+    // The TEXT alone, not the entry with it: `scanRegions` keeps the last scans by text (two, and up to four since Session 343 while their texts are small) (`regionsCache`), so a row whose text another row read just before it is served from the cache and cannot be RED (the first draft's `indexLabels` row passed on the parent for that reason).
     const long = FENCE_ROWS.map((row) => row.build(row.many));
     expect(new Set(long).size).toBe(FENCE_ROWS.length);
     // Two rows may share a small text only if they differ in size or entry (a larger copy of a shape, or the same shape through another reader).
@@ -1897,7 +1897,7 @@ describe("Session 331 — consecutive lines that each open a container column no
 
   it("builds a different text for every row", () => {
     const small = COLUMN_ROWS.map((row) => row.build(COLUMN_FEW));
-    // The TEXT alone, not the entry with it: `scanRegions` keeps the last two scans by text (`regionsCache`), so a row whose text another row read just before it is served from the cache and cannot be RED.
+    // The TEXT alone, not the entry with it: `scanRegions` keeps the last scans by text (two, and up to four since Session 343 while their texts are small) (`regionsCache`), so a row whose text another row read just before it is served from the cache and cannot be RED.
     const long = COLUMN_ROWS.map((row) => row.build(row.many));
     expect(new Set(long).size).toBe(COLUMN_ROWS.length);
     // Two rows may share a small text only if they differ in size or entry.
@@ -2016,7 +2016,7 @@ describe("Session 332 — a long paragraph of consecutive lines under a CommonMa
   }, 120_000);
 
   it("builds a different text for every row", () => {
-    // The TEXT alone, not the entry with it: `scanRegions` keeps the last two scans by text (`regionsCache`), so a row whose text another row read just before it is served from the cache and cannot be RED.
+    // The TEXT alone, not the entry with it: `scanRegions` keeps the last scans by text (two, and up to four since Session 343 while their texts are small) (`regionsCache`), so a row whose text another row read just before it is served from the cache and cannot be RED.
     const long = PARAGRAPH_ROWS.map((row) => row.build(row.many));
     expect(new Set(long).size).toBe(PARAGRAPH_ROWS.length);
     // The small texts are distinct too (the rows are read at PARAGRAPH_FEW units first, and a cache hit there would hide the answer check); no two rows share one.
@@ -2129,7 +2129,7 @@ describe("Session 333 — a table-border-shaped line holding a long run of dashe
   });
 
   it("builds a different text for every row", () => {
-    // The TEXT alone: `scanRegions` keeps the last two scans by text, so a row whose text another row read just before it is served from the cache and cannot be RED.
+    // The TEXT alone: `scanRegions` keeps the last scans by text (two, and up to four since Session 343 while their texts are small), so a row whose text another row read just before it is served from the cache and cannot be RED.
     const long = GRID_ROWS.map((row) => gridFrontMatter(row.from) + row.build(row.unit.repeat(row.many)));
     expect(new Set(long).size).toBe(GRID_ROWS.length);
     const small = GRID_ROWS.map((row) => gridFrontMatter(row.from) + row.build(row.unit.repeat(GRID_FEW)));
@@ -2228,7 +2228,7 @@ describe("Session 334 — a tag line, a link definition, an `options(` argument 
   });
 
   it("builds a different text for every row", () => {
-    // The TEXT alone: `scanRegions` keeps the last two scans by text, so a row whose text another row read just before it is served from the cache and cannot be RED.
+    // The TEXT alone: `scanRegions` keeps the last scans by text (two, and up to four since Session 343 while their texts are small), so a row whose text another row read just before it is served from the cache and cannot be RED.
     const long = S334_ROWS.map((row) => s334FrontMatter(row.from) + row.build(row.unit.repeat(row.many)));
     expect(new Set(long).size).toBe(S334_ROWS.length);
     const small = S334_ROWS.map((row) => s334FrontMatter(row.from) + row.build(row.unit.repeat(S334_FEW)));
@@ -2319,7 +2319,7 @@ describe("Session 335 — a single line of millions of characters that a pattern
   }, 120_000);
 
   it("builds a different text for every row", () => {
-    // The TEXT alone: `scanRegions` keeps the last two scans by text, so a row whose text another row read just before it is served from the cache and cannot be RED.
+    // The TEXT alone: `scanRegions` keeps the last scans by text (two, and up to four since Session 343 while their texts are small), so a row whose text another row read just before it is served from the cache and cannot be RED.
     // A long text is its row's builder applied to `unit x many`, so distinct small texts and distinct (unit, many) pairs make the long ones distinct without holding thirty megabytes of each.
     const small = S335_ROWS.map((row) => row.build(row.unit.repeat(row.few ?? S335_FEW)));
     expect(new Set(small).size).toBe(S335_ROWS.length);
@@ -2413,7 +2413,7 @@ describe("Session 336 — a single line of millions of characters that a pattern
     }, 120_000);
 
     it("builds a different text for every row", () => {
-      // The TEXT alone: `scanRegions` keeps the last two scans by text, so a row whose text another row read just before it is served from the cache and cannot be RED.
+      // The TEXT alone: `scanRegions` keeps the last scans by text (two, and up to four since Session 343 while their texts are small), so a row whose text another row read just before it is served from the cache and cannot be RED.
       const small = S336_ROWS.map((row) => row.build(row.unit.repeat(row.few ?? S336_FEW)));
       expect(new Set(small).size).toBe(S336_ROWS.length);
     });

@@ -7,7 +7,7 @@
  * The offset is any `number`: clamped into the document, and a `NaN` is the start of line 0 with a column of `NaN`.
  *
  * ⚠ Session 343: the line's text is read between the two line breaks that surround the offset, NEVER from a split of the
- * whole document (a split of 2,000 cells of 27 lines is 1.2 ms, of 8,000 cells 5 to 7 ms, built for one line and thrown
+ * whole document (a split of 2,000 cells of 25 lines is 1.2 ms, of 8,000 cells 5 to 7 ms, built for one line and thrown
  * away, on every completion request and on a prose line too, where the answer is `null`). The walk to the offset is one
  * `indexOf` a line, which is the cost that is left: it is linear in the offset, 0.3 ms for the whole of 2,000 cells.
  */

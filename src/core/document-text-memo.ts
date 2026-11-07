@@ -4,9 +4,14 @@
  * `TextDocument.getText()` joins the whole buffer's lines into a new string on every call. Three adapters called it on the typing path: `updateCellContext`
  * (`features/execution.ts`) on EVERY selection event, even when the document did not change since the last one; `cellBackgroundRangesFor`
  * (`features/cell-background.ts`) for every visible Quarto editor on every refresh; `isPreviewableRenderScript` (`features/preview.ts`) for a `.py`, `.jl` or `.r`
- * active document on every keystroke. A fresh join costs 0.2 / 1.1 / 6.2 ms at 500 / 2,000 / 8,000 twenty-seven-line cells where the very same string object costs
+ * active document on every keystroke. A fresh join costs 0.2 / 1.1 / 6.2 ms at 500 / 2,000 / 8,000 25-line cells where the very same string object costs
  * 0.001 / 0.001 / 0.005 ms (the lead's p2b probe, `lines.join` standing in for `getText`); and the scan cache compares texts with `===`, which is O(n) for two equal
  * but distinct strings and O(1) for one string object.
+ *
+ * ⚠ WHAT IT DOES NOT CURE: every keystroke is a NEW version, so the memo gives the per-keystroke call of `isPreviewableRenderScript` NO gain (worker D measured
+ * 0.944 against 0.942 ms at 54,000 lines); it serves a repeat ask of ONE version (the Preview Script command right after the last keystroke's context update, an editor
+ * switch back to an unedited script). Reading only the head of a script would be the cure for that call (SIB-08, still open). The four completion providers are the
+ * adopters that gain: one request asks them all at one version.
  *
  * The memo returns the SAME string while a document's version is unchanged, and reads `getText()` again when it moves:
  *  - THE KEY is the `TextDocument` OBJECT (held through a `WeakRef`) and its version, never its URI and a version. A document closed, edited on disk and reopened starts again at version 1,

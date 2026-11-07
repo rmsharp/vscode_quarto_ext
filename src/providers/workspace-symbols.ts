@@ -21,7 +21,7 @@ import {
 /**
  * ONE cache for every query (Session 343): a cache made per query would never hit, and without one every
  * keystroke of the query rebuilt the outline of every `.qmd` file of the workspace (about 190 to 230 ms for 100 files
- * of 1,350 lines, the same again for each keystroke). It holds the QUERY-INDEPENDENT symbols of each file, keyed by
+ * of 1,255 lines, the same again for each keystroke). It holds the QUERY-INDEPENDENT symbols of each file, keyed by
  * the file's uri and valid while its text, its render mode and its file name are what they were; the query filter and
  * the `SymbolInformation` below stay per pass. What it keeps and drops is `createWorkspaceSymbolCache` in
  * `core/workspace-symbols`.

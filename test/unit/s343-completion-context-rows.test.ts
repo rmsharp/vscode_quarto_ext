@@ -309,7 +309,7 @@ describe("Session 343 -- a warm completionContextAt call splits the document no 
   const prose = text.indexOf("Prose with @fig-30") + 5;
   const keyEnd = text.indexOf("#| label: fig-30") + "#| label".length;
   const valueEnd = text.indexOf("#| label: fig-30") + "#| label: fig-30".length;
-  /** The scan and the option lines of `text`, made: a scan splits the text itself, and is not what is being counted. Every row calls it first, for the cache holds two scans and the rows before it have used it. */
+  /** The scan and the option lines of `text`, made: a scan splits the text itself, and is not what is being counted. Every row calls it first, for the cache holds up to four scans and the rows before it have used it. */
   const warm = (): void => void findCellOptionLines(text);
 
   it("the counter counts a split of the text and not a split of another string", () => {

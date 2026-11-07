@@ -13,7 +13,7 @@ import * as ts from "typescript";
 // tint without limit.
 //
 // ⚠ WHAT THIS DOES NOT SEE: the same as the pin it sits beside. It pins how the call sites are SPELLED; nothing runs the adapters' event wiring in a real host except the one integration row for the key (`test/integration/suite/in-code-cell.test.ts`,
-// written in Session 343 and not run by it), which waits 450 ms after an edit and so cannot see a maximum wait.
+// written in Session 343 and not run by it), which polls for the value after one edit and a cursor move and so cannot see a maximum wait.
 //
 // The checks are one function, `problemsIn(source, which)`, which names every pin the source breaks. The live files must have none, and the rows below hand it the live file with ONE edit (the edits are the mutants of
 // `tools/mutation-run/mutants/s343-max-wait.json`) and require it to name the pin that edit breaks.

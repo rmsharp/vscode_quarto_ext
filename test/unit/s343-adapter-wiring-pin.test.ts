@@ -9,8 +9,8 @@ import * as ts from "typescript";
 // run them: how they call the core functions this session adds is pinned here by their SOURCE, read with the TypeScript compiler API (`ts.createSourceFile`, then the syntax tree), not with a text search (Learning 911).
 // A comment, a string or an unused identifier can neither satisfy nor break a pin made this way. `s342-typing-wiring-pin.test.ts` is the model, and still pins the handlers, the scheduler and the debouncer these pins sit beside.
 //
-// ⚠ WHAT THIS DOES NOT SEE. It pins how the call sites are SPELLED. It does not run the adapters, and nothing else does: no test, unit or integration, observes a context key's value (VS Code offers no read-back), counts the
-// `setContext` round trips, or reads an applied decoration. The behaviour the spelling stands for is the core modules' own rows (`context-key-setter.test.ts`) and the equivalence rows beside them.
+// ⚠ WHAT THIS DOES NOT SEE. It pins how the call sites are SPELLED. It does not run the adapters, and nothing else does in a run anyone has made: no unit test observes a context key's value (VS Code offers no read-back), counts the
+// `setContext` round trips, or reads an applied decoration; the integration rows that capture `setContext` (`preview-script.test.ts`, `in-code-cell.test.ts`) see a key's CHANGES, and the new one is unrun. The behaviour the spelling stands for is the core modules' own rows (`context-key-setter.test.ts`) and the equivalence rows beside them.
 //
 // Each group is a function `problemsIn...(source)` that names every pin the source breaks. The live files must have none, and the rows at the end hand each the live file with ONE edit (the edits are the mutants of
 // `tools/mutation-run/mutants/s343-*.json`) and require it to name the pin that edit breaks: the pin can fail, and says which.

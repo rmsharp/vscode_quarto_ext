@@ -5,7 +5,7 @@
  * `isInCodeCell`, then `setContext 'quarto.inCodeCell'`)
  * and the cell-background decorator's `refresh` (`features/cell-background.ts`: `cellBackgroundRanges`, then
  * `setDecorations` with every cell's range). The first call after an edit costs 12.7 / 31.7 / 155 ms at 500 / 2,000 /
- * 8,000 twenty-line cells (they share one scan through the two-entry cache); a warm call is a fraction of a millisecond
+ * 8,000 25-line cells (a heading, a prose line and a 20-line python cell; they share one scan through the scan cache, which holds up to four since Session 343); a warm call is a fraction of a millisecond
  * (under 0.1 ms at 500 and 2,000 cells; at 8,000, about 0.1 ms for the very same string object and about 0.2 ms for a text
  * equal to the last one's but a distinct string, as `document.getText()` returns). VS Code sends a document event and a
  * selection event for each keystroke, so a person typing paid one scan a keystroke.

@@ -7,6 +7,7 @@ import { seededRandom } from "./support/regex-equivalence";
 
 // Session 343, D1 -- the document-text memo (BACKLOG: "What Session 342's review round found beside the typing-path cures"). `TextDocument.getText()` joins the whole buffer on every call, and three adapters called it on the typing path
 // (the cursor-move key on EVERY selection event, the cell tint on every refresh, the render-script predicate on every keystroke of a script). The memo returns the same string while a document's version stays.
+// ⚠ It gains nothing for the render-script predicate PER KEYSTROKE (each keystroke is a new version: 0.944 against 0.942 ms at 54,000 lines); it serves repeat asks of one version, and the four completion providers (one request asks them all at one version).
 //
 // The rows COUNT the calls of the thunk that stands for `document.getText()`. They do not time anything: a count is what a loaded machine cannot fake, and the lead's probe (p2b, `lines.join` for `getText`, 0.215 / 1.145 / 6.157 ms
 // a fresh join at 500 / 2,000 / 8,000 cells against 0.001 / 0.001 / 0.005 ms for the very same string) is the cost the count stands for. A string's identity is not observable in JavaScript (`toBe` compares values), so "the

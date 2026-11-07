@@ -10354,17 +10354,22 @@ type RegionsCacheEntry = {
  * construction (a hit promotes, a miss shifts the older out), makes the steady state zero.
  *
  * ⚠ UP TO FOUR since Session 343, under a memory bound (`qmd/regions-cache.ts` holds the policy and its three
- * named constants). A SECOND visible `.qmd` is refreshed by the same handlers on every edit of the first
- * (the cell tint of every visible editor; the Outline), so under two slots the first's two new scans (blind
- * and engine-aware) evicted the second's every cycle and it paid a cold scan each time (probe sib05b, 2,000
- * cells: 122 ms a cycle alone, 156 ms with a visible B). The two most recent entries are kept whatever their
- * size; the third and fourth only while the total length of all the held texts is at most 8,388,608
- * characters, so a megabytes-sized document keeps today's two.
+ * named constants). The two most recent entries are kept whatever their size; the third and fourth only while
+ * the total length of all the held texts is at most 8,388,608 characters, so a megabytes-sized document keeps
+ * today's two. What the extra slots serve: (1) a FOCUS SWITCH between two visible `.qmd` runs a full refresh
+ * (the cell tint of every visible editor: both blind scans) and then the Outline of the new active document
+ * (its engine-aware scan), three or four distinct keys that two slots evicted on every switch (the review round,
+ * 1,000 cells, no edit: 0 cold scans a switch at four slots, two at two); (2) a knitr or jupyter document is
+ * asked under both its keys. ⚠ The growth was first justified by an EDIT cycle (probe sib05b: a second visible
+ * `.qmd` was refreshed by the first one's every edit, 2,000 cells, 122 ms a cycle alone, 156 ms with a visible B),
+ * and that cycle is cured by the cell-background refresh plan, not by this cache: an edit now refreshes only the
+ * editors of its own document (`core/cell-background-refresh`), so no edit-time path scans the other document.
+ * The sib05b figures are from the tree before that plan; nobody re-measured the cycle at the merged tree.
  */
 let regionsCache: RegionsCacheEntry[] = [];
 
 /**
- * The parsed regions of `text`, served from the single-entry cache on a repeat
+ * The parsed regions of `text`, served from the scan cache on a repeat
  * call with identical text (see `regionsCache`). The returned `Regions` object,
  * its arrays, AND their `Cell`/`Heading`/`BodyLine` elements are shared across
  * calls and MUST be treated as immutable — the same contract every consumer has

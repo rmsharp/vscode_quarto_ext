@@ -5,8 +5,8 @@ import { describe, expect, it } from "vitest";
 import * as ts from "typescript";
 
 // Session 343, the completion providers' reads of a document's text (BACKLOG: "What Session 342's review round found beside the typing-path cures", parts (2) and (3): the text memo, SIB-01's join).
-// VS Code asks ALL FIVE completion providers registered for `quarto` on every request (crossref, filepath, citation, yaml, embedded), and four of them each called `document.getText()`: four whole-buffer
-// joins of one version, and four distinct but equal string objects, which the scan cache then compares with `===` in O(n) instead of O(1). They now read the text through `documentText`
+// VS Code asks the FOUR completion providers registered for `quarto` on every request (crossref, citation, yaml, embedded; the filepath provider is registered for `_quarto.yml`, not for a `.qmd`), and each called
+// `document.getText()`: four whole-buffer joins of one version, and four distinct but equal string objects, which the scan cache then compares with `===` in O(n) instead of O(1). They now read the text through `documentText`
 // (`features/document-text`, the memo `core/document-text-memo` answers from), so a request joins the buffer once and the four providers hold ONE string object.
 //
 // The providers import `vscode`, so no unit test can run them: how each completion method reads the text is pinned from the SOURCE with the TypeScript compiler API (Learning 911), not with a text

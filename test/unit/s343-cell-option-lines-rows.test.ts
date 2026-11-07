@@ -23,8 +23,7 @@ import { seededRandom } from "./support/regex-equivalence";
 // THE CLOCK ROW. Three warm `findCellOptionLines` calls on a 2,000-cell document, as a ratio of one warm `findAllCells` lookup (a slice of 2,000 cells; the option lines are 4,000 elements, so a cure that copies them costs
 // about 2 lookups a call, 6 for the three at most). Measured in vitest at load 4 to 9, eight runs: the parent's ratio is 15,400 to 16,300 (three flatMaps of
 // 2.7 ms over a 0.0002 ms lookup), the cure's 3.6 to 4.4. The limit is 100: more than 20 times the cure's figure and 150 times under the parent's. Each round times both windows back to back and the row reads the MEDIAN
-// round, so a pause in one window does not decide it. The clock's own
-// rows (`ratioOfWindows`, driven by a clock that only the stand-ins advance) are the second describe: a stuck clock, a window that did not tick, a clock that runs backwards (Learning 910).
+// round, so a pause in one window does not decide it. The clock's own rows (`ratioOfWindows`, driven by a clock that only the stand-ins advance) are the second describe: a stuck clock, a window that did not tick, a clock that runs backwards (Learning 910).
 
 type Engine = Parameters<typeof findCellOptionLines>[1];
 const ENGINES: Engine[] = [undefined, "knitr", "jupyter", "markdown", "julia", "ambiguous"];

@@ -6,7 +6,10 @@ import { seededRandom } from "./support/regex-equivalence";
 // Session 343 -- part (3) of the BACKLOG item "What Session 342's review round found beside the typing-path cures", SIB-05. The model's scan cache (`regionsCache` in src/core/qmd/model.ts) held TWO entries, keyed (text, engine,
 // mode): one document under its engine-blind key (cell background, Run Cell, completion) and its engine-aware key (the Outline). With a SECOND visible `.qmd`, every edit cycle of the first thrashed it: the second's blind scan
 // was evicted by the first's two new ones and paid a cold scan again, on every cycle. Measured at the parent (probe sib05b: tint A blind, Outline A [a blind `resolveDocumentEngine`, then the knitr-aware `buildOutline`], tint B
-// blind; a fresh process each, a fresh text for A each cycle, median of 9, load 6 to 15), 500 / 2,000 / 8,000 cells of 27 lines: A alone 30.4 / 122.5 / 529.1 ms a cycle, with a visible B 37.9 / 156.3 / 673.0 ms.
+// blind; a fresh process each, a fresh text for A each cycle, median of 9, load 6 to 15), 500 / 2,000 / 8,000 cells of 25 lines: A alone 30.4 / 122.5 / 529.1 ms a cycle, with a visible B 37.9 / 156.3 / 673.0 ms.
+//
+// ⚠ Session 343's review round: the EDIT cycle measured above is cured by the cell-background refresh plan (an edit refreshes only the editors of its own document), not by this cache; what the four slots still serve is a
+// FOCUS SWITCH between two visible documents and a knitr or jupyter document under its two keys (the first describe below).
 //
 // The cache holds up to FOUR entries, least recently used out (a hit promotes, a miss inserts at the front and drops from the back), under a memory bound: the two most recent entries are kept whatever their size (today's
 // two), and the third and fourth only while the TOTAL LENGTH of all the held texts is at most 8,388,608 characters (a megabytes-sized document keeps today's two). The policy is `promoted` and `admitted`
