@@ -32,8 +32,9 @@ const HEAVY_ROW_MS = 120_000;
 //      not the tint, where an immediate refresh of every editor brings every document up to date and cancels no document's timers, and where this copy's timer run also refreshes every visible editor: see `createTimelineAudit`),
 //      and nothing is left stale with no timer to run it;
 //   P3 the new wiring evaluates no more often than the oracle;
-//   P4 (Session 344) the window: the oldest event the oracle evaluated and the new wiring has not is LESS than `TYPING_MAX_WAIT_MS` old, so an unbroken stream is evaluated at least once in every maximum wait and the first evaluation comes no
-//      later than the maximum wait after its first event; and a run by a timer comes exactly one delay after the last debounced event since the key's last run or exactly one maximum wait after the first (no early, late or stray run);
+//   P4 (Session 344) the window: the oldest event the oracle evaluated and the new wiring has not is LESS than `TYPING_MAX_WAIT_MS` old (looked at after a step, so at the age itself the work has run): no event waits longer than the maximum
+//      wait for its evaluation, and the first evaluation comes no later than the maximum wait after its first event. That bounds each EVENT's wait, not the interval between two evaluations of an unbroken stream, which is a maximum wait
+//      plus the offset of the first event after a run (less than one gap more: 1,043 ms at a gap of 149, the row 'the same stream with a gap of 149 ms'); and a run by a timer comes exactly one delay after the last debounced event since the key's last run or exactly one maximum wait after the first (no early, late or stray run);
 // and over a whole enumeration: some sequences end with a pending timer (the delay is reached), some save evaluations (the debounce does something), and none of those two is all of them.
 
 /** The truth about the document the model builds: `pad` lines of prose, then a python cell on `pad..pad+2`, a prose line, an r cell on `pad+4..pad+6`, where `pad` is the version modulo three. */
@@ -110,8 +111,9 @@ interface Observation {
  * code's timers: they are stated from the two logs and the two constants.
  *
  *  - STALE: an oracle evaluation that no evaluation of the new wiring has followed. The state a debounced event left is stale until the new wiring runs.
- *  - W (the window): while anything is stale, its age is LESS than `TYPING_MAX_WAIT_MS`. The first stale evaluation is the first event of a stream, so the work runs no later than the maximum wait after it, and an unbroken
- *    stream is evaluated at least once in every maximum wait. (The fake clock runs a timer due at the instant it advances to, so at the age itself the work has run.)
+ *  - W (the window): while anything is stale, its age is LESS than `TYPING_MAX_WAIT_MS`. The first stale evaluation is the first event of a stream, so the work runs no later than the maximum wait after it: no event waits longer
+ *    than the maximum wait for its evaluation. (The fake clock runs a timer due at the instant it advances to, so at the age itself the work has run.) This bounds each event's wait and not the interval between two evaluations of an
+ *    unbroken stream, which is a maximum wait plus the offset of the first event after a run (1,043 ms at a gap of 149): a window opens at that event, so "evaluated at least once in every maximum wait" is not what is checked.
  *  - LIVE: anything stale has a timer pending (nothing is left waiting for an event that never comes; with a key a document, 'a timer', not 'a timer of its own'). With one key (`perKey: false`) the converse holds too: a
  *    pending timer means stale state. With a key a document (`perKey: true`) it does not, for two reasons. The immediate refreshes (a switch of editor, a show or a hide, a reload) bring every document up to date and cancel
  *    no document's timers, in the shipped wiring as in this copy: after [edit A, hide B] two timers are pending and nothing is stale. And in this copy a timer's run refreshes every visible editor (the Session 342 spelling; the
