@@ -6,14 +6,18 @@ import * as ts from "typescript";
 
 // Session 343, parts (2) to (4) of "What Session 342's review round found beside the typing-path cures" (D1 the document-text memo, D2 the context-key setter, D3 the cell-background refresh plan). `src/features/execution.ts`,
 // `preview.ts`, `cell-background.ts` and `context-key.ts` import `vscode`, so no unit test can
-// run them: how they call the core functions this session adds is pinned here by their SOURCE, read with the TypeScript compiler API (`ts.createSourceFile`, then the syntax tree), not with a text search (Learning 911).
+// run them: how they call the core functions these sessions add is pinned here by their SOURCE, read with the TypeScript compiler API (`ts.createSourceFile`, then the syntax tree), not with a text search (Learning 911).
+// Session 344 (SIB-08) rewrote the `preview.ts` text group (PT): the predicate builds no text and hands the document to `isRenderScriptDocument` (`core/render-script`), and nothing in `preview.ts` but the format picker reaches `getText`
+// or `documentText`; it also pinned the first arguments of the three context updates and the gate of `previewActiveScript`.
 // A comment, a string or an unused identifier can neither satisfy nor break a pin made this way. `s342-typing-wiring-pin.test.ts` is the model, and still pins the handlers, the scheduler and the debouncer these pins sit beside.
 //
 // ⚠ WHAT THIS DOES NOT SEE. It pins how the call sites are SPELLED. It does not run the adapters, and nothing else does in a run anyone has made: no unit test observes a context key's value (VS Code offers no read-back), counts the
 // `setContext` round trips, or reads an applied decoration; the integration rows that capture `setContext` (`preview-script.test.ts`, `in-code-cell.test.ts`) see a key's CHANGES, and the new one is unrun. The behaviour the spelling stands for is the core modules' own rows (`context-key-setter.test.ts`) and the equivalence rows beside them.
 //
-// Each group is a function `problemsIn...(source)` that names every pin the source breaks. The live files must have none, and the rows at the end hand each the live file with ONE edit (the edits are the mutants of
-// `tools/mutation-run/mutants/s343-*.json`) and require it to name the pin that edit breaks: the pin can fail, and says which.
+// Each group is a function `problemsIn...(source)` that names every pin the source breaks. The live files must have none, and the rows at the end hand each the live file with ONE edit and require it to name the pin that edit
+// breaks: the pin can fail, and says which. The edits are the mutants of `tools/mutation-run/mutants/s343-*.json` and, for the preview groups' Session 344 rows, of `s344-render-script-lazy.json`, matched by their `from` and `to`
+// text and NOT by their ids: the six PT entries of `s343-text-memo.json` are the rows PT01, PT04, PT05, PT06, PT07 and PT09 here, and the W entries carry their own numbers. Eight rows of the preview groups (PT02, PT03, PT08,
+// PT10, PT15, PT17, PT19 and PT29) are in no list; the ids of every other row are its list's, but PS11 to PS13, which are W17 to W19.
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 /** A source file of the tree, or "" when it is not there: a pin on a file that does not exist fails by NAME ("... is missing"), not by an unreadable file. */
@@ -174,7 +178,7 @@ function problemsInPreviewSetter(source: string): string[] {
   return problems;
 }
 
-describe("Session 343 -- how the adapters call the context-key setter, pinned by the syntax tree (a unit test cannot run them: they import vscode)", () => {
+describe("Sessions 343 and 344 -- how the adapters call the context-key setter, pinned by the syntax tree (a unit test cannot run them: they import vscode)", () => {
   it("context-key.ts keeps every pin: one send, the host's setContext, its result returned to core's setter", () => {
     expect(problemsInContextKeyAdapter(CONTEXT_KEY)).toEqual([]);
   });
@@ -196,7 +200,7 @@ describe("Session 343 -- how the adapters call the context-key setter, pinned by
     for (const name of ["registerPreviewFeature", "updateRenderScriptContext"]) expect(functionNamed(parse("preview.ts", PREVIEW), name)).toBeDefined();
   });
 
-  // The edits: each is a live file with ONE respelling, and the pin it must break. They are the mutants of `tools/mutation-run/mutants/s343-context-setter.json`, which the runner applies to the file itself.
+  // The edits: each is a live file with ONE respelling, and the pin it must break. They are the mutants of `tools/mutation-run/mutants/s343-context-setter.json`, which the runner applies to the file itself (PS11 to PS13 are W17 to W19 of `s344-render-script-lazy.json`).
   const CONTEXT_KEY_EDITS: Array<[string, string, string, string]> = [
     // [name, from, to, a word of the problem it must be named by]
     ["CK01: the send is a block that drops the command's result (a rejected setContext is never seen, so never forgotten)", "createContextKeySetter((key, value) =>\n    vscode.commands.executeCommand(\"setContext\", key, value),\n  );", "createContextKeySetter((key, value) => {\n    vscode.commands.executeCommand(\"setContext\", key, value);\n  });", "the send's body is not the executeCommand call itself"],
@@ -277,7 +281,7 @@ describe("Session 343 -- how the adapters call the context-key setter, pinned by
 
 // ---- D1: THE DOCUMENT-TEXT MEMO ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-/** Every pin `src/features/document-text.ts` breaks: ONE memo for the module (so the three features share an entry), asked with the document and a thunk over the same document's `getText`, and no runtime `vscode`. */
+/** Every pin `src/features/document-text.ts` breaks: ONE memo for the module (so the features that read a document's text on the typing path share an entry: the cursor-move key, the cell tint and the four completion providers), asked with the document and a thunk over the same document's `getText`, and no runtime `vscode`. */
 function problemsInDocumentTextAdapter(source: string): string[] {
   const sf = parse("document-text.ts", source);
   const problems: string[] = [];
@@ -481,7 +485,7 @@ function problemsInMemoCore(source: string): string[] {
   return problems;
 }
 
-describe("Session 343 -- how the adapters read a document's text, pinned by the syntax tree (a unit test cannot run them: they import vscode)", () => {
+describe("Sessions 343 and 344 -- how the adapters read a document's text, pinned by the syntax tree (a unit test cannot run them: they import vscode)", () => {
   it("document-text.ts keeps every pin: one memo for the module, asked with the document and a thunk over its getText, no runtime import of vscode", () => {
     expect(problemsInDocumentTextAdapter(DOCUMENT_TEXT)).toEqual([]);
   });
@@ -490,7 +494,7 @@ describe("Session 343 -- how the adapters read a document's text, pinned by the 
     expect(problemsInExecutionText(EXECUTION)).toEqual([]);
   });
 
-  it("preview.ts keeps every text pin: the predicate hands the document to the lazy detector after the extension prefilter, and no text is built on the path", () => {
+  it("preview.ts keeps every text pin: the predicate hands the document to the lazy detector after the extension prefilter, nothing in the file but the format picker reaches getText or documentText, and the command's gate refuses and returns", () => {
     expect(problemsInPreviewText(PREVIEW)).toEqual([]);
   });
 
@@ -511,7 +515,8 @@ describe("Session 343 -- how the adapters read a document's text, pinned by the 
     expect(functionNamed(parse("preview.ts", PREVIEW), "isPreviewableRenderScript")).toBeDefined();
   });
 
-  // The edits: each is a live file with ONE respelling, and the pin it must break. They are the mutants of `tools/mutation-run/mutants/s343-text-memo.json`, which the runner applies to the file itself.
+  // The edits: each is a live file with ONE respelling, and the pin it must break. The document-text, execution, cell-background and memo-core rows are the mutants of `tools/mutation-run/mutants/s343-text-memo.json` (the same ids),
+  // which the runner applies to the file itself; the preview rows are in that list and in `s344-render-script-lazy.json` under their own ids (see the header).
   const DOCUMENT_TEXT_EDITS: Array<[string, string, string, string]> = [
     ["DT01: a second memo is made at the top level (two features would not share an entry)", "const memo = createDocumentTextMemo();\n", "const memo = createDocumentTextMemo();\nconst other = createDocumentTextMemo();\n", "2 calls of createDocumentTextMemo"],
     ["DT02: the memo is made inside documentText (it keeps nothing between calls)", "const memo = createDocumentTextMemo();\n\n/** The text of `document` as it is now: `document.getText()` on the first ask of a version, the same string while the version stays. */\nexport function documentText(document: vscode.TextDocument): string {\n", "/** The text of `document` as it is now: `document.getText()` on the first ask of a version, the same string while the version stays. */\nexport function documentText(document: vscode.TextDocument): string {\n  const memo = createDocumentTextMemo();\n", "is not the initializer of a top-level constant"],

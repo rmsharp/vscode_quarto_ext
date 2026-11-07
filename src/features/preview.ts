@@ -507,9 +507,12 @@ async function previewActiveScript(manager: PreviewManager): Promise<void> {
  *
  * That nothing on this path builds the buffer is pinned twice: in `core/` by counts of
  * the lines read (`test/unit/s344-render-script-lazy.test.ts`), and here from the
- * syntax tree (the document is the second argument of the last operand, and none of
- * this function, `updateRenderScriptContext` and `previewActiveScript` calls
- * `getText` or `documentText`).
+ * syntax tree (the document is the second argument of the last operand; nothing in this
+ * file but `previewFormatOfActiveDocument` reaches `getText` by a property access, an
+ * element access with the string or a destructuring, or names `documentText`, and the
+ * file imports nothing from `./document-text`: the listeners of the register function,
+ * the three functions on the path and any helper they call are all covered; a name that is
+ * computed is not).
  */
 function isPreviewableRenderScript(
   doc: vscode.TextDocument | undefined,
