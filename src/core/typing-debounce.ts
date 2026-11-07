@@ -67,8 +67,11 @@ export const TYPING_DEBOUNCE_MS = 150;
  * The longest an unbroken stream of edit events may postpone the edit-driven work: the first event after a run starts a
  * window, and the work runs at the end of it even if events are still arriving less than `TYPING_DEBOUNCE_MS` apart.
  * One second is the lead's choice (Session 343), long enough that a burst (a held key, a paste, a snippet) is still one run,
- * short enough that a typist who never pauses sees the key and the tint less than a second late (`typing-path-equivalence.test.ts`
- * checks the age of the oldest unevaluated event after every step of its timelines). Nothing compares it with another value, so it
+ * short enough that a typist who never pauses sees the key and the tint at most a second late: the first event of a window is
+ * evaluated exactly `TYPING_MAX_WAIT_MS` after it (at every gap from 1 to 149 ms on a fake clock) and a later event of the window
+ * sooner, and the host timer's lateness and the run's own time come on top. (`typing-path-equivalence.test.ts` checks the age of the
+ * oldest unevaluated event after every step of its timelines and reads it as LESS than the maximum wait: it looks after the timer due
+ * at that instant has run, so it never sees the age itself.) Nothing compares it with another value, so it
  * is not a measured optimum; what it COSTS is written down here, as a count of runs and, from the scan times of this file's
  * header, as a share of one core:
  *
