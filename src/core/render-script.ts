@@ -119,13 +119,130 @@ export interface RenderScriptSource {
 }
 
 /**
- * `isRenderScript(fileName, text)` for a document that is read line by line (BACKLOG: "What Session 342's review round found beside the typing-path cures", part (8)(a), SIB-08).
- * THE SEAM: the old logic inside. It reads every line and joins them, so it is `isRenderScript(fileName, getText())` spelled over lines.
+ * True iff `\s` matches the UTF-16 code unit `code`. The ASCII answer is the specification's (tab, line feed, vertical tab, form feed, carriage return and space);
+ * everything above it is asked of the engine with the class the two patterns use, so no table is written here to drift from it (`test/unit/s344-render-script-lazy.test.ts`
+ * puts every one of the 65,536 code units in the gaps of a script and compares).
+ */
+const SPACE = /\s/;
+function isSpace(code: number): boolean {
+  return code < 128 ? code === 32 || (code >= 9 && code <= 13) : SPACE.test(String.fromCharCode(code));
+}
+
+const HASH = 35; // #
+const QUOTE = 39; // '
+const PERCENT = 37; // %
+const OPEN_BRACKET = 91; // [
+
+/** A position in a document read line by line: the line, its text and the column, with the line fetched when the position first reaches it, once, and never again. */
+class Cursor {
+  line = 0;
+  text: string;
+  column = 0;
+
+  constructor(private readonly document: RenderScriptSource) {
+    this.text = document.lineAt(0).text;
+  }
+
+  /** The code unit at the column (`NaN` at the end of the line). */
+  code(): number {
+    return this.text.charCodeAt(this.column);
+  }
+
+  /** True iff the text from the column + `offset` begins with `needle`. It never leaves the line. */
+  startsWith(needle: string, offset: number): boolean {
+    return this.text.startsWith(needle, this.column + offset);
+  }
+
+  /** Moves to the start of the next line, reading it; false (and no read) when this is the last. */
+  nextLine(): boolean {
+    if (this.line + 1 >= this.document.lineCount) return false;
+    this.line++;
+    this.text = this.document.lineAt(this.line).text;
+    this.column = 0;
+    return true;
+  }
+
+  /** True iff the next character of the document is whitespace: the one at the column, or at the end of a line the line break after it (when a line follows). */
+  atSpace(): boolean {
+    return this.column < this.text.length ? isSpace(this.code()) : this.line + 1 < this.document.lineCount;
+  }
+
+  /** `\s*`: moves over whitespace, line breaks included, to the next character that is not; false when the document ends first. */
+  skipSpace(): boolean {
+    for (;;) {
+      while (this.column < this.text.length && isSpace(this.code())) this.column++;
+      if (this.column < this.text.length) return true;
+      if (!this.nextLine()) return false;
+    }
+  }
+}
+
+/** `PERCENT_CELL` after its `#`: `\s*%%+\s+\[(markdown|raw)\]`. */
+function percentCellAfterHash(cursor: Cursor): boolean {
+  if (!cursor.skipSpace()) return false;
+  let percents = 0;
+  while (cursor.code() === PERCENT) {
+    cursor.column++;
+    percents++;
+  }
+  // A line break is whitespace and not a percent sign: the run is one line's.
+  if (percents < 2 || !cursor.atSpace() || !cursor.skipSpace()) return false;
+  // The bracketed word has no whitespace in it, so it is on this line.
+  return cursor.code() === OPEN_BRACKET && (cursor.startsWith("markdown]", 1) || cursor.startsWith("raw]", 1));
+}
+
+/** `SPIN_HEADER` after its `#` and a `'`: `\s*---[\s\S]+?#'\s*---`. */
+function spinHeaderAfterQuote(cursor: Cursor): boolean {
+  cursor.column++;
+  if (!cursor.skipSpace() || !cursor.startsWith("---", 0)) return false;
+  cursor.column += 3;
+  // `[\s\S]+?` takes one character before the closer may begin, whatever it is (`#' ---#' ---` is not a header); at the end of a line that character is the line break.
+  if (cursor.column < cursor.text.length) {
+    cursor.column++;
+  } else if (!cursor.nextLine()) {
+    return false;
+  }
+  // The first `#'` + `\s*` + `---` anywhere after it. A `#'` is on one line (a line break between its characters is whitespace), the whitespace after it may run over lines, and a
+  // failed attempt resumes AT the character that failed it, which may be a `#`.
+  for (;;) {
+    const at = cursor.text.indexOf("#'", cursor.column);
+    if (at === -1) {
+      if (!cursor.nextLine()) return false;
+      continue;
+    }
+    cursor.column = at + 2;
+    if (!cursor.skipSpace()) return false;
+    if (cursor.startsWith("---", 0)) return true;
+  }
+}
+
+/**
+ * `isRenderScript(fileName, document's text)` for a document read line by line (BACKLOG: "What Session 342's review round found beside the typing-path cures", part (8)(a), SIB-08),
+ * and the same answer for every document and file name: `isRenderScript(fileName, lines.join(eol))` for either end of line, with `lines` the text of lines 0 to `lineCount - 1`.
+ *
+ * WHY IT EXISTS. `vscode.TextDocument.getText()` joins the whole buffer into a new string on every call, and the render-script predicate asked it on every keystroke of a `.py`, `.jl` or `.r`
+ * document, to answer a question about the FIRST LINES: both patterns are anchored at the start. This reads `lineAt(i).text` for the lines the answer needs and stops.
+ *
+ * THE ALGORITHM, and why it is this one. A hand-written left-to-right scan of the two patterns, with no backtracking, one pass, each line fetched once and in order:
+ *  - Both patterns begin `^\s*#`, and what follows the `#` tells the two apart (`'` is the spin header, anything else the percent cell), so one scan serves both. The opener of each
+ *    pattern is deterministic: at every step the characters that could continue it (whitespace, `#`, `%`, `'`, `-`, `[`) are disjoint from the ones that could not, so it needs no backtracking.
+ *  - A line break is one whitespace character (`"\n"` and `"\r\n"` both are, and no pattern counts them), so `\s*` and `\s+` run over line breaks, and a literal (`%%`, `[markdown]`,
+ *    `---`, `#'`) never does. That is why the end of the line is not an end of the scan, and why a lone `%` at the end of a line is a rejection without a read of the next line.
+ *  - The percent cell is decided by the line that holds its `]`, or by the first character that cannot continue it. The spin header's closer `#'\s*---` may be ANYWHERE later in the document,
+ *    so a header opened and never closed reads to the end, exactly as `SPIN_HEADER.test` scanned to the end: only that rare file reads the document. `indexOf("#'")` finds the next candidate
+ *    in a line, each failed candidate resumes where it failed, so a line is scanned once: no shape is quadratic (a million blank lines, a million lines of `#'`).
+ *  - A prefix-by-prefix test of the regular expressions was not taken: it re-reads, and a regular expression cannot say "not yet" from "never".
+ *
+ * PROVED, not argued: `test/unit/s344-render-script-lazy.test.ts` holds it to the old function (kept there verbatim as the oracle) on 21.2 million document and file-name pairs over four alphabets,
+ * the two-edit neighbourhood of eight scripts, every UTF-16 code unit in the gaps of a script and 120,000 seeded documents, each with both ends of line; and counts the lines read.
  */
 export function isRenderScriptDocument(fileName: string, document: RenderScriptSource): boolean {
-  const lines: string[] = [];
-  for (let i = 0; i < document.lineCount; i++) {
-    lines.push(document.lineAt(i).text);
-  }
-  return isRenderScript(fileName, lines.join("\n"));
+  const ext = extensionOf(fileName);
+  const percent = PERCENT_EXTENSIONS.includes(ext);
+  const spin = ext === SPIN_EXTENSION;
+  if ((!percent && !spin) || document.lineCount <= 0) return false;
+  const cursor = new Cursor(document);
+  if (!cursor.skipSpace() || cursor.code() !== HASH) return false;
+  cursor.column++;
+  return cursor.code() === QUOTE ? spin && spinHeaderAfterQuote(cursor) : percent && percentCellAfterHash(cursor);
 }

@@ -497,10 +497,15 @@ describe("Session 344 — a document whose leading lines decide the answer is re
     expect(readsOf("/tmp/a.r", lines)).toEqual(firstLines(lines.length));
   });
 
-  it("no shape is read twice or past its end: 1,000,000 blank lines, 1,000,000 lines of `#'`, 1,000,000 lines of `#' x` after an opener", () => {
-    for (const lines of [filler(MILLION, ""), filler(MILLION, "#'"), ["#' ---", ...filler(MILLION, "#' x")], ["#'", ...filler(MILLION, "#'")], [...filler(MILLION, " "), "# %%"]]) {
+  it("a shape that stays undecided is read once, line by line, to its end and no further: 1,000,000 blank lines, 1,000,000 lines of `#'`, `#' x`, `#' -` or `#'#'#'#'` after an opener, blanks then `# %%`", () => {
+    const shapes = [filler(MILLION, ""), ["#' ---", ...filler(MILLION, "#'")], ["#' ---", ...filler(MILLION, "#' x")], ["#' ---", ...filler(MILLION, "#' -")], ["#' ---", ...filler(MILLION, "#'#'#'#'")], [...filler(MILLION, " "), "# %%"]];
+    for (const lines of shapes) {
       expect(readsOf("/tmp/a.r", lines)).toEqual(firstLines(lines.length));
     }
+  });
+
+  it("a million lines of `#'` and no opener is dead at the second line (`#'` then `#'`: the opener needs `---`)", () => {
+    expect(readsOf("/tmp/a.r", filler(MILLION, "#'"))).toEqual([0, 1]);
   });
 });
 
