@@ -1,0 +1,474 @@
+[
+ {
+  "name": "S01 isSpace: the ASCII branch reaches U+00A0 (a no-break space is not whitespace to it)",
+  "file": "src/core/render-script.ts",
+  "from": "code < 128 ?",
+  "to": "code < 256 ?",
+  "expect": "killed",
+  "why": "a no-break space (U+00A0) read as not whitespace; killed by the neighbourhood pass of the differential (the scripts that start with or hold U+00A0) and the code-unit pass"
+ },
+ {
+  "name": "S02 isSpace: a carriage return is not whitespace",
+  "file": "src/core/render-script.ts",
+  "from": "code === 32 || (code >= 9 && code <= 13)",
+  "to": "code === 32 || (code >= 9 && code <= 12)",
+  "expect": "killed",
+  "why": "a carriage return read as not whitespace; killed by the code-unit pass of the differential (U+000D in the gaps of a script)"
+ },
+ {
+  "name": "S03 isSpace: a space is not whitespace",
+  "file": "src/core/render-script.ts",
+  "from": "code === 32 || (code >= 9 && code <= 13)",
+  "to": "(code >= 9 && code <= 13)",
+  "expect": "killed",
+  "why": "a space read as not whitespace; killed by the percent-alphabet pass of the differential"
+ },
+ {
+  "name": "S04 isSpace: nothing above ASCII is whitespace",
+  "file": "src/core/render-script.ts",
+  "from": "SPACE.test(String.fromCharCode(code))",
+  "to": "false",
+  "expect": "killed",
+  "why": "every character above ASCII read as not whitespace; killed by the neighbourhood and code-unit passes of the differential"
+ },
+ {
+  "name": "S05 isSpace: the class asked of the engine is only a no-break space and a byte order mark",
+  "file": "src/core/render-script.ts",
+  "from": "const SPACE = /\\s/;",
+  "to": "const SPACE = /[\\u00a0\\ufeff]/;",
+  "expect": "killed",
+  "why": "the class asked of the engine narrowed to two characters (U+00A0 and U+FEFF); killed by the neighbourhood pass of the differential (U+2028 in the scripts) and the code-unit pass (the other whitespace code units)"
+ },
+ {
+  "name": "C01 the hash is 34",
+  "file": "src/core/render-script.ts",
+  "from": "const HASH = 35;",
+  "to": "const HASH = 34;",
+  "expect": "killed",
+  "why": "no `#` found, so no document is a script; killed by the percent-alphabet pass of the differential"
+ },
+ {
+  "name": "K01 Cursor: the first line is never read (it starts on an empty text)",
+  "file": "src/core/render-script.ts",
+  "from": "    this.text = document.lineAt(0).text;",
+  "to": "    this.text = \"\";",
+  "expect": "killed",
+  "why": "line 0 never read, so the first line of every script is lost; killed by the percent-alphabet pass of the differential"
+ },
+ {
+  "name": "K02 Cursor: code() reads the next column",
+  "file": "src/core/render-script.ts",
+  "from": "return this.text.charCodeAt(this.column);",
+  "to": "return this.text.charCodeAt(this.column + 1);",
+  "expect": "killed",
+  "why": "every character read one column late; killed by the percent-alphabet pass of the differential"
+ },
+ {
+  "name": "K03 Cursor: startsWith ignores the offset",
+  "file": "src/core/render-script.ts",
+  "from": "this.text.startsWith(needle, this.column + offset)",
+  "to": "this.text.startsWith(needle, this.column)",
+  "expect": "killed",
+  "why": "a literal looked for at the wrong place; killed by the percent-alphabet pass of the differential"
+ },
+ {
+  "name": "K04 Cursor: nextLine reads one line past the last",
+  "file": "src/core/render-script.ts",
+  "from": "if (this.line + 1 >= this.document.lineCount) return false;",
+  "to": "if (this.line + 1 > this.document.lineCount) return false;",
+  "expect": "killed",
+  "why": "a line past the last asked for; the counting document throws, as the extension host's lineAt does; killed by the percent-alphabet pass of the differential"
+ },
+ {
+  "name": "K05 Cursor: atSpace says no at the end of a line",
+  "file": "src/core/render-script.ts",
+  "from": "this.column < this.text.length ? isSpace(this.code()) : this.line + 1 < this.document.lineCount;",
+  "to": "this.column < this.text.length ? isSpace(this.code()) : false;",
+  "expect": "killed",
+  "why": "a line break after a run of percent signs is not whitespace, so `#%%` / `[markdown]` on two lines is lost; killed by the percent-alphabet pass of the differential and the quirk row of the percent pattern"
+ },
+ {
+  "name": "K06 Cursor: atSpace says yes at the end of a line whether or not a line follows",
+  "file": "src/core/render-script.ts",
+  "from": "this.column < this.text.length ? isSpace(this.code()) : this.line + 1 < this.document.lineCount;",
+  "to": "this.column < this.text.length ? isSpace(this.code()) : true;",
+  "expect": "survives",
+  "why": "EQUIVALENT: atSpace is asked at the end of a line only by percentCellAfterHash, which calls skipSpace next; they differ only at the end of the LAST line, where `true` lets skipSpace run, find no line and answer false, which is the `return false` the `false` answer reaches. No answer and no read differs: survives the 21.2 million pairs and every count row"
+ },
+ {
+  "name": "K07 Cursor: atSpace looks one column past the end of the line",
+  "file": "src/core/render-script.ts",
+  "from": "this.column < this.text.length ? isSpace(this.code()) : this.line + 1 < this.document.lineCount;",
+  "to": "this.column <= this.text.length ? isSpace(this.code()) : this.line + 1 < this.document.lineCount;",
+  "expect": "killed",
+  "why": "the end of a line asked as a character, which is NaN and not whitespace, so a line break after the percent signs is lost; killed by the percent-alphabet pass of the differential"
+ },
+ {
+  "name": "K08 Cursor: atSpace says yes to any character",
+  "file": "src/core/render-script.ts",
+  "from": "this.column < this.text.length ? isSpace(this.code()) : this.line + 1 < this.document.lineCount;",
+  "to": "this.column < this.text.length ? true : this.line + 1 < this.document.lineCount;",
+  "expect": "killed",
+  "why": "any character after the percent signs counts as the whitespace they need (`#%%[markdown]` is accepted); killed by the percent-alphabet pass of the differential"
+ },
+ {
+  "name": "K09 Cursor: skipSpace stops at the end of a line (answers true there)",
+  "file": "src/core/render-script.ts",
+  "from": "      if (this.column < this.text.length) return true;",
+  "to": "      if (this.column <= this.text.length) return true;",
+  "expect": "killed",
+  "why": "skipSpace stops at the end of a line and answers true with nothing there, so a blank line ends the leading whitespace; killed by the percent-alphabet pass of the differential"
+ },
+ {
+  "name": "K10 Cursor: skipSpace answers true when the document ends",
+  "file": "src/core/render-script.ts",
+  "from": "      if (!this.nextLine()) return false;\n",
+  "to": "      if (!this.nextLine()) return true;\n",
+  "expect": "survives",
+  "why": "EQUIVALENT: when the document ends skipSpace answers true at the end of the last line, where code() is NaN, and each caller's next test fails on NaN as it fails on the `false` (not a hash; fewer than two percent signs; not a bracket; no `---`; the closer search's indexOf finds nothing and nextLine() is false). No answer and no read differs: survives the 21.2 million pairs and every count row"
+ },
+ {
+  "name": "K11 Cursor: skipSpace skips one whitespace character and no more",
+  "file": "src/core/render-script.ts",
+  "from": "while (this.column < this.text.length && isSpace(this.code())) this.column++;",
+  "to": "if (this.column < this.text.length && isSpace(this.code())) this.column++;",
+  "expect": "killed",
+  "why": "one whitespace character skipped, not a run; killed by the percent-alphabet pass of the differential"
+ },
+ {
+  "name": "K12 Cursor: skipSpace skips every character",
+  "file": "src/core/render-script.ts",
+  "from": "while (this.column < this.text.length && isSpace(this.code())) this.column++;",
+  "to": "while (this.column < this.text.length) this.column++;",
+  "expect": "killed",
+  "why": "every character skipped as if it were whitespace; killed by the percent-alphabet pass of the differential"
+ },
+ {
+  "name": "K13 Cursor: a line is read twice when the cursor moves to it",
+  "file": "src/core/render-script.ts",
+  "from": "    this.text = this.document.lineAt(this.line).text;\n",
+  "to": "    this.document.lineAt(this.line);\n    this.text = this.document.lineAt(this.line).text;\n",
+  "expect": "killed",
+  "why": "a line fetched twice; killed by the prefix-in-order check inside every row of the differential (percent-alphabet pass first), and by the counts rows"
+ },
+ {
+  "name": "P01 percent: no whitespace is skipped between the hash and the percent signs",
+  "file": "src/core/render-script.ts",
+  "from": "function percentCellAfterHash(cursor: Cursor): boolean {\n  if (!cursor.skipSpace()) return false;\n",
+  "to": "function percentCellAfterHash(cursor: Cursor): boolean {\n",
+  "expect": "killed",
+  "why": "no whitespace between the hash and the percent signs (`# %% [markdown]` is lost); killed by the percent-alphabet pass of the differential"
+ },
+ {
+  "name": "P02 percent: one percent sign is consumed (an if for the while)",
+  "file": "src/core/render-script.ts",
+  "from": "  while (cursor.code() === PERCENT) {",
+  "to": "  if (cursor.code() === PERCENT) {",
+  "expect": "killed",
+  "why": "a single percent sign consumed and the run ends (a script is never found); killed by the percent-alphabet pass of the differential"
+ },
+ {
+  "name": "P03 percent: two consumed at most (a third percent sign ends the run)",
+  "file": "src/core/render-script.ts",
+  "from": "  while (cursor.code() === PERCENT) {",
+  "to": "  while (cursor.code() === PERCENT && percents < 2) {",
+  "expect": "killed",
+  "why": "the run ends at two percent signs, so `#%%% [markdown]` is lost; killed by the percent-alphabet pass of the differential"
+ },
+ {
+  "name": "P04 percent: one percent sign is enough",
+  "file": "src/core/render-script.ts",
+  "from": "percents < 2 ||",
+  "to": "percents < 1 ||",
+  "expect": "killed",
+  "why": "one percent sign opens a cell (`# % [markdown]` is accepted); killed by the percent-alphabet pass of the differential"
+ },
+ {
+  "name": "P05 percent: three are needed",
+  "file": "src/core/render-script.ts",
+  "from": "percents < 2 ||",
+  "to": "percents < 3 ||",
+  "expect": "killed",
+  "why": "three percent signs needed (`# %% [markdown]` is lost); killed by the percent-alphabet pass of the differential"
+ },
+ {
+  "name": "P06 percent: no whitespace is needed after the percent signs",
+  "file": "src/core/render-script.ts",
+  "from": " || !cursor.atSpace()",
+  "to": "",
+  "expect": "killed",
+  "why": "no whitespace needed after the percent signs (`#%%[markdown]` is accepted); killed by the percent-alphabet pass of the differential"
+ },
+ {
+  "name": "P07 percent: the whitespace after the percent signs is not skipped",
+  "file": "src/core/render-script.ts",
+  "from": " || !cursor.skipSpace()) return false;",
+  "to": ") return false;",
+  "expect": "killed",
+  "why": "the whitespace between the percent signs and the bracket is not skipped (`# %% [markdown]` is lost); killed by the percent-alphabet pass of the differential"
+ },
+ {
+  "name": "P08 percent: the bracket is not required (any character may stand for it)",
+  "file": "src/core/render-script.ts",
+  "from": "cursor.code() === OPEN_BRACKET && (",
+  "to": "(",
+  "expect": "killed",
+  "why": "any character may stand for the opening bracket (`#%% xmarkdown]` is accepted); killed by the percent-alphabet pass of the differential"
+ },
+ {
+  "name": "P09 percent: the closing bracket of markdown is not required",
+  "file": "src/core/render-script.ts",
+  "from": "cursor.startsWith(\"markdown]\", 1)",
+  "to": "cursor.startsWith(\"markdown\", 1)",
+  "expect": "killed",
+  "why": "`[markdown` accepted without its `]`; killed by the percent-alphabet pass of the differential"
+ },
+ {
+  "name": "P10 percent: the closing bracket of raw is not required",
+  "file": "src/core/render-script.ts",
+  "from": "cursor.startsWith(\"raw]\", 1)",
+  "to": "cursor.startsWith(\"raw\", 1)",
+  "expect": "killed",
+  "why": "`[raw` accepted without its `]`; killed by the percent-alphabet pass with raw"
+ },
+ {
+  "name": "P11 percent: raw is not a cell kind",
+  "file": "src/core/render-script.ts",
+  "from": "(cursor.startsWith(\"markdown]\", 1) || cursor.startsWith(\"raw]\", 1))",
+  "to": "cursor.startsWith(\"markdown]\", 1)",
+  "expect": "killed",
+  "why": "`[raw]` is not a cell kind; killed by the percent-alphabet pass with raw"
+ },
+ {
+  "name": "Q01 spin: the quote is not stepped over",
+  "file": "src/core/render-script.ts",
+  "from": "function spinHeaderAfterQuote(cursor: Cursor): boolean {\n  cursor.column++;\n",
+  "to": "function spinHeaderAfterQuote(cursor: Cursor): boolean {\n",
+  "expect": "killed",
+  "why": "the quote of `#'` not stepped over, so no spin header is found; killed by the spin-alphabet pass of the differential"
+ },
+ {
+  "name": "Q02 spin: two dashes open the header",
+  "file": "src/core/render-script.ts",
+  "from": "|| !cursor.startsWith(\"---\", 0)) return false;",
+  "to": "|| !cursor.startsWith(\"--\", 0)) return false;",
+  "expect": "killed",
+  "why": "`--` opens a header; killed by the spin-alphabet pass of the differential"
+ },
+ {
+  "name": "Q03 spin: the opener consumes two dashes",
+  "file": "src/core/render-script.ts",
+  "from": "  cursor.column += 3;",
+  "to": "  cursor.column += 2;",
+  "expect": "killed",
+  "why": "the opener consumes two of its three dashes, so the third is the character the closer search skips; killed by the spin-alphabet pass of the differential (`#' ---#' ---` is accepted)"
+ },
+ {
+  "name": "Q04 spin: the closer may begin at the character right after the opener",
+  "file": "src/core/render-script.ts",
+  "from": "  if (cursor.column < cursor.text.length) {\n    cursor.column++;\n  }\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the closer may begin right after the opener (`#' ---#' ---` is accepted); killed by the spin-alphabet pass of the differential"
+ },
+ {
+  "name": "Q05 spin: the character after the opener is taken at the end of the line too",
+  "file": "src/core/render-script.ts",
+  "from": "  if (cursor.column < cursor.text.length) {\n    cursor.column++;",
+  "to": "  if (cursor.column <= cursor.text.length) {\n    cursor.column++;",
+  "expect": "survives",
+  "why": "EQUIVALENT: at the end of a line the column moves one past the end, where the closer search's indexOf finds nothing and steps to the next line, which is where it steps from the end of the line itself. No answer and no read differs: survives the 21.2 million pairs and every count row"
+ },
+ {
+  "name": "Q06 spin: the closer search skips a candidate at the column",
+  "file": "src/core/render-script.ts",
+  "from": "cursor.text.indexOf(\"#'\", cursor.column)",
+  "to": "cursor.text.indexOf(\"#'\", cursor.column + 1)",
+  "expect": "killed",
+  "why": "a candidate at the column is skipped, so `#' --- #' ---` loses its closer; killed by the spin-alphabet pass of the differential"
+ },
+ {
+  "name": "Q07 spin: the whitespace after a candidate starts one character early",
+  "file": "src/core/render-script.ts",
+  "from": "    cursor.column = at + 2;",
+  "to": "    cursor.column = at + 1;",
+  "expect": "killed",
+  "why": "the whitespace after a candidate is skipped from its quote, which is not whitespace, so no closer is ever found; killed by the spin-alphabet pass of the differential"
+ },
+ {
+  "name": "Q08 spin: the whitespace after a candidate starts one character late",
+  "file": "src/core/render-script.ts",
+  "from": "    cursor.column = at + 2;",
+  "to": "    cursor.column = at + 3;",
+  "expect": "killed",
+  "why": "the whitespace after a candidate is skipped from one character late, so `#'---` loses its closer; killed by the spin-alphabet pass of the differential"
+ },
+ {
+  "name": "Q09 spin: no whitespace is skipped between the closer's hash-quote and its dashes",
+  "file": "src/core/render-script.ts",
+  "from": "    cursor.column = at + 2;\n    if (!cursor.skipSpace()) return false;\n",
+  "to": "    cursor.column = at + 2;\n",
+  "expect": "killed",
+  "why": "no whitespace between the closer's `#'` and its dashes, so `#' ---` is no closer; killed by the spin-alphabet pass of the differential"
+ },
+ {
+  "name": "Q10 spin: a closer of two dashes",
+  "file": "src/core/render-script.ts",
+  "from": "    if (cursor.startsWith(\"---\", 0)) return true;",
+  "to": "    if (cursor.startsWith(\"--\", 0)) return true;",
+  "expect": "killed",
+  "why": "`--` closes a header; killed by the spin-alphabet pass of the differential"
+ },
+ {
+  "name": "Q11 spin: the line after the closer is read before the answer",
+  "file": "src/core/render-script.ts",
+  "from": "    if (cursor.startsWith(\"---\", 0)) return true;",
+  "to": "    if (cursor.startsWith(\"---\", 0)) {\n      cursor.nextLine();\n      return true;\n    }",
+  "expect": "killed",
+  "why": "the line after the closer read before the answer (one read too many; the answers are unchanged); killed by the counts group ('a document whose leading lines decide the answer is read for those lines'), the spin-header rows"
+ },
+ {
+  "name": "Q12 spin: a failed candidate resumes one character after the character that failed it",
+  "file": "src/core/render-script.ts",
+  "from": "    if (cursor.startsWith(\"---\", 0)) return true;\n",
+  "to": "    if (cursor.startsWith(\"---\", 0)) return true;\n    cursor.column++;\n",
+  "expect": "killed",
+  "why": "a failed candidate resumes one character late, so a `#'` that begins at the character that failed the one before it is lost; killed by the spin-alphabet pass of the differential"
+ },
+ {
+  "name": "R01 isRenderScriptDocument: the early return refuses an extension that is not both percent and spin (`||` for `&&`)",
+  "file": "src/core/render-script.ts",
+  "from": "(!percent && !spin)",
+  "to": "(!percent || !spin)",
+  "expect": "killed",
+  "why": "`||` for `&&` in the early return: .py and .jl are refused at once; killed by the percent-alphabet pass of the differential"
+ },
+ {
+  "name": "R02 isRenderScriptDocument: a document of no lines reads line 0",
+  "file": "src/core/render-script.ts",
+  "from": "document.lineCount <= 0",
+  "to": "document.lineCount < 0",
+  "expect": "killed",
+  "why": "a document of no lines reaches lineAt(0), which throws; killed by the quirk row 'a document with no lines'"
+ },
+ {
+  "name": "R03 isRenderScriptDocument: spin is the upper-case extension (never)",
+  "file": "src/core/render-script.ts",
+  "from": "const spin = ext === SPIN_EXTENSION;",
+  "to": "const spin = ext === \".R\";",
+  "expect": "killed",
+  "why": "the spin extension is `.R`, which is never an extension (it is lower-cased), so no spin header is found; killed by the spin-alphabet pass of the differential"
+ },
+ {
+  "name": "R04 isRenderScriptDocument: the first character must not be a hash",
+  "file": "src/core/render-script.ts",
+  "from": "cursor.code() !== HASH",
+  "to": "cursor.code() === HASH",
+  "expect": "killed",
+  "why": "the first non-whitespace character must NOT be a hash; killed by the percent-alphabet pass of the differential"
+ },
+ {
+  "name": "R05 isRenderScriptDocument: the leading whitespace is not skipped",
+  "file": "src/core/render-script.ts",
+  "from": "if (!cursor.skipSpace() || cursor.code() !== HASH) return false;",
+  "to": "if (cursor.code() !== HASH) return false;",
+  "expect": "killed",
+  "why": "the leading whitespace is not skipped; killed by the percent-alphabet pass of the differential"
+ },
+ {
+  "name": "R06 isRenderScriptDocument: the hash is not stepped over",
+  "file": "src/core/render-script.ts",
+  "from": "return false;\n  cursor.column++;\n  return cursor.code() === QUOTE",
+  "to": "return false;\n  return cursor.code() === QUOTE",
+  "expect": "killed",
+  "why": "the hash is not stepped over; killed by the percent-alphabet pass of the differential"
+ },
+ {
+  "name": "R07 isRenderScriptDocument: a .py is offered the spin header",
+  "file": "src/core/render-script.ts",
+  "from": "? spin && spinHeaderAfterQuote(cursor) : percent && percentCellAfterHash(cursor);",
+  "to": "? spin || spinHeaderAfterQuote(cursor) : percent && percentCellAfterHash(cursor);",
+  "expect": "killed",
+  "why": "`||` for `&&`: a .py is offered the spin header; killed by the spin-alphabet pass of the differential (a .py is never a spin script)"
+ },
+ {
+  "name": "R08 isRenderScriptDocument: the spin header is offered to every claimed extension",
+  "file": "src/core/render-script.ts",
+  "from": "spin && spinHeaderAfterQuote(cursor)",
+  "to": "spinHeaderAfterQuote(cursor)",
+  "expect": "killed",
+  "why": "the spin header is offered without the spin-extension test, so a .py or .jl accepts one; killed by the spin-alphabet pass of the differential"
+ },
+ {
+  "name": "R09 isRenderScriptDocument: the percent cell is offered without the extension test",
+  "file": "src/core/render-script.ts",
+  "from": "percent && percentCellAfterHash(cursor)",
+  "to": "percentCellAfterHash(cursor)",
+  "expect": "survives",
+  "why": "EQUIVALENT: past the early return `percent` is true for every extension, because the one extension that makes `spin` true, `.r`, is also in PERCENT_EXTENSIONS. No answer and no read differs: survives the 21.2 million pairs and every count row"
+ },
+ {
+  "name": "R10 isRenderScriptDocument: a file no pattern claims is read before it is refused",
+  "file": "src/core/render-script.ts",
+  "from": "(!percent && !spin) || ",
+  "to": "",
+  "expect": "killed",
+  "why": "no answer changes (the patterns refuse the name anyway) but the file is read first; killed by the counts row 'a file whose extension no pattern claims reads nothing' and the exact-laziness rows (the .qmd documents)"
+ },
+ {
+  "name": "R11 isRenderScriptDocument: the last line is read first",
+  "file": "src/core/render-script.ts",
+  "from": "  const cursor = new Cursor(document);\n",
+  "to": "  document.lineAt(document.lineCount - 1);\n  const cursor = new Cursor(document);\n",
+  "expect": "killed",
+  "why": "the last line read before the first, one read out of order; the answers are unchanged; killed by the prefix-in-order check inside every row of the differential"
+ },
+ {
+  "name": "W01 preview.ts: the scheme test is dropped",
+  "file": "src/features/preview.ts",
+  "from": "    doc.uri.scheme === \"file\" &&\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the `file` scheme test dropped (a `git:` diff of a script would be previewed from the working tree); killed by the whole-chain pin (`the && chain of isPreviewableRenderScript is not`) in s343-adapter-wiring-pin.test.ts, the live-file row"
+ },
+ {
+  "name": "W02 preview.ts: the scheme test is negated",
+  "file": "src/features/preview.ts",
+  "from": "doc.uri.scheme === \"file\"",
+  "to": "doc.uri.scheme !== \"file\"",
+  "expect": "killed",
+  "why": "the `file` scheme test negated; killed by the whole-chain pin, the live-file row of s343-adapter-wiring-pin.test.ts"
+ },
+ {
+  "name": "W03 preview.ts: the extension prefilter reads the file name",
+  "file": "src/features/preview.ts",
+  "from": "isRenderScriptExtension(doc.uri.fsPath)",
+  "to": "isRenderScriptExtension(doc.fileName)",
+  "expect": "killed",
+  "why": "the extension prefilter reads `doc.fileName`; killed by the whole-chain pin, the live-file row of s343-adapter-wiring-pin.test.ts"
+ },
+ {
+  "name": "W04 preview.ts: isRenderScriptDocument is imported from another module",
+  "file": "src/features/preview.ts",
+  "from": "from \"../core/render-script\";",
+  "to": "from \"../core/render-scripts\";",
+  "expect": "killed",
+  "why": "isRenderScriptDocument imported from another module; killed by the import pin ('preview.ts does not import isRenderScriptDocument from ../core/render-script'), the live-file row of s343-adapter-wiring-pin.test.ts"
+ },
+ {
+  "name": "W05 preview.ts: the context update builds the text beside the predicate",
+  "file": "src/features/preview.ts",
+  "from": "  setContextKey(\n    RENDER_SCRIPT_CONTEXT,",
+  "to": "  void editor?.document.getText();\n  setContextKey(\n    RENDER_SCRIPT_CONTEXT,",
+  "expect": "killed",
+  "why": "the context update builds the text beside the predicate; killed by the path pin ('updateRenderScriptContext calls getText itself'), the live-file row of s343-adapter-wiring-pin.test.ts"
+ },
+ {
+  "name": "W06 preview.ts: the command's gate reads the text through the memo beside the predicate",
+  "file": "src/features/preview.ts",
+  "from": "  const doc = vscode.window.activeTextEditor?.document;\n  if (!isPreviewableRenderScript(doc)) {",
+  "to": "  const doc = vscode.window.activeTextEditor?.document;\n  void (doc && documentText(doc));\n  if (!isPreviewableRenderScript(doc)) {",
+  "expect": "killed",
+  "why": "the command's gate reads the memo's text beside the predicate; killed by the path pin ('previewActiveScript calls documentText'), the live-file row of s343-adapter-wiring-pin.test.ts"
+ }
+]
