@@ -115,9 +115,11 @@ describe("isRenderScript — cost", () => {
     // The spin regex's lazy [\s\S]+? must not be able to backtrack quadratically
     // against an adjacent \s*. This input is the worst case: the header opens, so
     // the branch is entered, and never closes, so every expansion is tried.
-    // Shipped-before-fix cost: ~3.7 SECONDS (O(n^2)). This is not academic — the
-    // detector runs on the single-threaded extension host, and Slice 2 will call
-    // it on every keystroke.
+    // Shipped-before-fix cost: ~3.7 SECONDS (O(n^2)). This was not academic — the
+    // detector ran on the single-threaded extension host, on every keystroke of a
+    // script, from Session 85 until Session 344, when the adapter moved to
+    // `isRenderScriptDocument`; this regex is the specification that function is held
+    // to now, and the cost is why its closer has no `\s*`.
     const text = "#' ---\n" + "\n".repeat(80_000);
     const started = performance.now();
     expect(isRenderScript("/tmp/analysis.r", text)).toBe(false);
@@ -133,7 +135,10 @@ describe("isRenderScriptExtension — the cheap half, for the per-keystroke path
   // a file that could never be a render script anyway. `updateCellContext` — the
   // precedent this key was modelled on — avoids exactly that by short-circuiting on
   // `languageId === "quarto"` BEFORE it calls `getText()`. This exposes the same
-  // cheap pre-filter so the adapter can too. (Adversarial review, Session 85.)
+  // cheap pre-filter so the adapter can too. (Adversarial review, Session 85.) Since
+  // Session 344 the adapter builds no text at all (it hands the document to
+  // `isRenderScriptDocument`, which reads no line for a name no pattern claims), and
+  // keeps this check first in its chain as the cheaper question.
   it("accepts every extension the detector can ever accept", () => {
     for (const name of ["a.py", "a.jl", "a.r", "a.R", "a.PY", "/x/y/a.Py"]) {
       expect(isRenderScriptExtension(name), name).toBe(true);

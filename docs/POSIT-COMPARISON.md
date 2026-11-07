@@ -128,7 +128,7 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
 - *Ours:* **Capability parity — both commands ship; the residual gap is Posit's UX *gating*, not the feature.**
   `quarto.previewFormat` ("Preview Format...", Session 82) enumerates a document's declared `format:` outputs and
   previews the chosen one (`quarto preview … --to <fmt>`). `quarto.previewScript` ("Preview Script...", Session 84)
-  previews a standalone render script, gated by a pure `isRenderScript` detector that recognizes **both** kinds
+  previews a standalone render script, gated by `isRenderScriptDocument` (since Session 344; a line-by-line detector held by a differential to the pure `isRenderScript` regexes, which Session 84 shipped as the gate) that recognizes **both** kinds
   Quarto's engines actually claim — jupyter-percent (`.py`/`.jl`/`.r`, opening with a `# %% [markdown]`/`[raw]`
   cell) **and knitr *spin*** (`.r`, opening with a roxygen `#' ---` block; note Posit's own docs and our earlier
   notes framed this as percent-only — the spin path is a first-class second kind). Both reuse the existing

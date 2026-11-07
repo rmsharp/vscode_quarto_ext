@@ -53,9 +53,12 @@ const PERCENT_EXTENSIONS = [".py", ".jl", ".r"];
  * and the match becomes O(n²) in the longest contiguous whitespace run. A `.r`
  * file with an unclosed `#' ---` and ~80k blank lines took **3.7 seconds**;
  * without the `\s*` it takes 0.03 ms. Quarto gets away with it because the CLI
- * runs this once per render in a Deno subprocess; we run it on VS Code's
- * single-threaded extension host — and Slice 2 will run it on every keystroke.
- * The cost is locked by a unit test in `test/unit/render-script.test.ts`.
+ * runs this once per render in a Deno subprocess. This pattern ran on VS Code's
+ * single-threaded extension host, on every keystroke of a script, from Session 85 until
+ * Session 344 (SIB-08); it runs in the tests only now, as the specification that
+ * `isRenderScriptDocument` is held to, and the closer without a `\s*` is why that
+ * specification stays usable on a long document. The cost is locked by a unit test in
+ * `test/unit/render-script.test.ts`.
  */
 const SPIN_HEADER = /^\s*#'\s*---[\s\S]+?#'\s*---/;
 
