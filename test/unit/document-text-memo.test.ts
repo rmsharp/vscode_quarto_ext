@@ -8,11 +8,12 @@ import { seededRandom } from "./support/regex-equivalence";
 // Session 343, D1 -- the document-text memo (BACKLOG: "What Session 342's review round found beside the typing-path cures"). `TextDocument.getText()` joins the whole buffer on every call, and three adapters called it on the typing path
 // (the cursor-move key on EVERY selection event, the cell tint on every refresh, the render-script predicate on every keystroke of a script). The memo returns the same string while a document's version stays.
 // ⚠ It gains nothing for the render-script predicate PER KEYSTROKE (each keystroke is a new version: 0.944 against 0.942 ms at 54,000 lines); it serves repeat asks of one version, and the four completion providers (one request asks them all at one version).
+// Session 344 took the predicate off the text altogether (`core/render-script`'s `isRenderScriptDocument` reads only the lines it needs), so `preview.ts` no longer asks this memo for anything.
 //
 // The rows COUNT the calls of the thunk that stands for `document.getText()`. They do not time anything: a count is what a loaded machine cannot fake, and the lead's probe (p2b, `lines.join` for `getText`, 0.215 / 1.145 / 6.157 ms
 // a fresh join at 500 / 2,000 / 8,000 cells against 0.001 / 0.001 / 0.005 ms for the very same string) is the cost the count stands for. A string's identity is not observable in JavaScript (`toBe` compares values), so "the
 // same string object" is pinned by the one thing that makes it the same: the thunk is not called again.
-// `s343-adapter-wiring-pin.test.ts` pins from the syntax tree that the three adapters read their text through the module's one memo, in a thunk, after their guards.
+// `s343-adapter-wiring-pin.test.ts` pins from the syntax tree that `execution.ts` reads its text through the module's one memo, in a thunk, and `cell-background.ts` after its guards, and (Session 344) that `preview.ts` reads no text through it at all.
 
 /** A document as the memo sees it: an object with a version. The text lives beside it, as the buffer does, and `edit` bumps the version as VS Code does. */
 interface FakeDocument {
