@@ -8,35 +8,40 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 343 closed out.** g02's twenty-seventh session is done: parts (2) to (4) of the BACKLOG item "What Session 342's review round found beside the typing-path cures, none of them in its diff" left the item, except SIB-01, which was
-MEASURED and is not curable by reordering the providers (part (3) shrank to it; parts (1), (5), (6), (7) stay, a new part (8) holds the review round's leftovers; numbering kept). Four cure workers (`wf_8a330af9-f7f`), a seven-lens review round
-(`wf_619ec364-b19`, 51 agents) and a fix round of mine; `test:integration` run with your go-ahead: 564 passing. `BACKLOG.md` "Active" is empty: present candidates via AskUserQuestion at Phase 0, ranked by the plan, each saying which rule placed it.
-**⚠ Things that are not what the item promised.** (A) SIB-01, the first completion request's cold scan, is NOT cured: the whole request fell only 12.7 to 11.0, 51.7 to 44.8 and 247 to 190 ms at 500 / 2,000 / 8,000 cells (three of four joins and the work after
-the scan); part (1)'s cached or incremental scan is what removes it. (B) I chose `TYPING_MAX_WAIT_MS = 1000` and it is UNMEASURED: a stream under 150 ms apart now pays one cold scan a second. (C) The refresh plan has ONE behaviour change by design (part (8)(d)):
-an edit no longer refreshes other documents' editors. (D) Four of my own choices need your eye: the scan cache's four entries under 8,388,608 characters, the workspace-symbol cache's bounds (8,388,608 characters, 4,096 files), the citation signature
-(modification time, size, change time) and the memo keyed by the document object.
-**What's next (derived from the plan, not a promise):** g02 is still in flight; items are taken in the plan's table order. Candidates (the picker shows three and a catch-all): (a) what stays of the Session 342 item: part (1), the QUESTION (leave steady typing
-alone, a longer delay, or a cached or incremental scan, which is also what SIB-01 waits for: a session of its own, design and measure first), parts (5), (6), (7) and the new (8); (b) what stays of the Session 341 item (part (1), a question; records (6), (7));
-(c) the knitr silent-chunk reader item (estimate one session); (d) the standing-guard item; (e) the S322 item's part (1), the S311 item's parts (4), (10), (11), the Session 333 and 334 items; Polish: the S339 item's part (4), "`npm test` exits 1 with every test
-green", residuals of Session 338's cures. Time the literal shape THROUGH THE ADAPTER'S WHOLE CALL SEQUENCE at HEAD first (Learnings 840, 916, 926); then the terminal bounded session (rule P5). Decisions as the plan says: D2, D3 before g03.
-**⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard and `context_budget.py` dirty two history files (both go in a close-out commit). (2) Rebuild harnesses (Learning 848) with an ABSOLUTE esbuild `--outfile` (a relative one landed `head.cjs`
-in the repo root); a worker's worktree starts BEHIND HEAD (reset it, Learning 891) and needs a real or linked `node_modules` (Learning 927). (3) zsh: an unmatched glob is an error, `echo =====` is not found, `set -- $var` does not split, a variable `rm -rf` is
-refused, a leading `sleep` is blocked, a wait loop on `pgrep -f "npm test"` never ends; Write and Edit drop a trailing space (Learning 778): use a Python replace and assert the count.
-(4) The mutation runner tests the COMMITTED source; each README row names its `--tests` set; ONE list at a time, `--cmd 'npx vitest run --bail 1 --maxWorkers=2'`. `s343-regions-cache.json` needs BOTH `s343-regions-cache-rows` and `s343-cell-option-lines-rows`
-(W03); run `b90-equivalent.json` whole-suite with `--exclude test/unit/mutation-lists-apply.test.ts` (Learning 922); `mutation-lists-apply` is 107 tests (Learning 918). (5) Pins: Learnings 907 to 920 as before; new 921 to 927 (a dedupe blinds a test that watches
-the send; a list is as good as its `--tests` set; a `(mtime, size)` key; run the pin after a conflict; a justification can be overtaken; a per-provider cure is not a request cure; `node_modules` in a worktree).
-(6) BASELINE `npm test`: 210 files, 18,347 tests, `Errors 1 error` (Learning 892). The machine is SHARED (load 5 to 300 from other users): a full run at load 94 failed 170 timing rows in 24 old files that pass at two workers; wait before a list run. (7) The
-foreign worktree `.claude/worktrees/wf_f559ba89-653-5` is not mine: ask before removing it; this session's four worker worktrees and branches were removed after a by-subject check showed all 61 commits on master. (8) `test:integration` WAS run with your go-ahead
-(564 passing); it does not drive the maximum wait; `test:lsp` NOT run. (9) Real-document score: `REALDOC_DATA=scratchpad/s265 REALDOC_ORDINALS=scratchpad/s251/realfiles.txt tools/realdoc-score/run.sh head` prints 2423 of 2438.
-(10) The plan: update its status column AND its in-flight, next-group and g02 order-table rows at each close-out (done: "twenty-seven sessions done"). (11) `npm run package` is RED in a worktree with a symlinked `node_modules`: run it in the main checkout. (12)
-`master` is NOT pushed: 169 commits ahead of `origin/master` before the close-out commits; the dashboard copy is v2.22.0 against canonical v2.23.0. (13) `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in
-slices, edit with `python3 -I -`. After answering a direct question, STOP and wait (memory).
+**Task:** **NONE -- Session 344 closed out.** g02's twenty-eighth session is done: parts (8) and (7) of the BACKLOG item "What Session 342's review round found beside the typing-path cures, none of them in its diff" left the item, and the
+operator answered part (1): leave the 150 ms debounce as shipped. The item keeps (3) SIB-01 (it waits for a cached or incremental scan), (5), (6) and a new part (9) of leftovers; numbering kept. Three cure workers (`wf_8e83a6f2-387`), a six-lens
+review round (`wf_f1b13a89-4c2`, 96 agents) and a three-worker fix round (`wf_83cea791-37f`); `test:integration` run with your go-ahead: 564 passing. `BACKLOG.md` "Active" is empty: present candidates via AskUserQuestion at Phase 0, ranked by
+the plan, each saying which rule placed it.
+**⚠ Things that are not what the item promised.** (A) The item's `chmod 000` blind spot of the citation cache was WRONG (a `chmod` moves the change time); `ino` stays out. (B) The render-script reader is cured and measured through a FAKE
+`lineAt`: a real `TextLine` is UNMEASURED, and a document whose answer stays undecided (blank lines only, a lone `#`, an unclosed spin header) is still read to its end. (C) 10 mutants survive in the five new lists, argued or recorded (part
+(9)(e)); W22 and W24 are seen only by integration rows that were not run mutated. (D) The review round found no wrong answer and one failure-path fix for 8.5 million subagent tokens, and no second review read the fix round's sentences.
+**What's next (derived from the plan, not a promise):** g02 is still in flight; items are taken in the plan's table order. Candidates (the picker shows three and a catch-all): (a) what stays of the Session 342 item: part (3) SIB-01 (a session of
+its own, an estimate: a cached or incremental scan, design and measure first), (5) needs a host, (6) the R6 (g) wiring change, (9) small rows, a host measurement and records (estimate one session together); (b) what stays of the Session 341 item
+(part (1), a question; records (6), (7)); (c) the knitr silent-chunk reader item (estimate one session); (d) the standing-guard item; (e) the S322 item's part (1), the S311 item's parts (4), (10), (11), the Session 333 and 334 items; Polish: the
+S339 item's part (4), "`npm test` exits 1 with every test green", residuals of Session 338's cures. Time the literal shape THROUGH THE ADAPTER'S WHOLE CALL SEQUENCE at HEAD first (Learnings 840, 916, 926); then the terminal bounded session (rule
+P5). Decisions as the plan says: D2, D3 before g03.
+**⚠ Gotchas:** (1) never `git add -A`; stage by exact path; the dashboard and `context_budget.py` dirty two history files (both go in a close-out commit). (2) Rebuild harnesses (Learning 848) with an ABSOLUTE esbuild `--outfile`; a worker's
+worktree starts BEHIND HEAD (reset it, Learning 891) and needs a real or linked `node_modules` (Learning 927); a worker's shell refuses a heredoc beside git or npx: scripts as files, run by literal path (Learning 933). (3) zsh: an unmatched glob
+is an error, `echo =====` is not found, `set -- $var` does not split, `PIPESTATUS` is bash (zsh has `pipestatus`), a variable `rm -rf` is refused, a leading `sleep` is blocked; Write and Edit drop a trailing space (Learning 778): use a Python
+replace and assert the count. (4) The mutation runner tests the COMMITTED source and copies the working-tree `--tests` files; each README row names its `--tests` set; ONE list at a time, `--cmd 'npx vitest run --bail 1 --maxWorkers=2'`.
+`s343-regions-cache.json` needs BOTH `s343-regions-cache-rows` and `s343-cell-option-lines-rows` (W03); run `b90-equivalent.json` whole-suite with `--exclude test/unit/mutation-lists-apply.test.ts` (Learning 922); `mutation-lists-apply` is 112
+tests (Learning 918); `s343-review.json` has no README row and no recorded `--tests` set (its R-C04, R-F and R-D10 entries were run by the workers). (5) Pins: Learnings 907 to 927 as before; new 928 to 933 (a copied blind spot is a claim to run;
+sizes belong in rows and big documents are virtual; a pin is as wide as its scan; a shared read that fails; a wait is not an interval; a worker's shell). (6) BASELINE `npm test`: 213 files, 18,472 tests, `Errors 1 error` (Learning 892). The
+machine is SHARED (load 3 to 25 this session, up to 300 in Session 343): wait before a list run. (7) The foreign worktree `.claude/worktrees/wf_f559ba89-653-5` is not mine: ask before removing it; this session's worker worktrees and branches were removed after a
+by-subject check. (8) `test:integration` WAS run with your go-ahead (564 passing); it does not drive the maximum wait; `test:lsp` NOT run. (9) Real-document score: `REALDOC_DATA=scratchpad/s265 REALDOC_ORDINALS=scratchpad/s251/realfiles.txt
+tools/realdoc-score/run.sh head` prints 2423 of 2438. (10) The plan: update its status column AND its in-flight, next-group and g02 order-table rows and the per-session outcome paragraph at each close-out (done: "twenty-eight sessions done").
+(11) `npm run package` is RED in a worktree with a symlinked `node_modules`: run it in the main checkout. (12) `master` is NOT pushed: 230 commits ahead of `origin/master` before the close-out notes commits; the dashboard copy is v2.22.0 against
+canonical v2.23.0. (13) `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices, edit with `python3 -I -`. After answering a direct question, STOP and wait (memory).
 
 ### What Session 344 Did
-**Deliverable:** g02 of the backlog ordering plan, twenty-eighth session: parts (8) and (7) of the BACKLOG item "What Session 342's review round found beside the typing-path cures, none of them in its diff" -- the review round's leftovers (the render-script predicate, the cache bounds and the citation cache's gaps, the unmeasured maximum wait, the rows that do not drive it) and the records (IN PROGRESS)
-**Started:** 2026-11-06
-**Status:** Session claimed. Work beginning. Operator pick at the Phase 0 picker: the Session 342 item, then parts (8) and (7) as the one deliverable (part (1) answered: leave the 150 ms as shipped; parts (3), (5), (6) stay). Strict TDD: time each literal shape at HEAD first, one fresh process per probe, through the caller's whole call sequence (Learnings 840, 903, 916, 926), profile before reading the cure, seam first for anything behind a `vscode` adapter (Learning 913), rows RED on the parent with their own clock pinned (Learning 910).
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Deliverable:** g02 of the backlog ordering plan, twenty-eighth session: parts (8) and (7) of the BACKLOG item "What Session 342's review round found beside the typing-path cures, none of them in its diff" -- the review round's leftovers (the
+render-script predicate, the cache bounds and the citation cache's gaps, the unmeasured maximum wait, the rows that do not drive it) and the records -- DONE, and part (1) answered by the operator (leave the 150 ms); claim `9266998`
+**Started:** 2026-11-06 (closed 2026-11-07)
+**Status:** Closed out. Measured the item's claims first (`chmod 000` refuted; (b) and (7) records); three cure workers (`wf_8e83a6f2-387`, 24 commits): a lazy render-script line reader (54,000 lines 1.09 to 0.0004 ms, fake `lineAt`), citation
+in-flight sharing (5 reads to 1), rows that drive the maximum wait and its cost (1.3 / 3.2 / 15.5 percent of a core). A six-lens review round (`wf_f1b13a89-4c2`, 96 agents, 45 findings, none refuted, no wrong answer) and a three-worker fix round
+(`wf_83cea791-37f`, 28 commits, 44 of 45 closed, one code change: a superseded read that fails). Eleven lists run alone, 0 contradict; `npm test` 18,472 passing in 213 files; `test:integration` RUN with go-ahead: 564 passing; `npm run package`
+44 files; real-document score unchanged. Learnings 928 to 933.
+**Ledger:** `CHANGELOG.md` 2026-11-07 -- the claim entry replaced by the outcome entry, then one each for the review round, the fix round, the SESSION_NOTES trim and the quality-gate run, recorded in the close-out commits.
 
 ### What Session 343 Did
 **Deliverable:** g02 of the backlog ordering plan, twenty-seventh session: parts (2) to (4) of the BACKLOG item "What Session 342's review round found beside the typing-path cures, none of them in its diff" -- the typing path's smaller costs, the completion
@@ -303,6 +308,33 @@ One new item filed (eight regexes and a paragraph reader). `npm test` 11,403 pas
 Nine more families filed. `npm test` 11,347 passing plus one load-flake clock row (11,348 in 85 files); `npm run package` 44 files; real-document score unchanged.
 **Ledger:** `CHANGELOG.md` 2026-10-16 -- one entry per action (the claim entry replaced), recorded in the close-out commit.
 
+## Session 343 Handoff Evaluation (by Session 344)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers (at HEAD `55a20e9`, gap 0), no `pending` receipt, the ratchet citation (2/2, equal to the receipt) and the picker all held;
+the baselines I could re-run (`test:integration` 564 passing, the real-document score 2423 of 2438, `npm test` 210 files plus my 3 new ones) matched exactly, which let me tell my failures from the known one.
+**Helped:** the picker candidates with the rule that placed each; gotchas 2 (a worker's worktree starts behind HEAD and needs `node_modules`), 4 (the runner tests the COMMITTED source, one list at a time; `mutation-lists-apply` 107 tests, now
+112), 7 (the foreign worktree), 11 (package in the main checkout) and 13 (the BACKLOG read did exceed the limit); Learnings 910, 913, 916 and 926 shaped every brief and probe; part (8) named the five leftovers with a cure sketch for each.
+**Missing:** (1) The sketch for (a), "reading only the head of a script", did not say that a spin header's closer may be anywhere, so some documents are read to their end; the cure had to be a cursor with an exact-laziness model. (2) (b) gave
+the thrash in percent (65 and 55) and no absolute figure; it is 4.2 / 5.6 / 7.1 ms per refresh, under a frame, which made a record look like a defect. (3) "Small items, one session together" held only through three cure workers, a 96-agent
+review round and a fix round (10.5 million subagent tokens). (4) The maximum wait's cost was left "unmeasured" though the header's cold scans give it by arithmetic.
+**Wrong:** the `chmod 000` blind spot of the citation cache in (8)(c) (a `chmod` moves the change time); the other figures I re-ran held. **ROI: medium-high.**
+## Session 344 Self-Assessment
+
+**Score: 7/10.**
+**Went right.** Measured every claim of the item through the caller's whole sequence before briefing, which turned the `chmod` sentence into a refutation and (b) into a record; three cure workers and a three-worker fix round on disjoint files,
+seam first; I re-ran the RED of the one cure that changes code (the citation failure path: `2 failed | 30 passed` with the cure out), ran every touched list alone (11, counts equal the workers', 0 contradict), `mutation-lists-apply` right after
+the picks, one full `npm test`, the memory figure (334.8 MB, was 670.9), the real-document score, `npm run package` and, with your go-ahead, `test:integration` (564 passing); the one README conflict was resolved by keeping each side's row and
+checked by a set comparison of every line the three branches added.
+**Went wrong.** (1) At the cure merge I re-issued the full range after `--continue` had finished the sequence: an add/add conflict, aborted, the tree and subjects checked. (2) My first draft of the review-round ledger entry said three things I
+had not seen (the cache "served no stale content", that I re-ran the key reproductions before the fix briefs, a lens-level `chmod` refutation); I cut them before the commit. (3) `PIPESTATUS` is bash: the first exit codes printed empty (re-run).
+(4) I ran no second review over the fix round's sentences (I read the source-comment changes and checked the pre-filter sentence against the code); `s343-review.json` has no recorded `--tests` set and was not re-run whole. (5) 10.5 million
+subagent tokens bought one code change; the rest is pins, rows and sentences (44 findings).
+**Known residuals:** the BACKLOG item (parts (3), (5), (6), (9)), what stays of the Session 341 item, the other Up Next and Polish items, the survivors (in each list's `why`), `test:lsp` NOT run; no integration row drives the maximum wait; the
+lazy reader's cost on a real `TextLine` is unmeasured.
+**TDD:** RED before GREEN for every worker cure (seam counts `14 failed | 19 passed`, pin `8 failed | 91 passed`, citation `8 failed | 8 passed`, window `5 killed, 21 survive`) and for the fix round (pin rows `14 failed | 104 passed`, cap edits
+`0 killed, 17 survive`, CC1 rows `expected 3 to be 2`); I wrote no logic (documents only); the survivor rows are green on arrival by nature and their RED is the mutant. **Host:** `test:integration` RUN with go-ahead (564 passing); `test:lsp` NOT
+run. **Cost:** cure 3 workers 1,025,727 subagent tokens (418 tool calls); review 96 agents 8,456,805 (2,063); fix 3 workers 1,000,133 (441): 10,482,665 in all, 102 agents; 11 list runs at the final tree, two `npm test`, one integration run, one
+`npm run package`, no quarto renders, load 3 to 25 on a shared machine.
 ## Session 342 Handoff Evaluation (by Session 343)
 
 **Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers (at HEAD `fe44611`, gap 0), no `pending` receipt, the ratchet citation (2/2, equal to the receipt) and the picker all held; the item's figures
