@@ -4,11 +4,12 @@ import { type BibliographyStat, type Citation, createCitationCache, readCitation
 
 // Session 343, part (4), SIB-07. `loadCitations` (`src/providers/citation.ts`) read and parsed EVERY bibliography a document declares on EVERY completion request: at five lines an entry the parse is 2.3 / 10.2 / 39.7 ms
 // at 1,000 / 5,000 / 20,000 entries (the lead's probe sib07, a median of 7 in a fresh process, load 6 to 15), and the cost is proportional to the bytes. `createCitationCache` (`src/core/citations.ts`) keeps the PARSED
-// citations of each file, keyed by its absolute path, and reuses them while the file's modification time and size are both what they were when it was read. Everything here runs on stand-ins for `readFile` and `stat`
+// citations of each file, keyed by its absolute path, and reuses them while the file's modification time, size and change time are all what they were when it was read. Everything here runs on stand-ins for `readFile` and `stat`
 // (`fakeFs`): the rows COUNT what the cache asks of them, which is a claim without a clock (Learning 913), and compare every answer with `readCitations`, the function the cache replaces, kept as the oracle.
 //
-// THE ONE BLIND SPOT, stated and pinned by a row of its own: a file rewritten within one millisecond to the SAME size, with the same modification time, is not seen (the mtime granularity of the file system), as with any
-// build tool that decides by stat. The signature is read BEFORE the content, so a file that changes between the two is read again at the next ask, never served stale.
+// THE ONE BLIND SPOT, stated and pinned by a row of its own: a file rewritten to the SAME size that leaves the modification time, the size AND the change time as they were is not seen, as with any build tool that decides by stat.
+// The change time cannot be set from user space, so what is left is a rewrite within one tick of the file system's clock (what was measured is in the docstring of `createCitationCache`: on APFS none of 2,000 pairs of same-size
+// files written back to back shared a change time, on HFS+ all 300 did). The signature is read BEFORE the content, so a file that changes between the two is read again at the next ask, never served stale.
 
 const DIR = path.resolve("/work/doc");
 const at = (rel: string): string => path.resolve(DIR, rel);
@@ -131,7 +132,7 @@ describe("Session 343 -- the bibliography cache asks the file system as little a
     const fs = fakeFs({ "a.bib": { content: bibtex([["a1", "AAAA"]]), mtimeMs: 100, size: 80 } });
     const cache = createCitationCache(fs);
     expect((await cache.read(["a.bib"], DIR)).map((c) => c.title)).toEqual(["AAAA"]);
-    fs.set("a.bib", { content: bibtex([["a1", "BBBB"]]), mtimeMs: 100, size: 80 }); // the same two numbers, other content
+    fs.set("a.bib", { content: bibtex([["a1", "BBBB"]]), mtimeMs: 100, size: 80 }); // the same numbers (this stat carries no change time, so two), other content
     expect((await cache.read(["a.bib"], DIR)).map((c) => c.title)).toEqual(["AAAA"]);
     expect(fs.reads()).toBe(1);
   });

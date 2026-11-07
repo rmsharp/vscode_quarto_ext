@@ -97,10 +97,12 @@ class CitationCompletionProvider implements vscode.CompletionItemProvider {
 }
 
 /**
- * Read and parse every bibliography file the document declares, de-duplicated by
- * citekey (first wins), in declared/file order. Bib paths resolve relative to
- * the document's own directory. A missing or unreadable bib is skipped — a
- * broken bibliography must never break completion.
+ * The citations of every bibliography file the document declares, through the
+ * module's cache (a file is read and parsed only when the cache holds no entry
+ * for it under its present modification time, size and change time),
+ * de-duplicated by citekey (first wins), in declared/file order. Bib paths
+ * resolve relative to the document's own directory. A missing or unreadable bib
+ * is skipped — a broken bibliography must never break completion.
  */
 async function loadCitations(
   document: vscode.TextDocument,

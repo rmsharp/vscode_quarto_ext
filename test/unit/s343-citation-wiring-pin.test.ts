@@ -99,7 +99,7 @@ function problemsInAdapter(source: string): string[] {
     const options = propertiesOf(make.arguments[0], sf);
     if (make.arguments.length !== 1) problems.push("createCitationCache is not given exactly one argument (its options)");
     if (options.readFile !== '(file) => fs.readFile(file, "utf8")') problems.push('the cache\'s readFile is not `(file) => fs.readFile(file, "utf8")` (a bibliography is read as UTF-8 text)');
-    if (options.stat !== "(file) => fs.stat(file)") problems.push("the cache's stat is not `(file) => fs.stat(file)` (the signature is the file's own modification time and size)");
+    if (options.stat !== "(file) => fs.stat(file)") problems.push("the cache's stat is not `(file) => fs.stat(file)` (the signature is the file's own modification time, size and change time)");
     if (Object.keys(options).sort().join() !== "readFile,stat") problems.push(`the cache is made with the options ${Object.keys(options).sort().join()}, not readFile,stat`);
   }
 
