@@ -34,12 +34,8 @@ function world(editors: FakeEditor[]) {
   const visible = { editors };
   const applies: Array<{ editor: string; ranges: number }> = [];
   const built: string[] = [];
-  let visibleReads = 0;
   const refresher = createCellBackgroundRefresher<FakeEditor, number>({
-    visible: () => {
-      visibleReads++;
-      return visible.editors.map((editor) => ({ key: editor.doc.key, languageId: editor.doc.languageId, editor }));
-    },
+    visible: () => visible.editors.map((editor) => ({ key: editor.doc.key, languageId: editor.doc.languageId, editor })),
     rangesFor: (editor) => {
       built.push(editor.id);
       return rangesOf(editor.doc);
@@ -49,7 +45,7 @@ function world(editors: FakeEditor[]) {
     },
   });
   const edited = (doc: FakeDocument): EditedDocument => ({ key: doc.key, languageId: doc.languageId });
-  return { visible, applies, built, visibleReads: () => visibleReads, refresher, edited };
+  return { visible, applies, built, refresher, edited };
 }
 
 const quarto = (key = "file:///a.qmd", cells = 400): FakeDocument => ({ key, languageId: "quarto", cells });
@@ -98,7 +94,6 @@ describe("Session 343 -- an edit refreshes only the editors it can have changed"
     const result = w.refresher.refreshAll();
     expect(w.applies).toEqual([{ editor: "Q", ranges: 400 }, { editor: "P", ranges: 0 }, { editor: "C", ranges: 2 }]);
     expect([...result.keys()]).toEqual(["file:///a.qmd", "file:///b.py", "file:///c.qmd"]);
-    expect(w.visibleReads()).toBe(1);
   });
 
   it("an edit of a quarto document with no cell yet is refreshed (the first cell typed in gets its tint), and one of a document that is not visible refreshes nothing", () => {
@@ -244,16 +239,184 @@ describe("Session 343 -- an edit refreshes only the editors it can have changed"
     expect(w.applies).toEqual([{ editor: "E2", ranges: 0 }]);
   });
 
-  it("the editors are read when the refresh runs, not when the refresher is made", () => {
+  it("the editors are read when each refresh runs: not when the refresher is made, and not kept from an earlier refresh (a list that changed since is the list that is refreshed)", () => {
     const q = quarto();
+    const other = quarto("file:///c.qmd", 3);
     const w = world([{ id: "Q", doc: q }]);
     w.visible.editors = [{ id: "Q", doc: q }, { id: "Q2", doc: q }];
     w.refresher.refreshAll();
     expect(w.applies.map((a) => a.editor)).toEqual(["Q", "Q2"]);
-    expect(w.visibleReads()).toBe(1);
+    w.applies.length = 0;
+    w.visible.editors = [{ id: "Q2", doc: q }, { id: "C", doc: other }, { id: "Q3", doc: q }]; // Q is closed, C and Q3 are opened
     w.refresher.refreshAfterEdit(w.edited(q));
-    expect(w.visibleReads()).toBe(2);
+    expect(w.applies.map((a) => a.editor)).toEqual(["Q2", "Q3"]);
+    w.applies.length = 0;
+    w.refresher.refreshAll();
+    expect(w.applies.map((a) => a.editor)).toEqual(["Q2", "C", "Q3"]);
+    w.applies.length = 0;
+    w.visible.editors = [];
+    w.refresher.refreshAfterEdit(w.edited(q));
+    expect(w.applies).toEqual([]); // no editor is shown: nothing is applied, whatever the earlier lists were
+    expect([...w.refresher.refreshAll().keys()]).toEqual([]);
+    expect(w.applies).toEqual([]);
   });
+});
+
+// Session 344 -- the three counts of `visible()` reads that these rows used to pin (`toBe(1)`, `toBe(1)` and `toBe(2)`) are replaced by what they stood for: a refresh acts on ONE consistent reading of the visible editors. The editors it
+// applies to, the record it keeps of what is tinted, and the editors it finds nothing to refresh for all come from the same reading, so a list that changes under it (an editor closed, opened or split while the refresh
+// runs, the way `vscode.window.visibleTextEditors` can between two reads) cannot make it apply to one list and remember another. The harness answers the TRUE list to the first reading of an operation and a DIFFERENT one to every later
+// reading in the same operation: a refresh that reads once, or reads again and ignores the second answer, cannot tell, and one that mixes two readings does what no single reading shows. Nothing counts the reads: a refactor that
+// reads the list twice and acts on one answer passes.
+describe("Session 344 -- a refresh acts on one reading of the visible editors, whatever the list does while it runs", () => {
+  /** A refresher whose `visible()` answers `lists.shown` the first time it is asked in an operation and `lists.elsewhere` every time after that; `operation` starts a new one. */
+  function snapshotWorld(shown: FakeEditor[], elsewhere: FakeEditor[]) {
+    const lists = { shown, elsewhere };
+    let readings = 0;
+    const applies: string[] = [];
+    const refresher = createCellBackgroundRefresher<FakeEditor, number>({
+      visible: () => (readings++ === 0 ? lists.shown : lists.elsewhere).map((editor) => ({ key: editor.doc.key, languageId: editor.doc.languageId, editor })),
+      rangesFor: (editor) => rangesOf(editor.doc),
+      apply: (editor, ranges) => void applies.push(`${editor.id}:${ranges.length}`),
+    });
+    const operation = <T,>(run: () => T): T => {
+      readings = 0;
+      return run();
+    };
+    return { lists, applies, refresher, operation };
+  }
+  const edited = (doc: FakeDocument): EditedDocument => ({ key: doc.key, languageId: doc.languageId });
+
+  it("a full refresh applies to the editors of the reading it acted on, and to none that a later reading would show", () => {
+    const q1 = quarto("file:///one.qmd", 2);
+    const q2 = quarto("file:///two.qmd", 3);
+    const p = python();
+    const w = snapshotWorld([{ id: "Q1", doc: q1 }, { id: "Q2", doc: q2 }], [{ id: "P", doc: p }]);
+    const result = w.operation(() => w.refresher.refreshAll());
+    expect(w.applies).toEqual(["Q1:2", "Q2:3"]);
+    expect([...result.keys()]).toEqual([q1.key, q2.key]);
+  });
+
+  it("a full refresh whose reading shows no editor applies to none, though a later reading would show one", () => {
+    const w = snapshotWorld([], [{ id: "Q", doc: quarto() }]);
+    const result = w.operation(() => w.refresher.refreshAll());
+    expect(w.applies).toEqual([]);
+    expect(result.size).toBe(0);
+  });
+
+  it("the record of what a full refresh tinted is the reading it applied to: a document it tinted is still cleared by its next edit after the language changed, though a later reading would not have shown it", () => {
+    const q1 = quarto("file:///one.qmd", 2);
+    const q2 = quarto("file:///two.qmd", 2);
+    const w = snapshotWorld([{ id: "Q1", doc: q1 }, { id: "Q2", doc: q2 }], [{ id: "Q1", doc: q1 }]);
+    w.operation(() => w.refresher.refreshAll());
+    q2.languageId = "markdown"; // "Change Language Mode": no edit, no editor event
+    w.applies.length = 0;
+    w.operation(() => w.refresher.refreshAfterEdit(edited(q2)));
+    expect(w.applies).toEqual(["Q2:0"]);
+  });
+
+  it("the record forgets the editors that the reading it acted on no longer shows, and only those: a document that left is not cleared by its next edit, one that stayed is", () => {
+    const q1 = quarto("file:///one.qmd", 2);
+    const q2 = quarto("file:///two.qmd", 2);
+    const w = snapshotWorld([{ id: "Q1", doc: q1 }, { id: "Q2", doc: q2 }], [{ id: "Q1", doc: q1 }, { id: "Q2", doc: q2 }]);
+    w.operation(() => w.refresher.refreshAll());
+    w.lists.shown = [{ id: "Q2", doc: q2 }]; // Q1 is closed
+    w.lists.elsewhere = [{ id: "Q1", doc: q1 }, { id: "Q2", doc: q2 }]; // a later reading would still show it
+    w.operation(() => w.refresher.refreshAll());
+    q1.languageId = "markdown";
+    q2.languageId = "markdown";
+    w.lists.shown = [{ id: "Q1", doc: q1 }, { id: "Q2", doc: q2 }]; // Q1 is opened again, now as a markdown document
+    w.applies.length = 0;
+    w.operation(() => w.refresher.refreshAfterEdit(edited(q1)));
+    expect(w.applies).toEqual([]); // the second full refresh forgot Q1: it holds no tint
+    w.operation(() => w.refresher.refreshAfterEdit(edited(q2)));
+    expect(w.applies).toEqual(["Q2:0"]);
+  });
+
+  it("an edit's refresh acts on the editors of the reading it acted on, and finds none to refresh if that reading shows none of the document, though a later reading would", () => {
+    const q = quarto();
+    const p = python();
+    const w = snapshotWorld([{ id: "P", doc: p }], [{ id: "Q", doc: q }]);
+    w.operation(() => w.refresher.refreshAfterEdit(edited(q)));
+    expect(w.applies).toEqual([]);
+    w.lists.shown = [{ id: "Q1", doc: q }, { id: "P", doc: p }, { id: "Q2", doc: q }];
+    w.lists.elsewhere = [];
+    const result = w.operation(() => w.refresher.refreshAfterEdit(edited(q)));
+    expect(w.applies).toEqual(["Q1:400", "Q2:400"]);
+    expect([...result.keys()]).toEqual([q.key]);
+  });
+
+  // The same, for every sequence a seeded draw makes: a full refresh, an edit, a change of a document's language or cells, and a change of the list that is shown (followed by the full refresh that
+  // `onDidChangeVisibleTextEditors` is: the adapter never leaves the list changed with no full refresh after it), with the other list (what a later reading would answer) drawn independently each time. The model
+  // is the rule of the module's header written as a table of what is tinted, with no `visible()` of its own: it is given the list the operation acted on.
+  it("agrees with the rule on 2,000 seeded sequences of 5 to 40 operations over three documents and a changing list, with a different answer for every reading after the first", () => {
+    const random = seededRandom(3441);
+    const pick = <T,>(xs: readonly T[]): T => xs[Math.floor(random() * xs.length)];
+    const problems: string[] = [];
+    let editRefreshes = 0;
+    let editsThatApplied = 0;
+    let clearsOfNonQuarto = 0;
+    for (let n = 0; n < 2_000; n++) {
+      const docs = [quarto("file:///a.qmd", 2), quarto("file:///b.qmd", 1), python("file:///c.py")];
+      const editors: FakeEditor[] = [{ id: "A1", doc: docs[0] }, { id: "A2", doc: docs[0] }, { id: "B", doc: docs[1] }, { id: "C", doc: docs[2] }];
+      const someEditors = (): FakeEditor[] => editors.filter(() => random() < 0.6);
+      const w = snapshotWorld(someEditors(), someEditors());
+      const tinted = new Set<string>(); // the model: the keys of the documents that hold a tint
+      const note = (e: FakeEditor): void => {
+        if (rangesOf(e.doc).length > 0) tinted.add(e.doc.key);
+        else tinted.delete(e.doc.key);
+      };
+      const log: string[] = [];
+      /** A full refresh, and what the rule says it applied to: every editor of the reading, in order; then the record forgets the keys that reading no longer shows. */
+      const fullRefresh = (): string[] => {
+        const shown = w.lists.shown;
+        w.operation(() => w.refresher.refreshAll());
+        for (const e of shown) note(e);
+        for (const key of [...tinted]) if (!shown.some((e) => e.doc.key === key)) tinted.delete(key);
+        return shown.map((e) => `${e.id}:${rangesOf(e.doc).length}`);
+      };
+      for (let k = 5 + Math.floor(random() * 36); k > 0; k--) {
+        const draw = random();
+        let expected: string[];
+        w.applies.length = 0;
+        if (draw < 0.3) {
+          log.push("full");
+          expected = fullRefresh();
+        } else if (draw < 0.7) {
+          const doc = pick(docs);
+          log.push(`edit ${doc.key} (${doc.languageId})`);
+          const shown = w.lists.shown;
+          w.operation(() => w.refresher.refreshAfterEdit(edited(doc)));
+          const refreshed = doc.languageId !== "quarto" && !tinted.has(doc.key) ? [] : shown.filter((e) => e.doc.key === doc.key);
+          expected = refreshed.map((e) => `${e.id}:${rangesOf(e.doc).length}`);
+          for (const e of refreshed) note(e);
+          editRefreshes++;
+          if (expected.length > 0) editsThatApplied++;
+          if (doc.languageId !== "quarto" && expected.length > 0) clearsOfNonQuarto++;
+        } else if (draw < 0.8) {
+          const doc = pick(docs);
+          doc.languageId = doc.languageId === "quarto" ? "markdown" : "quarto";
+          log.push(`language ${doc.key} -> ${doc.languageId}`);
+          expected = [];
+        } else if (draw < 0.9) {
+          const doc = pick(docs);
+          doc.cells = Math.floor(random() * 4);
+          log.push(`cells ${doc.key} -> ${doc.cells}`);
+          expected = [];
+        } else {
+          w.lists.shown = someEditors();
+          log.push(`shown ${w.lists.shown.map((e) => e.id).join(",")}, then a full refresh`);
+          expected = fullRefresh();
+        }
+        w.lists.elsewhere = someEditors(); // what a later reading of the next operation would answer
+        if (JSON.stringify(w.applies) !== JSON.stringify(expected) && problems.length < 5) problems.push(`after [${log.join("; ")}]: applied ${JSON.stringify(w.applies)}, the rule says ${JSON.stringify(expected)}`);
+      }
+    }
+    expect(problems).toEqual([]);
+    // floors: the draw reaches edits' refreshes, edits that applied, and the clearing of a tint on a document that is not quarto any more
+    expect(editRefreshes).toBeGreaterThan(10_000);
+    expect(editsThatApplied).toBeGreaterThan(5_000);
+    expect(clearsOfNonQuarto).toBeGreaterThan(200);
+  }, 120_000);
 });
 
 describe("Session 343 -- the plan: which editors, in their order", () => {
