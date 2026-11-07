@@ -33,6 +33,15 @@ tools/realdoc-score/run.sh head` prints 2423 of 2438. (10) The plan: update its 
 (11) `npm run package` is RED in a worktree with a symlinked `node_modules`: run it in the main checkout. (12) `master` is NOT pushed: 230 commits ahead of `origin/master` before the close-out notes commits; the dashboard copy is v2.22.0 against
 canonical v2.23.0. (13) `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices, edit with `python3 -I -`. After answering a direct question, STOP and wait (memory).
 
+### What Session 345 Did
+**Deliverable:** g02 of the backlog ordering plan, twenty-ninth session: part (3) of the BACKLOG item "What Session 342's review round found beside the typing-path cures, none of them in its diff" --
+SIB-01, the first completion request after an edit still pays the cold whole-document scan (IN PROGRESS)
+**Started:** 2026-11-07
+**Status:** Session claimed. Work beginning. Operator pick at the Phase 0 picker: SIB-01 (placed by finishing a feature: g02 is in flight and this is the typing-path thread's one MEDIUM cost). Design and measure first:
+time the literal shape through the adapter's whole call sequence at HEAD, one fresh process per probe (Learnings 840, 916, 926), profile before reading the cure, seam first for anything behind a `vscode` adapter (Learning 913),
+strict TDD with each row RED on the parent and its own clock pinned (Learning 910). If the cure needs an architecture decision that is the operator's (a cache's invalidation rule, an incremental scan's correctness contract), ask before building it.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
 ### What Session 344 Did
 **Deliverable:** g02 of the backlog ordering plan, twenty-eighth session: parts (8) and (7) of the BACKLOG item "What Session 342's review round found beside the typing-path cures, none of them in its diff" -- the review round's leftovers (the
 render-script predicate, the cache bounds and the citation cache's gaps, the unmeasured maximum wait, the rows that do not drive it) and the records -- DONE, and part (1) answered by the operator (leave the 150 ms); claim `9266998`

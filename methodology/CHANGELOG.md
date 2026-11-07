@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-11
 
+### 2026-11-07 · [BL-What Session 342's review round found beside the typing-path cures, none of them in its diff] Session 345 (in progress): claim -- g02 twenty-ninth session, part (3), SIB-01
+
+Session claimed. Phase 0 found both ledger frontiers at HEAD (`deb44f4`, gap 0; no receipt or entry owed, no `status: pending` receipt, no merges), the ratchet 2/2 (results `bba236856bad`, head `9fae5af`, read from `.quality-gates-results.json` and equal to the S344 receipt's citation), the dashboard at 76/100 with 21 vulnerabilities (the dashboard copy is v2.22.0 against canonical v2.23.0, not synced), and `gh issue list` empty. The operator chose SIB-01 at the Phase 0 picker (placed by finishing a feature: g02 is in flight and this is the typing-path thread's one MEDIUM cost); parts (5), (6) and (9) of the item and the other candidates stay. Design and measure first; the outcome entry replaces this one at close-out.
+
 ### 2026-11-07 · [ad hoc] Session 344: the quality-gate run cited in the receipt -- 2/2 pass at 9fae5af
 
 `quality_ratchet.py --run`, after the ledger commits (Learning 683): ledger-lag 0 and release-gate 0 (`npm run check-package`), 2 pass, 0 fail, 0 unmeasured, results `bba236856bad`, manifest `334939914945` (both equal to Session 343's). `context_budget.py`: `SESSION_NOTES.md` ok (395 lines, 56,772 B, no line over 280 B); `HANDOFFS.md`, `BACKLOG.md` and `PROJECT_LEARNINGS.md` over the 65,536 B ceiling as before. `master` is unpushed (233 commits ahead of `origin/master` at the gate run, after the close-out's notes and trim commits); the dashboard copy is v2.22.0 against canonical v2.23.0, not synced.
