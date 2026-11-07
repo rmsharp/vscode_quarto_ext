@@ -195,11 +195,10 @@ function spinHeaderAfterQuote(cursor: Cursor): boolean {
   cursor.column++;
   if (!cursor.skipSpace() || !cursor.startsWith("---", 0)) return false;
   cursor.column += 3;
-  // `[\s\S]+?` takes one character before the closer may begin, whatever it is (`#' ---#' ---` is not a header); at the end of a line that character is the line break.
+  // `[\s\S]+?` takes one character before the closer may begin, whatever it is (`#' ---#' ---` is not a header). At the end of a line that character is the line break, which the
+  // search below steps over by itself.
   if (cursor.column < cursor.text.length) {
     cursor.column++;
-  } else if (!cursor.nextLine()) {
-    return false;
   }
   // The first `#'` + `\s*` + `---` anywhere after it. A `#'` is on one line (a line break between its characters is whitespace), the whitespace after it may run over lines, and a
   // failed attempt resumes AT the character that failed it, which may be a `#`.
