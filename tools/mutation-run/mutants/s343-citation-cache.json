@@ -58,8 +58,8 @@
  {
   "name": "K08 createCitationCache: a miss keeps the old entry's place in the order",
   "file": "src/core/citations.ts",
-  "from": "    entries.delete(absolute);\n    if (known) {",
-  "to": "    if (known) {",
+  "from": "        entries.delete(absolute);\n        if (known) {",
+  "to": "        if (known) {",
   "expect": "killed",
   "why": "Map.set on an existing key keeps its position, so a rewritten file stays where it was; killed by the row that rewrites the oldest and reads a 17th file"
  },
@@ -202,8 +202,8 @@
  {
   "name": "K26 createCitationCache: a file with no signature is stored and takes a slot",
   "file": "src/core/citations.ts",
-  "from": "    if (known) {\n      entries.set(",
-  "to": "    if (true) {\n      entries.set(",
+  "from": "        if (known) {\n          entries.set(",
+  "to": "        if (true) {\n          entries.set(",
   "expect": "killed",
   "why": "the entry is never hit (the hit test needs a signature) but it pushes the oldest file out; killed by the no-signature slot row"
  },

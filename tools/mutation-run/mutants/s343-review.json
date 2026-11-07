@@ -10,8 +10,8 @@
  {
   "name": "R-C04 a bibliography that parses to no citations is not kept",
   "file": "src/core/citations.ts",
-  "from": "    if (known) {\n      entries.set(absolute, { mtimeMs, size, ctimeMs, citations });",
-  "to": "    if (known && citations.length > 0) {\n      entries.set(absolute, { mtimeMs, size, ctimeMs, citations });",
+  "from": "        if (known) {\n          entries.set(absolute, { mtimeMs, size, ctimeMs, citations });",
+  "to": "        if (known && citations.length > 0) {\n          entries.set(absolute, { mtimeMs, size, ctimeMs, citations });",
   "expect": "killed",
   "why": "Session 343 review round, mutation lens: this edit SURVIVED every shipped row; killed by s343-citation-cache-rows.test.ts: the parses-to-nothing row"
  },

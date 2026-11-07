@@ -129,6 +129,14 @@ interface CachedBibliography {
   citations: readonly Citation[];
 }
 
+/** A read of one file that is under way: the signature it was started under, and what it will parse to. */
+interface PendingBibliography {
+  mtimeMs: number;
+  size: number;
+  ctimeMs: number | undefined;
+  citations: Promise<readonly Citation[]>;
+}
+
 /**
  * The bibliographies of a document, read through a cache of PARSED files (Session 343, SIB-07). The answer is
  * {@link readCitations}'s, for every input (that function is the oracle of `test/unit/s343-citation-cache-rows.test.ts`);
@@ -144,6 +152,16 @@ interface CachedBibliography {
  *    be kept under the new signature with the old content, and served stale for good.
  *  - a file that cannot be `stat`ed or read adds nothing, exactly as in `readCitations`, and its entry is DROPPED, so a
  *    file that comes back with the very numbers it had before is read again and not served from a stale entry.
+ *  - **asks that overlap share the read** (Session 344). Every ask `stat`s for itself. The first one to find no entry starts
+ *    the read and records the three numbers it `stat`ed; an ask that `stat`s the SAME three numbers while that read is in
+ *    flight waits for it and is handed what it parsed, so N overlapping first asks read and parse the file once (5 asks to
+ *    one 2,000-entry bibliography made 5 reads and 5 parses before, and make 1 and 1 now). An ask that `stat`s other
+ *    numbers (the file was rewritten meanwhile) starts a read of its own and is never handed the one it did not start
+ *    under, and a stat that is no signature (below) is never shared at all. A shared read that FAILS fails for every ask
+ *    that waited on it, as for each alone: each adds nothing from that file, and nothing is left in flight, so the next
+ *    ask tries again. Only the read still recorded for the file keeps an entry: a read that a newer one superseded answers
+ *    the asks that waited on it and never replaces the newer one's entry, whichever of the two settles last. A `readFile`
+ *    that never settles holds every later ask that `stat`s the same numbers; before, each of them started a read of its own.
  *
  * The cross-file de-duplication by key (first wins, in declared order) is done at EVERY ask over the entries, not kept:
  * the same two cached files answer differently when they are declared the other way round.
@@ -168,6 +186,7 @@ interface CachedBibliography {
  */
 export function createCitationCache(options: CitationCacheOptions): CitationCache {
   const entries = new Map<string, CachedBibliography>();
+  const pending = new Map<string, PendingBibliography>();
 
   /** The parsed citations of one file, from the entry if its signature is unchanged and from the file if not; throws if the file cannot be `stat`ed or read. */
   async function citationsOf(absolute: string): Promise<readonly Citation[]> {
@@ -180,17 +199,31 @@ export function createCitationCache(options: CitationCacheOptions): CitationCach
       entries.set(absolute, kept); // most recently used
       return kept.citations;
     }
-    const citations = parseCitations(await options.readFile(absolute)).map((citation) => Object.freeze(citation));
-    entries.delete(absolute);
-    if (known) {
-      entries.set(absolute, { mtimeMs, size, ctimeMs, citations });
-      while (entries.size > CITATION_CACHE_MAX_FILES) {
-        const oldest = entries.keys().next();
-        if (oldest.done === true) break;
-        entries.delete(oldest.value);
-      }
+    const running = pending.get(absolute);
+    if (known && running !== undefined && running.mtimeMs === mtimeMs && running.size === size && running.ctimeMs === ctimeMs) {
+      return running.citations; // a read under way for the very numbers this ask stat'ed: share it
     }
-    return citations;
+    // The async arrow turns a `readFile` or a parser that THROWS into a rejection, as it was one when the awaits were in this function.
+    const read: PendingBibliography = { mtimeMs, size, ctimeMs, citations: (async () => parseCitations(await options.readFile(absolute)).map((citation) => Object.freeze(citation)))() };
+    if (known) pending.set(absolute, read); // a read with no signature to compare is not offered to anyone
+    try {
+      const citations = await read.citations;
+      // Only the read still recorded for the file keeps an entry: one that a newer read superseded must not replace what the newer one kept. A read with no signature is recorded nowhere, and nothing supersedes it.
+      if (!known || pending.get(absolute) === read) {
+        entries.delete(absolute);
+        if (known) {
+          entries.set(absolute, { mtimeMs, size, ctimeMs, citations });
+          while (entries.size > CITATION_CACHE_MAX_FILES) {
+            const oldest = entries.keys().next();
+            if (oldest.done === true) break;
+            entries.delete(oldest.value);
+          }
+        }
+      }
+      return citations;
+    } finally {
+      if (pending.get(absolute) === read) pending.delete(absolute); // settled, whichever way: nothing is left in flight
+    }
   }
 
   return {
