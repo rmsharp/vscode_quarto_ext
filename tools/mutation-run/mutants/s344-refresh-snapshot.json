@@ -45,7 +45,7 @@
   "from": "const shown = options.visible();",
   "to": "const shown = options.visible();\n    options.visible();",
   "expect": "survives",
-  "why": "argued equivalent, ON PURPOSE: the old counts (1, 1 and 2) killed this and no behaviour tells it from a refresh that reads once; a refresh that reads twice and acts on one answer is correct, and the rows deliberately do not count reads"
+  "why": "argued equivalent, ON PURPOSE: the old counts (1, 1 and 2) killed this and no behaviour tells it from a refresh that reads once; a refresh that reads twice and acts on the FIRST answer is correct (one that acts on a later reading is SN02 and SN03, killed), and the rows deliberately do not count reads"
  },
  {
   "name": "OW01 the oracle's NEW debouncer is built without the maximum wait (the OLD one keeps it)",

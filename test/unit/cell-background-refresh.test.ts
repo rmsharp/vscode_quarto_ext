@@ -266,7 +266,7 @@ describe("Session 343 -- an edit refreshes only the editors it can have changed"
 // applies to, the record it keeps of what is tinted, and the editors it finds nothing to refresh for all come from the same reading, so a list that changes under it (an editor closed, opened or split while the refresh
 // runs, the way `vscode.window.visibleTextEditors` can between two reads) cannot make it apply to one list and remember another. The harness answers the TRUE list to the first reading of an operation and a DIFFERENT one to every later
 // reading in the same operation: a refresh that reads once, or reads again and ignores the second answer, cannot tell, and one that mixes two readings does what no single reading shows. Nothing counts the reads: a refactor that
-// reads the list twice and acts on one answer passes.
+// reads the list twice and acts on the FIRST answer passes; one that acts on a later reading fails (SN02 and SN03 of `s344-refresh-snapshot.json`).
 describe("Session 344 -- a refresh acts on one reading of the visible editors, whatever the list does while it runs", () => {
   /** A refresher whose `visible()` answers `lists.shown` the first time it is asked in an operation and `lists.elsewhere` every time after that; `operation` starts a new one. */
   function snapshotWorld(shown: FakeEditor[], elsewhere: FakeEditor[]) {
