@@ -60,9 +60,193 @@ function fakeEditor(document: FakeDocument): FakeEditor {
   return { document, selection: { active: { line: 0 } } };
 }
 
+// ---- THE WINDOW: what a timeline is checked against (Session 344) -------------------------------------------------------------------------------------------------------------------------------------
+
+/**
+ * A step that is no event: the clock moves by this many milliseconds. A STREAM of edit events is a run of them with a gap of LESS than `TYPING_DEBOUNCE_MS` between (10 to 149); a gap of 150 or more ends one.
+ * `pause 60` and `pause 200` of the short enumerations are clock steps too.
+ */
+type GapEvent = `gap ${number}`;
+const GAPS_IN_A_STREAM: readonly number[] = [10, 25, 40, 60, 100, 149];
+const GAPS_THAT_END_A_STREAM: readonly number[] = [150, 151, 400];
+const gapOf = (event: string): number | undefined => (event.startsWith("gap ") ? Number(event.slice(4)) : undefined);
+const isClockStep = (event: string): boolean => event.startsWith("gap ") || event.startsWith("pause ");
+
+/** One evaluation of the key (or one refresh of the editors), the oracle's or the new wiring's: when, and in which order the two kinds happened (the oracle's, at an event, comes first). */
+interface OracleEval {
+  readonly at: number;
+  readonly seq: number;
+}
+interface NewEval extends OracleEval {
+  /** Run by a timer (inside a clock step) and not at an event. */
+  readonly byTimer: boolean;
+  /** The key of the timer that ran it, for a refresh a timer ran; empty for the others. */
+  readonly key: string;
+}
+
+/** What the audit is shown after every step of a timeline: the world's clock and the two logs of evaluations, and, for an event, the document it edited or the key it cancelled. */
+interface Observation {
+  readonly label: () => string;
+  readonly isEvent: boolean;
+  readonly edited?: string;
+  readonly cancelled?: string;
+  readonly now: number;
+  readonly pending: number;
+  readonly staleClears: number;
+  readonly oldEvals: readonly OracleEval[];
+  readonly newEvals: readonly NewEval[];
+}
+
+/**
+ * The properties of the maximum wait, checked after EVERY step of a timeline against the oracle's log of evaluations (the base's per-event handlers evaluate at every event) and the new wiring's own. Nothing in them reads the
+ * code's timers: they are stated from the two logs and the two constants.
+ *
+ *  - STALE: an oracle evaluation that no evaluation of the new wiring has followed. The state a debounced event left is stale until the new wiring runs.
+ *  - W (the window): while anything is stale, its age is LESS than `TYPING_MAX_WAIT_MS`. The first stale evaluation is the first event of a stream, so the work runs no later than the maximum wait after it, and an unbroken
+ *    stream is evaluated at least once in every maximum wait. (The fake clock runs a timer due at the instant it advances to, so at the age itself the work has run.)
+ *  - LIVE: anything stale has a timer pending (nothing is left waiting for an event that never comes). With one key (`perKey: false`) the converse holds too: a pending timer means stale state. With a key a document
+ *    (`perKey: true`) it does not: the refresh runs every visible editor, so another document's run can catch this one's edit up while its own timers are still pending.
+ *  - U (the timing): a run by a timer happens exactly one `TYPING_DEBOUNCE_MS` after the LAST debounced event since the key's last run, or exactly one `TYPING_MAX_WAIT_MS` after the FIRST (a debounced event is an
+ *    event that the oracle evaluated and the new wiring did not). A run at any other moment, or with no debounced event waiting, is an early, late or stray run.
+ *  - at most `maxTimers` timers pending, and no clock call that names a timer that is not pending (`staleClears`).
+ *
+ * It also counts what the timeline reached, so that a row can say the properties were not vacuous: the runs the window made (at the maximum wait after the first event and not a delay after the last), the runs the trailing timer made,
+ * and the longest stream of debounced events (gaps under the delay, none ended by an evaluation) in milliseconds.
+ */
+function createTimelineAudit(mode: { perKey: boolean; maxTimers: number }) {
+  let oldSeen = 0;
+  let newSeen = 0;
+  let staleFrom = 0;
+  const firstSince = new Map<string, number>();
+  const lastSince = new Map<string, number>();
+  const lastEver = new Map<string, number>();
+  const streamStart = new Map<string, number>();
+  const tally = { windowRuns: 0, trailingRuns: 0, longestStream: 0, debouncedEvents: 0, staleSteps: 0, oldestStale: 0 };
+  const problems: string[] = [];
+  const forget = (key: string): void => {
+    firstSince.delete(key);
+    lastSince.delete(key);
+    lastEver.delete(key);
+    streamStart.delete(key);
+  };
+  return {
+    tally,
+    problems,
+    after(obs: Observation): void {
+      const oldAppended = obs.oldEvals.length - oldSeen;
+      const newAppended = obs.newEvals.slice(newSeen);
+      oldSeen = obs.oldEvals.length;
+      newSeen = obs.newEvals.length;
+      if (obs.cancelled !== undefined) {
+        forget(obs.cancelled);
+      }
+      if (obs.isEvent && oldAppended > 0 && newAppended.length === 0) {
+        const key = obs.edited ?? "";
+        const before = lastEver.get(key);
+        if (before === undefined || obs.now - before >= TYPING_DEBOUNCE_MS) {
+          streamStart.set(key, obs.now);
+        }
+        lastEver.set(key, obs.now);
+        lastSince.set(key, obs.now);
+        if (!firstSince.has(key)) {
+          firstSince.set(key, obs.now);
+        }
+        tally.debouncedEvents++;
+        tally.longestStream = Math.max(tally.longestStream, obs.now - (streamStart.get(key) ?? obs.now));
+      }
+      for (const run of newAppended) {
+        const key = mode.perKey ? run.key : "";
+        if (run.byTimer) {
+          const first = firstSince.get(key);
+          const last = lastSince.get(key);
+          if (first === undefined || last === undefined) {
+            problems.push(`${obs.label()}: a timer ran the work at ${run.at} with no debounced event waiting`);
+          } else {
+            const afterLast = run.at === last + TYPING_DEBOUNCE_MS;
+            const afterFirst = run.at === first + TYPING_MAX_WAIT_MS;
+            if (!afterLast && !afterFirst) {
+              problems.push(`${obs.label()}: a timer ran the work at ${run.at}; the last debounced event was at ${last} (a delay later: ${last + TYPING_DEBOUNCE_MS}), the first at ${first} (a maximum wait later: ${first + TYPING_MAX_WAIT_MS})`);
+            }
+            if (afterFirst && !afterLast) {
+              tally.windowRuns++;
+            } else {
+              tally.trailingRuns++;
+            }
+          }
+          firstSince.delete(key);
+          lastSince.delete(key);
+        } else if (!mode.perKey) {
+          forget("");
+        }
+      }
+      const lastNew = obs.newEvals.length > 0 ? obs.newEvals[obs.newEvals.length - 1].seq : -1;
+      while (staleFrom < obs.oldEvals.length && obs.oldEvals[staleFrom].seq < lastNew) {
+        staleFrom++;
+      }
+      const stale = staleFrom < obs.oldEvals.length;
+      if (stale) {
+        const age = obs.now - obs.oldEvals[staleFrom].at;
+        tally.staleSteps++;
+        tally.oldestStale = Math.max(tally.oldestStale, age);
+        if (age >= TYPING_MAX_WAIT_MS) {
+          problems.push(`${obs.label()}: the oldest unevaluated event is ${age} ms old, not less than the maximum wait ${TYPING_MAX_WAIT_MS}`);
+        }
+        if (obs.pending === 0) {
+          problems.push(`${obs.label()}: the state is stale and no timer is pending`);
+        }
+      } else if (!mode.perKey && obs.pending > 0) {
+        problems.push(`${obs.label()}: ${obs.pending} timers pending and nothing unevaluated`);
+      }
+      if (obs.pending > mode.maxTimers) {
+        problems.push(`${obs.label()}: ${obs.pending} timers pending, not at most ${mode.maxTimers}`);
+      }
+      if (obs.staleClears !== 0) {
+        problems.push(`${obs.label()}: ${obs.staleClears} clears of a timer that is not pending`);
+      }
+    },
+  };
+}
+
+/** The sequence a failure message shows: the whole prefix when it is short, the last dozen steps of it when it is long. */
+function prefixLabel(events: readonly string[], i: number): string {
+  return i < 12 ? `after [${events.slice(0, i + 1).join(", ")}]` : `after step ${i + 1} of ${events.length}, [..., ${events.slice(i - 11, i + 1).join(", ")}]`;
+}
+
+/**
+ * A timeline of streams and breaks: a stream is an edit event every `gap` ms (a gap under the delay, so the trailing timer never comes due) for 1.1 to 3.4 maximum waits, with now and then a cursor move, a switch or
+ * a close in the middle of it; between streams there are pauses (a gap of the delay or more, or 200 ms) and a few single events. `edits` are the events that arm a debounce, `others` everything else that is an event.
+ */
+function longTimeline<E extends string>(random: () => number, edits: readonly E[], others: readonly E[], minSteps: number): Array<E | GapEvent | "pause 200"> {
+  const pick = <T,>(xs: readonly T[]): T => xs[Math.floor(random() * xs.length)];
+  const out: Array<E | GapEvent | "pause 200"> = [];
+  while (out.length < minSteps) {
+    const draw = random();
+    if (draw < 0.6) {
+      const gap = pick(GAPS_IN_A_STREAM);
+      const n = Math.ceil((TYPING_MAX_WAIT_MS * (1.1 + random() * 2.3)) / gap);
+      for (let k = 0; k < n; k++) {
+        out.push(pick(edits));
+        if (random() < 0.015) {
+          out.push(pick(others));
+        }
+        out.push(`gap ${gap}`);
+      }
+    } else if (draw < 0.75) {
+      out.push(`gap ${pick(GAPS_THAT_END_A_STREAM)}`);
+    } else if (draw < 0.85) {
+      out.push("pause 200");
+    } else {
+      for (let k = 1 + Math.floor(random() * 4); k > 0; k--) {
+        out.push(random() < 0.5 ? pick(edits) : pick(others));
+      }
+    }
+  }
+  return out;
+}
+
 // ---- THE CELL-CONTEXT KEY ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-type KeyEvent = "type A" | "edit A" | "move A" | "type B" | "move B" | "switch to A" | "switch to B" | "switch to none" | "pause 60" | "pause 200";
+type KeyEvent ="type A" | "edit A" | "move A" | "type B" | "move B" | "switch to A" | "switch to B" | "switch to none" | "pause 60" | "pause 200";
 const KEY_EVENTS: readonly KeyEvent[] = ["type A", "edit A", "move A", "type B", "move B", "switch to A", "switch to B", "switch to none", "pause 60", "pause 200"];
 
 /** One run of the editors, the OLD wiring and the NEW wiring side by side on the same state. */
@@ -74,8 +258,13 @@ function keyWorld(languageOfB: string) {
   let activeTextEditor: FakeEditor | undefined = editorA;
   const oldLog: boolean[] = [];
   const newLog: boolean[] = [];
+  // Session 344: when each evaluation happened and in which order (`seq`), for the audit; `advancing` is true inside a clock step, where only a timer can evaluate.
+  const oldEvals: OracleEval[] = [];
+  const newEvals: NewEval[] = [];
+  let seq = 0;
+  let advancing = false;
 
-  // ---- The OLD spelling, copied VERBATIM from the base `10e6b9c` (`src/features/execution.ts`), with `vscode.window.activeTextEditor` read from the model and `executeCommand("setContext", ...)` written to a log. ----
+  // ---- The OLD spelling, copied VERBATIM from the base `10e6b9c` (`src/features/execution.ts`), with `vscode.window.activeTextEditor` read from the model and `executeCommand("setContext", ...)` written to a log (and, beside it, to the audit's). ----
   function oldUpdateCellContext(editor: FakeEditor | undefined): void {
     // Only the active editor drives the global context key; ignore selection
     // events from background editors, which would otherwise clobber it.
@@ -90,6 +279,7 @@ function keyWorld(languageOfB: string) {
         editor.selection.active.line,
       ) !== null;
     oldLog.push(inCell);
+    oldEvals.push({ at: clock.now(), seq: seq++ });
   }
   const oldOnSelection = (e: { textEditor: FakeEditor }): void => oldUpdateCellContext(e.textEditor);
   const oldOnActiveEditor = (editor: FakeEditor | undefined): void => oldUpdateCellContext(editor);
@@ -112,6 +302,7 @@ function keyWorld(languageOfB: string) {
         editor.selection.active.line,
       ) !== null;
     newLog.push(inCell);
+    newEvals.push({ at: clock.now(), seq: seq++, byTimer: advancing, key: "" });
   }
   const scheduler = createCellContextScheduler({
     timers: clock,
@@ -149,7 +340,21 @@ function keyWorld(languageOfB: string) {
     newOnActiveEditor();
   };
 
-  function apply(event: KeyEvent): void {
+  const advance = (ms: number): void => {
+    advancing = true;
+    try {
+      clock.advance(ms);
+    } finally {
+      advancing = false;
+    }
+  };
+
+  function apply(event: KeyEvent | GapEvent): void {
+    const gap = gapOf(event);
+    if (gap !== undefined) {
+      advance(gap);
+      return;
+    }
     switch (event) {
       case "type A":
         edit(docA);
@@ -178,10 +383,10 @@ function keyWorld(languageOfB: string) {
         switchTo(undefined);
         return;
       case "pause 60":
-        clock.advance(60);
+        advance(60);
         return;
       case "pause 200":
-        clock.advance(200);
+        advance(200);
         return;
     }
   }
@@ -191,16 +396,27 @@ function keyWorld(languageOfB: string) {
     return activeTextEditor !== undefined && activeTextEditor.document.languageId === "quarto" && inCellBy(activeTextEditor.document.version, activeTextEditor.selection.active.line);
   }
 
-  return { clock, apply, oldLog, newLog, truth, pending: () => clock.pending() };
+  return { clock, apply, oldLog, newLog, oldEvals, newEvals, truth, pending: () => clock.pending() };
 }
 
-/** Run `events` and return what is wrong after any of them, the numbers the enumeration totals, and the final state. */
-function checkKeySequence(events: readonly KeyEvent[], languageOfB: string): { problems: string[]; pendingAtEnd: boolean; saved: number } {
+/** What a checked timeline reports: what is wrong, the numbers an enumeration totals, and what the timeline reached (the audit's tally). */
+interface Checked {
+  problems: string[];
+  pendingAtEnd: boolean;
+  saved: number;
+  tally: ReturnType<typeof createTimelineAudit>["tally"];
+}
+
+/** Run `events` and return what is wrong after any of them, the numbers the enumeration totals, and the final state. Session 344: the audit's properties (the window among them) are checked after every step too. */
+function checkKeySequence(events: readonly (KeyEvent | GapEvent)[], languageOfB: string): Checked {
   const w = keyWorld(languageOfB);
   const problems: string[] = [];
-  const at = (i: number): string => `after [${events.slice(0, i + 1).join(", ")}]`;
+  const audit = createTimelineAudit({ perKey: false, maxTimers: 2 });
+  const at = (i: number): string => prefixLabel(events, i);
+  audit.after({ label: () => "at the activation", isEvent: false, now: w.clock.now(), pending: w.pending(), staleClears: w.clock.staleClears(), oldEvals: w.oldEvals, newEvals: w.newEvals });
   for (let i = 0; i < events.length; i++) {
     w.apply(events[i]);
+    audit.after({ label: () => at(i), isEvent: !isClockStep(events[i]), now: w.clock.now(), pending: w.pending(), staleClears: w.clock.staleClears(), oldEvals: w.oldEvals, newEvals: w.newEvals });
     const last = <T,>(xs: T[]): T | undefined => xs[xs.length - 1];
     if (w.pending() === 0) {
       if (last(w.newLog) !== last(w.oldLog)) problems.push(`${at(i)}: no timer pending and the new wiring's key is ${String(last(w.newLog))}, the oracle's ${String(last(w.oldLog))}`);
@@ -215,7 +431,9 @@ function checkKeySequence(events: readonly KeyEvent[], languageOfB: string): { p
   w.apply("pause 200");
   if (w.pending() !== 0) problems.push(`after [${events.join(", ")}] and a pause: a timer is still pending`);
   if (w.newLog[w.newLog.length - 1] !== w.oldLog[w.oldLog.length - 1]) problems.push(`after [${events.join(", ")}] and a pause: the key is ${String(w.newLog[w.newLog.length - 1])}, the oracle's ${String(w.oldLog[w.oldLog.length - 1])}`);
-  return { problems, pendingAtEnd, saved: w.oldLog.length - w.newLog.length };
+  audit.after({ label: () => `${at(events.length - 1)} and a pause`, isEvent: false, now: w.clock.now(), pending: w.pending(), staleClears: w.clock.staleClears(), oldEvals: w.oldEvals, newEvals: w.newEvals });
+  problems.push(...audit.problems.slice(0, 3));
+  return { problems, pendingAtEnd, saved: w.oldLog.length - w.newLog.length, tally: audit.tally };
 }
 
 /** Every sequence of exactly `length` events from `alphabet`, in lexicographic order of the alphabet. */
@@ -316,7 +534,81 @@ describe("Session 342 -- the cell-context key after the debounce is what the old
   }, HEAVY_ROW_MS);
 });
 
-// ---- THE CELL TINT ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// Session 344: the rows above stop at five events, or at 40 with pauses of 60 ms: no sequence of theirs holds an unbroken stream as long as `TYPING_MAX_WAIT_MS`, so they never DROVE the window (the properties they check are
+// the same with or without it). These do: streams of 1,100 to 3,400 ms, checked after every step with the audit's properties (W, LIVE, U, the timer counts) beside P1 to P3.
+describe("Session 344 -- the cell-context key through unbroken streams of keystrokes: the maximum wait is driven (the oracle: the base's handlers, verbatim)", () => {
+  it("a keystroke (a document event and a cursor move) every 100 ms for 4 s is evaluated by the WINDOW at 1,000, 2,000, 3,000 and 4,000 ms and by nothing else, while the oracle evaluates at every one of its 80 events", () => {
+    const events: Array<KeyEvent | GapEvent> = [];
+    for (let k = 0; k < 40; k++) events.push("type A", "gap 100");
+    const w = keyWorld("quarto");
+    for (const event of events) w.apply(event);
+    expect(w.newEvals.filter((e) => e.byTimer).map((e) => e.at)).toEqual([1_000, 2_000, 3_000, 4_000]);
+    expect(w.newEvals.filter((e) => !e.byTimer)).toHaveLength(1); // the activation
+    expect(w.oldEvals).toHaveLength(1 + 80); // the activation, and a document event and a cursor move for each of the 40 keystrokes
+    expect(w.pending()).toBe(0);
+    const r = checkKeySequence(events, "quarto");
+    expect(r.problems).toEqual([]);
+    expect(r.tally.windowRuns).toBe(4);
+    expect(r.tally.trailingRuns).toBe(0);
+    expect(r.tally.longestStream).toBe(3_900);
+    expect(r.tally.oldestStale).toBe(TYPING_MAX_WAIT_MS - 100); // the first keystroke of a window is waiting when the last one before the window's end arrives
+  });
+
+  it("the same stream with a gap of 149 ms (just under the delay) is evaluated every 1,043 ms: a window opens at the first keystroke AFTER a run, up to one gap later", () => {
+    const events: Array<KeyEvent | GapEvent> = [];
+    for (let k = 0; k < 40; k++) events.push("type A", "gap 149");
+    const w = keyWorld("quarto");
+    for (const event of events) w.apply(event);
+    expect(w.newEvals.filter((e) => e.byTimer).map((e) => e.at)).toEqual([1_000, 2_043, 3_086, 4_129, 5_172]);
+    const r = checkKeySequence(events, "quarto");
+    expect(r.problems).toEqual([]);
+    expect(r.tally.windowRuns).toBe(5);
+  });
+
+  it("a gap of 150 ms ends a stream: the trailing timer runs after each keystroke, a delay after it, and the window is never the one that runs", () => {
+    const events: Array<KeyEvent | GapEvent> = [];
+    for (let k = 0; k < 20; k++) events.push("type A", "gap 150");
+    const r = checkKeySequence(events, "quarto");
+    expect(r.problems).toEqual([]);
+    expect(r.tally.windowRuns).toBe(0);
+    expect(r.tally.trailingRuns).toBe(20);
+    expect(r.tally.longestStream).toBe(0);
+  });
+
+  it("agrees with the oracle and keeps the window on 2,000 seeded timelines of streams, pauses, cursor moves, editor switches and edits of the other document (every step checked)", () => {
+    const random = seededRandom(3441);
+    const edits: KeyEvent[] = ["type A", "type A", "type A", "edit A"];
+    const others: KeyEvent[] = ["move A", "move A", "move B", "type B", "switch to A", "switch to B", "switch to none", "pause 60"];
+    const problems: string[] = [];
+    let pastTheWindow = 0;
+    let windowRuns = 0;
+    let trailingRuns = 0;
+    let longest = 0;
+    let oldestStale = 0;
+    let steps = 0;
+    for (let n = 0; n < 2_000; n++) {
+      const events = longTimeline(random, edits, others, 60);
+      steps += events.length;
+      const r = checkKeySequence(events, random() < 0.5 ? "quarto" : "markdown");
+      if (r.problems.length > 0 && problems.length < 5) problems.push(...r.problems.slice(0, 2));
+      if (r.tally.longestStream >= TYPING_MAX_WAIT_MS) pastTheWindow++;
+      windowRuns += r.tally.windowRuns;
+      trailingRuns += r.tally.trailingRuns;
+      longest = Math.max(longest, r.tally.longestStream);
+      oldestStale = Math.max(oldestStale, r.tally.oldestStale);
+    }
+    expect(problems).toEqual([]);
+    // floors, not counts of the generator: the draw reaches unbroken streams past the window, runs the window made, runs the trailing timer made, and a stale state that came close to the limit
+    expect(pastTheWindow).toBeGreaterThan(1_000);
+    expect(windowRuns).toBeGreaterThan(3_000);
+    expect(trailingRuns).toBeGreaterThan(1_000);
+    expect(longest).toBeGreaterThanOrEqual(3 * TYPING_MAX_WAIT_MS);
+    expect(oldestStale).toBeGreaterThan(TYPING_MAX_WAIT_MS - TYPING_DEBOUNCE_MS);
+    expect(steps).toBeGreaterThan(300_000);
+  }, HEAVY_ROW_MS);
+});
+
+// ---- THE CELL TINT----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 type TintEvent = "edit A" | "edit B" | "switch editor" | "hide B" | "show B" | "close A" | "open A" | "reload" | "pause 60" | "pause 200";
 const TINT_EVENTS: readonly TintEvent[] = ["edit A", "edit B", "switch editor", "hide B", "show B", "close A", "open A", "reload", "pause 60", "pause 200"];
