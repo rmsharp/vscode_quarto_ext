@@ -866,7 +866,7 @@ describe("Session 344 -- the cell tint through unbroken streams of edits: the ma
     expect(r.tally.longestStream).toBe(3_900);
   });
 
-  it("two documents edited in turn every 50 ms each have a window of their own, opened at THEIR first edit: A's runs at 1,000, 2,000 and 3,000 and B's 50 ms after each", () => {
+  it("two documents edited in turn every 50 ms each have a window of their own, opened at THEIR first edit: A's runs at 1,000, 2,000, 3,000 and 4,000 and B's 50 ms after each of the first three (B's fourth, at 4,050, comes with the pause that ends the checked timeline)", () => {
     const events: Array<TintEvent | GapEvent> = [];
     for (let k = 0; k < 40; k++) events.push("edit A", "gap 50", "edit B", "gap 50");
     const w = tintWorld();
