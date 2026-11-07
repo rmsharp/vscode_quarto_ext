@@ -200,6 +200,33 @@ describe("Session 344 -- asks that overlap share ONE read and ONE parse", () => 
     expect(keys(await cache.read(["a.bib"], DIR))).toEqual(["new1"]);
     expect(fs.reads()).toBe(before);
   });
+
+  it("two DIFFERENT files that carry the same three numbers, asked at once, are two reads with two answers: a read is shared by the path it was started for, not by its numbers", async () => {
+    const fs = fakeFs({ "a.bib": { content: bibtex([["a1", "A"]]), mtimeMs: 7, size: 100, ctimeMs: 9 }, "b.bib": { content: bibtex([["b1", "B"]]), mtimeMs: 7, size: 100, ctimeMs: 9 } });
+    const cache = createCitationCache(fs);
+    const [a, b] = await Promise.all([cache.read(["a.bib"], DIR), cache.read(["b.bib"], DIR)]);
+    expect([keys(a), keys(b), fs.reads()]).toEqual([["a1"], ["b1"], 2]);
+  });
+
+  it("a file whose stat stops saying drops its entry (the read that follows is its own): when the numbers come back as they were, the file is read again, not served from the entry kept before", async () => {
+    let stat: unknown = { mtimeMs: 100, size: 50 };
+    let content = bibtex([["a", "A"]]);
+    let reads = 0;
+    const cache = createCitationCache({
+      stat: async () => stat as BibliographyStat,
+      readFile: async () => {
+        reads++;
+        return content;
+      },
+    });
+    expect(keys(await cache.read(["x.bib"], DIR))).toEqual(["a"]);
+    stat = {};
+    content = bibtex([["b", "B"]]);
+    expect(keys(await cache.read(["x.bib"], DIR))).toEqual(["b"]);
+    stat = { mtimeMs: 100, size: 50 };
+    expect(keys(await cache.read(["x.bib"], DIR))).toEqual(["b"]);
+    expect(reads).toBe(3);
+  });
 });
 
 describe("Session 344 -- a shared read that fails", () => {
@@ -390,6 +417,7 @@ describe("Session 344 -- asks that overlap, files that change while they are in 
     const names = ["a.bib", "b.bib", "c.bib"];
     let asked = 0;
     let read = 0;
+    let rewrittenInFlight = 0;
     const violations: string[] = [];
     for (let seed = 1; seed <= 400; seed++) {
       const next = seeded(seed);
@@ -419,6 +447,7 @@ describe("Session 344 -- asks that overlap, files that change while they are in 
             cache.read([name], DIR).then((answer) => {
               const got = versionOf(answer);
               const atAnswer = version.get(name) ?? 0;
+              if (atAnswer > atAsk) rewrittenInFlight++;
               if (got < atAsk || got > atAnswer) violations.push(`seed ${seed} step ${step} ${name}: asked at v${atAsk}, answered at v${atAnswer}, got v${got}`);
             }),
           );
@@ -432,8 +461,9 @@ describe("Session 344 -- asks that overlap, files that change while they are in 
       read += fs.reads();
     }
     expect(violations).toEqual([]);
-    expect(asked).toBeGreaterThan(1500);
-    expect(asked - read).toBeGreaterThan(300); // asks answered without a read of their own: hits and shared reads
+    expect(asked).toBeGreaterThan(2000);
+    expect(asked - read).toBeGreaterThan(900); // asks answered without a read of their own: hits and shared reads
+    expect(rewrittenInFlight).toBeGreaterThan(600); // and the file really was rewritten while asks were in flight
   });
 
   it("300 seeded groups of 1 to 3 overlapping asks over up to 4 files each, nothing changing: every answer is readCitations' answer, and each file is read at most ONCE for the whole group", async () => {
@@ -478,7 +508,7 @@ describe("Session 344 -- asks that overlap, files that change while they are in 
       }
     }
     expect(disagreements).toEqual([]);
-    expect(groupsThatShared).toBeGreaterThan(50); // the sample is what the title says: reads were shared
+    expect(groupsThatShared).toBeGreaterThan(100); // the sample is what the title says: reads were shared
   });
 });
 
