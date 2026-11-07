@@ -18,8 +18,10 @@ const HEAVY_ROW_MS = 120_000;
 //
 // The OLD spelling is kept here, copied VERBATIM from the base `10e6b9c` (`src/features/execution.ts`: `updateCellContext` and the three handlers; `src/features/cell-background.ts`: `refresh` and the document handler),
 // run against fake editors of the shape VS Code gives (`document.languageId`, `getText()`, `selection.active.line`, `uri.toString()`), as the ORACLE (Learning 738): the source's functions are respelled on top of the
-// schedulers, so they could not stand as their own oracle. The NEW wiring below is a copy of how the two adapters call the schedulers; `s342-typing-wiring-pin.test.ts` pins, from the syntax tree, that the adapters
-// are spelled the way this copy assumes. Session 343 (the review round found the copies out of date): both copies pass `TYPING_MAX_WAIT_MS` as the adapters do. Session 344: the enumerations of five events and the seeded sequences of 10 to 40
+// schedulers, so they could not stand as their own oracle. The NEW wiring below is a copy of how the two adapters call the schedulers; `s342-typing-wiring-pin.test.ts` pins, from the syntax tree, the call sites it mirrors (which
+// handler schedules and with which key, which paths stay immediate, the close handler). ONE THING IS NOT THE SHIPPED SPELLING: the run of the tint world below refreshes every visible editor, as the base's `refresh()` did, while
+// since Session 343 the shipped run is `decorator.refreshAfterEdit(event.document)`, which touches only the edited document's editors (the pin requires that spelling; `cell-background-refresh.test.ts` is the oracle for what it leaves). The
+// rows of the tint world check the debouncer's timing and the tint a refresh-all run leaves. Session 343 (the review round found the copies out of date): both copies pass `TYPING_MAX_WAIT_MS` as the adapters do. Session 344: the enumerations of five events and the seeded sequences of 10 to 40
 // events (with pauses of 60 ms) are shorter than that window, so the window never comes due in them; the rows headed "Session 344" (timelines of streams that last 1,100 to 3,400 ms and more, mixed with pauses, cursor moves, editor
 // switches and edits of the other document) DRIVE it, in both worlds, and `createTimelineAudit` checks its properties (P2 and P4 below) after every step of every sequence the two worlds check, the short ones too. `s343-max-wait.test.ts` drives the debouncer and the
 // scheduler by themselves.
@@ -27,7 +29,8 @@ const HEAVY_ROW_MS = 120_000;
 // The properties, checked after EVERY event of every sequence:
 //   P1 once no timer is pending, the last value the new wiring set is the oracle's last value, and both are the truth worked out from how the document was built (not by `findCellAtPosition`);
 //   P2 a key holds at most TWO timers (the trailing one and, since Session 343's maximum wait, the window's), and a pause of the delay runs them; since Session 344 also: a pending timer means state that has not been evaluated (the key;
-//      not the tint, where one document's run refreshes every editor and can catch another's edit up before that one's own timers come due), and nothing is left stale with no timer to run it;
+//      not the tint, where an immediate refresh of every editor brings every document up to date and cancels no document's timers, and where this copy's timer run also refreshes every visible editor: see `createTimelineAudit`),
+//      and nothing is left stale with no timer to run it;
 //   P3 the new wiring evaluates no more often than the oracle;
 //   P4 (Session 344) the window: the oldest event the oracle evaluated and the new wiring has not is LESS than `TYPING_MAX_WAIT_MS` old, so an unbroken stream is evaluated at least once in every maximum wait and the first evaluation comes no
 //      later than the maximum wait after its first event; and a run by a timer comes exactly one delay after the last debounced event since the key's last run or exactly one maximum wait after the first (no early, late or stray run);
@@ -109,8 +112,10 @@ interface Observation {
  *  - STALE: an oracle evaluation that no evaluation of the new wiring has followed. The state a debounced event left is stale until the new wiring runs.
  *  - W (the window): while anything is stale, its age is LESS than `TYPING_MAX_WAIT_MS`. The first stale evaluation is the first event of a stream, so the work runs no later than the maximum wait after it, and an unbroken
  *    stream is evaluated at least once in every maximum wait. (The fake clock runs a timer due at the instant it advances to, so at the age itself the work has run.)
- *  - LIVE: anything stale has a timer pending (nothing is left waiting for an event that never comes). With one key (`perKey: false`) the converse holds too: a pending timer means stale state. With a key a document
- *    (`perKey: true`) it does not: the refresh runs every visible editor, so another document's run can catch this one's edit up while its own timers are still pending.
+ *  - LIVE: anything stale has a timer pending (nothing is left waiting for an event that never comes; with a key a document, 'a timer', not 'a timer of its own'). With one key (`perKey: false`) the converse holds too: a
+ *    pending timer means stale state. With a key a document (`perKey: true`) it does not, for two reasons. The immediate refreshes (a switch of editor, a show or a hide, a reload) bring every document up to date and cancel
+ *    no document's timers, in the shipped wiring as in this copy: after [edit A, hide B] two timers are pending and nothing is stale. And in this copy a timer's run refreshes every visible editor (the Session 342 spelling; the
+ *    shipped run, `refreshAfterEdit`, touches only the edited document's editors), so another document's run can also catch this one's edit up while its own timers are pending: after [edit A, pause 60, edit B, pause 60, pause 60].
  *  - U (the timing): a run by a timer happens exactly one `TYPING_DEBOUNCE_MS` after the LAST debounced event since the key's last run, or exactly one `TYPING_MAX_WAIT_MS` after the FIRST (a debounced event is an
  *    event that the oracle evaluated and the new wiring did not). A run at any other moment, or with no debounced event waiting, is an early, late or stray run.
  *  - at most `maxTimers` timers pending, and no clock call that names a timer that is not pending (`staleClears`).
@@ -665,7 +670,8 @@ function tintWorld() {
     }
   };
 
-  // ---- The NEW wiring: how `registerCellBackgroundFeature` calls the debouncer. ----
+  // ---- The NEW wiring: how `registerCellBackgroundFeature` builds and calls the debouncer (key, delay, maximum wait, `cancel` on close). The RUN is the Session 342 spelling and not the shipped one: it refreshes every visible editor
+  // (`refreshInto`), where the shipped run since Session 343 is `decorator.refreshAfterEdit(event.document)` and touches only the edited document's editors. What it leaves is `cell-background-refresh.test.ts`'s oracle, not this file's. ----
   const newRefresh = (firedBy = ""): void => {
     newRefreshes++;
     refreshInto(newApplied);
@@ -839,8 +845,8 @@ describe("Session 342 -- the cell tint after the debounce is what the old per-ed
   }, HEAVY_ROW_MS);
 });
 
-// Session 344: the same for the tint. The timers here are one pair a DOCUMENT (the debouncer is keyed by the document's URI) and a run refreshes every visible editor, so the audit runs per key and the oldest unevaluated
-// refresh is the oracle's, whichever document's edit it was.
+// Session 344: the same for the tint. The timers here are one pair a DOCUMENT (the debouncer is keyed by the document's URI), so the audit runs per key; the oldest unevaluated refresh is the oracle's that no refresh of the
+// new wiring has followed, whichever document's edit it was (this copy's run refreshes every visible editor, so any run follows it; the shipped run touches only the edited document's editors).
 describe("Session 344 -- the cell tint through unbroken streams of edits: the maximum wait is driven (the oracle: the base's refresh and document handler, verbatim)", () => {
   it("an edit of one document every 100 ms for 4 s is refreshed by the WINDOW at 1,000, 2,000, 3,000 and 4,000 ms and by nothing else, while the oracle refreshes at every one of its 40 edits", () => {
     const events: Array<TintEvent | GapEvent> = [];
