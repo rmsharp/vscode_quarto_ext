@@ -177,8 +177,9 @@ interface PendingBibliography {
  *
  * Not blind: a tool that sets the MODIFICATION time itself (cp -p, rsync -t, touch -r, tar, unzip) moves the change time and
  * is seen (Session 343's review round: the first spelling kept two numbers and missed it). So is a change of permissions:
- * `chmod 000` leaves the modification time and the size alone, but a chmod always moves the change time (by 3.4 to 3.5 ms
- * in each of three fresh processes on APFS), so the cache reads again, the read fails and the file adds nothing, as in
+ * `chmod 000` leaves the modification time and the size alone, but a chmod always moves the change time (to the moment of
+ * the chmod, so by as long as the file had gone unchanged: 0.13 to 0.16 ms when the chmod follows the write at once, 49 ms
+ * after a wait of 50 ms, in fresh processes on APFS), so the cache reads again, the read fails and the file adds nothing, as in
  * `readCitations`. And so is a symbolic link retargeted to another file of the same size: `stat` follows the link, so its
  * numbers are its target's, and the retarget goes unseen only when the two targets carry the same modification time AND the
  * same change time, that is, were last changed within one tick of the clock. On APFS no pair of 2,000 did; on the HFS+ volume
@@ -189,8 +190,14 @@ interface PendingBibliography {
  * and `0` and `-0` are one signature. A stat that does not carry the first two numbers is no signature at all: the file is
  * read at every ask and nothing is kept for it. A change time the stat does not carry (`undefined`) is equal to itself.
  *
- * The cache is keyed by the file's ABSOLUTE path, so two documents that declare one file by two spellings share an
- * entry, and it holds at most {@link CITATION_CACHE_MAX_FILES} files, least recently used first out (a `Map` iterates in
+ * The cache is keyed by the file's ABSOLUTE path as `path.resolve` spells it, so two documents that declare one file by two
+ * spellings that `path.resolve` makes equal (`refs.bib` and `./refs.bib`, `sub/../refs.bib`, the absolute path) share an
+ * entry. Spellings it does not make equal are other keys though they name one file: other entries (each takes one of the
+ * slots below), each read for itself even when the asks overlap. They are a case difference on a case-insensitive volume (the
+ * macOS default: `Refs.bib` and `refs.bib` were two reads on APFS, asked at once or one after the other), a symbolic link to
+ * the file and a hard link to it (two reads each, measured in Session 344).
+ *
+ * The cache holds at most {@link CITATION_CACHE_MAX_FILES} files, least recently used first out (a `Map` iterates in
  * insertion order and a hit re-inserts). A document that declares more files than that still gets all of them: the
  * answer is built from what each ask read or reused, never from what is still held afterwards.
  *
