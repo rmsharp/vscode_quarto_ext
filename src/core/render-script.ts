@@ -227,8 +227,10 @@ function spinHeaderAfterQuote(cursor: Cursor): boolean {
  *    pattern is deterministic: at every step the characters that could continue it (whitespace, `#`, `%`, `'`, `-`, `[`) are disjoint from the ones that could not, so it needs no backtracking.
  *  - A line break is whitespace (`"\n"` and `"\r\n"` both are, and neither pattern counts how much), so `\s*` and `\s+` run over line breaks, and a literal (`%%`, `[markdown]`,
  *    `---`, `#'`) never does. That is why the end of the line is not an end of the scan, and why a lone `%` at the end of a line is a rejection without a read of the next line.
- *  - The percent cell is decided by the line that holds its `]`, or by the first character that cannot continue it. The spin header's closer `#'\s*---` may be ANYWHERE later in the document,
- *    so a header opened and never closed reads to the end, as the regular expression scans to the end: only that rare file reads the document. `indexOf("#'")` finds the next candidate
+ *  - The percent cell is decided by the line that holds its `]`, by the first character that cannot continue it, or by the end of the document when only whitespace is left. The spin header's closer
+ *    `#'\s*---` may be ANYWHERE later in the document, so a header opened and never closed reads to the end, as the regular expression scans to the end. A document is read to its end whenever its
+ *    answer stays undecided to it (measured on documents of 1,001 lines): a document of nothing but blank lines; a `#`, a `# %%` or, for `.r`, a `#'` followed by nothing but blank lines; a spin header
+ *    opened and never closed, or closed on the last line. A run of blank lines before the marker or inside it is read once, and the line after it decides. `indexOf("#'")` finds the next candidate
  *    in a line and a failed candidate resumes where it failed, so the closer search passes over no character twice and no line is fetched twice (rows read a million blank lines and a
  *    million lines of `#'` and `#' x` once each).
  *  - A prefix-by-prefix test of the regular expressions was not taken: it re-reads, and a regular expression cannot say "not yet" from "never".

@@ -492,8 +492,10 @@ async function previewActiveScript(manager: PreviewManager): Promise<void> {
  * `isRenderScriptDocument` (`core/render-script`), which reads `lineCount` and
  * `lineAt(i).text` for the lines the answer needs and stops: one line for an
  * ordinary script, the lines of the marker or header for a render script, and the
- * whole document only for a spin header opened and never closed or a document of
- * nothing but blank lines.
+ * whole document when the answer stays undecided to its end (a document of nothing
+ * but blank lines; a `#`, a `# %%` or, for `.r`, a `#'` followed by nothing but blank
+ * lines; a spin header opened and never closed, or closed on the last line). A run of
+ * blank lines before the marker is read once, and the line after it decides.
  *
  * ⚠ The ORDER of the chain is no longer load-bearing for cost, and is still pinned:
  * the document defined, the `file` scheme, `isRenderScriptExtension`, then the lazy
