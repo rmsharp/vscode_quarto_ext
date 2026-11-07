@@ -614,5 +614,141 @@
   "to": "      previewActiveDocument(manager),\n    ),",
   "expect": "survives",
   "why": "A RECORDED GAP, not an equivalent: the command registered under the script's id runs the `.qmd` gate, which refuses a script with the `.qmd` message. No unit test reads the command's registration. The integration suite does ('previews a knitr spin script end to end', which waits for a server that never starts, and 'refuses ordinary code', which expects the render-script message), which takes over the screen and was NOT run for this entry"
+ },
+ {
+  "name": "L01 skipSpace stops at column 64 (a leading run of 64 or more columns is not whitespace)",
+  "file": "src/core/render-script.ts",
+  "from": "    while (this.column < this.text.length && isSpace(this.code())) this.column++;",
+  "to": "    while (this.column < this.text.length && this.column < 64 && isSpace(this.code())) this.column++;",
+  "expect": "killed",
+  "why": "a first line of 64 or more whitespace characters before the `#` is lost (the skip stops at column 64); killed by 'a first line of whitespace of any width may come before the marker', 'a run of percent signs is `%%+` whatever its length', 'the gaps of a cell may be of any width, and its line may go on after it' and 'a spin header's dashes and closer may stand at any column' (each skips whitespace at a column of 64 or more); size rows of s344-render-script-lazy.test.ts. The first rows built no line longer than a few dozen characters and left it alive"
+ },
+ {
+  "name": "L02 skipSpace stops at column 4096",
+  "file": "src/core/render-script.ts",
+  "from": "    while (this.column < this.text.length && isSpace(this.code())) this.column++;",
+  "to": "    while (this.column < this.text.length && this.column < 4096 && isSpace(this.code())) this.column++;",
+  "expect": "killed",
+  "why": "the skip stops at column 4,096; killed by the same four rows as L01 (their widths include 4,097 and more); size rows of s344-render-script-lazy.test.ts"
+ },
+ {
+  "name": "L03 skipSpace stops at column 1,048,576",
+  "file": "src/core/render-script.ts",
+  "from": "    while (this.column < this.text.length && isSpace(this.code())) this.column++;",
+  "to": "    while (this.column < this.text.length && this.column < 1048576 && isSpace(this.code())) this.column++;",
+  "expect": "killed",
+  "why": "the skip stops at column 1,048,576; killed by the same four rows as L01 (their widths include 1,048,577 and 3,000,000); size rows of s344-render-script-lazy.test.ts"
+ },
+ {
+  "name": "L04 a run of 64 percent signs ends (a longer run is not consumed)",
+  "file": "src/core/render-script.ts",
+  "from": "  while (cursor.code() === PERCENT) {",
+  "to": "  while (cursor.code() === PERCENT && percents < 64) {",
+  "expect": "killed",
+  "why": "a run of more than 64 percent signs ends at 64 and finds a percent sign where whitespace must be; killed by 'a run of percent signs is `%%+` whatever its length' alone; size rows of s344-render-script-lazy.test.ts"
+ },
+ {
+  "name": "L05 a run of 4096 percent signs ends",
+  "file": "src/core/render-script.ts",
+  "from": "  while (cursor.code() === PERCENT) {",
+  "to": "  while (cursor.code() === PERCENT && percents < 4096) {",
+  "expect": "killed",
+  "why": "a run of more than 4,096 percent signs ends at 4,096; killed by 'a run of percent signs is `%%+` whatever its length' alone; size rows of s344-render-script-lazy.test.ts"
+ },
+ {
+  "name": "L06 the document is read to 1,048,576 lines and no further",
+  "file": "src/core/render-script.ts",
+  "from": "if (this.line + 1 >= this.document.lineCount) return false;",
+  "to": "if (this.line + 1 >= Math.min(this.document.lineCount, 1048576)) return false;",
+  "expect": "killed",
+  "why": "the document is read to 1,048,576 lines and no further, so a closer, a bracket or a marker beyond it is lost; killed by 'a spin header whose closer is five million lines away is closed', 'whitespace spans five million blank lines' and 'five million blank lines and nothing else are not a script'; size rows of s344-render-script-lazy.test.ts. The first rows built 1,000,001 lines at most and left it alive"
+ },
+ {
+  "name": "L07 the closer search gives up at line 1,048,576 (only the closer loop's own line test)",
+  "file": "src/core/render-script.ts",
+  "from": "      if (!cursor.nextLine()) return false;\n      continue;",
+  "to": "      if (cursor.line >= 1048576 || !cursor.nextLine()) return false;\n      continue;",
+  "expect": "killed",
+  "why": "the closer loop alone gives up at line 1,048,576 (L06 stops every read); killed by 'a spin header whose closer is five million lines away is closed' alone, the one row with a closer search over millions of lines; size rows of s344-render-script-lazy.test.ts"
+ },
+ {
+  "name": "L08 the closer search looks only at the first 65,536 characters of a line",
+  "file": "src/core/render-script.ts",
+  "from": "const at = cursor.text.indexOf(\"#'\", cursor.column);",
+  "to": "const at = cursor.text.slice(0, 65536).indexOf(\"#'\", cursor.column);",
+  "expect": "killed",
+  "why": "the closer search looks only at the first 65,536 characters of a line; killed by 'a first line of whitespace of any width may come before the marker' (a `.r` pair whose second line holds 240,000 characters of whitespace before its closer) and 'a spin header's dashes and closer may stand at any column'; size rows of s344-render-script-lazy.test.ts"
+ },
+ {
+  "name": "L09 the closer search looks only at the first 64 characters of a line",
+  "file": "src/core/render-script.ts",
+  "from": "const at = cursor.text.indexOf(\"#'\", cursor.column);",
+  "to": "const at = cursor.text.slice(0, 64).indexOf(\"#'\", cursor.column);",
+  "expect": "killed",
+  "why": "the closer search looks only at the first 64 characters of a line; killed by the same two rows as L08; size rows of s344-render-script-lazy.test.ts"
+ },
+ {
+  "name": "L10 a literal (`---`, `markdown]`, `raw]`) is recognised only at a column below 64",
+  "file": "src/core/render-script.ts",
+  "from": "return this.text.startsWith(needle, this.column + offset);",
+  "to": "return this.column < 64 && this.text.startsWith(needle, this.column + offset);",
+  "expect": "killed",
+  "why": "a literal (`---`, `markdown]`, `raw]`) is recognised only at a column below 64; killed by 'a first line of whitespace of any width may come before the marker', 'a run of percent signs is `%%+` whatever its length', 'the gaps of a cell may be of any width, and its line may go on after it' and 'a spin header's dashes and closer may stand at any column'; size rows of s344-render-script-lazy.test.ts"
+ },
+ {
+  "name": "L11 a document of more than 4,194,304 lines is not a script",
+  "file": "src/core/render-script.ts",
+  "from": "(!percent && !spin) || document.lineCount <= 0",
+  "to": "(!percent && !spin) || document.lineCount <= 0 || document.lineCount > 4194304",
+  "expect": "killed",
+  "why": "a document of more than 4,194,304 lines is refused at once; killed by 'a document of up to two billion lines is decided by the lines its answer needs', 'a spin header whose closer is five million lines away is closed', 'whitespace spans five million blank lines' and 'five million blank lines and nothing else are not a script' (the first is free: it reads one line of a document of 2^31 lines); size rows of s344-render-script-lazy.test.ts"
+ },
+ {
+  "name": "L12 the percent cell must be decided within 1,048,576 lines (the line of the cursor, tested after the bracket)",
+  "file": "src/core/render-script.ts",
+  "from": "  return cursor.code() === OPEN_BRACKET && (cursor.startsWith(\"markdown]\", 1) || cursor.startsWith(\"raw]\", 1));",
+  "to": "  return cursor.line < 1048576 && cursor.code() === OPEN_BRACKET && (cursor.startsWith(\"markdown]\", 1) || cursor.startsWith(\"raw]\", 1));",
+  "expect": "killed",
+  "why": "the percent cell must be decided within 1,048,576 lines, so whitespace between the `#` and the `%%` that spans more is lost; killed by 'whitespace spans five million blank lines' alone; size rows of s344-render-script-lazy.test.ts"
+ },
+ {
+  "name": "T01 percent: more than 7 percent signs are refused",
+  "file": "src/core/render-script.ts",
+  "from": "percents < 2 ||",
+  "to": "percents < 2 || percents > 7 ||",
+  "expect": "killed",
+  "why": "more than 7 percent signs are refused; killed by 'a run of percent signs is `%%+` whatever its length' alone, which asks every width from none to seventy; size rows of s344-render-script-lazy.test.ts"
+ },
+ {
+  "name": "T02 percent: a bracket past column 40 is refused",
+  "file": "src/core/render-script.ts",
+  "from": " || !cursor.skipSpace()) return false;",
+  "to": " || !cursor.skipSpace() || cursor.column > 40) return false;",
+  "expect": "killed",
+  "why": "a bracket past column 40 is refused; killed by 'a first line of whitespace of any width may come before the marker', 'a run of percent signs is `%%+` whatever its length' and 'the gaps of a cell may be of any width, and its line may go on after it'; size rows of s344-render-script-lazy.test.ts"
+ },
+ {
+  "name": "T03 spin: a first line of more than 200 characters cannot open a header",
+  "file": "src/core/render-script.ts",
+  "from": "  cursor.column += 3;",
+  "to": "  cursor.column += 3;\n  if (cursor.text.length > 200) return false;",
+  "expect": "killed",
+  "why": "a first line of more than 200 characters cannot open a spin header; killed by 'a first line of whitespace of any width may come before the marker' and 'a spin header's dashes and closer may stand at any column'; size rows of s344-render-script-lazy.test.ts"
+ },
+ {
+  "name": "T04 the early return also refuses a first line of more than 100,000 characters",
+  "file": "src/core/render-script.ts",
+  "from": "const cursor = new Cursor(document);\n  if (!cursor.skipSpace()",
+  "to": "const cursor = new Cursor(document);\n  if (cursor.text.length > 100000) return false;\n  if (!cursor.skipSpace()",
+  "expect": "killed",
+  "why": "the early return refuses a first line of more than 100,000 characters, a cell with a long tail of text included; killed by 'a first line of whitespace of any width may come before the marker', 'a run of percent signs is `%%+` whatever its length', 'the gaps of a cell may be of any width, and its line may go on after it' and 'a spin header's dashes and closer may stand at any column'; size rows of s344-render-script-lazy.test.ts"
+ },
+ {
+  "name": "T05 more than 2,000,000 lines of whitespace end the skip",
+  "file": "src/core/render-script.ts",
+  "from": "      if (this.column < this.text.length) return true;\n      if (!this.nextLine()) return false;",
+  "to": "      if (this.column < this.text.length) return true;\n      if (this.line > 2000000 || !this.nextLine()) return false;",
+  "expect": "killed",
+  "why": "more than 2,000,000 lines of whitespace end the skip; killed by 'whitespace spans five million blank lines' and 'five million blank lines and nothing else are not a script'; size rows of s344-render-script-lazy.test.ts"
  }
 ]
