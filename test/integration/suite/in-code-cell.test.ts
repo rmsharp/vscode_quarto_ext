@@ -61,14 +61,16 @@ describe("quarto.inCodeCell after typing", () => {
     const cellLine = lines.findIndex((line) => line === "a = 1");
     assert.ok(proseLine >= 0 && cellLine > proseLine, "precondition: the fixture has prose, then a python cell holding `a = 1`");
 
+    // ⚠ The extension sends a context key only when its value CHANGES (Session 343, `core/context-key-setter`) and the capture sees only what is sent,
+    // so the key is SETTLED at false BEFORE the capture starts (the cursor in prose, then a pause longer than the typing pause), and the moves below are
+    // the transitions false -> true -> false that the capture can observe. Which value the key had when the document opened (the host may restore a cursor
+    // inside a cell) no longer matters.
+    const inProse = new vscode.Position(proseLine, 0);
+    editor.selection = new vscode.Selection(inProse, inProse);
+    await sleep(TYPING_DEBOUNCE_MS * 3);
+
     const captured: ContextCall[] = [];
     await withContextCapture(captured, async () => {
-      // The cursor in prose: the key is false (an active-editor change or a cursor move that follows no edit evaluates at once).
-      editor.selection = new vscode.Selection(new vscode.Position(proseLine, 0), new vscode.Position(proseLine, 0));
-      assert.ok(
-        await waitFor(() => lastValueFor(captured, KEY) === false, 5000),
-        `precondition: ${KEY} is false with the cursor in prose (the setContext interception must be live, too)`,
-      );
 
       // Type into the cell through the editor, then put the cursor in it: an edit not yet evaluated, so the selection
       // event that follows it is debounced with it.
@@ -77,20 +79,18 @@ describe("quarto.inCodeCell after typing", () => {
       const inCell = new vscode.Position(cellLine, 2);
       editor.selection = new vscode.Selection(inCell, inCell);
 
-      // Longer than the pause (and nowhere near the maximum wait): the evaluation has run on the document as it is now.
-      await sleep(TYPING_DEBOUNCE_MS * 3);
-      assert.strictEqual(
-        lastValueFor(captured, KEY),
-        true,
-        `${KEY} must be true once the pause has passed after typing in a python cell with the cursor in it`,
+      // The pause has passed (polled, so a slow host cannot flake it; the maximum wait is not driven here, `s343-max-wait.test.ts` does that):
+      // the evaluation has run on the document as it is now.
+      assert.ok(
+        await waitFor(() => lastValueFor(captured, KEY) === true, 5000),
+        `${KEY} must be true once the pause has passed after typing in a python cell with the cursor in it (setContext calls seen: ${JSON.stringify(captured)})`,
       );
 
       // Now a cursor move that follows no edit since the last evaluation: it evaluates at once.
-      const inProse = new vscode.Position(proseLine, 0);
       editor.selection = new vscode.Selection(inProse, inProse);
       assert.ok(
         await waitFor(() => lastValueFor(captured, KEY) === false, 5000),
-        `${KEY} must be false after the cursor moves out of the cell into prose`,
+        `${KEY} must be false after the cursor moves out of the cell into prose (setContext calls seen: ${JSON.stringify(captured)})`,
       );
     });
   });

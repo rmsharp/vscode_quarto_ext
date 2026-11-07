@@ -3,6 +3,11 @@ import * as vscode from "vscode";
 // Shared by the integration suites that observe the `setContext` calls the extension makes (VS Code offers no way to
 // read a context key back): `preview-script.test.ts` (`quartoRenderScriptActive`) and `in-code-cell.test.ts`
 // (`quarto.inCodeCell`). Moved out of `preview-script.test.ts` unchanged in Session 343.
+//
+// ⚠ IT SEES ONLY WHAT THE EXTENSION SENDS, and since Session 343 the extension sends a key only when its value CHANGES (`core/context-key-setter`). A row
+// that expects a value must make it a TRANSITION inside the capture: settle the key at the opposite value first (outside the capture, or by showing a
+// document that gives it), then do what moves it. A row that opens a document whose value is the one the key already has captures nothing, and
+// `lastValueFor` answers `undefined` (the review round of Session 343 found four rows of `preview-script.test.ts` written the other way).
 
 export interface ContextCall {
   key: string;

@@ -3,6 +3,7 @@ import { cellBackgroundRanges } from "../../src/core/cell-background";
 import { findCellAtPosition } from "../../src/core/qmd/model";
 import {
   TYPING_DEBOUNCE_MS,
+  TYPING_MAX_WAIT_MS,
   createCellContextScheduler,
   createKeyedDebouncer,
 } from "../../src/core/typing-debounce";
@@ -18,11 +19,12 @@ const HEAVY_ROW_MS = 120_000;
 // The OLD spelling is kept here, copied VERBATIM from the base `10e6b9c` (`src/features/execution.ts`: `updateCellContext` and the three handlers; `src/features/cell-background.ts`: `refresh` and the document handler),
 // run against fake editors of the shape VS Code gives (`document.languageId`, `getText()`, `selection.active.line`, `uri.toString()`), as the ORACLE (Learning 738): the source's functions are respelled on top of the
 // schedulers, so they could not stand as their own oracle. The NEW wiring below is a copy of how the two adapters call the schedulers; `s342-typing-wiring-pin.test.ts` pins, from the syntax tree, that the adapters
-// are spelled the way this copy assumes.
+// are spelled the way this copy assumes. Session 343 (the review round found the copies out of date): both copies pass `TYPING_MAX_WAIT_MS` as the adapters do. The sequences here are shorter than that window, so these rows do not DRIVE
+// it (`s343-max-wait.test.ts` does); they keep the copies faithful, so that the timers of a key are counted as the shipped wiring makes them.
 //
 // The properties, checked after EVERY event of every sequence:
 //   P1 once no timer is pending, the last value the new wiring set is the oracle's last value, and both are the truth worked out from how the document was built (not by `findCellAtPosition`);
-//   P2 a timer is pending only if the state it will evaluate has not been evaluated, it is the only timer of the key, and a pause of the delay runs it;
+//   P2 a timer is pending only if the state it will evaluate has not been evaluated, a key holds at most TWO timers (the trailing one and, since Session 343's maximum wait, the window's), and a pause of the delay runs them;
 //   P3 the new wiring evaluates no more often than the oracle;
 // and over a whole enumeration: some sequences end with a pending timer (the delay is reached), some save evaluations (the debounce does something), and none of those two is all of them.
 
@@ -114,6 +116,7 @@ function keyWorld(languageOfB: string) {
   const scheduler = createCellContextScheduler({
     timers: clock,
     delayMs: TYPING_DEBOUNCE_MS,
+    maxWaitMs: TYPING_MAX_WAIT_MS,
     activeSnapshot: () => (activeTextEditor === undefined ? undefined : { key: activeTextEditor.document.uri.toString(), version: activeTextEditor.document.version }),
     evaluate: updateCellContext,
   });
@@ -203,7 +206,7 @@ function checkKeySequence(events: readonly KeyEvent[], languageOfB: string): { p
       if (last(w.newLog) !== last(w.oldLog)) problems.push(`${at(i)}: no timer pending and the new wiring's key is ${String(last(w.newLog))}, the oracle's ${String(last(w.oldLog))}`);
       if (last(w.oldLog) !== w.truth()) problems.push(`${at(i)}: the oracle's key ${String(last(w.oldLog))} is not the truth ${String(w.truth())}`);
     }
-    if (w.pending() > 1) problems.push(`${at(i)}: ${w.pending()} timers pending, not at most one`);
+    if (w.pending() > 2) problems.push(`${at(i)}: ${w.pending()} timers pending, not at most two (the trailing timer and the window's)`);
     if (w.newLog.length > w.oldLog.length) problems.push(`${at(i)}: the new wiring evaluated ${w.newLog.length} times, the oracle ${w.oldLog.length}`);
     if (events[i] === "pause 200" && w.pending() !== 0) problems.push(`${at(i)}: a pause of 200 ms left a timer pending`);
   }
@@ -364,7 +367,7 @@ function tintWorld() {
     newRefreshes++;
     refreshInto(newApplied);
   };
-  const typing = createKeyedDebouncer({ timers: clock, delayMs: TYPING_DEBOUNCE_MS });
+  const typing = createKeyedDebouncer({ timers: clock, delayMs: TYPING_DEBOUNCE_MS, maxWaitMs: TYPING_MAX_WAIT_MS });
   const newOnDocument = (doc: FakeDocument): void => {
     if (isVisible(doc)) {
       typing.schedule(doc.uri.toString(), () => newRefresh());
@@ -446,7 +449,7 @@ function checkTintSequence(events: readonly TintEvent[]): { problems: string[]; 
         if (JSON.stringify(w.oldApplied.get(key)) !== JSON.stringify(truth)) problems.push(`${at(i)}: the oracle's tint of ${key} is not the truth ${JSON.stringify(truth)}`);
       }
     }
-    if (w.clock.pending() > 2) problems.push(`${at(i)}: ${w.clock.pending()} timers pending, not at most one a document`);
+    if (w.clock.pending() > 4) problems.push(`${at(i)}: ${w.clock.pending()} timers pending, not at most two a document (the trailing timer and the window's)`);
     if (w.refreshes().new > w.refreshes().old) problems.push(`${at(i)}: the new wiring refreshed ${w.refreshes().new} times, the oracle ${w.refreshes().old}`);
     if (events[i] === "pause 200" && w.clock.pending() !== 0) problems.push(`${at(i)}: a pause of 200 ms left a timer pending`);
   }

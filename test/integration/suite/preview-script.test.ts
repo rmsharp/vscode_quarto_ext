@@ -104,6 +104,25 @@ async function openActive(file: string): Promise<void> {
 /** The context key under test (Slice 2). */
 const KEY = "quartoRenderScriptActive";
 
+/**
+ * ⚠ THE EXTENSION SENDS A CONTEXT KEY ONLY WHEN ITS VALUE CHANGES (Session 343, `core/context-key-setter`), and `withContextCapture` sees only what is
+ * sent. A row that expects a value must therefore make it a TRANSITION inside the capture, or it observes nothing. Closing every editor leaves the key
+ * false (no active editor is not a render script), so a row that expects `true` starts from there (`startFromFalse`), and a row that expects `false`
+ * first shows a render script (`primeTrue`), so that the document under test makes a real true -> false move.
+ */
+async function startFromFalse(): Promise<void> {
+  await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+}
+
+/** Show the render script and wait until the key is OBSERVED true: the next document that is not a render script then makes the true -> false move the capture can see. */
+async function primeTrue(captured: ContextCall[]): Promise<void> {
+  await openActive(SPIN);
+  assert.ok(
+    await waitFor(() => lastValueFor(captured, KEY) === true, 5000),
+    `precondition: ${KEY} must be observed true once the render script is the active editor (setContext calls seen: ${JSON.stringify(captured)})`,
+  );
+}
+
 describe("quartoRenderScriptActive context key", () => {
   before(async () => {
     const ext = vscode.extensions.getExtension(EXTENSION_ID);
@@ -117,26 +136,19 @@ describe("quartoRenderScriptActive context key", () => {
 
   it("goes true when a render script becomes the active editor", async function () {
     this.timeout(30000);
+    await startFromFalse();
     const captured: ContextCall[] = [];
     await withContextCapture(captured, async () => {
       await openActive(SPIN);
-      await waitFor(() => lastValueFor(captured, KEY) !== undefined, 5000);
+      await waitFor(() => lastValueFor(captured, KEY) === true, 5000);
     });
 
-    // Sanity: the interception itself is live. `execution.ts` sets its OWN
-    // context key (`quarto.inCodeCell`) on every active-editor change, so seeing
-    // it proves a failure below means "our key is never set", not "the capture
-    // harness is broken".
-    assert.ok(
-      captured.some((c) => c.key === "quarto.inCodeCell"),
-      "precondition: the setContext interception must be live (expected to see " +
-        "execution.ts's own quarto.inCodeCell key being set)",
-    );
-
+    // The key starts false (every editor closed) and the extension sends only a CHANGE, so the capture sees the move to true or nothing: an empty
+    // capture means the key was never set, or the interception is not live (the message carries every call seen).
     assert.strictEqual(
       lastValueFor(captured, KEY),
       true,
-      `${KEY} must be true while a render script is the active editor`,
+      `${KEY} must be true while a render script is the active editor (setContext calls seen: ${JSON.stringify(captured)})`,
     );
   });
 
@@ -149,10 +161,12 @@ describe("quartoRenderScriptActive context key", () => {
     writeFileSync(script, 'print("hello")\n', "utf8");
 
     try {
+      await startFromFalse();
       const captured: ContextCall[] = [];
       await withContextCapture(captured, async () => {
+        await primeTrue(captured);
         await openActive(script);
-        await waitFor(() => lastValueFor(captured, KEY) !== undefined, 5000);
+        await waitFor(() => lastValueFor(captured, KEY) === false, 5000);
 
         // Ordinary Python: not a render script.
         assert.strictEqual(
@@ -196,10 +210,12 @@ describe("quartoRenderScriptActive context key", () => {
 
   it("goes false on a .qmd — the mutual-exclusion invariant that gives ctrl+shift+k back to quarto.preview", async function () {
     this.timeout(30000);
+    await startFromFalse();
     const captured: ContextCall[] = [];
     await withContextCapture(captured, async () => {
+      await primeTrue(captured);
       await openActive(QMD);
-      await waitFor(() => lastValueFor(captured, KEY) !== undefined, 5000);
+      await waitFor(() => lastValueFor(captured, KEY) === false, 5000);
     });
 
     // If this key were ever true for a .qmd, ctrl+shift+k would fire
@@ -234,10 +250,12 @@ describe("quartoRenderScriptActive context key", () => {
       );
       await vscode.workspace.applyEdit(edit);
 
+      await startFromFalse();
       const captured: ContextCall[] = [];
       await withContextCapture(captured, async () => {
+        await primeTrue(captured);
         await vscode.window.showTextDocument(doc);
-        await waitFor(() => lastValueFor(captured, KEY) !== undefined, 5000);
+        await waitFor(() => lastValueFor(captured, KEY) === false, 5000);
       });
 
       // Precondition: the PURE detector accepts this buffer — so a failure here
