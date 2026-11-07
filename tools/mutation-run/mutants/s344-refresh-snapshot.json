@@ -46,5 +46,29 @@
   "to": "const shown = options.visible();\n    options.visible();",
   "expect": "survives",
   "why": "argued equivalent, ON PURPOSE: the old counts (1, 1 and 2) killed this and no behaviour tells it from a refresh that reads once; a refresh that reads twice and acts on one answer is correct, and the rows deliberately do not count reads"
+ },
+ {
+  "name": "OW01 the oracle's NEW debouncer is built without the maximum wait (the OLD one keeps it)",
+  "file": "test/unit/cell-background-refresh.test.ts",
+  "from": "const typingNew = createKeyedDebouncer({ timers: clockNew, delayMs: TYPING_DEBOUNCE_MS, maxWaitMs: TYPING_MAX_WAIT_MS });",
+  "to": "const typingNew = createKeyedDebouncer({ timers: clockNew, delayMs: TYPING_DEBOUNCE_MS });",
+  "expect": "killed",
+  "why": "the window reaches the oracle's old debouncer alone: after the first edit the old world holds two timers (the trailing one and the window's) and the new one, and the rows compare the worlds' pending counts at every step; killed by the enumeration, the seeded rows and the stream row (3 failing rows, measured)"
+ },
+ {
+  "name": "OW02 the oracle's OLD debouncer is built without the maximum wait (the NEW one keeps it)",
+  "file": "test/unit/cell-background-refresh.test.ts",
+  "from": "const typingOld = createKeyedDebouncer({ timers: clockOld, delayMs: TYPING_DEBOUNCE_MS, maxWaitMs: TYPING_MAX_WAIT_MS });",
+  "to": "const typingOld = createKeyedDebouncer({ timers: clockOld, delayMs: TYPING_DEBOUNCE_MS });",
+  "expect": "killed",
+  "why": "the same from the other side: the new world holds the extra timer; killed by the same three rows (measured)"
+ },
+ {
+  "name": "OW03 neither of the oracle's debouncers is given the maximum wait (the constant reads undefined)",
+  "file": "test/unit/cell-background-refresh.test.ts",
+  "from": "import { TYPING_DEBOUNCE_MS, TYPING_MAX_WAIT_MS, createKeyedDebouncer } from \"../../src/core/typing-debounce\";",
+  "to": "import { TYPING_DEBOUNCE_MS, createKeyedDebouncer } from \"../../src/core/typing-debounce\";\nconst TYPING_MAX_WAIT_MS = undefined;",
+  "expect": "killed",
+  "why": "the two worlds still agree on their pending counts, and the enumeration and the seeded rows never bring a window due (a probe: 381,366 timers asked for 1,000 ms, none fired), so this SURVIVED every row but one; killed by the stream row alone: after 1,200 ms of edits 60 ms apart it expects 6 applies in the old world and 4 in the new (the window ran once), and reads 3 and 3 with no window"
  }
 ]

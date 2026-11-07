@@ -461,8 +461,8 @@ describe("Session 343 -- the plan: which editors, in their order", () => {
 // Fake clocks drive both debouncers; the events are the ones the adapter hears, and the property is the one the cure must keep: once no timer is pending, every visible editor holds the tint the old spelling gave it,
 // while the new wiring applies no more often, and strictly less on some sequences. (Language changes are not in the events: they are rows above, because there the two differ BY DESIGN -- a document turned into
 // another language is cleared by its own next edit, not by another document's.) Both debouncers are built as the adapter builds its own, with the delay AND `TYPING_MAX_WAIT_MS` (both, because the rows compare the two
-// worlds' timer counts at every step, and a window on one side only is a second timer there). No sequence of the rows below is long enough for the window to come due, so in them it is a pending timer and never a run;
-// `typing-path-equivalence.test.ts` drives it.
+// worlds' timer counts at every step, and a window on one side only is a second timer there). The enumeration and the seeded sequences are too short for the window to come due (a probe that counted the timers asked for
+// 1,000 ms read 381,366 set and none fired): in them it is a pending timer and never a run. The row of a stream of edits 60 ms apart drives it, once, in both worlds; `typing-path-equivalence.test.ts` drives it on timelines.
 describe("Session 343 -- the tint after the debounce is what the old per-edit refresh of every editor left (the oracle: the base's refresh() loop and handler)", () => {
   type Event = "edit Q1" | "edit Q2" | "edit P" | "switch editor" | "hide Q2" | "show Q2" | "split Q1" | "unsplit Q1" | "reload" | "pause 60" | "pause 200";
   const EVENTS: readonly Event[] = ["edit Q1", "edit Q2", "edit P", "switch editor", "hide Q2", "show Q2", "split Q1", "unsplit Q1", "reload", "pause 60", "pause 200"];
@@ -610,6 +610,19 @@ describe("Session 343 -- the tint after the debounce is what the old per-edit re
     expect(savedSome).toBeGreaterThan(10_000);
     expect(savedSome).toBeLessThan(sequences);
   }, 120_000);
+
+  it("a stream of edits 60 ms apart for 1,200 ms crosses the maximum wait: the window applies once at 1,000 ms in both worlds (all three editors in the old, the edited document's in the new), and the two agree at every step", () => {
+    const events: Event[] = [];
+    for (let k = 0; k < 20; k++) events.push("edit Q1", "pause 60");
+    const w = oracleWorld();
+    expect(w.applies()).toEqual([3, 3]); // the first refresh of each world
+    for (const event of events) w.apply(event);
+    expect(w.applies()).toEqual([6, 4]); // with no window nothing would have run yet: the stream never paused 150 ms
+    expect(w.pending()).toEqual([2, 2]); // the trailing timer of the last edit and the window the first edit after the run opened
+    const r = check(events);
+    expect(r.problems).toEqual([]);
+    expect(r.saved).toBeGreaterThan(0);
+  });
 
   it("agrees on 3,000 seeded sequences of 10 to 40 events (edits weighted over the rest)", () => {
     const random = seededRandom(3433);
