@@ -159,9 +159,11 @@ interface PendingBibliography {
  *    numbers (the file was rewritten meanwhile) starts a read of its own and is never handed the one it did not start
  *    under, and a stat that is no signature (below) is never shared at all. A shared read that FAILS fails for every ask
  *    that waited on it, as for each alone: each adds nothing from that file, and nothing is left in flight, so the next
- *    ask tries again. Only the read still recorded for the file keeps an entry: a read that a newer one superseded answers
- *    the asks that waited on it and never replaces the newer one's entry, whichever of the two settles last. A `readFile`
- *    that never settles holds every later ask that `stat`s the same numbers; before, each of them started a read of its own.
+ *    ask tries again. Only the read still recorded for the file touches its entry: a read that a newer one superseded
+ *    answers the asks that waited on it (if it FAILS they add nothing, as for any failed read) and neither replaces nor drops
+ *    the newer one's entry, whichever of the two settles last; a failure of the read that IS recorded still drops the entry
+ *    kept before it (above). A `readFile` that never settles holds every later ask that `stat`s the same numbers; before, each
+ *    of them started a read of its own.
  *
  * The cross-file de-duplication by key (first wins, in declared order) is done at EVERY ask over the entries, not kept:
  * the same two cached files answer differently when they are declared the other way round.
@@ -216,7 +218,17 @@ export function createCitationCache(options: CitationCacheOptions): CitationCach
       return running.citations;
     }
     // The async arrow turns a `readFile` or a parser that THROWS into a rejection, as it was one when the awaits were in this function.
-    const read: PendingBibliography = { mtimeMs, size, ctimeMs, citations: (async () => parseCitations(await options.readFile(absolute)).map((citation) => Object.freeze(citation)))() };
+    const parsed = (async () => parseCitations(await options.readFile(absolute)).map((citation) => Object.freeze(citation)))();
+    // A read that a newer one superseded and that then FAILS is answered with nothing, not with its rejection: the rejection would reach `read`, whose catch drops the entry of the file, and that entry is the newer read's. The asks that waited on it add nothing either way.
+    const read: PendingBibliography = {
+      mtimeMs,
+      size,
+      ctimeMs,
+      citations: parsed.catch((error: unknown): readonly Citation[] => {
+        if (known && pending.get(absolute) !== read) return [];
+        throw error;
+      }),
+    };
     if (known) pending.set(absolute, read); // a read with no signature to compare is not offered to anyone
     try {
       const citations = await read.citations;

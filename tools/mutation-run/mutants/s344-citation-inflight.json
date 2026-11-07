@@ -50,24 +50,24 @@
  {
   "name": "I07 createCitationCache: the record keeps a modification time of 0",
   "file": "src/core/citations.ts",
-  "from": "const read: PendingBibliography = { mtimeMs, size, ctimeMs, citations: (async () =>",
-  "to": "const read: PendingBibliography = { mtimeMs: 0, size, ctimeMs, citations: (async () =>",
+  "from": "    const read: PendingBibliography = {\n      mtimeMs,\n",
+  "to": "    const read: PendingBibliography = {\n      mtimeMs: 0,\n",
   "expect": "killed",
   "why": "no ask's numbers equal the record's, so nothing is shared; killed by the five-asks row"
  },
  {
   "name": "I08 createCitationCache: the record keeps a size of -1",
   "file": "src/core/citations.ts",
-  "from": "const read: PendingBibliography = { mtimeMs, size, ctimeMs, citations: (async () =>",
-  "to": "const read: PendingBibliography = { mtimeMs, size: -1, ctimeMs, citations: (async () =>",
+  "from": "      size,\n      ctimeMs,\n      citations: parsed.catch(",
+  "to": "      size: -1,\n      ctimeMs,\n      citations: parsed.catch(",
   "expect": "killed",
   "why": "no ask's size equals the record's, so nothing is shared; killed by the five-asks row"
  },
  {
   "name": "I09 createCitationCache: the record keeps no change time",
   "file": "src/core/citations.ts",
-  "from": "const read: PendingBibliography = { mtimeMs, size, ctimeMs, citations: (async () =>",
-  "to": "const read: PendingBibliography = { mtimeMs, size, ctimeMs: undefined, citations: (async () =>",
+  "from": "      ctimeMs,\n      citations: parsed.catch(",
+  "to": "      ctimeMs: undefined,\n      citations: parsed.catch(",
   "expect": "killed",
   "why": "a real stat carries a change time, which the record does not: nothing is shared on a real file system, while the stand-ins that carry none still share; killed by the real-file row"
  },
@@ -170,8 +170,8 @@
  {
   "name": "I22 createCitationCache: a failed read is turned into an empty answer",
   "file": "src/core/citations.ts",
-  "from": "citations: (async () => parseCitations(await options.readFile(absolute)).map((citation) => Object.freeze(citation)))() };",
-  "to": "citations: (async () => { try { return parseCitations(await options.readFile(absolute)).map((citation) => Object.freeze(citation)); } catch { return []; } })() };",
+  "from": "const parsed = (async () => parseCitations(await options.readFile(absolute)).map((citation) => Object.freeze(citation)))();",
+  "to": "const parsed = (async () => { try { return parseCitations(await options.readFile(absolute)).map((citation) => Object.freeze(citation)); } catch { return []; } })();",
   "expect": "killed",
   "why": "a locked file is kept as empty under its numbers and not read again; killed by the shared-failure row and by the locked-file row of s343-citation-cache-rows"
  },
@@ -190,6 +190,30 @@
   "to": "if (running !== undefined) {",
   "expect": "killed",
   "why": "an ask that stat'ed other numbers is handed the older read, content included; killed by the three one-number rows, and by the stale model alone (run with only the two seeded models selected)"
+ },
+ {
+  "name": "I25 createCitationCache: a failure of a superseded read reaches `read` as any other",
+  "file": "src/core/citations.ts",
+  "from": "        if (known && pending.get(absolute) !== read) return [];\n",
+  "to": "",
+  "expect": "killed",
+  "why": "R1's rejection, after R2 settled, drops R2's entry (the next ask under R2's numbers reads again), for the ask that started R1 and for an ask that shared it; killed by the two rows of a superseded read that fails"
+ },
+ {
+  "name": "I26 createCitationCache: every failure of a read with a signature is answered with nothing",
+  "file": "src/core/citations.ts",
+  "from": "if (known && pending.get(absolute) !== read) return [];",
+  "to": "if (known) return [];",
+  "expect": "killed",
+  "why": "the failure of the read still recorded is answered with nothing too, so the commit that follows keeps an EMPTY entry for the file under the numbers it was read under, and a locked file is served as empty at the next ask; killed by the locked-file row of s343-citation-cache-rows, the shared-failure row, the failed-read-leaves-no-record row and the sequential oracle"
+ },
+ {
+  "name": "I27 createCitationCache: the guard of a superseded read's failure does not ask whether the read has a signature",
+  "file": "src/core/citations.ts",
+  "from": "if (known && pending.get(absolute) !== read) return [];",
+  "to": "if (pending.get(absolute) !== read) return [];",
+  "expect": "survives",
+  "why": "EQUIVALENT: a read with no signature is recorded nowhere, so the edit swallows its failure as a superseded read's, and the commit that follows takes the `!known` branch, which drops the entry of the file and answers [] exactly as the catch of `read` did; same reads and same answers on 3 histories (an entry, then a stat that cannot say with a read that fails, then the first numbers back; a NaN size that fails twice and then reads; an entry, a string-valued stat that fails, the first numbers, a null stat, the first numbers). The `known &&` is kept because it says what the guard means"
  },
  {
   "name": "T01 the stale model never rewrites a file",

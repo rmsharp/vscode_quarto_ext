@@ -201,6 +201,48 @@ describe("Session 344 -- asks that overlap share ONE read and ONE parse", () => 
     expect(fs.reads()).toBe(before);
   });
 
+  it("a superseded read that FAILS after the newer read settled does not drop the newer read's entry: R2 settles, then R1 fails (its ask adds nothing, as it would alone), and the next ask under the new numbers is a hit", async () => {
+    const fs = fakeFs({ "a.bib": { content: bibtex([["old1", "Old"]]), mtimeMs: 10 } });
+    const cache = createCitationCache(fs);
+    fs.hold();
+    const first = cache.read(["a.bib"], DIR);
+    await flush();
+    fs.set("a.bib", { content: bibtex([["new1", "New"]]), mtimeMs: 20 });
+    const second = cache.read(["a.bib"], DIR);
+    await flush();
+    expect(fs.reads()).toBe(2); // the premise: R1 under time 10 and R2 under time 20, both in flight
+    fs.open(1);
+    expect(keys(await second)).toEqual(["new1"]);
+    fs.fail(0, new Error("EIO: a.bib"));
+    expect(keys(await first)).toEqual([]);
+    fs.hold(false); // a read the cache should not have to make then shows as a count and not as a hang
+    const before = fs.reads();
+    expect(keys(await cache.read(["a.bib"], DIR))).toEqual(["new1"]);
+    expect(fs.reads()).toBe(before);
+  });
+
+  it("the same when an ask SHARED the superseded read and sees its rejection too: both asks add nothing, and R2's entry is still the one kept", async () => {
+    const fs = fakeFs({ "a.bib": { content: bibtex([["old1", "Old"]]), mtimeMs: 10 } });
+    const cache = createCitationCache(fs);
+    fs.hold();
+    const owner = cache.read(["a.bib"], DIR);
+    const sharer = cache.read(["a.bib"], DIR);
+    await flush();
+    expect(fs.reads()).toBe(1); // the premise: one read in flight for two asks
+    fs.set("a.bib", { content: bibtex([["new1", "New"]]), mtimeMs: 20 });
+    const second = cache.read(["a.bib"], DIR);
+    await flush();
+    expect(fs.reads()).toBe(2);
+    fs.open(1);
+    expect(keys(await second)).toEqual(["new1"]);
+    fs.fail(0, new Error("EIO: a.bib"));
+    expect([keys(await owner), keys(await sharer)]).toEqual([[], []]);
+    fs.hold(false);
+    const before = fs.reads();
+    expect(keys(await cache.read(["a.bib"], DIR))).toEqual(["new1"]);
+    expect(fs.reads()).toBe(before);
+  });
+
   it("two DIFFERENT files that carry the same three numbers, asked at once, are two reads with two answers: a read is shared by the path it was started for, not by its numbers", async () => {
     const fs = fakeFs({ "a.bib": { content: bibtex([["a1", "A"]]), mtimeMs: 7, size: 100, ctimeMs: 9 }, "b.bib": { content: bibtex([["b1", "B"]]), mtimeMs: 7, size: 100, ctimeMs: 9 } });
     const cache = createCitationCache(fs);
