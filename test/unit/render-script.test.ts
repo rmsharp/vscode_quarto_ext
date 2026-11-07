@@ -160,7 +160,7 @@ describe("isRenderScriptExtension — the cheap half, for the per-keystroke path
     }
   });
 
-  it("is a strict SUPERSET of isRenderScript — it may never reject a real script", () => {
+  it("is a SUPERSET of isRenderScript — it may never reject a real script", () => {
     // The pre-filter is only sound if it can never veto a file the full detector
     // would have accepted. Anything else silently turns the key false for a real
     // render script.

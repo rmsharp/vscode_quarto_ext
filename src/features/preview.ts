@@ -503,9 +503,12 @@ async function previewActiveScript(manager: PreviewManager): Promise<void> {
  * 20 MB log or .json costs no read with the extension test first or without it. It
  * stays first as the cheaper question, and because the syntax-tree pin
  * (`test/unit/s343-adapter-wiring-pin.test.ts`, the PT group) holds the shape of the
- * chain. `isRenderScriptExtension` is a strict superset of what the full detector
- * accepts (unit-tested), so putting it first can never veto a real script, and every
- * ordering yields the same boolean.
+ * chain. `isRenderScriptExtension` accepts every extension `isRenderScriptDocument` can
+ * accept (that function takes the same name rule and returns false before it reads a
+ * line for any other), so putting it first can never veto a real script, and every
+ * ordering yields the same boolean. `test/unit/render-script.test.ts` checks five sample
+ * scripts against it, and the row 'a file whose extension no pattern claims reads
+ * nothing' of `test/unit/s344-render-script-lazy.test.ts` checks the other side.
  *
  * That nothing on this path builds the buffer is pinned twice: in `core/` by counts of
  * the lines read (`test/unit/s344-render-script-lazy.test.ts`), and here from the
