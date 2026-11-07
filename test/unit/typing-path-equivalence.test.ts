@@ -19,13 +19,18 @@ const HEAVY_ROW_MS = 120_000;
 // The OLD spelling is kept here, copied VERBATIM from the base `10e6b9c` (`src/features/execution.ts`: `updateCellContext` and the three handlers; `src/features/cell-background.ts`: `refresh` and the document handler),
 // run against fake editors of the shape VS Code gives (`document.languageId`, `getText()`, `selection.active.line`, `uri.toString()`), as the ORACLE (Learning 738): the source's functions are respelled on top of the
 // schedulers, so they could not stand as their own oracle. The NEW wiring below is a copy of how the two adapters call the schedulers; `s342-typing-wiring-pin.test.ts` pins, from the syntax tree, that the adapters
-// are spelled the way this copy assumes. Session 343 (the review round found the copies out of date): both copies pass `TYPING_MAX_WAIT_MS` as the adapters do. The sequences here are shorter than that window, so these rows do not DRIVE
-// it (`s343-max-wait.test.ts` does); they keep the copies faithful, so that the timers of a key are counted as the shipped wiring makes them.
+// are spelled the way this copy assumes. Session 343 (the review round found the copies out of date): both copies pass `TYPING_MAX_WAIT_MS` as the adapters do. Session 344: the enumerations of five events and the seeded sequences of 10 to 40
+// events (with pauses of 60 ms) are shorter than that window, so the window never comes due in them; the rows headed "Session 344" (timelines of streams that last 1,100 to 3,400 ms and more, mixed with pauses, cursor moves, editor
+// switches and edits of the other document) DRIVE it, in both worlds, and `createTimelineAudit` checks its properties (P2 and P4 below) after every step of every sequence the two worlds check, the short ones too. `s343-max-wait.test.ts` drives the debouncer and the
+// scheduler by themselves.
 //
 // The properties, checked after EVERY event of every sequence:
 //   P1 once no timer is pending, the last value the new wiring set is the oracle's last value, and both are the truth worked out from how the document was built (not by `findCellAtPosition`);
-//   P2 a timer is pending only if the state it will evaluate has not been evaluated, a key holds at most TWO timers (the trailing one and, since Session 343's maximum wait, the window's), and a pause of the delay runs them;
+//   P2 a key holds at most TWO timers (the trailing one and, since Session 343's maximum wait, the window's), and a pause of the delay runs them; since Session 344 also: a pending timer means state that has not been evaluated (the key;
+//      not the tint, where one document's run refreshes every editor and can catch another's edit up before that one's own timers come due), and nothing is left stale with no timer to run it;
 //   P3 the new wiring evaluates no more often than the oracle;
+//   P4 (Session 344) the window: the oldest event the oracle evaluated and the new wiring has not is LESS than `TYPING_MAX_WAIT_MS` old, so an unbroken stream is evaluated at least once in every maximum wait and the first evaluation comes no
+//      later than the maximum wait after its first event; and a run by a timer comes exactly one delay after the last debounced event since the key's last run or exactly one maximum wait after the first (no early, late or stray run);
 // and over a whole enumeration: some sequences end with a pending timer (the delay is reached), some save evaluations (the debounce does something), and none of those two is all of them.
 
 /** The truth about the document the model builds: `pad` lines of prose, then a python cell on `pad..pad+2`, a prose line, an r cell on `pad+4..pad+6`, where `pad` is the version modulo three. */
