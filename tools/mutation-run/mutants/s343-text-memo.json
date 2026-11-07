@@ -325,7 +325,7 @@
   "from": "    doc.uri.scheme === \"file\" &&\n",
   "to": "    doc.uri.scheme === \"file\" &&\n    doc.getText() !== null &&\n",
   "expect": "killed",
-  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'isPreviewableRenderScript calls getText itself')"
+  "why": "killed by s343-adapter-wiring-pin.test.ts: the live-file row fails (the same respelling is an EDITS row there that must name 'isPreviewableRenderScript reaches getText')"
  },
  {
   "name": "PT06: a further operand follows the lazy read",

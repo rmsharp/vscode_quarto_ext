@@ -52,7 +52,7 @@ const functionNamed = (sf: ts.SourceFile, name: string): ts.FunctionDeclaration 
   collect(sf, (n): n is ts.FunctionDeclaration => ts.isFunctionDeclaration(n) && n.name?.text === name)[0];
 /** The call `callee(...)` anywhere under `node`, every one. */
 const callsOf = (node: ts.Node, sf: ts.SourceFile, callee: string): ts.CallExpression[] => collect(node, isCall).filter((call) => flat(call.expression, sf) === callee);
-/** Every call of a method named `getText`, whatever it is called on and however it is reached (`a.getText()`, `a?.b.getText()`, `a!.getText()`). */
+/** Every property-access call of a method named `getText`, whatever it is called on (`a.getText()`, `a?.b.getText()`, `a!.getText()`). Not `a["getText"]()`, not `a.getText.call(a)`, not a destructured `getText`: `getTextReaches` sees those. */
 const getTextCalls = (node: ts.Node): ts.CallExpression[] => collect(node, isCall).filter((call) => ts.isPropertyAccessExpression(call.expression) && call.expression.name.text === "getText");
 /** The names a parameter list declares, as written. */
 const parameterNames = (fn: ts.FunctionDeclaration | ts.ArrowFunction, sf: ts.SourceFile): string[] => fn.parameters.map((p) => flat(p.name, sf));
@@ -157,6 +157,12 @@ function problemsInPreviewSetter(source: string): string[] {
     if (enclosingFunction(call) !== register && !(enclosingFunction(call) !== undefined && enclosingFunction(enclosingFunction(call) as ts.Node) === register)) problems.push("a call of updateRenderScriptContext is outside registerPreviewFeature");
     if (call.arguments.length !== 2 || flat(call.arguments[1], sf) !== "setContextKey") problems.push("a call of updateRenderScriptContext does not hand it `setContextKey` as its second argument");
   }
+  // The first argument is the editor the key describes: the one the active-editor event gives, the active editor the document handler has just compared the document with, the active editor at activation. A call that hands
+  // the update another editor (or none) sets the key from the wrong document, or from none; no unit test sees a key's value, so the spelling is what is pinned.
+  const firstArguments = calls.map((call) => (call.arguments.length > 0 ? flat(call.arguments[0], sf) : "?")).join(", ");
+  if (firstArguments !== "editor, active, vscode.window.activeTextEditor") {
+    problems.push(`the first arguments of the calls of updateRenderScriptContext are (${firstArguments}), not (editor, active, vscode.window.activeTextEditor) in the order of the active-editor handler, the document handler and the activation-time call`);
+  }
   if (parameterNames(update, sf).join() !== "editor,setContextKey") problems.push("updateRenderScriptContext does not take exactly (editor, setContextKey)");
   const sets = callsOf(update.body, sf, "setContextKey");
   if (sets.length !== 1) {
@@ -226,6 +232,9 @@ describe("Session 343 -- how the adapters call the context-key setter, pinned by
     ["PS08: the setter is made in the module (shared by every registration)", "export function registerPreviewFeature(", "const sharedSetter = createVscodeContextKeySetter();\nexport function registerPreviewFeature(", "2 calls of createVscodeContextKeySetter in the file"],
     ["PS09: the update function takes the setter first", "function updateRenderScriptContext(\n  editor: vscode.TextEditor | undefined,\n  setContextKey: ContextKeySetter,\n): void {", "function updateRenderScriptContext(\n  setContextKey: ContextKeySetter,\n  editor: vscode.TextEditor | undefined,\n): void {", "does not take exactly (editor, setContextKey)"],
     ["PS10: the file builds its own setter over the host's command", "  const setContextKey = createVscodeContextKeySetter();", "  const setContextKey = createContextKeySetter((key: string, value: boolean) => vscode.commands.executeCommand(\"setContext\", key, value));", "preview.ts calls createContextKeySetter itself"],
+    ["PS11: the activation-time call is handed no editor (a script already open at activation never sets the key)", "  updateRenderScriptContext(vscode.window.activeTextEditor, setContextKey);\n}", "  updateRenderScriptContext(undefined, setContextKey);\n}", "the first arguments of the calls of updateRenderScriptContext are"],
+    ["PS12: the active-editor handler is handed no editor (switching to a script never sets the key)", "      updateRenderScriptContext(editor, setContextKey),", "      updateRenderScriptContext(undefined, setContextKey),", "the first arguments of the calls of updateRenderScriptContext are"],
+    ["PS13: the document handler is handed no editor (typing a marker atop a plain script never sets the key)", "        updateRenderScriptContext(active, setContextKey);", "        updateRenderScriptContext(undefined, setContextKey);", "the first arguments of the calls of updateRenderScriptContext are"],
   ];
 
   it.each(CONTEXT_KEY_EDITS)("context-key.ts, %s: the pin is broken, and is named", (_name, from, to, named) => {
@@ -335,10 +344,46 @@ function problemsInExecutionText(source: string): string[] {
   return problems;
 }
 
+/** The name of the function declaration or method a node is written in (an arrow function is the function around it), or "the module". */
+function enclosingName(node: ts.Node, sf: ts.SourceFile): string {
+  for (let up = node.parent; up !== undefined; up = up.parent) {
+    if ((ts.isFunctionDeclaration(up) || ts.isMethodDeclaration(up)) && up.name !== undefined) return flat(up.name, sf);
+  }
+  return "the module";
+}
+/** True iff a property name (of a destructuring pattern) is `getText` as written: an identifier, a string, or a computed string. */
+function isGetTextName(name: ts.PropertyName | undefined): boolean {
+  if (name === undefined) return false;
+  if (ts.isComputedPropertyName(name)) return ts.isStringLiteralLike(name.expression) && name.expression.text === "getText";
+  return (ts.isIdentifier(name) || ts.isStringLiteralLike(name)) && name.text === "getText";
+}
+/**
+ * Every place under `node` that reaches the member `getText`, called or not: a property access (`a.getText()`, `a.getText.call(a)`, `const f = a.getText`), an element access with the string `"getText"`
+ * (`a["getText"]()`), and a destructured `getText` (`const { getText } = a`). NOT a name that is not written out (`a[name]`, `Reflect.get(a, "getText")`): a spelling pin cannot see what is computed.
+ */
+const getTextReaches = (node: ts.Node): ts.Node[] =>
+  collect(
+    node,
+    (n): n is ts.Node =>
+      (ts.isPropertyAccessExpression(n) && n.name.text === "getText") ||
+      (ts.isElementAccessExpression(n) && ts.isStringLiteralLike(n.argumentExpression) && n.argumentExpression.text === "getText") ||
+      (ts.isBindingElement(n) && ts.isObjectBindingPattern(n.parent) && (n.propertyName !== undefined ? isGetTextName(n.propertyName) : ts.isIdentifier(n.name) && n.name.text === "getText")),
+  );
+/** True iff `node` is inside `outer` (or is it). */
+const isWithin = (node: ts.Node, outer: ts.Node): boolean => node.pos >= outer.pos && node.end <= outer.end;
+/** Whether `sf` imports anything at all from `module`, whatever the form (named, aliased, namespace, default, side-effect). */
+const importsFrom = (sf: ts.SourceFile, module: string): boolean => collect(sf, (n): n is ts.ImportDeclaration => ts.isImportDeclaration(n)).some((i) => ts.isStringLiteral(i.moduleSpecifier) && i.moduleSpecifier.text === module);
+
 /**
  * Every pin `preview.ts` breaks about the text. Session 344 (SIB-08): the predicate builds NO text. It hands the document itself to `isRenderScriptDocument` (`core/render-script`), which reads the lines it needs
- * through `lineCount` and `lineAt`, after the scheme and the extension prefilter; and nothing on the path from a keystroke to the answer (the predicate, the context update, the command's gate) calls `getText` or
- * `documentText`. (Session 343 pinned the predicate reading `documentText(doc)`, the shared memo, as the last operand: the memo gave a keystroke no gain, every keystroke being a new version.)
+ * through `lineCount` and `lineAt`, after the scheme and the extension prefilter. (Session 343 pinned the predicate reading `documentText(doc)`, the shared memo, as the last operand: the memo gave a keystroke no gain,
+ * every keystroke being a new version.) What the pin holds about the text:
+ *   - the && chain of the predicate is spelled exactly, with the document the second argument of the last operand;
+ *   - NOTHING in the file but `previewFormatOfActiveDocument` (the format picker of a `.qmd`, a command and not a keystroke path) reaches `getText` by a property access, an element access with the string
+ *     `"getText"` or a destructuring (`getTextReaches`), or names `documentText`, and the file imports nothing from `./document-text` in any form. That covers the listeners of the register function, the three
+ *     functions on the path and every helper they might call. It does not cover a name that is computed;
+ *   - the command's gate, `if (!isPreviewableRenderScript(doc))` with a `return` in it, is spelled as it is.
+ * The core's own rows count the lines read (`s344-render-script-lazy.test.ts`); no unit test runs this file's functions.
  */
 function problemsInPreviewText(source: string): string[] {
   const sf = parse("preview.ts", source);
@@ -346,7 +391,7 @@ function problemsInPreviewText(source: string): string[] {
   const predicate = functionNamed(sf, "isPreviewableRenderScript");
   if (predicate === undefined || predicate.body === undefined) return ["isPreviewableRenderScript is missing"];
   if (!importsNamed(sf, "../core/render-script", "isRenderScriptDocument")) problems.push("preview.ts does not import isRenderScriptDocument from ../core/render-script");
-  if (importsDocumentText(sf)) problems.push("preview.ts imports documentText from ./document-text (the render-script predicate builds no text, and nothing else in the file reads the memo)");
+  if (importsFrom(sf, "./document-text")) problems.push("preview.ts imports from ./document-text (the render-script predicate builds no text, and nothing else in the file reads the memo)");
   const returns = collect(predicate.body, (n): n is ts.ReturnStatement => ts.isReturnStatement(n));
   const chain: string[] = [];
   const flatten = (e: ts.Expression): void => {
@@ -368,15 +413,28 @@ function problemsInPreviewText(source: string): string[] {
   // The whole chain, in its order: the document defined, the `file` scheme (`quarto preview` renders the file from DISK, so a `git:` diff of a script is not one), the extension, then the lazy read.
   const wholeChain = ["doc !== undefined", 'doc.uri.scheme === "file"', "isRenderScriptExtension(doc.uri.fsPath)", "isRenderScriptDocument(doc.uri.fsPath, doc)"];
   if (chain.join(" && ") !== wholeChain.join(" && ")) problems.push(`the && chain of isPreviewableRenderScript is not \`${wholeChain.join(" && ")}\``);
-  // The whole path from a keystroke (and from the command) to the answer builds no text.
+  // The three functions on the path from a keystroke (and from the command) to the answer are there to be read.
   for (const name of ["isPreviewableRenderScript", "updateRenderScriptContext", "previewActiveScript"]) {
     const fn = functionNamed(sf, name);
-    if (fn === undefined || fn.body === undefined) {
-      problems.push(`${name} is missing`);
-      continue;
-    }
-    if (getTextCalls(fn.body).length !== 0) problems.push(`${name} calls getText itself (a whole-buffer join on every keystroke)`);
-    if (callsOf(fn.body, sf, "documentText").length !== 0) problems.push(`${name} calls documentText (a whole-buffer join on every keystroke)`);
+    if (fn === undefined || fn.body === undefined) problems.push(`${name} is missing`);
+  }
+  // No text on the path: the whole file but the format picker, which is not a keystroke path (it reads the `.qmd` the user picked a format of, once per command).
+  const picker = functionNamed(sf, "previewFormatOfActiveDocument");
+  const line = (n: ts.Node): number => sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1;
+  for (const n of getTextReaches(sf)) {
+    if (picker === undefined || !isWithin(n, picker)) problems.push(`${enclosingName(n, sf)} reaches getText at line ${line(n)} (a whole-buffer join on the keystroke path)`);
+  }
+  const imports = collect(sf, (n): n is ts.ImportDeclaration => ts.isImportDeclaration(n));
+  for (const id of collect(sf, (n): n is ts.Identifier => ts.isIdentifier(n) && n.text === "documentText")) {
+    if (!imports.some((i) => isWithin(id, i))) problems.push(`${enclosingName(id, sf)} reaches documentText at line ${line(id)} (a whole-buffer join on the keystroke path)`);
+  }
+  // The command's gate refuses a document that is not a previewable render script, and returns: the key and the gate share the predicate, and a gate that does not refuse previews a plain file.
+  const command = functionNamed(sf, "previewActiveScript");
+  const gate = command?.body?.statements.find((s): s is ts.IfStatement => ts.isIfStatement(s));
+  const refusal = gate !== undefined && ts.isBlock(gate.thenStatement) ? gate.thenStatement.statements[gate.thenStatement.statements.length - 1] : undefined;
+  const refuses = refusal !== undefined && ts.isReturnStatement(refusal) && refusal.expression === undefined;
+  if (command !== undefined && (gate === undefined || flat(gate.expression, sf) !== "!isPreviewableRenderScript(doc)" || !refuses)) {
+    problems.push("the gate of previewActiveScript is not `if (!isPreviewableRenderScript(doc)) { ...; return; }` (a gate that does not refuse a plain file, or refuses a script, or goes on to preview after its error)");
   }
   return problems;
 }
@@ -481,17 +539,29 @@ describe("Session 343 -- how the adapters read a document's text, pinned by the 
     ["PT04: the extension prefilter comes after the lazy read", "    isRenderScriptExtension(doc.uri.fsPath) &&\n    isRenderScriptDocument(doc.uri.fsPath, doc)", "    isRenderScriptDocument(doc.uri.fsPath, doc) &&\n    isRenderScriptExtension(doc.uri.fsPath)", "does not come before the lazy read of the document"],
     ["PT05: the extension prefilter is dropped", "    isRenderScriptExtension(doc.uri.fsPath) &&\n", "", "does not come before the lazy read of the document"],
     ["PT06: the import of isRenderScriptDocument is dropped", "  isRenderScriptDocument,\n", "", "preview.ts does not import isRenderScriptDocument"],
-    ["PT07: getText is called in the chain before the prefilter", "    doc.uri.scheme === \"file\" &&\n", "    doc.uri.scheme === \"file\" &&\n    doc.getText() !== null &&\n", "isPreviewableRenderScript calls getText itself"],
-    ["PT08: documentText is called in the chain before the prefilter", "    doc.uri.scheme === \"file\" &&\n", "    doc.uri.scheme === \"file\" &&\n    documentText(doc) !== \"\" &&\n", "isPreviewableRenderScript calls documentText"],
+    ["PT07: getText is called in the chain before the prefilter", "    doc.uri.scheme === \"file\" &&\n", "    doc.uri.scheme === \"file\" &&\n    doc.getText() !== null &&\n", "isPreviewableRenderScript reaches getText"],
+    ["PT08: documentText is called in the chain before the prefilter", "    doc.uri.scheme === \"file\" &&\n", "    doc.uri.scheme === \"file\" &&\n    documentText(doc) !== \"\" &&\n", "isPreviewableRenderScript reaches documentText"],
     ["PT09: a further operand follows the lazy read", "isRenderScriptDocument(doc.uri.fsPath, doc)\n", "isRenderScriptDocument(doc.uri.fsPath, doc) &&\n    doc.uri.fsPath !== \"\"\n", "the lazy read of the document is not the last operand"],
-    ["PT10: the import of documentText comes back", "import { createVscodeContextKeySetter } from \"./context-key\";\n", "import { createVscodeContextKeySetter } from \"./context-key\";\nimport { documentText } from \"./document-text\";\n", "preview.ts imports documentText"],
-    ["PT11: the context update builds the text beside the predicate", "  setContextKey(\n    RENDER_SCRIPT_CONTEXT,", "  void editor?.document.getText();\n  setContextKey(\n    RENDER_SCRIPT_CONTEXT,", "updateRenderScriptContext calls getText itself"],
+    ["PT10: the import of documentText comes back", "import { createVscodeContextKeySetter } from \"./context-key\";\n", "import { createVscodeContextKeySetter } from \"./context-key\";\nimport { documentText } from \"./document-text\";\n", "preview.ts imports from ./document-text"],
+    ["PT11: the context update builds the text beside the predicate", "  setContextKey(\n    RENDER_SCRIPT_CONTEXT,", "  void editor?.document.getText();\n  setContextKey(\n    RENDER_SCRIPT_CONTEXT,", "updateRenderScriptContext reaches getText"],
     ["PT13: the scheme test is dropped (the git: diff of a script would be previewed from the working tree)", "    doc.uri.scheme === \"file\" &&\n", "", "the && chain of isPreviewableRenderScript is not"],
     ["PT14: the scheme test is negated", "doc.uri.scheme === \"file\"", "doc.uri.scheme !== \"file\"", "the && chain of isPreviewableRenderScript is not"],
     ["PT15: the document is not tested for undefined", "    doc !== undefined &&\n", "", "the && chain of isPreviewableRenderScript is not"],
     ["PT16: the extension prefilter reads another path", "isRenderScriptExtension(doc.uri.fsPath)", "isRenderScriptExtension(doc.fileName)", "the && chain of isPreviewableRenderScript is not"],
     ["PT17: the lazy read is asked about another path", "isRenderScriptDocument(doc.uri.fsPath, doc)", "isRenderScriptDocument(doc.fileName, doc)", "the && chain of isPreviewableRenderScript is not"],
-    ["PT12: the command's gate reads the text through the memo beside the predicate", "  const doc = vscode.window.activeTextEditor?.document;\n  if (!isPreviewableRenderScript(doc)) {", "  const doc = vscode.window.activeTextEditor?.document;\n  void (doc && documentText(doc));\n  if (!isPreviewableRenderScript(doc)) {", "previewActiveScript calls documentText"],
+    ["PT12: the command's gate reads the text through the memo beside the predicate", "  const doc = vscode.window.activeTextEditor?.document;\n  if (!isPreviewableRenderScript(doc)) {", "  const doc = vscode.window.activeTextEditor?.document;\n  void (doc && documentText(doc));\n  if (!isPreviewableRenderScript(doc)) {", "previewActiveScript reaches documentText"],
+    ["PT18: the document-change listener builds the text (the entry of every keystroke)", "      if (active && e.document === active.document) {\n        updateRenderScriptContext(active, setContextKey);", "      if (active && e.document === active.document) {\n        void e.document.getText();\n        updateRenderScriptContext(active, setContextKey);", "registerPreviewFeature reaches getText"],
+    ["PT19: the active-editor listener builds the text", "(editor) =>\n      updateRenderScriptContext(editor, setContextKey),\n", "(editor) => {\n      void editor?.document.getText();\n      updateRenderScriptContext(editor, setContextKey);\n    },\n", "registerPreviewFeature reaches getText"],
+    ["PT20: the context update builds the text through an element access", "  setContextKey(\n    RENDER_SCRIPT_CONTEXT,", "  void editor?.document[\"getText\"]();\n  setContextKey(\n    RENDER_SCRIPT_CONTEXT,", "updateRenderScriptContext reaches getText"],
+    ["PT21: the context update builds the text through `.call`", "  setContextKey(\n    RENDER_SCRIPT_CONTEXT,", "  void editor?.document.getText.call(editor.document);\n  setContextKey(\n    RENDER_SCRIPT_CONTEXT,", "updateRenderScriptContext reaches getText"],
+    ["PT22: the context update builds the text through a destructured getText", "  setContextKey(\n    RENDER_SCRIPT_CONTEXT,", "  const { getText } = editor!.document;\n  void getText.call(editor!.document);\n  setContextKey(\n    RENDER_SCRIPT_CONTEXT,", "updateRenderScriptContext reaches getText"],
+    ["PT23: the context update builds the text through a helper function", "function updateRenderScriptContext(\n  editor: vscode.TextEditor | undefined,\n  setContextKey: ContextKeySetter,\n): void {\n", "function peek(d: vscode.TextDocument | undefined): number {\n  return d?.getText().length ?? 0;\n}\n\nfunction updateRenderScriptContext(\n  editor: vscode.TextEditor | undefined,\n  setContextKey: ContextKeySetter,\n): void {\n  void peek(editor?.document);\n", "peek reaches getText"],
+    ["PT24: the module imports the memo's module as a namespace (`dt.documentText(...)` is a call of documentText)", "import { createVscodeContextKeySetter } from \"./context-key\";\n", "import { createVscodeContextKeySetter } from \"./context-key\";\nimport * as dt from \"./document-text\";\n", "preview.ts imports from ./document-text"],
+    ["PT25: the module imports documentText under another name", "import { createVscodeContextKeySetter } from \"./context-key\";\n", "import { createVscodeContextKeySetter } from \"./context-key\";\nimport { documentText as dt } from \"./document-text\";\n", "preview.ts imports from ./document-text"],
+    ["PT26: a helper outside the three functions reads the text through documentText", "async function previewActiveDocument(", "function peekText(d: vscode.TextDocument): number {\n  return documentText(d).length;\n}\n\nasync function previewActiveDocument(", "peekText reaches documentText"],
+    ["PT27: the command's gate is negated (it refuses a script and previews a plain file)", "  if (!isPreviewableRenderScript(doc)) {", "  if (isPreviewableRenderScript(doc)) {", "the gate of previewActiveScript is not"],
+    ["PT28: the command's gate shows the error and goes on to preview", "      \"starting with a `#' ---` block.\",\n    );\n    return;\n  }", "      \"starting with a `#' ---` block.\",\n    );\n  }", "the gate of previewActiveScript is not"],
+    ["PT29: the format picker is renamed (its getText is exempt by its name, and by no other)", "async function previewFormatOfActiveDocument(", "async function previewFormats(", "previewFormats reaches getText"],
   ];
 
   const BACKGROUND_TEXT_EDITS: Array<[string, string, string, string]> = [

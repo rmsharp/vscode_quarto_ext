@@ -461,7 +461,7 @@
   "from": "  setContextKey(\n    RENDER_SCRIPT_CONTEXT,",
   "to": "  void editor?.document.getText();\n  setContextKey(\n    RENDER_SCRIPT_CONTEXT,",
   "expect": "killed",
-  "why": "the context update builds the text beside the predicate; killed by the path pin ('updateRenderScriptContext calls getText itself'), the live-file row of s343-adapter-wiring-pin.test.ts"
+  "why": "the context update builds the text beside the predicate; killed by the text pin ('updateRenderScriptContext reaches getText'), the live-file row of s343-adapter-wiring-pin.test.ts"
  },
  {
   "name": "W06 preview.ts: the command's gate reads the text through the memo beside the predicate",
@@ -469,6 +469,150 @@
   "from": "  const doc = vscode.window.activeTextEditor?.document;\n  if (!isPreviewableRenderScript(doc)) {",
   "to": "  const doc = vscode.window.activeTextEditor?.document;\n  void (doc && documentText(doc));\n  if (!isPreviewableRenderScript(doc)) {",
   "expect": "killed",
-  "why": "the command's gate reads the memo's text beside the predicate; killed by the path pin ('previewActiveScript calls documentText'), the live-file row of s343-adapter-wiring-pin.test.ts"
+  "why": "the command's gate reads the memo's text beside the predicate; killed by the text pin ('previewActiveScript reaches documentText'), the live-file row of s343-adapter-wiring-pin.test.ts"
+ },
+ {
+  "name": "W07 preview.ts: the document-change listener builds the text",
+  "file": "src/features/preview.ts",
+  "from": "      if (active && e.document === active.document) {\n        updateRenderScriptContext(active, setContextKey);",
+  "to": "      if (active && e.document === active.document) {\n        void e.document.getText();\n        updateRenderScriptContext(active, setContextKey);",
+  "expect": "killed",
+  "why": "the listener that runs on every keystroke of the active document builds the whole buffer; killed by the text pin ('registerPreviewFeature reaches getText'), the live-file row of s343-adapter-wiring-pin.test.ts. The pin used to scan three function bodies and not the listeners of the register function"
+ },
+ {
+  "name": "W08 preview.ts: the active-editor listener builds the text (in a default parameter, so that no other row's anchor moves)",
+  "file": "src/features/preview.ts",
+  "from": "vscode.window.onDidChangeActiveTextEditor((editor) =>\n",
+  "to": "vscode.window.onDidChangeActiveTextEditor((editor, built = editor?.document.getText()) =>\n",
+  "expect": "killed",
+  "why": "the listener that runs on every switch of the active editor builds the whole buffer; killed by the text pin ('registerPreviewFeature reaches getText'), the live-file row of s343-adapter-wiring-pin.test.ts. The edit is a default parameter so that the anchor of the edit row PS01 stays in the file: a respelling of the arrow into a block body was killed by PS01 alone, whose `from` text no longer matched"
+ },
+ {
+  "name": "W09 preview.ts: the context update builds the text through an element access",
+  "file": "src/features/preview.ts",
+  "from": "  setContextKey(\n    RENDER_SCRIPT_CONTEXT,",
+  "to": "  void editor?.document[\"getText\"]();\n  setContextKey(\n    RENDER_SCRIPT_CONTEXT,",
+  "expect": "killed",
+  "why": "`editor?.document[\"getText\"]()` builds the whole buffer; killed by the text pin ('updateRenderScriptContext reaches getText'), the live-file row of s343-adapter-wiring-pin.test.ts. The pin used to look for a property-access call and not an element access"
+ },
+ {
+  "name": "W10 preview.ts: the context update builds the text through .call",
+  "file": "src/features/preview.ts",
+  "from": "  setContextKey(\n    RENDER_SCRIPT_CONTEXT,",
+  "to": "  void editor?.document.getText.call(editor.document);\n  setContextKey(\n    RENDER_SCRIPT_CONTEXT,",
+  "expect": "killed",
+  "why": "`editor?.document.getText.call(editor.document)` builds the whole buffer; killed by the text pin ('updateRenderScriptContext reaches getText'), the live-file row of s343-adapter-wiring-pin.test.ts. The pin used to look for a property-access CALL, and the callee of this one is `.call`"
+ },
+ {
+  "name": "W11 preview.ts: the context update builds the text through a destructured getText",
+  "file": "src/features/preview.ts",
+  "from": "  setContextKey(\n    RENDER_SCRIPT_CONTEXT,",
+  "to": "  const { getText } = editor!.document;\n  void getText.call(editor!.document);\n  setContextKey(\n    RENDER_SCRIPT_CONTEXT,",
+  "expect": "killed",
+  "why": "a destructured `getText` builds the whole buffer; killed by the text pin ('updateRenderScriptContext reaches getText'), the live-file row of s343-adapter-wiring-pin.test.ts"
+ },
+ {
+  "name": "W12 preview.ts: the context update builds the text through a helper",
+  "file": "src/features/preview.ts",
+  "from": "function updateRenderScriptContext(\n  editor: vscode.TextEditor | undefined,\n  setContextKey: ContextKeySetter,\n): void {\n",
+  "to": "function peek(d: vscode.TextDocument | undefined): number {\n  return d?.getText().length ?? 0;\n}\n\nfunction updateRenderScriptContext(\n  editor: vscode.TextEditor | undefined,\n  setContextKey: ContextKeySetter,\n): void {\n  void peek(editor?.document);\n",
+  "expect": "killed",
+  "why": "a helper that the context update calls builds the whole buffer; killed by the text pin ('peek reaches getText'), the live-file row of s343-adapter-wiring-pin.test.ts. The pin used to scan the bodies of three named functions and not the helpers they call"
+ },
+ {
+  "name": "W13 preview.ts: the document-change listener reads documentText through a dynamic import",
+  "file": "src/features/preview.ts",
+  "from": "      if (active && e.document === active.document) {\n        updateRenderScriptContext(active, setContextKey);",
+  "to": "      if (active && e.document === active.document) {\n        void import(\"./document-text\").then((m) => m.documentText(e.document));\n        updateRenderScriptContext(active, setContextKey);",
+  "expect": "killed",
+  "why": "the listener reads the memo's text through `import(\"./document-text\").then((m) => m.documentText(...))`, which is no import declaration; killed by the text pin ('registerPreviewFeature reaches documentText', the identifier as a property name), the live-file row of s343-adapter-wiring-pin.test.ts"
+ },
+ {
+  "name": "W14 preview.ts: the module imports the memo's module as a namespace",
+  "file": "src/features/preview.ts",
+  "from": "import { createVscodeContextKeySetter } from \"./context-key\";\n",
+  "to": "import { createVscodeContextKeySetter } from \"./context-key\";\nimport * as dt from \"./document-text\";\n",
+  "expect": "killed",
+  "why": "the import of `./document-text` as a namespace (`dt.documentText(...)` would be the call); killed by the text pin ('preview.ts imports from ./document-text'), the live-file row of s343-adapter-wiring-pin.test.ts. The pin used to refuse a NAMED import of documentText only"
+ },
+ {
+  "name": "W15 preview.ts: the module imports documentText under another name",
+  "file": "src/features/preview.ts",
+  "from": "import { createVscodeContextKeySetter } from \"./context-key\";\n",
+  "to": "import { createVscodeContextKeySetter } from \"./context-key\";\nimport { documentText as dt } from \"./document-text\";\n",
+  "expect": "killed",
+  "why": "the import of documentText under an alias (the local name is not `documentText`); killed by the text pin ('preview.ts imports from ./document-text'), the live-file row of s343-adapter-wiring-pin.test.ts"
+ },
+ {
+  "name": "W16 preview.ts: a helper outside the three functions reads documentText",
+  "file": "src/features/preview.ts",
+  "from": "async function previewActiveDocument(",
+  "to": "function peekText(d: vscode.TextDocument): number {\n  return documentText(d).length;\n}\n\nasync function previewActiveDocument(",
+  "expect": "killed",
+  "why": "a helper in no function of the path calls documentText; killed by the text pin ('peekText reaches documentText'), the live-file row of s343-adapter-wiring-pin.test.ts"
+ },
+ {
+  "name": "W17 preview.ts: the activation-time call is handed no editor",
+  "file": "src/features/preview.ts",
+  "from": "  updateRenderScriptContext(vscode.window.activeTextEditor, setContextKey);\n}",
+  "to": "  updateRenderScriptContext(undefined, setContextKey);\n}",
+  "expect": "killed",
+  "why": "a render script already open when the extension activates never sets the key; killed by the setter pin ('the first arguments of the calls of updateRenderScriptContext are'), the live-file row of s343-adapter-wiring-pin.test.ts. Before the pin read the first arguments the edit rows PS03 and PS07 of that file killed it only because their own `from` text no longer matched"
+ },
+ {
+  "name": "W18 preview.ts: the active-editor handler is handed no editor",
+  "file": "src/features/preview.ts",
+  "from": "      updateRenderScriptContext(editor, setContextKey),",
+  "to": "      updateRenderScriptContext(undefined, setContextKey),",
+  "expect": "killed",
+  "why": "switching to a script never sets the key; killed by the setter pin ('the first arguments of the calls of updateRenderScriptContext are'), the live-file row of s343-adapter-wiring-pin.test.ts. Before the pin read the first arguments the edit row PS01 killed it only because its own `from` text no longer matched"
+ },
+ {
+  "name": "W19 preview.ts: the document handler is handed no editor",
+  "file": "src/features/preview.ts",
+  "from": "        updateRenderScriptContext(active, setContextKey);",
+  "to": "        updateRenderScriptContext(undefined, setContextKey);",
+  "expect": "killed",
+  "why": "typing a marker atop a plain script never sets the key; killed by the setter pin ('the first arguments of the calls of updateRenderScriptContext are'), the live-file row of s343-adapter-wiring-pin.test.ts. Before the pin read the first arguments the edit row PS02 killed it only because its own `from` text no longer matched"
+ },
+ {
+  "name": "W20 preview.ts: the command's gate is negated",
+  "file": "src/features/preview.ts",
+  "from": "  if (!isPreviewableRenderScript(doc)) {",
+  "to": "  if (isPreviewableRenderScript(doc)) {",
+  "expect": "killed",
+  "why": "the command refuses a script and previews a plain file; killed by the text pin ('the gate of previewActiveScript is not'), the live-file row of s343-adapter-wiring-pin.test.ts. Before the pin read the gate the edit row PT12 killed it only because its own `from` text no longer matched"
+ },
+ {
+  "name": "W21 preview.ts: the command's gate shows its error and goes on to preview",
+  "file": "src/features/preview.ts",
+  "from": "      \"starting with a `#' ---` block.\",\n    );\n    return;\n  }",
+  "to": "      \"starting with a `#' ---` block.\",\n    );\n  }",
+  "expect": "killed",
+  "why": "a plain file is previewed after the error; killed by the text pin ('the gate of previewActiveScript is not'), the live-file row of s343-adapter-wiring-pin.test.ts"
+ },
+ {
+  "name": "W22 preview.ts: the active-editor guard of updateRenderScriptContext is inverted",
+  "file": "src/features/preview.ts",
+  "from": "if (editor !== undefined && editor !== vscode.window.activeTextEditor) {",
+  "to": "if (editor !== undefined && editor === vscode.window.activeTextEditor) {",
+  "expect": "survives",
+  "why": "A RECORDED GAP, not an equivalent: the active editor's own event returns before the key is set, so the key never goes true. No unit test sees a key's value (VS Code offers no read-back) and the syntax-tree pin reads the setter's calls and their first arguments, not this guard. The integration suite does (the rows 'goes true when a render script becomes the active editor' and 'goes true the moment an ordinary script is EDITED into a render script' of test/integration/suite/preview-script.test.ts), which takes over the screen and was NOT run for this entry"
+ },
+ {
+  "name": "W23 preview.ts: the active-editor guard of updateRenderScriptContext is dropped",
+  "file": "src/features/preview.ts",
+  "from": "  if (editor !== undefined && editor !== vscode.window.activeTextEditor) {\n    return;\n  }\n",
+  "to": "",
+  "expect": "survives",
+  "why": "EQUIVALENT at the current call sites, argued and not run in a host: the guard returns only for an editor that is not `vscode.window.activeTextEditor`, and the three calls hand the update the editor of the active-editor event, `active` (read from `vscode.window.activeTextEditor` in the same handler and compared with the event's document) and `vscode.window.activeTextEditor` itself, whose spellings the setter pin holds. The guard is the defence for a fourth call that hands it a background editor, as `execution.ts`'s key guards it; no integration row covers that case either"
+ },
+ {
+  "name": "W24 preview.ts: quarto.previewScript is bound to the document command",
+  "file": "src/features/preview.ts",
+  "from": "      previewActiveScript(manager),\n    ),",
+  "to": "      previewActiveDocument(manager),\n    ),",
+  "expect": "survives",
+  "why": "A RECORDED GAP, not an equivalent: the command registered under the script's id runs the `.qmd` gate, which refuses a script with the `.qmd` message. No unit test reads the command's registration. The integration suite does ('previews a knitr spin script end to end', which waits for a server that never starts, and 'refuses ordinary code', which expects the render-script message), which takes over the screen and was NOT run for this entry"
  }
 ]
