@@ -18,7 +18,7 @@ import {
 // are N misses: 5 overlapping first asks to one 2,000-entry bibliography made 5 reads and 5 parses (a probe in a fresh process, real files). The cure: an ask that `stat`s the same three numbers as a read in flight shares it.
 // The rows COUNT what the cache asks of `readFile` (a claim without a clock, Learning 913) on stand-ins whose `readFile` can be held open, so that "a read is in flight" is a state the row builds and not a race it hopes for.
 //
-//  - the first describe is the cure and its hazards, one row each: a file rewritten while a read is in flight (each of the three numbers alone), a stat that cannot say, a superseded read, in either order of settling;
+//  - the first describe is the cure and its hazards, one row each: a file rewritten while a read is in flight (each of the three numbers alone), a stat that cannot say, a superseded read, in either order of settling and when it fails;
 //  - then a shared read that fails, and what a settled read leaves behind (nothing);
 //  - then the Session 343 cache itself, kept verbatim, as the ORACLE of every ask that does not overlap, and two seeded models of asks that do overlap (one with files rewritten mid-flight);
 //  - last, three rows on a REAL file system: overlapping asks, `chmod 000` and a retargeted symbolic link (the item called the last two blind spots). A chmod always moves the change time, so it is seen; a retargeted link is seen
@@ -625,7 +625,7 @@ describe("Session 344 -- asks that overlap, files that change while they are in 
     expect(rewrittenInFlight).toBeGreaterThan(600); // and the file really was rewritten while asks were in flight
   });
 
-  it("300 seeded groups of 1 to 3 overlapping asks over up to 4 files each, nothing changing: every answer is readCitations' answer, and each file is read at most ONCE for the whole group", async () => {
+  it("300 seeds of two groups each, a group of 1 to 3 overlapping asks over up to 4 files, nothing changing: every answer of both groups is readCitations' answer, and in the FIRST group of each seed a file that can be read is read at most ONCE (a locked file is tried again by every later ask, by design)", async () => {
     const names = ["a.bib", "b.json", "c.bib", "gone.bib", "locked.bib"];
     const files: Record<string, FakeFile> = {
       "a.bib": { content: bibtex([["a1", "A"], ["shared", "from A"]]), mtimeMs: 1 },
