@@ -365,6 +365,9 @@ function problemsInPreviewText(source: string): string[] {
   if (detect === -1) problems.push("isPreviewableRenderScript does not end in `isRenderScriptDocument(doc.uri.fsPath, doc)` (the document itself is handed over and read line by line)");
   if (prefilter === -1 || (detect !== -1 && prefilter > detect)) problems.push("the extension prefilter `isRenderScriptExtension(doc.uri.fsPath)` does not come before the lazy read of the document");
   if (detect !== -1 && detect !== chain.length - 1) problems.push("the lazy read of the document is not the last operand of the && chain");
+  // The whole chain, in its order: the document defined, the `file` scheme (`quarto preview` renders the file from DISK, so a `git:` diff of a script is not one), the extension, then the lazy read.
+  const wholeChain = ["doc !== undefined", 'doc.uri.scheme === "file"', "isRenderScriptExtension(doc.uri.fsPath)", "isRenderScriptDocument(doc.uri.fsPath, doc)"];
+  if (chain.join(" && ") !== wholeChain.join(" && ")) problems.push(`the && chain of isPreviewableRenderScript is not \`${wholeChain.join(" && ")}\``);
   // The whole path from a keystroke (and from the command) to the answer builds no text.
   for (const name of ["isPreviewableRenderScript", "updateRenderScriptContext", "previewActiveScript"]) {
     const fn = functionNamed(sf, name);
@@ -483,6 +486,11 @@ describe("Session 343 -- how the adapters read a document's text, pinned by the 
     ["PT09: a further operand follows the lazy read", "isRenderScriptDocument(doc.uri.fsPath, doc)\n", "isRenderScriptDocument(doc.uri.fsPath, doc) &&\n    doc.uri.fsPath !== \"\"\n", "the lazy read of the document is not the last operand"],
     ["PT10: the import of documentText comes back", "import { createVscodeContextKeySetter } from \"./context-key\";\n", "import { createVscodeContextKeySetter } from \"./context-key\";\nimport { documentText } from \"./document-text\";\n", "preview.ts imports documentText"],
     ["PT11: the context update builds the text beside the predicate", "  setContextKey(\n    RENDER_SCRIPT_CONTEXT,", "  void editor?.document.getText();\n  setContextKey(\n    RENDER_SCRIPT_CONTEXT,", "updateRenderScriptContext calls getText itself"],
+    ["PT13: the scheme test is dropped (the git: diff of a script would be previewed from the working tree)", "    doc.uri.scheme === \"file\" &&\n", "", "the && chain of isPreviewableRenderScript is not"],
+    ["PT14: the scheme test is negated", "doc.uri.scheme === \"file\"", "doc.uri.scheme !== \"file\"", "the && chain of isPreviewableRenderScript is not"],
+    ["PT15: the document is not tested for undefined", "    doc !== undefined &&\n", "", "the && chain of isPreviewableRenderScript is not"],
+    ["PT16: the extension prefilter reads another path", "isRenderScriptExtension(doc.uri.fsPath)", "isRenderScriptExtension(doc.fileName)", "the && chain of isPreviewableRenderScript is not"],
+    ["PT17: the lazy read is asked about another path", "isRenderScriptDocument(doc.uri.fsPath, doc)", "isRenderScriptDocument(doc.fileName, doc)", "the && chain of isPreviewableRenderScript is not"],
     ["PT12: the command's gate reads the text through the memo beside the predicate", "  const doc = vscode.window.activeTextEditor?.document;\n  if (!isPreviewableRenderScript(doc)) {", "  const doc = vscode.window.activeTextEditor?.document;\n  void (doc && documentText(doc));\n  if (!isPreviewableRenderScript(doc)) {", "previewActiveScript calls documentText"],
   ];
 
