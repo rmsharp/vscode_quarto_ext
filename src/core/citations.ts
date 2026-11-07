@@ -211,8 +211,9 @@ export function createCitationCache(options: CitationCacheOptions): CitationCach
       return kept.citations;
     }
     const running = pending.get(absolute);
-    if (known && running !== undefined && running.mtimeMs === mtimeMs && running.size === size && running.ctimeMs === ctimeMs) {
-      return running.citations; // a read under way for the very numbers this ask stat'ed: share it
+    // A read under way for the very numbers this ask stat'ed is shared. No `known` test is needed: a read is recorded only under numbers that are numbers, and a stat that is not one never `===` them.
+    if (running !== undefined && running.mtimeMs === mtimeMs && running.size === size && running.ctimeMs === ctimeMs) {
+      return running.citations;
     }
     // The async arrow turns a `readFile` or a parser that THROWS into a rejection, as it was one when the awaits were in this function.
     const read: PendingBibliography = { mtimeMs, size, ctimeMs, citations: (async () => parseCitations(await options.readFile(absolute)).map((citation) => Object.freeze(citation)))() };
