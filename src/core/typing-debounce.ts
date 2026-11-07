@@ -66,8 +66,27 @@ export const TYPING_DEBOUNCE_MS = 150;
 /**
  * The longest an unbroken stream of edit events may postpone the edit-driven work: the first event after a run starts a
  * window, and the work runs at the end of it even if events are still arriving less than `TYPING_DEBOUNCE_MS` apart.
- * One second is the lead's choice (Session 343), not a measured optimum: long enough that a burst (a held key, a paste, a
- * snippet) is still one run, short enough that a typist who never pauses sees the key and the tint at most a second late.
+ * One second is the lead's choice (Session 343), long enough that a burst (a held key, a paste, a snippet) is still one run,
+ * short enough that a typist who never pauses sees the key and the tint less than a second late (`typing-path-equivalence.test.ts`
+ * checks the age of the oldest unevaluated event after every step of its timelines). Nothing compares it with another value, so it
+ * is not a measured optimum; what it COSTS is written down here, as a count of runs and, from the scan times of this file's
+ * header, as a share of one core:
+ *
+ *  - HOW OFTEN (`s344-max-wait-cost.test.ts`, on a fake clock, 30 s of edit events a `gap` apart): a stream with a gap under
+ *    `TYPING_DEBOUNCE_MS` is evaluated once per window, so about once per maximum wait whatever the gap (a window opens at the
+ *    first event after a run, up to one gap later than the run): 30 runs before the stream ends at gaps of 10, 50 and 100 ms and
+ *    28 at 149 ms, one more for the last event's own run after it. A gap of 150 ms or more is no stream: one run per event, a
+ *    delay after it, as before the debounce (200 runs before the stream ends at 150 ms, 198 at 151 ms). With no maximum wait, the
+ *    Session 342 debounce, a stream paid nothing until it ended (0 runs at 100 ms).
+ *  - WHAT A RUN COSTS, from the header's cold scans (12.7 / 31.7 / 155 ms at 500 / 2,000 / 8,000 cells), as the scan time over
+ *    the maximum wait: a stream under 150 ms apart now pays 1.3 / 3.2 / 15.5 percent of one core. Before any debounce every
+ *    keystroke paid a scan: a keystroke every 100 ms ten a second, 12.7 / 31.7 / 155 percent of a core (at 8,000 cells more than
+ *    one core's worth of the work), and one every 200 ms five a second, 6.4 / 15.9 / 77.5 percent; at that gap, and at every
+ *    gap of 150 ms or more, the window changes nothing. A Session 344 re-probe on a loaded shared machine (load 6 to 8; the first scan after an
+ *    edit, warm JIT, 24-line cells) read 14 / 52 / 190 ms, so the shares are an order of magnitude and not a digit.
+ *  - UNMEASURED: what the stale window does to the five keybindings that read `quarto.inCodeCell` (nobody has run a real VS Code
+ *    with a person typing), a person's real key gaps (the rows use one constant gap; a person's vary, and a gap of 150 ms or more
+ *    ends a stream), and whether one second is the better bound than another.
  */
 export const TYPING_MAX_WAIT_MS = 1000;
 
