@@ -32,6 +32,12 @@ foreign worktree `.claude/worktrees/wf_f559ba89-653-5` is not mine: ask before r
 `master` is NOT pushed: 169 commits ahead of `origin/master` before the close-out commits; the dashboard copy is v2.22.0 against canonical v2.23.0. (13) `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in
 slices, edit with `python3 -I -`. After answering a direct question, STOP and wait (memory).
 
+### What Session 344 Did
+**Deliverable:** g02 of the backlog ordering plan, twenty-eighth session: parts (8) and (7) of the BACKLOG item "What Session 342's review round found beside the typing-path cures, none of them in its diff" -- the review round's leftovers (the render-script predicate, the cache bounds and the citation cache's gaps, the unmeasured maximum wait, the rows that do not drive it) and the records (IN PROGRESS)
+**Started:** 2026-11-06
+**Status:** Session claimed. Work beginning. Operator pick at the Phase 0 picker: the Session 342 item, then parts (8) and (7) as the one deliverable (part (1) answered: leave the 150 ms as shipped; parts (3), (5), (6) stay). Strict TDD: time each literal shape at HEAD first, one fresh process per probe, through the caller's whole call sequence (Learnings 840, 903, 916, 926), profile before reading the cure, seam first for anything behind a `vscode` adapter (Learning 913), rows RED on the parent with their own clock pinned (Learning 910).
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
 ### What Session 343 Did
 **Deliverable:** g02 of the backlog ordering plan, twenty-seventh session: parts (2) to (4) of the BACKLOG item "What Session 342's review round found beside the typing-path cures, none of them in its diff" -- the typing path's smaller costs, the completion
 path's per-request costs and four sibling caches -- DONE except SIB-01, which was measured and is not curable by reordering; claim `762ed59`

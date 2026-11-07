@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-11
 
+### 2026-11-06 · [BL-What Session 342's review round found beside the typing-path cures, none of them in its diff] Session 344 (in progress): claim -- g02 twenty-eighth session, parts (8) and (7)
+
+Session claimed. Phase 0 found both ledger frontiers at or one ledger-only commit behind HEAD (`55a20e9`; no receipt or entry owed, no `status: pending` receipt, no merges), the ratchet 2/2 (results `bba236856bad`, head `87e03eb`, read from `.quality-gates-results.json` and equal to the S343 receipt's citation), the dashboard at 76/100 with 21 vulnerabilities (the dashboard copy is v2.22.0 against canonical v2.23.0, not synced), and `master` 175 commits ahead of `origin/master`, not pushed. The operator chose the item at the Phase 0 picker (placed by finishing a feature: g02 is in flight and this is first in its order), then chose parts (8) and (7) as the one deliverable (the item's own estimate: small items, one session together) and answered part (1): leave the 150 ms debounce as shipped, which closes that question. Parts (3), (5) and (6) stay in the item (SIB-01 waits for a cached or incremental scan; (5) needs a host; (6) waits for plan decision D17). Model: Claude Sonnet 5.5.
+
 ### 2026-11-06 · [ad hoc] Session 343: the quality-gate run cited in the receipt -- 2/2 pass at 87e03eb
 
 `quality_ratchet.py --run`, after the ledger commits (Learning 683): ledger-lag 0 and release-gate 0 (`npm run check-package`), 2 pass, 0 fail, 0 unmeasured, results `bba236856bad`, manifest `334939914945` (both equal to Session 342's). `context_budget.py`: `SESSION_NOTES.md` ok (392 lines, 56,012 B, no line over 280 B); `HANDOFFS.md`, `BACKLOG.md` and `PROJECT_LEARNINGS.md` over the 65,536 B ceiling as before. `master` is unpushed (169 commits ahead of `origin/master` at Phase 0 of the close-out, before the close-out's own commits); the dashboard copy is v2.22.0 against canonical v2.23.0, not synced.
