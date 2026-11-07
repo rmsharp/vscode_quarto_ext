@@ -389,31 +389,3 @@ and the fix-round rows are green on arrival by nature and their RED is the mutan
 **Host:** `test:integration` RUN with go-ahead (562 passing, exit 0, 2 minutes on the screen); `test:lsp` NOT run. **Cost:** three workflows (the cures 2 workers, 599,106 subagent tokens, 278 tool calls; the review 99 agents,
 8,298,432 and 1,741; the fix round 2 workers, 884,543 and 515: 9,782,081 in all), four list runs of 2 to 7 minutes, two `npm test`, no quarto renders, the machine at load 3 to 63 (my own `npm test` raised it to 63).
 
-## Session 339 Handoff Evaluation (by Session 340)
-
-**Score: 9/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers (at HEAD `3be8ca8`, gap 0), no `pending` receipt, the ratchet citation (2/2, results `bba236856bad`, re-run and
-equal) and the picker all held. Candidate (a) was placed by finishing a feature (g02 is in flight) and its estimate held: one session, with a review round.
-**Helped:** the item's cure was right as written (a counter, `let top = ...; top--`; 284 to 346 ms predicted, 332 ms measured) and its timings reproduced within the load (88.5 / 224.6 / 895.9 / 3,085.6 against 86.0 / 218.6 / 849.7 /
-2,861.1 ms); the warning that the `from` text of B01 to B14 and B18 was anchored on the probe's spelling and `mutation-lists-apply` must run first named exactly the 18 mutants that needed re-anchoring; gotcha 4 (the runner tests the
-COMMITTED source; one list at a time) and gotcha 2 (rebuild the harness with esbuild, one fresh process per probe) held; the Session 339 files were templates for the oracle file and the list.
-**Missing:** nothing said the shape needs a ROW THAT READS THE POP COUNT BACK through a later closer; the first rows that follow the item's own recipe kill the body mutants and leave 16 call-site, pop-loop, name and size mutants
-alive (Learning 907). **Wrong:** nothing material; the S339 commit messages' counts were already named as wrong in its own self-assessment. **ROI: high.**
-
-## Session 340 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** Timed the item's shapes at the parent myself in fresh processes and profiled them before writing a row; RED first and shown (11 of the 14 tests of the rows file fail on the clock alone at `9238682`, 3.0 to 5.4 s
-against 1 s, and the 2 controls and the sizes pin pass; the oracle file fails 33 of 35 with "is not a function"); an oracle three ways (the old spelling, a recursive reading by definition, a Python recount that shares no code) with
-the stack frozen; the 18 older mutants re-anchored in the cure's own commit; a 24-mutant list run alone; a five-lens review round whose every standing finding I checked from my side (the knitr copy reproduced at 140 / 464 / 1,867
-ms; the 14 new rows run on the parent and on the cure, same answers; the 16 survivors' kills listed per row with a stand-in runner; the list run alone, 16 killed); gave status lines when the harness nudged.
-**Went wrong.** (1) The `b6726b4` message says "the 14 clock rows ... that were RED": 11 were (Learning 908); a commit cannot be amended. (2) My own tests held three false statements the review caught: a title "the heading stays
-hidden" on a row that asserts the heading, a comment that promised a block-quote row never written, and "the parent takes 3 s or more" from one load (Learning 909). (3) Pins incomplete a TWENTY-SIXTH time: 16 real gaps among the
-lens's 88 mutants (Learning 907); my first fix of them was itself weak (the 5,000-closer row ended on a heading that shows either way and killed nothing) until I listed every failing row per mutant. (4) The harness nudged me for
-silence about five times during the long runs and waits: a status line belongs BEFORE each wait, not after the nudge. (5) The lens labelled `N70` equivalent and it is not (the length shrinks while the loop runs): I checked it by
-reasoning and the old rows, not by a run of its own.
-**Known residuals (filed or stated):** the BACKLOG Up Next items (Session 339's round parts (2) to (4), the knitr copy, the standing guard), the Polish items, 5 + 14 mutants argued equivalent, the Session 333 and 334 items, the S322
-item's part (1), the S311 item's parts (4), (10), (11); `test:integration` and `test:lsp` NOT run.
-**TDD:** RED before GREEN for the cure (rows and oracle committed RED first on the parent, `7417f64` and `1aa5e57`, re-run from my side); the pins (`779dd1a`, `2ef3b2b`) are green on arrival by nature and their RED is the mutant (24
-edits: 19 killed, 5 equivalent; 16 edits: 0 killed before the rows, 16 after).
-**Host:** `test:integration` NOT run (core-only; it takes the screen). **Cost:** one workflow (35 agents, 2,597,235 subagent tokens, 403 tool calls, 70 min), three list runs of 3 to 5 minutes (plus the re-anchored 18), no quarto
-renders, the machine at load 3 to 33.
