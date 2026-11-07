@@ -393,37 +393,3 @@ Polish items, the survivors (in each list's `why`), `test:lsp` NOT run; no integ
 problem lists grew; V19, V21, V22, M05 killed by name).
 **Host:** `test:integration` RUN with go-ahead (562 passing, exit 0); `test:lsp` NOT run. **Cost:** three workflows (cures 3 workers 1,322,183 subagent tokens, 496 tool calls; review 72 agents 7,154,975, 1,540; fix
 2 workers 577,213, 242: 9,054,371 in all), eight list runs, two `npm test`, one integration run, no quarto renders, load 3 to 27.
-
-## Session 340 Handoff Evaluation (by Session 341)
-
-**Score: 9/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers (at HEAD `7175687`, gap 0), no `pending` receipt, the ratchet citation (2/2, results `bba236856bad`, equal
-to the receipt) and the picker all held. Candidate (a) was placed by finishing a feature (g02 is in flight) and its estimate "one session together" held for the cures; the review and fix rounds were the rest of the session.
-**Helped:** the item's two cures were right as written (a memo per text or one batch builder; "test only the new lines") and its figures reproduced in slope: part (2) 3,585 ms at 2,000 cells against my 4,337 ms, part (3) 4x
-per doubling with my absolute times 2x to 3x under the item's (1,350 against 2,939 ms at 4 MiB in 4,096-byte chunks); Learning 903 named what must be well-formed to reach the preview site (the marker line); Learning 907
-shaped the answer rows; gotcha 4 (the runner tests the COMMITTED source, one list at a time) and gotcha 6 (the baseline `npm test` exits 1 with every test green) held to the letter (one error, exit 1); gotcha 7 (the foreign
-worktree) held.
-**Missing:** nothing said that both slow paths sit behind `vscode` adapters no headless test reaches, so the first step is a behaviour-neutral seam in `src/core` (Learning 913); nothing warned that a cure replacing a loop by
-an index must keep the old spelling's answer for a fractional `startLine` (Learning 914; the review found my first cure throws on 1.5); the item's "about 85% of the cost" for part (2) was a floor (4,337 to 10.2 ms is 99.8%).
-**Wrong:** nothing material. **ROI: high.**
-
-## Session 341 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** Timed both shapes at the parent in fresh processes before reading the cure; seam first, so the clock rows were RED on the clock alone and shown (`5cd2336` 4 failed | 10 passed, `d22f0c9` 6 failed | 6 passed);
-the old spelling kept as the oracle with enumerated and seeded differentials and Python recounts that share no code; cures byte-identical (4,337 to 10.2 ms, 8.8 s to 9 ms); a five-lens review round and a fix round, with every
-claim that changes code or a verdict checked from my side (D1 re-run RED against `89d38e3`'s `virtual-doc.ts`: 13 rows failed; the stuck clock and the dead hashes re-run; all four lists re-run alone, one after another, and
-equal to the workers' figures); the cherry-picks proved complete with `git cherry` before the worktrees went; asked before the screen-taking run and ran it only after the answer; gave status lines.
-**Went wrong.** (1) The cure I accepted threw `TypeError` on a hand-made cell with a fractional `startLine` where the old function answered (D1, low: no real document makes one); the seeded generator drew whole numbers only
-(Learning 914). (2) Pins incomplete a TWENTY-SEVENTH time: the clock rows' own clock was unpinned (a stuck clock passed every row, Learning 910), the gate on `preview.ts` was fooled by comments both ways and the Outline call
-sites had no pin (Learning 911), and 22 of the review lens's 64 mutants survived, 15 real gaps. (3) Worker messages and committed prose cite branch hashes the cherry-pick changed (six messages on master and four citations in
-the lists, repaired in `3a500e5`) and carry wrong counts ("27 rows", "11 rows", "86 passed"): I never told the first workers to cite by subject (Learning 912). (4) The refuters returned 46 of 47 as standing, which is not a
-discriminating result; I re-ran the key repros myself (Learning 915). (5) My fix-round brief left out TD-7(b), a header that said "which no load moves" (the cure's ratio ranged 1.9 to 2.7); I fixed it after the picks
-(`c35d3cb`). (6) My load gate compared the load as a string, so the monitor ended at load 59, and the lists ran at load 4 to 10, not under 6, because the machine's baseline (system `mediaanalysisd`) never dropped; survivors
-are load-proof and every kill came with its failing title. (7) `echo =====` failed in zsh again, a gotcha already written down.
-**Known residuals (filed or stated):** the BACKLOG item "What Session 341's review round found beside the Outline and preview cures" (seven parts, the first a question for you), the other Up Next and Polish items, the
-survivors (B27, K09, F07, R16c, S04 S12 S16 S19 S21 S24 equivalent; WI03 on purpose; R33 and S06 gaps), the Session 333 and 334 items, the S322 item's part (1), the S311 item's parts (4), (10), (11); `test:lsp` NOT run.
-**TDD:** RED before GREEN for both cures (rows RED on the clock at the seams, `5cd2336` and `d22f0c9`, then oracle, then cure) and for D1 (`1033e20`, 13 rows RED at `89d38e3`, re-run from my side, then `09dada7`); the pins
-and the fix-round rows are green on arrival by nature and their RED is the mutant (the review lists: 9 killed and 21 survive before the rows, 41 / 4 after; 21 of 22 survived and one false kill, 23 / 1 after).
-**Host:** `test:integration` RUN with go-ahead (562 passing, exit 0, 2 minutes on the screen); `test:lsp` NOT run. **Cost:** three workflows (the cures 2 workers, 599,106 subagent tokens, 278 tool calls; the review 99 agents,
-8,298,432 and 1,741; the fix round 2 workers, 884,543 and 515: 9,782,081 in all), four list runs of 2 to 7 minutes, two `npm test`, no quarto renders, the machine at load 3 to 63 (my own `npm test` raised it to 63).
-
