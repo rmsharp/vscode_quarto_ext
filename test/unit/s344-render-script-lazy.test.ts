@@ -421,3 +421,195 @@ describe("Session 344 — the quirks the lazy answer must keep", () => {
     expect(lazy("/tmp/a.py", ["# %%", "x = 1", "", "# %% [raw]", "hi"])).toBe(false);
   });
 });
+
+// ---- the lines read: COUNTS, not clocks ---------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+/** `n` copies of `line`. */
+const filler = (n: number, line = "x = 1"): string[] => new Array<string>(n).fill(line);
+
+/** The lines `isRenderScriptDocument` asked for in `lines` under `fileName`, in order. */
+function readsOf(fileName: string, lines: readonly string[]): number[] {
+  const document = documentOf(lines);
+  isRenderScriptDocument(fileName, document);
+  return document.reads;
+}
+
+/** `[0, 1, ... count-1]`. */
+const firstLines = (count: number): number[] => Array.from({ length: count }, (_, i) => i);
+
+const MILLION = 1_000_000;
+
+describe("Session 344 — a document whose leading lines decide the answer is read for those lines, not for the document", () => {
+  // The cost the cure removes (SIB-08): `getText()` joined the whole buffer on every keystroke of a .py, .jl or .r document, for 0.09 ms at 5,000 lines and 12 ms at 500,000 to answer a question that the first
+  // line answers. A COUNT of the lines asked for is the property: it does not move with the load of the machine, and the answer is the one the differential holds to the oracle.
+
+  it("a plain script reads its first line and no other, whatever its length (1,000,000 lines)", () => {
+    expect(readsOf("/tmp/a.py", ["import os", ...filler(MILLION)])).toEqual([0]);
+    expect(readsOf("/tmp/a.r", ["library(x)", ...filler(MILLION)])).toEqual([0]);
+    expect(readsOf("/tmp/a.jl", ["using Plots", ...filler(MILLION)])).toEqual([0]);
+  });
+
+  it("a percent script reads its first line (1,000,000 lines)", () => {
+    expect(readsOf("/tmp/a.py", ["# %% [markdown]", ...filler(MILLION)])).toEqual([0]);
+    expect(readsOf("/tmp/a.jl", ["# %% [raw]", ...filler(MILLION)])).toEqual([0]);
+  });
+
+  it("a file whose extension no pattern claims reads nothing (1,000,000 lines)", () => {
+    for (const fileName of ["/tmp/a.qmd", "/tmp/a.rmd", "/tmp/a.txt", "/tmp/a.json", "/tmp/a", "", "/tmp/.py", "/tmp/a.py.bak"]) {
+      expect(readsOf(fileName, ["# %% [markdown]", ...filler(MILLION)]), fileName).toEqual([]);
+    }
+  });
+
+  it("leading blank lines are read, one each, and the first line with text decides (1,000 blank lines, then code, then 1,000,000 lines)", () => {
+    expect(readsOf("/tmp/a.py", [...filler(1000, ""), "import os", ...filler(MILLION)])).toEqual(firstLines(1001));
+    expect(readsOf("/tmp/a.py", [...filler(1000, " \t ﻿"), "# %% [markdown]", ...filler(MILLION)])).toEqual(firstLines(1001));
+  });
+
+  it("a percent marker split over lines is read for the lines it takes (`#`, a blank, `%%`, blanks, `[raw]`: five lines)", () => {
+    expect(readsOf("/tmp/a.py", ["#", "", "%%", "  ", "[raw]", ...filler(MILLION)])).toEqual(firstLines(5));
+  });
+
+  it("a percent marker that cannot be completed stops at the line that breaks it (a lone `%` ends its line, `[mark` ends its line, `#` then code)", () => {
+    expect(readsOf("/tmp/a.py", ["# %", "% [markdown]", ...filler(MILLION)])).toEqual([0]);
+    expect(readsOf("/tmp/a.py", ["# %% [mark", "down]", ...filler(MILLION)])).toEqual([0]);
+    expect(readsOf("/tmp/a.py", ["# %%[markdown]", ...filler(MILLION)])).toEqual([0]);
+    expect(readsOf("/tmp/a.py", ["#", "", "x = 1", ...filler(MILLION)])).toEqual([0, 1, 2]);
+  });
+
+  it("a spin script is read to the end of its header (`#' ---`, a line, `#' ---`: three lines, then 1,000,000 lines)", () => {
+    expect(readsOf("/tmp/a.r", ["#' ---", "#' title: T", "#' ---", ...filler(MILLION)])).toEqual(firstLines(3));
+    expect(readsOf("/tmp/a.r", ["#'", "", "---", "x", "#'", "---", ...filler(MILLION)])).toEqual(firstLines(6));
+  });
+
+  it("a spin header whose closer is far away is read to the closer and no further (5,000 lines between, then 1,000,000 lines)", () => {
+    expect(readsOf("/tmp/a.r", ["#' ---", ...filler(5000), "#' ---", ...filler(MILLION)])).toEqual(firstLines(5002));
+  });
+
+  it("a spin header that cannot be completed stops at the line that breaks it (`#' x`, `#' -`, `#' --x`: one line each)", () => {
+    expect(readsOf("/tmp/a.r", ["#' title: T", ...filler(MILLION)])).toEqual([0]);
+    expect(readsOf("/tmp/a.r", ["#' -", "--", ...filler(MILLION)])).toEqual([0]);
+    expect(readsOf("/tmp/a.r", ["#' --x", ...filler(MILLION)])).toEqual([0]);
+    expect(readsOf("/tmp/a.py", ["#' ---", "#' ---", ...filler(MILLION)])).toEqual([0]);
+  });
+
+  it("a header opened and never closed is read to the end, each line once (1,000,000 lines of roxygen after `#' ---`)", () => {
+    const lines = ["#' ---", ...filler(MILLION, "#' title: T")];
+    expect(readsOf("/tmp/a.r", lines)).toEqual(firstLines(lines.length));
+  });
+
+  it("no shape is read twice or past its end: 1,000,000 blank lines, 1,000,000 lines of `#'`, 1,000,000 lines of `#' x` after an opener", () => {
+    for (const lines of [filler(MILLION, ""), filler(MILLION, "#'"), ["#' ---", ...filler(MILLION, "#' x")], ["#'", ...filler(MILLION, "#'")], [...filler(MILLION, " "), "# %%"]]) {
+      expect(readsOf("/tmp/a.r", lines)).toEqual(firstLines(lines.length));
+    }
+  });
+});
+
+describe("Session 344 — the lines read are exactly the lines the answer needs", () => {
+  // "Decided" is defined from the ORACLE alone, with no knowledge of how the lazy function works: after `k` lines the answer is decided when the document ends there, or the oracle accepts the first `k`
+  // lines (a match in a prefix is a match in the document: neither pattern is anchored at the end), or NO continuation accepts them. The continuations are the probes below: for every live state of the two
+  // patterns, one that completes it. The lazy function must have read a line count that is decided and whose predecessor is not: it stopped as soon as it could, and not before.
+  const PROBES: readonly string[][] = [["# %% [markdown]"], ["%% [markdown]"], ["[markdown]"], ["#' ---"], ["---", "#' ---"], ["#' ---", "#' ---"]];
+
+  function decided(fileName: string, lines: readonly string[], k: number): boolean {
+    if (k >= lines.length) return true;
+    const prefix = lines.slice(0, k);
+    if (oracle(fileName, prefix.join(LF))) return true;
+    return !PROBES.some((probe) => oracle(fileName, [...prefix, ...probe].join(LF)));
+  }
+
+  /** Why the lines `isRenderScriptDocument` read of `(fileName, lines)` are not the ones its answer needs, or `undefined`. */
+  function readsProblem(fileName: string, lines: readonly string[]): string | undefined {
+    const reads = readsOf(fileName, lines);
+    const ext = extensionOf(fileName);
+    const claimed = PERCENT_EXTENSIONS.includes(ext) || ext === SPIN_EXTENSION;
+    const shown = `${fileName} ${JSON.stringify(lines.slice(0, 12))}: read ${reads.length} of ${lines.length}`;
+    if (!claimed || lines.length === 0) return reads.length === 0 ? undefined : `${shown}, where it needs none`;
+    if (reads.length === 0) return `${shown}, where it needs the first`;
+    if (!decided(fileName, lines, reads.length)) return `${shown}: stopped before the answer was decided`;
+    if (reads.length > 1 && decided(fileName, lines, reads.length - 1)) return `${shown}: read on after the answer was decided`;
+    return undefined;
+  }
+
+  /** Runs `readsProblem` over `documents` under each of `fileNames` and returns the first few problems. */
+  function problemsOf(fileNames: readonly string[], documents: Iterable<readonly string[]>): string[] {
+    const problems: string[] = [];
+    for (const lines of documents) {
+      for (const fileName of fileNames) {
+        if (problems.length < 5) {
+          const problem = readsProblem(fileName, lines);
+          if (problem !== undefined) problems.push(problem);
+        }
+      }
+    }
+    return problems;
+  }
+
+  function* tokenDocuments(alphabet: readonly string[], maxLength: number): Generator<string[]> {
+    const all: string[][] = [];
+    enumerateTokens(alphabet, maxLength, (tokens) => all.push(linesOfTokens(tokens)));
+    yield* all;
+  }
+
+  it("the percent alphabet, up to 6 tokens, for .jl: every document is read for exactly the lines its answer needs", () => {
+    expect(problemsOf(["/tmp/a.jl"], tokenDocuments([B, " ", "#", "%", "[", "markdown", "]"], 6))).toEqual([]);
+  }, 120_000);
+
+  it("the spin alphabet, up to 6 tokens, for .r and .py", () => {
+    expect(problemsOf(["/tmp/a.r", "/tmp/a.py"], tokenDocuments([B, " ", "#'", "---", "-", "#", "'", "x"], 6))).toEqual([]);
+  }, 120_000);
+
+  it("the wide alphabet, up to 4 tokens, for .py, .r and .qmd", () => {
+    expect(problemsOf(["/tmp/a.py", "/tmp/a.r", "/tmp/a.qmd"], tokenDocuments(WIDE, 4))).toEqual([]);
+  }, 120_000);
+
+  it("the one-edit neighbourhood of six scripts, for .py and .r", () => {
+    const SCRIPTS: ReadonlyArray<readonly string[]> = [
+      ["#", "%", "%", " ", "[", "markdown", "]"],
+      ["﻿", "#", B, "%", "%", B, "[", "markdown", "]"],
+      [B, B, " ", "#", " ", "%", "%", "\t", "[", "raw", "]", B, "x"],
+      ["#'", "---", " ", "#'", "---"],
+      ["#'", " ", "---", B, "x", B, "#'", " ", "---"],
+      ["﻿", "#'", B, "---", "x", "#'", " ", "---", "-"],
+    ];
+    const documents: string[][] = [];
+    for (const base of SCRIPTS) {
+      documents.push(linesOfTokens(base));
+      for (let at = 0; at <= base.length; at++) {
+        for (const token of EDITS) {
+          documents.push(linesOfTokens([...base.slice(0, at), token, ...base.slice(at)]));
+          if (at < base.length) documents.push(linesOfTokens([...base.slice(0, at), token, ...base.slice(at + 1)]));
+        }
+        if (at < base.length) documents.push(linesOfTokens([...base.slice(0, at), ...base.slice(at + 1)]));
+      }
+    }
+    expect(problemsOf(["/tmp/a.py", "/tmp/a.r"], documents)).toEqual([]);
+  }, 120_000);
+
+  it("20,000 seeded documents, under the seeded file names", () => {
+    const next = random(3440);
+    const documents: string[][] = [];
+    const names: string[] = [];
+    for (let i = 0; i < 20_000; i++) {
+      documents.push(seededDocument(next));
+      names.push(FILE_NAMES[Math.floor(next() * FILE_NAMES.length)]);
+    }
+    const problems: string[] = [];
+    for (let i = 0; i < documents.length && problems.length < 5; i++) {
+      const problem = readsProblem(names[i], documents[i]);
+      if (problem !== undefined) problems.push(problem);
+    }
+    expect(problems).toEqual([]);
+  }, 120_000);
+
+  it("the model itself: the probes decide what they should (a live state is live, a dead one dead, the end of the document decides)", () => {
+    expect(decided("/tmp/a.py", ["#", "", "x"], 2)).toBe(false);
+    expect(decided("/tmp/a.py", ["#", "", "x"], 3)).toBe(true);
+    expect(decided("/tmp/a.py", ["# %", "% [markdown]"], 1)).toBe(true);
+    expect(decided("/tmp/a.py", ["# %%", "[markdown]"], 1)).toBe(false);
+    expect(decided("/tmp/a.py", ["# %%", "[markdown]"], 2)).toBe(true);
+    expect(decided("/tmp/a.r", ["#' ---", "x", "x"], 2)).toBe(false);
+    expect(decided("/tmp/a.r", ["#'", "---", "#' ---"], 1)).toBe(false);
+    expect(decided("/tmp/a.r", ["#'", "-", "--"], 2)).toBe(true);
+    expect(decided("/tmp/a.py", ["#' ---", "#' ---"], 1)).toBe(true);
+  });
+});
