@@ -530,9 +530,9 @@ describe("Session 344 -- on a real file system", () => {
   });
   const tempDir = (): string => nodeFs.mkdtempSync(path.join(os.tmpdir(), "s344-citations-"));
   const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
-  /** Wait until the file system's clock is `ms` past the file's change time, so that the next change is stamped with a later time on a coarse clock too. */
+  /** Wait until the clock is `ms` past the file's change time, so that the next change is stamped with a later time on a coarse clock too (at most 60 tries of 10 ms: a file system whose clock is not this machine's would otherwise be waited on for good). */
   async function letClockPass(file: string, ms: number): Promise<void> {
-    while (Date.now() - nodeFs.statSync(file).ctimeMs < ms) await sleep(10);
+    for (let tries = 0; tries < 60 && Date.now() - nodeFs.statSync(file).ctimeMs < ms; tries++) await sleep(10);
   }
   const canLockOut = process.platform !== "win32" && typeof process.getuid === "function" && process.getuid() !== 0;
 
