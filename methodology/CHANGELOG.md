@@ -19,7 +19,7 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ### 2026-11-06 · [ad hoc] Session 343: the quality-gate run cited in the receipt -- 2/2 pass at 87e03eb
 
-`quality_ratchet.py --run`, after the ledger commits (Learning 683): ledger-lag 0 and release-gate 0 (`npm run check-package`), 2 pass, 0 fail, 0 unmeasured, results `bba236856bad`, manifest `334939914945` (both equal to Session 342's). `context_budget.py`: `SESSION_NOTES.md` ok (392 lines, 56,012 B, no line over 280 B); `HANDOFFS.md`, `BACKLOG.md` and `PROJECT_LEARNINGS.md` over the 65,536 B ceiling as before. `master` is unpushed (169 commits ahead of `origin/master` at Phase 0 of the close-out; 6 more after the close-out commits); the dashboard copy is v2.22.0 against canonical v2.23.0, not synced.
+`quality_ratchet.py --run`, after the ledger commits (Learning 683): ledger-lag 0 and release-gate 0 (`npm run check-package`), 2 pass, 0 fail, 0 unmeasured, results `bba236856bad`, manifest `334939914945` (both equal to Session 342's). `context_budget.py`: `SESSION_NOTES.md` ok (392 lines, 56,012 B, no line over 280 B); `HANDOFFS.md`, `BACKLOG.md` and `PROJECT_LEARNINGS.md` over the 65,536 B ceiling as before. `master` is unpushed (169 commits ahead of `origin/master` at Phase 0 of the close-out, before the close-out's own commits); the dashboard copy is v2.22.0 against canonical v2.23.0, not synced.
 
 ### 2026-11-06 · [ad hoc] SESSION_NOTES trim (Session 343): the Session 339 handoff evaluation and the Session 340 self-assessment dropped, the three newest pairs kept
 
