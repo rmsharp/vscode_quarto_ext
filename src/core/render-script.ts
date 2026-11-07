@@ -108,3 +108,24 @@ export function isRenderScript(fileName: string, text: string): boolean {
   }
   return ext === SPIN_EXTENSION && SPIN_HEADER.test(text);
 }
+
+/**
+ * What `isRenderScriptDocument` reads of a document: how many lines it has and the text of one of them. A `vscode.TextDocument` is one, and
+ * this module stays `vscode`-free by naming only these two members.
+ */
+export interface RenderScriptSource {
+  readonly lineCount: number;
+  lineAt(index: number): { readonly text: string };
+}
+
+/**
+ * `isRenderScript(fileName, text)` for a document that is read line by line (BACKLOG: "What Session 342's review round found beside the typing-path cures", part (8)(a), SIB-08).
+ * THE SEAM: the old logic inside. It reads every line and joins them, so it is `isRenderScript(fileName, getText())` spelled over lines.
+ */
+export function isRenderScriptDocument(fileName: string, document: RenderScriptSource): boolean {
+  const lines: string[] = [];
+  for (let i = 0; i < document.lineCount; i++) {
+    lines.push(document.lineAt(i).text);
+  }
+  return isRenderScript(fileName, lines.join("\n"));
+}
