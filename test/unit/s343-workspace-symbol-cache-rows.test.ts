@@ -255,6 +255,43 @@ describe("Session 343 -- the two bounds: 8,388,608 characters of text in all, an
     expect(s.calls).toHaveLength(3);
   });
 
+  it("one add can push SEVERAL files out: three of 30 characters are held, a read of 100 characters takes all the room, and none of the three is served from the cache afterwards", () => {
+    const { s, cache } = at100();
+    cache.read("u:a", "a.qmd", text(30, "A"), "execute");
+    cache.read("u:b", "a.qmd", text(30, "B"), "execute");
+    cache.read("u:c", "a.qmd", text(30, "C"), "execute");
+    cache.read("u:d", "a.qmd", text(100, "D"), "execute"); // 190 characters: A, B and C all go, and D alone is 100
+    expect(s.calls).toHaveLength(4);
+    cache.read("u:d", "a.qmd", text(100, "D"), "execute");
+    expect(s.calls).toHaveLength(4); // D is held
+    cache.read("u:b", "a.qmd", text(30, "B"), "execute");
+    expect(s.calls).toHaveLength(5); // B was pushed out by D's add, not only A
+  });
+
+  it("the total follows a file whose text changes LENGTH, both ways: A (60) rewritten to 20 gives back 40, so C (50) fits beside B (30); A (60) rewritten to 90 takes 30 more, so B (30) goes", () => {
+    {
+      const { s, cache } = at100();
+      cache.read("u:a", "a.qmd", text(60, "A"), "execute");
+      cache.read("u:b", "a.qmd", text(30, "B"), "execute");
+      cache.read("u:a", "a.qmd", text(20, "a"), "execute"); // 20 + 30 = 50
+      cache.read("u:c", "a.qmd", text(50, "C"), "execute"); // 100: all three fit
+      expect(s.calls).toHaveLength(4);
+      cache.read("u:b", "a.qmd", text(30, "B"), "execute");
+      cache.read("u:a", "a.qmd", text(20, "a"), "execute");
+      cache.read("u:c", "a.qmd", text(50, "C"), "execute");
+      expect(s.calls).toHaveLength(4); // nobody was pushed out
+    }
+    {
+      const { s, cache } = at100();
+      cache.read("u:a", "a.qmd", text(60, "A"), "execute");
+      cache.read("u:b", "a.qmd", text(30, "B"), "execute");
+      cache.read("u:a", "a.qmd", text(90, "a"), "execute"); // 90 + 30 = 120: the least recently used, B, goes
+      expect(s.calls).toHaveLength(3);
+      cache.read("u:b", "a.qmd", text(30, "B"), "execute");
+      expect(s.calls).toHaveLength(4); // B went
+    }
+  });
+
   it("a text over the bound is not kept, and it DROPS the file's older entry: B (40) then A (60), A grows to 101, then C (60) is cached beside B (the dropped A, the newer of the two, would otherwise push B out)", () => {
     const { s, cache } = at100();
     cache.read("u:b", "a.qmd", text(40, "B"), "execute");

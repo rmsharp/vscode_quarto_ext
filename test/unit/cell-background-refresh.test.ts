@@ -199,6 +199,51 @@ describe("Session 343 -- an edit refreshes only the editors it can have changed"
     expect(applied).toEqual(["E0:0"]);
   });
 
+  it("a document tinted with exactly ONE range is on the record: switched to another language with no editor event, its next edit clears the tint", () => {
+    const q = quarto("file:///one.qmd", 1);
+    const w = world([{ id: "Q", doc: q }]);
+    w.refresher.refreshAll(); // one range applied
+    q.languageId = "markdown";
+    w.applies.length = 0;
+    w.refresher.refreshAfterEdit(w.edited(q));
+    expect(w.applies).toEqual([{ editor: "Q", ranges: 0 }]);
+  });
+
+  it("an apply that throws while it clears a tint leaves the tint on the record: the clear did not reach the editor, so the next edit tries it again", () => {
+    const q = quarto("file:///one.qmd", 2);
+    let failing = false;
+    const applied: string[] = [];
+    const refresher = createCellBackgroundRefresher<FakeEditor, number>({
+      visible: () => [{ key: q.key, languageId: q.languageId, editor: { id: "E", doc: q } }],
+      rangesFor: (editor) => rangesOf(editor.doc),
+      apply: (editor, ranges) => {
+        if (failing) throw new Error("setDecorations failed");
+        applied.push(`${editor.id}:${ranges.length}`);
+      },
+    });
+    refresher.refreshAll(); // E:2, and the tint is on the record
+    q.languageId = "markdown"; // no editor event
+    failing = true;
+    expect(() => refresher.refreshAfterEdit({ key: q.key, languageId: q.languageId })).toThrow("setDecorations failed");
+    failing = false;
+    applied.length = 0;
+    refresher.refreshAfterEdit({ key: q.key, languageId: q.languageId });
+    expect(applied).toEqual(["E:0"]);
+  });
+
+  it("a full refresh forgets only the keys that are no longer visible: with two tinted documents, closing one keeps the other's tint on the record", () => {
+    const q1 = quarto("file:///one.qmd", 2);
+    const q2 = quarto("file:///two.qmd", 2);
+    const w = world([{ id: "E1", doc: q1 }, { id: "E2", doc: q2 }]);
+    w.refresher.refreshAll();
+    w.visible.editors = [{ id: "E2", doc: q2 }]; // E1 is closed
+    w.refresher.refreshAll(); // forgets one.qmd and nothing else
+    q2.languageId = "markdown";
+    w.applies.length = 0;
+    w.refresher.refreshAfterEdit(w.edited(q2));
+    expect(w.applies).toEqual([{ editor: "E2", ranges: 0 }]);
+  });
+
   it("the editors are read when the refresh runs, not when the refresher is made", () => {
     const q = quarto();
     const w = world([{ id: "Q", doc: q }]);

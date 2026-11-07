@@ -18,6 +18,8 @@ interface FakeFile {
   mtimeMs: number;
   /** The size `stat` reports; the content's length when absent. */
   size?: number;
+  /** The change time `stat` reports (`fs.stat` always does; the stand-ins of the older rows leave it out, and the cache must still work): absent when not set. */
+  ctimeMs?: number;
   /** `stat` answers, `readFile` rejects. */
   unreadable?: boolean;
 }
@@ -40,7 +42,7 @@ function fakeFs(initial: Record<string, FakeFile> = {}) {
       events.push("stat:" + absolute);
       const file = files.get(absolute);
       if (file === undefined) throw new Error("ENOENT: " + absolute);
-      return { mtimeMs: file.mtimeMs, size: file.size ?? file.content.length };
+      return { mtimeMs: file.mtimeMs, size: file.size ?? file.content.length, ...(file.ctimeMs === undefined ? {} : { ctimeMs: file.ctimeMs }) };
     },
     reads: (): number => events.filter((e) => e.startsWith("read:")).length,
     stats: (): number => events.filter((e) => e.startsWith("stat:")).length,
@@ -125,12 +127,65 @@ describe("Session 343 -- the bibliography cache asks the file system as little a
     expect(fs.reads()).toBe(4);
   });
 
-  it("THE BLIND SPOT, pinned: a rewrite that keeps the modification time and the size is not seen, and the old citations are served", async () => {
+  it("THE BLIND SPOT, pinned: a rewrite that keeps the modification time, the size AND the change time is not seen, and the old citations are served", async () => {
     const fs = fakeFs({ "a.bib": { content: bibtex([["a1", "AAAA"]]), mtimeMs: 100, size: 80 } });
     const cache = createCitationCache(fs);
     expect((await cache.read(["a.bib"], DIR)).map((c) => c.title)).toEqual(["AAAA"]);
     fs.set("a.bib", { content: bibtex([["a1", "BBBB"]]), mtimeMs: 100, size: 80 }); // the same two numbers, other content
     expect((await cache.read(["a.bib"], DIR)).map((c) => c.title)).toEqual(["AAAA"]);
+    expect(fs.reads()).toBe(1);
+  });
+
+  it("a changed CHANGE time alone re-reads: a tool that sets the modification time itself (cp -p, rsync -t, touch -r, tar, unzip, a reproducible-build normaliser) keeps the mtime and the size of a same-size replacement, and cannot set the ctime", async () => {
+    const fs = fakeFs({ "a.bib": { content: bibtex([["a1", "AAAA"]]), mtimeMs: 100, size: 80, ctimeMs: 500 } });
+    const cache = createCitationCache(fs);
+    expect((await cache.read(["a.bib"], DIR)).map((c) => c.title)).toEqual(["AAAA"]);
+    expect((await cache.read(["a.bib"], DIR)).map((c) => c.title)).toEqual(["AAAA"]); // nothing moved: one read
+    expect(fs.reads()).toBe(1);
+    fs.set("a.bib", { content: bibtex([["a1", "BBBB"]]), mtimeMs: 100, size: 80, ctimeMs: 501 }); // the same mtime and size, the ctime moved
+    expect((await cache.read(["a.bib"], DIR)).map((c) => c.title)).toEqual(["BBBB"]);
+    expect(fs.reads()).toBe(2);
+    fs.set("a.bib", { content: bibtex([["a1", "CCCC"]]), mtimeMs: 100, size: 80, ctimeMs: 400 }); // an OLDER change time is a change too
+    expect((await cache.read(["a.bib"], DIR)).map((c) => c.title)).toEqual(["CCCC"]);
+    expect(fs.reads()).toBe(3);
+  });
+
+  it("a stat WITHOUT a change time (the stand-ins here, any stat that cannot say) is compared on the two numbers it has: undefined is not a change", async () => {
+    const fs = fakeFs({ "a.bib": { content: bibtex([["a1", "AAAA"]]), mtimeMs: 100 } });
+    const cache = createCitationCache(fs);
+    await cache.read(["a.bib"], DIR);
+    await cache.read(["a.bib"], DIR);
+    expect(fs.reads()).toBe(1);
+  });
+
+  it("a stat whose change time is NaN (it cannot say) is never equal to itself: the file is read at every ask, as a NaN modification time is", async () => {
+    const fs = fakeFs({ "a.bib": { content: bibtex([["a1", "AAAA"]]), mtimeMs: 100, ctimeMs: Number.NaN } });
+    const cache = createCitationCache(fs);
+    await cache.read(["a.bib"], DIR);
+    await cache.read(["a.bib"], DIR);
+    expect(fs.reads()).toBe(2);
+  });
+
+  it("a bibliography declared by an ABSOLUTE path (or one that climbs out of the document's directory) is the file readCitations reads: the cache resolves, it does not join", async () => {
+    const outside = path.resolve("/elsewhere/refs.bib");
+    const climb = path.resolve(DIR, "../shared/up.bib");
+    const fs = fakeFs();
+    fs.files.set(outside, { content: bibtex([["abs1", "Absolute"]]), mtimeMs: 7 });
+    fs.files.set(climb, { content: bibtex([["up1", "Climbs"]]), mtimeMs: 8 });
+    const cache = createCitationCache(fs);
+    const declared = [outside, "../shared/up.bib"];
+    const expected = await readCitations(declared, DIR, fs.readFile);
+    expect(expected.map((c) => c.key)).toEqual(["abs1", "up1"]); // the premise: the oracle finds both
+    expect(await cache.read(declared, DIR)).toEqual(expected);
+    expect(await cache.read(declared, DIR)).toEqual(expected); // and again, from the cache
+  });
+
+  it("a bibliography that parses to NOTHING is kept like any other: non-empty text that holds no entry is parsed once, not at every completion request", async () => {
+    const fs = fakeFs({ "notes.bib": { content: "% a comment, no entry\n".repeat(50), mtimeMs: 9 } });
+    const cache = createCitationCache(fs);
+    expect(await cache.read(["notes.bib"], DIR)).toEqual([]);
+    expect(await cache.read(["notes.bib"], DIR)).toEqual([]);
+    expect(await cache.read(["notes.bib"], DIR)).toEqual([]);
     expect(fs.reads()).toBe(1);
   });
 

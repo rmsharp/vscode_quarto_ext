@@ -277,6 +277,17 @@ describe("Session 343 -- the model keeps four scans: a document under its two ke
     expect(hits(keys[1], known[1])).toBe(false);
   });
 
+  it("a hit on the SECOND entry promotes it too: after k3 (the second most recent of four) is asked again, three more keys drop k1, k2 and k4, and k3 stays", () => {
+    flush();
+    const keys = ["k1", "k2", "k3", "k4", "k5", "k6", "k7"].map((tag) => textOf(300, tag));
+    const known = keys.slice(0, 4).map((text) => firstCell(text)); // most recent first: k4 k3 k2 k1
+    expect(hits(keys[2], known[2])).toBe(true); // k3 was second; it is first now: k3 k4 k2 k1
+    firstCell(keys[4]); // drops k1
+    firstCell(keys[5]); // drops k2
+    firstCell(keys[6]); // drops k4
+    expect(hits(keys[2], known[2])).toBe(true);
+  });
+
   it("a hit on the oldest and then on the next oldest: the order is the order of the hits, and the fifth key drops the one nobody asked", () => {
     flush();
     const keys = ["k1", "k2", "k3", "k4", "k5"].map((tag) => textOf(300, tag));
