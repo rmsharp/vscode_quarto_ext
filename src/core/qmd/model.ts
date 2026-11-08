@@ -9646,6 +9646,14 @@ export function cellTargetContextFor(context: CellTargetContext, startLine: numb
 }
 /** The document-level facts the cell readers need, read once per document. */
 export function cellTargetContext(text: string): CellTargetContext {
+  return cellTargetContextOfLines(text, text.split(/\r?\n/));
+}
+/**
+ * {@link cellTargetContext} for a caller that already HOLDS the lines of `text` (Session 345): `lines` MUST be `text.split(/\r?\n/)`. The three word searches read `text`, the markdown-channel lines and the front matter
+ * read `lines`, and the answer is the one `cellTargetContext(text)` gives, which is this function handed its own split. `indexLabels` splits the document once to read it by line and hands the same lines here, where the
+ * text-taking function split it again and its `plainFrontMatter` a third time. The array is only read.
+ */
+export function cellTargetContextOfLines(text: string, lines: readonly string[]): CellTargetContext {
   return {
     codeFromElsewhere: /read_chunk|read_demo|read_rforge|knit_code|opts_chunk/.test(text),
     unseenCode:
@@ -9653,11 +9661,9 @@ export function cellTargetContext(text: string): CellTargetContext {
         text,
       ),
     writesMarkdown: false,
-    markdownLines: text
-      .split(/\r?\n/)
-      .flatMap((line, n) => (MARKDOWN_CHANNEL.test(line) ? [n] : [])),
+    markdownLines: lines.flatMap((line, n) => (MARKDOWN_CHANNEL.test(line) ? [n] : [])),
     keepsHidden: /keep-hidden/.test(text),
-    opaqueFrontMatter: !plainFrontMatter(text),
+    opaqueFrontMatter: !plainFrontMatterOfLines(lines),
   };
 }
 const PLAIN_ENGINE_KEYS: ReadonlySet<string> = new Set(["jupyter", "knitr", "engine", "julia"]);
@@ -9714,7 +9720,10 @@ export function trimEndBlanks(value: string): string {
  * front matter not plain and declines the rules for that document: a lost removal, the safe side.
  */
 export function plainFrontMatter(text: string): boolean {
-  const lines = text.split(/\r?\n/);
+  return plainFrontMatterOfLines(text.split(/\r?\n/));
+}
+/** {@link plainFrontMatter} for a caller that already HOLDS the lines (Session 345): `lines` MUST be `text.split(/\r?\n/)` for the `text` asked about, and is only read. */
+export function plainFrontMatterOfLines(lines: readonly string[]): boolean {
   let first = 0;
   while (first < lines.length && lines[first].trim() === "") {
     first++;
