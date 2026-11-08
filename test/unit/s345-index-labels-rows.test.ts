@@ -17,7 +17,8 @@ import { attributeBlockReader, cellOptionLinesOf, cellTargetContext, findAllCell
 //
 // MEASURED at the parent `acbc51f` on a 60-cell document (62 cells with the two at its end), one call WARM (the scan cached): knitr / jupyter 5 splits of the text, 2 of them `attributeBlockReader`'s (its own and the one in
 // `quartoYamlRegions`, which it hands the lines joined again); every other engine 3, and 5 when a `sec-` cell label asks `canWriteAtRunTime` (which builds the whole context for itself). `cellTargetContext(text)` 2,
-// `plainFrontMatter(text)` 1. 62 `cellOptionLinesOf` calls, one for each cell, and a split of the body of each of the 61 cells with code.
+// `plainFrontMatter(text)` 1. 62 `cellOptionLinesOf` calls, one for each cell, and a split of the body of each of the 61 cells with code for the rules (122 splits of a cell's code in all: the body, and the same code again inside `cellOptionLinesOf`).
+// A COLD call at the parent: 8 splits of the text (6 for an engine that builds no context and a document with no `sec-` cell label).
 // After part P2 alone the warm count was 3 (the call's own and part P1's two). With part P1 in (the tree these rows run on, `9fcf624`, the same document, load 4 to 6), a WARM call splits the text exactly ONCE, whatever the
 // engine and whatever the labels: its own `sourceLines` (`attributeBlockReader` answers from the scan's entry and splits nothing, so a bound has no term left for it), and joins no whole document's lines. A COLD call (no scan of the
 // text yet) splits it THREE times, and they are three different ones: its own, `computeRegions` (the scan) and `quartoYamlRegions` (the scan's one read of the metadata block) -- the call's one split on top of the 2 the scan costs by
@@ -311,14 +312,14 @@ describe("Session 345 -- indexLabels splits the body of a cell on first use: onc
   });
 
   for (const engine of [undefined, "markdown", "julia", "ambiguous"] as const) {
-    it(`${String(engine)}: no body is split at all (nothing reads one; the parent split all 61)`, () => {
+    it(`${String(engine)}: no body is split at all (nothing reads one, and the memo holds the option lines; the parent split 122: each body for the rules and again inside cellOptionLinesOf)`, () => {
       warmWithMemo(text);
       expect(countBodySplits(bodies, () => void indexLabels(text, engine))).toBe(0);
     });
   }
 
   for (const engine of ["knitr", "jupyter"] as const) {
-    it(`${engine}: one split for each of the ${judged} cells with a figure or table label, none for the sec- ones (the parent split 61)`, () => {
+    it(`${engine}: one split for each of the ${judged} cells with a figure or table label, none for the sec- ones (the parent split 122: all 61 for the rules and again inside cellOptionLinesOf)`, () => {
       warmWithMemo(text);
       expect(countBodySplits(bodies, () => void indexLabels(text, engine))).toBe(judged);
     });
