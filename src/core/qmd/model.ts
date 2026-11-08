@@ -45,7 +45,7 @@ import type { RenderMode } from "../render-mode";
 import { divOpenerVerdict } from "./attribute-block";
 import { ColumnStack } from "./column-stack";
 import { jupyterKernelLanguage } from "./jupyter-kernel";
-import { quartoYamlRegions } from "./quarto-yaml-regions";
+import { type YamlRegion, quartoYamlRegions } from "./quarto-yaml-regions";
 import { admitted, promoted } from "./regions-cache";
 import { IDENTIFIER_RUN, isRun, runClass, runEnd } from "./unicode-run";
 
@@ -2586,7 +2586,7 @@ const FRONTMATTER_FLOW_OPEN = /^[ \t]*\{/;
  * two scratch projects, plan §2.5; 0 of 3,383 corpus documents sit under such a file). The plan's
  * §12 decision 4 records the choice.
  */
-const FRONTMATTER_COMMONMARK_FROM =
+export const FRONTMATTER_COMMONMARK_FROM =
   /^from[ \t]*:[ \t]*["']?(?:commonmark(?:_x)?|gfm)(?![a-zA-Z0-9_])/;
 /**
  * A front-matter `from:` whose base reader is **exactly `markdown`**, with any extension list —
@@ -2737,7 +2737,7 @@ const READER_ESCAPES_ALL_SYMBOLS: ReadonlySet<string> = new Set([
  * idiom most flags in this file use: a document with no `from:` at all is the default reader,
  * which `cal/a_none_*` measures as Set A.
  */
-function fromEscapesAllSymbols(line: string | null): boolean {
+export function fromEscapesAllSymbols(line: string | null): boolean {
   if (line === null) {
     return true;
   }
@@ -3424,6 +3424,21 @@ function frontMatterFromValueLine(lines: readonly string[]): string | null {
   const content = governingMetadataContent(lines);
   return content === null ? null : contentFromValueLine(content);
 }
+/** The two answers the governing metadata block gives: the KEY half (`frontMatterSelectsReader`) and the VALUE half (`frontMatterFromValueLine`). */
+export interface ReaderMetadata {
+  /** Whether a `from:` at a position that selects the reader is declared. */
+  selectsReader: boolean;
+  /** The canonical `from: <value>` line, or `null`. */
+  fromValueLine: string | null;
+}
+/** The YAML regions of one document's text, asked for when a consumer first needs them. */
+export type YamlRegionsOf = () => readonly YamlRegion[];
+/**
+ * Both halves of the question about the governing metadata block, asked of one document's `lines` (Session 345). Exported for `s345-reader-metadata-rows.test.ts`, which keeps the two-call spelling as the oracle.
+ */
+export function readerMetadataOf(lines: readonly string[], _yamlRegions?: YamlRegionsOf): ReaderMetadata {
+  return { selectsReader: frontMatterSelectsReader(lines), fromValueLine: frontMatterFromValueLine(lines) };
+}
 /**
  * Whether the document's front matter PROVES the reader `fromValueLine` names, for a rule whose wrong answer DELETES every heading below it (Session 297).
  *
@@ -3443,7 +3458,7 @@ function frontMatterFromValueLine(lines: readonly string[]): string | null {
  *     Session 207), and no other `from` key exists anywhere; its text is byte-identical to what the resolver returned.
  * Declining costs the old phantom, never a heading.
  */
-function frontMatterProvesReader(lines: readonly string[], fromValueLine: string | null): boolean {
+export function frontMatterProvesReader(lines: readonly string[], fromValueLine: string | null, _yamlRegions?: YamlRegionsOf): boolean {
   const open = frontMatterOpenIndex(lines);
   if (fromValueLine === null || open === null || !lines.slice(0, open).every((line) => FRONTMATTER_BLANK.test(line))) {
     return false;
@@ -3762,7 +3777,7 @@ function proofContinue(line: string, pending: Exclude<ProofPending, { kind: "blo
  * walk can ask BOTH halves of a candidate block. Behaviour is unchanged — this is the original
  * body, reached with the same content as before for any document with no mid-document block.
  */
-function contentFromValueLine(content: readonly string[]): string | null {
+export function contentFromValueLine(content: readonly string[]): string | null {
   const top = topLevelIndent(content);
   if (top === null) {
     return null;
@@ -4008,7 +4023,7 @@ function frontMatterOpenIndex(lines: readonly string[]): number | null {
  * The front matter's own CONTENT lines — everything between the opening `---` and its
  * terminator — or `null` when the document opens no front matter at all.
  */
-function frontMatterContent(lines: readonly string[]): string[] | null {
+export function frontMatterContent(lines: readonly string[]): string[] | null {
   const open = frontMatterOpenIndex(lines);
   if (open === null) {
     return null;
@@ -4033,7 +4048,7 @@ function documentKernelLanguage(lines: readonly string[]): string | null {
   return jupyterKernelLanguage(content, content === null || open === null ? lines : lines.slice(open + content.length + 2));
 }
 /** YAML's document-end marker alone on a line — a terminator the `---` delimiter grammar omits. */
-const YAML_DOCUMENT_END = /^\.\.\.[ \t]*$/;
+export const YAML_DOCUMENT_END = /^\.\.\.[ \t]*$/;
 /**
  * A backtick fence opener at ANY indent, which disqualifies a mid-document metadata block from
  * resolving a reader (Session 211).
@@ -4047,7 +4062,7 @@ const YAML_DOCUMENT_END = /^\.\.\.[ \t]*$/;
  * today's answer, which costs a phantom rather than a heading. Its control `s3_fence_in_blk_none`
  * is unaffected either way, so the fence is the variable and not the shape.
  */
-const FENCE_ANYWHERE_IN_BLOCK = /^\s*(?:```|~~~)/;
+export const FENCE_ANYWHERE_IN_BLOCK = /^\s*(?:```|~~~)/;
 /**
  * Whether an HTML comment is still OPEN at 0-based `line` — a mid-document metadata block
  * inside one resolves nothing (Session 211).
@@ -4663,7 +4678,7 @@ function frontMatterSelectsReader(lines: readonly string[]): boolean {
  * not the presence of a `from:` anywhere in the text. Behaviour is unchanged — this is the
  * original body, and the only caller that existed before passes it the same content as before.
  */
-function contentSelectsReader(content: readonly string[]): boolean {
+export function contentSelectsReader(content: readonly string[]): boolean {
   const top = topLevelIndent(content);
   if (top === null) {
     return false;
@@ -10610,7 +10625,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
   // selects the reader is a question about its YAML PATH and no single line carries one. The
   // hoist is behaviour-preserving for the same reason Session 206's was: every consumer of
   // this flag sits BELOW the front matter, which the loop `continue`s straight through.
-  const dialectOverride = frontMatterSelectsReader(lines);
+  const { selectsReader: dialectOverride, fromValueLine } = readerMetadataOf(lines);
   // Whether the front-matter `from:` names a reader of the CommonMark FAMILY — see
   // `FRONTMATTER_COMMONMARK_FROM`. Deliberately a SECOND flag beside `dialectOverride`
   // rather than a refinement of it: that one keys on the KEY's presence and is read by the
@@ -10622,7 +10637,6 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
   // behaviour-preserving — every consumer of these flags sits BELOW the front matter, which the
   // loop `continue`s straight through — and for a plain top-level `from:` the line the resolver
   // hands over is byte-identical to the source line, so neither allowlist can move.
-  const fromValueLine = frontMatterFromValueLine(lines);
   let commonmarkDialect = fromValueLine !== null && FRONTMATTER_COMMONMARK_FROM.test(fromValueLine);
   // ⚠ **THE READER, PROVEN (Session 297)** — read by the three rules whose wrong answer DELETES every heading below a trigger (the degenerate comment, a raw HTML block of
   // type 3-5, an unclosed plain fence), all of which run to the end of the document. See `frontMatterProvesReader`.
