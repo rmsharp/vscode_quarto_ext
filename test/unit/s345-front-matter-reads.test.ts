@@ -25,7 +25,7 @@ import {
 // result: three whole-document splits a call (parent, measured: 3.9 ms at 2,000 cells of 25 lines, 15.5 at 8,000), and for a text that begins with whitespace a FOURTH cold scan, because
 // `trimStart()` makes another string and `scanRegions` is keyed on the string.
 //
-// THE OLD SPELLINGS are the oracle (`support/s345-front-matter-oracle.ts`, copied from the parent by a program): `oldFrontMatterContentLines`, `oldFindFrontMatter`, `oldInFrontMatter`,
+// THE OLD SPELLINGS are the oracle (`support/s345-front-matter-oracle.ts`, copied from the parent by a program, except the span `oldFrontMatterSpan`, a hand transcription that the header of that file says is pinned by `PARENT_SCAN_DOCUMENTS`): `oldFrontMatterContentLines`, `oldFindFrontMatter`, `oldInFrontMatter`,
 // `oldFindFrontMatterTopLevelLines`, `oldFindNestedFrontMatterValueLines` and `oldResolveDocumentEngine`. Every answer of the new code must DEEP-EQUAL the old one over: the exhaustive
 // documents of a small alphabet of line shapes (the first describe), the same shapes under every line terminator and every leading run, a SEEDED generator of whole documents (seed 345,
 // floored so that a generator that drew nothing fails), and every tracked `.qmd` / `.md` / `.Rmd` of the repository under six leading runs and both line endings.
@@ -35,6 +35,10 @@ import {
 // counter). What they do NOT count: a read of the document through any other primitive (`match`, `exec`, `RegExp.prototype[Symbol.split]`, a loop over `charCodeAt`) passes every row of them. A row that
 // expects a count of ZERO is therefore evidence that the document is not split or searched, not that it is not read; what a reader MAY read is bounded by the oracle rows (the answers) and by the recorded
 // measurements of the review, and two mutants of this kind are recorded as survivors in the mutation list.
+
+// THE FIX ROUND F1 (the review of the three cures), in the describes named "F1" and the two at the foot of the file: `findFrontMatter`, `inFrontMatter` and `readFrontMatter` answer from the
+// engine-blind scan's entry when the cache holds the text (O(1) for a block that never closes, and the entry is put first as the parent's read put it), and read the text, scanning and storing
+// nothing, when it does not; every corpus below is run under all three states of the scan (`ROUTES`); and the scan's own use of the span is pinned by literals frozen from the parent.
 
 /** Run `run` and count the calls of `String.prototype.split` / `indexOf` whose receiver is at least half as long as `whole`: the splits and the searches that read the document, not a line of it. */
 function readsOf<T>(whole: string, run: () => T): { value: T; splits: number; searches: number } {
@@ -310,7 +314,7 @@ function cellDocument(tag: string): string {
   return "---\ntitle: t\n---\n```{python}\nx = 1\n```\n" + tag;
 }
 
-/** Every read of the front matter the parent answered by asking the engine-blind scan (`scanRegions(text)`), each asked of one text; the number is the line `inFrontMatter` is asked about. */
+/** Every read of the front matter that asks the engine-blind scan: the six the parent had (it answered each from `scanRegions(text)`) and `readFrontMatter`, the one read that five of the seven go through. Each is asked of one text; `inFrontMatter` is asked about line 1. */
 const READS_THAT_ASKED_THE_SCAN: Array<[string, (text: string) => unknown]> = [
   ["findFrontMatter", (text) => findFrontMatter(text)],
   ["inFrontMatter", (text) => inFrontMatter(text, 1)],
@@ -323,7 +327,7 @@ const READS_THAT_ASKED_THE_SCAN: Array<[string, (text: string) => unknown]> = [
 
 describe("Session 345 F1 -- a read of the front matter of a scanned text refreshes its entry, as the parent's did", () => {
   // The sequence: four texts scanned (the cache holds four, T4 newest), the OLDEST read through a front-matter reader, a fifth scanned, the oldest asked again. The parent's reader was a cache hit that
-  // promoted T1, so the fifth scan pushed out T2 and the last ask was a hit: 5 scans in all (measured on the parent's build, acbc51f, for each of the seven readers below). A reader that does not touch
+  // promoted T1, so the fifth scan pushed out T2 and the last ask was a hit: 5 scans in all (measured on the parent's build, acbc51f, for the six readers it had; `readFrontMatter` is new, and is what five of the seven below are or read through). A reader that does not touch
   // the cache leaves T1 the oldest, the fifth scan pushes it out, and the last ask is a sixth scan (the control row: no read at all is 6).
   function scansOfTheSequence(read: ((text: string) => unknown) | null, tag: string): { scans: number; asks: boolean[] } {
     const tally = scanTally();
