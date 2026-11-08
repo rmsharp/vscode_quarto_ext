@@ -10473,6 +10473,18 @@ function scanRegions(text: string, engine: EngineHint = undefined, requested: Re
 function scanEntry(text: string, engine: EngineHint = undefined, requested: RenderMode = "execute"): RegionsCacheEntry {
   // Only the exact string `no-execute` selects the non-default reading, as in `resolveRenderMode`: it hides headings quarto shows when it is wrong, so no other value, however it got here, may select it.
   const mode: RenderMode = engine === "knitr" && requested === "no-execute" ? "no-execute" : "execute";
+  const hit = cachedEntry(text, engine, mode);
+  if (hit !== undefined) return hit;
+  const entry: RegionsCacheEntry = { text, engine, mode, regions: computeRegions(text, engine, mode) };
+  regionsCache = admitted(regionsCache, entry);
+  return entry;
+}
+
+/**
+ * The cache entry of (`text`, `engine`, `mode`), or `undefined` when the cache holds none (Session 345): `scanEntry`'s lookup, and the lookup of the front-matter readers (`frontMatterSpanOf`). A HIT goes
+ * to the front of the cache, whoever asked, so the replacement order is the same for every reader of an entry; a MISS changes nothing: no scan, no entry. `mode` is as `scanEntry` normalises it.
+ */
+function cachedEntry(text: string, engine: EngineHint, mode: RenderMode): RegionsCacheEntry | undefined {
   // The cheap parts of the key first: four entries may be asked, and two texts of one length compare as far as the first character that differs.
   const hitAt = regionsCache.findIndex(
     (e) => e.engine === engine && e.mode === mode && e.text === text,
@@ -10482,9 +10494,17 @@ function scanEntry(text: string, engine: EngineHint = undefined, requested: Rend
     if (hitAt !== 0) regionsCache = promoted(regionsCache, hitAt);
     return hit;
   }
-  const entry: RegionsCacheEntry = { text, engine, mode, regions: computeRegions(text, engine, mode) };
-  regionsCache = admitted(regionsCache, entry);
-  return entry;
+  return undefined;
+}
+
+/**
+ * The span of the leading front matter of `text`, which the readers ask (Session 345). When the engine-blind scan holds the text (the key every reader asked before this session, `scanRegions(text)`), the
+ * answer is that entry's span, read in O(1) and with the entry refreshed as the earlier read refreshed it. Otherwise it is read from the lines `at` of the text, down to the terminator and no further, and
+ * NOTHING is scanned or kept: a reader that asks of a text no scan has read pays for the block alone. Both answers are `frontMatterSpanAt`'s: `computeRegions` builds its span with it.
+ */
+function frontMatterSpanOf(text: string, at: LineAt): FrontMatterSpan | null {
+  const scanned = cachedEntry(text, undefined, "execute");
+  return scanned !== undefined ? scanned.regions.frontMatter : frontMatterSpanAt(at);
 }
 
 /**
@@ -13491,8 +13511,8 @@ export function findHeadings(text: string, engine: EngineHint = undefined, mode:
 export function findFrontMatter(
   text: string,
 ): { startLine: number; endLine: number } | null {
-  // Read from the text itself, with no scan (Session 345): `frontMatterSpanAt` is the very reading `computeRegions` builds its `frontMatter` from, so the answer is the scan's, byte for byte.
-  const fm = frontMatterSpanAt(linesOf(text));
+  // The scan's own span when the scan holds the text, else read from the text with no scan (Session 345): both are `frontMatterSpanAt`'s reading, so the answer is the scan's, byte for byte.
+  const fm = frontMatterSpanOf(text, linesOf(text));
   return fm === null ? null : { startLine: fm.startLine, endLine: fm.endLine };
 }
 
@@ -13504,7 +13524,7 @@ export function findFrontMatter(
  * plan §4.3), so it deliberately excludes the fence lines, where no key is typed.
  */
 export function inFrontMatter(text: string, line: number): boolean {
-  const fm = frontMatterSpanAt(linesOf(text));
+  const fm = frontMatterSpanOf(text, linesOf(text));
   if (fm === null || line <= fm.startLine) {
     return false;
   }
@@ -13544,7 +13564,7 @@ export interface FrontMatterBlock {
  */
 export function readFrontMatter(text: string): FrontMatterBlock | null {
   const at = linesOf(text);
-  const span = frontMatterSpanAt(at);
+  const span = frontMatterSpanOf(text, at);
   if (span === null) {
     return null;
   }

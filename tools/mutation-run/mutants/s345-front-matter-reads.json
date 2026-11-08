@@ -610,7 +610,7 @@
  {
   "name": "X03 findFrontMatter: the span comes from the scan",
   "file": "src/core/qmd/model.ts",
-  "from": "const fm = frontMatterSpanAt(linesOf(text));\n  return fm === null ? null : { startLine",
+  "from": "const fm = frontMatterSpanOf(text, linesOf(text));\n  return fm === null ? null : { startLine",
   "to": "const fm = scanRegions(text).frontMatter;\n  return fm === null ? null : { startLine",
   "expect": "killed",
   "why": "the very same span, by a scan: the unscanned-text row (3 splits, an entry in the cache)"
@@ -618,7 +618,7 @@
  {
   "name": "X04 inFrontMatter: the span comes from the scan",
   "file": "src/core/qmd/model.ts",
-  "from": "const fm = frontMatterSpanAt(linesOf(text));\n  if (fm === null || line <= fm.startLine) {",
+  "from": "const fm = frontMatterSpanOf(text, linesOf(text));\n  if (fm === null || line <= fm.startLine) {",
   "to": "const fm = scanRegions(text).frontMatter;\n  if (fm === null || line <= fm.startLine) {",
   "expect": "killed",
   "why": "the very same span, by a scan: the unscanned-text row"
@@ -626,7 +626,7 @@
  {
   "name": "X05 readFrontMatter: the span comes from the scan",
   "file": "src/core/qmd/model.ts",
-  "from": "const span = frontMatterSpanAt(at);",
+  "from": "const span = frontMatterSpanOf(text, at);",
   "to": "const span = scanRegions(text).frontMatter;",
   "expect": "killed",
   "why": "the very same span, by a scan: the unscanned-text rows and the resolver rows"
@@ -730,9 +730,129 @@
  {
   "name": "T23 firstDisagreement: the reads are not handed on",
   "file": "test/unit/s345-front-matter-reads.test.ts",
-  "from": "const d = disagreement(text, fileNames, wide, reads);",
-  "to": "const d = disagreement(text, fileNames, wide);",
+  "from": "const d = disagreement(text, fileNames, wide, reads, route);",
+  "to": "const d = disagreement(text, fileNames, wide, undefined, route);",
   "expect": "killed",
   "why": "the control row of firstDisagreement"
+ },
+ {
+  "name": "K01 frontMatterSpanOf: the scan is never asked",
+  "file": "src/core/qmd/model.ts",
+  "from": "const scanned = cachedEntry(text, undefined, \"execute\");",
+  "to": "const scanned = undefined as RegionsCacheEntry | undefined;",
+  "expect": "killed",
+  "why": "every reader reads the text again, a whole document for an unterminated block: the counter rows of a scanned text (0 searches) and the route control"
+ },
+ {
+  "name": "K02 frontMatterSpanOf: the key is the text alone (an entry of another engine is a hit, and is refreshed)",
+  "file": "src/core/qmd/model.ts",
+  "from": "const scanned = cachedEntry(text, undefined, \"execute\");",
+  "to": "const scanned = cachedEntry(text, regionsCache.find((e) => e.text === text)?.engine, \"execute\");",
+  "expect": "killed",
+  "why": "the answers are the same (the span is a function of the text alone), the replacement order is not: a read of a text held only under knitr would keep that entry, which the parent's read (the blind key) did not touch; the other-key recency rows"
+ },
+ {
+  "name": "K03 frontMatterSpanOf: a hit does not refresh the entry",
+  "file": "src/core/qmd/model.ts",
+  "from": "const scanned = cachedEntry(text, undefined, \"execute\");",
+  "to": "const scanned = regionsCache.find((e) => e.engine === undefined && e.mode === \"execute\" && e.text === text);",
+  "expect": "killed",
+  "why": "the parent's read was a cache hit that put the entry first; without it the fifth scan pushes out the entry the reader just used and the next ask is a sixth scan: the recency rows (7 readers, 5 scans)"
+ },
+ {
+  "name": "K04 frontMatterSpanOf: a miss scans the text and keeps the entry",
+  "file": "src/core/qmd/model.ts",
+  "from": "scanned.regions.frontMatter : frontMatterSpanAt(at);",
+  "to": "scanned.regions.frontMatter : scanRegions(text).frontMatter;",
+  "expect": "killed",
+  "why": "the P3 saving undone for every miss (a whole-document split and an entry in the cache): the unscanned-text rows, the route control and the stores-nothing rows"
+ },
+ {
+  "name": "K05 frontMatterSpanOf: a hit answers 'no front matter'",
+  "file": "src/core/qmd/model.ts",
+  "from": "return scanned !== undefined ? scanned.regions.frontMatter : frontMatterSpanAt(at);",
+  "to": "return scanned !== undefined ? null : frontMatterSpanAt(at);",
+  "expect": "killed",
+  "why": "the answer from the entry is the span of the entry: the oracle rows under the 'scanned' route"
+ },
+ {
+  "name": "K06 frontMatterSpanOf: a hit answers with the span of the oldest entry",
+  "file": "src/core/qmd/model.ts",
+  "from": "return scanned !== undefined ? scanned.regions.frontMatter : frontMatterSpanAt(at);",
+  "to": "return scanned !== undefined ? regionsCache[regionsCache.length - 1].regions.frontMatter : frontMatterSpanAt(at);",
+  "expect": "killed",
+  "why": "a different entry's span (the cache holds up to four texts): the oracle rows under the 'scanned' route"
+ },
+ {
+  "name": "K07 cachedEntry: a miss refreshes the oldest entry",
+  "file": "src/core/qmd/model.ts",
+  "from": "    return hit;\n  }\n  return undefined;\n}",
+  "to": "    return hit;\n  }\n  regionsCache = promoted(regionsCache, regionsCache.length - 1);\n  return undefined;\n}",
+  "expect": "killed",
+  "why": "a read that finds nothing (or the scan, before it admits its entry) would reorder the cache: the other-key recency rows, the cache rows of Session 343"
+ },
+ {
+  "name": "K08 findFrontMatter: the span is always read from the text",
+  "file": "src/core/qmd/model.ts",
+  "from": "const fm = frontMatterSpanOf(text, linesOf(text));\n  return fm === null ? null : { startLine",
+  "to": "const fm = frontMatterSpanAt(linesOf(text));\n  return fm === null ? null : { startLine",
+  "expect": "killed",
+  "why": "P3 as it was before this session's cure: O(lines of the block) a call on a text the scan holds; the counter rows of a scanned text and the recency row"
+ },
+ {
+  "name": "K09 inFrontMatter: the span is always read from the text",
+  "file": "src/core/qmd/model.ts",
+  "from": "const fm = frontMatterSpanOf(text, linesOf(text));\n  if (fm === null || line <= fm.startLine) {",
+  "to": "const fm = frontMatterSpanAt(linesOf(text));\n  if (fm === null || line <= fm.startLine) {",
+  "expect": "killed",
+  "why": "the same for inFrontMatter, which the completion gate asks once per request"
+ },
+ {
+  "name": "K10 readFrontMatter: the span is always read from the text",
+  "file": "src/core/qmd/model.ts",
+  "from": "const span = frontMatterSpanOf(text, at);",
+  "to": "const span = frontMatterSpanAt(at);",
+  "expect": "killed",
+  "why": "readFrontMatter does not refresh the entry: the recency rows of the five readers that go through it (frontMatterContentLines, readFrontMatter, both enumerators, the resolver)"
+ },
+ {
+  "name": "T24 scanTally: a scan is never reported",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "const scanned = seen.get(key) !== first;",
+  "to": "const scanned = false;",
+  "expect": "killed",
+  "why": "the recency rows count scans by the identity of the cells; a tally that never counts expects 6 and 5 of nothing"
+ },
+ {
+  "name": "T25 standAs: the 'scanned' route scans nothing",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "if (route === \"scanned\") findAllCells(text);",
+  "to": "if (route === \"scanned\") undefined;",
+  "expect": "killed",
+  "why": "every row of the 'scanned' route would be a repeat of the 'unscanned' one: the route control and the control of the oracle"
+ },
+ {
+  "name": "T26 standAs: the 'scanned under another key' route scans the blind key",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "findAllCells(text, \"knitr\");\n}",
+  "to": "findAllCells(text);\n}",
+  "expect": "killed",
+  "why": "the miss route would be the hit route: the route control"
+ },
+ {
+  "name": "T27 firstDisagreement: the route is not handed on",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "const d = disagreement(text, fileNames, wide, reads, route);",
+  "to": "const d = disagreement(text, fileNames, wide, reads);",
+  "expect": "killed",
+  "why": "every corpus would be read under the 'unscanned' route three times: the control of the oracle (a reader wrong only on a hit)"
+ },
+ {
+  "name": "T28 disagreement: the route is not applied",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "  standAs(route, text);\n  const same =",
+  "to": "  const same =",
+  "expect": "killed",
+  "why": "the same, one function down"
  }
 ]

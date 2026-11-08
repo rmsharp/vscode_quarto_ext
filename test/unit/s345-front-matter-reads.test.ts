@@ -222,6 +222,144 @@ describe("Session 345 P3 -- the front matter is read without a scan", () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// THE COUNTERS, slice C (F1): a text the scan already holds is answered from the scan's entry, as the parent answered it, and not read again.
+
+describe("Session 345 F1 -- findFrontMatter and inFrontMatter of a scanned text read the scan's span, not the text", () => {
+  // A front matter that is never closed: 2 + 20,000 lines of block and one empty line after the last line feed, so the span runs to line 20,002. Cut from the text, it costs one search per line.
+  const unterminated = "---\ntitle: t\n" + "k: v\n".repeat(20_000);
+
+  it("the fixture is what the rows say: a block that runs to the last line, 20,003 lines in all", () => {
+    expect(unterminated.split("\n").length).toBe(20_003);
+    expect(findFrontMatter(unterminated)).toEqual({ startLine: 0, endLine: 20_002 });
+  });
+
+  it("findFrontMatter of a text the scan holds (under the blind key) searches and splits nothing", () => {
+    findAllCells(unterminated);
+    const { value, splits, searches } = readsOf(unterminated, () => findFrontMatter(unterminated));
+    expect(value).toEqual({ startLine: 0, endLine: 20_002 });
+    expect(splits).toBe(0);
+    expect(searches).toBe(0);
+  });
+
+  it("inFrontMatter of a text the scan holds (under the blind key) searches and splits nothing", () => {
+    findAllCells(unterminated);
+    const { value, splits, searches } = readsOf(unterminated, () => [inFrontMatter(unterminated, 1), inFrontMatter(unterminated, 20_002), inFrontMatter(unterminated, 20_003), inFrontMatter(unterminated, 0)]);
+    expect(value).toEqual([true, true, false, false]);
+    expect(splits).toBe(0);
+    expect(searches).toBe(0);
+  });
+
+  // The control of the three routes the oracle rows below are run under (Learning 910: a route that is never taken makes its rows a repeat of another): what each route costs in searches of the document.
+  it.each([
+    ["scanned", false],
+    ["scanned under another key", true],
+    ["unscanned", true],
+  ] as const)("route '%s': findFrontMatter and inFrontMatter %s read the text, twice in a row (the second does not find an entry the first stored)", (route, reads) => {
+    const text = unterminated + route; // a text of its own, so that no row's scan is taken for this one's
+    standAs(route, text);
+    for (let round = 0; round < 2; round++) {
+      const found = readsOf(text, () => findFrontMatter(text));
+      const asked = readsOf(text, () => inFrontMatter(text, 1));
+      expect(found.value).toEqual({ startLine: 0, endLine: 20_002 });
+      expect(asked.value).toBe(true);
+      // A line per search (20,003 in all): the text is cut as far as the block runs, which is to its end.
+      if (reads) {
+        expect(found.searches).toBeGreaterThanOrEqual(20_000);
+        expect(asked.searches).toBeGreaterThanOrEqual(20_000);
+      } else {
+        expect(found.searches).toBe(0);
+        expect(asked.searches).toBe(0);
+      }
+    }
+  });
+});
+
+/** The engine argument of the scan: `undefined` is the engine-blind key every front-matter read asks. */
+type Engine = Parameters<typeof findAllCells>[1];
+
+/**
+ * Counts scans without a hook on the scanner: a scan makes new `Cell` objects and a cache hit hands back the ones the last scan made, so `ask` says it scanned when the first cell of `text` under `engine`
+ * is not the object it was last seen to be. Every text a row uses holds one cell and is made unique by its tag, so that no entry of another row is mistaken for its own.
+ */
+function scanTally(): { ask: (text: string, engine?: Engine) => boolean; readonly scans: number } {
+  const seen = new Map<string, unknown>();
+  let scans = 0;
+  return {
+    ask(text, engine) {
+      const first = findAllCells(text, engine)[0];
+      const key = `${String(engine)}|${text}`;
+      const scanned = seen.get(key) !== first;
+      seen.set(key, first);
+      if (scanned) scans++;
+      return scanned;
+    },
+    get scans() {
+      return scans;
+    },
+  };
+}
+
+/** A small document with a front matter that is terminated, one `python` cell, and `tag` at the end so that no two rows share a text. */
+function cellDocument(tag: string): string {
+  return "---\ntitle: t\n---\n```{python}\nx = 1\n```\n" + tag;
+}
+
+/** Every read of the front matter the parent answered by asking the engine-blind scan (`scanRegions(text)`), each asked of one text; the number is the line `inFrontMatter` is asked about. */
+const READS_THAT_ASKED_THE_SCAN: Array<[string, (text: string) => unknown]> = [
+  ["findFrontMatter", (text) => findFrontMatter(text)],
+  ["inFrontMatter", (text) => inFrontMatter(text, 1)],
+  ["frontMatterContentLines", (text) => frontMatterContentLines(text)],
+  ["readFrontMatter", (text) => readFrontMatter(text)],
+  ["findFrontMatterTopLevelLines", (text) => findFrontMatterTopLevelLines(text)],
+  ["findNestedFrontMatterValueLines", (text) => findNestedFrontMatterValueLines(text)],
+  ["resolveDocumentEngine", (text) => resolveDocumentEngine("doc.qmd", text)],
+];
+
+describe("Session 345 F1 -- a read of the front matter of a scanned text refreshes its entry, as the parent's did", () => {
+  // The sequence: four texts scanned (the cache holds four, T4 newest), the OLDEST read through a front-matter reader, a fifth scanned, the oldest asked again. The parent's reader was a cache hit that
+  // promoted T1, so the fifth scan pushed out T2 and the last ask was a hit: 5 scans in all (measured on the parent's build, acbc51f, for each of the seven readers below). A reader that does not touch
+  // the cache leaves T1 the oldest, the fifth scan pushes it out, and the last ask is a sixth scan (the control row: no read at all is 6).
+  function scansOfTheSequence(read: ((text: string) => unknown) | null, tag: string): { scans: number; asks: boolean[] } {
+    const tally = scanTally();
+    const [t1, t2, t3, t4, t5] = ["one", "two", "three", "four", "five"].map((n) => cellDocument(`${tag} ${n}`));
+    const asks = [tally.ask(t1), tally.ask(t2), tally.ask(t3), tally.ask(t4)];
+    if (read !== null) read(t1);
+    asks.push(tally.ask(t5), tally.ask(t1));
+    return { scans: tally.scans, asks };
+  }
+
+  it("control: with no read between, the oldest text was pushed out and the last ask is a scan (6 scans)", () => {
+    expect(scansOfTheSequence(null, "control")).toEqual({ scans: 6, asks: [true, true, true, true, true, true] });
+  });
+
+  it.each(READS_THAT_ASKED_THE_SCAN)("%s of the oldest scanned text keeps it: the fifth scan pushes out another and the last ask is a hit (5 scans, the parent's count)", (name, read) => {
+    expect(scansOfTheSequence(read, name)).toEqual({ scans: 5, asks: [true, true, true, true, true, false] });
+  });
+
+  // The reader asks the ENGINE-BLIND key. An entry of the same text under another key is not that entry: reading it is a miss, which refreshes nothing (and stores nothing: the route rows above ask twice).
+  it.each(READS_THAT_ASKED_THE_SCAN)("%s of a text the scan holds only under another key refreshes that entry not: it is still the oldest, and is pushed out by the fifth scan (6 scans)", (name, read) => {
+    const tally = scanTally();
+    const [t1, t2, t3, t4, t5] = ["one", "two", "three", "four", "five"].map((n) => cellDocument(`${name} other key ${n}`));
+    const asks = [tally.ask(t1, "knitr"), tally.ask(t2), tally.ask(t3), tally.ask(t4)];
+    read(t1);
+    asks.push(tally.ask(t5), tally.ask(t1, "knitr"));
+    expect({ scans: tally.scans, asks }).toEqual({ scans: 6, asks: [true, true, true, true, true, true] });
+  });
+
+  // A miss stores nothing: asked blind afterwards, the text is scanned for the first time, whether the scan held it under another key or not at all.
+  it.each(READS_THAT_ASKED_THE_SCAN.flatMap(([name, read]) => [["unscanned", name, read] as const, ["scanned under another key", name, read] as const]))(
+    "route '%s': %s stores no entry for the blind key (the next blind ask is a scan)",
+    (route, name, read) => {
+      const tally = scanTally();
+      const text = cellDocument(`${name} stores nothing ${route}`);
+      if (route === "scanned under another key") expect(tally.ask(text, "knitr")).toBe(true);
+      read(text);
+      expect(tally.ask(text)).toBe(true);
+    },
+  );
+});
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // THE ORACLE.
 
 const FILE_NAMES = ["doc.qmd", "doc.Rmd", "doc.rmd"];
@@ -245,8 +383,31 @@ interface Reads {
 }
 const NEW_READS: Reads = { findFrontMatter, frontMatterContentLines, readFrontMatter, findFrontMatterTopLevelLines, findNestedFrontMatterValueLines, inFrontMatter, resolveDocumentEngine };
 
+/**
+ * How the scan stands when a text is read. A reader answers from the entry of the ENGINE-BLIND scan when the scan holds the text under that key (`scanned`), reads the text itself when the scan holds it
+ * only under another key (`scanned under another key`: a miss) and when it holds it not at all (`unscanned`); the three must give one answer, the parent's.
+ */
+type Route = "unscanned" | "scanned" | "scanned under another key";
+const ROUTES: readonly Route[] = ["unscanned", "scanned", "scanned under another key"];
+
+/**
+ * Put the scan into the state `route` names for `text`. The scan holds four entries and the rows draw hundreds of texts, so a text of an earlier row is gone from it before it is drawn again (a row of fewer
+ * than five texts that runs the same text under two routes calls `flushScan` between them).
+ */
+function standAs(route: Route, text: string): void {
+  if (route === "scanned") findAllCells(text);
+  else if (route === "scanned under another key") findAllCells(text, "knitr");
+}
+
+let fillers = 0;
+/** Push every entry the scan holds out of it: four texts nobody else asks are scanned, which is the whole cache. */
+function flushScan(): void {
+  for (let i = 0; i < 4; i++) findAllCells(cellDocument(`filler ${++fillers}`));
+}
+
 /** `null` when every answer of the new code equals the parent's for `text`, else the first answer that differs. `inFrontMatter` is asked of every line number there is a reason to ask and of the numbers that are not lines. */
-function disagreement(text: string, fileNames: readonly string[] = FILE_NAMES, wide = true, reads: Reads = NEW_READS): string | null {
+function disagreement(text: string, fileNames: readonly string[] = FILE_NAMES, wide = true, reads: Reads = NEW_READS, route: Route = "unscanned"): string | null {
+  standAs(route, text);
   const same = (what: string, a: unknown, b: unknown): string | null => {
     const x = JSON.stringify(a) ?? "undefined";
     const y = JSON.stringify(b) ?? "undefined";
@@ -268,11 +429,11 @@ function disagreement(text: string, fileNames: readonly string[] = FILE_NAMES, w
 }
 
 /** The first disagreement over `texts`, and how many were drawn (a generator that draws nothing must fail on its floor, not pass on its emptiness). */
-function firstDisagreement(texts: Iterable<string>, fileNames?: readonly string[], wide = true, reads: Reads = NEW_READS): { drawn: number; first: string | null } {
+function firstDisagreement(texts: Iterable<string>, fileNames?: readonly string[], wide = true, reads: Reads = NEW_READS, route: Route = "unscanned"): { drawn: number; first: string | null } {
   let drawn = 0;
   for (const text of texts) {
     drawn++;
-    const d = disagreement(text, fileNames, wide, reads);
+    const d = disagreement(text, fileNames, wide, reads, route);
     if (d !== null) return { drawn, first: d };
   }
   return { drawn, first: null };
@@ -349,6 +510,23 @@ describe("Session 345 P3 -- the oracle notices", () => {
     expect(found).toContain("resolveDocumentEngine(doc.Rmd)");
   });
 
+  it("the route is handed on and taken: a findFrontMatter that is wrong only for a text the scan holds is reported under 'scanned' and under no other route", () => {
+    // Wrong exactly when the answer came from the scan's entry: asked with the document as large as the cached read leaves it (no search of it at all).
+    const wrongOnAHit: Reads = {
+      ...NEW_READS,
+      findFrontMatter: (text) => (readsOf(text.repeat(2), () => findFrontMatter(text)).searches === 0 ? { startLine: 9, endLine: 9 } : findFrontMatter(text)),
+    };
+    for (const route of ROUTES) {
+      flushScan();
+      const found = disagreement(document, FILE_NAMES, false, wrongOnAHit, route);
+      if (route === "scanned") expect(found, route).toContain("findFrontMatter");
+      else expect(found, route).toBeNull();
+      const first = firstDisagreement(["# a", document, "# b"], FILE_NAMES, false, wrongOnAHit, route);
+      expect(first.first === null, route).toBe(route !== "scanned");
+      expect(first.drawn, route).toBe(route === "scanned" ? 1 : 3);
+    }
+  });
+
   it("firstDisagreement stops at the first text that differs and says how many it drew", () => {
     expect(firstDisagreement(["# a", "# b"])).toEqual({ drawn: 2, first: null });
     const stopped = firstDisagreement(["# a", document, "# b"], FILE_NAMES, true, { ...NEW_READS, readFrontMatter: wrong.readFrontMatter });
@@ -357,27 +535,27 @@ describe("Session 345 P3 -- the oracle notices", () => {
   });
 });
 
-describe("Session 345 P3 -- the oracle: every answer equals the parent's (exhaustive documents)", () => {
+describe.each(ROUTES)("Session 345 P3 -- the oracle: every answer equals the parent's (exhaustive documents), scan: %s", (route) => {
   it("every document of 0..4 lines over ten line shapes joined by LF (11,111 documents)", () => {
-    const { drawn, first } = firstDisagreement(everyDocument(SHAPES, 4), ["doc.qmd", "doc.Rmd"]);
+    const { drawn, first } = firstDisagreement(everyDocument(SHAPES, 4), ["doc.qmd", "doc.Rmd"], true, NEW_READS, route);
     expect(first).toBeNull();
     expect(drawn).toBe(1 + 10 + 100 + 1000 + 10_000);
   });
 
   it("every document of 0..6 lines over six core shapes joined by LF (55,987 documents)", () => {
-    const { drawn, first } = firstDisagreement(everyDocument(CORE, 6), ["doc.qmd"], false);
+    const { drawn, first } = firstDisagreement(everyDocument(CORE, 6), ["doc.qmd"], false, NEW_READS, route);
     expect(first).toBeNull();
     expect(drawn).toBe(1 + 6 + 36 + 216 + 1296 + 7776 + 46_656);
   });
 
   it("every document of 0..4 lines over the ten shapes joined by CRLF", () => {
-    const { drawn, first } = firstDisagreement(everyDocument(SHAPES, 4, "\r\n"), ["doc.qmd"], false);
+    const { drawn, first } = firstDisagreement(everyDocument(SHAPES, 4, "\r\n"), ["doc.qmd"], false, NEW_READS, route);
     expect(first).toBeNull();
     expect(drawn).toBe(1 + 10 + 100 + 1000 + 10_000);
   });
 
   it("the terminators that are breaks (LF, CRLF) and the ones that are not (CR, U+2028, U+2029, form feed), between every pair of up to four pieces", () => {
-    const { drawn, first } = firstDisagreement(everySeparated(["---", "a: b", "...", ""], ["\n", "\r\n", "\r", LS, PS, "\f"], 4), ["doc.qmd"], false);
+    const { drawn, first } = firstDisagreement(everySeparated(["---", "a: b", "...", ""], ["\n", "\r\n", "\r", LS, PS, "\f"], 4), ["doc.qmd"], false, NEW_READS, route);
     expect(first).toBeNull();
     // 4 pieces; 4 x 6 x 4 two-piece, and so on: 4 + 4*6*4 + 4*(6*4)^2 + 4*(6*4)^3
     expect(drawn).toBe(4 + 4 * 24 + 4 * 24 ** 2 + 4 * 24 ** 3);
@@ -399,14 +577,14 @@ describe("Session 345 P3 -- the oracle: every answer equals the parent's (exhaus
     ];
     const texts: string[] = [];
     for (const run of runs) for (const block of blocks) texts.push(run + block, run + block.replace(/\n/g, "\r\n"));
-    const { drawn, first } = firstDisagreement(texts);
+    const { drawn, first } = firstDisagreement(texts, undefined, true, NEW_READS, route);
     expect(first).toBeNull();
     expect(drawn).toBe(runs.length * blocks.length * 2);
   });
 
   it("the named edge cases: the empty text, a text that is only a fence, a final line with no newline, a lone CR, and an unterminated block", () => {
     const cases = ["", "\n", "---", "---\n", "\n---", "\n---\n", "---\r", "---\r\n", "---\na", "---\na\r", "---\r\na\r\n---\r", "---\r\n---\r\n", "a\r---\n", "---\nk: v\n---", "---\nk: v\n---\n", "---\nk: v\n...", " ---\nk: v\n---"];
-    const { drawn, first } = firstDisagreement(cases);
+    const { drawn, first } = firstDisagreement(cases, undefined, true, NEW_READS, route);
     expect(first).toBeNull();
     expect(drawn).toBe(cases.length);
   });
@@ -451,7 +629,7 @@ function seededDocument(random: () => number): string {
   return text;
 }
 
-describe("Session 345 P3 -- the oracle: every answer equals the parent's (seeded documents, seed 345)", () => {
+describe.each(ROUTES)("Session 345 P3 -- the oracle: every answer equals the parent's (seeded documents, seed 345), scan: %s", (route) => {
   it("20,000 seeded documents, and the generator reaches every shape it is for", () => {
     const random = seededRandom(345);
     const texts: string[] = [];
@@ -476,7 +654,7 @@ describe("Session 345 P3 -- the oracle: every answer equals the parent's (seeded
     expect(leadingRun).toBeGreaterThan(10_000);
     for (const kind of ["\r\n", LS, PS, "\f"]) expect(texts.some((t) => t.includes(kind))).toBe(true);
     expect(texts.some((t) => /\r(?!\n)/.test(t))).toBe(true);
-    const { drawn, first } = firstDisagreement(texts, ["doc.qmd", "doc.Rmd"], false);
+    const { drawn, first } = firstDisagreement(texts, ["doc.qmd", "doc.Rmd"], false, NEW_READS, route);
     expect(first).toBeNull();
     expect(drawn).toBe(20_000);
   });
@@ -485,7 +663,7 @@ describe("Session 345 P3 -- the oracle: every answer equals the parent's (seeded
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // THE TRACKED DOCUMENTS.
 
-describe("Session 345 P3 -- the oracle: every tracked .qmd / .md / .Rmd of the repository", () => {
+describe.each(ROUTES)("Session 345 P3 -- the oracle: every tracked .qmd / .md / .Rmd of the repository, scan: %s", (route) => {
   const root = new URL("../..", import.meta.url).pathname;
   const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: root, maxBuffer: 1 << 26 })
     .toString("utf8")
@@ -505,7 +683,7 @@ describe("Session 345 P3 -- the oracle: every tracked .qmd / .md / .Rmd of the r
       const variants = [text, "\n" + text, "   \n" + text, "\t" + text, BOM + text, text.replace(/\r?\n/g, "\r\n")];
       for (const variant of variants) {
         drawn++;
-        const d = disagreement(variant, [path], false);
+        const d = disagreement(variant, [path], false, NEW_READS, route);
         expect(d).toBeNull();
       }
     }
