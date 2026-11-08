@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { indexLabels, type RefLabel } from "../../src/core/refs";
 import { cellTargetContext, findCellOptionLines, plainFrontMatter } from "../../src/core/qmd/model";
 import { indexLabels as oldIndexLabels } from "./support/s345-old-refs";
@@ -7,11 +10,15 @@ import {
   ENGINES,
   type Engine,
   SEED,
+  TRACKED_FLOOR,
+  TRACKED_MAX_CHARACTERS,
+  documentsOf,
   frontMatterDocuments,
   seededDocuments,
   shapeDocuments,
   structuredDocuments,
   trackedDocuments,
+  trackedPaths,
   writtenEveryWay,
 } from "./support/s345-index-labels-corpus";
 
@@ -221,15 +228,76 @@ describe("Session 345 -- indexLabels answers exactly as the old spelling did", (
     expect(tally.texts).toBe(2);
   });
 
-  it("every tracked .qmd, .md and .Rmd file of the repository, all six engines", () => {
+  it("every tracked .qmd, .md and .Rmd file of the repository (none over 300,000 characters), all six engines", () => {
     const documents = trackedDocuments();
     const tally = compareAll(documents.map(([, text]) => text));
     expect(tally.disagreements).toEqual([]);
-    expect(documents.length).toBeGreaterThanOrEqual(100);
-    expect(documents.filter(([path]) => path.endsWith(".qmd")).length).toBeGreaterThanOrEqual(30);
     expect(tally.texts).toBe(documents.length);
-    expect(tally.labels).toBeGreaterThanOrEqual(80);
-    expect(tally.withLabels).toBeGreaterThanOrEqual(4);
+    // ⚠ THE FLOORS ARE SMALL ON PURPOSE (Learning 929 asks that a loop which drew nothing be seen, and nothing more). What the repository holds today (130 documents, five of them with labels, all in test/fixtures) is the
+    // repository's and not this file's: a fixture that is deleted, trimmed or moved must not red an equivalence test, because no behaviour has moved. What shows that the HARNESS can see labels, and can fail, is not
+    // here: it is the structured product above (12,000 documents with labels, five kinds, the engine deciding 2,000 of them) and the thirteen perturbed live functions at the top of this file. So these floors only say
+    // that the loop read a handful of real files and that two of them define a label at all (a fixture-free tree would red here, which is the news).
+    expect(documents.length).toBeGreaterThanOrEqual(TRACKED_FLOOR);
+    expect(tally.withLabels).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("Session 345 -- the tracked documents: only the ones an author wrote, and whatever the working tree holds", () => {
+  let root: string;
+  const reads: string[] = [];
+  beforeAll(() => {
+    root = mkdtempSync(join(tmpdir(), "s345-tracked-"));
+    writeFileSync(join(root, "a.md"), "# a {#sec-a}\n");
+    writeFileSync(join(root, "edge.md"), "x".repeat(300_000));
+    writeFileSync(join(root, "over.md"), "x".repeat(300_001));
+    writeFileSync(join(root, "wide.md"), String.fromCharCode(0xe9).repeat(150_001)); // 300,002 bytes and 150,001 characters: under the limit, whatever the bytes say
+    writeFileSync(join(root, "huge.md"), "x".repeat(1_300_000)); // more than four bytes to a character at the limit: over it whatever it holds
+    mkdirSync(join(root, "adir"));
+  });
+  afterAll(() => rmSync(root, { recursive: true, force: true }));
+  const asRead = (file: string): string => {
+    reads.push(file.slice(root.length + 1));
+    return readFileSync(file, "utf8");
+  };
+
+  it("a file of more than 300,000 characters is left out, one of exactly 300,000 is kept, and the limit counts characters and not bytes", () => {
+    const kept = documentsOf(root, ["a.md", "edge.md", "over.md", "wide.md", "huge.md"]).map(([path, text]) => [path, text.length]);
+    expect(kept).toEqual([
+      ["a.md", 13],
+      ["edge.md", 300_000],
+      ["wide.md", 150_001],
+    ]);
+    expect(TRACKED_MAX_CHARACTERS).toBe(300_000);
+  });
+
+  it("a file too big to be under the limit in any encoding is not read at all (the archives are megabytes)", () => {
+    reads.length = 0;
+    documentsOf(root, ["a.md", "over.md", "huge.md"], { read: asRead });
+    expect(reads).toEqual(["a.md", "over.md"]);
+  });
+
+  it("with no limit (the reader-flags rows read every size) the big files are read and kept", () => {
+    expect(documentsOf(root, ["over.md", "huge.md"], { maxCharacters: Infinity }).map(([, text]) => text.length)).toEqual([300_001, 1_300_000]);
+  });
+
+  it("a file that is listed and gone (removed with rm and not git rm) is left out, and the others are read as before", () => {
+    expect(documentsOf(root, ["gone.md", "a.md", "also-gone.qmd"]).map(([path]) => path)).toEqual(["a.md"]);
+  });
+
+  it("any other failure is the caller's: a listed directory throws", () => {
+    expect(() => documentsOf(root, ["a.md", "adir"])).toThrow(/EISDIR/);
+  });
+
+  it("a tree without git, or a machine without the git program, fails the row that asks, and the message says why", () => {
+    expect(() => trackedPaths(["*.md"], root, { ...process.env, GIT_DIR: join(root, "no-git-here") })).toThrow(/tracked-documents rows need a git checkout/);
+    expect(() => trackedPaths(["*.md"], root, { ...process.env, PATH: "" })).toThrow(/tracked-documents rows need a git checkout/);
+  });
+
+  it("the real listing: documents from the repository's root, none over the limit", () => {
+    const documents = trackedDocuments();
+    expect(documents.length).toBeGreaterThanOrEqual(TRACKED_FLOOR);
+    expect(documents.every(([, text]) => text.length <= TRACKED_MAX_CHARACTERS)).toBe(true);
+    expect(documents.every(([path]) => /\.(qmd|md|Rmd)$/.test(path))).toBe(true);
   });
 });
 

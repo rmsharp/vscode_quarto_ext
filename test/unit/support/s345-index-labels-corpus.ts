@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { seededRandom } from "./regex-equivalence";
@@ -252,12 +252,53 @@ export function* writtenEveryWay(texts: readonly string[]): Generator<string> {
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // 4. TRACKED
 
+/** The root of the repository, from where THIS file stands and never from the process's working directory (a run from another directory must read the same documents). */
+export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+
+/** The tracked files of the repository that match `specs` (git pathspecs), as paths relative to `root`. */
+export function trackedPaths(specs: readonly string[], root: string = REPO_ROOT, env: NodeJS.ProcessEnv = process.env): string[] {
+  let listed: string;
+  try {
+    listed = execFileSync("git", ["ls-files", "-z", "--", ...specs], { cwd: root, env, encoding: "utf8", maxBuffer: 1 << 24, stdio: ["ignore", "pipe", "pipe"] });
+  } catch (error) {
+    // A tree with no .git (an unpacked archive), or a machine with no git program, fails the ONE row that lists the tracked files and none other (this is called inside the row, never at collection).
+    throw new Error(`the tracked-documents rows need a git checkout: \`git ls-files\` failed in ${root}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  return listed.split("\0").filter((path) => path !== "");
+}
+
+/** A tracked file longer than this is not a document an author wrote (the methodology archives are megabytes): the rows that read every tracked document leave it out. */
+export const TRACKED_MAX_CHARACTERS = 300_000;
+/** The fewest tracked documents a row that reads them all may be handed: a small number that proves the loop read real files, and not what the repository holds today. */
+export const TRACKED_FLOOR = 50;
+
+/**
+ * The files `paths` (relative to `root`), as `[path, text]`, in the order given, without
+ *   - a file longer than `maxCharacters` (default {@link TRACKED_MAX_CHARACTERS}, counted in CHARACTERS: a file of two-byte characters is under the limit at twice its size). A file of more than four bytes to the character
+ *     is over the limit whatever it holds, so it is not even read: that is what keeps a 3.9 MB archive out of the cost of a row;
+ *   - a file that is listed and not there (`rm` without `git rm`, a dangling link): nothing to compare. Every other failure is thrown.
+ * `read` is the reader (a row hands it one to see which files are read).
+ */
+export function documentsOf(root: string, paths: readonly string[], options: { maxCharacters?: number; read?: (file: string) => string } = {}): Array<[string, string]> {
+  const maxCharacters = options.maxCharacters ?? TRACKED_MAX_CHARACTERS;
+  const read = options.read ?? ((file: string): string => readFileSync(file, "utf8"));
+  const documents: Array<[string, string]> = [];
+  for (const path of paths) {
+    const file = resolve(root, path);
+    let text: string;
+    try {
+      if (statSync(file).size > 4 * maxCharacters) continue;
+      text = read(file);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
+      throw error;
+    }
+    if (text.length <= maxCharacters) documents.push([path, text]);
+  }
+  return documents;
+}
+
 /** Every tracked `.qmd`, `.md` and `.Rmd` file of the repository, as `[path, text]`. */
 export function trackedDocuments(): Array<[string, string]> {
-  const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
-  const listed = execFileSync("git", ["ls-files", "-z", "--", "*.qmd", "*.md", "*.Rmd"], { cwd: root, encoding: "utf8", maxBuffer: 1 << 24 });
-  return listed
-    .split("\0")
-    .filter((path) => path !== "")
-    .map((path): [string, string] => [path, readFileSync(resolve(root, path), "utf8")]);
+  return documentsOf(REPO_ROOT, trackedPaths(["*.qmd", "*.md", "*.Rmd"]));
 }

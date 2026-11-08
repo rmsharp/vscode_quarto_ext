@@ -1,5 +1,3 @@
-import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   FENCE_ANYWHERE_IN_BLOCK,
@@ -22,6 +20,7 @@ import {
 import type { YamlRegion } from "../../src/core/qmd/quarto-yaml-regions";
 import { quartoYamlRegions } from "../../src/core/qmd/quarto-yaml-regions";
 import { countStrings, everyString, seededRandom } from "./support/regex-equivalence";
+import { REPO_ROOT, TRACKED_FLOOR, documentsOf, trackedPaths } from "./support/s345-index-labels-corpus";
 
 // Session 345 -- part P1 of the BACKLOG item SIB-01 (the first completion request after an edit pays a cold whole-document scan). The model's scan asked the governing metadata block of a document TWICE (once for the KEY
 // half, `frontMatterSelectsReader`, once for the VALUE half, `frontMatterFromValueLine`), and `indexLabels` asked it a THIRD time through `attributeBlockReader(text)` on the text the scan had just read. Each ask is
@@ -640,12 +639,13 @@ describe("Session 345 P1 -- the differential: the single read answers what the o
   });
 
   it("every tracked .qmd, .md and .Rmd of the repository, as written and under each terminator, with a BOM and with leading blank lines", () => {
-    const listed = execFileSync("git", ["ls-files", "*.qmd", "*.md", "*.Rmd"], { encoding: "utf8", maxBuffer: 1 << 24 }).split("\n").filter((name) => name !== "");
-    expect(listed.length).toBeGreaterThanOrEqual(100);
+    // From the repository's root (this row once read what the process's working directory held), every size (the reader flags are asked of the multi-megabyte archives too; the variants below stop at 200,000 characters),
+    // and a file that is listed and gone is left out. The floor says the loop read real files, not how many the repository holds today.
+    const listed = documentsOf(REPO_ROOT, trackedPaths(["*.qmd", "*.md", "*.Rmd"]), { maxCharacters: Infinity });
+    expect(listed.length).toBeGreaterThanOrEqual(TRACKED_FLOOR);
     const found: string[] = [];
     let compared = 0;
-    for (const name of listed) {
-      const source = readFileSync(name, "utf8");
+    for (const [name, source] of listed) {
       const variants = [source];
       if (source.length <= 200_000) {
         for (const terminator of TERMINATORS.slice(1)) variants.push(withTerminator(source, terminator));

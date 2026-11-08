@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { cellTargetContext, cellTargetContextOfLines, plainFrontMatter, plainFrontMatterOfLines } from "../../src/core/qmd/model";
 import { cellTargetContext as oldCellTargetContext, plainFrontMatter as oldPlainFrontMatter } from "./support/s345-old-target-context";
-import { BOM, frontMatterDocuments, seededDocuments, shapeDocuments, structuredDocuments, trackedDocuments } from "./support/s345-index-labels-corpus";
+import { BOM, TRACKED_FLOOR, frontMatterDocuments, seededDocuments, shapeDocuments, structuredDocuments, trackedDocuments } from "./support/s345-index-labels-corpus";
 
 // Session 345 -- part P2 of the BACKLOG item SIB-01. `cellTargetContext(text)` and `plainFrontMatter(text)` each split the whole text for themselves, and `cellTargetContext` calls `plainFrontMatter`, so one call
 // of the first split the text twice. `indexLabels` already holds the lines (it splits once to read them by index), so the model now exports the same two functions for a caller that HOLDS the lines:
@@ -58,7 +58,8 @@ describe("Session 345 -- cellTargetContextOfLines and plainFrontMatterOfLines an
     const documents = trackedDocuments();
     const disagreements = documents.filter(([, text]) => !sameContext(text) || plainFrontMatterOfLines(text.split(LINES)) !== oldPlainFrontMatter(text)).map(([path]) => path);
     expect(disagreements).toEqual([]);
-    expect(documents.length).toBeGreaterThanOrEqual(100);
+    // the floor only says the loop read real files; how many the repository holds is not this file's to pin (see the same row of s345-index-labels-equivalence.test.ts)
+    expect(documents.length).toBeGreaterThanOrEqual(TRACKED_FLOOR);
   });
 
   // The front matter is where `plainFrontMatter` spends its answer: every sequence of up to three lines out of the shapes below, inside the fences, behind a leading line or a byte order mark, closed by `---`, by `...`, by nothing,
