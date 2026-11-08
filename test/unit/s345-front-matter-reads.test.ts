@@ -104,6 +104,76 @@ describe("Session 345 P3 -- the interior of the front matter is read without spl
 });
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// THE COUNTERS, slice B: the front matter is read from the text itself, so no scan is needed to know where it is.
+
+/** `true` when `run` put a new entry into the scan cache: four small documents fill its four slots, the first of them is the oldest, and a new entry pushes it out (a hit on the oldest, by the identity of its cells, says it is still there). */
+function addsScanEntry(run: () => unknown): boolean {
+  const documents = ["A", "B", "C", "D"].map((tag) => "```{python}\nx = 1\n```\n" + tag);
+  const oldest = findAllCells(documents[0])[0];
+  for (const document of documents.slice(1)) findAllCells(document);
+  run();
+  return findAllCells(documents[0])[0] !== oldest;
+}
+
+describe("Session 345 P3 -- the front matter is read without a scan", () => {
+  const blankFirst = documentOf(20_000, "\n");
+  const cold = documentOf(20_000) + "cold\n";
+  const NO_FRONT_MATTER = "# Title\n" + "Some prose.\n\n".repeat(10_000);
+
+  it("the probe sees a scan: asking findHeadings of a fresh text adds an entry, asking it of a cached one does not", () => {
+    const fresh = documentOf(40, "\n\n\n");
+    expect(addsScanEntry(() => findHeadings(fresh))).toBe(true);
+    expect(addsScanEntry(() => undefined)).toBe(false);
+  });
+
+  it("resolveDocumentEngine of a text that begins with a blank line splits nothing and scans nothing (the parent scanned the trimmed text: its 4th cold split)", () => {
+    findHeadings(blankFirst); // the earlier provider scans the text as it is
+    const { value, splits } = readsOf(blankFirst, () => resolveDocumentEngine("doc.qmd", blankFirst));
+    expect(value).toBe("markdown");
+    expect(splits).toBe(0);
+    expect(addsScanEntry(() => resolveDocumentEngine("doc.qmd", documentOf(40, "\n")))).toBe(false);
+  });
+
+  it("resolveDocumentEngine of a text nobody has scanned splits nothing and scans nothing", () => {
+    const { value, splits } = readsOf(cold, () => resolveDocumentEngine("doc.qmd", cold));
+    expect(value).toBe("markdown");
+    expect(splits).toBe(0);
+    expect(addsScanEntry(() => resolveDocumentEngine("doc.qmd", documentOf(40) + "cold again\n"))).toBe(false);
+  });
+
+  it("findFrontMatter, inFrontMatter and frontMatterContentLines of an unscanned text split nothing and scan nothing", () => {
+    let fresh = 0;
+    for (const read of [
+      (t: string) => findFrontMatter(t),
+      (t: string) => inFrontMatter(t, 2),
+      (t: string) => frontMatterContentLines(t),
+      (t: string) => findFrontMatterTopLevelLines(t),
+      (t: string) => findNestedFrontMatterValueLines(t),
+    ]) {
+      const text = documentOf(20_000, "\n") + `unscanned ${++fresh}\n`;
+      const { splits } = readsOf(text, () => read(text));
+      expect(splits).toBe(0);
+      expect(addsScanEntry(() => read(documentOf(40, "\n") + `unscanned ${++fresh}\n`))).toBe(false);
+    }
+  });
+
+  it("the resolver reads a five-line front matter once: the document is searched at most five times, not once for each of the three readers", () => {
+    const text = documentOf(20_000, "") + "read once\n";
+    findHeadings(text); // scanned first, so that no search of the scan itself is counted
+    const { value, searches } = readsOf(text, () => resolveDocumentEngine("doc.qmd", text));
+    expect(value).toBe("markdown");
+    expect(searches).toBeLessThanOrEqual(FRONT.length);
+  });
+
+  it("a document with no front matter is refused after its first line, not after a read of the document", () => {
+    const { value, searches, splits } = readsOf(NO_FRONT_MATTER, () => resolveDocumentEngine("doc.qmd", NO_FRONT_MATTER));
+    expect(value).toBe("markdown");
+    expect(searches).toBeLessThanOrEqual(1);
+    expect(splits).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // THE ORACLE.
 
 const FILE_NAMES = ["doc.qmd", "doc.Rmd", "doc.rmd"];
