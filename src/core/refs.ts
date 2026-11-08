@@ -27,16 +27,17 @@
  */
 
 import type { DocumentEngine } from "./document-engine";
-import type { AttributeBlockReader, BraceGroup, CellTargetContext } from "./qmd/model";
+import type { AttributeBlockReader, BraceGroup, Cell, CellOptionLine, CellTargetContext } from "./qmd/model";
 import {
   attributeBlockId,
   braceGroups,
   attributeBlockReader,
   cellOptionLinesOf,
-  cellTargetContext,
   cellTargetContextFor,
+  cellTargetContextOfLines,
   findAllCells,
   findBodyLines,
+  findCellOptionLines,
   findCodeFenceOpeners,
   findHeadings,
   jupyterCellMakesNoTarget,
@@ -517,7 +518,7 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
   // knitr and jupyter alike, a list-item cell of corpus ordinal 1887 being the real-document
   // witness): an option at the fence's indent or at column 0 is an option, one deeper or in
   // between is code. The scanner only ever sees column 0, so the stripped copy is what it is handed.
-  const targetContext = documentEngine === "knitr" || documentEngine === "jupyter" ? cellTargetContext(text) : null;
+  const targetContext = documentEngine === "knitr" || documentEngine === "jupyter" ? cellTargetContextOfLines(text, sourceLines) : null;
   // ⚠ An id that the text spells as an ANCHOR somewhere else — `{#tbl-x}` in a `cat()` string, `#tbl-x` in an attribute list that may be
   // split over lines, a raw `id=tbl-x` — is defined at run time from there even when the cell that carries the same label defines
   // nothing (hunt2 f20-f23, f43; hunt3 anchor-ids e10-e19, rendered). A link TO an id (`(#tbl-x)`) or a reference (`@tbl-x`) is no
@@ -553,10 +554,35 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
   let runTimeChannel: boolean | null = null;
   const canWriteAtRunTime = (): boolean => {
     if (runTimeChannel === null) {
-      const context = targetContext ?? cellTargetContext(text);
+      const context = targetContext ?? cellTargetContextOfLines(text, sourceLines);
       runTimeChannel = context.codeFromElsewhere || context.unseenCode || context.markdownLines.length > 0;
     }
     return runTimeChannel;
+  };
+  // The option lines of a cell that is read AS IT STANDS (a fence with no indent, or a cell with no code to strip) are the scan's own: `findCellOptionLines(text)` is `findAllCells(text)` flat-mapped through
+  // `cellOptionLinesOf`, built once on the cache entry (Session 343) and shared with the YAML provider's `completionContextAt`, which asks for it on every request. Grouped by the cell's opener line, which is unique
+  // to a cell. Built on the first such cell, so a document with no cell asks for nothing. A cell read through a STRIPPED copy (an indented fence) is a different cell to the reader and goes through it below.
+  // ⚠ The scan's list reads EVERY cell as it stands, the indented ones and the handler cells the loop skips included, which the loop below never does. If the reader throws on one of those (it answered
+  // nothing for a document once, Session 338) the list is not built and the cell goes through its own read, as it always did: the same error, from the same cell, or none. `undefined`: the list could not be built.
+  let optionLinesByCell: Map<number, CellOptionLine[]> | undefined | null = null;
+  const scanOptionLinesOf = (cell: Cell): readonly CellOptionLine[] => {
+    if (optionLinesByCell === null) {
+      try {
+        const grouped = new Map<number, CellOptionLine[]>();
+        for (const option of findCellOptionLines(text)) {
+          const own = grouped.get(option.cellStartLine);
+          if (own === undefined) {
+            grouped.set(option.cellStartLine, [option]);
+          } else {
+            own.push(option);
+          }
+        }
+        optionLinesByCell = grouped;
+      } catch {
+        optionLinesByCell = undefined;
+      }
+    }
+    return optionLinesByCell === undefined ? cellOptionLinesOf(cell) : (optionLinesByCell.get(cell.startLine) ?? []);
   };
   for (const cell of findAllCells(text)) {
     const indent = /^[ \t]*/.exec(sourceLines[cell.startLine])?.[0] ?? "";
@@ -572,7 +598,9 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
     // or a Jupyter document is read here, each by its own reader, and a wrong "makes none" loses a real label, so both
     // answer true only for what was rendered. The two readers decline every cell language but their own measured ones
     // (r, R and python for knitr; `python`, spelled so, for Jupyter), which leaves the handler cells alone.
-    const bodyLines = readable.code.length === 0 ? [] : readable.code.split("\n");
+    // Split on first use (Session 345): only the two readers below read the body, and only for a label on a cell of a knitr or Jupyter document.
+    let bodyLinesOfCell: string[] | null = null;
+    const bodyLines = (): string[] => (bodyLinesOfCell ??= readable.code.length === 0 ? [] : readable.code.split("\n"));
     // ⚠ The scanner closes a cell at a ``` of any indent, and quarto only at one at the OPENER'S OWN indent, so a stray
     // fence inside a cell hands the rules a body that stops early: it looks empty and its label is removed (hunt
     // struct-trap e01-e08, e43, rendered: defined). A cell is judged only when its closer is a bare fence at the
@@ -582,11 +610,12 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
     // ⚠ A removal must never break the index: a header string of several megabytes overflows the stack of the option reader's
     // regular expression (hunt3 robust-perf f26), and a reader that cannot finish has read nothing, so nothing is removed.
     const readsNoTarget = (kind: "fig" | "tbl"): boolean => {
+      const body = bodyLines();
       try {
         const context = cellTargetContextFor(targetContext as CellTargetContext, cell.startLine, cell.endLine);
         return documentEngine === "knitr"
-          ? knitrCellMakesNoTarget(sourceLines[cell.startLine], bodyLines, kind, context)
-          : cell.lang === "python" && jupyterCellMakesNoTarget(bodyLines, context);
+          ? knitrCellMakesNoTarget(sourceLines[cell.startLine], body, kind, context)
+          : cell.lang === "python" && jupyterCellMakesNoTarget(body, context);
       } catch (error) {
         if (error instanceof RangeError) {
           return false;
@@ -602,7 +631,7 @@ export function indexLabels(text: string, documentEngine?: DocumentEngine | "amb
     // Whether the option block names the cell's label ITSELF, or may (see the header read below).
     let pipeNamesLabel = false;
     let firstOptionLine = true;
-    for (const option of cellOptionLinesOf(readable)) {
+    for (const option of readable === cell ? scanOptionLinesOf(cell) : cellOptionLinesOf(readable)) {
       const { keySlot, valueSlot } = option;
       if (keySlot === null) {
         continue;

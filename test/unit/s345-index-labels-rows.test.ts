@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { indexLabels } from "../../src/core/refs";
+import { indexLabels as oldIndexLabels } from "./support/s345-old-refs";
 import { attributeBlockReader, cellOptionLinesOf, cellTargetContext, findAllCells, findCellOptionLines, plainFrontMatter } from "../../src/core/qmd/model";
 
 // Session 345 -- part P2 of the BACKLOG item SIB-01 ("the first completion request after an edit pays a cold whole-document scan"): `indexLabels` stops re-deriving what it already holds.
@@ -13,7 +14,7 @@ import { attributeBlockReader, cellOptionLinesOf, cellTargetContext, findAllCell
 // calls `refs.ts` makes of the model's `cellOptionLinesOf` are written down by a wrapper that calls through (the pattern of `s342-builder-engine-rows.test.ts`: the model's OWN calls, `findCellOptionLines` reading its cells, are
 // inside its module and not seen). Measured at the parent `acbc51f` on a 60-cell document (cells counted below): knitr / jupyter 4 splits a call, 1 of them `attributeBlockReader`'s; every other engine 2, and 4 when a `sec-` cell
 // label asks `canWriteAtRunTime` (which builds the whole context for itself). `cellTargetContext(text)` 2, `plainFrontMatter(text)` 1. 60 + 6 `cellOptionLinesOf` calls, one for each cell.
-const asked = vi.hoisted(() => ({ on: false, optionLines: 0, optionLineCalls: 0 }));
+const asked = vi.hoisted(() => ({ on: false, optionLines: 0, optionLineCalls: 0, failMemo: false }));
 vi.mock("../../src/core/qmd/model", async (importOriginal) => {
   const real = await importOriginal<typeof import("../../src/core/qmd/model")>();
   return {
@@ -24,6 +25,7 @@ vi.mock("../../src/core/qmd/model", async (importOriginal) => {
     },
     findCellOptionLines: (...args: Parameters<typeof real.findCellOptionLines>) => {
       if (asked.on) asked.optionLineCalls++;
+      if (asked.failMemo) throw new RangeError("the scan's list could not be built");
       return real.findCellOptionLines(...args);
     },
   };
@@ -237,6 +239,24 @@ describe("Session 345 -- indexLabels reads the option lines of a column-0 cell f
     warm(text);
     const made = askedOf(() => void indexLabels(text, "knitr"));
     expect(made.cellOptionLinesOf).toBe(20);
+  });
+
+  it("when the scan's list cannot be built (the reader threw on a cell the loop would not have read as it stands) every cell goes through its own read, and the answer is the old one", () => {
+    const { text } = documentOf(30, 10);
+    for (const engine of [undefined, "knitr", "jupyter", "markdown"] as const) {
+      warm(text);
+      asked.failMemo = true;
+      let labels: unknown = null;
+      let made: ReturnType<typeof askedOf>;
+      try {
+        made = askedOf(() => void (labels = indexLabels(text, engine)));
+      } finally {
+        asked.failMemo = false;
+      }
+      expect(labels).toEqual(oldIndexLabels(text, engine));
+      expect(made.findCellOptionLines).toBe(1); // asked once, failed, and not asked again
+      expect(made.cellOptionLinesOf).toBe(30); // every cell by its own read, as at the parent
+    }
   });
 
   it("the same for every engine", () => {
