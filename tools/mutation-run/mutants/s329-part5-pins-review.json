@@ -3,7 +3,7 @@
   "name": "R01 findNestedFrontMatterValueLines: the front matter is read again for every line",
   "file": "src/core/yaml-frontmatter-nested-values.ts",
   "from": "    const lineText = contentLines[i];",
-  "to": "    const lineText = (frontMatterContentLines(text) as string[])[i];",
+  "to": "    const lineText = (readFrontMatter(\"---\\n\" + contentLines.join(\"\\n\") + \"\\n---\") as FrontMatterBlock).content[i];",
   "expect": "killed",
   "why": "a re-read of the whole front matter per line: answers identical, cost lines x text; clock only"
  },
