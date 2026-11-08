@@ -239,6 +239,8 @@ describe("Session 345 -- indexLabels answers exactly as the old spelling did", (
     // that the loop read a handful of real files and that two of them define a label at all (a fixture-free tree would red here, which is the news).
     expect(documents.length).toBeGreaterThanOrEqual(TRACKED_FLOOR);
     expect(tally.withLabels).toBeGreaterThanOrEqual(2);
+    // the listing is the real one: documents by their path from the root, none over the limit (the methodology archives are megabytes)
+    expect(documents.every(([path, text]) => /\.(qmd|md|Rmd)$/.test(path) && text.length <= TRACKED_MAX_CHARACTERS)).toBe(true);
   });
 });
 
@@ -291,13 +293,6 @@ describe("Session 345 -- the tracked documents: only the ones an author wrote, a
   it("a tree without git, or a machine without the git program, fails the row that asks, and the message says why", () => {
     expect(() => trackedPaths(["*.md"], root, { ...process.env, GIT_DIR: join(root, "no-git-here") })).toThrow(/tracked-documents rows need a git checkout/);
     expect(() => trackedPaths(["*.md"], root, { ...process.env, PATH: "" })).toThrow(/tracked-documents rows need a git checkout/);
-  });
-
-  it("the real listing: documents from the repository's root, none over the limit", () => {
-    const documents = trackedDocuments();
-    expect(documents.length).toBeGreaterThanOrEqual(TRACKED_FLOOR);
-    expect(documents.every(([, text]) => text.length <= TRACKED_MAX_CHARACTERS)).toBe(true);
-    expect(documents.every(([path]) => /\.(qmd|md|Rmd)$/.test(path))).toBe(true);
   });
 });
 
