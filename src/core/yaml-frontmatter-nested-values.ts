@@ -33,7 +33,7 @@
  * (plan §3.3 footgun, §11 dragon 2).
  */
 
-import { findFrontMatter, frontMatterContentLines, nodePropertyEnd, scanFlow, trimEndBlanks } from "./qmd/model";
+import { type FrontMatterBlock, nodePropertyEnd, readFrontMatter, scanFlow, trimEndBlanks } from "./qmd/model";
 import {
   indexLineIndents,
   type LineIndentIndex,
@@ -74,22 +74,26 @@ export interface NestedFrontMatterValueLine {
 export function findNestedFrontMatterValueLines(
   text: string,
 ): NestedFrontMatterValueLine[] {
-  const fm = findFrontMatter(text);
-  if (fm === null) {
+  return nestedValueLinesIn(readFrontMatter(text));
+}
+
+/**
+ * `findNestedFrontMatterValueLines` over a front matter the caller has already read (Session 345): the span and the interior come from ONE `readFrontMatter`, so a caller that needs
+ * them for more than this (`resolveDocumentEngine` reads the interior, the top-level enumerator and this from one block) reads the document's front matter once, not once for each.
+ */
+export function nestedValueLinesIn(block: FrontMatterBlock | null): NestedFrontMatterValueLine[] {
+  if (block === null) {
     return [];
   }
-  const contentLines = frontMatterContentLines(text);
-  if (contentLines === null) {
-    return []; // defensive — unreachable when `fm` is non-null
-  }
+  const contentLines = block.content;
   // `contentLines[i]` is the interior line at absolute document line
-  // `fm.startLine + 1 + i` (the fences are excluded from both). Passing
+  // `block.startLine + 1 + i` (the fences are excluded from both). Passing
   // `contentLines` (not the whole document) to `nestedParentPath` is correct: the
   // walk only climbs UPWARD to a column-0 container and returns the container path,
   // never a line number — and every container (`execute:` / `format:` / `<fmt>:`)
   // lives inside this block, so the front-matter-bounded array finds the same
   // ancestors the absolute-line completion path would (Learning #14 — one scanner).
-  const baseLine = fm.startLine + 1;
+  const baseLine = block.startLine + 1;
   // The ancestor walk asks for the nearest shallower line of EVERY nested line, and scanning upward past every sibling for each one made n
   // sibling keys cost time proportional to n squared (8,000 keys took 1.5 s; Session 314). The index that answers it is built ONCE, the first time
   // a nested line needs a container: a front matter of column-0 keys never asks, and building it there was a 24 to 27 percent slowdown.

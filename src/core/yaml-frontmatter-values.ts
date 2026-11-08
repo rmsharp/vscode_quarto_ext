@@ -18,7 +18,7 @@
  * line, and a no-colon line are all skipped: they have no scalar value to check.
  */
 
-import { findFrontMatter, frontMatterContentLines, nodePropertyEnd, scanFlow, trimEndBlanks } from "./qmd/model";
+import { type FrontMatterBlock, nodePropertyEnd, readFrontMatter, scanFlow, trimEndBlanks } from "./qmd/model";
 import {
   leadingWsLen,
   mappingColonAt,
@@ -100,17 +100,21 @@ export function findFrontMatterValueLines(text: string): FrontMatterValueLine[] 
  * a block-opener has no scalar to validate — which is why that stays the default export.
  */
 export function findFrontMatterTopLevelLines(text: string): FrontMatterTopLevelLine[] {
-  const fm = findFrontMatter(text);
-  if (fm === null) {
+  return topLevelLinesIn(readFrontMatter(text));
+}
+
+/**
+ * `findFrontMatterTopLevelLines` over a front matter the caller has already read (Session 345): the span and the interior come from ONE `readFrontMatter`, so a caller that needs
+ * them for more than this (`resolveDocumentEngine` reads the interior, this and the nested enumerator from one block) reads the document's front matter once, not once for each.
+ */
+export function topLevelLinesIn(block: FrontMatterBlock | null): FrontMatterTopLevelLine[] {
+  if (block === null) {
     return [];
   }
-  const contentLines = frontMatterContentLines(text);
-  if (contentLines === null) {
-    return []; // defensive — unreachable when `fm` is non-null
-  }
+  const contentLines = block.content;
   // `contentLines[i]` is the interior line at absolute document line
-  // `fm.startLine + 1 + i` (the fences are excluded from both).
-  const baseLine = fm.startLine + 1;
+  // `block.startLine + 1 + i` (the fences are excluded from both).
+  const baseLine = block.startLine + 1;
   const result: FrontMatterTopLevelLine[] = [];
   // State of an unclosed multi-line value that spans following lines. While inside one, a
   // column-0 continuation line is NOT a new top-level mapping and must be skipped — else a

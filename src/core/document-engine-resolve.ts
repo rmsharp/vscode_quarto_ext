@@ -52,11 +52,19 @@
  * before looking at the front matter) and the language fallback's full-text scan is **8%**.
  * Small in absolute terms, but completion is NOT debounced the way diagnostics are, so its
  * caller invokes this lazily — only once the cursor is known to be on a cell-option line.
+ *
+ * **Session 345 took the three re-splits out** (and with them the scan the front matter used to be
+ * read from): the front matter is read ONCE by `readFrontMatter`, from the text, cutting out only
+ * the lines the block reaches, and the three arguments are views of that one block. On the
+ * 2,000-cell / 56,005-line document that is the 3.9 ms the three splits cost (15.5 ms at 8,000) and,
+ * for a text that begins with whitespace, the 40 ms (180 ms) of a cold scan of `text.trimStart()`,
+ * a string the cache of scans had never seen. What it does NOT do any more is leave a scan of
+ * `text` behind in that cache: the first reader of the document's cells or headings pays for it.
  */
 import { documentEngineForScoping, type DocumentEngine } from "./document-engine";
-import { frontMatterContentLines } from "./qmd/model";
-import { findFrontMatterTopLevelLines } from "./yaml-frontmatter-values";
-import { findNestedFrontMatterValueLines } from "./yaml-frontmatter-nested-values";
+import { readFrontMatter } from "./qmd/model";
+import { topLevelLinesIn } from "./yaml-frontmatter-values";
+import { nestedValueLinesIn } from "./yaml-frontmatter-nested-values";
 
 /**
  * The engine quarto would scope this document's cell options to — `"ambiguous"` when its
@@ -93,11 +101,15 @@ export function resolveDocumentEngine(
   text: string,
 ): DocumentEngine | "ambiguous" | undefined {
   const engineText = text.trimStart();
+  // The front matter of `engineText` is READ ONCE (Session 345) and the three arguments derived from it are views of that one block: still everything from the ONE `text`, so no array can
+  // be paired with the text of another snapshot. The block is read from the text itself, with neither a scan (a text that begins with whitespace made `engineText` another string, and
+  // the cache of scans is keyed on the string: one more cold scan of the whole document) nor a split of the document into lines (three of them, one for each reader).
+  const block = readFrontMatter(engineText);
   return documentEngineForScoping(
     fileName,
-    findFrontMatterTopLevelLines(engineText),
-    findNestedFrontMatterValueLines(engineText),
-    frontMatterContentLines(engineText),
+    topLevelLinesIn(block),
+    nestedValueLinesIn(block),
+    block === null ? null : block.content,
     engineText,
   );
 }

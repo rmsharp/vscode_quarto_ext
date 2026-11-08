@@ -4020,26 +4020,58 @@ function nextContentLine(content: readonly string[], from: number): string | nul
  * The measured residual at line 0 is filed in `BACKLOG.md`, with its completion cost.
  */
 function frontMatterOpenIndex(lines: readonly string[]): number | null {
+  return frontMatterOpenAt((k) => lines[k]);
+}
+/**
+ * `frontMatterOpenIndex` over lines read on demand (Session 345): the same predicate, asked of a `LineAt`, so that it can be asked of a text without splitting it (`linesOf`) as well as of
+ * the array `computeRegions` has split. It reads the leading run of blank lines, the opener and the line under it, and, for an opener below a blank run, down to its terminator.
+ */
+function frontMatterOpenAt(at: LineAt): number | null {
   let i = 0;
-  while (i < lines.length && lines[i].trim() === "") {
+  let line = at(0);
+  while (line !== undefined && line.trim() === "") {
     i++;
+    line = at(i);
   }
-  if (i >= lines.length || !FRONTMATTER_OPEN.test(lines[i])) {
+  if (line === undefined || !FRONTMATTER_OPEN.test(line)) {
     return null;
   }
   if (i === 0) {
     return 0;
   }
   // Below here the opener sits after a run of blank lines, so pandoc's rules apply.
-  if (i + 1 >= lines.length || lines[i + 1].trim() === "") {
+  const under = at(i + 1);
+  if (under === undefined || under.trim() === "") {
     return null;
   }
-  for (let j = i + 1; j < lines.length; j++) {
-    if (FRONTMATTER_CLOSE.test(lines[j])) {
+  for (let j = i + 1; ; j++) {
+    const below = at(j);
+    if (below === undefined) {
+      return null;
+    }
+    if (FRONTMATTER_CLOSE.test(below)) {
       return i;
     }
   }
-  return null;
+}
+/**
+ * The span of the leading front matter of a document read through `at`, or `null` when it opens none (Session 345). **The single reading of where front matter is:** `computeRegions` builds
+ * its `frontMatter` and skips the block's lines from this, and `findFrontMatter`, `inFrontMatter`, `frontMatterContentLines` and `readFrontMatter` ask it of the text without a scan, so
+ * the region views and the readers cannot disagree about it (Learning #14). `endLine` is the first terminator below the opener, or the document's last line when there is none.
+ */
+function frontMatterSpanAt(at: LineAt): FrontMatterSpan | null {
+  const startLine = frontMatterOpenAt(at);
+  if (startLine === null) {
+    return null;
+  }
+  let j = startLine + 1;
+  for (let line = at(j); line !== undefined; line = at(++j)) {
+    if (FRONTMATTER_CLOSE.test(line)) {
+      return { startLine, endLine: j, terminated: true };
+    }
+  }
+  // `j` is where the lines ran out: the number of lines.
+  return { startLine, endLine: j - 1, terminated: false };
 }
 /**
  * The front matter's own CONTENT lines — everything between the opening `---` and its
@@ -10342,9 +10374,12 @@ export interface CellOptionLine {
 }
 
 /**
- * The leading YAML front-matter block, captured in the single scan so every
- * consumer (the region views AND `findFrontMatter`/`inFrontMatter`) agrees on
- * its bounds — there is no second front-matter scanner (Learning #14). `endLine`
+ * The leading YAML front-matter block, read by the ONE function `frontMatterSpanAt`, which the
+ * scan (`computeRegions`) calls on its split lines and `findFrontMatter`/`inFrontMatter`/
+ * `readFrontMatter` call on the text itself, so every consumer (the region views AND the
+ * readers) agrees on its bounds — there is no second front-matter scanner (Learning #14;
+ * until Session 345 the readers asked the scan, which a text of a different string, such as
+ * `trimStart()`ed, paid in full). `endLine`
  * is the closing terminator line for a terminated block, or the document's last
  * line when the block is unterminated; `terminated` distinguishes the two so the
  * `inFrontMatter` predicate can decide whether the last line is content.
@@ -10516,8 +10551,9 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
   // so they may not open a region themselves — see `consumedCloserLine` (Session 224).
   const consumedFenceClosers = new Set<number>();
   const consumedCloserLine = makeConsumedCloserLine(lines);
-  let frontMatter: FrontMatterSpan | null = null;
-  let inFrontmatter = false;
+  // ⚠ The span of the leading front matter, read ONCE by the one reading of where it is (`frontMatterSpanAt`, Session 345): the loop below skips exactly its lines and `findFrontMatter` /
+  // `inFrontMatter` / `frontMatterContentLines` ask the same function of the text without a scan, so none of them can disagree with the Regions about it (Learning #14).
+  const frontMatter: FrontMatterSpan | null = frontMatterSpanAt((k) => lines[k]);
   let inComment = false;
   let open: OpenCellFence | null = null;
   // The line at which a CommonMark fence was ended by its list item ending (Session 296): that line closes the containers deeper than itself even where the line
@@ -10653,7 +10689,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
   // predicate `frontMatterContent` asks (Session 210), so the region view and the `from:`
   // resolvers cannot disagree about which lines are front matter. Hoisted out of the loop
   // because it is a property of the whole document, not of the line being scanned.
-  const frontMatterOpensAt = frontMatterOpenIndex(lines);
+  const frontMatterOpensAt = frontMatter === null ? null : frontMatter.startLine;
   // A front-matter `from:` disables the paragraph rule for the whole document — see
   // `frontMatterSelectsReader`. Without this the change DELETES headings quarto renders.
   // ⚠ Resolved ONCE from the whole front-matter block (Session 207), because whether a `from:`
@@ -11062,6 +11098,9 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
 
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i];
+    // Whether this line lies inside the front matter, below its opener: up to and including the terminator, or to the end of an unterminated block (Session 345; until then a flag the loop set at
+    // the opener and cleared at the first terminator it met, which is the same lines).
+    const inFrontmatter: boolean = frontMatter !== null && i > frontMatter.startLine && i <= frontMatter.endLine;
     // How many raw-content elements are open ABOVE this line, kept per line so the stacked-block question can ask it of any line above (Session 298).
     boundaries.rawDepthBefore[i] = rawContentDepth;
     boundaries.divDepthBefore[i] = nativeDivDepth;
@@ -11369,15 +11408,12 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
     const listItemAboveHeader = listItemOpensAtPrevLine;
     listItemOpensAtPrevLine = false;
 
-    // YAML front matter. Record the span as it opens (provisionally unterminated, ending at
-    // EOF) and refine `endLine`/`terminated` when the terminator is seen.
+    // YAML front matter: the opener and every line below it up to the terminator are skipped. The span itself (`frontMatter`) was read before the loop.
     // ⚠ The opener is no longer "line 0" but whatever `frontMatterOpenIndex` measured — a
     // leading run of blank or whitespace-only lines does not hide the block from quarto
     // (Session 210). `startLine` is that line rather than a hard 0, so the span the outline,
     // the citation reader and the completion gate all read stays exact.
     if (i === frontMatterOpensAt) {
-      inFrontmatter = true;
-      frontMatter = { startLine: i, endLine: lines.length - 1, terminated: false };
       continue;
     }
     if (inFrontmatter) {
@@ -11385,14 +11421,6 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
       // once from the whole block above. A YAML value need not sit on its key's line (Session
       // 206), and whether a key selects the reader at all is a question about its PATH, which
       // no single line carries (Session 207).
-      if (FRONTMATTER_CLOSE.test(line)) {
-        inFrontmatter = false;
-        // ⚠ `startLine` is the measured opener, NOT a hard 0 — this branch REBUILDS the span
-        // rather than refining it, so a literal here silently discards the opener the branch
-        // above recorded and reports a block that starts on a line the document does not open
-        // one on (Session 210; caught by `front-matter.test.ts`'s span assertion).
-        frontMatter = { startLine: frontMatterOpensAt ?? 0, endLine: i, terminated: true };
-      }
       continue;
     }
 
@@ -13453,8 +13481,9 @@ export function findHeadings(text: string, engine: EngineHint = undefined, mode:
  * The leading YAML front-matter block's line span — `{ startLine, endLine }`,
  * both 0-based and inclusive of the `---` fence lines — or `null` if the document
  * has no front matter. `endLine` is the closing `---`/`...` terminator line, or
- * the document's last line if the block is unterminated. A view over the single
- * `scanRegions` pass, so it cannot disagree with the heading/cell/body views on
+ * the document's last line if the block is unterminated. Read by `frontMatterSpanAt`, the
+ * very function the `scanRegions` pass builds its span from (Session 345: without a scan), so it
+ * cannot disagree with the heading/cell/body views on
  * what counts as front matter (Learning #14). The YAML completion provider uses
  * `inFrontMatter` (below) to gate front-matter key suggestions; this raw span is
  * exposed for consumers that need the bounds themselves.
@@ -13462,7 +13491,8 @@ export function findHeadings(text: string, engine: EngineHint = undefined, mode:
 export function findFrontMatter(
   text: string,
 ): { startLine: number; endLine: number } | null {
-  const fm = scanRegions(text).frontMatter;
+  // Read from the text itself, with no scan (Session 345): `frontMatterSpanAt` is the very reading `computeRegions` builds its `frontMatter` from, so the answer is the scan's, byte for byte.
+  const fm = frontMatterSpanAt(linesOf(text));
   return fm === null ? null : { startLine: fm.startLine, endLine: fm.endLine };
 }
 
@@ -13474,7 +13504,7 @@ export function findFrontMatter(
  * plan §4.3), so it deliberately excludes the fence lines, where no key is typed.
  */
 export function inFrontMatter(text: string, line: number): boolean {
-  const fm = scanRegions(text).frontMatter;
+  const fm = frontMatterSpanAt(linesOf(text));
   if (fm === null || line <= fm.startLine) {
     return false;
   }
@@ -13489,23 +13519,45 @@ export function inFrontMatter(text: string, line: number): boolean {
  * single front-matter scanner (Learning #14), not a second `---` parser.
  */
 export function frontMatterContentLines(text: string): string[] | null {
-  const fm = scanRegions(text).frontMatter;
-  if (fm === null) {
+  const block = readFrontMatter(text);
+  return block === null ? null : block.content;
+}
+
+/** A document's leading front matter, read once: where it is and its interior lines. */
+export interface FrontMatterBlock {
+  /** 0-based line of the opening fence. */
+  startLine: number;
+  /** 0-based line of the terminator, or of the document's last line when the block is unterminated. */
+  endLine: number;
+  /** Whether a terminator closes the block; an unterminated block's last line is content. */
+  terminated: boolean;
+  /** The lines strictly between the fences (down to and including the last line of an unterminated block); a fresh array. */
+  content: string[];
+}
+
+/**
+ * The leading front matter of `text` — its span and its interior lines — read ONCE (Session 345), or `null` when the document opens none. It needs neither a scan nor a split of the
+ * document: the text is cut into lines (`linesOf`) only as far as the block reaches, so a five-line block in a 56,005-line document is five searches (the parent split the WHOLE document
+ * to slice a handful of lines out, three times in every `resolveDocumentEngine` call: 3.9 ms at 2,000 cells of 25 lines, 15.5 at 8,000; and for a text that begins with whitespace it
+ * scanned the trimmed text once more). `frontMatterContentLines`, `findFrontMatter` and `inFrontMatter` are views of this and of `frontMatterSpanAt`; the readers that need the span AND the
+ * interior (the two front-matter enumerators and `resolveDocumentEngine`) take this block, so the three reads of one resolver call are one.
+ */
+export function readFrontMatter(text: string): FrontMatterBlock | null {
+  const at = linesOf(text);
+  const span = frontMatterSpanAt(at);
+  if (span === null) {
     return null;
   }
-  // Only the lines that are returned are cut out of the text (Session 345): the parent split the WHOLE document into lines to slice a handful out of the result, three times in every
-  // `resolveDocumentEngine` call (3.9 ms at 2,000 cells of 25 lines, 15.5 at 8,000).
-  const at = linesOf(text);
-  const end = fm.terminated ? fm.endLine : fm.endLine + 1;
+  const end = span.terminated ? span.endLine : span.endLine + 1;
   const content: string[] = [];
-  for (let k = fm.startLine + 1; k < end; k++) {
+  for (let k = span.startLine + 1; k < end; k++) {
     const line = at(k);
     if (line === undefined) {
       break;
     }
     content.push(line);
   }
-  return content;
+  return { startLine: span.startLine, endLine: span.endLine, terminated: span.terminated, content };
 }
 
 /** Line `k` of a document (0-based), or `undefined` past its last line. */
