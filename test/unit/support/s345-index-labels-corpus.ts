@@ -64,6 +64,8 @@ const OPTION_BLOCKS: readonly Options[] = [
   { lines: ["#| label: fig-j"], at: "col0" },
   { lines: ["#| label: fig-k"], at: "deep" },
   { lines: ["#| label: 'tbl-q'", "#| echo: false"], at: "pad" },
+  { lines: ["#|   label: fig-o", "#| echo: false"], at: "pad" },
+  { lines: ["#| # a comment", "#| echo: false"], at: "pad" },
 ];
 
 const BODIES: readonly string[][] = [
@@ -90,7 +92,7 @@ const TAILS: readonly string[] = [
 
 const PLAIN_FRONT = "---\ntitle: t\n---\n\n";
 
-/** One document per combination of an opener, an option block, a body, a closer and a tail: 11 x 12 x 7 x 3 x 6 = 16,632. */
+/** One document per combination of an opener, an option block, a body, a closer and a tail: 11 x 14 x 7 x 3 x 6 = 19,404. */
 export function* structuredDocuments(): Generator<string> {
   for (const opener of OPENERS) {
     for (const block of OPTION_BLOCKS) {

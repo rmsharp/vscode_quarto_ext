@@ -1,0 +1,274 @@
+[
+ {
+  "name": "R01 indexLabels: every cell is read through cellOptionLinesOf again (the memo unused)",
+  "file": "src/core/refs.ts",
+  "from": "readable === cell ? scanOptionLinesOf(cell) : cellOptionLinesOf(readable)",
+  "to": "cellOptionLinesOf(readable)",
+  "expect": "killed",
+  "why": "the parent's spelling: every cell is one call of cellOptionLinesOf; killed by the call-count rows (62 against 0, 6, 5)"
+ },
+ {
+  "name": "R02 indexLabels: an indented cell is read from the memo too (its unstripped lines)",
+  "file": "src/core/refs.ts",
+  "from": "readable === cell ? scanOptionLinesOf(cell) : cellOptionLinesOf(readable)",
+  "to": "scanOptionLinesOf(cell)",
+  "expect": "killed",
+  "why": "the memo holds the lines of the cell as it stands, not of the copy with the fence's indent taken off; killed by the equivalence file (indented and list-hosted fences) and the 6-indented-cells count row"
+ },
+ {
+  "name": "R03 indexLabels: the memo is used for a cell with no indent only, not for an indented cell with no code",
+  "file": "src/core/refs.ts",
+  "from": "readable === cell ? scanOptionLinesOf(cell)",
+  "to": "indent === \"\" ? scanOptionLinesOf(cell)",
+  "expect": "killed",
+  "why": "the same answer (an empty cell has no option line either way) and one more call of cellOptionLinesOf; killed by the count rows, whose document ends with an indented cell that has no code"
+ },
+ {
+  "name": "R04 indexLabels: the memo is grouped under a wrong key on lookup (the option line, not the cell's opener)",
+  "file": "src/core/refs.ts",
+  "from": "const own = grouped.get(option.cellStartLine);",
+  "to": "const own = grouped.get(option.line);",
+  "expect": "killed",
+  "why": "no option line is ever added to a group already there, so each cell keeps its LAST option line only; killed by the equivalence file (a cell whose label is not its last option line)"
+ },
+ {
+  "name": "R05 indexLabels: the memo is grouped under the option line, not the cell's opener",
+  "file": "src/core/refs.ts",
+  "from": "grouped.set(option.cellStartLine, [option]);",
+  "to": "grouped.set(option.line, [option]);",
+  "expect": "killed",
+  "why": "the lookup by the cell's opener finds nothing, so no cell has an option line and no cell label is indexed; killed by the equivalence file and the count rows"
+ },
+ {
+  "name": "R06 indexLabels: the option lines of a cell are kept in reverse order",
+  "file": "src/core/refs.ts",
+  "from": "own.push(option);",
+  "to": "own.unshift(option);",
+  "expect": "killed",
+  "why": "the reader folds the block from its first key (the base indent and the comment-first rule), so a block read bottom-up indexes other labels; killed by the equivalence file"
+ },
+ {
+  "name": "R07 indexLabels: a cell the memo holds nothing for is read through cellOptionLinesOf",
+  "file": "src/core/refs.ts",
+  "from": "(optionLinesByCell.get(cell.startLine) ?? [])",
+  "to": "(optionLinesByCell.get(cell.startLine) ?? cellOptionLinesOf(cell))",
+  "expect": "killed",
+  "why": "the same answer (a cell with no entry has no option line) and one call of cellOptionLinesOf per such cell; killed by the count rows, whose document holds a column-0 cell with code and no option line"
+ },
+ {
+  "name": "R08 indexLabels: a memo that could not be built is an empty memo",
+  "file": "src/core/refs.ts",
+  "from": "catch {\n        optionLinesByCell = undefined;\n      }",
+  "to": "catch {\n        optionLinesByCell = new Map();\n      }",
+  "expect": "killed",
+  "why": "when the scan's list cannot be built no cell would have an option line and no cell label is indexed; killed by the failed-memo row (the old answer, 32 reads by cellOptionLinesOf)"
+ },
+ {
+  "name": "R09 indexLabels: a memo that could not be built reads no cell at all",
+  "file": "src/core/refs.ts",
+  "from": "optionLinesByCell === undefined ? cellOptionLinesOf(cell) : (",
+  "to": "optionLinesByCell === undefined ? [] : (",
+  "expect": "killed",
+  "why": "the fall-back to the cell's own read is dropped; killed by the failed-memo row"
+ },
+ {
+  "name": "R10 indexLabels: the memo is rebuilt for every cell",
+  "file": "src/core/refs.ts",
+  "from": "if (optionLinesByCell === null) {\n      try {",
+  "to": "if (optionLinesByCell !== undefined) {\n      try {",
+  "expect": "killed",
+  "why": "the same answers, and a grouping of the whole list for every cell (a quadratic cost) with findCellOptionLines asked once per cell; killed by the 'asked at most once' count rows"
+ },
+ {
+  "name": "R11 indexLabels: a memo that could not be built rethrows",
+  "file": "src/core/refs.ts",
+  "from": "catch {\n        optionLinesByCell = undefined;\n      }",
+  "to": "catch (error) {\n        throw error;\n      }",
+  "expect": "killed",
+  "why": "the error of a cell the loop would not have read as it stands reaches the caller, where the parent answered; killed by the failed-memo row (the guard's own row, written after the cure and shown RED with this edit)"
+ },
+ {
+  "name": "R12 indexLabels: only the first option line of a cell is kept",
+  "file": "src/core/refs.ts",
+  "from": "} else {\n            own.push(option);\n          }",
+  "to": "}",
+  "expect": "killed",
+  "why": "a label on the second option line is lost; killed by the equivalence file"
+ },
+ {
+  "name": "R13 indexLabels: the memo is looked up by the cell's closing line",
+  "file": "src/core/refs.ts",
+  "from": "(optionLinesByCell.get(cell.startLine) ?? [])",
+  "to": "(optionLinesByCell.get(cell.endLine) ?? [])",
+  "expect": "killed",
+  "why": "a cell never finds its own lines; killed by the equivalence file and the count rows"
+ },
+ {
+  "name": "R14 indexLabels: the body is split from the raw cell, not from the copy with the indent taken off",
+  "file": "src/core/refs.ts",
+  "from": "(bodyLinesOfCell ??= readable.code.length === 0 ? [] : readable.code.split(\"\\n\"))",
+  "to": "(bodyLinesOfCell ??= cell.code.length === 0 ? [] : cell.code.split(\"\\n\"))",
+  "expect": "killed",
+  "why": "the knitr and Jupyter rules judge a body at the indent of the opener, as the parent's copy did; killed by the equivalence file (an indented fence with a hidden-cell option)"
+ },
+ {
+  "name": "R15 indexLabels: an empty body is one empty line, not none",
+  "file": "src/core/refs.ts",
+  "from": "readable.code.length === 0 ? [] : readable.code.split(\"\\n\"))",
+  "to": "readable.code.split(\"\\n\"))",
+  "expect": "survives",
+  "why": "equivalent for the two readers as they stand: \"\".split(\"\\n\") is [\"\"], and both knitrCellMakesNoTarget and jupyterCellMakesNoTarget read a body through knitrPipeOptions and codeLinesAfterPipe, where a lone empty line and no line are the same (every(blank) holds for both). Fuzzed against the code at 0a8dbab (Learning 915): 23 chunk headers x fig and tbl x all 64 contexts x both readers = 5,888 pairs, 0 differ, 466 answers true. The edit is kept verbatim from the parent so a reader that tells the two apart is not given a body it never saw"
+ },
+ {
+  "name": "R16 indexLabels: the context of a knitr or Jupyter document is built from a split of its own",
+  "file": "src/core/refs.ts",
+  "from": "cellTargetContextOfLines(text, sourceLines) : null;",
+  "to": "cellTargetContextOfLines(text, text.split(/\\r?\\n/)) : null;",
+  "expect": "killed",
+  "why": "the same answer and one more split of the whole text; killed by the knitr and jupyter split-count rows"
+ },
+ {
+  "name": "R17 indexLabels: the run-time channel of another engine is built from a split of its own",
+  "file": "src/core/refs.ts",
+  "from": "targetContext ?? cellTargetContextOfLines(text, sourceLines)",
+  "to": "targetContext ?? cellTargetContextOfLines(text, text.split(/\\r?\\n/))",
+  "expect": "killed",
+  "why": "the same answer and one more split; killed by the split-count rows of an engine with a sec- cell label"
+ },
+ {
+  "name": "R18 indexLabels: the context of a knitr or Jupyter document is built from no lines",
+  "file": "src/core/refs.ts",
+  "from": "cellTargetContextOfLines(text, sourceLines) : null;",
+  "to": "cellTargetContextOfLines(text, []) : null;",
+  "expect": "killed",
+  "why": "no markdown channel and a plain front matter: labels the parent removed come back; killed by the equivalence file"
+ },
+ {
+  "name": "R19 indexLabels: the run-time channel of another engine is built from no lines",
+  "file": "src/core/refs.ts",
+  "from": "targetContext ?? cellTargetContextOfLines(text, sourceLines)",
+  "to": "targetContext ?? cellTargetContextOfLines(text, [])",
+  "expect": "killed",
+  "why": "a document whose only channel is a line that writes markdown loses it, and its sec- and eq- cell labels go; killed by the equivalence file"
+ },
+ {
+  "name": "R20 indexLabels: the body the rules read is empty",
+  "file": "src/core/refs.ts",
+  "from": "const body = bodyLines();\n      try {",
+  "to": "const body: string[] = [];\n      try {",
+  "expect": "killed",
+  "why": "every chunk looks empty to the rules, and its figure label is removed; killed by the equivalence file"
+ },
+ {
+  "name": "R21 indexLabels: the body is split afresh at every ask (not kept for the cell)",
+  "file": "src/core/refs.ts",
+  "from": "(bodyLinesOfCell ??=",
+  "to": "(bodyLinesOfCell =",
+  "expect": "survives",
+  "why": "equivalent in every answer: the split is a pure function of the cell's code, so a second split of it is an equal array (the rules read it, never write it); it costs one more split of ONE cell when a cell asks twice (a label and a header label), which no count of the whole document sees"
+ },
+ {
+  "name": "M01 cellTargetContextOfLines: the markdown lines are read from a split of the text",
+  "file": "src/core/qmd/model.ts",
+  "from": "markdownLines: lines.flatMap(",
+  "to": "markdownLines: text.split(/\\r?\\n/).flatMap(",
+  "expect": "killed",
+  "why": "the same answer and a split the caller's lines make needless; killed by the 'cellTargetContextOfLines splits nothing' row and the knitr and jupyter split-count rows"
+ },
+ {
+  "name": "M02 cellTargetContextOfLines: the front matter is judged from the text (a split of its own)",
+  "file": "src/core/qmd/model.ts",
+  "from": "opaqueFrontMatter: !plainFrontMatterOfLines(lines),",
+  "to": "opaqueFrontMatter: !plainFrontMatter(text),",
+  "expect": "killed",
+  "why": "the same answer and the third split of the old spelling; killed by the 'splits nothing' row and the split-count rows"
+ },
+ {
+  "name": "M03 cellTargetContext: the lines handed over are none",
+  "file": "src/core/qmd/model.ts",
+  "from": "return cellTargetContextOfLines(text, text.split(/\\r?\\n/));",
+  "to": "return cellTargetContextOfLines(text, []);",
+  "expect": "killed",
+  "why": "no markdown line and a plain front matter for every text; killed by the equivalence files"
+ },
+ {
+  "name": "M04 plainFrontMatter: the lines handed over are none",
+  "file": "src/core/qmd/model.ts",
+  "from": "return plainFrontMatterOfLines(text.split(/\\r?\\n/));",
+  "to": "return plainFrontMatterOfLines([]);",
+  "expect": "killed",
+  "why": "an empty document is plain; killed by the front-matter product rows"
+ },
+ {
+  "name": "M05 plainFrontMatter: the text is split twice",
+  "file": "src/core/qmd/model.ts",
+  "from": "return plainFrontMatterOfLines(text.split(/\\r?\\n/));",
+  "to": "return plainFrontMatterOfLines(text.split(/\\r?\\n/)) && plainFrontMatterOfLines(text.split(/\\r?\\n/));",
+  "expect": "killed",
+  "why": "the same answer and the second split of the old spelling's shape; killed by the 'plainFrontMatter(text): one split' row"
+ },
+ {
+  "name": "M06 cellTargetContext: the text is split twice",
+  "file": "src/core/qmd/model.ts",
+  "from": "return cellTargetContextOfLines(text, text.split(/\\r?\\n/));",
+  "to": "return cellTargetContextOfLines(text, (text.split(/\\r?\\n/), text.split(/\\r?\\n/)));",
+  "expect": "killed",
+  "why": "the same answer and the second split; killed by the 'cellTargetContext(text): ONE split' row"
+ },
+ {
+  "name": "M07 cellTargetContextOfLines: the markdown lines are numbered from 1",
+  "file": "src/core/qmd/model.ts",
+  "from": "(MARKDOWN_CHANNEL.test(line) ? [n] : [])),\n    keepsHidden:",
+  "to": "(MARKDOWN_CHANNEL.test(line) ? [n + 1] : [])),\n    keepsHidden:",
+  "expect": "killed",
+  "why": "a cell's own channel line is not taken out of its context, so a Jupyter table built in its own cell is judged by a channel it wrote; killed by the equivalence files"
+ },
+ {
+  "name": "T01 rows: the split counter counts every split, whatever its receiver",
+  "file": "test/unit/s345-index-labels-rows.test.ts",
+  "from": "if (typeof this === \"string\" && this === target) count++;",
+  "to": "if (typeof this === \"string\") count++;",
+  "expect": "killed",
+  "why": "the counter would see the cells' splits and the lines' too; killed by the counter's own row (a split of another string is not counted)"
+ },
+ {
+  "name": "T02 rows: the join counter never counts",
+  "file": "test/unit/s345-index-labels-rows.test.ts",
+  "from": "if (this.length >= lineCount) count++;",
+  "to": "if (this.length >= lineCount + 1000000) count++;",
+  "expect": "killed",
+  "why": "a join of all the lines would pass every row about joins; killed by the join counter's own row"
+ },
+ {
+  "name": "T03 rows: the split counter does not put String.prototype.split back",
+  "file": "test/unit/s345-index-labels-rows.test.ts",
+  "from": "    String.prototype.split = original;\n  }\n  return count;",
+  "to": "  }\n  return count;",
+  "expect": "killed",
+  "why": "every row after would run through the wrapper; killed by the counter's own put-it-back row"
+ },
+ {
+  "name": "T04 corpus: the structured product loses its indent-2 opener",
+  "file": "test/unit/support/s345-index-labels-corpus.ts",
+  "from": "  { before: [], open: \"  ```{python}\", pad: \"  \" },\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the indented fences would fall out of the product and R02 would be seen by the list-hosted ones only; killed by the structured product's document count (19,404)"
+ },
+ {
+  "name": "T05 corpus: the structured product loses its list-hosted opener",
+  "file": "test/unit/support/s345-index-labels-corpus.ts",
+  "from": "  { before: [\"- item\", \"\"], open: \"  ```{r fig-lh}\", pad: \"  \" },\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the list-hosted fence would fall out of the product; killed by the structured product's document count (19,404)"
+ },
+ {
+  "name": "T06 equivalence: the comparison of the two answers is switched off",
+  "file": "test/unit/s345-index-labels-equivalence.test.ts",
+  "from": "    if (e !== JSON.stringify(actual)) {",
+  "to": "    if (false) {",
+  "expect": "killed",
+  "why": "every disagreement would pass unseen; killed by the harness-teeth rows (the thirteen perturbed live functions)"
+ }
+]

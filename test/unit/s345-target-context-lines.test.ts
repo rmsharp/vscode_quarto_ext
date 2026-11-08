@@ -29,7 +29,7 @@ function countSplitsOf(target: string, run: () => void): number {
 }
 
 describe("Session 345 -- cellTargetContextOfLines and plainFrontMatterOfLines answer as the old text-taking spellings did", () => {
-  it("the structured product, every 7th document (2,376), and every front-matter variant (432)", () => {
+  it("the structured product, every 7th document (2,772), and every front-matter variant (432)", () => {
     let compared = 0;
     const disagreements: string[] = [];
     let index = 0;
@@ -39,7 +39,7 @@ describe("Session 345 -- cellTargetContextOfLines and plainFrontMatterOfLines an
       if (plainFrontMatterOfLines(text.split(LINES)) !== oldPlainFrontMatter(text) && disagreements.length < 5) disagreements.push("pfm " + JSON.stringify(text).slice(0, 300));
     }
     expect(disagreements).toEqual([]);
-    expect(compared).toBe(2376 + 432);
+    expect(compared).toBe(2772 + 432);
   });
 
   it("every sequence of up to three line shapes (14,425) and 3,000 seeded documents", () => {

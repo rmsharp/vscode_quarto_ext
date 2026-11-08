@@ -22,7 +22,7 @@ import {
 // holds the old `cellTargetContext` and `plainFrontMatter` the same way, so the oracle shares NO changed line with the live code (a bug in the new `cellTargetContext` would otherwise be in both). Everything the cure
 // does not touch (the scan, the option reader, the rules that judge a cell, the attribute reader) is the live code in both, which is the point: the differential isolates the cure.
 //
-// THE DOCUMENTS (`support/s345-index-labels-corpus.ts`): the product of the slots of a one-cell document (16,632), the product of the front-matter variants and the cells that read them (432), every sequence of up to
+// THE DOCUMENTS (`support/s345-index-labels-corpus.ts`): the product of the slots of a one-cell document (19,404), the product of the front-matter variants and the cells that read them (432), every sequence of up to
 // three line shapes (14,425), 3,000 whole documents composed at random from the seed 345001 and written with a line terminator, a prefix and sometimes cut short, the same written with every terminator behind every prefix, and
 // every tracked `.qmd`, `.md` and `.Rmd` file. Each is asked of all six values of the engine (omitted, knitr, jupyter, markdown, julia, ambiguous). The ENGINE ORDER rotates from text to text, and a third of the texts have the scan's option-line
 // memo built before the live function runs (an earlier asker built it), so the memo is cold for some engines and warm for others. The floors on how many texts and labels were drawn (Learning 929) come after the rows.
@@ -161,11 +161,11 @@ describe("Session 345 -- the harness can fail: each way a live function can diff
 });
 
 describe("Session 345 -- indexLabels answers exactly as the old spelling did", () => {
-  it("every one-cell document of the structured product (11 openers x 12 option blocks x 7 bodies x 3 closers x 6 tails), all six engines", () => {
+  it("every one-cell document of the structured product (11 openers x 14 option blocks x 7 bodies x 3 closers x 6 tails), all six engines", () => {
     const tally = compareAll(structuredDocuments());
     expect(tally.disagreements).toEqual([]);
-    expect(tally.texts).toBe(16632);
-    expect(tally.compared).toBe(16632 * ENGINES.length);
+    expect(tally.texts).toBe(19404);
+    expect(tally.compared).toBe(19404 * ENGINES.length);
     expect(tally.threw).toBe(0);
     // the product draws the labels the rules decide: all five kinds, and many documents on which the engine changes the answer
     expect(Object.keys(tally.byKind).sort()).toEqual(["eq", "fig", "lst", "sec", "tbl"]);
@@ -201,9 +201,9 @@ describe("Session 345 -- indexLabels answers exactly as the old spelling did", (
   it("every terminator behind every prefix: CR, CRLF, LF, U+2028, U+2029, a form feed; a byte order mark, blank lines, spaces, a tab", () => {
     const base = [...structuredDocuments()].filter((_, i) => i % 400 === 0);
     const tally = compareAll(writtenEveryWay(base));
-    expect(base.length).toBe(42);
+    expect(base.length).toBe(49);
     expect(tally.disagreements).toEqual([]);
-    expect(tally.texts).toBe(42 * 6 * 7);
+    expect(tally.texts).toBe(49 * 6 * 7);
     expect(tally.withLabels).toBeGreaterThanOrEqual(450);
     expect(tally.engineSensitive).toBeGreaterThanOrEqual(15);
   });
