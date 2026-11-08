@@ -274,8 +274,9 @@ export const TRACKED_FLOOR = 50;
 
 /**
  * The files `paths` (relative to `root`), as `[path, text]`, in the order given, without
- *   - a file longer than `maxCharacters` (default {@link TRACKED_MAX_CHARACTERS}, counted in CHARACTERS: a file of two-byte characters is under the limit at twice its size). A file of more than four bytes to the character
- *     is over the limit whatever it holds, so it is not even read: that is what keeps a 3.9 MB archive out of the cost of a row;
+ *   - a file longer than `maxCharacters` (default {@link TRACKED_MAX_CHARACTERS}, counted in the characters of the string it reads, UTF-16 code units: a file of two-byte characters is under the limit at twice its size). No code unit
+ *     takes more than three bytes of UTF-8 (a character outside the BMP takes four for its two), so a file of more than three bytes to the limit is over it whatever it holds and is not even read: that is what keeps a 3.9 MB
+ *     archive out of the cost of a row;
  *   - a file that is listed and not there (`rm` without `git rm`, a dangling link): nothing to compare. Every other failure is thrown.
  * `read` is the reader (a row hands it one to see which files are read).
  */
@@ -287,7 +288,7 @@ export function documentsOf(root: string, paths: readonly string[], options: { m
     const file = resolve(root, path);
     let text: string;
     try {
-      if (statSync(file).size > 4 * maxCharacters) continue;
+      if (statSync(file).size > 3 * maxCharacters) continue;
       text = read(file);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;

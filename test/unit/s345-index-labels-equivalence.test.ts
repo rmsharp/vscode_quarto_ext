@@ -1,6 +1,6 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { indexLabels, type RefLabel } from "../../src/core/refs";
 import { cellTargetContext, findCellOptionLines, plainFrontMatter } from "../../src/core/qmd/model";
@@ -10,6 +10,7 @@ import {
   ENGINES,
   type Engine,
   SEED,
+  REPO_ROOT,
   TRACKED_FLOOR,
   TRACKED_MAX_CHARACTERS,
   documentsOf,
@@ -253,21 +254,29 @@ describe("Session 345 -- the tracked documents: only the ones an author wrote, a
     writeFileSync(join(root, "edge.md"), "x".repeat(300_000));
     writeFileSync(join(root, "over.md"), "x".repeat(300_001));
     writeFileSync(join(root, "wide.md"), String.fromCharCode(0xe9).repeat(150_001)); // 300,002 bytes and 150,001 characters: under the limit, whatever the bytes say
-    writeFileSync(join(root, "huge.md"), "x".repeat(1_300_000)); // more than four bytes to a character at the limit: over it whatever it holds
+    writeFileSync(join(root, "cjk.md"), String.fromCharCode(0x4e2d).repeat(300_000)); // 900,000 bytes (three to a character) and exactly 300,000 characters: the most bytes a file can hold under the limit
+    writeFileSync(join(root, "huge.md"), "x".repeat(1_300_000)); // more than three bytes to a character at the limit: over it whatever it holds
     mkdirSync(join(root, "adir"));
   });
   afterAll(() => rmSync(root, { recursive: true, force: true }));
+  it("the root is the repository's own, found from where the corpus file stands and not from the working directory", () => {
+    expect(isAbsolute(REPO_ROOT)).toBe(true);
+    expect(existsSync(join(REPO_ROOT, "package.json"))).toBe(true);
+    expect(existsSync(join(REPO_ROOT, "test", "unit", "support", "s345-index-labels-corpus.ts"))).toBe(true);
+  });
+
   const asRead = (file: string): string => {
     reads.push(file.slice(root.length + 1));
     return readFileSync(file, "utf8");
   };
 
   it("a file of more than 300,000 characters is left out, one of exactly 300,000 is kept, and the limit counts characters and not bytes", () => {
-    const kept = documentsOf(root, ["a.md", "edge.md", "over.md", "wide.md", "huge.md"]).map(([path, text]) => [path, text.length]);
+    const kept = documentsOf(root, ["a.md", "edge.md", "over.md", "wide.md", "cjk.md", "huge.md"]).map(([path, text]) => [path, text.length]);
     expect(kept).toEqual([
       ["a.md", 13],
       ["edge.md", 300_000],
       ["wide.md", 150_001],
+      ["cjk.md", 300_000],
     ]);
     expect(TRACKED_MAX_CHARACTERS).toBe(300_000);
   });

@@ -8,13 +8,21 @@ import { attributeBlockReader, cellOptionLinesOf, cellTargetContext, findAllCell
 // `indexLabels(text, engine)` is a SECOND whole-document pass after the scan, and it split the text again and again for facts it held: its own `sourceLines`, one split inside `cellTargetContext(text)` (the markdown
 // channel lines; knitr and jupyter only, or the first `sec-` / `eq-` cell label of any other engine) and ANOTHER inside the `plainFrontMatter(text)` that call makes, plus the one inside `attributeBlockReader(text)`
 // (part P1's, not this part's). It also read the option lines of EVERY cell through `cellOptionLinesOf`, though the scan's cache entry keeps exactly those lines (`findCellOptionLines`, the memo of Session 343) for a cell whose
-// fence has no indent. The old spelling of the whole function is kept as the oracle (`support/s345-old-refs.ts`) and `s345-index-labels-equivalence.test.ts` compares it with the live one; THIS file counts.
+// fence has no indent, and it split the body of EVERY cell, for rules that read the body of a few. The old spelling of the whole function is kept as the oracle (`support/s345-old-refs.ts`) and `s345-index-labels-equivalence.test.ts`
+// compares it with the live one; THIS file counts.
 //
-// THE COUNTS, not the clock: a split of the document's own text is counted by the receiver (`countSplitsOf`, the pattern of `s343-completion-context-rows.test.ts`: a split of a slice, a line or any other string is not seen), and the
-// calls `refs.ts` makes of the model's `cellOptionLinesOf` are written down by a wrapper that calls through (the pattern of `s342-builder-engine-rows.test.ts`: the model's OWN calls, `findCellOptionLines` reading its cells, are
-// inside its module and not seen). Measured at the parent `acbc51f` on a 60-cell document (62 cells with the two at its end), one call warm: knitr / jupyter 5 splits of the text, 2 of them `attributeBlockReader`'s (its own and
-// the one in `quartoYamlRegions`, which it hands the lines joined again); every other engine 3, and 5 when a `sec-` cell label asks `canWriteAtRunTime` (which builds the whole context for itself). `cellTargetContext(text)` 2,
-// `plainFrontMatter(text)` 1. 62 `cellOptionLinesOf` calls, one for each cell. After the cure: 3 splits (the call's own and P1's two), `cellTargetContext(text)` 1, no `cellOptionLinesOf` call for a cell read as it stands.
+// THE COUNTS, not the clock: a split of the document's own text is counted by the receiver (`countSplitsOf`, the pattern of `s343-completion-context-rows.test.ts`: a split of a slice, a line or any other string is not seen), a split of
+// a CELL'S BODY the same way (`countBodySplits`: the receiver is one of the cells' code strings), and the calls `refs.ts` makes of the model's `cellOptionLinesOf` are written down by a wrapper that calls through (the pattern of
+// `s342-builder-engine-rows.test.ts`: the model's OWN calls, `findCellOptionLines` reading its cells, are inside its module and not seen).
+//
+// MEASURED at the parent `acbc51f` on a 60-cell document (62 cells with the two at its end), one call WARM (the scan cached): knitr / jupyter 5 splits of the text, 2 of them `attributeBlockReader`'s (its own and the one in
+// `quartoYamlRegions`, which it hands the lines joined again); every other engine 3, and 5 when a `sec-` cell label asks `canWriteAtRunTime` (which builds the whole context for itself). `cellTargetContext(text)` 2,
+// `plainFrontMatter(text)` 1. 62 `cellOptionLinesOf` calls, one for each cell, and a split of the body of each of the 61 cells with code.
+// After part P2 alone the warm count was 3 (the call's own and part P1's two). With part P1 in (the tree these rows run on, `9fcf624`, the same document, load 4 to 6), a WARM call splits the text exactly ONCE, whatever the
+// engine and whatever the labels: its own `sourceLines` (`attributeBlockReader` answers from the scan's entry and splits nothing, so a bound has no term left for it), and joins no whole document's lines. A COLD call (no scan of the
+// text yet) splits it THREE times, and they are three different ones: its own, `computeRegions` (the scan) and `quartoYamlRegions` (the scan's one read of the metadata block) -- the call's one split on top of the 2 the scan costs by
+// itself, which the first ask of any view of that text pays. `cellTargetContext(text)` 1, no `cellOptionLinesOf` call for a cell read as it stands, and a body split for a cell whose figure or table label a knitr / Jupyter
+// document judges (48 of the 61 here) and for no other, once.
 const asked = vi.hoisted(() => ({ on: false, optionLines: 0, optionLineCalls: 0, failMemo: false, optionLineArgs: [] as unknown[][] }));
 vi.mock("../../src/core/qmd/model", async (importOriginal) => {
   const real = await importOriginal<typeof import("../../src/core/qmd/model")>();
@@ -53,6 +61,29 @@ function countSplitsOf(target: string, run: () => void): number {
   return count;
 }
 
+/** How many times `String.prototype.split` is called with one of `bodies` as its receiver (a cell's code, compared by value) while `run` runs. A split of the text, of a line or of a cell's stripped copy is not seen. */
+function countBodySplits(bodies: ReadonlySet<string>, run: () => void): number {
+  const original = String.prototype.split;
+  let count = 0;
+  String.prototype.split = function (this: string, ...args: unknown[]): string[] {
+    if (typeof this === "string" && bodies.has(this)) count++;
+    return (original as (...a: unknown[]) => string[]).apply(this, args);
+  } as typeof String.prototype.split;
+  try {
+    run();
+  } finally {
+    String.prototype.split = original;
+  }
+  return count;
+}
+
+/** The code of each cell of `text` that has any, the way the scan holds it: the strings `indexLabels` would split for a cell's body. */
+const bodiesOf = (text: string): ReadonlySet<string> => new Set(findAllCells(text).map((cell) => cell.code).filter((code) => code !== ""));
+
+/** `text` with a comment line at its end that no other text has: no scan of it exists, so the first ask of any view of it is COLD. The cells and the labels are the same. */
+let unreadCount = 0;
+const unread = (text: string): string => `${text}<!-- unread ${++unreadCount} -->\n`;
+
 /** How many times `Array.prototype.join` is called on an array of at least as many strings as `text` has lines (a join of ALL the document's lines, not of one cell's) while `run` runs. */
 function countWholeJoins(text: string, run: () => void): number {
   const lineCount = text.split(/\r?\n/).length;
@@ -86,9 +117,10 @@ function askedOf(run: () => void): { cellOptionLinesOf: number; findCellOptionLi
 
 /**
  * A document of `cells` python cells, each with a `label:` option and sixteen lines of code, and two more at the end (below). Every `indentedEvery`-th cell sits in a list item (an INDENTED fence), every 5th label is a
- * `sec-` label (no knitr / jupyter target, so it reaches `canWriteAtRunTime` for the engines that have no context yet) and every 4th a `tbl-` label; the rest are `fig-`. The front matter is plain.
+ * `sec-` label (no knitr / jupyter target, so it reaches `canWriteAtRunTime` for the engines that have no context yet) and every 4th a `tbl-` label; the rest are `fig-`. The front matter is plain. The cells are `{python}`
+ * unless `lang` says otherwise (any language whose option lines begin `#|`).
  */
-function documentOf(cells: number, indentedEvery: number, sec: boolean = true): { text: string; indented: number } {
+function documentOf(cells: number, indentedEvery: number, sec: boolean = true, lang: string = "python"): { text: string; indented: number } {
   const out: string[] = ["---", "title: t", "format: html", "---", ""];
   let indented = 0;
   for (let i = 0; i < cells; i++) {
@@ -100,17 +132,26 @@ function documentOf(cells: number, indentedEvery: number, sec: boolean = true): 
     } else {
       out.push(`## Section ${i}`, "", `Prose with @fig-${i} and more words here.`, "");
     }
-    out.push(`${pad}\`\`\`{python}`, `${pad}#| label: ${kind}-${i}`, `${pad}#| echo: false`);
+    out.push(`${pad}\`\`\`{${lang}}`, `${pad}#| label: ${kind}-${i}`, `${pad}#| echo: false`);
     for (let j = 0; j < 16; j++) out.push(`${pad}x${j} = ${j} + ${i}`);
     out.push(`${pad}\`\`\``, "");
   }
   // Two cells more, whatever the arguments: one at column 0 with code and NO option line, and one INDENTED with NO code at all (nothing to strip, so it is read as it stands). Both are read from the memo, which holds nothing for either.
-  out.push("```{python}", "x = 1", "```", "", "- last item", "", "  ```{python}", "  ```", "");
+  out.push(`\`\`\`{${lang}}`, "x = 1", "```", "", "- last item", "", `  \`\`\`{${lang}}`, "  ```", "");
   return { text: out.join(LF), indented };
 }
 
 /** The scan of `text` made, so that no row counts the scan's own split. */
 const warm = (text: string): void => void findAllCells(text);
+
+/**
+ * The scan made AND the scan's memo of option lines built. `findCellOptionLines(text)` splits the code of EVERY cell once, for the first asker (it is `findAllCells` flat-mapped through `cellOptionLinesOf`), so a row that
+ * counts the splits of cells' bodies starts from here, or its answer would depend on which row ran before it.
+ */
+const warmWithMemo = (text: string): void => {
+  warm(text);
+  void findCellOptionLines(text);
+};
 
 describe("Session 345 -- the counter counts a split of the text and the model calls it was built for", () => {
   const text = documentOf(3, 0).text;
@@ -130,6 +171,27 @@ describe("Session 345 -- the counter counts a split of the text and the model ca
     expect(String.prototype.split).toBe(original);
     expect(() =>
       countSplitsOf(text, () => {
+        throw new Error("boom");
+      }),
+    ).toThrow("boom");
+    expect(String.prototype.split).toBe(original);
+  });
+
+  it("the body counter counts a split of a cell's code and not a split of the text, of a line, of a slice or of a copy, and puts String.prototype.split back", () => {
+    const original = String.prototype.split;
+    const cells = findAllCells(text);
+    const bodies = bodiesOf(text);
+    expect(cells.length).toBe(5); // three cells, the one at column 0 with code and no option line, and the indented one with no code at all
+    expect(bodies.size).toBe(4); // an empty code is not a body: nothing is split for it
+    const [first] = cells;
+    expect(countBodySplits(bodies, () => void first.code.split(LF))).toBe(1);
+    expect(countBodySplits(bodies, () => void (first.code.split(LF), cells[1].code.split(LF)))).toBe(2);
+    expect(countBodySplits(bodies, () => void text.split(LF))).toBe(0);
+    expect(countBodySplits(bodies, () => void first.code.slice(1).split(LF))).toBe(0);
+    expect(countBodySplits(bodies, () => void first.code.split(LF)[0].split(" "))).toBe(1);
+    expect(countBodySplits(bodies, () => void "".split(LF))).toBe(0);
+    expect(() =>
+      countBodySplits(bodies, () => {
         throw new Error("boom");
       }),
     ).toThrow("boom");
@@ -173,51 +235,99 @@ describe("Session 345 -- the model's own text-taking functions split the text on
   });
 });
 
-describe("Session 345 -- indexLabels splits the text once of its own, whatever the engine", () => {
+describe("Session 345 -- indexLabels splits the text once of its own, whatever the engine: exactly one on a warm call, and one on top of the scan's own on a cold one", () => {
   const { text } = documentOf(60, 0);
   const { text: noSec } = documentOf(60, 0, false);
-  // The share of part P1 is whatever `attributeBlockReader(text)` splits for itself, read from that function here and not written as a number: a cure of P1 that hands it the lines changes it, and these rows stay true.
-  const p1 = (document: string): number => countSplitsOf(document, () => void attributeBlockReader(document));
 
-  it("the premise: the document holds cells of all three kinds, and the reader of part P1 is counted on the same footing", () => {
+  it("the premise: the document holds cells of all three kinds; a text no scan has read costs splits the counter SEES, a cached one costs none, and neither does the reader of part P1 on it", () => {
     expect(text).toContain("#| label: sec-0");
     expect(text).toContain("#| label: tbl-4");
     expect(text).toContain("#| label: fig-1");
-    warm(text);
-    expect(p1(text)).toBe(countSplitsOf(text, () => void attributeBlockReader(text)));
-    expect(p1(noSec)).toBeGreaterThanOrEqual(0);
+    const cold = unread(text);
+    // the first ask of a view: the scan splits the text, and joins its lines once (the metadata block), and the counters see both
+    let scanJoins = 0;
+    const scanSplits = countSplitsOf(cold, () => void (scanJoins = countWholeJoins(cold, () => void findAllCells(cold))));
+    expect(scanSplits).toBeGreaterThanOrEqual(1);
+    expect(scanJoins).toBeGreaterThanOrEqual(1);
+    // the second ask finds the entry: the scan costs nothing, so `warm` leaves a call to show its OWN splits and joins
+    expect(countSplitsOf(cold, () => void findAllCells(cold))).toBe(0);
+    expect(countWholeJoins(cold, () => void findAllCells(cold))).toBe(0);
+    for (const document of [text, noSec]) {
+      warm(document);
+      expect(countSplitsOf(document, () => void findAllCells(document))).toBe(0);
+      // part P1: the reader answers from the scan's entry, so the bounds below carry no term for it (the parent's splits twice: its own and `quartoYamlRegions`'s)
+      expect(countSplitsOf(document, () => void attributeBlockReader(document))).toBe(0);
+      expect(countWholeJoins(document, () => void attributeBlockReader(document))).toBe(0);
+    }
   });
 
   for (const engine of [undefined, "knitr", "jupyter", "markdown"] as const) {
-    it(`${String(engine)}: no join of a whole document's lines beside attributeBlockReader's (the parent's own made none)`, () => {
+    it(`${String(engine)}: no join of a whole document's lines on a warm call (the metadata block's join is the scan's, once)`, () => {
       warm(text);
-      const own = countWholeJoins(text, () => void indexLabels(text, engine));
-      expect(own).toBeLessThanOrEqual(countWholeJoins(text, () => void attributeBlockReader(text)));
+      expect(countWholeJoins(text, () => void indexLabels(text, engine))).toBe(0);
     });
   }
 
   for (const engine of ["knitr", "jupyter"] as const) {
-    it(`${engine}: at most one split of the text beside attributeBlockReader's (the parent made three more: the context's two and the reader's)`, () => {
+    it(`${engine}: exactly ONE split of the text on a warm call (the parent made five: its own, the context's two and the reader's two)`, () => {
       warm(text);
-      const splits = countSplitsOf(text, () => void indexLabels(text, engine));
-      expect(splits).toBeLessThanOrEqual(1 + p1(text));
-      expect(splits).toBeGreaterThanOrEqual(1);
+      expect(countSplitsOf(text, () => void indexLabels(text, engine))).toBe(1);
     });
   }
 
   for (const engine of [undefined, "markdown", "julia", "ambiguous"] as const) {
-    it(`${String(engine)} with a sec- cell label (canWriteAtRunTime builds a context of its own): at most one split beside attributeBlockReader's`, () => {
+    it(`${String(engine)} with a sec- cell label (canWriteAtRunTime builds a context of its own): exactly one split on a warm call (the parent made five)`, () => {
       warm(text);
-      const splits = countSplitsOf(text, () => void indexLabels(text, engine));
-      expect(splits).toBeLessThanOrEqual(1 + p1(text));
-      expect(splits).toBeGreaterThanOrEqual(1);
+      expect(countSplitsOf(text, () => void indexLabels(text, engine))).toBe(1);
     });
 
-    it(`${String(engine)} with no such label (no context at all): the same bound, true at the parent too`, () => {
+    it(`${String(engine)} with no such label (no context at all): exactly one split on a warm call (the parent made three: its own and the reader's two)`, () => {
       warm(noSec);
-      const splits = countSplitsOf(noSec, () => void indexLabels(noSec, engine));
-      expect(splits).toBeLessThanOrEqual(1 + p1(noSec));
-      expect(splits).toBeGreaterThanOrEqual(1);
+      expect(countSplitsOf(noSec, () => void indexLabels(noSec, engine))).toBe(1);
+    });
+  }
+
+  for (const engine of [undefined, "knitr", "jupyter", "markdown", "julia", "ambiguous"] as const) {
+    it(`${String(engine)}, cold: the call's one split on top of the scan's own (measured 1 + 2 = 3; the parent made eight)`, () => {
+      const scanned = unread(text);
+      const asked = unread(text);
+      const scanAlone = countSplitsOf(scanned, () => void findAllCells(scanned));
+      const whole = countSplitsOf(asked, () => void indexLabels(asked, engine));
+      expect(scanAlone).toBeGreaterThanOrEqual(1);
+      expect(whole).toBe(scanAlone + 1);
+    });
+  }
+});
+
+describe("Session 345 -- indexLabels splits the body of a cell on first use: once for each cell whose figure or table label a knitr / Jupyter document judges, and for no other", () => {
+  const { text } = documentOf(60, 0);
+  const bodies = bodiesOf(text);
+  // The labels the rules judge: the 12 `sec-` ones are dropped before the body is looked at (the document has no channel for code to write markdown), the other 48 are a figure or a table.
+  const judged = (text.match(/#\| label: (?:fig|tbl)-\d+/g) ?? []).length;
+
+  it("the premise: 61 cells have code (the 62nd is empty), 48 of the 60 labels are figures or tables", () => {
+    expect(bodies.size).toBe(61);
+    expect(judged).toBe(48);
+  });
+
+  for (const engine of [undefined, "markdown", "julia", "ambiguous"] as const) {
+    it(`${String(engine)}: no body is split at all (nothing reads one; the parent split all 61)`, () => {
+      warmWithMemo(text);
+      expect(countBodySplits(bodies, () => void indexLabels(text, engine))).toBe(0);
+    });
+  }
+
+  for (const engine of ["knitr", "jupyter"] as const) {
+    it(`${engine}: one split for each of the ${judged} cells with a figure or table label, none for the sec- ones (the parent split 61)`, () => {
+      warmWithMemo(text);
+      expect(countBodySplits(bodies, () => void indexLabels(text, engine))).toBe(judged);
+    });
+
+    it(`${engine}: a cell that asks twice (two label lines) has its body split once, and the answer is the old one`, () => {
+      const twice = ["---", "title: t", "---", "", "```{python}", "#| label: fig-a", "#| label: fig-b", "x = 1", "```", ""].join(LF);
+      warmWithMemo(twice);
+      expect(countBodySplits(bodiesOf(twice), () => void indexLabels(twice, engine))).toBe(1);
+      expect(indexLabels(twice, engine)).toEqual(oldIndexLabels(twice, engine));
     });
   }
 });
@@ -282,4 +392,22 @@ describe("Session 345 -- indexLabels reads the option lines of a column-0 cell f
       expect(askedOf(() => void indexLabels(text, engine)).cellOptionLinesOf).toBe(5);
     }
   });
+
+  // The documents above hold `{python}` cells, which is Jupyter's; a knitr document's own cells are `{r}`. The memo is the scan's list of EVERY cell whatever its language, so a rule that reads it for one language only
+  // (python) and goes through `cellOptionLinesOf` for the rest would keep every answer and lose the saving for the knitr documents.
+  for (const lang of ["r", "R", "julia"] as const) {
+    it(`{${lang}} cells: a column-0 cell is read from the memo and an indented one by cellOptionLinesOf, for every engine, and the answer is the old one`, () => {
+      const column0 = documentOf(60, 0, true, lang).text;
+      const mixed = documentOf(60, 10, true, lang);
+      expect(mixed.indented).toBe(6);
+      for (const engine of [undefined, "knitr", "jupyter", "markdown"] as const) {
+        warm(column0);
+        expect(askedOf(() => void indexLabels(column0, engine)).cellOptionLinesOf).toBe(0);
+        expect(indexLabels(column0, engine)).toEqual(oldIndexLabels(column0, engine));
+        warm(mixed.text);
+        expect(askedOf(() => void indexLabels(mixed.text, engine)).cellOptionLinesOf).toBe(6);
+        expect(indexLabels(mixed.text, engine)).toEqual(oldIndexLabels(mixed.text, engine));
+      }
+    });
+  }
 });

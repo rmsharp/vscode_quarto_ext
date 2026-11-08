@@ -242,8 +242,8 @@
  {
   "name": "T03 rows: the split counter does not put String.prototype.split back",
   "file": "test/unit/s345-index-labels-rows.test.ts",
-  "from": "    String.prototype.split = original;\n  }\n  return count;",
-  "to": "  }\n  return count;",
+  "from": "this === target) count++;\n    return (original as (...a: unknown[]) => string[]).apply(this, args);\n  } as typeof String.prototype.split;\n  try {\n    run();\n  } finally {\n    String.prototype.split = original;\n  }",
+  "to": "this === target) count++;\n    return (original as (...a: unknown[]) => string[]).apply(this, args);\n  } as typeof String.prototype.split;\n  try {\n    run();\n  } finally {\n  }",
   "expect": "killed",
   "why": "every row after would run through the wrapper; killed by the counter's own put-it-back row"
  },
@@ -302,5 +302,173 @@
   "to": "for (const option of findCellOptionLines(text, undefined, \"no-execute\")) {",
   "expect": "killed",
   "why": "the same list (the mode is read for knitr only, so the cache key is the same), asked with other arguments; killed by the 'asks for the engine-blind list' row alone, so this is a kill of that row's strictness and not of an answer"
+ },
+ {
+  "name": "R26 attributeBlockReader splits the text on every call, warm or not (a share of part P1 that the bound `1 + p1(text)` of the first rows forgave)",
+  "file": "src/core/qmd/model.ts",
+  "from": "  const scanned = regionsCache.find((entry) => entry.text === text);\n  const fromValueLine = scanned !== undefined",
+  "to": "  void text.split(/\\r?\\n/);\n  const scanned = regionsCache.find((entry) => entry.text === text);\n  const fromValueLine = scanned !== undefined",
+  "expect": "killed",
+  "why": "indexLabels asks the reader once, so a warm call splits the text twice and the reader, asked on its own, once: the first rows allowed `1 + <what the reader splits>` and passed (SURVIVED them, shown with the runner at 9fcf624); the rows now say 'exactly one', that the reader splits nothing on a cached text, and killed it with all three (the premise, and every warm bound)"
+ },
+ {
+  "name": "R27 indexLabels: the memo is read for a python cell only, every other language goes through cellOptionLinesOf",
+  "file": "src/core/refs.ts",
+  "from": "readable === cell ? scanOptionLinesOf(cell) : cellOptionLinesOf(readable)",
+  "to": "readable === cell && cell.lang === \"python\" ? scanOptionLinesOf(cell) : cellOptionLinesOf(readable)",
+  "expect": "killed",
+  "why": "every answer is the old one and the saving is gone for a knitr document's own `{r}` cells; SURVIVED the first rows (their documents held `{python}` cells only, review E-08); killed by the `{r}`, `{R}` and `{julia}` count rows"
+ },
+ {
+  "name": "R28 indexLabels: the body of every cell is split up front, as the parent did (the lazy pair replaced by one split per cell)",
+  "file": "src/core/refs.ts",
+  "from": "    let bodyLinesOfCell: string[] | null = null;\n    const bodyLines = (): string[] => (bodyLinesOfCell ??= readable.code.length === 0 ? [] : readable.code.split(\"\\n\"));",
+  "to": "    const eagerBody = readable.code.length === 0 ? [] : readable.code.split(\"\\n\");\n    const bodyLines = (): string[] => eagerBody;",
+  "expect": "killed",
+  "why": "the parent's spelling: every answer the same and 61 splits of cell bodies a call where 0 (a document whose engine reads none) or 48 (the figure and table labels a knitr / Jupyter document judges) are needed; SURVIVED the first rows and the equivalence file (review C3, E-08); killed by the body-split count rows"
+ },
+ {
+  "name": "R29 indexLabels: the memo is read for a cell that is not an r cell, an r cell goes through cellOptionLinesOf",
+  "file": "src/core/refs.ts",
+  "from": "readable === cell ? scanOptionLinesOf(cell) : cellOptionLinesOf(readable)",
+  "to": "readable === cell && cell.lang !== \"r\" ? scanOptionLinesOf(cell) : cellOptionLinesOf(readable)",
+  "expect": "killed",
+  "why": "the same answers and a call of cellOptionLinesOf for each `{r}` cell, the language of a knitr document; killed by the `{r}` count row"
+ },
+ {
+  "name": "T07 rows: the body counter counts every split, whatever its receiver",
+  "file": "test/unit/s345-index-labels-rows.test.ts",
+  "from": "if (typeof this === \"string\" && bodies.has(this)) count++;",
+  "to": "if (typeof this === \"string\") count++;",
+  "expect": "killed",
+  "why": "the counter would see the text's, the lines' and every slice's splits; killed by the body counter's own row (a split of the text or of a slice is not counted)"
+ },
+ {
+  "name": "T08 rows: the body counter does not put String.prototype.split back",
+  "file": "test/unit/s345-index-labels-rows.test.ts",
+  "from": "bodies.has(this)) count++;\n    return (original as (...a: unknown[]) => string[]).apply(this, args);\n  } as typeof String.prototype.split;\n  try {\n    run();\n  } finally {\n    String.prototype.split = original;\n  }",
+  "to": "bodies.has(this)) count++;\n    return (original as (...a: unknown[]) => string[]).apply(this, args);\n  } as typeof String.prototype.split;\n  try {\n    run();\n  } finally {\n  }",
+  "expect": "killed",
+  "why": "every row after would run through the wrapper; killed by the body counter's own put-it-back row"
+ },
+ {
+  "name": "T09 rows: two unread texts of one document are the same text (the cold rows would ask a text that is cached)",
+  "file": "test/unit/s345-index-labels-rows.test.ts",
+  "from": "`${text}<!-- unread ${++unreadCount} -->\\n`",
+  "to": "`${text}<!-- unread ${unreadCount} -->\\n`",
+  "expect": "killed",
+  "why": "the second 'unread' text is the first one, already scanned: its cold call splits once, not 1 + the scan's; killed by the cold rows (and by the premise, whose 'unread' text is cached by an earlier row's)"
+ },
+ {
+  "name": "T10 rows: warm does not scan the text",
+  "file": "test/unit/s345-index-labels-rows.test.ts",
+  "from": "const warm = (text: string): void => void findAllCells(text);",
+  "to": "const warm = (text: string): void => void text;",
+  "expect": "killed",
+  "why": "every 'warm' row would count the scan's two splits beside the call's own; killed by the premise (a cached text costs none) and by every warm bound"
+ },
+ {
+  "name": "T11 rows: warmWithMemo builds no memo",
+  "file": "test/unit/s345-index-labels-rows.test.ts",
+  "from": "  warm(text);\n  void findCellOptionLines(text);\n};",
+  "to": "  warm(text);\n};",
+  "expect": "killed",
+  "why": "the first asker of the memo pays one split of every cell's code, inside the call a body row counts: the first row of the list sees 61 and a second sees none (a row whose answer depends on the one before it); killed by the body rows (the first one run, whichever it is)"
+ },
+ {
+  "name": "C01 corpus: a file of more than three bytes to the limit is read before it is judged",
+  "file": "test/unit/support/s345-index-labels-corpus.ts",
+  "from": "      if (statSync(file).size > 3 * maxCharacters) continue;\n",
+  "to": "",
+  "expect": "killed",
+  "why": "the same documents and a read of every megabyte of the methodology archives; killed by the 'not read at all' row (the reader is handed the files it is asked for)"
+ },
+ {
+  "name": "C02 corpus: the size test counts one byte to a character",
+  "file": "test/unit/support/s345-index-labels-corpus.ts",
+  "from": "statSync(file).size > 3 * maxCharacters",
+  "to": "statSync(file).size > maxCharacters",
+  "expect": "killed",
+  "why": "a file of two-byte characters under the limit (wide.md, 300,002 bytes) is left out unread; killed by the 'characters and not bytes' row"
+ },
+ {
+  "name": "C03 corpus: the size test counts two bytes to a character",
+  "file": "test/unit/support/s345-index-labels-corpus.ts",
+  "from": "statSync(file).size > 3 * maxCharacters",
+  "to": "statSync(file).size > 2 * maxCharacters",
+  "expect": "killed",
+  "why": "a file of three-byte characters at exactly the limit (cjk.md, 900,000 bytes) is left out unread; killed by the same row"
+ },
+ {
+  "name": "C04 corpus: a file of exactly the limit is left out",
+  "file": "test/unit/support/s345-index-labels-corpus.ts",
+  "from": "if (text.length <= maxCharacters) documents.push",
+  "to": "if (text.length < maxCharacters) documents.push",
+  "expect": "killed",
+  "why": "edge.md (300,000 characters) and cjk.md go; killed by the limit row"
+ },
+ {
+  "name": "C05 corpus: a file one character over the limit is kept",
+  "file": "test/unit/support/s345-index-labels-corpus.ts",
+  "from": "if (text.length <= maxCharacters) documents.push",
+  "to": "if (text.length <= maxCharacters + 1) documents.push",
+  "expect": "killed",
+  "why": "over.md (300,001 characters) stays; killed by the limit row"
+ },
+ {
+  "name": "C06 corpus: every failure to read a file is swallowed",
+  "file": "test/unit/support/s345-index-labels-corpus.ts",
+  "from": "if ((error as NodeJS.ErrnoException).code === \"ENOENT\") continue;",
+  "to": "continue;",
+  "expect": "killed",
+  "why": "a listed directory, a file nobody may read, a full disk all leave a document out unseen; killed by the 'any other failure is the caller's' row (EISDIR)"
+ },
+ {
+  "name": "C07 corpus: a file that is listed and gone is thrown on",
+  "file": "test/unit/support/s345-index-labels-corpus.ts",
+  "from": "code === \"ENOENT\") continue;",
+  "to": "code === \"EACCES\") continue;",
+  "expect": "killed",
+  "why": "`rm` without `git rm` reds the file with ENOENT, as at 9fcf624; killed by the 'listed and gone' row"
+ },
+ {
+  "name": "C08 corpus: the limit is the same for a caller that asks for none",
+  "file": "test/unit/support/s345-index-labels-corpus.ts",
+  "from": "options.maxCharacters ?? TRACKED_MAX_CHARACTERS",
+  "to": "TRACKED_MAX_CHARACTERS",
+  "expect": "killed",
+  "why": "the reader-flags rows, which read every size, would be handed the limit; killed by the 'no limit' row"
+ },
+ {
+  "name": "C09 corpus: the message of a tree without git is git's own",
+  "file": "test/unit/support/s345-index-labels-corpus.ts",
+  "from": "the tracked-documents rows need a git checkout: ",
+  "to": "",
+  "expect": "killed",
+  "why": "the failure still fails the one row that asks, but no longer says why in the words a reader of the report looks for; killed by the row that runs git where there is none"
+ },
+ {
+  "name": "C10 corpus: the root is found from one directory higher up than the repository",
+  "file": "test/unit/support/s345-index-labels-corpus.ts",
+  "from": "import.meta.url)), \"../../..\");",
+  "to": "import.meta.url)), \"../..\");",
+  "expect": "killed",
+  "why": "git lists what is under test/ only, as paths relative to it; killed by the root row (package.json is not there)"
+ },
+ {
+  "name": "C11 corpus: a listed path is read from the working directory and not from the root",
+  "file": "test/unit/support/s345-index-labels-corpus.ts",
+  "from": "const file = resolve(root, path);",
+  "to": "const file = resolve(path);",
+  "expect": "killed",
+  "why": "every row that hands a root other than the working directory reads nothing (each file is listed and 'gone'); killed by the limit row"
+ },
+ {
+  "name": "C12 corpus: the listing is not NUL-separated",
+  "file": "test/unit/support/s345-index-labels-corpus.ts",
+  "from": "[\"ls-files\", \"-z\", \"--\", ...specs]",
+  "to": "[\"ls-files\", \"--\", ...specs]",
+  "expect": "killed",
+  "why": "git ends each path with a line feed and the split on NUL gives one name, all of them joined; the file is 'gone' and the real rows read nothing; killed by the floors of the tracked rows"
  }
 ]
