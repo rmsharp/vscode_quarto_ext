@@ -3476,8 +3476,11 @@ export function readerMetadataOf(lines: readonly string[], yamlRegions: YamlRegi
  *   - the governing `from` is a plain scalar at column 0, or under `format:` / `html:` when html is the ONLY format (a per-format `from:` outranks a top-level one,
  *     Session 207), and no other `from` key exists anywhere; its text is byte-identical to what the resolver returned.
  * Declining costs the old phantom, never a heading.
+ *
+ * `yamlRegions` is the regions of the same `lines`, asked for only when the earlier checks pass (Session 345): the scan hands over the one it made for the metadata read, so the document is joined and passed
+ * through the region scanner once between them. Exported for `s345-reader-metadata-rows.test.ts`.
  */
-export function frontMatterProvesReader(lines: readonly string[], fromValueLine: string | null, yamlRegions: YamlRegionsOf = yamlRegionsOf(lines)): boolean {
+export function frontMatterProvesReader(lines: readonly string[], fromValueLine: string | null, yamlRegions: YamlRegionsOf): boolean {
   const open = frontMatterOpenIndex(lines);
   if (fromValueLine === null || open === null || !lines.slice(0, open).every((line) => FRONTMATTER_BLANK.test(line))) {
     return false;

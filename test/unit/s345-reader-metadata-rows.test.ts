@@ -448,6 +448,21 @@ describe("Session 345 P1 -- the counts: the governing metadata block is read ONC
     expect(askedEdited.calls).toBe(1);
   });
 
+  it("two cached texts of ONE length are told apart by their characters, not by their length", () => {
+    const gfm = unique(GFM_FRONT);
+    const other = gfm.replace("from: gfm", "from: tex");
+    expect(other.length).toBe(gfm.length);
+    expect(other).not.toBe(gfm);
+    findHeadings(gfm);
+    findHeadings(other);
+    const { calls, value } = regionsCalls(() => [attributeBlockReader(gfm), attributeBlockReader(other)]);
+    expect(calls).toBe(0);
+    expect(value[0]).toEqual(oldAttributeBlockReader(gfm));
+    expect(value[1]).toEqual(oldAttributeBlockReader(other));
+    expect(value[0].commonmarkDialect).toBe(true);
+    expect(value[1].commonmarkDialect).toBe(false);
+  });
+
   it("an entry that left the cache is not served: the value is read again, and is the same", () => {
     const text = unique(GFM_FRONT);
     findHeadings(text);
