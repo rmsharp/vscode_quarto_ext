@@ -4,8 +4,11 @@
 // src/core/yaml-frontmatter-nested-values.ts): every code line is the parent's own, byte for byte. Dropped: whole-line comments. Renamed: each function gets an `old` prefix, and the
 // two callees the enumerators had (`findFrontMatter`, `frontMatterContentLines`) are the `old` ones below. The one thing that is NOT copied from a function is the SPAN: the parent
 // read it from `scanRegions(text).frontMatter`, which is built inside `computeRegions`' loop by the state machine written out as `oldFrontMatterSpan` -- the five lines of that loop
-// that touch `frontMatter` and `inFrontmatter`, in the parent's order, with the rest of the loop (it never writes either) left out. That the elision is exact was checked against the
-// parent's own scanner, not assumed: the same text asked of a build of the parent (`findFrontMatter` of the parent bundle) and of `oldFrontMatterSpan` agreed on every case drawn.
+// that touch `frontMatter` and `inFrontMatter`, in the parent's order, with the rest of the loop (it never writes either) left out. That is a HAND TRANSCRIPTION, and that the elision is
+// exact is not claimed by this comment: it is pinned in the repository by `PARENT_SCAN_DOCUMENTS` at the foot of this file (hand-written documents whose span and scan views are literals
+// frozen from a build of the parent; the rows are in s345-front-matter-reads.test.ts), and, once Session 345 gave the readers the scan's entry to read, by the row that asks the scan's
+// own span of every document of the oracle's corpora and compares it with this function's. (Until then the same text asked of a build of the parent agreed on every case drawn, in a probe
+// that is not kept.)
 import { nodePropertyEnd, scanFlow, trimEndBlanks } from "../../../src/core/qmd/model";
 import { documentEngineForScoping, type DocumentEngine } from "../../../src/core/document-engine";
 import type { FrontMatterTopLevelLine } from "../../../src/core/yaml-frontmatter-values";
@@ -273,3 +276,385 @@ export function oldResolveDocumentEngine(fileName: string, text: string): Docume
     engineText,
   );
 }
+
+// ---- THE PARENT'S SCAN VIEWS, FROZEN (Session 345 F1) ----
+// What `oldFrontMatterSpan` above is checked against IN THE REPOSITORY. It is a hand transcription of the five lines of `computeRegions`' loop that touch the front matter, so what makes it the
+// parent's span is not its being a copy but these rows: each document below was written by hand, put to a BUILD OF THE PARENT (commit acbc51f, before any Session 345 change; the script that froze
+// them is not in the repository), and the answers it gave are written out as literals. They are three views of the scan (`findHeadings`, `findAllCells`, `findBodyLines`) and what the parent's readers said of
+// the span (`findFrontMatter`, and whether `inFrontMatter` holds at the block's last line, which is so for a block with no terminator).
+//
+// The documents put the boundaries of a front matter at every place the scan uses them: 0, 1, 2 and 3 leading blank or whitespace-only lines before the opener; an interior that holds a
+// heading-shaped comment, a cell fence and a comment opener; a `...` terminator; a block with no terminator; an empty block; a blank line under the opener; the terminator on the last line; the
+// first line after the terminator (a heading, a cell); a `---` below prose, which opens nothing; two blocks; CRLF endings.
+export interface ParentScanDocument {
+  name: string;
+  /** The lines of the document, joined by `terminator`. */
+  lines: string[];
+  /** The line terminator the lines are joined with; a line feed when it is left out. */
+  terminator?: string;
+  /** `[startLine, endLine, whether inFrontMatter holds at endLine]`, or `null` when the document opens no front matter. */
+  span: [number, number, boolean] | null;
+  /** `[line, level, text]` of each heading. */
+  headings: Array<[number, number, string]>;
+  /** `[startLine, endLine, lang]` of each cell. */
+  cells: Array<[number, number, string]>;
+  /** The line of each body line. */
+  body: number[];
+}
+
+export const PARENT_SCAN_DOCUMENTS: ParentScanDocument[] = [
+  {
+    name: "0 blank, terminated by ---",
+    lines: ["---", "title: T", "# Not a heading", "```{python}", "x = 1", "<!--", "---", "# After", "", "```{python}", "y = 2", "```", "Prose.", "-->", "# Last"],
+    span: [0, 6, false],
+    headings: [[7, 1, "After"]],
+    cells: [[9, 11, "python"]],
+    body: [7, 8, 12, 13, 14],
+  },
+  {
+    name: "0 blank, terminated by ...",
+    lines: ["---", "title: T", "# Not a heading", "```{python}", "x = 1", "<!--", "...", "# After", "", "```{python}", "y = 2", "```", "Prose.", "-->", "# Last"],
+    span: [0, 6, false],
+    headings: [[7, 1, "After"]],
+    cells: [[9, 11, "python"]],
+    body: [7, 8, 12, 13, 14],
+  },
+  {
+    name: "0 blank, never terminated",
+    lines: ["---", "title: T", "# Not a heading", "```{python}", "x = 1"],
+    span: [0, 4, true],
+    headings: [],
+    cells: [],
+    body: [],
+  },
+  {
+    name: "0 blank, an empty block",
+    lines: ["---", "---", "# After", "", "```{python}", "y = 2", "```", "Prose.", "-->", "# Last"],
+    span: [0, 1, false],
+    headings: [[2, 1, "After"]],
+    cells: [[4, 6, "python"]],
+    body: [2, 3, 7, 8, 9],
+  },
+  {
+    name: "0 blank, a blank line under the opener",
+    lines: ["---", "", "title: T", "---", "# After", "", "```{python}", "y = 2", "```", "Prose.", "-->", "# Last"],
+    span: [0, 3, false],
+    headings: [[4, 1, "After"]],
+    cells: [[6, 8, "python"]],
+    body: [4, 5, 9, 10, 11],
+  },
+  {
+    name: "0 blank, prose above a --- that opens nothing",
+    lines: ["Prose first.", "---", "title: T", "---", "# After", "", "```{python}", "y = 2", "```", "Prose.", "-->", "# Last"],
+    span: null,
+    headings: [[0, 2, "Prose first."], [2, 2, "title: T"], [4, 1, "After"]],
+    cells: [[6, 8, "python"]],
+    body: [0, 1, 2, 3, 4, 5, 9, 10, 11],
+  },
+  {
+    name: "0 blank, the terminator is the last line",
+    lines: ["---", "title: T", "---"],
+    span: [0, 2, false],
+    headings: [],
+    cells: [],
+    body: [],
+  },
+  {
+    name: "0 blank, a cell is the first line after the terminator",
+    lines: ["---", "title: T", "---", "```{python}", "z = 3", "```", "# Next"],
+    span: [0, 2, false],
+    headings: [[6, 1, "Next"]],
+    cells: [[3, 5, "python"]],
+    body: [6],
+  },
+  {
+    name: "1 blank, terminated by ---",
+    lines: ["", "---", "title: T", "# Not a heading", "```{python}", "x = 1", "<!--", "---", "# After", "", "```{python}", "y = 2", "```", "Prose.", "-->", "# Last"],
+    span: [1, 7, false],
+    headings: [[8, 1, "After"]],
+    cells: [[10, 12, "python"]],
+    body: [0, 8, 9, 13, 14, 15],
+  },
+  {
+    name: "1 blank, terminated by ...",
+    lines: ["", "---", "title: T", "# Not a heading", "```{python}", "x = 1", "<!--", "...", "# After", "", "```{python}", "y = 2", "```", "Prose.", "-->", "# Last"],
+    span: [1, 7, false],
+    headings: [[8, 1, "After"]],
+    cells: [[10, 12, "python"]],
+    body: [0, 8, 9, 13, 14, 15],
+  },
+  {
+    name: "1 blank, never terminated",
+    lines: ["", "---", "title: T", "# Not a heading", "```{python}", "x = 1"],
+    span: null,
+    headings: [],
+    cells: [],
+    body: [0, 1, 2, 3, 4, 5],
+  },
+  {
+    name: "1 blank, an empty block",
+    lines: ["", "---", "---", "# After", "", "```{python}", "y = 2", "```", "Prose.", "-->", "# Last"],
+    span: [1, 2, false],
+    headings: [[3, 1, "After"]],
+    cells: [[5, 7, "python"]],
+    body: [0, 3, 4, 8, 9, 10],
+  },
+  {
+    name: "1 blank, a blank line under the opener",
+    lines: ["", "---", "", "title: T", "---", "# After", "", "```{python}", "y = 2", "```", "Prose.", "-->", "# Last"],
+    span: null,
+    headings: [[3, 2, "title: T"], [5, 1, "After"]],
+    cells: [[7, 9, "python"]],
+    body: [0, 1, 2, 3, 4, 5, 6, 10, 11, 12],
+  },
+  {
+    name: "1 blank, prose above a --- that opens nothing",
+    lines: ["", "Prose first.", "---", "title: T", "---", "# After", "", "```{python}", "y = 2", "```", "Prose.", "-->", "# Last"],
+    span: null,
+    headings: [[1, 2, "Prose first."], [3, 2, "title: T"], [5, 1, "After"]],
+    cells: [[7, 9, "python"]],
+    body: [0, 1, 2, 3, 4, 5, 6, 10, 11, 12],
+  },
+  {
+    name: "1 blank, the terminator is the last line",
+    lines: ["", "---", "title: T", "---"],
+    span: [1, 3, false],
+    headings: [],
+    cells: [],
+    body: [0],
+  },
+  {
+    name: "1 blank, a cell is the first line after the terminator",
+    lines: ["", "---", "title: T", "---", "```{python}", "z = 3", "```", "# Next"],
+    span: [1, 3, false],
+    headings: [[7, 1, "Next"]],
+    cells: [[4, 6, "python"]],
+    body: [0, 7],
+  },
+  {
+    name: "2 blank, terminated by ---",
+    lines: ["", "  ", "---", "title: T", "# Not a heading", "```{python}", "x = 1", "<!--", "---", "# After", "", "```{python}", "y = 2", "```", "Prose.", "-->", "# Last"],
+    span: [2, 8, false],
+    headings: [[9, 1, "After"]],
+    cells: [[11, 13, "python"]],
+    body: [0, 1, 9, 10, 14, 15, 16],
+  },
+  {
+    name: "2 blank, terminated by ...",
+    lines: ["", "  ", "---", "title: T", "# Not a heading", "```{python}", "x = 1", "<!--", "...", "# After", "", "```{python}", "y = 2", "```", "Prose.", "-->", "# Last"],
+    span: [2, 8, false],
+    headings: [[9, 1, "After"]],
+    cells: [[11, 13, "python"]],
+    body: [0, 1, 9, 10, 14, 15, 16],
+  },
+  {
+    name: "2 blank, never terminated",
+    lines: ["", "  ", "---", "title: T", "# Not a heading", "```{python}", "x = 1"],
+    span: null,
+    headings: [],
+    cells: [],
+    body: [0, 1, 2, 3, 4, 5, 6],
+  },
+  {
+    name: "2 blank, an empty block",
+    lines: ["", "  ", "---", "---", "# After", "", "```{python}", "y = 2", "```", "Prose.", "-->", "# Last"],
+    span: [2, 3, false],
+    headings: [[4, 1, "After"]],
+    cells: [[6, 8, "python"]],
+    body: [0, 1, 4, 5, 9, 10, 11],
+  },
+  {
+    name: "2 blank, a blank line under the opener",
+    lines: ["", "  ", "---", "", "title: T", "---", "# After", "", "```{python}", "y = 2", "```", "Prose.", "-->", "# Last"],
+    span: null,
+    headings: [[4, 2, "title: T"], [6, 1, "After"]],
+    cells: [[8, 10, "python"]],
+    body: [0, 1, 2, 3, 4, 5, 6, 7, 11, 12, 13],
+  },
+  {
+    name: "2 blank, prose above a --- that opens nothing",
+    lines: ["", "  ", "Prose first.", "---", "title: T", "---", "# After", "", "```{python}", "y = 2", "```", "Prose.", "-->", "# Last"],
+    span: null,
+    headings: [[2, 2, "Prose first."], [4, 2, "title: T"], [6, 1, "After"]],
+    cells: [[8, 10, "python"]],
+    body: [0, 1, 2, 3, 4, 5, 6, 7, 11, 12, 13],
+  },
+  {
+    name: "2 blank, the terminator is the last line",
+    lines: ["", "  ", "---", "title: T", "---"],
+    span: [2, 4, false],
+    headings: [],
+    cells: [],
+    body: [0, 1],
+  },
+  {
+    name: "2 blank, a cell is the first line after the terminator",
+    lines: ["", "  ", "---", "title: T", "---", "```{python}", "z = 3", "```", "# Next"],
+    span: [2, 4, false],
+    headings: [[8, 1, "Next"]],
+    cells: [[5, 7, "python"]],
+    body: [0, 1, 8],
+  },
+  {
+    name: "3 blank, terminated by ---",
+    lines: ["", "\t", " ", "---", "title: T", "# Not a heading", "```{python}", "x = 1", "<!--", "---", "# After", "", "```{python}", "y = 2", "```", "Prose.", "-->", "# Last"],
+    span: [3, 9, false],
+    headings: [[10, 1, "After"]],
+    cells: [[12, 14, "python"]],
+    body: [0, 1, 2, 10, 11, 15, 16, 17],
+  },
+  {
+    name: "3 blank, terminated by ...",
+    lines: ["", "\t", " ", "---", "title: T", "# Not a heading", "```{python}", "x = 1", "<!--", "...", "# After", "", "```{python}", "y = 2", "```", "Prose.", "-->", "# Last"],
+    span: [3, 9, false],
+    headings: [[10, 1, "After"]],
+    cells: [[12, 14, "python"]],
+    body: [0, 1, 2, 10, 11, 15, 16, 17],
+  },
+  {
+    name: "3 blank, never terminated",
+    lines: ["", "\t", " ", "---", "title: T", "# Not a heading", "```{python}", "x = 1"],
+    span: null,
+    headings: [],
+    cells: [],
+    body: [0, 1, 2, 3, 4, 5, 6, 7],
+  },
+  {
+    name: "3 blank, an empty block",
+    lines: ["", "\t", " ", "---", "---", "# After", "", "```{python}", "y = 2", "```", "Prose.", "-->", "# Last"],
+    span: [3, 4, false],
+    headings: [[5, 1, "After"]],
+    cells: [[7, 9, "python"]],
+    body: [0, 1, 2, 5, 6, 10, 11, 12],
+  },
+  {
+    name: "3 blank, a blank line under the opener",
+    lines: ["", "\t", " ", "---", "", "title: T", "---", "# After", "", "```{python}", "y = 2", "```", "Prose.", "-->", "# Last"],
+    span: null,
+    headings: [[5, 2, "title: T"], [7, 1, "After"]],
+    cells: [[9, 11, "python"]],
+    body: [0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 13, 14],
+  },
+  {
+    name: "3 blank, prose above a --- that opens nothing",
+    lines: ["", "\t", " ", "Prose first.", "---", "title: T", "---", "# After", "", "```{python}", "y = 2", "```", "Prose.", "-->", "# Last"],
+    span: null,
+    headings: [[3, 2, "Prose first."], [5, 2, "title: T"], [7, 1, "After"]],
+    cells: [[9, 11, "python"]],
+    body: [0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 13, 14],
+  },
+  {
+    name: "3 blank, the terminator is the last line",
+    lines: ["", "\t", " ", "---", "title: T", "---"],
+    span: [3, 5, false],
+    headings: [],
+    cells: [],
+    body: [0, 1, 2],
+  },
+  {
+    name: "3 blank, a cell is the first line after the terminator",
+    lines: ["", "\t", " ", "---", "title: T", "---", "```{python}", "z = 3", "```", "# Next"],
+    span: [3, 5, false],
+    headings: [[9, 1, "Next"]],
+    cells: [[6, 8, "python"]],
+    body: [0, 1, 2, 9],
+  },
+  {
+    name: "1 blank, two blocks",
+    lines: ["", "---", "a: b", "---", "", "Prose.", "", "---", "c: d", "---", "# Tail"],
+    span: [1, 3, false],
+    headings: [[8, 2, "c: d"], [10, 1, "Tail"]],
+    cells: [],
+    body: [0, 4, 5, 6, 7, 8, 9, 10],
+  },
+  {
+    name: "2 blank, two blocks",
+    lines: ["", "  ", "---", "a: b", "...", "# Right after", "---", "c: d", "---", "# Tail"],
+    span: [2, 4, false],
+    headings: [[5, 2, "# Right after"], [7, 2, "c: d"], [9, 1, "Tail"]],
+    cells: [],
+    body: [0, 1, 5, 6, 7, 8, 9],
+  },
+  {
+    name: "0 blank, two blocks",
+    lines: ["---", "a: b", "---", "", "Prose.", "", "---", "c: d", "---", "# Tail"],
+    span: [0, 2, false],
+    headings: [[7, 2, "c: d"], [9, 1, "Tail"]],
+    cells: [],
+    body: [3, 4, 5, 6, 7, 8, 9],
+  },
+  {
+    name: "3 blank, the opener is also the last line",
+    lines: ["", "", "", "---"],
+    span: null,
+    headings: [],
+    cells: [],
+    body: [0, 1, 2, 3],
+  },
+  {
+    name: "0 blank, the opener is the whole document",
+    lines: ["---"],
+    span: [0, 0, false],
+    headings: [],
+    cells: [],
+    body: [],
+  },
+  {
+    name: "1 blank, terminated by --- with CRLF line endings",
+    lines: ["", "---", "title: T", "# Not a heading", "```{python}", "x = 1", "<!--", "---", "# After", "", "```{python}", "y = 2", "```", "Prose.", "-->", "# Last"],
+    terminator: "\r\n",
+    span: [1, 7, false],
+    headings: [[8, 1, "After"]],
+    cells: [[10, 12, "python"]],
+    body: [0, 8, 9, 13, 14, 15],
+  },
+  {
+    name: "0 blank, never terminated, blank lines and a heading-shaped line at the end",
+    lines: ["---", "title: T", "", "# Not a heading", "", ""],
+    span: [0, 5, true],
+    headings: [],
+    cells: [],
+    body: [],
+  },
+  {
+    name: "0 blank, never terminated, one line",
+    lines: ["---", "k: v"],
+    span: [0, 1, true],
+    headings: [],
+    cells: [],
+    body: [],
+  },
+  {
+    name: "0 blank, never terminated, CRLF line endings",
+    lines: ["---", "title: T", "# Not a heading", "```{python}", "x = 1"],
+    terminator: "\r\n",
+    span: [0, 4, true],
+    headings: [],
+    cells: [],
+    body: [],
+  },
+  {
+    name: "0 blank, a terminator with trailing blanks",
+    lines: ["---", "title: T", "---  ", "# After", "", "Prose."],
+    span: [0, 2, false],
+    headings: [[3, 1, "After"]],
+    cells: [],
+    body: [3, 4, 5],
+  },
+  {
+    name: "2 blank, an opener with trailing blanks",
+    lines: ["", "", "---\t", "title: T", "---", "# After", "", "Prose."],
+    span: [2, 4, false],
+    headings: [[5, 1, "After"]],
+    cells: [],
+    body: [0, 1, 5, 6, 7],
+  },
+  {
+    name: "1 blank, the first interior line is itself a fence line of dashes",
+    lines: ["", "---", "----", "title: T", "---", "# After"],
+    span: [1, 4, false],
+    headings: [[5, 1, "After"]],
+    cells: [],
+    body: [0, 5],
+  },
+];

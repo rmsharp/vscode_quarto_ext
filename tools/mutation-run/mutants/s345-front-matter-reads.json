@@ -253,7 +253,7 @@
   "from": "i > frontMatter.startLine && i <= frontMatter.endLine;",
   "to": "i >= frontMatter.startLine && i <= frontMatter.endLine;",
   "expect": "survives",
-  "why": "the opener line is skipped by its own test just below, and the quote strip's guard has the same two tests: the same lines. Fuzzed (bundle of the mutant against the cured one, every scan view and reader of the probe): 620,565 exhaustive documents and 150,000 seeded ones (seed 303), 0 disagreements."
+  "why": "the opener line is skipped by its own test just below, and the quote strip's guard has the same two tests: the flag has no other reader, so the same lines. Not killed by the frozen scan views of the 44 hand-written documents either (Session 345 F1, which put every other boundary edit of this line to the test: Q01 to Q03, C03, C04). Fuzzed (bundle of the mutant against the cured one, every scan view and reader of the probe): 620,565 exhaustive documents and 150,000 seeded ones (seed 303), 0 disagreements."
  },
  {
   "name": "C03 computeRegions: the terminator is not inside the block",
@@ -854,5 +854,53 @@
   "to": "  const same =",
   "expect": "killed",
   "why": "the same, one function down"
+ },
+ {
+  "name": "Q01 computeRegions: every line above the terminator is inside the block (a blank run above the opener is skipped)",
+  "file": "src/core/qmd/model.ts",
+  "from": "i > frontMatter.startLine && i <= frontMatter.endLine;",
+  "to": "i > 0 && i <= frontMatter.endLine;",
+  "expect": "killed",
+  "why": "the blank lines above an opener that sits below a blank run stop being body lines (findBodyLines drops 0, 1 and 2 of '\\n\\n\\n---\\n---\\nSome prose\\n-->'); no reader of the span sees it. It SURVIVED every row of the first version of this list (review E-03); killed by the frozen scan views of the hand-written documents"
+ },
+ {
+  "name": "Q02 computeRegions: the first interior line is not inside the block",
+  "file": "src/core/qmd/model.ts",
+  "from": "i > frontMatter.startLine && i <= frontMatter.endLine;",
+  "to": "i > frontMatter.startLine + 1 && i <= frontMatter.endLine;",
+  "expect": "killed",
+  "why": "the first line under the opener is read as a line of the document; the frozen scan views of the hand-written documents"
+ },
+ {
+  "name": "Q03 computeRegions: the block ends one line above its terminator",
+  "file": "src/core/qmd/model.ts",
+  "from": "i > frontMatter.startLine && i <= frontMatter.endLine;",
+  "to": "i > frontMatter.startLine && i <= frontMatter.endLine - 1;",
+  "expect": "killed",
+  "why": "the same edit as C03 for whole numbers (`i < e` is `i <= e - 1`): the terminator, or the last line of an unterminated block, is read as a line of the document; killed by the frozen scan views of the hand-written documents as well as by the agreement row"
+ },
+ {
+  "name": "T29 scanSpanDiffers: the text is not scanned first",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "    findAllCells(text);\n    const read = readsOf(text, () => {",
+  "to": "    const read = readsOf(text, () => {",
+  "expect": "killed",
+  "why": "the readers would read the text and the row would compare the oracle with a read of the text, not with the scan's entry: it fails on its own counter (a search of an unscanned text)"
+ },
+ {
+  "name": "Xc1 readFrontMatter: the text is read through String.prototype.match first",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function readFrontMatter(text: string): FrontMatterBlock | null {\n  const at = linesOf(text);",
+  "to": "export function readFrontMatter(text: string): FrontMatterBlock | null {\n  const at = linesOf(text);\n  void text.match(/[^\\n]*(?:\\n|$)/g);",
+  "expect": "survives",
+  "why": "the counters of this file watch String.prototype.split and indexOf on a large receiver and nothing else (the header says so): a whole-document read through `match` passes every row, and the answers are the same. Reproduced by the review (E-09): 37 passed of 37 at the time. A recorded gap, not an argued equivalent"
+ },
+ {
+  "name": "Xc2 readFrontMatter: the text is read through Symbol.split first",
+  "file": "src/core/qmd/model.ts",
+  "from": "export function readFrontMatter(text: string): FrontMatterBlock | null {\n  const at = linesOf(text);",
+  "to": "export function readFrontMatter(text: string): FrontMatterBlock | null {\n  const at = linesOf(text);\n  void (/\\r?\\n/ as unknown as { [Symbol.split](s: string): string[] })[Symbol.split](text);",
+  "expect": "survives",
+  "why": "the same gap through `RegExp.prototype[Symbol.split]` called directly, which is not `String.prototype.split` and is not counted: a recorded gap (E-09), reproduced by the review"
  }
 ]

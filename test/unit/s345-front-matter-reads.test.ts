@@ -1,5 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { resolveDocumentEngine } from "../../src/core/document-engine-resolve";
 import { findAllCells, findBodyLines, findFrontMatter, findHeadings, frontMatterContentLines, inFrontMatter, readFrontMatter } from "../../src/core/qmd/model";
@@ -14,6 +16,7 @@ import {
   oldFrontMatterSpan,
   oldInFrontMatter,
   oldResolveDocumentEngine,
+  PARENT_SCAN_DOCUMENTS,
 } from "./support/s345-front-matter-oracle";
 
 // Session 345 -- part P3 of the BACKLOG item SIB-01 ("the first completion request after an edit pays a cold whole-document scan"), the operator's pick: REMOVE EXACT DUPLICATE WORK, no
@@ -27,8 +30,11 @@ import {
 // documents of a small alphabet of line shapes (the first describe), the same shapes under every line terminator and every leading run, a SEEDED generator of whole documents (seed 345,
 // floored so that a generator that drew nothing fails), and every tracked `.qmd` / `.md` / `.Rmd` of the repository under six leading runs and both line endings.
 //
-// THE COUNTERS are exact and need no clock: how many times `String.prototype.split` was called on a string at least half as long as the document while the call ran (a whole-document split, or
-// anything near it), and how many times `indexOf` was (a reader that pre-reads the document line by line is not a split and would pass the first counter).
+// THE COUNTERS need no clock, and they count two things and nothing else: how many times `String.prototype.split` was called on a string at least half as long as the document while the call ran
+// (a whole-document split, or anything near it), and how many times `String.prototype.indexOf` was (a reader that pre-reads the document line by line is not a split and would pass the first
+// counter). What they do NOT count: a read of the document through any other primitive (`match`, `exec`, `RegExp.prototype[Symbol.split]`, a loop over `charCodeAt`) passes every row of them. A row that
+// expects a count of ZERO is therefore evidence that the document is not split or searched, not that it is not read; what a reader MAY read is bounded by the oracle rows (the answers) and by the recorded
+// measurements of the review, and two mutants of this kind are recorded as survivors in the mutation list.
 
 /** Run `run` and count the calls of `String.prototype.split` / `indexOf` whose receiver is at least half as long as `whole`: the splits and the searches that read the document, not a line of it. */
 function readsOf<T>(whole: string, run: () => T): { value: T; splits: number; searches: number } {
@@ -663,23 +669,37 @@ describe.each(ROUTES)("Session 345 P3 -- the oracle: every answer equals the par
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // THE TRACKED DOCUMENTS.
 
-describe.each(ROUTES)("Session 345 P3 -- the oracle: every tracked .qmd / .md / .Rmd of the repository, scan: %s", (route) => {
-  const root = new URL("../..", import.meta.url).pathname;
-  const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: root, maxBuffer: 1 << 26 })
-    .toString("utf8")
-    .split("\0")
-    .filter((p) => /\.(?:qmd|md|Rmd|rmd)$/.test(p));
+/** The root of the repository as a file system path (`.pathname` would leave a space in the path percent-encoded, and a checkout under a path with a space would not be found). */
+const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 
+let listedDocuments: string[] | null = null;
+/**
+ * The tracked `.qmd` / `.md` / `.Rmd` files of the repository, as `git ls-files` lists them, asked of git by the first row that needs them and not when the file is collected: a tree without git (an
+ * archive) fails THOSE rows, with git's own message, and the rest of the file still runs. A failed listing is not kept, so every row that needs it fails the same way.
+ */
+function tracked(): string[] {
+  if (listedDocuments === null) {
+    listedDocuments = execFileSync("git", ["ls-files", "-z"], { cwd: REPO_ROOT, maxBuffer: 1 << 26 })
+      .toString("utf8")
+      .split("\0")
+      .filter((p) => /\.(?:qmd|md|Rmd|rmd)$/.test(p));
+  }
+  return listedDocuments;
+}
+
+describe.each(ROUTES)("Session 345 P3 -- the oracle: every tracked .qmd / .md / .Rmd of the repository, scan: %s", (route) => {
   it("there are tracked documents to read (a listing that found none must fail)", () => {
-    expect(tracked.length).toBeGreaterThanOrEqual(100);
-    expect(tracked.some((p) => p.endsWith(".qmd"))).toBe(true);
-    expect(tracked.some((p) => p.endsWith(".md"))).toBe(true);
+    const listed = tracked();
+    expect(listed.length).toBeGreaterThanOrEqual(100);
+    expect(listed.some((p) => p.endsWith(".qmd"))).toBe(true);
+    expect(listed.some((p) => p.endsWith(".md"))).toBe(true);
   });
 
   it("each, as written and under a leading blank line, spaces, a tab, a BOM and with CRLF endings", () => {
     let drawn = 0;
-    for (const path of tracked) {
-      const text = readFileSync(root + path, "utf8");
+    const listed = tracked();
+    for (const path of listed) {
+      const text = readFileSync(join(REPO_ROOT, path), "utf8");
       const variants = [text, "\n" + text, "   \n" + text, "\t" + text, BOM + text, text.replace(/\r?\n/g, "\r\n")];
       for (const variant of variants) {
         drawn++;
@@ -687,7 +707,7 @@ describe.each(ROUTES)("Session 345 P3 -- the oracle: every tracked .qmd / .md / 
         expect(d).toBeNull();
       }
     }
-    expect(drawn).toBe(tracked.length * 6);
+    expect(drawn).toBe(listed.length * 6);
   });
 });
 
@@ -720,5 +740,105 @@ describe("Session 345 P3 -- the scan skips the front matter the readers report (
     }
     expect(checked).toBeGreaterThan(1_000);
     expect(planted).toBeGreaterThan(500);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// THE SCAN'S OWN USE OF THE SPAN (review E-03, E-10): hand-written documents, answers frozen from the parent.
+//
+// The oracle above compares the READERS. The scan's loop uses the span on two lines of its own (the lines inside the block, and the opener) and no reader sees what it does there: with `i > 0`
+// in place of `i > frontMatter.startLine` the blank lines above an opener stop being body lines, and every row of this file passed. These rows put the scan's three views of 44 documents against
+// LITERALS frozen from a build of the parent (acbc51f; `PARENT_SCAN_DOCUMENTS`, in the support file, says how), so that they do not depend on the code they test.
+
+describe.each(ROUTES)("Session 345 F1 -- the scan's views and the readers' span of hand-written documents equal the parent's, frozen as literals, scan: %s", (route) => {
+  const textOf = (d: (typeof PARENT_SCAN_DOCUMENTS)[number]): string => d.lines.join(d.terminator ?? "\n");
+
+  it("the table reaches the boundaries it is for (a table that lost its documents must fail)", () => {
+    const docs = PARENT_SCAN_DOCUMENTS;
+    expect(docs.length).toBe(44);
+    expect(new Set(docs.map((d) => d.name)).size).toBe(docs.length);
+    // openers at lines 0, 1, 2 and 3 (0 to 3 leading blank or whitespace-only lines)
+    expect(new Set(docs.flatMap((d) => (d.span === null ? [] : [d.span[0]]))).size).toBe(4);
+    expect(docs.filter((d) => d.span === null).length).toBeGreaterThanOrEqual(10);
+    // terminated by `...`, terminated by `---`, never terminated
+    expect(docs.some((d) => d.span !== null && d.lines[d.span[1]] === "...")).toBe(true);
+    expect(docs.filter((d) => d.span !== null && d.lines[d.span[1]] === "---").length).toBeGreaterThanOrEqual(20);
+    expect(docs.filter((d) => d.span !== null && d.span[2]).length).toBeGreaterThanOrEqual(3);
+    // a blank line above the opener that is a body line of the parent's scan, and one that is not
+    expect(docs.filter((d) => d.lines[0].trim() === "" && d.body[0] === 0 && d.span !== null).length).toBeGreaterThanOrEqual(8);
+    expect(docs.some((d) => d.terminator === "\r\n")).toBe(true);
+    // a heading, a cell and a body line on the first line after a terminator
+    expect(docs.some((d) => d.span !== null && d.headings.some((h) => h[0] === d.span![1] + 1))).toBe(true);
+    expect(docs.some((d) => d.span !== null && d.cells.some((c) => c[0] === d.span![1] + 1))).toBe(true);
+  });
+
+  it.each(PARENT_SCAN_DOCUMENTS)("$name", (doc) => {
+    const text = textOf(doc);
+    standAs(route, text);
+    expect({
+      headings: findHeadings(text).map((h): [number, number, string] => [h.line, h.level, h.text]),
+      cells: findAllCells(text).map((c): [number, number, string] => [c.startLine, c.endLine, c.lang]),
+      body: findBodyLines(text).map((b) => b.line),
+    }).toEqual({ headings: doc.headings, cells: doc.cells, body: doc.body });
+    // The span the readers report (and the oracle's, which is what the corpora rows compare them with): the parent's.
+    const span = doc.span;
+    expect(findFrontMatter(text)).toEqual(span === null ? null : { startLine: span[0], endLine: span[1] });
+    expect(oldFindFrontMatter(text)).toEqual(span === null ? null : { startLine: span[0], endLine: span[1] });
+    if (span !== null) {
+      expect(inFrontMatter(text, span[1])).toBe(span[2]);
+      expect(oldInFrontMatter(text, span[1])).toBe(span[2]);
+      expect(inFrontMatter(text, span[0])).toBe(false);
+    }
+  });
+});
+
+describe("Session 345 F1 -- the oracle's span is the scan's own span (the scan's entry, read by findFrontMatter and readFrontMatter)", () => {
+  /** Scan `text`, then ask the readers for its span: the engine-blind entry is held, so `findFrontMatter` and `inFrontMatter` search no line of it. Returns what differs from the oracle's span, or `null`. */
+  function scanSpanDiffers(text: string): string | null {
+    findAllCells(text);
+    const read = readsOf(text, () => {
+      const found = findFrontMatter(text);
+      return { found, lastIsContent: found === null ? null : inFrontMatter(text, found.endLine) };
+    });
+    if (read.searches !== 0 || read.splits !== 0) return `the readers searched or split a scanned text: ${JSON.stringify(text.slice(0, 80))}`;
+    const old = oldFrontMatterSpan(text);
+    const block = readFrontMatter(text);
+    const scan = block === null ? null : { startLine: block.startLine, endLine: block.endLine, terminated: block.terminated };
+    const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
+    const ok =
+      same(scan, old) &&
+      same(read.value.found, old === null ? null : { startLine: old.startLine, endLine: old.endLine }) &&
+      read.value.lastIsContent === (old === null ? null : oldInFrontMatter(text, old.endLine));
+    return ok ? null : `scan ${JSON.stringify(scan)} found ${JSON.stringify(read.value.found)} oracle ${JSON.stringify(old)}: ${JSON.stringify(text.slice(0, 120))}`;
+  }
+
+  it("every document of the exhaustive corpora, 20,000 seeded documents and every tracked document (as written and under a leading blank line)", () => {
+    let drawn = 0;
+    let withSpan = 0;
+    let unterminated = 0;
+    let afterBlanks = 0;
+    const check = (text: string): void => {
+      drawn++;
+      expect(scanSpanDiffers(text)).toBeNull();
+      const span = oldFrontMatterSpan(text);
+      if (span !== null) {
+        withSpan++;
+        if (!span.terminated) unterminated++;
+        if (span.startLine > 0) afterBlanks++;
+      }
+    };
+    for (const text of everyDocument(SHAPES, 4)) check(text);
+    for (const text of everyDocument(CORE, 5)) check(text);
+    const random = seededRandom(3452);
+    for (let i = 0; i < 20_000; i++) check(seededDocument(random));
+    for (const path of tracked()) {
+      const text = readFileSync(join(REPO_ROOT, path), "utf8");
+      check(text);
+      check("\n" + text);
+    }
+    expect(drawn).toBeGreaterThan(11_111 + 9_331 + 20_000 + 200);
+    expect(withSpan).toBeGreaterThan(8_000);
+    expect(unterminated).toBeGreaterThan(1_000);
+    expect(afterBlanks).toBeGreaterThan(2_000);
   });
 });
