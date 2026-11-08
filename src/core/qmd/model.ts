@@ -13493,9 +13493,49 @@ export function frontMatterContentLines(text: string): string[] | null {
   if (fm === null) {
     return null;
   }
-  const lines = text.split(/\r?\n/);
+  // Only the lines that are returned are cut out of the text (Session 345): the parent split the WHOLE document into lines to slice a handful out of the result, three times in every
+  // `resolveDocumentEngine` call (3.9 ms at 2,000 cells of 25 lines, 15.5 at 8,000).
+  const at = linesOf(text);
   const end = fm.terminated ? fm.endLine : fm.endLine + 1;
-  return lines.slice(fm.startLine + 1, end);
+  const content: string[] = [];
+  for (let k = fm.startLine + 1; k < end; k++) {
+    const line = at(k);
+    if (line === undefined) {
+      break;
+    }
+    content.push(line);
+  }
+  return content;
+}
+
+/** Line `k` of a document (0-based), or `undefined` past its last line. */
+type LineAt = (k: number) => string | undefined;
+
+/**
+ * The lines of `text` one at a time, cut out as far as they are asked for and no further: `linesOf(text)(k)` is `text.split(/\r?\n/)[k]` for every `k`, and `undefined` where that array
+ * has no element (Session 345). A line ends at a line feed and takes ONE carriage return just before it along (`\r\r\n` ends a line that keeps its first `\r`); a lone `\r`, U+2028,
+ * U+2029 and a form feed are not breaks, exactly as in the regular expression; the text after the last line feed is a line, so the empty text is one empty line.
+ */
+function linesOf(text: string): LineAt {
+  const read: string[] = [];
+  // Where the next line starts, or -1 once the last line has been read.
+  let next = 0;
+  return (k) => {
+    while (read.length <= k) {
+      if (next < 0) {
+        return undefined;
+      }
+      const feed = text.indexOf("\n", next);
+      if (feed < 0) {
+        read.push(text.slice(next));
+        next = -1;
+      } else {
+        read.push(text.slice(next, feed > next && text.charCodeAt(feed - 1) === 13 ? feed - 1 : feed));
+        next = feed + 1;
+      }
+    }
+    return read[k];
+  };
 }
 
 /**
