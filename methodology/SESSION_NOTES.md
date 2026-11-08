@@ -29,7 +29,7 @@ its `--tests` set; ONE list at a time, `--cmd 'npx vitest run --bail 1 --maxWork
 `--exclude test/unit/mutation-lists-apply.test.ts`; `mutation-lists-apply` is 116 tests. (5) Pins: Learnings 907 to 938. (6) BASELINE `npm test`: 218 files, 18,834 tests, exit 0; the "Errors 1 error" worker timeout is FLAKY (1
 of 7 full runs this session; 892). The machine is SHARED (load 3 to 20): wait before a list run. (7) The foreign worktree `.claude/worktrees/wf_f559ba89-653-5` is not mine: ask before removing it. (8) Real-document score:
 `REALDOC_DATA=scratchpad/s265 REALDOC_ORDINALS=scratchpad/s251/realfiles.txt tools/realdoc-score/run.sh head` prints 2423 of 2438. (9) `npm run package` is RED in a worktree with a symlinked `node_modules`: run it in the main
-checkout (done: 44 files). (10) `origin/master` was `deb44f4` when this session began (the S344 gotcha "230 commits ahead" was stale); `master` is ahead of it (32 commits before the close-out commits) and NOT pushed. (11)
+checkout (done: 44 files). (10) `origin/master` was `deb44f4` when this session began (the S344 gotcha "230 commits ahead" was stale); at your word `master` was PUSHED at the end of the session, so `origin/master` equals `master`. (11)
 `BACKLOG.md`, `HANDOFFS.md`, `CHANGELOG.md` and `PROJECT_LEARNINGS.md` are past the read refusal: read in slices, edit with `python3 -I -`. (12) Untracked tools in `scratchpad/s345/m/`: `diff2.cjs <parent> <tree>
 real|tracked|gen <count> <seed>` (one quoted string defaults to 20,000 / 345777: compare the floors), `build2.sh`, `ab.sh`. After answering a direct question, STOP and wait (memory).
 

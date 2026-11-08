@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-11
 
+### 2026-11-08 · [ad hoc] Session 345: `master` pushed at the operator's word -- `origin/master` `deb44f4..be5d5c1`, 37 commits; the records that said it was unpushed corrected
+
+After the close-out the operator said "push" and `git push origin master` took `origin/master` from `deb44f4` to `be5d5c1` (37 commits: 21 cure, 10 fix, the records, the close-out, the trim and the ledger commits). The quality-gate entry below says `master` is unpushed; that was true when it was written and is not now. Gotcha (10) of the `SESSION_NOTES.md` ACTIVE TASK and gotcha (9) of the S345 receipt were corrected in this commit, which was pushed in turn on the operator's word, so `origin/master` equals `master` at the end of Session 345. (The Session 344 handoff's "230 commits ahead" was already stale at the start of Session 345; the evaluation of that handoff records it.)
+
 ### 2026-11-08 · [ad hoc] Session 345: the quality-gate run cited in the receipt -- 2/2 pass at 34eca02
 
 `quality_ratchet.py --run`, after the ledger commits (Learning 683): ledger-lag 0 and release-gate 0 (`npm run check-package`), 2 pass, 0 fail, 0 unmeasured, results `bba236856bad`, manifest `334939914945` (both equal to Session 344's). `context_budget.py`: `SESSION_NOTES.md` ok (398 lines, 56,618 B, no line over 280 B); `HANDOFFS.md`, `BACKLOG.md` and `PROJECT_LEARNINGS.md` over the 65,536 B ceiling as before. `master` is unpushed (37 commits ahead of `origin/master`, which is `deb44f4` where it stood at the start of the session, after this commit); the dashboard copy is v2.22.0 against canonical v2.23.0, not synced.
