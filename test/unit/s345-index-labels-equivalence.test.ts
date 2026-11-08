@@ -209,7 +209,7 @@ describe("Session 345 -- indexLabels answers exactly as the old spelling did", (
   });
 
   it("the empty text and the texts that are a terminator and nothing else", () => {
-    const tally = compareAll(["", "\n", "\r\n", "\r", " ", " ", "\f", "\n\n\n", BOM_ONLY, "---", "---\n", "```{python}", "```{python}\n#| label: fig-a"]);
+    const tally = compareAll(["", "\n", "\r\n", "\r", "\u2028", "\u2029", "\f", "\n\n\n", BOM_ONLY, "---", "---\n", "```{python}", "```{python}\n#| label: fig-a"]);
     expect(tally.disagreements).toEqual([]);
     expect(tally.texts).toBe(13);
   });

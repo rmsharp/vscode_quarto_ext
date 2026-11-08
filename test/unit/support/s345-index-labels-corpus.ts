@@ -17,7 +17,7 @@ export type Engine = undefined | "knitr" | "jupyter" | "markdown" | "julia" | "a
 export const ENGINES: readonly Engine[] = [undefined, "knitr", "jupyter", "markdown", "julia", "ambiguous"];
 export const BOM = String.fromCharCode(0xfeff);
 /** CR, CRLF, LF, U+2028, U+2029 and a form feed: the line terminators a text may be written with (only the first two split a line). */
-export const TERMINATORS: readonly string[] = ["\n", "\r\n", "\r", " ", " ", "\f"];
+export const TERMINATORS: readonly string[] = ["\n", "\r\n", "\r", "\u2028", "\u2029", "\f"];
 /** What may come before the first line: nothing, a byte order mark, blank lines, spaces, a tab and a line. */
 export const PREFIXES: readonly string[] = ["", BOM, "\n", "  ", "\n\n   ", "\t\n", BOM + "\n"];
 

@@ -127,7 +127,7 @@ const oldRegionsOf = (lines: readonly string[]) => (): readonly YamlRegion[] => 
 
 const BOM = String.fromCharCode(0xfeff);
 /** The six line terminators: `\n` and `\r\n` split a line; the other four stay inside one (the model splits on `\r?\n` and nothing else). */
-const TERMINATORS: readonly string[] = ["\n", "\r\n", "\r", " ", " ", "\f"];
+const TERMINATORS: readonly string[] = ["\n", "\r\n", "\r", "\u2028", "\u2029", "\f"];
 const withTerminator = (text: string, terminator: string): string => text.replace(/\n/g, terminator);
 
 /** Sixteen line shapes, each ending in a line feed, so a concatenation of them is a document. */
@@ -667,7 +667,7 @@ describe("Session 345 P1 -- the differential: the single read answers what the o
   it("the empty text, one character, and a document that is only a delimiter", () => {
     const found: string[] = [];
     const tally = { reached: 0, proven: 0, valued: 0 };
-    for (const text of ["", "\n", "-", "---", "---\n", "...", BOM, BOM + "---\nfrom: gfm\n---\n", "\r\n", "\r", " ", "--- from: gfm --- "]) {
+    for (const text of ["", "\n", "-", "---", "---\n", "...", BOM, BOM + "---\nfrom: gfm\n---\n", "\r\n", "\r", "\u2028", "---\u2028from: gfm\u2028---\u2028"]) {
       for (const disagreement of [metadataDisagreement(text), proofDisagreement(text, tally), readerDisagreement(text)]) {
         if (disagreement !== null) found.push(disagreement);
       }
