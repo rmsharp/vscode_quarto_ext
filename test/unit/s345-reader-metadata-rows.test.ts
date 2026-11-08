@@ -31,8 +31,8 @@ import { countStrings, everyString, seededRandom } from "./support/regex-equival
 // proof's regions), the scan keeps the value half beside its regions, and `attributeBlockReader(text)` takes it from the scan's entry when the scan is there.
 //
 // The text rows count `quartoYamlRegions` calls through a wrapper around the module (the one place a metadata evaluation spends its join and its region pass) and say what a call receives. The old two-call spelling and
-// the old `attributeBlockReader` are kept below VERBATIM (renamed `old...`; `midDocumentMetadataBlocks` and `governingMetadataContent` are copied from the parent `acbc51f`, the rest of what they read is exported from the
-// model for this file), and the new answers are compared with them over: every document of up to four lines from a sixteen-line alphabet (every line shape that matters: the delimiters, a `...` marker, the `from:` spellings, a fence
+// the old `attributeBlockReader` are kept below (renamed `old...`; `midDocumentMetadataBlocks` and `governingMetadataContent` are copied from the parent `acbc51f` statement for statement with their comments dropped, and what they read
+// is exported from the model for this file), and the new answers are compared with them over: every document of up to four lines from a sixteen-line alphabet (every line shape that matters: the delimiters, a `...` marker, the `from:` spellings, a fence
 // opener, a comment opener and closer, blank and body lines), pairs of metadata blocks over thirty-four `from:` spellings, a seeded generator of whole documents (SEED below, the number actually drawn is floored, and so is each
 // class of document the draw must contain), the six line terminators, a leading BOM, leading blank lines and whitespace, unterminated blocks, the empty text, and every tracked `.qmd` / `.md` / `.Rmd` of the repository.
 //

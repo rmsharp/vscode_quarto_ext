@@ -172,8 +172,8 @@
   "file": "src/core/qmd/model.ts",
   "from": "return { headings, cells, bodyLines, codeFenceOpeners, frontMatter, fromValueLine };",
   "to": "return { headings, cells, bodyLines, codeFenceOpeners, frontMatter, fromValueLine: dialectOverride ? fromValueLine : null };",
-  "expect": "killed",
-  "why": "a value the KEY half does not select (if any document has one) is lost to attributeBlockReader after a scan; see the why of the result"
+  "expect": "survives",
+  "why": "equivalent on every input tried, not proven: a resolved value implies the KEY half selects. A throwaway fuzz of contentFromValueLine against contentSelectsReader over 381,400 contents (every sequence of up to three of 43 YAML lines, nested, flow, alias and block-scalar spellings among them: 81,400; and 300,000 random contents of one to seven of them) found no content with a value and no key, and the differential's 69,905 + 3,468 + 6,000 documents find none either; a document that broke the implication would make this mutant killed by the reader flags after a scan"
  },
  {
   "name": "A01 attributeBlockReader: an entry is the text's by length",
