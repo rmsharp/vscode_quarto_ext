@@ -13551,11 +13551,8 @@ export function readFrontMatter(text: string): FrontMatterBlock | null {
   const end = span.terminated ? span.endLine : span.endLine + 1;
   const content: string[] = [];
   for (let k = span.startLine + 1; k < end; k++) {
-    const line = at(k);
-    if (line === undefined) {
-      break;
-    }
-    content.push(line);
+    // Every `k` below `end` is a line the span's own reading went through: `end` is the terminator's line, or one past the last line.
+    content.push(at(k) as string);
   }
   return { startLine: span.startLine, endLine: span.endLine, terminated: span.terminated, content };
 }
@@ -13582,7 +13579,8 @@ function linesOf(text: string): LineAt {
         read.push(text.slice(next));
         next = -1;
       } else {
-        read.push(text.slice(next, feed > next && text.charCodeAt(feed - 1) === 13 ? feed - 1 : feed));
+        // A carriage return just before the feed belongs to THIS line: the character before `next` is the previous feed (or there is none, at 0), never a carriage return.
+        read.push(text.slice(next, text.charCodeAt(feed - 1) === 13 ? feed - 1 : feed));
         next = feed + 1;
       }
     }

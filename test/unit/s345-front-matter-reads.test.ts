@@ -63,6 +63,54 @@ function documentOf(bodyLines: number, lead = ""): string {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// THE COUNTERS' OWN ROWS: a counter that never counts passes every row that expects zero (Learning 910).
+
+describe("Session 345 P3 -- the counters count", () => {
+  const whole = "0123456789".repeat(20); // 200 characters
+
+  it("a split of the document, of a string exactly half as long and of a longer one count; a shorter one does not", () => {
+    expect(readsOf(whole, () => whole.split("\n")).splits).toBe(1);
+    expect(readsOf(whole, () => whole.slice(0, 100).split("\n")).splits).toBe(1);
+    expect(readsOf(whole, () => whole.slice(0, 99).split("\n")).splits).toBe(0);
+    expect(readsOf(whole, () => (whole + "x").split(/\r?\n/)).splits).toBe(1);
+    expect(readsOf(whole, () => whole.split("\n").length).value).toBe(1);
+  });
+
+  it("a search of the document, of a string exactly half as long and of a longer one count; a shorter one does not", () => {
+    expect(readsOf(whole, () => whole.indexOf("\n")).searches).toBe(1);
+    expect(readsOf(whole, () => whole.slice(0, 100).indexOf("\n")).searches).toBe(1);
+    expect(readsOf(whole, () => whole.slice(0, 99).indexOf("\n")).searches).toBe(0);
+    expect(readsOf(whole, () => [whole.indexOf("a"), whole.indexOf("b"), whole.indexOf("c")]).searches).toBe(3);
+    expect(readsOf(whole, () => whole.indexOf("9")).value).toBe(9);
+  });
+
+  it("a split is not a search and a search is not a split", () => {
+    expect(readsOf(whole, () => whole.split("\n"))).toMatchObject({ splits: 1, searches: 0 });
+    expect(readsOf(whole, () => whole.indexOf("\n"))).toMatchObject({ splits: 0, searches: 1 });
+  });
+
+  it("String.prototype is put back after a call, and after a call that throws", () => {
+    const split = String.prototype.split;
+    const indexOf = String.prototype.indexOf;
+    readsOf(whole, () => whole.split("\n"));
+    expect(String.prototype.split).toBe(split);
+    expect(String.prototype.indexOf).toBe(indexOf);
+    expect(() =>
+      readsOf(whole, () => {
+        throw new Error("boom");
+      }),
+    ).toThrow("boom");
+    expect(String.prototype.split).toBe(split);
+    expect(String.prototype.indexOf).toBe(indexOf);
+  });
+
+  it("the arguments and the answer pass through: the split is the real split", () => {
+    expect(readsOf(whole, () => "a\r\nb".split(/\r?\n/)).value).toEqual(["a", "b"]);
+    expect(readsOf(whole, () => "abcabc".indexOf("c", 3)).value).toBe(5);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // THE COUNTERS, slice A: once the scan is cached, a read of the front matter reads the front matter and not the document.
 
 describe("Session 345 P3 -- the interior of the front matter is read without splitting the document", () => {
