@@ -233,34 +233,46 @@ function oldBlock(text: string): { startLine: number; endLine: number; terminate
   return span === null || content === null ? null : { ...span, content };
 }
 
+/** The seven readers the oracle compares: the new code, or (in the control rows) the new code with one of them made wrong. */
+interface Reads {
+  findFrontMatter: typeof findFrontMatter;
+  frontMatterContentLines: typeof frontMatterContentLines;
+  readFrontMatter: typeof readFrontMatter;
+  findFrontMatterTopLevelLines: typeof findFrontMatterTopLevelLines;
+  findNestedFrontMatterValueLines: typeof findNestedFrontMatterValueLines;
+  inFrontMatter: typeof inFrontMatter;
+  resolveDocumentEngine: typeof resolveDocumentEngine;
+}
+const NEW_READS: Reads = { findFrontMatter, frontMatterContentLines, readFrontMatter, findFrontMatterTopLevelLines, findNestedFrontMatterValueLines, inFrontMatter, resolveDocumentEngine };
+
 /** `null` when every answer of the new code equals the parent's for `text`, else the first answer that differs. `inFrontMatter` is asked of every line number there is a reason to ask and of the numbers that are not lines. */
-function disagreement(text: string, fileNames: readonly string[] = FILE_NAMES, wide = true): string | null {
+function disagreement(text: string, fileNames: readonly string[] = FILE_NAMES, wide = true, reads: Reads = NEW_READS): string | null {
   const same = (what: string, a: unknown, b: unknown): string | null => {
     const x = JSON.stringify(a) ?? "undefined";
     const y = JSON.stringify(b) ?? "undefined";
     return x === y ? null : `${what}\n  new: ${x}\n  old: ${y}\n  text: ${JSON.stringify(text.length > 300 ? text.slice(0, 300) + "..." : text)}`;
   };
   const checks: Array<string | null> = [
-    same("findFrontMatter", findFrontMatter(text), oldFindFrontMatter(text)),
-    same("frontMatterContentLines", frontMatterContentLines(text), oldFrontMatterContentLines(text)),
-    same("readFrontMatter", readFrontMatter(text), oldBlock(text)),
-    same("findFrontMatterTopLevelLines", findFrontMatterTopLevelLines(text), oldFindFrontMatterTopLevelLines(text)),
-    same("findNestedFrontMatterValueLines", findNestedFrontMatterValueLines(text), oldFindNestedFrontMatterValueLines(text)),
+    same("findFrontMatter", reads.findFrontMatter(text), oldFindFrontMatter(text)),
+    same("frontMatterContentLines", reads.frontMatterContentLines(text), oldFrontMatterContentLines(text)),
+    same("readFrontMatter", reads.readFrontMatter(text), oldBlock(text)),
+    same("findFrontMatterTopLevelLines", reads.findFrontMatterTopLevelLines(text), oldFindFrontMatterTopLevelLines(text)),
+    same("findNestedFrontMatterValueLines", reads.findNestedFrontMatterValueLines(text), oldFindNestedFrontMatterValueLines(text)),
   ];
   const lineCount = text.split(/\r?\n/).length;
   const asked = wide ? [-Infinity, -1, -0, 0, 0.5, 1, 1.5, NaN, lineCount - 1, lineCount, lineCount + 1, Infinity, 2 ** 31] : [-1, 0, lineCount - 1, lineCount];
   for (let line = 1; line < Math.min(lineCount + 1, wide ? 12 : 8); line++) asked.push(line);
-  for (const line of asked) checks.push(same(`inFrontMatter(${line})`, inFrontMatter(text, line), oldInFrontMatter(text, line)));
-  for (const fileName of fileNames) checks.push(same(`resolveDocumentEngine(${fileName})`, resolveDocumentEngine(fileName, text), oldResolveDocumentEngine(fileName, text)));
+  for (const line of asked) checks.push(same(`inFrontMatter(${line})`, reads.inFrontMatter(text, line), oldInFrontMatter(text, line)));
+  for (const fileName of fileNames) checks.push(same(`resolveDocumentEngine(${fileName})`, reads.resolveDocumentEngine(fileName, text), oldResolveDocumentEngine(fileName, text)));
   return checks.find((c) => c !== null) ?? null;
 }
 
 /** The first disagreement over `texts`, and how many were drawn (a generator that draws nothing must fail on its floor, not pass on its emptiness). */
-function firstDisagreement(texts: Iterable<string>, fileNames?: readonly string[], wide = true): { drawn: number; first: string | null } {
+function firstDisagreement(texts: Iterable<string>, fileNames?: readonly string[], wide = true, reads: Reads = NEW_READS): { drawn: number; first: string | null } {
   let drawn = 0;
   for (const text of texts) {
     drawn++;
-    const d = disagreement(text, fileNames, wide);
+    const d = disagreement(text, fileNames, wide, reads);
     if (d !== null) return { drawn, first: d };
   }
   return { drawn, first: null };
@@ -299,6 +311,51 @@ function* everySeparated(pieces: readonly string[], separators: readonly string[
   };
   for (const first of pieces) yield* build(maxLength - 1, first);
 }
+
+// A differential that finds nothing is proved only by a control (Learning 893): each of the seven comparisons is fed one wrong answer and must name it.
+describe("Session 345 P3 -- the oracle notices", () => {
+  const document = ["---", "engine: markdown", "execute:", "  echo: false", "---", "```{r}", "```"].join("\n");
+  const wrong: Reads = {
+    findFrontMatter: () => ({ startLine: 0, endLine: 99 }),
+    frontMatterContentLines: () => ["wrong"],
+    readFrontMatter: () => null,
+    findFrontMatterTopLevelLines: () => [],
+    findNestedFrontMatterValueLines: () => [],
+    inFrontMatter: () => true,
+    resolveDocumentEngine: () => "jupyter",
+  };
+
+  it("the control document agrees with the new code", () => {
+    expect(disagreement(document)).toBeNull();
+    expect(disagreement(document, FILE_NAMES, false)).toBeNull();
+  });
+
+  it.each(Object.keys(wrong) as Array<keyof Reads>)("a wrong %s is reported by name", (name) => {
+    for (const wide of [true, false]) {
+      const found = disagreement(document, FILE_NAMES, wide, { ...NEW_READS, [name]: wrong[name] });
+      expect(found, name).not.toBeNull();
+      expect(found, name).toContain(name);
+    }
+  });
+
+  it("an empty interior is not 'none', and 'none' is not an undefined engine", () => {
+    expect(disagreement("# T", FILE_NAMES, true, { ...NEW_READS, frontMatterContentLines: () => [] })).toContain("frontMatterContentLines");
+    expect(disagreement("{{< include a.qmd >}}", FILE_NAMES, true, { ...NEW_READS, resolveDocumentEngine: () => null as never })).toContain("resolveDocumentEngine");
+    expect(disagreement("{{< include a.qmd >}}", ["doc.Rmd"], true, { ...NEW_READS, resolveDocumentEngine: () => undefined })).toContain("resolveDocumentEngine");
+  });
+
+  it("a wrong answer for one of the file names is reported with the name", () => {
+    const found = disagreement(document, ["doc.qmd", "doc.Rmd"], true, { ...NEW_READS, resolveDocumentEngine: (fileName, text) => (fileName === "doc.Rmd" ? "markdown" : resolveDocumentEngine(fileName, text)) });
+    expect(found).toContain("resolveDocumentEngine(doc.Rmd)");
+  });
+
+  it("firstDisagreement stops at the first text that differs and says how many it drew", () => {
+    expect(firstDisagreement(["# a", "# b"])).toEqual({ drawn: 2, first: null });
+    const stopped = firstDisagreement(["# a", document, "# b"], FILE_NAMES, true, { ...NEW_READS, readFrontMatter: wrong.readFrontMatter });
+    expect(stopped.drawn).toBe(2);
+    expect(stopped.first).toContain("readFrontMatter");
+  });
+});
 
 describe("Session 345 P3 -- the oracle: every answer equals the parent's (exhaustive documents)", () => {
   it("every document of 0..4 lines over ten line shapes joined by LF (11,111 documents)", () => {

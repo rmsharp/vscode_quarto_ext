@@ -452,8 +452,8 @@
   "file": "src/core/document-engine-resolve.ts",
   "from": "    block === null ? null : block.content,\n    engineText,\n  );",
   "to": "    block === null ? null : block.content,\n    text,\n  );",
-  "expect": "survives",
-  "why": "the language fallback reads the untrimmed text: the same languages, and the guard trims it again"
+  "expect": "killed",
+  "why": "the language fallback reads the untrimmed text: a fence behind a BOM or another leading run is not at the start of its line any more; the seeded documents (a leading run in front of a first-line cell fence)"
  },
  {
   "name": "Z06 resolveDocumentEngine: an empty interior is no interior",
@@ -470,14 +470,6 @@
   "to": "const baseLine = block.startLine;",
   "expect": "killed",
   "why": "every line number is one short; the oracle rows"
- },
- {
-  "name": "E02 topLevelLinesIn: no front matter is read as an empty one",
-  "file": "src/core/yaml-frontmatter-values.ts",
-  "from": "  if (block === null) {\n    return [];\n  }\n  const contentLines = block.content;",
-  "to": "  const contentLines = block === null ? [] : block.content;",
-  "expect": "survives",
-  "why": "the same: the empty interior has no lines"
  },
  {
   "name": "E03 topLevelLinesIn: a text is read without its first interior line",
@@ -598,5 +590,149 @@
   "to": "    else lines.push(\"...\");",
   "expect": "killed",
   "why": "the unterminated floor of the seeded row"
+ },
+ {
+  "name": "X01 linesOf: the whole text is cut into lines on the first ask",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (read.length <= k) {",
+  "to": "while (read.length <= k || next >= 0) {",
+  "expect": "killed",
+  "why": "every answer is the same and the cost is the document's: the reads-once row (searches) and the no-front-matter row"
+ },
+ {
+  "name": "X02 resolveDocumentEngine: the top-level enumerator reads the front matter again",
+  "file": "src/core/document-engine-resolve.ts",
+  "from": "topLevelLinesIn(block),",
+  "to": "topLevelLinesIn(readFrontMatter(engineText)),",
+  "expect": "killed",
+  "why": "the same answers from a second read: the reads-once row (searches: 10 for a five-line block)"
+ },
+ {
+  "name": "X03 findFrontMatter: the span comes from the scan",
+  "file": "src/core/qmd/model.ts",
+  "from": "const fm = frontMatterSpanAt(linesOf(text));\n  return fm === null ? null : { startLine",
+  "to": "const fm = scanRegions(text).frontMatter;\n  return fm === null ? null : { startLine",
+  "expect": "killed",
+  "why": "the very same span, by a scan: the unscanned-text row (3 splits, an entry in the cache)"
+ },
+ {
+  "name": "X04 inFrontMatter: the span comes from the scan",
+  "file": "src/core/qmd/model.ts",
+  "from": "const fm = frontMatterSpanAt(linesOf(text));\n  if (fm === null || line <= fm.startLine) {",
+  "to": "const fm = scanRegions(text).frontMatter;\n  if (fm === null || line <= fm.startLine) {",
+  "expect": "killed",
+  "why": "the very same span, by a scan: the unscanned-text row"
+ },
+ {
+  "name": "X05 readFrontMatter: the span comes from the scan",
+  "file": "src/core/qmd/model.ts",
+  "from": "const span = frontMatterSpanAt(at);",
+  "to": "const span = scanRegions(text).frontMatter;",
+  "expect": "killed",
+  "why": "the very same span, by a scan: the unscanned-text rows and the resolver rows"
+ },
+ {
+  "name": "T11 disagreement: findFrontMatter is compared with itself",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "same(\"findFrontMatter\", reads.findFrontMatter(text), oldFindFrontMatter(text)),",
+  "to": "same(\"findFrontMatter\", reads.findFrontMatter(text), reads.findFrontMatter(text)),",
+  "expect": "killed",
+  "why": "the control row: a wrong findFrontMatter is reported by name"
+ },
+ {
+  "name": "T12 disagreement: readFrontMatter is compared with itself",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "same(\"readFrontMatter\", reads.readFrontMatter(text), oldBlock(text)),",
+  "to": "same(\"readFrontMatter\", reads.readFrontMatter(text), reads.readFrontMatter(text)),",
+  "expect": "killed",
+  "why": "the control row: a wrong readFrontMatter is reported by name"
+ },
+ {
+  "name": "T13 disagreement: frontMatterContentLines is compared with itself",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "same(\"frontMatterContentLines\", reads.frontMatterContentLines(text), oldFrontMatterContentLines(text)),",
+  "to": "same(\"frontMatterContentLines\", reads.frontMatterContentLines(text), reads.frontMatterContentLines(text)),",
+  "expect": "killed",
+  "why": "the control row"
+ },
+ {
+  "name": "T14 disagreement: findFrontMatterTopLevelLines is compared with itself",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "same(\"findFrontMatterTopLevelLines\", reads.findFrontMatterTopLevelLines(text), oldFindFrontMatterTopLevelLines(text)),",
+  "to": "same(\"findFrontMatterTopLevelLines\", reads.findFrontMatterTopLevelLines(text), reads.findFrontMatterTopLevelLines(text)),",
+  "expect": "killed",
+  "why": "the control row"
+ },
+ {
+  "name": "T15 disagreement: findNestedFrontMatterValueLines is compared with itself",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "same(\"findNestedFrontMatterValueLines\", reads.findNestedFrontMatterValueLines(text), oldFindNestedFrontMatterValueLines(text)),",
+  "to": "same(\"findNestedFrontMatterValueLines\", reads.findNestedFrontMatterValueLines(text), reads.findNestedFrontMatterValueLines(text)),",
+  "expect": "killed",
+  "why": "the control row"
+ },
+ {
+  "name": "T16 disagreement: inFrontMatter is compared with itself",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "reads.inFrontMatter(text, line), oldInFrontMatter(text, line)",
+  "to": "reads.inFrontMatter(text, line), reads.inFrontMatter(text, line)",
+  "expect": "killed",
+  "why": "the control row"
+ },
+ {
+  "name": "T17 disagreement: resolveDocumentEngine is compared with itself",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "reads.resolveDocumentEngine(fileName, text), oldResolveDocumentEngine(fileName, text)",
+  "to": "reads.resolveDocumentEngine(fileName, text), reads.resolveDocumentEngine(fileName, text)",
+  "expect": "killed",
+  "why": "the control row"
+ },
+ {
+  "name": "T18 disagreement: no difference is ever reported",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "return x === y ? null :",
+  "to": "return true ? null :",
+  "expect": "killed",
+  "why": "the control rows and every row that expects a null from the comparison being the one that could have been something else"
+ },
+ {
+  "name": "T19 everyDocument: the longest documents are not drawn",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "for (let length = 1; length <= maxLength; length++) {\n    const digits",
+  "to": "for (let length = 1; length < maxLength; length++) {\n    const digits",
+  "expect": "killed",
+  "why": "the drawn counts of the exhaustive rows"
+ },
+ {
+  "name": "T20 everyDocument: the empty document is not drawn",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "yield \"\";\n  for (let length = 1;",
+  "to": "for (let length = 1;",
+  "expect": "killed",
+  "why": "the drawn counts of the exhaustive rows"
+ },
+ {
+  "name": "T21 everySeparated: the longest documents are not drawn",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "yield* build(maxLength - 1, first);",
+  "to": "yield* build(maxLength - 2, first);",
+  "expect": "killed",
+  "why": "the drawn count of the separators row"
+ },
+ {
+  "name": "T22 the tracked documents: only .qmd files are listed",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "/\\.(?:qmd|md|Rmd|rmd)$/.test(p)",
+  "to": "/\\.(?:qmd)$/.test(p)",
+  "expect": "killed",
+  "why": "the floor of the listing row (100 documents, one .md among them)"
+ },
+ {
+  "name": "T23 firstDisagreement: the reads are not handed on",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "const d = disagreement(text, fileNames, wide, reads);",
+  "to": "const d = disagreement(text, fileNames, wide);",
+  "expect": "killed",
+  "why": "the control row of firstDisagreement"
  }
 ]
