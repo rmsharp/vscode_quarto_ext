@@ -324,7 +324,7 @@ function metadataDisagreement(text: string): string | null {
 }
 
 /** `null` when `frontMatterProvesReader` with a regions source SHARED with the metadata read answers what it answered with the parent's inline regions. `tally.reached` counts the documents whose proof asked for the regions at all. */
-function proofDisagreement(text: string, tally: { reached: number; proven: number }): string | null {
+function proofDisagreement(text: string, tally: { reached: number; proven: number; valued: number }): string | null {
   const lines = text.split(/\r?\n/);
   const fromValueLine = oldFrontMatterFromValueLine(lines);
   const old = frontMatterProvesReader(lines, fromValueLine, oldRegionsOf(lines));
@@ -337,6 +337,7 @@ function proofDisagreement(text: string, tally: { reached: number; proven: numbe
   readerMetadataOf(lines, shared);
   const asksBeforeProof = asks;
   const now = frontMatterProvesReader(lines, fromValueLine, shared);
+  if (fromValueLine !== null) tally.valued++;
   if (asks > asksBeforeProof) tally.reached++;
   if (now) tally.proven++;
   return old === now ? null : JSON.stringify({ text, old, now });
@@ -586,7 +587,7 @@ describe("Session 345 P1 -- the differential: the single read answers what the o
   it(`every pair of the ${FROM_SPELLINGS.length} spellings in a front matter and a later block, in three frames: the metadata, the proof and the flags`, () => {
     let compared = 0;
     const found: string[] = [];
-    const tally = { reached: 0, proven: 0 };
+    const tally = { reached: 0, proven: 0, valued: 0 };
     for (const first of FROM_SPELLINGS) {
       for (const second of FROM_SPELLINGS) {
         for (let frame = 0; frame < 3; frame++) {
@@ -600,6 +601,7 @@ describe("Session 345 P1 -- the differential: the single read answers what the o
     }
     expect(compared).toBe(FROM_SPELLINGS.length * FROM_SPELLINGS.length * 3);
     expect(tally.reached).toBeGreaterThan(1_500);
+    expect(tally.reached).toBeLessThanOrEqual(tally.valued);
     expect(tally.proven).toBeGreaterThan(40);
     expect(firstOf(found)).toEqual([]);
   });
@@ -608,7 +610,7 @@ describe("Session 345 P1 -- the differential: the single read answers what the o
   it(`seed ${SEED}: ${SEEDED_DOCUMENTS} whole documents, with every class of document drawn: the metadata, the proof and the flags`, () => {
     const rand = seededRandom(SEED);
     const found: string[] = [];
-    const tally = { reached: 0, proven: 0 };
+    const tally = { reached: 0, proven: 0, valued: 0 };
     const classes = { midFrom: 0, midFence: 0, midDots: 0, inComment: 0, frontFrom: 0, unterminated: 0, bom: 0, leadingBlank: 0, selects: 0 };
     const terminators = new Map<string, number>();
     let drawnCount = 0;
@@ -632,6 +634,7 @@ describe("Session 345 P1 -- the differential: the single read answers what the o
       expect(terminators.get(terminator) ?? 0, `terminator ${JSON.stringify(terminator)}`).toBeGreaterThan(SEEDED_DOCUMENTS / 50);
     }
     expect(tally.reached).toBeGreaterThan(600);
+    expect(tally.reached).toBeLessThanOrEqual(tally.valued);
     expect(tally.proven).toBeGreaterThan(80);
     expect(firstOf(found)).toEqual([]);
   });
@@ -663,7 +666,7 @@ describe("Session 345 P1 -- the differential: the single read answers what the o
 
   it("the empty text, one character, and a document that is only a delimiter", () => {
     const found: string[] = [];
-    const tally = { reached: 0, proven: 0 };
+    const tally = { reached: 0, proven: 0, valued: 0 };
     for (const text of ["", "\n", "-", "---", "---\n", "...", BOM, BOM + "---\nfrom: gfm\n---\n", "\r\n", "\r", " ", "--- from: gfm --- "]) {
       for (const disagreement of [metadataDisagreement(text), proofDisagreement(text, tally), readerDisagreement(text)]) {
         if (disagreement !== null) found.push(disagreement);

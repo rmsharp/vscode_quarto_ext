@@ -1,0 +1,346 @@
+[
+ {
+  "name": "Y01 yamlRegionsOf: the pass is never kept",
+  "file": "src/core/qmd/model.ts",
+  "from": "return () => (regions ??= quartoYamlRegions(lines.join(\"\\n\")));",
+  "to": "return () => quartoYamlRegions(lines.join(\"\\n\"));",
+  "expect": "killed",
+  "why": "every ask makes its own pass again: a scan 2 passes (3 with the proof), scan plus attributeBlockReader 3 (4); killed by the count rows"
+ },
+ {
+  "name": "Y02 yamlRegionsOf: the pass is kept with ||= for ??=",
+  "file": "src/core/qmd/model.ts",
+  "from": "return () => (regions ??= quartoYamlRegions(lines.join(\"\\n\")));",
+  "to": "return () => (regions ||= quartoYamlRegions(lines.join(\"\\n\")));",
+  "expect": "survives",
+  "why": "equivalent: the kept value is an array, which is never falsy, so ||= and ??= take the same branch for every document"
+ },
+ {
+  "name": "Y03 yamlRegionsOf: the lines are joined with CRLF",
+  "file": "src/core/qmd/model.ts",
+  "from": "return () => (regions ??= quartoYamlRegions(lines.join(\"\\n\")));",
+  "to": "return () => (regions ??= quartoYamlRegions(lines.join(\"\\r\\n\")));",
+  "expect": "killed",
+  "why": "quartoYamlRegions splits on a line feed with an optional carriage return, so the regions come out the same; killed only by the rows that read the text the pass was handed (the joined lines, byte for byte)"
+ },
+ {
+  "name": "Y04 yamlRegionsOf: the first line is left out",
+  "file": "src/core/qmd/model.ts",
+  "from": "return () => (regions ??= quartoYamlRegions(lines.join(\"\\n\")));",
+  "to": "return () => (regions ??= quartoYamlRegions(lines.slice(1).join(\"\\n\")));",
+  "expect": "killed",
+  "why": "every region is a line early: the metadata, the proof and the flags move; killed by the count rows and the differential"
+ },
+ {
+  "name": "Y05 yamlRegionsOf: the pass is made eagerly, when the closure is made",
+  "file": "src/core/qmd/model.ts",
+  "from": "return () => (regions ??= quartoYamlRegions(lines.join(\"\\n\")));",
+  "to": "const eager = quartoYamlRegions(lines.join(\"\\n\")); return () => eager;",
+  "expect": "killed",
+  "why": "a blank document (or a proof that is never reached) makes a pass it did not make; killed by the blank-document row and the asks row"
+ },
+ {
+  "name": "Y06 yamlRegionsOf: the pass is of the empty text",
+  "file": "src/core/qmd/model.ts",
+  "from": "return () => (regions ??= quartoYamlRegions(lines.join(\"\\n\")));",
+  "to": "return () => (regions ??= quartoYamlRegions(\"\"));",
+  "expect": "killed",
+  "why": "no region is ever found; killed by the count rows (the text the pass was handed) and the mid-document answers"
+ },
+ {
+  "name": "M01 readerMetadataOf: the default regions source is of no lines",
+  "file": "src/core/qmd/model.ts",
+  "from": "yamlRegions: YamlRegionsOf = yamlRegionsOf(lines)): ReaderMetadata {",
+  "to": "yamlRegions: YamlRegionsOf = yamlRegionsOf([])): ReaderMetadata {",
+  "expect": "killed",
+  "why": "asked without a source, no mid-document block is ever found; killed by the differential (every comparison calls readerMetadataOf(lines))"
+ },
+ {
+  "name": "M02 readerMetadataOf: the KEY half is asked of the front matter only",
+  "file": "src/core/qmd/model.ts",
+  "from": "selectsReader: frontMatterSelectsReader(content), fromValueLine: frontMatterFromValueLine(content) };",
+  "to": "selectsReader: frontMatterSelectsReader(frontMatterContent(lines)), fromValueLine: frontMatterFromValueLine(content) };",
+  "expect": "killed",
+  "why": "a mid-document block that selects no longer selects; killed by the differential and the answer rows"
+ },
+ {
+  "name": "M03 readerMetadataOf: the VALUE half is asked of the front matter only",
+  "file": "src/core/qmd/model.ts",
+  "from": "selectsReader: frontMatterSelectsReader(content), fromValueLine: frontMatterFromValueLine(content) };",
+  "to": "selectsReader: frontMatterSelectsReader(content), fromValueLine: frontMatterFromValueLine(frontMatterContent(lines)) };",
+  "expect": "killed",
+  "why": "a mid-document block's value is lost; killed by the differential and the answer rows"
+ },
+ {
+  "name": "M04 readerMetadataOf: the KEY half finds the block again (the old duplication)",
+  "file": "src/core/qmd/model.ts",
+  "from": "selectsReader: frontMatterSelectsReader(content), fromValueLine: frontMatterFromValueLine(content) };",
+  "to": "selectsReader: frontMatterSelectsReader(governingMetadataContent(lines, yamlRegionsOf(lines))), fromValueLine: frontMatterFromValueLine(content) };",
+  "expect": "killed",
+  "why": "same answers, a second pass over the document; killed by the count rows alone (readerMetadataOf makes ONE pass, and asks the source it is handed once)"
+ },
+ {
+  "name": "M05 frontMatterSelectsReader: any governing content selects",
+  "file": "src/core/qmd/model.ts",
+  "from": "return content !== null && contentSelectsReader(content);",
+  "to": "return content !== null;",
+  "expect": "killed",
+  "why": "every document with a front matter or a block selects; killed by the differential and the answers"
+ },
+ {
+  "name": "M06 frontMatterFromValueLine: the first line of the content is dropped",
+  "file": "src/core/qmd/model.ts",
+  "from": "return content === null ? null : contentFromValueLine(content);",
+  "to": "return content === null ? null : contentFromValueLine(content.slice(1));",
+  "expect": "killed",
+  "why": "a `from:` on the first line of the block is lost; killed by the differential and the answers"
+ },
+ {
+  "name": "G01 midDocumentMetadataBlocks: the regions are walked last first",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (const region of yamlRegions()) {",
+  "to": "for (const region of [...yamlRegions()].reverse()) {",
+  "expect": "killed",
+  "why": "the last SELECTING block governs, so the order is the answer once two blocks select differently; killed by the differential over seeded documents (the same mutant as R09 of s329-part5-pins-review)"
+ },
+ {
+  "name": "G02 midDocumentMetadataBlocks: the shared list is reversed in place",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (const region of yamlRegions()) {",
+  "to": "for (const region of (yamlRegions() as YamlRegion[]).reverse()) {",
+  "expect": "killed",
+  "why": "the list the proof (and the next ask) reads is changed under them; killed by the frozen-list row (TypeError) and the differential"
+ },
+ {
+  "name": "G03 governingMetadataContent: the walk is handed a source with no region",
+  "file": "src/core/qmd/model.ts",
+  "from": "const blocks = midDocumentMetadataBlocks(lines, yamlRegions);",
+  "to": "const blocks = midDocumentMetadataBlocks(lines, () => []);",
+  "expect": "killed",
+  "why": "no mid-document block is ever found; killed by the differential and the answers"
+ },
+ {
+  "name": "G04 governingMetadataContent: the walk makes a source of its own",
+  "file": "src/core/qmd/model.ts",
+  "from": "const blocks = midDocumentMetadataBlocks(lines, yamlRegions);",
+  "to": "const blocks = midDocumentMetadataBlocks(lines, yamlRegionsOf(lines));",
+  "expect": "killed",
+  "why": "the source it was handed is never asked; killed by the asks row and the empty-source row"
+ },
+ {
+  "name": "P01 frontMatterProvesReader: the regions are made inline, as before",
+  "file": "src/core/qmd/model.ts",
+  "from": "const regions = yamlRegions();",
+  "to": "const regions = quartoYamlRegions(lines.join(\"\\n\"));",
+  "expect": "killed",
+  "why": "the same answers, a pass of its own on every document the proof reaches; killed by the count rows on the CommonMark documents and by the reach tally"
+ },
+ {
+  "name": "C01 computeRegions: the shared source is of no lines",
+  "file": "src/core/qmd/model.ts",
+  "from": "const yamlRegions = yamlRegionsOf(lines);",
+  "to": "const yamlRegions = yamlRegionsOf([]);",
+  "expect": "killed",
+  "why": "the scan finds no region: the metadata and the proof both read nothing; killed by the count rows (the text the pass was handed)"
+ },
+ {
+  "name": "C02 computeRegions: the metadata read makes its own source",
+  "file": "src/core/qmd/model.ts",
+  "from": "readerMetadataOf(lines, yamlRegions);",
+  "to": "readerMetadataOf(lines);",
+  "expect": "killed",
+  "why": "the proof then asks the scan's source and the read its own: two passes on a CommonMark document; killed by the count rows on those documents"
+ },
+ {
+  "name": "C03 computeRegions: the proof makes its own source",
+  "file": "src/core/qmd/model.ts",
+  "from": "frontMatterProvesReader(lines, fromValueLine, yamlRegions);",
+  "to": "frontMatterProvesReader(lines, fromValueLine, yamlRegionsOf(lines));",
+  "expect": "killed",
+  "why": "two passes on every document the proof reaches; killed by the count rows on those documents"
+ },
+ {
+  "name": "C04 computeRegions: the entry keeps no value",
+  "file": "src/core/qmd/model.ts",
+  "from": "return { headings, cells, bodyLines, codeFenceOpeners, frontMatter, fromValueLine };",
+  "to": "return { headings, cells, bodyLines, codeFenceOpeners, frontMatter, fromValueLine: null };",
+  "expect": "killed",
+  "why": "attributeBlockReader after a scan reads the default for every document; killed by the reader flags after a scan"
+ },
+ {
+  "name": "C05 computeRegions: the entry keeps the value only where the key selects",
+  "file": "src/core/qmd/model.ts",
+  "from": "return { headings, cells, bodyLines, codeFenceOpeners, frontMatter, fromValueLine };",
+  "to": "return { headings, cells, bodyLines, codeFenceOpeners, frontMatter, fromValueLine: dialectOverride ? fromValueLine : null };",
+  "expect": "killed",
+  "why": "a value the KEY half does not select (if any document has one) is lost to attributeBlockReader after a scan; see the why of the result"
+ },
+ {
+  "name": "A01 attributeBlockReader: an entry is the text's by length",
+  "file": "src/core/qmd/model.ts",
+  "from": "regionsCache.find((entry) => entry.text === text);",
+  "to": "regionsCache.find((entry) => entry.text.length === text.length);",
+  "expect": "killed",
+  "why": "two cached texts of one length are taken for each other; killed by the one-length row"
+ },
+ {
+  "name": "A02 attributeBlockReader: the newest entry is taken whatever its text",
+  "file": "src/core/qmd/model.ts",
+  "from": "regionsCache.find((entry) => entry.text === text);",
+  "to": "regionsCache.find(() => true);",
+  "expect": "killed",
+  "why": "an unrelated scan's value is handed to a text; killed by the different-text rows"
+ },
+ {
+  "name": "A03 attributeBlockReader: the entry is taken only when the text has none",
+  "file": "src/core/qmd/model.ts",
+  "from": "const fromValueLine = scanned !== undefined ?",
+  "to": "const fromValueLine = scanned === undefined ?",
+  "expect": "killed",
+  "why": "inverted; killed by the counts and the answers"
+ },
+ {
+  "name": "A04 attributeBlockReader: an entry's value is read as none",
+  "file": "src/core/qmd/model.ts",
+  "from": "? scanned.regions.fromValueLine :",
+  "to": "? null :",
+  "expect": "killed",
+  "why": "killed by the reader flags after a scan"
+ },
+ {
+  "name": "A05 attributeBlockReader: a text with no entry reads as none",
+  "file": "src/core/qmd/model.ts",
+  "from": ": unscannedFromValueLine(text);",
+  "to": ": null;",
+  "expect": "killed",
+  "why": "killed by the reader flags of a text never scanned and by the evicted-entry row"
+ },
+ {
+  "name": "A06 attributeBlockReader: a text with no entry is scanned",
+  "file": "src/core/qmd/model.ts",
+  "from": ": unscannedFromValueLine(text);",
+  "to": ": scanEntry(text).regions.fromValueLine;",
+  "expect": "killed",
+  "why": "the ask costs a whole scan for a caller that never scanned, and the scan is kept; killed by the row that scans the text after the ask and counts a pass"
+ },
+ {
+  "name": "A07 attributeBlockReader: an entry that is read is promoted",
+  "file": "src/core/qmd/model.ts",
+  "from": "const scanned = regionsCache.find((entry) => entry.text === text);",
+  "to": "const hitAt = regionsCache.findIndex((entry) => entry.text === text); if (hitAt > 0) regionsCache = promoted(regionsCache, hitAt); const scanned = hitAt >= 0 ? regionsCache[0] : undefined;",
+  "expect": "killed",
+  "why": "the replacement order moves when a value is read: the oldest entry is the wrong one; killed by the promotion row"
+ },
+ {
+  "name": "A08 attributeBlockReader: the LAST entry of the text is taken",
+  "file": "src/core/qmd/model.ts",
+  "from": "regionsCache.find((entry) => entry.text === text);",
+  "to": "regionsCache.findLast((entry) => entry.text === text);",
+  "expect": "survives",
+  "why": "equivalent: every entry of one text holds the same value (the value is read from the lines of the text and nothing else), so the first and the last are the same value"
+ },
+ {
+  "name": "A09 attributeBlockReader: only an engine-blind entry is taken",
+  "file": "src/core/qmd/model.ts",
+  "from": "regionsCache.find((entry) => entry.text === text);",
+  "to": "regionsCache.find((entry) => entry.text === text && entry.engine === undefined);",
+  "expect": "killed",
+  "why": "a scan under an engine is not served; killed by the any-key row"
+ },
+ {
+  "name": "A10 attributeBlockReader: only an executing entry is taken",
+  "file": "src/core/qmd/model.ts",
+  "from": "regionsCache.find((entry) => entry.text === text);",
+  "to": "regionsCache.find((entry) => entry.text === text && entry.mode === \"execute\");",
+  "expect": "killed",
+  "why": "a knitr scan under no-execute is not served; killed by the any-key row"
+ },
+ {
+  "name": "A11 unscannedFromValueLine: the front matter alone is read",
+  "file": "src/core/qmd/model.ts",
+  "from": "return frontMatterFromValueLine(governingMetadataContent(lines, yamlRegionsOf(lines)));",
+  "to": "return frontMatterFromValueLine(frontMatterContent(lines));",
+  "expect": "killed",
+  "why": "a mid-document block's value is lost for a text never scanned; killed by the cold reader flags"
+ },
+ {
+  "name": "A12 unscannedFromValueLine: the lines are split on a line feed alone",
+  "file": "src/core/qmd/model.ts",
+  "from": "const lines = text.split(/\\r?\\n/);\n  return frontMatterFromValueLine(",
+  "to": "const lines = text.split(\"\\n\");\n  return frontMatterFromValueLine(",
+  "expect": "killed",
+  "why": "a carriage return stays on the end of each line of a CRLF text; killed by the terminator rows (see the why of the result)"
+ },
+ {
+  "name": "A13 unscannedFromValueLine: the block is found through readerMetadataOf",
+  "file": "src/core/qmd/model.ts",
+  "from": "return frontMatterFromValueLine(governingMetadataContent(lines, yamlRegionsOf(lines)));",
+  "to": "return readerMetadataOf(lines).fromValueLine;",
+  "expect": "survives",
+  "why": "equivalent in every answer (the KEY half is computed and dropped), one contentSelectsReader dearer; not a behaviour"
+ },
+ {
+  "name": "T01 rows: the exhaustive documents are of up to 3 lines",
+  "file": "test/unit/s345-reader-metadata-rows.test.ts",
+  "from": "const EXHAUSTIVE_LENGTH = 4;",
+  "to": "const EXHAUSTIVE_LENGTH = 3;",
+  "expect": "killed",
+  "why": "killed by the floor on the number compared"
+ },
+ {
+  "name": "T02 rows: 600 seeded documents",
+  "file": "test/unit/s345-reader-metadata-rows.test.ts",
+  "from": "const SEEDED_DOCUMENTS = 6_000;",
+  "to": "const SEEDED_DOCUMENTS = 600;",
+  "expect": "killed",
+  "why": "killed by the floors on the reach and the proof tallies"
+ },
+ {
+  "name": "T03 oracle: a selecting block governs as itself even when it reads as nothing",
+  "file": "test/unit/s345-reader-metadata-rows.test.ts",
+  "from": "return contentFromValueLine(blocks[i]) === null ? [] : blocks[i];",
+  "to": "return blocks[i];",
+  "expect": "killed",
+  "why": "the oracle then disagrees with the code under test on an empty `from:` below the first content line: the comparison is not vacuous"
+ },
+ {
+  "name": "T04 oracle: a block inside an open comment is read",
+  "file": "test/unit/s345-reader-metadata-rows.test.ts",
+  "from": "if (region.startLine <= firstContent || commentOpenAt(region.startLine)) {",
+  "to": "if (region.startLine <= firstContent) {",
+  "expect": "killed",
+  "why": "killed by the differential over documents with a comment open above a block"
+ },
+ {
+  "name": "T05 oracle: an unterminated block is read",
+  "file": "test/unit/s345-reader-metadata-rows.test.ts",
+  "from": "const content = end >= 0 ? body.slice(0, end) : region.terminated ? body : null;",
+  "to": "const content = end >= 0 ? body.slice(0, end) : body;",
+  "expect": "killed",
+  "why": "killed by the differential over documents with an unterminated block"
+ },
+ {
+  "name": "T06 oracle: a block holding a fence opener is read",
+  "file": "test/unit/s345-reader-metadata-rows.test.ts",
+  "from": "if (content !== null && !content.some((line) => FENCE_ANYWHERE_IN_BLOCK.test(line))) {",
+  "to": "if (content !== null) {",
+  "expect": "killed",
+  "why": "killed by the differential over documents with a fence opener inside a block"
+ },
+ {
+  "name": "T07 rows: the reach tally counts every document",
+  "file": "test/unit/s345-reader-metadata-rows.test.ts",
+  "from": "const asksBeforeProof = asks;",
+  "to": "const asksBeforeProof = -1;",
+  "expect": "killed",
+  "why": "every document then 'reaches' the regions, which is more than the documents with a value: killed by the upper bound on the reach"
+ },
+ {
+  "name": "T08 rows: the proof compared with the inline regions is handed the shared source",
+  "file": "test/unit/s345-reader-metadata-rows.test.ts",
+  "from": "const old = frontMatterProvesReader(lines, fromValueLine, oldRegionsOf(lines));",
+  "to": "const old = frontMatterProvesReader(lines, fromValueLine, () => []);",
+  "expect": "killed",
+  "why": "the old side then reads no region and refuses every proof: the comparison against the proven documents disagrees"
+ }
+]
