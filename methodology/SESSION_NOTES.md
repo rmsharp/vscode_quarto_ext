@@ -396,35 +396,3 @@ no measurement behind it. (8) One verifier per finding is a thinner check than S
 five integration rows were rewritten without a RED (the screen was not ours until the go-ahead) and ran green in the host. **Host:** `test:integration` RUN with go-ahead (564 passing); `test:lsp` NOT run. **Cost:** cures 4 workers 1,685,954 subagent tokens, 759
 tool calls; review 51 agents 5,466,948, 1,401: 7,152,902 in all; about 30 list runs, three `npm test`, one integration run, one `npm run package`, no quarto renders, load 5 to 300 on a shared machine. 7,152,902 in all), about 30 list runs, two `npm test`, one
 integration run, one `npm run package`, no quarto renders, load 5 to 300 on a shared machine.
-
-## Session 341 Handoff Evaluation (by Session 342)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK, both ledger frontiers (at HEAD `e8d5a36`, gap 0), no `pending` receipt, the ratchet citation (2/2, equal to the
-receipt) and the picker all held; candidate (a) was placed by finishing a feature and its estimate "one session together" held for the cures.
-**Helped:** the cures for (2) and (3) were right as written and the figures reproduced in slope (part (2) 479 / 1,323 / 4,179 ms against 220 / 844 / 3,128; part (3) 0.59 / 2.30 / 9.40 ms per line against 0.46 to
-0.50 and 1.8 to 1.9); gotcha 4 (the runner tests the COMMITTED source; `mutation-lists-apply` forces re-anchoring) is why the merge was safe; gotchas 6 and 7 held; Learnings 910, 911, 913 shaped every brief.
-**Missing:** (1) part (5) was filed as a SPEED problem ("a second full region scan: 2.8 against 14.0 ms") and its probe left out `resolveDocumentEngine`, which the Outline calls first and which caches the
-engine-blind scan: in the real flow the second scan is a cache hit (2.53 against 2.50 ms at 2,000 cells); "no differing list was reproduced on five knitr shapes" measured five shapes (a stress pool: 44 knitr, 484
-jupyter, 206 markdown documents differ) (Learning 916). (2) Part (3)'s "500-line edit across 2,000 cells, 933 ms" is not a shape the loop can run (`rangeWithinCell` stops at the first fence). (3) Part (4) did not
-say a trailing debounce coalesces only bursts (Learning 917).
-**Wrong:** the speed claim for part (5). **ROI: medium-high.**
-
-## Session 342 Self-Assessment
-
-**Score: 7/10.**
-**Went right.** Timed all four shapes at the parent before briefing; seam first, rows RED on the clock or a count, all four RED counts re-run from my side (6 of 33, 6 of 29, 19 of 37, 57 of 96); verified the claims
-that change code (the mutants T03 and A01 survive every committed test), re-ran the part (5) change on two small documents and then re-measured its speed claim through the real call sequence, which overturned my
-claim and the item's; `mutation-lists-apply` right after the pick caught eight moved entries; asked before the screen-taking run; all eight lists run alone in a scratch worktree and equal to the workers'; accepted
-two worker contradictions that were right (the lazy `getText`, the self-contradicting FB item).
-**Went wrong.** (1) I reported "about 13 ms of a 15.3 ms preparation is a second region scan" as measured and briefed a speed cure; my probe left out `resolveDocumentEngine`, as the item's did (Learning 916), and a
-fix worker's docstring correction caught it. (2) My part (4) brief said K keystrokes were K evaluations (2K) and did not say the debounce cures bursts only; I named the 150 ms as a choice but the headline 1,052 to
-39 ms is for 10 ms gaps (Learning 917). (3) The fix brief contradicted itself on FB and asked for an eager `getText()` (Learning 920). (4) The merge turned `mutation-lists-apply` red (eight entries): I did not tell
-the workers to grep the older lists for the files they edit (Learning 918). (5) The zsh gotchas in the handoff bit again (`set -- $spec` left four junk worktrees; a variable `rm -rf` was refused; `echo ===`). (6)
-The first list run started at load 27, the tail of my own `npm test`; results matched the workers' at lower loads.
-**Known residuals:** the BACKLOG item "What Session 342's review round found beside the typing-path cures" (seven parts, the first a question for you), what stays of the Session 341 item, the other Up Next and
-Polish items, the survivors (in each list's `why`), `test:lsp` NOT run; no integration row drives the debounce wiring.
-**TDD:** RED before GREEN for every cure part and for the fix round's new logic (`isInCodeCell`: 39 rows failing "Failed to load url" before the module; the adapter pins 7 failed | 45 passed before
-`updateCellContext` called it); the rows added for survivors are green on arrival by nature and their RED is the mutant (T03 fails 4 of 5 new rows, T04 5 of 5; A01, A02, A04, FA, K01 5 failed | 75 passed before the
-problem lists grew; V19, V21, V22, M05 killed by name).
-**Host:** `test:integration` RUN with go-ahead (562 passing, exit 0); `test:lsp` NOT run. **Cost:** three workflows (cures 3 workers 1,322,183 subagent tokens, 496 tool calls; review 72 agents 7,154,975, 1,540; fix
-2 workers 577,213, 242: 9,054,371 in all), eight list runs, two `npm test`, one integration run, no quarto renders, load 3 to 27.
