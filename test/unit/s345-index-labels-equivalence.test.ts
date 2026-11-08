@@ -49,8 +49,16 @@ interface Tally {
 }
 const newTally = (): Tally => ({ texts: 0, compared: 0, disagreements: [], labels: 0, withLabels: 0, byKind: {}, engineSensitive: 0, threw: 0 });
 
+/** The three functions compared with their old spellings. Rows hand the harness a broken one to see that it notices (Learning 910: a harness that cannot fail passes everything). */
+interface Live {
+  indexLabels: typeof indexLabels;
+  cellTargetContext: typeof cellTargetContext;
+  plainFrontMatter: typeof plainFrontMatter;
+}
+const LIVE: Live = { indexLabels, cellTargetContext, plainFrontMatter };
+
 /** Ask the old and the live `indexLabels` the same question for every engine, and the old and the live context the same question once. */
-function compareText(text: string, index: number, tally: Tally, engines: readonly Engine[] = ENGINES): void {
+function compareText(text: string, index: number, tally: Tally, engines: readonly Engine[] = ENGINES, live: Live = LIVE): void {
   tally.texts++;
   const note = (what: string, expected: unknown, actual: unknown): void => {
     if (tally.disagreements.length < 5) {
@@ -66,11 +74,11 @@ function compareText(text: string, index: number, tally: Tally, engines: readonl
     let expected: Outcome;
     let actual: Outcome;
     if (index % 2 === 0) {
-      actual = outcomeOf(() => indexLabels(text, engine));
+      actual = outcomeOf(() => live.indexLabels(text, engine));
       expected = outcomeOf(() => oldIndexLabels(text, engine));
     } else {
       expected = outcomeOf(() => oldIndexLabels(text, engine));
-      actual = outcomeOf(() => indexLabels(text, engine));
+      actual = outcomeOf(() => live.indexLabels(text, engine));
     }
     tally.compared++;
     const e = JSON.stringify(expected);
@@ -95,24 +103,62 @@ function compareText(text: string, index: number, tally: Tally, engines: readonl
     tally.withLabels++;
   }
   // the two functions the cure re-spelled for the text-taking callers
-  const context = cellTargetContext(text);
+  const context = live.cellTargetContext(text);
   const oldContext = oldCellTargetContext(text);
   if (JSON.stringify(context) !== JSON.stringify(oldContext)) {
     note("cellTargetContext", oldContext, context);
   }
-  if (plainFrontMatter(text) !== oldPlainFrontMatter(text)) {
-    note("plainFrontMatter", oldPlainFrontMatter(text), plainFrontMatter(text));
+  if (live.plainFrontMatter(text) !== oldPlainFrontMatter(text)) {
+    note("plainFrontMatter", oldPlainFrontMatter(text), live.plainFrontMatter(text));
   }
 }
 
-function compareAll(texts: Iterable<string>, engines: readonly Engine[] = ENGINES): Tally {
+function compareAll(texts: Iterable<string>, engines: readonly Engine[] = ENGINES, live: Live = LIVE): Tally {
   const tally = newTally();
   let index = 0;
   for (const text of texts) {
-    compareText(text, index++, tally, engines);
+    compareText(text, index++, tally, engines, live);
   }
   return tally;
 }
+
+describe("Session 345 -- the harness can fail: each way a live function can differ from the old one is seen", () => {
+  // two labels in one document (a cell label and an image label), so that a reorder, a drop and a shift each change the answer
+  const TWO = "```{python}\n#| label: fig-a\n```\n\n![c](a.png){#fig-b}\n";
+  const broken = (change: (labels: RefLabel[], engine: Engine) => RefLabel[]): Live => ({ ...LIVE, indexLabels: (text, engine) => change(indexLabels(text, engine), engine) });
+  const CASES: Array<[string, Live]> = [
+    ["the first label dropped", broken((l) => l.slice(1))],
+    ["the last label dropped", broken((l) => l.slice(0, -1))],
+    ["a label added", broken((l) => [...l, { id: "fig-z", kind: "fig", line: 99, column: 0 }])],
+    ["the order reversed", broken((l) => l.slice().reverse())],
+    ["a column moved by one", broken((l) => l.map((x) => ({ ...x, column: x.column + 1 })))],
+    ["a line moved by one", broken((l) => l.map((x) => ({ ...x, line: x.line + 1 })))],
+    ["a kind swapped", broken((l) => l.map((x) => ({ ...x, kind: x.kind === "fig" ? "tbl" : "fig" })))],
+    ["an id changed", broken((l) => l.map((x) => ({ ...x, id: x.id + "x" })))],
+    ["a wrong answer for one engine only (knitr)", broken((l, engine) => (engine === "knitr" ? [] : l))],
+    [
+      "a throw for one engine only (jupyter)",
+      broken((l, engine) => {
+        if (engine === "jupyter") throw new RangeError("boom");
+        return l;
+      }),
+    ],
+    ["a context with the hidden flag flipped", { ...LIVE, cellTargetContext: (text) => ({ ...cellTargetContext(text), keepsHidden: !cellTargetContext(text).keepsHidden }) }],
+    ["a context with a markdown line added", { ...LIVE, cellTargetContext: (text) => ({ ...cellTargetContext(text), markdownLines: [...cellTargetContext(text).markdownLines, 0] }) }],
+    ["a plain front matter answered the other way", { ...LIVE, plainFrontMatter: (text) => !plainFrontMatter(text) }],
+  ];
+
+  it.each(CASES)("%s", (_name, live) => {
+    const tally = compareAll([TWO], ENGINES, live);
+    expect(tally.disagreements.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("the live functions themselves leave nothing to see on the same document", () => {
+    expect(compareAll([TWO]).disagreements).toEqual([]);
+    // the engines that read a cell's label keep both here, knitr and jupyter drop the cell's (nothing is left to show): 10 in all
+    expect(compareAll([TWO]).labels).toBe(10);
+  });
+});
 
 describe("Session 345 -- indexLabels answers exactly as the old spelling did", () => {
   it("every one-cell document of the structured product (11 openers x 12 option blocks x 7 bodies x 3 closers x 6 tails), all six engines", () => {

@@ -12,8 +12,9 @@ import { attributeBlockReader, cellOptionLinesOf, cellTargetContext, findAllCell
 //
 // THE COUNTS, not the clock: a split of the document's own text is counted by the receiver (`countSplitsOf`, the pattern of `s343-completion-context-rows.test.ts`: a split of a slice, a line or any other string is not seen), and the
 // calls `refs.ts` makes of the model's `cellOptionLinesOf` are written down by a wrapper that calls through (the pattern of `s342-builder-engine-rows.test.ts`: the model's OWN calls, `findCellOptionLines` reading its cells, are
-// inside its module and not seen). Measured at the parent `acbc51f` on a 60-cell document (cells counted below): knitr / jupyter 4 splits a call, 1 of them `attributeBlockReader`'s; every other engine 2, and 4 when a `sec-` cell
-// label asks `canWriteAtRunTime` (which builds the whole context for itself). `cellTargetContext(text)` 2, `plainFrontMatter(text)` 1. 60 + 6 `cellOptionLinesOf` calls, one for each cell.
+// inside its module and not seen). Measured at the parent `acbc51f` on a 60-cell document (62 cells with the two at its end), one call warm: knitr / jupyter 5 splits of the text, 2 of them `attributeBlockReader`'s (its own and
+// the one in `quartoYamlRegions`, which it hands the lines joined again); every other engine 3, and 5 when a `sec-` cell label asks `canWriteAtRunTime` (which builds the whole context for itself). `cellTargetContext(text)` 2,
+// `plainFrontMatter(text)` 1. 62 `cellOptionLinesOf` calls, one for each cell. After the cure: 3 splits (the call's own and P1's two), `cellTargetContext(text)` 1, no `cellOptionLinesOf` call for a cell read as it stands.
 const asked = vi.hoisted(() => ({ on: false, optionLines: 0, optionLineCalls: 0, failMemo: false }));
 vi.mock("../../src/core/qmd/model", async (importOriginal) => {
   const real = await importOriginal<typeof import("../../src/core/qmd/model")>();
@@ -80,8 +81,8 @@ function askedOf(run: () => void): { cellOptionLinesOf: number; findCellOptionLi
 }
 
 /**
- * A document of `cells` python cells, each with a `label:` option and sixteen lines of code. Every `indentedEvery`-th cell sits in a list item (an INDENTED fence), every 5th label is a `sec-` label (no knitr / jupyter
- * target, so it reaches `canWriteAtRunTime` for the engines that have no context yet) and every 4th a `tbl-` label; the rest are `fig-`. The front matter is plain.
+ * A document of `cells` python cells, each with a `label:` option and sixteen lines of code, and two more at the end (below). Every `indentedEvery`-th cell sits in a list item (an INDENTED fence), every 5th label is a
+ * `sec-` label (no knitr / jupyter target, so it reaches `canWriteAtRunTime` for the engines that have no context yet) and every 4th a `tbl-` label; the rest are `fig-`. The front matter is plain.
  */
 function documentOf(cells: number, indentedEvery: number, sec: boolean = true): { text: string; indented: number } {
   const out: string[] = ["---", "title: t", "format: html", "---", ""];
@@ -99,6 +100,8 @@ function documentOf(cells: number, indentedEvery: number, sec: boolean = true): 
     for (let j = 0; j < 16; j++) out.push(`${pad}x${j} = ${j} + ${i}`);
     out.push(`${pad}\`\`\``, "");
   }
+  // Two cells more, whatever the arguments: one at column 0 with code and NO option line, and one INDENTED with NO code at all (nothing to strip, so it is read as it stands). Both are read from the memo, which holds nothing for either.
+  out.push("```{python}", "x = 1", "```", "", "- last item", "", "  ```{python}", "  ```", "");
   return { text: out.join(LF), indented };
 }
 
@@ -216,7 +219,7 @@ describe("Session 345 -- indexLabels splits the text once of its own, whatever t
 });
 
 describe("Session 345 -- indexLabels reads the option lines of a column-0 cell from the scan's own memo", () => {
-  it("60 cells, none indented: no call of cellOptionLinesOf (the parent made 60), the scan's memo asked at most once", () => {
+  it("62 cells, none indented but one empty: no call of cellOptionLinesOf (the parent made 62), the scan's memo asked at most once", () => {
     const { text } = documentOf(60, 0);
     warm(text);
     const made = askedOf(() => void indexLabels(text, "jupyter"));
@@ -224,7 +227,7 @@ describe("Session 345 -- indexLabels reads the option lines of a column-0 cell f
     expect(made.findCellOptionLines).toBeLessThanOrEqual(1);
   });
 
-  it("60 cells, every 10th indented (6): exactly those 6 are read by cellOptionLinesOf, the other 54 from the memo", () => {
+  it("62 cells, every 10th indented (6): exactly those 6 are read by cellOptionLinesOf, the other 56 from the memo (the empty indented cell among them)", () => {
     const { text, indented } = documentOf(60, 10);
     expect(indented).toBe(6);
     warm(text);
@@ -255,7 +258,7 @@ describe("Session 345 -- indexLabels reads the option lines of a column-0 cell f
       }
       expect(labels).toEqual(oldIndexLabels(text, engine));
       expect(made.findCellOptionLines).toBe(1); // asked once, failed, and not asked again
-      expect(made.cellOptionLinesOf).toBe(30); // every cell by its own read, as at the parent
+      expect(made.cellOptionLinesOf).toBe(32); // every cell (30 and the two at the end) by its own read, as at the parent
     }
   });
 
