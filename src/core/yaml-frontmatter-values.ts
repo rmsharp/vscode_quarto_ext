@@ -11,8 +11,9 @@
  *
  * It mirrors `project-yaml.ts:findProjectConfigKeyLines` (a whole-document
  * forward scan of top-level mapping lines), differing only in that it is bounded
- * by the single front-matter scanner (`findFrontMatter`, Learning #14 — never a
- * second `---` parser) and emits the VALUE slot, not the key slot. NESTED values
+ * by the single front-matter reader (`readFrontMatter`, which reads the block with the very
+ * `frontMatterSpanAt` the region scan uses, Learning #14 — never a second `---` parser) and
+ * emits the VALUE slot, not the key slot. NESTED values
  * (`format:`/`execute:` children) are v2 (plan §4.3) — an indented line is
  * skipped. A block-opener (`format:` with no scalar value), a comment/sequence
  * line, and a no-colon line are all skipped: they have no scalar value to check.
@@ -71,10 +72,10 @@ export interface FrontMatterTopLevelLine extends FrontMatterValueLine {
  * non-empty scalar value, in document order. Returns `[]` when the document has
  * no front matter.
  *
- * Bounded by the single front-matter scanner: `findFrontMatter` gives the block
- * start (so absolute line numbers are exact) and `frontMatterContentLines` gives
- * the interior content lines (fences excluded) — the same scanner the citation
- * reader and the completion gate use, never a second `---` parser (Learning #14).
+ * Bounded by the single front-matter reader: `readFrontMatter` gives the block
+ * start (so absolute line numbers are exact) and the interior content lines
+ * (fences excluded) in one read — the same `frontMatterSpanAt` reading the region scan, the
+ * citation reader and the completion gate use, never a second `---` parser (Learning #14).
  * Each content line is parsed with the shared `topLevelSlots` grammar: an
  * indented (nested — v2), sequence, or comment line yields no key slot and is
  * skipped; a block-opener (`format:` with no scalar value) or a comment-only

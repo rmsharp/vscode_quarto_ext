@@ -349,8 +349,9 @@ export function buildCellVirtualContent(text: string, cell: Cell): string {
  *
  * The cost it removes. The scans are cached under (text, engine, mode), so a builder made with ANY engine but `undefined` (knitr, jupyter, markdown, julia and ambiguous alike: julia and ambiguous read
  * the very list the blind scan reads, from another cache key) was a second full scan whenever the engine-blind list of the text was not already cached, about 13 to 25 ms at 2,000 cells and 52 to 77 ms
- * at 8,000, depending on the size of the cells and the load. `resolveDocumentEngine` reads the same text engine-blind first, which warms it for a text with no leading whitespace (0.03 ms for the
- * second read at 2,000 cells); a text with leading whitespace, whose engine is read from a trimmed copy, paid the scan.
+ * at 8,000, depending on the size of the cells and the load. Until Session 345 `resolveDocumentEngine` read the same text engine-blind first, which warmed it for a text with no leading whitespace (0.03 ms for the
+ * second read at 2,000 cells), while a text with leading whitespace, whose engine is read from a trimmed copy, paid the scan. It reads the front matter with no scan now, so it warms nothing and nothing here depends
+ * on the warmth: the first reader of the document's cells (the adapters' own gate, or the Outline's scan) pays for the scan once.
  *
  * The answers it changes. The lists differ for three engines, and only on documents of these shapes:
  *  - knitr: a stray bare fence above a hidden or an empty chunk, and, under `--no-execute`, the chunks below a setup chunk that silences them only when the document executes;

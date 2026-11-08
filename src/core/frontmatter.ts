@@ -6,8 +6,9 @@
  * `bibliography:`. Rather than add a YAML dependency for a single key, this is a
  * focused reader that understands the handful of forms Quarto accepts for that
  * key (a string, a flow list, or a block list). Full YAML is out of v1 scope. The
- * front-matter *bounds* come from the shared region model
- * (`frontMatterContentLines`) so there is a single `---` scanner (Learning #14);
+ * front-matter *bounds* come from the shared front-matter reader
+ * (`frontMatterContentLines`, a view of `readFrontMatter`, which reads the block with the same
+ * `frontMatterSpanAt` the region scan uses) so there is a single `---` scanner (Learning #14);
  * this module only interprets the `bibliography:` key within those lines.
  */
 

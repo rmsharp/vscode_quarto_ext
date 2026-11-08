@@ -108,9 +108,9 @@ export function collectValueSources(text: string): ValueSources {
   // ⚠ **Quarto VALIDATES front matter only when the document starts with `---` at BYTE 0, even
   // though it RENDERS front matter that follows a blank line** (Session 171's measurement: 10 of
   // 17 swept keys render **exit 0** behind a leading blank, where the byte-0 twin is exit 1).
-  // Session 210 taught `scanRegions` the leading-blank rule, so `findFrontMatter` — and both
-  // front-matter enumerators below, which are views over it — now report a block this surface
-  // must stay silent about. The gate belongs HERE rather than in those enumerators: the
+  // Session 210 taught the front-matter rule (`frontMatterSpanAt`, which the scan and the readers
+  // share) the leading-blank rule, so `findFrontMatter` — and both front-matter enumerators below,
+  // which read the block with `readFrontMatter` — now report a block this surface must stay silent about. The gate belongs HERE rather than in those enumerators: the
   // rendering and reader surfaces genuinely want the wider rule, and only the VALIDATION surface
   // keys on byte 0. S171's own pin (`yaml-value-flags.test.ts`, "FP GUARD") is what caught the
   // skew, exactly as its author predicted it would.

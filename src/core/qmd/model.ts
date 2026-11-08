@@ -60,7 +60,7 @@ import { IDENTIFIER_RUN, isRun, runClass, runEnd } from "./unicode-run";
  * short-circuits on an `.Rmd` extension before reading a byte), which this module never sees, so
  * the answer is passed IN by the adapter that holds the document rather than resolved here.
  * Resolving it here would close an import cycle — `document-engine-resolve.ts` already imports
- * `frontMatterContentLines` from this module.
+ * `readFrontMatter` from this module.
  */
 type EngineHint = DocumentEngine | "ambiguous" | undefined;
 
@@ -3429,8 +3429,7 @@ const BLOCK_SCALAR_INDICATOR = /^[ \t]*[|>][+-]?[0-9]?[ \t]*(?:#.*)?$/;
  * canonicalised. A synthesised line is produced only for a spelling that had no line to match.
  */
 function frontMatterFromValueLine(content: readonly string[] | null): string | null {
-  // ⚠ The GOVERNING block, not the front matter — Session 211. The KEY half above resolves
-  // against the same content, and the two must never disagree about WHICH block they read.
+  // `content` is the interior of the GOVERNING block, not of the front matter (Session 211): the caller found it (see `readerMetadataOf`).
   return content === null ? null : contentFromValueLine(content);
 }
 /** The two answers the governing metadata block gives: the KEY half (`frontMatterSelectsReader`) and the VALUE half (`frontMatterFromValueLine`). */
@@ -3451,7 +3450,8 @@ function yamlRegionsOf(lines: readonly string[]): YamlRegionsOf {
   return () => (regions ??= quartoYamlRegions(lines.join("\n")));
 }
 /**
- * Both halves of the question about the governing metadata block, asked of one document's `lines` (Session 345). The block is found ONCE, whichever half is asked, and `yamlRegions` is the regions of the same lines, which the caller shares with the other consumers
+ * Both halves of the question about the governing metadata block, asked of one document's `lines` (Session 345). The block is found ONCE, whichever half is asked: ⚠ the KEY half (`frontMatterSelectsReader`) and the VALUE half
+ * (`frontMatterFromValueLine`) are given the SAME `content`, the GOVERNING block (Session 211), and must never disagree about WHICH block they read. `yamlRegions` is the regions of the same lines, which the caller shares with the other consumers
  * of them. Exported for `s345-reader-metadata-rows.test.ts`, which keeps the two-call spelling as the oracle.
  */
 export function readerMetadataOf(lines: readonly string[], yamlRegions: YamlRegionsOf = yamlRegionsOf(lines)): ReaderMetadata {
@@ -4056,8 +4056,8 @@ function frontMatterOpenAt(at: LineAt): number | null {
 }
 /**
  * The span of the leading front matter of a document read through `at`, or `null` when it opens none (Session 345). **The single reading of where front matter is:** `computeRegions` builds
- * its `frontMatter` and skips the block's lines from this, and `findFrontMatter`, `inFrontMatter`, `frontMatterContentLines` and `readFrontMatter` ask it of the text without a scan, so
- * the region views and the readers cannot disagree about it (Learning #14). `endLine` is the first terminator below the opener, or the document's last line when there is none.
+ * its `frontMatter` and skips the block's lines from this, and the readers (`findFrontMatter`, `inFrontMatter`, `frontMatterContentLines` and `readFrontMatter`) take the span from the scan's entry
+ * when the cache holds the text and ask this of the text, with no scan, when it does not (`frontMatterSpanOf`), so the region views and the readers cannot disagree about it (Learning #14). `endLine` is the first terminator below the opener, or the document's last line when there is none.
  */
 function frontMatterSpanAt(at: LineAt): FrontMatterSpan | null {
   const startLine = frontMatterOpenAt(at);
@@ -10375,11 +10375,12 @@ export interface CellOptionLine {
 
 /**
  * The leading YAML front-matter block, read by the ONE function `frontMatterSpanAt`, which the
- * scan (`computeRegions`) calls on its split lines and `findFrontMatter`/`inFrontMatter`/
- * `readFrontMatter` call on the text itself, so every consumer (the region views AND the
- * readers) agrees on its bounds — there is no second front-matter scanner (Learning #14;
- * until Session 345 the readers asked the scan, which a text of a different string, such as
- * `trimStart()`ed, paid in full). `endLine`
+ * scan (`computeRegions`) calls on its split lines, keeping the span in `Regions.frontMatter`, and
+ * `findFrontMatter`/`inFrontMatter`/`readFrontMatter` take from that entry when the cache holds the
+ * text (`frontMatterSpanOf`) and call on the text itself, with no scan, when it does not, so every
+ * consumer (the region views AND the readers) agrees on its bounds — there is no second front-matter
+ * scanner (Learning #14; until Session 345 the readers always asked the scan, which a text of a
+ * different string, such as `trimStart()`ed, paid in full). `endLine`
  * is the closing terminator line for a terminated block, or the document's last
  * line when the block is unterminated; `terminated` distinguishes the two so the
  * `inFrontMatter` predicate can decide whether the last line is content.
@@ -10396,6 +10397,7 @@ interface Regions {
   cells: Cell[];
   bodyLines: BodyLine[];
   codeFenceOpeners: CodeFenceOpener[];
+  /** The leading front matter's span, `frontMatterSpanAt`'s: the scan's own loop skips its lines, and the readers (`frontMatterSpanOf`) answer from it when the engine-blind scan holds the text. A function of the TEXT ALONE. */
   frontMatter: FrontMatterSpan | null;
   /**
    * The canonical `from: <value>` line of the governing metadata block, or `null` (Session 345): what `attributeBlockReader` needs of the scan, kept so that it is not read a second time.
@@ -10571,8 +10573,8 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
   // so they may not open a region themselves — see `consumedCloserLine` (Session 224).
   const consumedFenceClosers = new Set<number>();
   const consumedCloserLine = makeConsumedCloserLine(lines);
-  // ⚠ The span of the leading front matter, read ONCE by the one reading of where it is (`frontMatterSpanAt`, Session 345): the loop below skips exactly its lines and `findFrontMatter` /
-  // `inFrontMatter` / `frontMatterContentLines` ask the same function of the text without a scan, so none of them can disagree with the Regions about it (Learning #14).
+  // ⚠ The span of the leading front matter, read ONCE by the one reading of where it is (`frontMatterSpanAt`, Session 345): the loop below skips exactly its lines, and `findFrontMatter` /
+  // `inFrontMatter` / `readFrontMatter` (so `frontMatterContentLines`) take this very span from the entry when the cache holds the text and ask the same function of the text when it does not, so none of them can disagree with the Regions about it (Learning #14).
   const frontMatter: FrontMatterSpan | null = frontMatterSpanAt((k) => lines[k]);
   let inComment = false;
   let open: OpenCellFence | null = null;
@@ -13501,8 +13503,9 @@ export function findHeadings(text: string, engine: EngineHint = undefined, mode:
  * The leading YAML front-matter block's line span — `{ startLine, endLine }`,
  * both 0-based and inclusive of the `---` fence lines — or `null` if the document
  * has no front matter. `endLine` is the closing `---`/`...` terminator line, or
- * the document's last line if the block is unterminated. Read by `frontMatterSpanAt`, the
- * very function the `scanRegions` pass builds its span from (Session 345: without a scan), so it
+ * the document's last line if the block is unterminated. A view of `frontMatterSpanAt`, the
+ * very function the `scanRegions` pass builds its span from: the scan's own span when the engine-blind scan holds the text (answered in O(1), the entry refreshed as every read of it
+ * refreshed it), else read from the text with no scan and nothing stored (Session 345), so it
  * cannot disagree with the heading/cell/body views on
  * what counts as front matter (Learning #14). The YAML completion provider uses
  * `inFrontMatter` (below) to gate front-matter key suggestions; this raw span is
@@ -13521,7 +13524,8 @@ export function findFrontMatter(
  * matter — strictly between the `---` fences (both fence lines excluded). For an
  * unterminated block (no closing fence) the last line counts as content. The
  * YAML completion provider gates front-matter key suggestions on this (Phase 6d
- * plan §4.3), so it deliberately excludes the fence lines, where no key is typed.
+ * plan §4.3), so it deliberately excludes the fence lines, where no key is typed. Answered from the same span as `findFrontMatter` (the scan's entry when the cache holds the text, else the text
+ * itself), so it costs a read of the front matter's lines only for a text no scan has read.
  */
 export function inFrontMatter(text: string, line: number): boolean {
   const fm = frontMatterSpanOf(text, linesOf(text));
@@ -13536,7 +13540,7 @@ export function inFrontMatter(text: string, line: number): boolean {
  * lines excluded), or `null` if there is no front matter. For an unterminated
  * block the last line is content (there is no closing fence). The citation
  * front-matter reader (`core/frontmatter`) consumes this so the project has a
- * single front-matter scanner (Learning #14), not a second `---` parser.
+ * single front-matter scanner (Learning #14), not a second `---` parser. A view of `readFrontMatter` (below).
  */
 export function frontMatterContentLines(text: string): string[] | null {
   const block = readFrontMatter(text);
@@ -13560,7 +13564,8 @@ export interface FrontMatterBlock {
  * document: the text is cut into lines (`linesOf`) only as far as the block reaches, so a five-line block in a 56,005-line document is five searches (the parent split the WHOLE document
  * to slice a handful of lines out, three times in every `resolveDocumentEngine` call: 3.9 ms at 2,000 cells of 25 lines, 15.5 at 8,000; and for a text that begins with whitespace it
  * scanned the trimmed text once more). `frontMatterContentLines`, `findFrontMatter` and `inFrontMatter` are views of this and of `frontMatterSpanAt`; the readers that need the span AND the
- * interior (the two front-matter enumerators and `resolveDocumentEngine`) take this block, so the three reads of one resolver call are one.
+ * interior (the two front-matter enumerators and `resolveDocumentEngine`) take this block, so the three reads of one resolver call are one. Its span is the engine-blind scan's own when the cache holds the text (`frontMatterSpanOf`, which puts the entry first as every read of it did before this
+ * session) and `frontMatterSpanAt`'s reading of the text otherwise; the interior is cut from the text either way.
  */
 export function readFrontMatter(text: string): FrontMatterBlock | null {
   const at = linesOf(text);

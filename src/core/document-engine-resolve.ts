@@ -3,7 +3,8 @@
  *
  * `documentEngineForScoping` (`document-engine.ts`) is the decision; it takes five arguments
  * — a file name, THREE things derived from the text, and the text itself — and getting that
- * wiring right is load-bearing. One of the three is guarded by the type system and one is
+ * wiring right is load-bearing (since Session 345 the three are views of ONE `readFrontMatter` block: `topLevelLinesIn`,
+ * `nestedValueLinesIn` and the block's `content`, which `frontMatterContentLines` answers). One of the three is guarded by the type system and one is
  * not:
  *
  *  - passing `findFrontMatterValueLines` where `findFrontMatterTopLevelLines` belongs is a
@@ -55,7 +56,8 @@
  *
  * **Session 345 took the three re-splits out** (and with them the scan the front matter used to be
  * read from): the front matter is read ONCE by `readFrontMatter`, from the text, cutting out only
- * the lines the block reaches, and the three arguments are views of that one block. On the
+ * the lines the block reaches (its span is the scan's own when the cache already holds the text, a
+ * text without leading whitespace that the Outline or the gate has scanned), and the three arguments are views of that one block. On the
  * 2,000-cell / 56,005-line document that is the 3.9 ms the three splits cost (15.5 ms at 8,000) and,
  * for a text that begins with whitespace, the 40 ms (180 ms) of a cold scan of `text.trimStart()`,
  * a string the cache of scans had never seen. What it does NOT do any more is leave a scan of
