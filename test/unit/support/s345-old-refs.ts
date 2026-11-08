@@ -1,0 +1,1105 @@
+// Session 345, part P2: THE OLD SPELLING, kept as the oracle. This file is `src/core/refs.ts` at the base commit acbc51f (the parent of the S345 cure), VERBATIM except for its four import specifiers (they reach
+// into `src/core/`) and the one import of `cellTargetContext`, which comes from the sibling `s345-old-target-context.ts` (the OLD `cellTargetContext` and `plainFrontMatter`, also verbatim). Nothing else is
+// edited, so `indexLabels` below is the function the parent shipped, down to its own helpers. `s345-index-labels-equivalence.test.ts` compares it with the live one.
+// To check it: `git show acbc51f:src/core/refs.ts` differs from this file in those import lines and these header lines only. Do not edit it by hand.
+/**
+ * Pure, `vscode`-free cross-reference index for a Quarto `.qmd` document
+ * (architecture plan §3.3, Phase 6b).
+ *
+ * A Quarto cross-reference is `@<kind>-<name>` (e.g. `@fig-plot`, `@sec-intro`).
+ * This module finds where each such label is *defined* — so the adapter
+ * (`providers/crossref.ts`) can offer completions on `@` and resolve
+ * go-to-definition from a `@ref` to its label. It builds its index entirely on
+ * top of the shared region model (`core/qmd/model`); it never re-scans the
+ * document's skip-regions itself (the single-scanner rule — Learning #14).
+ *
+ * Labels come from three structural sources:
+ *   1. `sec-` ids on ATX headings — `## Methods {#sec-methods}` (model `Heading.id`).
+ *   2. `label: fig-…` cell options inside executable cells, read through the model's option
+ *      scanner (`cellOptionLinesOf`) with the cell language's own comment character —
+ *      `#| label:` in `{python}`/`{r}`, `//|` in `{ojs}`/`{dot}`, `%%|` in `{mermaid}`. And, in a
+ *      KNITR document only, the chunk HEADER (`{r fig-x}`, `{r, label="fig-x"}`) — see
+ *      {@link indexLabels}'s `documentEngine`. A cell that makes no figure or table for its label
+ *      defines none (Session 304; same place), and a cell's label never defines a `sec-` or `eq-`
+ *      target unless the document has a channel for code to write markdown at run time
+ *      ({@link CELL_NEVER_DEFINES}, Session 305).
+ *   3. Inline `{#fig-…}`/`{#tbl-…}`/`{#eq-…}`/`{#lst-…}` attribute blocks on
+ *      images, divs, and display equations in prose (model body lines).
+ *   4. Attribute blocks on PLAIN fenced code block openers — ```` ```{#lst-x .python} ````
+ *      (model {@link findCodeFenceOpeners}). A fence opener is a region BOUNDARY, so it is
+ *      not a body line and Source 3 never sees it.
+ */
+
+import type { DocumentEngine } from "../../../src/core/document-engine";
+import type { AttributeBlockReader, BraceGroup, CellTargetContext } from "../../../src/core/qmd/model";
+import {
+  attributeBlockId,
+  braceGroups,
+  attributeBlockReader,
+  cellOptionLinesOf,
+  cellTargetContextFor,
+  findAllCells,
+  findBodyLines,
+  findCodeFenceOpeners,
+  findHeadings,
+  jupyterCellMakesNoTarget,
+  knitrCellMakesNoTarget,
+  knitrChunkHeaderLabel,
+  maskInlineCode,
+  quartoFenceTagRewrite,
+  trimEndBlanks,
+} from "../../../src/core/qmd/model";
+import { IDENTIFIER_RUN, runEnd } from "../../../src/core/qmd/unicode-run";
+import { cellTargetContext } from "./s345-old-target-context";
+
+/** The cross-reference kinds Quarto recognizes that this index supports. */
+export type RefKind = "fig" | "tbl" | "sec" | "eq" | "lst";
+
+/** Where an in-progress `@…` cross-reference begins, and what has been typed so far. */
+export interface RefCompletionContext {
+  /** 0-based column of the `@` that starts the reference being typed. */
+  start: number;
+  /** The id text typed between the `@` and the cursor (may be `""`). */
+  typed: string;
+  /**
+   * 0-based column just past the end of the id token (id characters continue
+   * past the cursor when editing mid-token). The provider replaces `[start, end)`
+   * so accepting a completion does not duplicate a trailing suffix.
+   */
+  end: number;
+}
+
+/** A cross-reference label definition found in the document. */
+export interface RefLabel {
+  /** The full label id, e.g. `"fig-plot"`, `"sec-methods"`. */
+  id: string;
+  /** The cross-reference kind, derived from the id's prefix. */
+  kind: RefKind;
+  /** 0-based line where the label is defined. */
+  line: number;
+  /** 0-based column where the id text begins (for precise go-to-definition). */
+  column: number;
+}
+
+/** A label id begins with a recognized cross-ref kind prefix, then `-`, then a name. */
+const KIND_PREFIX = /^(fig|tbl|sec|eq|lst)-/;
+/**
+ * A character a DEFINED cross-reference identifier may hold — Pandoc's attribute-block
+ * identifier set: a Unicode letter or digit, `_`, `:`, `.` or `-`.
+ *
+ * ⚠ **THE DEFINITION SIDE IS A FLAT CLASS AND THE USE SIDE IS NOT, SO NEITHER RULE MAY BE
+ * PORTED TO THE OTHER.** {@link refUsageEnd} reads Pandoc's `citeKey`, where internal punctuation
+ * counts only when a regchar follows it; this set has **no follower rule and no position
+ * clause** — an admitted character may open, sit inside, or end the id. Measured over 36
+ * rendered rows in Session 221 with predictions frozen first (`scratchpad/s221/cal/attr.qmd`,
+ * 36/36): `{#fig-t26a..b}` is ONE id named `fig-t26a..b` (t26), and `{#fig-.t30b}`,
+ * `{#fig--t31b}`, `{#fig-:t32b}`, `{#fig-日t35b}`, `{#fig-t40a.}`, `{#fig-t41a:}` and
+ * `{#fig-t42a-}` all define exactly what they spell.
+ *
+ * ⚠ **AND EVERYTHING OUTSIDE IT FAILS THE BLOCK OUTRIGHT RATHER THAN TRUNCATING IT.**
+ * `$ % + ? / ~ < > & * ! , ; | ' =` and a space each leave a token Pandoc's attribute parser
+ * cannot place, so the braces are rendered as literal text and NO id is defined at all —
+ * `fig-t09a$b}` appears verbatim in the rendered output. A `#` is not in the set either: it
+ * splits the block into two id atoms, and the pandoc family takes the LAST, so
+ * `{#fig-t08a#b}` defines `b` and no `fig-` target exists (t08, and Session 219's measured
+ * last-wins rule).
+ *
+ * This is the same set `attributeIds` matches an atom with in `src/core/qmd/model.ts` (the retired `ATTR_ID_ALL` pattern, Session 338), where
+ * Session 218 measured it for HEADING attribute blocks. Session 221 re-measured it here for
+ * images, divs and display equations rather than porting it, because "what may a heading's
+ * identifier hold" and "what may an image's identifier hold" are two questions that happen to
+ * share an answer (Learning #377).
+ */
+const DEFINED_ID_CHAR_CLASS = String.raw`[\p{L}\p{N}_:.-]`;
+/**
+ * The VALUE of a `label:` cell option — `fig-plot` out of `#| label: fig-plot` — with an
+ * optional opening YAML quote. The answer is the id and the LENGTH of the match (the quote, when one
+ * was taken, and the id); because the value is read from its first character, the id's column is the
+ * span's start plus `length - id.length`.
+ *
+ * Which LINES carry a `label:` option is not decided here: Source 2 reads them from the
+ * shared option scanner ({@link cellOptionLinesOf}), which owns the cell language's
+ * comment character, the leading-block rule and YAML's multi-line folding. This reader
+ * only decides what the VALUE may hold.
+ *
+ * ⚠ **IT IS A LOOP, NOT THE PATTERN IT REPLACED (Session 338).** The value was read as
+ * `^["']?([\p{L}\p{N}_][\p{L}\p{N}_:.-]*)` under the `u` flag, and V8 keeps one entry of its regex
+ * backtrack stack per character of a class-star, twice as large once the line holds a character above
+ * U+00FF (the subject is then stored with two bytes a character): `#| label: fig-` and 4,194,284 letters
+ * threw `RangeError: Maximum call stack size exceeded` through {@link indexLabels} and {@link findLabel}
+ * (4,194,283 read, Node 22.23, one fresh process per probe, the lower bound verified). A line of
+ * characters up to U+00FF never threw (500,000,000 letters read). A thrown `RangeError` answers NOTHING
+ * for the whole document: no label index, so no completion and no go-to-definition. {@link runEnd} reads
+ * the id by index, with no stack. `test/unit/label-value-equivalence.test.ts` keeps the old pattern
+ * as the oracle (Learning 738) and compares the two on every string it can enumerate.
+ *
+ * ⚠ **THE OPENING QUOTE IS TAKEN ONLY WHEN AN ID START FOLLOWS IT.** The pattern's `["']?` is optional
+ * and the engine backtracks: a quote followed by a non-start (`"."`, `"-a"`, `""a`, a lone `"`) falls
+ * back to no quote, and the start clause then fails on the quote itself, so the WHOLE value is
+ * refused. And the id is the LONGEST identifier prefix — the pattern was not anchored at the end — so
+ * `fig-a$b` is `fig-a`.
+ *
+ * ⚠ **THIS IS THE SAME CLASS AS THE ATTRIBUTE-BLOCK PATH BECAUSE THE TWO WERE MEASURED TO ASK
+ * ONE QUESTION — NOT BECAUSE ONE WAS PORTED TO THE OTHER.** (Session 222 split Source 3 into
+ * a validated {@link isAttributeBlock} path, whose ids come from `attributeIds` in
+ * `core/qmd/model.ts`, and the older {@link narrowLabel} scan for the productions quarto owns
+ * itself; the identifier SET is the same across all three, which is what this note is about.) The obvious model, and the one Session
+ * 221 froze as its prediction, is that the label is the YAML scalar verbatim. That scored
+ * **11 of 24** (`scratchpad/s221/cal/cell.qmd`). What actually happens is that quarto's engine
+ * writes the label **verbatim into a Pandoc attribute block**, and Pandoc then accepts or
+ * rejects it: `::: {#tbl-c09a$b .cell tbl-cap='Cap c09'}` appears as LITERAL TEXT in the
+ * rendered HTML, next to quarto's own warning *"The following string was found in the
+ * document: :::"*. So Source 2 inherits Source 3's grammar, and the discriminating round
+ * confirmed it 9/9 (`cell3.qmd`).
+ *
+ * ⚠ **QUOTING IS YAML SYNTAX AND DOES NOT PROTECT AN INVALID ID.** The `["']?` strips the
+ * opening quote and the class excludes quotes, so `"fig-a.b"` yields `fig-a.b` — but
+ * `"tbl-d01a$b"` reaches the attribute block unquoted and defines NOTHING (`cell3.qmd` d01),
+ * so a quote is not a licence to widen the class.
+ *
+ * ⚠ Two things happen before Pandoc, and neither changes the class: a `#` makes the engine
+ * drop the label entirely (`#| label: tbl-c07a#b` emits `{.cell …}` with no id at all), and a
+ * TRAILING `:` is a hard render error — `YAMLException: bad indentation of a mapping entry`.
+ *
+ * ⚠ **THE LEADING `[\p{L}\p{N}_]` IS VESTIGIAL HERE AND IS KEPT ONLY BECAUSE REMOVING IT WOULD
+ * BE AN UNMEASURED CHANGE.** Unlike {@link narrowLabel}, whose kind prefix sits OUTSIDE the
+ * capture, this group starts at the prefix itself — so the `f` of `fig-` always satisfies the
+ * clause and only the tail ever decided anything. That asymmetry is why the pre-session defect
+ * differed in kind between the two sources: here a punctuation-first name yielded the bare
+ * `fig-`, a kind prefix with an empty name, rather than being refused outright.
+ */
+export function cellLabelValue(value: string): { id: string; length: number } | null {
+  const first = value.charCodeAt(0);
+  const from = first === 0x22 || first === 0x27 ? 1 : 0; // an opening `"` or `'`; the quote is part of the match, never of the id
+  // The id must START with a letter, a number or `_`: the class holds `:`, `.` and `-` too, but only after the first character.
+  const start = value.charCodeAt(from);
+  if (start === 0x3a || start === 0x2e || start === 0x2d) {
+    return null;
+  }
+  const end = runEnd(value, from, IDENTIFIER_RUN);
+  return end === from ? null : { id: value.slice(from, end), length: end };
+}
+/**
+ * The cross-reference kinds a code cell's `label:` never defines (Session 305).
+ *
+ * ⚠ **A SECTION IS A HEADING'S AND AN EQUATION IS DISPLAY MATH'S, NEVER A CELL'S.** `#| label: sec-x` and `#| label: eq-x` print
+ * `?@sec-x` / `?@eq-x` in quarto 1.7.33 in every cell language (r, python, mermaid, dot, ojs) under every document engine (knitr,
+ * Jupyter, markdown): 26 rendered documents of 26 (`scratchpad/s305/grid1`, g040-g065), and the same two kinds in the knitr chunk
+ * HEADER were already refused by {@link headerLabelKind}. The `#|` path read the kind off the prefix and accepted all five, so the
+ * completion list and go-to-definition offered a target that does not exist.
+ *
+ * ⚠ **EXCEPT IN A DOCUMENT THAT CAN WRITE THE TARGET AT RUN TIME.** A cell whose OUTPUT carries `## T {#sec-x}` or `$$ y = x $$ {#eq-x}` makes quarto
+ * define that id, whether or not the label equals it, and the id may be built (`sprintf`, an f-string, an escape), read from a file (`source`,
+ * `child`, `exec`, an include shortcode) or typed by an inline expression, so nothing in the text need spell it: 34 rendered documents of
+ * the hunt, the id DEFINED in each (output lo02-lo06, lo11, lo14, lo42, lo45, lo46, lo53; langs lg19-lg21, lg28; li12-li15; white-box wl09-wl43;
+ * grid2 h10, h11). The guard is therefore Session 304's channel test (`cellTargetContext`: an asis output, `Markdown()`, `display()`, an inline
+ * expression, a shortcode, a `child`, and code run by name), taken over the whole document and the labelled cell included, and with no
+ * channel it drops the label (an anchor printed without one is no output: h04-h07). A document WITH a channel keeps its `sec-`/`eq-` cell labels
+ * as before this session, which is the phantom for a different id (h01a-h03a), a raw `id=` (lo18, h12, h13), the wrong construct (a div lo13, a
+ * paragraph lo16, an eq- id on a heading lo17), dropped or unrun output (lo07, lo08, lo52, h08) and `Latex()` (lo44). A wrong removal costs a
+ * label quarto defines and a wrong keep only the phantom this index always had, so every doubt resolves to the keep. It also LOSES what the
+ * label used to hide: a heading whose text IS the id (li18) and a heading attribute block this model cannot read (wl50).
+ *
+ * ⚠ **THIS IS A LIST OF TWO KINDS, NOT "A CELL DEFINES FIGURES AND TABLES ONLY", AND `lst-` IS KEPT ON PURPOSE.** `#| label: lst-x` with
+ * `#| lst-cap` is DEFINED for a python cell under Jupyter (g032, g039: also unexecuted) and for a mermaid, dot or ojs cell under every engine
+ * (g029-g031, g033-g038), and UNDEFINED under knitr (g027, g028), under `engine: markdown` (lg37) and for a Jupyter cell with `echo: false`
+ * (li57a): the answer depends on the engine and on the cell's options, which the kind does not carry. A wrong removal loses a label quarto
+ * defines, so those phantoms stay (filed).
+ */
+const CELL_NEVER_DEFINES: ReadonlySet<RefKind> = new Set<RefKind>(["sec", "eq"]);
+/**
+ * The cross-reference kind a knitr chunk-HEADER label defines: `fig` or `tbl` when the label is `fig-` or `tbl-` and a name, and NOTHING else
+ * in the slot (Session 303), or `null` when it defines none.
+ *
+ * ⚠ **A KNITR CHUNK HEADER DEFINES FIGURES AND TABLES ONLY.** `{r lst-x}`, `{r sec-x}` and `{r eq-x}` define nothing in
+ * quarto 1.7.33 (`scratchpad/s303/hdr`, b02-b04, k05, k06; `hdr7`, v03). Nor does a `#| label: lst-x` on a KNITR chunk
+ * define a listing (`hdr2`, k03, k04): a knitr listing cell names itself with `#| lst-label:` (`hdr7`, v02), which the
+ * older `#|` path does not read and this reader does not inherit. (Under Jupyter and in a handler cell `#| label: lst-x`
+ * does define one, Session 305: {@link CELL_NEVER_DEFINES}.)
+ *
+ * ⚠ **ANCHORED AT BOTH ENDS, UNLIKE {@link cellLabelValue}.** That reader takes the longest id-shaped PREFIX
+ * of a `#|` value, so `#| label: fig-a$x` is read as `fig-a` and defines a phantom. The header slot is read
+ * whole: `{r fig-a$x}` and `{r fig-a b}` define nothing (a20, a23 — the first slot is quoted verbatim by knitr, so
+ * these spell the same text as `{r "fig-a$x"}` and `{r 'fig-a b'}`), and quoting is no licence to widen the class
+ * (the same measurement {@link cellLabelValue} records for the pipe path). A bare `{r fig-}` was not rendered
+ * (the reference `@fig-` cannot be written as a probe): it is declined as a name-less id. The label must also
+ * START with the kind, so an ordinary chunk label that merely contains one (`{r a-fig-x}`) defines nothing.
+ *
+ * ⚠ **WHY AN INDEX LOOP (Session 338).** This was the pattern `^(fig|tbl)-[\p{L}\p{N}_:.-]+$` under the `u` flag, and V8 keeps one entry of its regex backtrack stack per character of a class-plus under
+ * that flag, twice as large once the line holds a character above U+00FF (the subject is then stored with two bytes a character): `{r echo=FALSE, fig-` and 4,194,288 letters or more, on a line with a character above U+00FF in it, threw `RangeError:
+ * Maximum call stack size exceeded` (bisected at `fe6aaec`, Node 22.23.3, one fresh process per probe), a thrown `RangeError` answers NOTHING for the whole document, and `indexLabels` reached it for
+ * every label the header reader answered. With every character up to U+00FF the same line reads at 60,000,000. The name is read by {@link runEnd} over {@link IDENTIFIER_RUN}, the shared reader of the
+ * `[\p{L}\p{N}_:.-]` family, which reads a character above ASCII as ONE code point, as the `u` flag did. `test/unit/chunk-label-token-equivalence.test.ts` keeps the old pattern as the oracle.
+ */
+export function headerLabelKind(label: string): "fig" | "tbl" | null {
+  const kind = label.startsWith("fig-") ? "fig" : label.startsWith("tbl-") ? "tbl" : null;
+  return kind !== null && label.length > 4 && runEnd(label, 4, IDENTIFIER_RUN) === label.length ? kind : null;
+}
+/**
+ * Cell languages quarto reads as a cell ONLY when the fence starts at column 0 — its three handler
+ * languages (`mermaid`, `dot`, `ojs`).
+ *
+ * ⚠ **MEASURED, NOT ASSUMED, AND NOT THE SAME RULE AS python/R.** Rendered with quarto 1.7.33 (markdown
+ * engine, `--no-execute`): a handler fence that is indented AT ALL defines nothing — in a list item at
+ * its content column, at the top level indented 2, 4 or a tab, in a definition body, in a footnote —
+ * where a python or R cell in a list item DOES define from options at its fence's indent. So the
+ * indent strip in {@link indexLabels} Source 2 is for the kernel languages only; applying it to a
+ * handler would mint a phantom label for a shape quarto renders as unresolved.
+ */
+const COLUMN_ZERO_ONLY_LANGUAGES: ReadonlySet<string> = new Set(["mermaid", "dot", "ojs"]);
+/** A closing fence once its indent is taken off: backticks and nothing else but trailing blanks. */
+const BARE_FENCE = /^`{3,}[ \t]*$/;
+/**
+ * The blanks (spaces and tabs) that END `text`, what `/[ \t]*$/.exec(text)?.[0] ?? ""` answers, without that search's cost: it is unanchored, so it is
+ * tried from every position, and a blank run that is not at the end (the one between a cell option line's `#` and `|`) is scanned to its end from each
+ * of its blanks and then refused (quadratic: 100,000 blanks took 6 s in {@link indexLabels}, Session 321). `trimEndBlanks` scans back from the end and
+ * stops at the first character that is not a blank. Exported for `cell-option-gap-equivalence.test.ts`, which keeps the old search as the oracle.
+ */
+export function trailingBlanks(text: string): string {
+  return text.slice(trimEndBlanks(text).length);
+}
+/**
+ * A cross-ref id at the very start of a brace group's content — `{#fig-plot …}`. Group 1 is
+ * the id; its column is the group's `start + 2` (past the `{#`). `sec-` is excluded on
+ * purpose: section labels are owned by headings (Source 1), so a stray inline `{#sec-…}` is
+ * not double-counted.
+ *
+ * ⚠ **THIS IS THE OLDER, UNVALIDATED SCAN, AND IT IS KEPT FOR THE GROUPS THAT ARE NOT PANDOC
+ * ATTRIBUTE BLOCKS — WHICH IS A MEASURED CATEGORY, NOT A FALLBACK OF CONVENIENCE.** Session
+ * 222 rendered the two productions quarto owns itself and neither is Pandoc's `Attr` parser:
+ *
+ *   **display math.** `$$ y = x $$ {#eq-m01}` defines `eq-m01`, but `{#eq-m02 .cls}`,
+ *   `{#eq-m04a #eq-m04b}`, `{#eq-m05 key=v}`, `{ #eq-n02}` and even `{#eq-n01 }` all render
+ *   their braces as LITERAL TEXT — anything beyond the bare id fails. And the id is taken
+ *   VERBATIM: `{#eq-m06$x}` renders `id="eq-m06$x"`, a `$` the attribute parser categorically
+ *   refuses (`scratchpad/s222/cal/math.qmd`, `n.qmd`).
+ *
+ *   **table captions.** `: Cap {#tbl-g12}` and `: Cap {#tbl-n06 .cls}` both define, a LEADING
+ *   class does not (`{.cls #tbl-n07}`), and an invalid character is SANITISED rather than
+ *   refused — `{#tbl-n05$x}` renders `id="tbl-n05x"` (`cal.qmd` g12, `n.qmd` n05–n07).
+ *
+ * Three productions, three grammars. Running the attribute-block rule over them would delete
+ * `eq-` and `tbl-` targets that quarto really defines, which is the dangerous direction, so
+ * they keep the scan they had. The rows where this scan and quarto still disagree are pinned
+ * in `test/unit/refs.test.ts` and filed rather than fixed.
+ *
+ * ⚠ **THE NAME IS ONE FLAT RUN OF {@link DEFINED_ID_CHAR_CLASS}, NOT A FIRST-CHARACTER CLAUSE
+ * PLUS A TAIL.** The two-clause spelling this replaced (`[A-Za-z0-9_][A-Za-z0-9_-]*`) refused
+ * `{#fig-.t30b}` and `{#fig--t31b}` outright, both of which quarto defines
+ * (`scratchpad/s221/cal/attr.qmd` t30/t31) — so widening only the tail would have left half
+ * the defect in place.
+ *
+ * ⚠ **IT IS A LOOP, NOT THE PATTERN IT REPLACED (Session 338).** The group was read as
+ * `^#((?:fig|tbl|eq|lst)-[\p{L}\p{N}_:.-]+)` under the `u` flag, and V8 keeps one entry of its regex
+ * backtrack stack per character of a class-plus, twice as large once the line holds a character above
+ * U+00FF (the subject is then stored with two bytes a character): `text {#fig-` and 4,194,288 letters
+ * and ` b}` threw `RangeError: Maximum call stack size exceeded` through {@link indexLabels} and
+ * {@link findLabel}, and so did a table caption (`: Cap {#tbl-…`) and display math (`$$ x $$ {#eq-…`)
+ * (4,194,287 read, Node 22.23, one fresh process per probe, the lower bound verified). A line of
+ * characters up to U+00FF never threw (500,000,000 letters read). A thrown `RangeError` answers NOTHING
+ * for the whole document. {@link runEnd} reads the id by index, with no stack.
+ * `test/unit/label-value-equivalence.test.ts` keeps the old pattern as the oracle (Learning 738) and
+ * compares the two on every string it can enumerate.
+ *
+ * The answer is the id with its kind prefix (`fig-plot`, everything after the `#`), the LONGEST
+ * identifier prefix because the pattern was not anchored at the end, and `null` for a group that does not
+ * begin with `#`, for another kind (`sec-` is Source 1's) and for a kind prefix with no identifier
+ * character after its dash.
+ */
+export function narrowLabel(content: string): string | null {
+  if (content.charCodeAt(0) !== 0x23) {
+    return null;
+  }
+  // The four kind prefixes begin with four different letters, so at most one can follow the `#`.
+  for (const prefix of NARROW_KIND_PREFIXES) {
+    if (content.startsWith(prefix, 1)) {
+      const start = 1 + prefix.length;
+      const end = runEnd(content, start, IDENTIFIER_RUN);
+      return end === start ? null : content.slice(1, end);
+    }
+  }
+  return null;
+}
+/** The kinds {@link narrowLabel} reads, each with the `-` that ends it. */
+const NARROW_KIND_PREFIXES: readonly string[] = ["fig-", "tbl-", "eq-", "lst-"];
+
+/**
+ * Whether `group` is the Pandoc ATTRIBUTE BLOCK of the element it sits on, rather than a brace
+ * group that merely appears on the line.
+ *
+ * ⚠ **THE RULE IS ADJACENCY, AND TWO RENDERED ROWS REFUTE EVERY SIMPLER ONE.** "The first
+ * group on the line wins" and "the first VALID group wins" both explain the whole calibration
+ * corpus, and both are wrong: `x {#fig-w01a} ![Cap](a.png){#fig-w01b}` defines `fig-w01b` and
+ * renders `{#fig-w01a}` as text, and `![A](a.png){#fig-w02a} and ![B](b.png){#fig-w02b}`
+ * defines BOTH (`scratchpad/s222/cal/disc.qmd` w01/w02).
+ *
+ * The two admitting geometries were each measured:
+ *
+ *   **inline** — the group opens IMMEDIATELY after the `)` of an image or link, or the `]` of
+ *   a bracketed span. One space breaks it (`![Cap](a.png) {#fig-g02}` defines nothing, g02) and
+ *   so does any other character (`![Cap](a.png)x{#fig-g15}`, g15). A `)` that closes no link
+ *   carries nothing (`(plain paren){#fig-w03}`, w03). Text AFTER the group does not unattach it
+ *   (`{#fig-g14}extra` and `{#fig-p07}.` both define, g14/p07).
+ *
+ *   **fenced div** — the line opens a div and the group is ALL that follows it. `::: {#fig-g08}`
+ *   and `:::{#fig-g09}` both define; `::: {#fig-p05a}{#fig-p05b}` defines NOTHING, so the
+ *   trailing-content clause is measured rather than tidy (g08/g09/p05).
+ *
+ * ⚠ **AN INVALID ADJACENT GROUP DOES NOT HAND THE ELEMENT TO THE NEXT ONE.**
+ * `![Cap](a.png){bareword}{#fig-w04}` defines nothing at all (w04) — the image takes the
+ * adjacent group, fails to parse it, and the second group is then ordinary text. That is why
+ * an attribute block is CONSUMED here whether or not it yields an id.
+ *
+ * ⚠ **DISPLAY MATH AND TABLE CAPTIONS ARE DELIBERATELY NOT LISTED, BECAUSE THEY ARE NOT THIS
+ * PRODUCTION.** See {@link narrowLabel}'s docstring for what they are and why they keep the
+ * older scan.
+ */
+function isAttributeBlock(lineText: string, group: BraceGroup): boolean {
+  const before = lineText[group.start - 1];
+  if (before === ")" || before === "]") {
+    return true;
+  }
+  return (
+    /^\s*:{3,}\s*$/.test(lineText.slice(0, group.start)) &&
+    /^\s*$/.test(lineText.slice(group.end + 1))
+  );
+}
+/**
+ * A character that may stand alone anywhere in a cross-reference id — Pandoc's
+ * "regchar": a Unicode letter or digit, or `_`.
+ *
+ * ⚠ **UNICODE ON PURPOSE, AND MEASURED.** `# Cafe {#sec-café}` + `@sec-café` renders
+ * `<a href="#sec-café" class="quarto-xref">` (`scratchpad/s220/cal/rt.qmd` R03), and an
+ * undefined `@sec-日本` echoes the whole token back as `?@sec-日本` (`cal/cal.qmd` t11).
+ */
+const REF_ID_REGCHAR = String.raw`[\p{L}\p{N}_]`;
+/**
+ * Punctuation a cross-reference id may hold **internally** — Pandoc's internal-punctuation
+ * set, admitted only when a {@link REF_ID_REGCHAR} follows it.
+ *
+ * ⚠ **THE FOLLOWER CLAUSE IS THE WHOLE RULE, NOT A REFINEMENT OF IT.** It is what keeps
+ * a token from eating trailing sentence punctuation (`@sec-intro.` is `sec-intro`,
+ * `cal/cal.qmd` t05/t36) and what breaks a token at a doubled run (`@sec-a..b` is `sec-a`,
+ * t12 — one of the two rows that corrected this rule from the shape first predicted for it).
+ * Session 220 measured all 12 characters of the set individually rather than porting them:
+ * `:` `.` `#` `$` `%` `&` `+` `?` `<` `>` `~` `/` and `-`.
+ */
+const REF_ID_PUNCT = String.raw`[:.#$%&+?<>~/-]`;
+/** The five cross-reference kind prefixes, each with the `-` that ends it. They begin with five different letters, so at most one of them can follow an `@`. */
+const REF_USAGE_KINDS = ["fig-", "tbl-", "sec-", "eq-", "lst-"];
+/** The thirteen characters of {@link REF_ID_PUNCT}, spelled as a string for {@link refUsageEnd}'s loop; the equivalence sweep of every code unit pins the two together. */
+const REF_ID_PUNCT_MARKS = ":.#$%&+?<>~/-";
+/**
+ * {@link REF_ID_REGCHAR} as a STICKY single-character pattern, for the code points beyond ASCII: a test at an index reads the whole code point there (an astral letter is one, a lone
+ * surrogate none), so the two ends of a surrogate pair are never judged apart.
+ */
+const REGCHAR_AT = new RegExp(REF_ID_REGCHAR, "uy");
+
+/** Whether a UTF-16 code unit is an ASCII letter, digit or `_`: the class of a usage's lookbehind, and the ASCII part of {@link REF_ID_REGCHAR}. */
+function isAsciiWordUnit(unit: number): boolean {
+  return (unit >= 97 && unit <= 122) || (unit >= 65 && unit <= 90) || (unit >= 48 && unit <= 57) || unit === 95;
+}
+
+/** How many UTF-16 code units the {@link REF_ID_REGCHAR} at `at` takes (1, or 2 for an astral letter or number), or 0 when the character there is none or `at` is past the end. */
+function regcharLengthAt(lineText: string, at: number): number {
+  if (at >= lineText.length) {
+    return 0;
+  }
+  const unit = lineText.charCodeAt(at);
+  if (unit < 128) {
+    return isAsciiWordUnit(unit) ? 1 : 0;
+  }
+  REGCHAR_AT.lastIndex = at;
+  return REGCHAR_AT.test(lineText) ? REGCHAR_AT.lastIndex - at : 0;
+}
+
+/**
+ * Where the cross-reference *usage* whose `@` stands at `at` ends (the index just past its last character), or -1 when no usage starts there — `@fig-plot`, `@sec-intro`, `@sec-meth:ods`.
+ * A usage is an `@` that no ASCII letter, digit or `_` comes right before (so `user@fig-x.org` is an email, not a reference), then one of the known kind prefixes (which leaves bare `@key`
+ * citations, Phase 6c, untouched), then the id.
+ *
+ * The id is Pandoc's `citeKey` — a regchar, then any run of (regchar | internal punctuation
+ * immediately followed by a regchar) — measured over 55 rendered rows in Session 220 and
+ * frozen as predictions before rendering (`scratchpad/s220/PREDICTIONS{,2}.tsv`, 38/40 then
+ * 15/15). The kind prefix's own `-` takes the same follower rule, so `@sec-` alone and
+ * `@sec-.x` are not references at all.
+ *
+ * ⚠ **DELIBERATELY NOT THE LOOKBEHIND'S SET.** Pandoc's real precondition is
+ * `notAfterString`, not a character class: `_@sec-x` IS a reference, while `café@sec-x`,
+ * `日本@sec-x` and `.@sec-x` are NOT, and `-@sec-x` is the suppress-author citation form
+ * (all measured, `scratchpad/s220/cal/lb.qmd`). Session 220 left the ASCII class exactly as
+ * it found it so no row moves; the divergence is a separate filed item.
+ *
+ * ⚠ **A LOOP, NOT A PATTERN, SINCE SESSION 337.** The id was `(?:REGCHAR|PUNCT(?=REGCHAR))*` inside one regular expression, and V8 keeps one entry of its backtrack stack per repetition of a
+ * group, so a token of 8,388,573 or more characters (4,194,286 pairs `.a`) threw `RangeError: Maximum call stack size exceeded` in {@link refIdAt}, which the hover and go-to-definition
+ * token reader call with the line under the cursor. Each step is decided by the one character at the index (a punctuation mark also by the one after it), so nothing is ever taken back; the
+ * old pattern is kept as the oracle in `test/unit/ref-usage-equivalence.test.ts`.
+ */
+export function refUsageEnd(lineText: string, at: number): number {
+  if (lineText[at] !== "@" || (at > 0 && isAsciiWordUnit(lineText.charCodeAt(at - 1)))) {
+    return -1;
+  }
+  let pos = -1;
+  for (const kind of REF_USAGE_KINDS) {
+    if (lineText.startsWith(kind, at + 1)) {
+      pos = at + 1 + kind.length;
+      break;
+    }
+  }
+  if (pos < 0 || regcharLengthAt(lineText, pos) === 0) {
+    return -1;
+  }
+  for (;;) {
+    const width = regcharLengthAt(lineText, pos);
+    if (width > 0) {
+      pos += width;
+    } else if (pos < lineText.length && REF_ID_PUNCT_MARKS.includes(lineText[pos]) && regcharLengthAt(lineText, pos + 1) > 0) {
+      pos++;
+    } else {
+      return pos;
+    }
+  }
+}
+
+/** The cross-ref kind of an id, or `null` if its prefix is not a cross-ref kind. */
+function kindOf(id: string): RefKind | null {
+  const m = KIND_PREFIX.exec(id);
+  return m ? (m[1] as RefKind) : null;
+}
+
+/**
+ * Index every cross-reference label defined in `text`, in document order. Where
+ * the same id is defined more than once, only the first definition is kept.
+ *
+ * `documentEngine` is the engine the document resolves to (`resolveDocumentEngine`). Only `"knitr"` turns
+ * on the chunk-HEADER label (`{r fig-x}`), which jupyter and markdown documents ignore (Session 303); every
+ * other value, `"ambiguous"` and an omitted argument included, leaves it off, because a wrong claim of knitr
+ * mints a label quarto does not define while a wrong refusal only loses a completion.
+ *
+ * ⚠ **THE RESOLVER IS NOT INFALLIBLE IN THE DANGEROUS DIRECTION, AND THIS INHERITS IT.** `resolveDocumentEngine`
+ * never reads a project's `_quarto.yml`, so a project that reorders `engines:` can make quarto run a
+ * python-then-R document under jupyter while the resolver answers knitr (`document-engine.ts` records it as
+ * genuinely invisible there). The header label is then a label quarto does not define. An `.Rmd` file is knitr
+ * by its extension alone, measured with `jupyter:` and `engine: markdown` in its front matter (`hdr7`, w01-w06).
+ *
+ * ⚠ **AND IT COSTS LABELS SINCE SESSION 304, NOT ONLY PHANTOMS.** In a `"knitr"` or a `"jupyter"` document a figure or table label
+ * on a cell that is positively known to make no such target is NOT indexed (`knitrCellMakesNoTarget`,
+ * `jupyterCellMakesNoTarget` in `core/qmd/model`): `eval: false`, `include: false`, `output: false` or an empty chunk for a
+ * figure, `include: false` for a table, and for Jupyter any cell with nothing left to show. A wrong engine from the resolver
+ * therefore removes a label quarto defines. Every other engine value leaves the old answer, a label on every cell.
+ *
+ * ⚠ **EVERY ENGINE VALUE ALIKE, SINCE SESSION 305, A CELL'S `sec-`/`eq-` LABEL IS NOT INDEXED** in a document with no channel for code to write
+ * markdown or to run code by name ({@link CELL_NEVER_DEFINES}); with one it is, as before. A heading whose text IS the id (an auto id this model
+ * never generates) and a heading attribute block this model cannot read are labels quarto defines that a cell label used to cover (li18, wl50).
+ */
+export function indexLabels(text: string, documentEngine?: DocumentEngine | "ambiguous"): RefLabel[] {
+  const labels: RefLabel[] = [];
+  const headingLines = new Set<number>();
+  // Split ONCE: the heading loop below and Source 2 both read lines by index, and a split per heading made the index cost headings x lines
+  // (Session 312: 8,000 headings in a 32,000-line document took 5.6 s; 8,000 headings of one line each took 1.7 s).
+  const sourceLines = text.split(/\r?\n/);
+
+  // Source 1 — `sec-` ids on headings. (Headings only ever define sections.)
+  for (const heading of findHeadings(text)) {
+    headingLines.add(heading.line);
+    if (!heading.id || kindOf(heading.id) !== "sec") {
+      continue;
+    }
+    labels.push({
+      id: heading.id,
+      kind: "sec",
+      line: heading.line,
+      column: idColumn(sourceLines[heading.line] ?? "", heading.id),
+    });
+  }
+
+  // Source 2 — a `label: <id>` option inside an executable code cell, read through the shared
+  // option scanner so the cell language's own comment character decides which lines are options.
+  //
+  // ⚠ **AN INDENTED FENCE IS READ AS THE CELL WOULD BE AT COLUMN 0.** Quarto strips the fence's own
+  // indent from each cell line that starts with it and leaves any other line alone (measured with
+  // knitr and jupyter alike, a list-item cell of corpus ordinal 1887 being the real-document
+  // witness): an option at the fence's indent or at column 0 is an option, one deeper or in
+  // between is code. The scanner only ever sees column 0, so the stripped copy is what it is handed.
+  const targetContext = documentEngine === "knitr" || documentEngine === "jupyter" ? cellTargetContext(text) : null;
+  // ⚠ An id that the text spells as an ANCHOR somewhere else — `{#tbl-x}` in a `cat()` string, `#tbl-x` in an attribute list that may be
+  // split over lines, a raw `id=tbl-x` — is defined at run time from there even when the cell that carries the same label defines
+  // nothing (hunt2 f20-f23, f43; hunt3 anchor-ids e10-e19, rendered). A link TO an id (`(#tbl-x)`) or a reference (`@tbl-x`) is no
+  // anchor. The anchors are collected ONCE per document, and compared as the identifier quarto ends up with: characters pandoc's
+  // id cannot hold are dropped from it (`{#tbl-e0$1}` renders `tbl-e01`).
+  let anchors: Set<string> | null = null;
+  const writtenElsewhere = (id: string): boolean => {
+    if (anchors === null) {
+      anchors = new Set();
+      const keep = (raw: string): void => {
+        anchors?.add(raw.replace(/[^\p{L}\p{N}_:.-]/gu, ""));
+      };
+      for (const group of text.matchAll(/\{[^{}]*\}/g)) {
+        for (const m of group[0].matchAll(/#([^\s}#]*)/g)) {
+          keep(m[1]);
+        }
+      }
+      for (const m of text.matchAll(/\bid\s*=\s*["']?([^\s"'>]+)/gi)) {
+        // a numeric character entity (`fig&#45;x`, `fig&#x2d;x`) is the character it names; one past U+10FFFF (or too long to be a
+        // finite number: `parseInt` answers Infinity) names none, which HTML reads as U+FFFD, and `fromCodePoint` would throw on it
+        keep(
+          m[1].replace(/&#(\d+);|&#x([0-9a-f]+);/gi, (_all, dec?: string, hex?: string) => {
+            const code = Number.parseInt(dec ?? (hex as string), dec === undefined ? 16 : 10);
+            return code > 0x10ffff ? "\uFFFD" : String.fromCodePoint(code);
+          }),
+        );
+      }
+    }
+    return anchors.has(id);
+  };
+  // Whether the document has a channel for code to write markdown, or to run code this text does not show (Session 304's `cellTargetContext`): asis
+  // output, `Markdown()`, `display()`, an inline expression, a shortcode, a `child`, `source`, `get(`, `exec`. Collected on first use.
+  let runTimeChannel: boolean | null = null;
+  const canWriteAtRunTime = (): boolean => {
+    if (runTimeChannel === null) {
+      const context = targetContext ?? cellTargetContext(text);
+      runTimeChannel = context.codeFromElsewhere || context.unseenCode || context.markdownLines.length > 0;
+    }
+    return runTimeChannel;
+  };
+  for (const cell of findAllCells(text)) {
+    const indent = /^[ \t]*/.exec(sourceLines[cell.startLine])?.[0] ?? "";
+    if (indent !== "" && COLUMN_ZERO_ONLY_LANGUAGES.has(cell.lang)) {
+      continue;
+    }
+    const stripLine = (raw: string): string => (raw.startsWith(indent) ? raw.slice(indent.length) : raw);
+    const readable =
+      indent === "" || cell.code.length === 0
+        ? cell
+        : { ...cell, code: cell.code.split("\n").map(stripLine).join("\n") };
+    // ⚠ A LABEL ON A CELL THAT MAKES NO TARGET IS NOT A DEFINITION (Session 304): quarto prints `?@fig-x`. Only a knitr
+    // or a Jupyter document is read here, each by its own reader, and a wrong "makes none" loses a real label, so both
+    // answer true only for what was rendered. The two readers decline every cell language but their own measured ones
+    // (r, R and python for knitr; `python`, spelled so, for Jupyter), which leaves the handler cells alone.
+    const bodyLines = readable.code.length === 0 ? [] : readable.code.split("\n");
+    // ⚠ The scanner closes a cell at a ``` of any indent, and quarto only at one at the OPENER'S OWN indent, so a stray
+    // fence inside a cell hands the rules a body that stops early: it looks empty and its label is removed (hunt
+    // struct-trap e01-e08, e43, rendered: defined). A cell is judged only when its closer is a bare fence at the
+    // opener's indent (the scanner has already held its length to the opener's, and returns no unterminated cell).
+    const closer = sourceLines[cell.endLine] ?? "";
+    const closedAtOpener = closer.startsWith(indent) && BARE_FENCE.test(closer.slice(indent.length));
+    // ⚠ A removal must never break the index: a header string of several megabytes overflows the stack of the option reader's
+    // regular expression (hunt3 robust-perf f26), and a reader that cannot finish has read nothing, so nothing is removed.
+    const readsNoTarget = (kind: "fig" | "tbl"): boolean => {
+      try {
+        const context = cellTargetContextFor(targetContext as CellTargetContext, cell.startLine, cell.endLine);
+        return documentEngine === "knitr"
+          ? knitrCellMakesNoTarget(sourceLines[cell.startLine], bodyLines, kind, context)
+          : cell.lang === "python" && jupyterCellMakesNoTarget(bodyLines, context);
+      } catch (error) {
+        if (error instanceof RangeError) {
+          return false;
+        }
+        throw error;
+      }
+    };
+    const makesNoTarget = (kind: RefKind, id: string): boolean =>
+      targetContext !== null && closedAtOpener && (kind === "fig" || kind === "tbl") && readsNoTarget(kind) && !writtenElsewhere(id);
+    // The folded indent of the block's first real key: YAML's top level. A `label` nested deeper
+    // under another option is that option's own data, not the cell's label.
+    let baseIndent: number | null = null;
+    // Whether the option block names the cell's label ITSELF, or may (see the header read below).
+    let pipeNamesLabel = false;
+    let firstOptionLine = true;
+    for (const option of cellOptionLinesOf(readable)) {
+      const { keySlot, valueSlot } = option;
+      if (keySlot === null) {
+        continue;
+      }
+      const rawLine = sourceLines[option.line];
+      const lineText = stripLine(rawLine);
+      const removed = rawLine.length - lineText.length;
+      const keyToken = lineText.slice(keySlot.startCol, keySlot.endCol);
+      const isFirstOptionLine = firstOptionLine;
+      firstOptionLine = false;
+      if (keyToken === "" || keyToken.startsWith("#")) {
+        // ⚠ A block whose FIRST line is a YAML comment (or empty) leaves a header label undefined too, whatever else
+        // it holds (`scratchpad/s303/hdr6` p03, p04, hdr i18); the same comment AFTER another option does not (p10).
+        if (isFirstOptionLine) {
+          pipeNamesLabel = true;
+        }
+        continue; // a bare `#|` line or a YAML comment fixes no indent
+      }
+      // The whitespace between the pipe and the key, less the ONE space quarto's `| ?` consumes.
+      const gap = trailingBlanks(lineText.slice(0, keySlot.startCol));
+      const foldedIndent = gap.startsWith(" ") ? gap.length - 1 : gap.length;
+      if (baseIndent === null) {
+        baseIndent = foldedIndent;
+      }
+      if (foldedIndent !== baseIndent) {
+        continue;
+      }
+      // `"label":` and `'label':` are the key `label` in YAML. Only one matching pair of quotes is
+      // stripped, so a key spelled with a YAML escape sequence is left unread: a missing
+      // completion, never a phantom.
+      const key = /^(["'])(.*)\1$/.exec(keyToken)?.[2] ?? keyToken;
+      // ⚠ A `label` KEY in the option block overrides a header label whatever its VALUE is — valid, rejected or
+      // no cross-reference kind at all (`scratchpad/s303/hdr3` r17, r18; a quoted key, hdr6 p01). So do the spellings of
+      // that key this index cannot read: a YAML complex key `? label` (p06, i31), a key written with an escape
+      // (`"l\x61bel"`, i30), and a flow mapping that names it or runs on to a later line (`#| {label: …}`, r22, p02).
+      // A flow mapping that closes on its own line without the word stands aside (`#| {fig-cap: Cap}`, p08), and so do
+      // the near misses `labels:`, `label-x:` and a nested `label` (p11, p12, v01). Whenever one of them is present the
+      // header's label is NOT defined, so a block that might carry one is never answered from the header.
+      const flowRest = keyToken.startsWith("{") ? lineText.slice(keySlot.startCol) : "";
+      if (
+        key === "label" ||
+        /^\?(?:[ \t]|$)/.test(keyToken) ||
+        /^["'].*\\/.test(keyToken) ||
+        (flowRest !== "" && (/label/.test(flowRest) || !flowRest.trimEnd().endsWith("}")))
+      ) {
+        pipeNamesLabel = true;
+      }
+      if (key !== "label" || valueSlot === null) {
+        continue;
+      }
+      const m = cellLabelValue(lineText.slice(valueSlot.startCol, valueSlot.endCol));
+      if (m === null) {
+        continue;
+      }
+      const value = m.id;
+      const kind = kindOf(value);
+      // ⚠ A `sec-`/`eq-` label is no definition (quarto prints `?@sec-x`), unless the document can write the target at run time: see
+      // {@link CELL_NEVER_DEFINES}, which also lists the rows. A document with such a channel keeps the label, because a wrong removal loses
+      // a label quarto defines and a wrong keep only leaves the phantom this index always had.
+      if (kind === null || (CELL_NEVER_DEFINES.has(kind) && !canWriteAtRunTime()) || makesNoTarget(kind, value)) {
+        continue;
+      }
+      labels.push({
+        id: value,
+        kind,
+        line: option.line,
+        column: removed + valueSlot.startCol + m.length - value.length,
+      });
+    }
+    // ⚠ A HANDLER cell (`ojs`, `mermaid`, `dot`) is run by quarto's own handler and never reaches knitr, so its
+    // header is no chunk header (`scratchpad/s303/hdr`, d03, d04; `hdr2`, y11, y12), in any capitalisation (`hdr7`
+    // v04, v05) and when an `engine=` option hands an R chunk to one (e57). Every language knitr DOES run
+    // reads it, python through reticulate and bash included (y01, d02, y06).
+    const header =
+      documentEngine === "knitr" && !pipeNamesLabel && !COLUMN_ZERO_ONLY_LANGUAGES.has(cell.lang.toLowerCase())
+        ? knitrChunkHeaderLabel(sourceLines[cell.startLine], COLUMN_ZERO_ONLY_LANGUAGES)
+        : null;
+    const headerKind = header === null ? null : headerLabelKind(header.value);
+    if (header !== null && headerKind !== null && !makesNoTarget(headerKind, header.value)) {
+      labels.push({ id: header.value, kind: headerKind, line: cell.startLine, column: header.column });
+    }
+  }
+
+  // Source 3 — inline `{#fig-…}`/`{#tbl-…}`/`{#eq-…}`/`{#lst-…}` attribute
+  // blocks on prose body lines (images, divs, display equations). Heading lines
+  // are body lines too, but a non-sec id on a heading is not a figure/table —
+  // headings contribute labels only through Source 1, so skip them here.
+  // ⚠ Resolved ONCE per document, from the same front-matter `from:` the heading path uses.
+  // Which atom of a multi-id block wins is a READER question (Session 219, re-measured for
+  // inline blocks and divs in Session 222 — `scratchpad/s222/cal/cmx.qmd`).
+  const reader = attributeBlockReader(text);
+  for (const { line, text: rawText, contentStart } of findBodyLines(text)) {
+    if (headingLines.has(line)) {
+      continue;
+    }
+    // Mask inline code spans (length-preserving) so a `{#fig-…}` shown literally
+    // in backticks is not indexed; column offsets stay valid.
+    const lineText = maskInlineCode(rawText);
+    for (const group of braceGroups(lineText)) {
+      // ⚠ **AN ATTRIBUTE BLOCK IS CONSUMED WHETHER OR NOT IT YIELDS AN ID.** A group the
+      // element owns but Pandoc refuses must NOT fall through to the narrow scan — that
+      // fall-through is exactly the phantom this deliverable removes (`{#fig-a$b}` etc.),
+      // and `disc.qmd` w04 shows quarto agrees: an invalid adjacent group does not hand the
+      // element on to the next group.
+      if (isAttributeBlock(lineText, group)) {
+        const id = attributeBlockId(group.content, reader);
+        const kind = id === undefined ? null : kindOf(id);
+        // `sec-` is Source 1's, even when a block on an image really defines one
+        // (`p.qmd` p04 renders id="sec-p04"); indexing it here would double-count.
+        if (id !== undefined && kind !== null && kind !== "sec") {
+          labels.push({ id, kind, line, column: idColumnIn(lineText, group, id) });
+        }
+        continue;
+      }
+      // ⚠ **THE UNVALIDATED FALLBACK DOES NOT APPLY ON A LINE THAT BEGINS WITH A FENCE RUN.**
+      // Such a line is here at all only because the region scanner REFUSED it as a fence
+      // opener (Session 224) — or because it never closed — and quarto renders it as literal
+      // text, defining nothing: ```` ```{#lst-d10 .python} extra ```` is one inline code span
+      // (`s223/cal/disc.qmd` d10) and ```` ```{#lst-b09 .cls} x ```` renders its braces
+      // verbatim (`s224/b/b09`). Without this clause every fence this session newly refuses
+      // mints a phantom, which is the defect it exists to remove seen from the other side.
+      //
+      // ⚠ **ONLY the fallback is withheld, never the line.** A refused fence line is ordinary
+      // prose, so a REAL element on it still defines through the branch above — measured:
+      // ```` ```{#lst-h01 bad .x} ![Cap](a.png){#fig-h01} ```` renders the image and
+      // `id="fig-h01"` with it (`scratchpad/s224/h/h01`).
+      //
+      // ⚠ Tested against the RAW line, not the masked one. `maskInlineCode` rewrites a
+      // three-backtick run into `` ` `` plus two spaces, so the masked text no longer starts
+      // with a fence run at all and the clause silently never fires — measured on this very
+      // row before the fix.
+      //
+      // ⚠ **AND PAST THE BLOCK-QUOTE MARKER, FOR THE SAME REASON (Session 225).** A refused
+      // fence inside a quote is refused the same way — rendered, `> ```{#lst-s03 bad .cls}` and
+      // its closer form ONE inline code span and quarto defines nothing (`s225/cal/sv.qmd` s03)
+      // — but the raw line begins with the marker, so an unshifted test never fires and the
+      // fallback mints the phantom the withhold exists to stop.
+      if (FENCE_RUN.test(rawText.slice(contentStart))) {
+        continue;
+      }
+      const narrowId = narrowLabel(group.content);
+      if (narrowId === null) {
+        continue;
+      }
+      const kind = kindOf(narrowId);
+      if (kind !== null) {
+        labels.push({ id: narrowId, kind, line, column: group.start + 2 });
+      }
+    }
+  }
+
+  // Source 4 — attribute blocks on PLAIN fenced code block openers,
+  // ```` ```{#lst-x .python} ````. The opener is a region boundary rather than a body line, so
+  // Source 3 never reaches it; see `fenceAttributeId` for quarto's tag rewrite, which runs before
+  // `Attr` is ever asked.
+  for (const fence of findCodeFenceOpeners(text)) {
+    // ⚠ The opener text is RAW so its columns stay real; the PARSE starts past the block-quote
+    // marker and the column is shifted back by the same offset (Session 225). The raw text is
+    // also the physical line quarto's tag rewrite is anchored on, and line 0 is where readqmd
+    // accepts an empty `{}` tag (Session 263). ⚠ It is NOT passed the line-0 `{}` PROPAGATION the
+    // region scanner models (`firstLineTagIsEmpty`): no id can observe it today, because the
+    // one-word check below lets a brace-bearing word through — `{}.x {#lst-pb}` defines here with
+    // or without the rewrite, where quarto refuses the unseeded twin (`scratchpad/s263/prop/r1`,
+    // `r2`). Pass it when that word check learns pandoc's refusal (the plan's P4).
+    const found = fenceAttributeId(
+      fence.text.slice(fence.contentStart),
+      reader,
+      fence.text,
+      fence.line === 0,
+    );
+    if (found === undefined) {
+      continue;
+    }
+    const kind = kindOf(found.id);
+    // `sec-` is Source 1's. Quarto really defines it here — ```` ```{#sec-r10 .python} ````
+    // renders `id="sec-r10"` (`r.qmd` r10) — but section labels are owned by headings, which
+    // is the same boundary Source 3 draws. Pinned at `refs.test.ts` H11.
+    if (kind !== null && kind !== "sec") {
+      labels.push({
+        id: found.id,
+        kind,
+        line: fence.line,
+        column: found.column + fence.contentStart,
+      });
+    }
+  }
+
+  // The three sources are collected in source order; present them in document
+  // order and keep only the first definition of any repeated id.
+  labels.sort((a, b) => a.line - b.line || a.column - b.column);
+  return dedupeById(labels);
+}
+
+/** The label defined with `id` in `text`, or `null` if none. Drives go-to-definition. */
+export function findLabel(text: string, id: string, documentEngine?: DocumentEngine | "ambiguous"): RefLabel | null {
+  return indexLabels(text, documentEngine).find((label) => label.id === id) ?? null;
+}
+
+/**
+ * Whether 0-based `line` is a prose or heading line — where cross-references
+ * apply. False inside code cells, YAML front matter, and HTML comments, where an
+ * `@` is a decorator/macro/email and a `{#…}` is literal. Gates the providers so
+ * completion does not pop and go-to-definition does not fire in non-prose regions.
+ */
+export function isReferenceableLine(text: string, line: number): boolean {
+  return findBodyLines(text).some((body) => body.line === line);
+}
+
+/**
+ * The cross-reference id of the `@ref` token at 0-based `column` on `lineText`,
+ * or `null` if the cursor is not within one. The cursor counts as inside the
+ * token from its `@` through one past its last character (so it resolves whether
+ * you click the start, middle, or end). Drives go-to-definition.
+ */
+export function refIdAt(lineText: string, column: number): string | null {
+  for (let at = lineText.indexOf("@"); at >= 0; at = lineText.indexOf("@", at + 1)) {
+    const end = refUsageEnd(lineText, at);
+    if (end >= 0 && column >= at && column <= end) {
+      return lineText.slice(at + 1, end);
+    }
+  }
+  return null;
+}
+
+/** {@link REF_ID_REGCHAR} as a testable single-character pattern. */
+const REGCHAR = new RegExp(REF_ID_REGCHAR, "u");
+/** {@link REF_ID_PUNCT} as a testable single-character pattern. */
+const PUNCT = new RegExp(REF_ID_PUNCT, "u");
+/** A word character that, immediately before an `@`, marks it as an email — not a reference. */
+const WORD_CHAR = /[A-Za-z0-9_]/;
+
+/**
+ * Whether the id token continues at `at` on `lineText` — a regchar, or internal
+ * punctuation with a regchar immediately after it (the measured Pandoc rule; see
+ * {@link REF_ID_PUNCT}). This is what stops a token before trailing sentence
+ * punctuation, so the replace range never eats an `@ref`'s closing `.`.
+ */
+function idContinuesAt(lineText: string, at: number): boolean {
+  const ch = lineText[at];
+  if (ch === undefined) {
+    return false;
+  }
+  if (REGCHAR.test(ch)) {
+    return true;
+  }
+  const next = lineText[at + 1];
+  return PUNCT.test(ch) && next !== undefined && REGCHAR.test(next);
+}
+
+/**
+ * Whether the completion REPLACE RANGE should extend over `at` — {@link idContinuesAt}, plus a
+ * `-` unconditionally.
+ *
+ * ⚠ **`end` IS NOT A PARSE CLAIM, AND THIS IS THE ONE PLACE THE TWO QUESTIONS DIVERGE.** It
+ * answers *what has the author typed as part of this token*, so that accepting a completion
+ * replaces all of it; {@link refIdAt} answers *what does Pandoc consume*, and stays exactly
+ * faithful (`@sec-x-` really is the token `sec-x` — `cal/cal.qmd` t07). Only `-` is treated
+ * permissively, because it is the one punctuation character every cross-ref id already
+ * contains — the kind prefix guarantees at least one — so an author who has just typed a
+ * hyphen is still composing the id, while a `.` or `:` at the end of a token is far more
+ * likely to be the sentence's punctuation.
+ *
+ * ⚠ The invariant this buys is mechanical and was checked over 321,236,210 columns: the
+ * replace range NEVER shrinks against the pre-session build, so no accepted completion can
+ * strand a character the old scanner would have replaced. Session 220 shipped that defect
+ * twice — once for the kind prefix's hyphen, once for a name's — and found both only by
+ * sweeping `end` rather than by testing the id.
+ */
+function replaceRangeContinuesAt(lineText: string, at: number): boolean {
+  return lineText[at] === "-" || idContinuesAt(lineText, at);
+}
+
+/**
+ * If 0-based `column` on `lineText` sits at the end of an in-progress `@…`
+ * cross-reference (a bare `@`, or `@` followed only by id characters up to the
+ * cursor), return where the `@` is and the id typed so far; otherwise `null`.
+ * An `@` preceded by a word character is an email address, not a reference.
+ * Drives completion (the `start` is where the inserted `@id` replaces from).
+ *
+ * ⚠ **THE TWO SCANS ANSWER DIFFERENT QUESTIONS AND SESSION 220 MEASURED THEM SEPARATELY.**
+ * The BACKWARD scan only has to find the `@`, so it walks any character a token could hold —
+ * over-reaching there costs at most a `typed` that filters to no completions. The FORWARD
+ * scan sets the REPLACE range, so it applies the full rule: an over-wide `end` would make an
+ * accepted completion swallow the sentence's punctuation.
+ *
+ * ⚠ **BEFORE SESSION 220 THIS SURFACE DID NOT TRUNCATE — IT DIED.** The old scanner walked
+ * `[A-Za-z0-9_-]`, so on `@sec-meth:o` the backward walk stopped ON the colon, never reached
+ * the `@`, and returned `null`: once an author typed a `:` they were offered nothing at all.
+ * Measured on the pre-session build (`scratchpad/s220/pre/probe220.test.ts`); the filed item
+ * described only the truncation, and this is the half no id-only comparison can see.
+ */
+export function crossrefCompletionContext(
+  lineText: string,
+  column: number,
+): RefCompletionContext | null {
+  let i = column - 1;
+  while (i >= 0 && (REGCHAR.test(lineText[i]) || PUNCT.test(lineText[i]))) {
+    i--;
+  }
+  if (i < 0 || lineText[i] !== "@") {
+    return null;
+  }
+  if (i > 0 && WORD_CHAR.test(lineText[i - 1])) {
+    return null;
+  }
+  // Walk forward over the rest of the token the cursor is sitting inside, so the
+  // whole `@id` (not just up to the cursor) can be replaced on accept.
+  //
+  // ⚠ **A `-` IS ALWAYS COVERED** — see {@link replaceRangeContinuesAt}. `@sec-` is what an
+  // author types to summon the list, and the follower rule alone stops before that hyphen
+  // (nothing follows it yet), so accepting `@sec-intro` would leave `@sec-intro-` behind.
+  // That is the mid-token-accept duplication `core/citations.ts` records.
+  let end = column;
+  while (end < lineText.length && replaceRangeContinuesAt(lineText, end)) {
+    end++;
+  }
+  return { start: i, typed: lineText.slice(i + 1, column), end };
+}
+
+/** Keep only the first `RefLabel` for each id, preserving order. */
+function dedupeById(labels: RefLabel[]): RefLabel[] {
+  const seen = new Set<string>();
+  return labels.filter((label) => {
+    if (seen.has(label.id)) {
+      return false;
+    }
+    seen.add(label.id);
+    return true;
+  });
+}
+
+/**
+ * {@link DEFINED_ID_CHAR_CLASS} as a testable single-character pattern — the boundary test
+ * `idColumn` uses to decide whether an `#id` occurrence ends where the identifier ends.
+ *
+ * ⚠ **DELIBERATELY NOT THE USE-SIDE RULE, WHICH IS A DIFFERENT QUESTION.** {@link refUsageEnd}
+ * asks what a reference TOKEN may consume as the author types it; this asks what a DEFINED
+ * identifier may hold. Session 220 measured the first and Session 221 the second, separately,
+ * and they disagree — the use side has a follower clause and this side does not.
+ */
+const ATTR_ID_CHAR = new RegExp(DEFINED_ID_CHAR_CLASS, "u");
+
+/**
+ * The 0-based column where `#<id>` resolves to the start of `<id>` on `lineText`, or
+ * 0 if it cannot be located (defensive — go-to-definition still lands on the line).
+ * Uses the LAST occurrence: the `{#id}` attribute block is trailing, so an
+ * identical `#id` substring appearing earlier on the line (e.g. inside an inline
+ * code span or quoted in the heading text) must not win.
+ *
+ * ⚠ **BUT ONLY AN OCCURRENCE THAT ENDS AT AN IDENTIFIER BOUNDARY** (Session 219). A bare
+ * `lastIndexOf` is exact until two ids on one heading share a prefix, and then it finds the
+ * shorter one INSIDE the longer: `# Cal T12 Prefix {#sec-t12 #sec-t12b}` under `commonmark_x`
+ * defines `sec-t12`, whose text begins at column 19, and the search matched the `#sec-t12`
+ * that opens `#sec-t12b` at 27 — putting go-to-definition in the middle of the other
+ * identifier (`scratchpad/s219/id/cmx_t12prefix`).
+ *
+ * ⚠ The reader matters, and it is the one Session 219 otherwise left alone: the pandoc family
+ * defines the LAST id, whose only occurrence is already the last, so this row is reachable
+ * ONLY through `commonmark_x` — which takes the FIRST. The id surface cannot see it at all,
+ * because the id string is correct in both readers and only its column is wrong.
+ *
+ * The boundary test keeps the trailing-occurrence rule intact: in
+ * `## Use \`#sec-intro\` here {#sec-intro}` the earlier mention is followed by a backtick,
+ * which is no identifier character, so both occurrences qualify and the LAST still wins
+ * (the Session 8 adversarial row).
+ */
+function idColumn(lineText: string, id: string): number {
+  return lastIdStart(lineText, id, lineText.length, 0) ?? 0;
+}
+
+/**
+ * Where the `#<id>` occurrence that ENDS at an identifier boundary starts on `lineText`,
+ * searching backwards from `searchFrom` and refusing to look before `floor`; `null` if there
+ * is none. The trailing-occurrence rule and the boundary test are {@link idColumn}'s, and
+ * both are Session 219's — see that docstring for the two rendered rows behind them.
+ */
+function lastIdStart(
+  lineText: string,
+  id: string,
+  searchFrom: number,
+  floor: number,
+): number | null {
+  const needle = `#${id}`;
+  let at = lineText.lastIndexOf(needle, searchFrom);
+  while (at >= floor) {
+    const next = lineText[at + needle.length];
+    if (next === undefined || !ATTR_ID_CHAR.test(next)) {
+      return at + 1;
+    }
+    if (at === 0) {
+      break;
+    }
+    at = lineText.lastIndexOf(needle, at - 1);
+  }
+  return null;
+}
+
+/**
+ * The 0-based column where the identifier text of `id` begins INSIDE `group`.
+ *
+ * ⚠ **THE SEARCH IS BOUNDED BY THE GROUP, WHICH IS THE WHOLE REASON IT IS NOT
+ * {@link idColumn}.** An attribute block's id is now selected from the block's ATOMS rather
+ * than found by scanning the line, so the same `#id` text may well appear earlier on the line
+ * outside the block — in a previous element's block on a line carrying two of them
+ * (`disc.qmd` w02), or in prose the reader sees as text (`w01`). Searching the whole line
+ * would send go-to-definition to the wrong one. Falls back to just past the `{` — defensive,
+ * so navigation still lands on the right line.
+ */
+function idColumnIn(lineText: string, group: BraceGroup, id: string): number {
+  return lastIdStart(lineText, id, group.end, group.start) ?? group.start + 1;
+}
+
+/** A fenced code block opener's leading run — indentation, the fence characters, and the gap. */
+const FENCE_RUN = /^[ \t]*(?:`{3,}|~{3,})[ \t]*/;
+
+/**
+ * The cross-reference id a PLAIN fenced code block's opener line defines, or `undefined`.
+ *
+ * ⚠ **THIS IS A FOURTH PRODUCTION AND QUARTO REWRITES ITS INPUT BEFORE PANDOC SEES IT — DO NOT
+ * DERIVE IT FROM `Attr` ALONE.** Measured over 51 rendered rows across six rounds in Session 223
+ * (`scratchpad/s223/cal/`, quarto 1.7.33, predictions frozen and hashed before each round):
+ *
+ *   **First — quarto's tag rewrite, and it is the whole reason a port would be wrong.** On a
+ *   BACKTICK fence, a leading brace tag running to the last `}` before any `.` or `=` becomes a
+ *   same-length word before pandoc reads the line, and comes back afterwards as a literal CLASS,
+ *   so **no id is defined at all**: ```` ```{#lst-s03} ```` renders `<pre class="{#lst-s03}">`
+ *   (`sv.qmd` s03) — while bare pandoc defines `id="lst-s03"` from the same bytes, under
+ *   `markdown` AND `commonmark_x`. Confirmed at AST level: `quarto render --to native` shows
+ *   `CodeBlock ( "" , [ "{#lst-s03}" ] , [] )`. The rewrite is `quartoFenceTagRewrite`, shared
+ *   with the region scanner (Session 263), and it is applied to the WHOLE line this function
+ *   scans — the group search, the word count and the id column below all read `scan` — because a
+ *   rewrite of the info string alone would leave `{#lst-h06}` visible to them and mint an id
+ *   quarto never defines (`refs.test.ts` H6).
+ *
+ *   ⚠ The rule is LEXICAL rather than a validity test — `{#lst-t01.b}` holds no `}` before its
+ *   `.`, so it is no tag and defines `lst-t01.b` with no class at all (`t.qmd` t01), and 23 rows
+ *   holding `: , _ - é $ ! * / + ; % | ( ) ~`, a space, a bare word or a second `#id` atom are
+ *   all rewritten (`t.qmd`, `u.qmd` 10/10).
+ *
+ *   **Then — pandoc's `Attr`, which {@link attributeBlockId} already carries measured.** What
+ *   the rewrite leaves is parsed as `[word] {attrs}`; a FAILED parse means the fence is not a
+ *   fence at all (`{#lst-q05$x .python}` renders as an inline code span, `q.qmd` q05).
+ *
+ * ⚠ **ONLY A BRACE-LED INFO STRING IS REWRITTEN.** ```` ```python {#lst-d09} ```` and
+ * ```` ```.python {#lst-r07} ```` both define although their braces hold neither `.` nor `=`
+ * (`disc.qmd` d09, `r.qmd` r07) — the leading word is itself the non-identifier token.
+ *
+ * ⚠ **AND ONLY ON A BACKTICK FENCE AT THE START OF THE PHYSICAL LINE.** A tilde fence is never
+ * rewritten — ```` ~~~{#lst-i06} ```` defines under both readers (`fill-3` i06, Session 263) —
+ * and a block-quote marker defeats the anchor: ```` > ```{#lst-e01} ```` renders
+ * `<pre id="lst-e01">`, a REAL id, where the identical bytes at top level define none
+ * (`scratchpad/s225/e/e01` against Session 223's `sv.qmd` s03). That is why the caller passes
+ * `physicalLine`: only the region scanner's raw opener text still carries the marker.
+ */
+function fenceAttributeId(
+  lineText: string,
+  reader: AttributeBlockReader,
+  physicalLine: string,
+  emptyTagAllowed: boolean,
+): { id: string; column: number } | undefined {
+  const run = FENCE_RUN.exec(lineText);
+  if (run === null) {
+    return undefined;
+  }
+  const scan =
+    run[0] + quartoFenceTagRewrite(physicalLine, lineText.slice(run[0].length), emptyTagAllowed);
+  // ⚠ **THE BLOCK MUST END THE INFO STRING, AND THAT IS A MEASURED REFUSAL RATHER THAN
+  // TIDINESS.** ```` ```{#lst-d10 .python} extra ```` is not a fenced code block at all —
+  // pandoc's info-string parse fails and the backticks are read as an INLINE CODE SPAN, so the
+  // rendered document holds `<p><code>{#lst-d10 .python} extra x = 10</code></p>` and defines
+  // nothing (`disc.qmd` d10). Our region scanner does open a region on that line, which is a
+  // separate and much wider question, so the refusal is made here where the id is minted.
+  //
+  // ⚠ **AND IT IS THE LAST GROUP, NOT THE FIRST — MEASURED UNDER BOTH READERS.**
+  // ```` ```{#lst-z07a}{#lst-z07b .python} ```` defines `lst-z07b` and renders the FIRST group
+  // as a literal class (`adv.qmd` z07); the `commonmark_x` twin agrees (`adv2.qmd` y01) and a
+  // separating space changes nothing (`adv3.qmd` y02). An earlier group is an info-string
+  // WORD rather than part of the block, which is why the reader split that picks an atom
+  // INSIDE a block never arises between blocks.
+  const groups = braceGroups(scan);
+  const group = groups[groups.length - 1];
+  if (group === undefined || group.end !== scan.trimEnd().length - 1) {
+    return undefined;
+  }
+  // ⚠ **AND AT MOST ONE INFO-STRING WORD MAY PRECEDE IT.** Pandoc's info string is
+  // `[word] {attrs}`, so ```` ```{#lst-y03a .cls}{#lst-y03b} ````, whose prefix is TWO words,
+  // is not a fenced code block at all — it renders as an inline code span and defines nothing
+  // (`adv3.qmd` y03). One word is measured three ways and all three define: a language
+  // (`python {#lst-d09}`), a class-looking word (`.python {#lst-r07}`) and an earlier brace
+  // group (`{#lst-z07a}{#lst-z07b .python}`).
+  if (scan.slice(run[0].length, group.start).trim().split(/\s+/).filter(Boolean).length > 1) {
+    return undefined;
+  }
+  const id = attributeBlockId(group.content, reader);
+  return id === undefined ? undefined : { id, column: idColumnIn(scan, group, id) };
+}
