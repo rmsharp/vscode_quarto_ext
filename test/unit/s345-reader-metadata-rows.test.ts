@@ -584,8 +584,8 @@ describe("Session 345 P1 -- the differential: the single read answers what the o
       }
     }
     expect(compared).toBe(FROM_SPELLINGS.length * FROM_SPELLINGS.length * 3);
-    expect(tally.reached).toBeGreaterThan(1_000);
-    expect(tally.proven).toBeGreaterThan(25);
+    expect(tally.reached).toBeGreaterThan(1_500);
+    expect(tally.proven).toBeGreaterThan(40);
     expect(firstOf(found)).toEqual([]);
   });
 
@@ -616,8 +616,8 @@ describe("Session 345 P1 -- the differential: the single read answers what the o
     for (const terminator of TERMINATORS) {
       expect(terminators.get(terminator) ?? 0, `terminator ${JSON.stringify(terminator)}`).toBeGreaterThan(SEEDED_DOCUMENTS / 50);
     }
-    expect(tally.reached).toBeGreaterThan(300);
-    expect(tally.proven).toBeGreaterThan(50);
+    expect(tally.reached).toBeGreaterThan(600);
+    expect(tally.proven).toBeGreaterThan(80);
     expect(firstOf(found)).toEqual([]);
   });
 

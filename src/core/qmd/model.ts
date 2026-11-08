@@ -701,14 +701,24 @@ export interface AttributeBlockReader {
  * POINT.** This is the identical pair `buildHeading` is handed, resolved the identical way, so
  * an attribute block on an image cannot be judged by a different reader than one on a heading
  * in the same document.
+ *
+ * ⚠ **THE SCAN HAS ALREADY READ IT (Session 345).** `fromValueLine` is a function of the text alone, and every scan of the text, under any engine and any mode, keeps it with its regions (`Regions.fromValueLine`):
+ * `indexLabels` asks for the heading list of a text and then for this, so the metadata block was read a second and a third time on the text the scan had just read. The cached entries are looked at by TEXT and not
+ * promoted (the replacement order is the scan's alone); a text with no entry is read here, as before, and is NOT scanned, so a caller that never scanned pays what it always paid.
  */
 export function attributeBlockReader(text: string): AttributeBlockReader {
-  const fromValueLine = frontMatterFromValueLine(text.split(/\r?\n/));
+  const scanned = regionsCache.find((entry) => entry.text === text);
+  const fromValueLine = scanned !== undefined ? scanned.regions.fromValueLine : unscannedFromValueLine(text);
   return {
     commonmarkDialect:
       fromValueLine !== null && FRONTMATTER_COMMONMARK_FROM.test(fromValueLine),
     pandocEscapes: fromEscapesAllSymbols(fromValueLine),
   };
+}
+/** The value half of a text no scan has read: the governing block found once, its value taken, and nothing else asked of it. */
+function unscannedFromValueLine(text: string): string | null {
+  const lines = text.split(/\r?\n/);
+  return frontMatterFromValueLine(governingMetadataContent(lines, yamlRegionsOf(lines)));
 }
 /**
  * One whitespace-separated token of a heading attribute block, as a `KEY=VALUE` pair.
@@ -3418,10 +3428,9 @@ const BLOCK_SCALAR_INDICATOR = /^[ \t]*[|>][+-]?[0-9]?[ \t]*(?:#.*)?$/;
  * through verbatim — quotes, trailing comment, extension list and all — and only the KEY is
  * canonicalised. A synthesised line is produced only for a spelling that had no line to match.
  */
-function frontMatterFromValueLine(lines: readonly string[]): string | null {
+function frontMatterFromValueLine(content: readonly string[] | null): string | null {
   // ⚠ The GOVERNING block, not the front matter — Session 211. The KEY half above resolves
   // against the same content, and the two must never disagree about WHICH block they read.
-  const content = governingMetadataContent(lines);
   return content === null ? null : contentFromValueLine(content);
 }
 /** The two answers the governing metadata block gives: the KEY half (`frontMatterSelectsReader`) and the VALUE half (`frontMatterFromValueLine`). */
@@ -3434,10 +3443,20 @@ export interface ReaderMetadata {
 /** The YAML regions of one document's text, asked for when a consumer first needs them. */
 export type YamlRegionsOf = () => readonly YamlRegion[];
 /**
- * Both halves of the question about the governing metadata block, asked of one document's `lines` (Session 345). Exported for `s345-reader-metadata-rows.test.ts`, which keeps the two-call spelling as the oracle.
+ * The regions of `lines` as quarto's region scanner reads them, made on the FIRST ask and handed back by every later one (Session 345). The text it reads is `lines.join("\n")`, a join and a state machine over the whole document, and
+ * a scan used to pay it once for each consumer of the metadata (the KEY half, the VALUE half, and the proof of a CommonMark reader). Never asked for a document with no content line, as before. The list is shared, so a consumer reads it and never changes it.
  */
-export function readerMetadataOf(lines: readonly string[], _yamlRegions?: YamlRegionsOf): ReaderMetadata {
-  return { selectsReader: frontMatterSelectsReader(lines), fromValueLine: frontMatterFromValueLine(lines) };
+function yamlRegionsOf(lines: readonly string[]): YamlRegionsOf {
+  let regions: readonly YamlRegion[] | undefined;
+  return () => (regions ??= quartoYamlRegions(lines.join("\n")));
+}
+/**
+ * Both halves of the question about the governing metadata block, asked of one document's `lines` (Session 345). The block is found ONCE, whichever half is asked, and `yamlRegions` is the regions of the same lines, which the caller shares with the other consumers
+ * of them. Exported for `s345-reader-metadata-rows.test.ts`, which keeps the two-call spelling as the oracle.
+ */
+export function readerMetadataOf(lines: readonly string[], yamlRegions: YamlRegionsOf = yamlRegionsOf(lines)): ReaderMetadata {
+  const content = governingMetadataContent(lines, yamlRegions);
+  return { selectsReader: frontMatterSelectsReader(content), fromValueLine: frontMatterFromValueLine(content) };
 }
 /**
  * Whether the document's front matter PROVES the reader `fromValueLine` names, for a rule whose wrong answer DELETES every heading below it (Session 297).
@@ -3458,7 +3477,7 @@ export function readerMetadataOf(lines: readonly string[], _yamlRegions?: YamlRe
  *     Session 207), and no other `from` key exists anywhere; its text is byte-identical to what the resolver returned.
  * Declining costs the old phantom, never a heading.
  */
-export function frontMatterProvesReader(lines: readonly string[], fromValueLine: string | null, _yamlRegions?: YamlRegionsOf): boolean {
+export function frontMatterProvesReader(lines: readonly string[], fromValueLine: string | null, yamlRegions: YamlRegionsOf = yamlRegionsOf(lines)): boolean {
   const open = frontMatterOpenIndex(lines);
   if (fromValueLine === null || open === null || !lines.slice(0, open).every((line) => FRONTMATTER_BLANK.test(line))) {
     return false;
@@ -3476,7 +3495,7 @@ export function frontMatterProvesReader(lines: readonly string[], fromValueLine:
   if (content === null || content.length === 0 || FRONTMATTER_BLANK.test(content[0]) || content.some((line) => PROOF_FENCE_OR_COMMENT.test(line))) {
     return false;
   }
-  const regions = quartoYamlRegions(lines.join("\n"));
+  const regions = yamlRegions();
   if (regions.length === 0 || regions[0].startLine !== open || !regions[0].terminated || regions[0].endLine !== open + content.length + 1) {
     return false;
   }
@@ -4177,14 +4196,14 @@ export function htmlCommentOpenAt(lines: readonly string[]): (line: number) => b
  * excludes the leading-blank spelling Session 210 already handles (`t2_leadblank_gfm`), while
  * still admitting a document with no front matter at all (`cal3/r1_nofm_mid_gfm`).
  */
-function midDocumentMetadataBlocks(lines: readonly string[]): string[][] {
+function midDocumentMetadataBlocks(lines: readonly string[], yamlRegions: YamlRegionsOf): string[][] {
   const firstContent = lines.findIndex((line) => line.trim() !== "");
   if (firstContent < 0) {
     return [];
   }
   const blocks: string[][] = [];
   const commentOpenAt = htmlCommentOpenAt(lines);
-  for (const region of quartoYamlRegions(lines.join("\n"))) {
+  for (const region of yamlRegions()) {
     // ⚠ **THE FIRST-CONTENT FILTER IS ABOUT FRONT MATTER.** A block that OPENS the document is
     // front matter, which quarto VALIDATES and this scanner resolves elsewhere — hence the skip.
     if (region.startLine <= firstContent || commentOpenAt(region.startLine)) {
@@ -4228,8 +4247,8 @@ function midDocumentMetadataBlocks(lines: readonly string[]): string[][] {
  * Falling through to `frontMatterContent` is today's answer exactly, so a document with no
  * mid-document metadata block is classified byte-identically to before this session.
  */
-function governingMetadataContent(lines: readonly string[]): string[] | null {
-  const blocks = midDocumentMetadataBlocks(lines);
+function governingMetadataContent(lines: readonly string[], yamlRegions: YamlRegionsOf): string[] | null {
+  const blocks = midDocumentMetadataBlocks(lines, yamlRegions);
   for (let i = blocks.length - 1; i >= 0; i--) {
     if (!contentSelectsReader(blocks[i])) {
       continue;
@@ -4666,8 +4685,7 @@ function mappingFromKeyIndex(block: readonly string[], indent: number): number {
  * Every refusal above is a rendered pair, never an argument: the document renders exactly as
  * its no-`from:` twin does.
  */
-function frontMatterSelectsReader(lines: readonly string[]): boolean {
-  const content = governingMetadataContent(lines);
+function frontMatterSelectsReader(content: readonly string[] | null): boolean {
   return content !== null && contentSelectsReader(content);
 }
 /**
@@ -10332,6 +10350,11 @@ interface Regions {
   bodyLines: BodyLine[];
   codeFenceOpeners: CodeFenceOpener[];
   frontMatter: FrontMatterSpan | null;
+  /**
+   * The canonical `from: <value>` line of the governing metadata block, or `null` (Session 345): what `attributeBlockReader` needs of the scan, kept so that it is not read a second time.
+   * A function of the TEXT ALONE: `computeRegions` reads it from the lines of the text and nothing else, never from the engine or the mode, so every entry of one text holds the same value.
+   */
+  fromValueLine: string | null;
 }
 
 /**
@@ -10625,7 +10648,10 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
   // selects the reader is a question about its YAML PATH and no single line carries one. The
   // hoist is behaviour-preserving for the same reason Session 206's was: every consumer of
   // this flag sits BELOW the front matter, which the loop `continue`s straight through.
-  const { selectsReader: dialectOverride, fromValueLine } = readerMetadataOf(lines);
+  // ⚠ The metadata block is read ONCE for the whole scan (Session 345): the KEY half and the VALUE half come from one `readerMetadataOf`, and the proof below takes the regions that read made, so a scan
+  // makes one join and one region pass over the document where it made two (three for a CommonMark reader). The value half is kept with the regions, for `attributeBlockReader`.
+  const yamlRegions = yamlRegionsOf(lines);
+  const { selectsReader: dialectOverride, fromValueLine } = readerMetadataOf(lines, yamlRegions);
   // Whether the front-matter `from:` names a reader of the CommonMark FAMILY — see
   // `FRONTMATTER_COMMONMARK_FROM`. Deliberately a SECOND flag beside `dialectOverride`
   // rather than a refinement of it: that one keys on the KEY's presence and is read by the
@@ -10640,7 +10666,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
   let commonmarkDialect = fromValueLine !== null && FRONTMATTER_COMMONMARK_FROM.test(fromValueLine);
   // ⚠ **THE READER, PROVEN (Session 297)** — read by the three rules whose wrong answer DELETES every heading below a trigger (the degenerate comment, a raw HTML block of
   // type 3-5, an unclosed plain fence), all of which run to the end of the document. See `frontMatterProvesReader`.
-  const commonmarkProven = commonmarkDialect && frontMatterProvesReader(lines, fromValueLine);
+  const commonmarkProven = commonmarkDialect && frontMatterProvesReader(lines, fromValueLine, yamlRegions);
   // Whether the front-matter `from:` names a reader that KEEPS `blank_before_header` — see
   // `fromKeepsBlankBeforeHeader`. A THIRD flag beside the two above, read by the
   // ATX paragraph bail alone: `dialectOverride`'s other consumer (the heading COLUMN set) asks
@@ -13398,7 +13424,7 @@ function computeRegions(text: string, engine: EngineHint = undefined, mode: Rend
     cells.push(makeCell(open, lines.length - 1, lines, false));
   }
 
-  return { headings, cells, bodyLines, codeFenceOpeners, frontMatter };
+  return { headings, cells, bodyLines, codeFenceOpeners, frontMatter, fromValueLine };
 }
 
 /**

@@ -66,8 +66,8 @@
  {
   "name": "R09 midDocumentMetadataBlocks: the regions are walked last first",
   "file": "src/core/qmd/model.ts",
-  "from": "for (const region of quartoYamlRegions(lines.join(\"\\n\"))) {",
-  "to": "for (const region of quartoYamlRegions(lines.join(\"\\n\")).reverse()) {",
+  "from": "for (const region of yamlRegions()) {",
+  "to": "for (const region of [...yamlRegions()].reverse()) {",
   "expect": "killed",
   "why": "every question is before the one last asked: a rescan each; the 12,000 blocks are the same text, so the answer is the same"
  },
