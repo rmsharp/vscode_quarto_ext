@@ -1,0 +1,10 @@
+[
+ {
+  "name": "W01 frontMatterOpenIndex: the lines are read one late",
+  "file": "src/core/qmd/model.ts",
+  "from": "return frontMatterOpenAt((k) => lines[k]);",
+  "to": "return frontMatterOpenAt((k) => lines[k + 1]);",
+  "expect": "killed",
+  "why": "the array view of the opener is read by the reader selection, the kernel and the metadata blocks, none of which these rows reach; killed by front-matter.test.ts and qmd-model.test.ts"
+ }
+]

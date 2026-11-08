@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { resolveDocumentEngine } from "../../src/core/document-engine-resolve";
-import { findAllCells, findBodyLines, findFrontMatter, findHeadings, frontMatterContentLines, inFrontMatter } from "../../src/core/qmd/model";
+import { findAllCells, findBodyLines, findFrontMatter, findHeadings, frontMatterContentLines, inFrontMatter, readFrontMatter } from "../../src/core/qmd/model";
 import { findNestedFrontMatterValueLines } from "../../src/core/yaml-frontmatter-nested-values";
 import { findFrontMatterTopLevelLines } from "../../src/core/yaml-frontmatter-values";
 import { BOM, LS, NBSP, PS, seededRandom } from "./support/regex-equivalence";
@@ -226,6 +226,13 @@ describe("Session 345 P3 -- the front matter is read without a scan", () => {
 
 const FILE_NAMES = ["doc.qmd", "doc.Rmd", "doc.rmd"];
 
+/** The block `readFrontMatter` must return, assembled from the parent's span and the parent's interior. */
+function oldBlock(text: string): { startLine: number; endLine: number; terminated: boolean; content: string[] } | null {
+  const span = oldFrontMatterSpan(text);
+  const content = oldFrontMatterContentLines(text);
+  return span === null || content === null ? null : { ...span, content };
+}
+
 /** `null` when every answer of the new code equals the parent's for `text`, else the first answer that differs. `inFrontMatter` is asked of every line number there is a reason to ask and of the numbers that are not lines. */
 function disagreement(text: string, fileNames: readonly string[] = FILE_NAMES, wide = true): string | null {
   const same = (what: string, a: unknown, b: unknown): string | null => {
@@ -236,6 +243,7 @@ function disagreement(text: string, fileNames: readonly string[] = FILE_NAMES, w
   const checks: Array<string | null> = [
     same("findFrontMatter", findFrontMatter(text), oldFindFrontMatter(text)),
     same("frontMatterContentLines", frontMatterContentLines(text), oldFrontMatterContentLines(text)),
+    same("readFrontMatter", readFrontMatter(text), oldBlock(text)),
     same("findFrontMatterTopLevelLines", findFrontMatterTopLevelLines(text), oldFindFrontMatterTopLevelLines(text)),
     same("findNestedFrontMatterValueLines", findNestedFrontMatterValueLines(text), oldFindNestedFrontMatterValueLines(text)),
   ];

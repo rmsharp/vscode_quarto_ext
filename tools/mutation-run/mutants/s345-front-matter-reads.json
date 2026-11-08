@@ -1,0 +1,602 @@
+[
+ {
+  "name": "N01 linesOf: reads one line too few",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (read.length <= k) {",
+  "to": "while (read.length < k) {",
+  "expect": "killed",
+  "why": "line k is never cut out, so every reader sees the document one line short; the oracle rows"
+ },
+ {
+  "name": "N02 linesOf: the end of the text is the first character",
+  "file": "src/core/qmd/model.ts",
+  "from": "      if (next < 0) {\n        return undefined;",
+  "to": "      if (next <= 0) {\n        return undefined;",
+  "expect": "killed",
+  "why": "the first ask answers 'no such line' for every text; every row"
+ },
+ {
+  "name": "N03 linesOf: the search starts one character late",
+  "file": "src/core/qmd/model.ts",
+  "from": "const feed = text.indexOf(\"\\n\", next);",
+  "to": "const feed = text.indexOf(\"\\n\", next + 1);",
+  "expect": "killed",
+  "why": "a line of one character or an empty line is run into the next; the line-shape rows"
+ },
+ {
+  "name": "N04 linesOf: a feed at index 0 is no feed",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (feed < 0) {\n        read.push(text.slice(next));",
+  "to": "if (feed <= 0) {\n        read.push(text.slice(next));",
+  "expect": "killed",
+  "why": "a text that begins with a line feed is one line; the named edge cases and the blank-first rows"
+ },
+ {
+  "name": "N05 linesOf: the last line loses its first character",
+  "file": "src/core/qmd/model.ts",
+  "from": "read.push(text.slice(next));\n        next = -1;",
+  "to": "read.push(text.slice(next + 1));\n        next = -1;",
+  "expect": "killed",
+  "why": "the last line of a text with no final line feed is short; the unterminated rows"
+ },
+ {
+  "name": "N06 linesOf: a carriage return is never taken along",
+  "file": "src/core/qmd/model.ts",
+  "from": "text.charCodeAt(feed - 1) === 13 ? feed - 1 : feed",
+  "to": "text.charCodeAt(feed - 1) === 13 ? feed : feed",
+  "expect": "killed",
+  "why": "CRLF lines keep their \\r; the CRLF rows"
+ },
+ {
+  "name": "N07 linesOf: a line feed is taken along instead",
+  "file": "src/core/qmd/model.ts",
+  "from": "text.charCodeAt(feed - 1) === 13 ? feed - 1 : feed",
+  "to": "text.charCodeAt(feed - 1) === 10 ? feed - 1 : feed",
+  "expect": "killed",
+  "why": "CRLF lines keep their \\r (the empty lines it strips from are the same); the CRLF rows"
+ },
+ {
+  "name": "N08 linesOf: the next line starts two characters on",
+  "file": "src/core/qmd/model.ts",
+  "from": "next = feed + 1;",
+  "to": "next = feed + 2;",
+  "expect": "killed",
+  "why": "every second line is skipped; every row with a block"
+ },
+ {
+  "name": "N09 linesOf: each line starts one character late",
+  "file": "src/core/qmd/model.ts",
+  "from": "read.push(text.slice(next, text.charCodeAt(feed - 1) === 13 ? feed - 1 : feed));",
+  "to": "read.push(text.slice(next + 1, text.charCodeAt(feed - 1) === 13 ? feed - 1 : feed));",
+  "expect": "killed",
+  "why": "every line loses its first character; every row"
+ },
+ {
+  "name": "N10 linesOf: the answer is the line before",
+  "file": "src/core/qmd/model.ts",
+  "from": "    return read[k];\n  };",
+  "to": "    return read[k - 1];\n  };",
+  "expect": "killed",
+  "why": "every line is the one above it; every row"
+ },
+ {
+  "name": "N11 linesOf: a past-the-end answer is a break instead",
+  "file": "src/core/qmd/model.ts",
+  "from": "      if (next < 0) {\n        return undefined;\n      }",
+  "to": "      if (next < 0) {\n        break;\n      }",
+  "expect": "survives",
+  "why": "the loop leaves and `read[k]` is undefined: the very same answer"
+ },
+ {
+  "name": "O01 frontMatterOpenAt: only an empty line is blank",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (line !== undefined && line.trim() === \"\") {",
+  "to": "while (line !== undefined && line === \"\") {",
+  "expect": "killed",
+  "why": "a whitespace-only line above the opener hides the block; the leading-run rows"
+ },
+ {
+  "name": "O02 frontMatterOpenAt: the run may end the text",
+  "file": "src/core/qmd/model.ts",
+  "from": "while (line !== undefined && line.trim() === \"\") {",
+  "to": "while (line.trim() === \"\") {",
+  "expect": "killed",
+  "why": "a text of blank lines only throws; the named edge cases"
+ },
+ {
+  "name": "O03 frontMatterOpenAt: a terminator opens",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (line === undefined || !FRONTMATTER_OPEN.test(line)) {",
+  "to": "if (line === undefined || !FRONTMATTER_CLOSE.test(line)) {",
+  "expect": "killed",
+  "why": "a leading `...` opens a block; the exhaustive rows"
+ },
+ {
+  "name": "O04 frontMatterOpenAt: the opener may be line 1",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (i === 0) {\n    return 0;",
+  "to": "  if (i === 1) {\n    return 0;",
+  "expect": "killed",
+  "why": "a block at line 0 is held to the pandoc rules; the exhaustive rows"
+ },
+ {
+  "name": "O05 frontMatterOpenAt: line 0 returns i",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (i === 0) {\n    return 0;",
+  "to": "  if (i === 0) {\n    return i;",
+  "expect": "survives",
+  "why": "i is 0 there: the same number"
+ },
+ {
+  "name": "O06 frontMatterOpenAt: a whitespace line under the opener is content",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (under === undefined || under.trim() === \"\") {",
+  "to": "if (under === undefined || under === \"\") {",
+  "expect": "killed",
+  "why": "'---' / '  ' / 'a: b' / '---' below a blank is front matter; the exhaustive rows"
+ },
+ {
+  "name": "O07 frontMatterOpenAt: the line under the opener may be missing",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (under === undefined || under.trim() === \"\") {",
+  "to": "if (under.trim() === \"\") {",
+  "expect": "killed",
+  "why": "a blank line then '---' last throws; the named edge cases"
+ },
+ {
+  "name": "O08 frontMatterOpenAt: the line under is the opener itself",
+  "file": "src/core/qmd/model.ts",
+  "from": "const under = at(i + 1);",
+  "to": "const under = at(i);",
+  "expect": "killed",
+  "why": "a blank line under the opener no longer refuses it; the exhaustive rows"
+ },
+ {
+  "name": "O09 frontMatterOpenAt: the terminator search skips the line under the opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let j = i + 1; ; j++) {\n    const below = at(j);",
+  "to": "for (let j = i + 2; ; j++) {\n    const below = at(j);",
+  "expect": "killed",
+  "why": "'', '---', '---' is no block; the exhaustive rows"
+ },
+ {
+  "name": "O10 frontMatterOpenAt: the terminator below a blank run is a `---` only",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (FRONTMATTER_CLOSE.test(below)) {\n      return i;",
+  "to": "    if (FRONTMATTER_OPEN.test(below)) {\n      return i;",
+  "expect": "killed",
+  "why": "a `...` terminator after a leading blank is missed; the leading-run rows"
+ },
+ {
+  "name": "O11 frontMatterOpenAt: a missing terminator still opens",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (below === undefined) {\n      return null;",
+  "to": "    if (below === undefined) {\n      return i;",
+  "expect": "killed",
+  "why": "an unterminated block below a blank run opens; the leading-run rows"
+ },
+ {
+  "name": "S01 frontMatterSpanAt: no opener is an opener at 0",
+  "file": "src/core/qmd/model.ts",
+  "from": "  if (startLine === null) {\n    return null;\n  }\n  let j = startLine + 1;",
+  "to": "  if (startLine === null) {\n    return { startLine: 0, endLine: 0, terminated: false };\n  }\n  let j = startLine + 1;",
+  "expect": "killed",
+  "why": "every text has front matter; every row"
+ },
+ {
+  "name": "S02 frontMatterSpanAt: the search starts at the opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "let j = startLine + 1;\n  for (let line = at(j);",
+  "to": "let j = startLine;\n  for (let line = at(j);",
+  "expect": "killed",
+  "why": "the opener is its own terminator; every row with a block"
+ },
+ {
+  "name": "S03 frontMatterSpanAt: the terminator is one line late",
+  "file": "src/core/qmd/model.ts",
+  "from": "return { startLine, endLine: j, terminated: true };",
+  "to": "return { startLine, endLine: j + 1, terminated: true };",
+  "expect": "killed",
+  "why": "the span includes a line below the block; the span rows"
+ },
+ {
+  "name": "S04 frontMatterSpanAt: a terminated block says it is not",
+  "file": "src/core/qmd/model.ts",
+  "from": "return { startLine, endLine: j, terminated: true };",
+  "to": "return { startLine, endLine: j, terminated: false };",
+  "expect": "killed",
+  "why": "inFrontMatter on the terminator and the interior; the span rows"
+ },
+ {
+  "name": "S05 frontMatterSpanAt: an unterminated block ends one line late",
+  "file": "src/core/qmd/model.ts",
+  "from": "return { startLine, endLine: j - 1, terminated: false };",
+  "to": "return { startLine, endLine: j, terminated: false };",
+  "expect": "killed",
+  "why": "the span runs past the last line; the unterminated rows"
+ },
+ {
+  "name": "S06 frontMatterSpanAt: an unterminated block says it is terminated",
+  "file": "src/core/qmd/model.ts",
+  "from": "return { startLine, endLine: j - 1, terminated: false };",
+  "to": "return { startLine, endLine: j - 1, terminated: true };",
+  "expect": "killed",
+  "why": "the last line is no longer content; the unterminated rows"
+ },
+ {
+  "name": "S07 frontMatterSpanAt: only `---` terminates",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let line = at(j); line !== undefined; line = at(++j)) {\n    if (FRONTMATTER_CLOSE.test(line)) {",
+  "to": "for (let line = at(j); line !== undefined; line = at(++j)) {\n    if (FRONTMATTER_OPEN.test(line)) {",
+  "expect": "killed",
+  "why": "a `...` terminator is missed; the dots rows"
+ },
+ {
+  "name": "S08 frontMatterSpanAt: the search stops at the first line",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let line = at(j); line !== undefined; line = at(++j)) {\n    if (FRONTMATTER_CLOSE.test(line)) {",
+  "to": "for (let line = at(j); line !== undefined && j === startLine + 1; line = at(++j)) {\n    if (FRONTMATTER_CLOSE.test(line)) {",
+  "expect": "killed",
+  "why": "a terminator further down is missed; every row with a block"
+ },
+ {
+  "name": "C01 computeRegions: the span is read one line late",
+  "file": "src/core/qmd/model.ts",
+  "from": "frontMatterSpanAt((k) => lines[k]);\n  let inComment",
+  "to": "frontMatterSpanAt((k) => lines[k + 1]);\n  let inComment",
+  "expect": "killed",
+  "why": "the scan's span and the readers' differ; the heading and body-line agreement rows"
+ },
+ {
+  "name": "C02 computeRegions: the line inside the block starts at the opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "i > frontMatter.startLine && i <= frontMatter.endLine;",
+  "to": "i >= frontMatter.startLine && i <= frontMatter.endLine;",
+  "expect": "survives",
+  "why": "the opener line is skipped by its own test just below, and the quote strip's guard has the same two tests: the same lines"
+ },
+ {
+  "name": "C03 computeRegions: the terminator is not inside the block",
+  "file": "src/core/qmd/model.ts",
+  "from": "i > frontMatter.startLine && i <= frontMatter.endLine;",
+  "to": "i > frontMatter.startLine && i < frontMatter.endLine;",
+  "expect": "killed",
+  "why": "the terminator line is read as body; the body-line agreement row"
+ },
+ {
+  "name": "C04 computeRegions: inside the block is everything below the opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "i > frontMatter.startLine && i <= frontMatter.endLine;",
+  "to": "i > frontMatter.startLine;",
+  "expect": "killed",
+  "why": "every line below a TERMINATED block is skipped; every heading under front matter is lost"
+ },
+ {
+  "name": "C06 computeRegions: the opener is taken to be line 0",
+  "file": "src/core/qmd/model.ts",
+  "from": "const frontMatterOpensAt = frontMatter === null ? null : frontMatter.startLine;",
+  "to": "const frontMatterOpensAt = frontMatter === null ? null : 0;",
+  "expect": "killed",
+  "why": "a block below a blank run is read from line 0: its opener is body; the blank-first rows"
+ },
+ {
+  "name": "C07 computeRegions: the opener line is not skipped",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (i === frontMatterOpensAt) {\n      continue;\n    }",
+  "to": "    if (false) {\n      continue;\n    }",
+  "expect": "killed",
+  "why": "the opener `---` is read as a thematic break or a setext underline; the agreement row"
+ },
+ {
+  "name": "C08 computeRegions: the interior is not skipped",
+  "file": "src/core/qmd/model.ts",
+  "from": "    if (inFrontmatter) {\n      // ⚠ NEITHER the key flag",
+  "to": "    if (false) {\n      // ⚠ NEITHER the key flag",
+  "expect": "killed",
+  "why": "a heading-shaped YAML comment is a heading; the agreement rows"
+ },
+ {
+  "name": "F01 findFrontMatter: the end is one line late",
+  "file": "src/core/qmd/model.ts",
+  "from": "return fm === null ? null : { startLine: fm.startLine, endLine: fm.endLine };",
+  "to": "return fm === null ? null : { startLine: fm.startLine, endLine: fm.endLine + 1 };",
+  "expect": "killed",
+  "why": "the oracle's findFrontMatter"
+ },
+ {
+  "name": "F02 findFrontMatter: the start is the line under the opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "return fm === null ? null : { startLine: fm.startLine, endLine: fm.endLine };",
+  "to": "return fm === null ? null : { startLine: fm.startLine + 1, endLine: fm.endLine };",
+  "expect": "killed",
+  "why": "the oracle's findFrontMatter"
+ },
+ {
+  "name": "F03 findFrontMatter: a text without front matter has the span of line 0",
+  "file": "src/core/qmd/model.ts",
+  "from": "return fm === null ? null : { startLine: fm.startLine, endLine: fm.endLine };",
+  "to": "return fm === null ? { startLine: 0, endLine: 0 } : { startLine: fm.startLine, endLine: fm.endLine };",
+  "expect": "killed",
+  "why": "the oracle's findFrontMatter"
+ },
+ {
+  "name": "F04 inFrontMatter: the opener line is inside",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (fm === null || line <= fm.startLine) {",
+  "to": "if (fm === null || line < fm.startLine) {",
+  "expect": "killed",
+  "why": "inFrontMatter at the opener; the oracle rows ask every line"
+ },
+ {
+  "name": "F05 inFrontMatter: the terminator line is inside",
+  "file": "src/core/qmd/model.ts",
+  "from": "return fm.terminated ? line < fm.endLine : line <= fm.endLine;",
+  "to": "return fm.terminated ? line <= fm.endLine : line <= fm.endLine;",
+  "expect": "killed",
+  "why": "inFrontMatter at the terminator; the oracle rows ask every line"
+ },
+ {
+  "name": "F06 inFrontMatter: the last line of an unterminated block is outside",
+  "file": "src/core/qmd/model.ts",
+  "from": "return fm.terminated ? line < fm.endLine : line <= fm.endLine;",
+  "to": "return fm.terminated ? line < fm.endLine : line < fm.endLine;",
+  "expect": "killed",
+  "why": "inFrontMatter at the last line of an unterminated block; the oracle rows ask every line"
+ },
+ {
+  "name": "F07 inFrontMatter: a text without front matter has some",
+  "file": "src/core/qmd/model.ts",
+  "from": "if (fm === null || line <= fm.startLine) {",
+  "to": "if (line <= (fm === null ? 0 : fm.startLine)) {",
+  "expect": "killed",
+  "why": "a text without front matter has an interior at line 1 and below; the oracle rows"
+ },
+ {
+  "name": "F08 frontMatterContentLines: no front matter is an empty interior",
+  "file": "src/core/qmd/model.ts",
+  "from": "return block === null ? null : block.content;",
+  "to": "return block === null ? [] : block.content;",
+  "expect": "killed",
+  "why": "null and [] differ; the oracle rows and the engine rows"
+ },
+ {
+  "name": "R01 readFrontMatter: an unterminated interior loses its last line",
+  "file": "src/core/qmd/model.ts",
+  "from": "const end = span.terminated ? span.endLine : span.endLine + 1;",
+  "to": "const end = span.endLine;",
+  "expect": "killed",
+  "why": "the last line of an unterminated block; the oracle rows"
+ },
+ {
+  "name": "R02 readFrontMatter: a terminated interior includes the terminator",
+  "file": "src/core/qmd/model.ts",
+  "from": "const end = span.terminated ? span.endLine : span.endLine + 1;",
+  "to": "const end = span.endLine + 1;",
+  "expect": "killed",
+  "why": "the terminator in the interior; the oracle rows"
+ },
+ {
+  "name": "R03 readFrontMatter: the interior starts at the opener",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let k = span.startLine + 1; k < end; k++) {\n    // Every",
+  "to": "for (let k = span.startLine; k < end; k++) {\n    // Every",
+  "expect": "killed",
+  "why": "the opener in the interior; the oracle rows"
+ },
+ {
+  "name": "R04 readFrontMatter: the interior starts one line late",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let k = span.startLine + 1; k < end; k++) {\n    // Every",
+  "to": "for (let k = span.startLine + 2; k < end; k++) {\n    // Every",
+  "expect": "killed",
+  "why": "the first interior line is lost; the oracle rows"
+ },
+ {
+  "name": "R05 readFrontMatter: the block says it is terminated when it is not",
+  "file": "src/core/qmd/model.ts",
+  "from": "terminated: span.terminated, content };",
+  "to": "terminated: !span.terminated, content };",
+  "expect": "killed",
+  "why": "readFrontMatter's own `terminated`; the oracle row for the block itself"
+ },
+ {
+  "name": "R06 readFrontMatter: the block's end is the interior's end",
+  "file": "src/core/qmd/model.ts",
+  "from": "return { startLine: span.startLine, endLine: span.endLine, terminated: span.terminated, content };",
+  "to": "return { startLine: span.startLine, endLine: span.startLine + content.length, terminated: span.terminated, content };",
+  "expect": "killed",
+  "why": "the end line of a block with a terminator; the oracle row for the block itself"
+ },
+ {
+  "name": "R07 readFrontMatter: the interior is cut out past the end",
+  "file": "src/core/qmd/model.ts",
+  "from": "for (let k = span.startLine + 1; k < end; k++) {\n    // Every",
+  "to": "for (let k = span.startLine + 1; k <= end; k++) {\n    // Every",
+  "expect": "killed",
+  "why": "one line too many; the oracle rows"
+ },
+ {
+  "name": "Z01 resolveDocumentEngine: the front matter is read from the untrimmed text",
+  "file": "src/core/document-engine-resolve.ts",
+  "from": "const block = readFrontMatter(engineText);",
+  "to": "const block = readFrontMatter(text);",
+  "expect": "killed",
+  "why": "a front matter behind a blank line is not read; the leading-run rows"
+ },
+ {
+  "name": "Z02 resolveDocumentEngine: the top-level enumerator sees no front matter",
+  "file": "src/core/document-engine-resolve.ts",
+  "from": "topLevelLinesIn(block),",
+  "to": "topLevelLinesIn(null),",
+  "expect": "killed",
+  "why": "an `engine:` key is not read; the oracle rows"
+ },
+ {
+  "name": "Z03 resolveDocumentEngine: the nested enumerator sees no front matter",
+  "file": "src/core/document-engine-resolve.ts",
+  "from": "nestedValueLinesIn(block),",
+  "to": "nestedValueLinesIn(null),",
+  "expect": "killed",
+  "why": "an `execute: engine:` key is not read; the oracle rows"
+ },
+ {
+  "name": "Z04 resolveDocumentEngine: the engine resolver is told there is no interior",
+  "file": "src/core/document-engine-resolve.ts",
+  "from": "block === null ? null : block.content,",
+  "to": "null,",
+  "expect": "killed",
+  "why": "the resolver sees no front matter; the oracle rows"
+ },
+ {
+  "name": "Z05 resolveDocumentEngine: the text is the untrimmed one",
+  "file": "src/core/document-engine-resolve.ts",
+  "from": "    block === null ? null : block.content,\n    engineText,\n  );",
+  "to": "    block === null ? null : block.content,\n    text,\n  );",
+  "expect": "survives",
+  "why": "the language fallback reads the untrimmed text: the same languages, and the guard trims it again"
+ },
+ {
+  "name": "Z06 resolveDocumentEngine: an empty interior is no interior",
+  "file": "src/core/document-engine-resolve.ts",
+  "from": "block === null ? null : block.content,",
+  "to": "block === null || block.content.length === 0 ? null : block.content,",
+  "expect": "killed",
+  "why": "an empty front matter reads as none; the oracle rows ('---', '---')"
+ },
+ {
+  "name": "E01 topLevelLinesIn: the lines are numbered from the opener",
+  "file": "src/core/yaml-frontmatter-values.ts",
+  "from": "const baseLine = block.startLine + 1;",
+  "to": "const baseLine = block.startLine;",
+  "expect": "killed",
+  "why": "every line number is one short; the oracle rows"
+ },
+ {
+  "name": "E02 topLevelLinesIn: no front matter is read as an empty one",
+  "file": "src/core/yaml-frontmatter-values.ts",
+  "from": "  if (block === null) {\n    return [];\n  }\n  const contentLines = block.content;",
+  "to": "  const contentLines = block === null ? [] : block.content;",
+  "expect": "survives",
+  "why": "the same: the empty interior has no lines"
+ },
+ {
+  "name": "E03 topLevelLinesIn: a text is read without its first interior line",
+  "file": "src/core/yaml-frontmatter-values.ts",
+  "from": "const contentLines = block.content;",
+  "to": "const contentLines = block.content.slice(1);",
+  "expect": "killed",
+  "why": "the first key is lost; the oracle rows"
+ },
+ {
+  "name": "E04 findFrontMatterTopLevelLines: the front matter is read from the trimmed text",
+  "file": "src/core/yaml-frontmatter-values.ts",
+  "from": "return topLevelLinesIn(readFrontMatter(text));",
+  "to": "return topLevelLinesIn(readFrontMatter(text.trimStart()));",
+  "expect": "killed",
+  "why": "a front matter behind a blank line is read, with its line numbers moved; the oracle rows"
+ },
+ {
+  "name": "E05 nestedValueLinesIn: the lines are numbered from the opener",
+  "file": "src/core/yaml-frontmatter-nested-values.ts",
+  "from": "const baseLine = block.startLine + 1;",
+  "to": "const baseLine = block.startLine;",
+  "expect": "killed",
+  "why": "every line number is one short; the oracle rows"
+ },
+ {
+  "name": "E06 nestedValueLinesIn: the first interior line is lost",
+  "file": "src/core/yaml-frontmatter-nested-values.ts",
+  "from": "const contentLines = block.content;",
+  "to": "const contentLines = block.content.slice(1);",
+  "expect": "killed",
+  "why": "the first nested key is lost; the oracle rows"
+ },
+ {
+  "name": "E07 findNestedFrontMatterValueLines: the front matter is read from the trimmed text",
+  "file": "src/core/yaml-frontmatter-nested-values.ts",
+  "from": "return nestedValueLinesIn(readFrontMatter(text));",
+  "to": "return nestedValueLinesIn(readFrontMatter(text.trimStart()));",
+  "expect": "killed",
+  "why": "a front matter behind a blank line is read, with its line numbers moved; the oracle rows"
+ },
+ {
+  "name": "T01 readsOf: a split is never counted",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "    if (big(this)) splits++;",
+  "to": "    if (false) splits++;",
+  "expect": "killed",
+  "why": "every row that expects a split is red and the rows that expect zero are blind: the counters' own rows"
+ },
+ {
+  "name": "T02 readsOf: a search is never counted",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "    if (big(this)) searches++;",
+  "to": "    if (false) searches++;",
+  "expect": "killed",
+  "why": "the counters' own rows and the reads-once row"
+ },
+ {
+  "name": "T03 readsOf: half the document is not 'big'",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "const big = (receiver: unknown): boolean => String(receiver).length * 2 >= whole.length;",
+  "to": "const big = (receiver: unknown): boolean => String(receiver).length * 2 > whole.length;",
+  "expect": "killed",
+  "why": "the exactly-half row of the counters' own rows"
+ },
+ {
+  "name": "T04 readsOf: more than a third is 'big'",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "const big = (receiver: unknown): boolean => String(receiver).length * 2 >= whole.length;",
+  "to": "const big = (receiver: unknown): boolean => String(receiver).length * 3 >= whole.length;",
+  "expect": "killed",
+  "why": "the just-under-half row of the counters' own rows"
+ },
+ {
+  "name": "T05 readsOf: split is not put back",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "    String.prototype.split = split;\n    String.prototype.indexOf = indexOf;\n  }",
+  "to": "    String.prototype.indexOf = indexOf;\n  }",
+  "expect": "killed",
+  "why": "the put-back row"
+ },
+ {
+  "name": "T06 readsOf: indexOf is not put back",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "    String.prototype.split = split;\n    String.prototype.indexOf = indexOf;\n  }",
+  "to": "    String.prototype.split = split;\n  }",
+  "expect": "killed",
+  "why": "the put-back row"
+ },
+ {
+  "name": "T07 addsScanEntry: the verdict is inverted",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "return findAllCells(documents[0])[0] !== oldest;",
+  "to": "return findAllCells(documents[0])[0] === oldest;",
+  "expect": "killed",
+  "why": "the probe's own row"
+ },
+ {
+  "name": "T08 seededDocument: no document has front matter",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "if (random() < 0.8) {\n    lines.push(\"---\");",
+  "to": "if (random() < 0) {\n    lines.push(\"---\");",
+  "expect": "killed",
+  "why": "the floors of the seeded row"
+ },
+ {
+  "name": "T09 seededDocument: no document has a leading run",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "const LEADS = [\"\", \"\", \"\", \"\", \"\\n\", \"\\n\\n\", \" \", \"   \\n\", \"\\t\", BOM, \"\\r\\n\", NBSP, \"    \\n  \"];",
+  "to": "const LEADS = [\"\"];",
+  "expect": "killed",
+  "why": "the floors of the seeded row"
+ },
+ {
+  "name": "T10 seededDocument: every block is terminated",
+  "file": "test/unit/s345-front-matter-reads.test.ts",
+  "from": "    else if (closer < 0.65) lines.push(\"...\");",
+  "to": "    else lines.push(\"...\");",
+  "expect": "killed",
+  "why": "the unterminated floor of the seeded row"
+ }
+]
