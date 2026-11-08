@@ -164,8 +164,8 @@
   "file": "src/core/refs.ts",
   "from": "(bodyLinesOfCell ??=",
   "to": "(bodyLinesOfCell =",
-  "expect": "survives",
-  "why": "equivalent in every answer: the split is a pure function of the cell's code, so a second split of it is an equal array (the rules read it, never write it); it costs one more split of ONE cell when a cell asks twice (a label and a header label), which no count of the whole document sees"
+  "expect": "killed",
+  "why": "the same answers (the split is a pure function of the cell's code, so a second split of it is an equal array, the rules read it and never write it) and one more split of ONE cell when a cell asks twice. It SURVIVED until Session 345's review (no count of the whole document sees it, and the body was counted by nothing); killed by the body-split rows, whose cell with two label lines is split once (review C3)"
  },
  {
   "name": "M01 cellTargetContextOfLines: the markdown lines are read from a split of the text",
@@ -470,5 +470,29 @@
   "to": "[\"ls-files\", \"--\", ...specs]",
   "expect": "killed",
   "why": "git ends each path with a line feed and the split on NUL gives one name, all of them joined; the file is 'gone' and the real rows read nothing; killed by the floors of the tracked rows"
+ },
+ {
+  "name": "T12 equivalence: a disagreement fails without the rule for a deliberate change",
+  "file": "test/unit/s345-index-labels-equivalence.test.ts",
+  "from": "expect(tally.disagreements, TRANSITIONAL_RULE).toEqual([])",
+  "to": "expect(tally.disagreements).toEqual([])",
+  "expect": "killed",
+  "why": "the rows still fail on a disagreement, but the report no longer says the oracle is a frozen copy and which header holds the rule (review C5, E-02); killed by the row that reads the failure message"
+ },
+ {
+  "name": "T13 equivalence: the rule's message does not name the file that holds it",
+  "file": "test/unit/s345-index-labels-equivalence.test.ts",
+  "from": "see the header of test/unit/support/s345-old-refs.ts -- ",
+  "to": "see the header of the oracle -- ",
+  "expect": "killed",
+  "why": "a reader of a red row is told there is a rule and not where it is written; killed by the row that reads the failure message"
+ },
+ {
+  "name": "T14 equivalence: the helper that fails a row on a disagreement asserts nothing",
+  "file": "test/unit/s345-index-labels-equivalence.test.ts",
+  "from": "const expectNone = (tally: Tally): void => void expect(tally.disagreements, TRANSITIONAL_RULE).toEqual([]);",
+  "to": "const expectNone = (tally: Tally): void => void tally;",
+  "expect": "killed",
+  "why": "eight rows would pass every disagreement unseen; killed by the row that reads the failure message (the helper must throw on one) -- the thirteen perturbed live functions count disagreements by the tally and would not notice"
  }
 ]

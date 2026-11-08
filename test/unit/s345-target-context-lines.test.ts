@@ -8,6 +8,8 @@ import { BOM, TRACKED_FLOOR, frontMatterDocuments, seededDocuments, shapeDocumen
 // `cellTargetContextOfLines(text, lines)` and `plainFrontMatterOfLines(lines)`, where `lines` is `text.split(/\r?\n/)`. The text-taking functions keep their signatures and their answers and delegate (one split each).
 //
 // The OLD spellings are kept verbatim in `support/s345-old-target-context.ts` and every row compares against them, never against the delegating wrappers: a mistake in the shared body would otherwise be in both.
+// ⚠ TRANSITIONAL, like `s345-index-labels-equivalence.test.ts`: the comparison rows are the proof of Session 345's cure against frozen copies of the parent, and a change of `cellTargetContext` or `plainFrontMatter` made ON PURPOSE reds
+// them. The rule for that case (re-baseline for an exact change, retire for a change of answers) is the header of `support/s345-old-refs.ts`; the counter rows at the end of this file stay in every case.
 
 const LINES = /\r?\n/;
 const sameContext = (text: string): boolean => JSON.stringify(cellTargetContextOfLines(text, text.split(LINES))) === JSON.stringify(oldCellTargetContext(text));

@@ -1,7 +1,16 @@
 // Session 345, part P2: THE OLD SPELLING, kept as the oracle. This file is `src/core/refs.ts` at the base commit acbc51f (the parent of the S345 cure), VERBATIM except for its four import specifiers (they reach
 // into `src/core/`) and the one import of `cellTargetContext`, which comes from the sibling `s345-old-target-context.ts` (the OLD `cellTargetContext` and `plainFrontMatter`, also verbatim). Nothing else is
-// edited, so `indexLabels` below is the function the parent shipped, down to its own helpers. `s345-index-labels-equivalence.test.ts` compares it with the live one.
-// To check it: `git show acbc51f:src/core/refs.ts` differs from this file in those import lines and these header lines only. Do not edit it by hand.
+// edited, so `indexLabels` below is the function the parent shipped, down to its own helpers. `s345-index-labels-equivalence.test.ts` compares it with the live one. Do not edit it by hand.
+//
+// ⚠ TRANSITIONAL. This file is the PROOF that Session 345's cure changed no answer, kept while it is worth running; it is not a standing contract. It reaches the LIVE model for the scan, the readers and the rules that judge a cell, so
+// it follows those, but it is a frozen copy of `indexLabels` itself and does NOT follow a change of `indexLabels`. BACKLOG lists open label-index families that will change its answers on purpose. The first such change reds
+// `s345-index-labels-equivalence.test.ts` (the failure message of its rows names this block), and the red is no defect of the change. The counter rows (`s345-index-labels-rows.test.ts`) STAY in every case: they pin cost, not answers.
+//   1. A change that must stay EXACT (a later cost cure): RE-BASELINE. Regenerate this file from the commit BEFORE that change, with the command below, and put this block back with the new commit named in its first line:
+//        git show <sha-before>:src/core/refs.ts | perl -pe 's#from "\./(document-engine|qmd/model|qmd/unicode-run)"#from "../../../src/core/$1"#; $_ = "" if /^  cellTargetContext,\n$/; $_ .= "import { cellTargetContext } from \"./s345-old-target-context\";\n" if /^import \{ IDENTIFIER_RUN, runEnd \}/'
+//      If `cellTargetContext` or `plainFrontMatter` changed too, copy their bodies from the same commit into `s345-old-target-context.ts`. The equivalence rows then prove that change as they proved this one.
+//   2. A change of ANSWERS: RETIRE. In one commit delete this file, `s345-old-target-context.ts`, `s345-index-labels-equivalence.test.ts` and the oracle rows of `s345-target-context-lines.test.ts`, and take out of
+//      `tools/mutation-run/mutants/s345-index-labels.json` every mutant whose `file` or `why` names them. Say so in the changelog.
+// To check this file: the command in 1, run with `acbc51f`, prints everything below this block byte for byte (run at the fix round of Session 345: `diff` of its output and this file from line 14 on is empty).
 /**
  * Pure, `vscode`-free cross-reference index for a Quarto `.qmd` document
  * (architecture plan §3.3, Phase 6b).

@@ -342,5 +342,29 @@
   "to": "const old = frontMatterProvesReader(lines, fromValueLine, () => []);",
   "expect": "killed",
   "why": "the old side then reads no region and refuses every proof: the comparison against the proven documents disagrees"
+ },
+ {
+  "name": "T09 rows: the tracked documents are read from the process's working directory and not from the repository's root",
+  "file": "test/unit/s345-reader-metadata-rows.test.ts",
+  "from": "documentsOf(REPO_ROOT, trackedPaths(",
+  "to": "documentsOf(process.cwd(), trackedPaths(",
+  "expect": "survives",
+  "why": "the same documents when the run starts at the root (as npm test does) and a different set, or none, when it starts anywhere else: only a run from another directory sees it (review E-01 reproduced it with `npx vitest run --root ../..` from test/unit, which read 0 documents before the cure and the same ones after). No in-process row can move the working directory of a worker"
+ },
+ {
+  "name": "T10 rows: the tracked documents over 300,000 characters are left out of the reader-flags row",
+  "file": "test/unit/s345-reader-metadata-rows.test.ts",
+  "from": "{ maxCharacters: Infinity }",
+  "to": "{}",
+  "expect": "survives",
+  "why": "cost and reach only: the row keeps every answer it compared and no longer reads the multi-megabyte archives. Whether a document over the limit exists is the repository's content, and a deleted archive must not red this file (review E-06), so no row asserts that one is read"
+ },
+ {
+  "name": "T11 rows: only the .qmd files are listed",
+  "file": "test/unit/s345-reader-metadata-rows.test.ts",
+  "from": "trackedPaths([\"*.qmd\", \"*.md\", \"*.Rmd\"])",
+  "to": "trackedPaths([\"*.qmd\"])",
+  "expect": "killed",
+  "why": "the 85 other documents go; killed by the floor of the tracked row (45 .qmd files against 50)"
  }
 ]

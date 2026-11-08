@@ -23,6 +23,10 @@ import {
   writtenEveryWay,
 } from "./support/s345-index-labels-corpus";
 
+// ⚠ TRANSITIONAL. This file, `support/s345-old-refs.ts` and `support/s345-old-target-context.ts` are the PROOF that Session 345's cure changed no answer, and not a standing contract. `indexLabels` is expected to change (BACKLOG lists
+// the open label-index families): the first change made ON PURPOSE reds these rows against a frozen copy of the parent, which is the rule working and no defect of the change. The counter rows (`s345-index-labels-rows.test.ts`) STAY.
+// The oracle is then re-baselined or retired as the header of `support/s345-old-refs.ts` says, and the failure message of every row here names that header (`TRANSITIONAL_RULE`).
+//
 // Session 345 -- part P2 of the BACKLOG item SIB-01. `indexLabels` (src/core/refs.ts) stopped splitting the document's text again for facts it already held, and reads the option lines of a column-0 cell from the scan's
 // own memo (`findCellOptionLines`) instead of running `cellOptionLinesOf` over the cell. The answer must not move by a label, a kind, a line or a column, and its order stays.
 //
@@ -130,6 +134,17 @@ function compareAll(texts: Iterable<string>, engines: readonly Engine[] = ENGINE
   return tally;
 }
 
+/**
+ * What a reader of a red row of this file is told first. The likeliest cause of a disagreement, after a change to `indexLabels` made ON PURPOSE (BACKLOG lists label-index families that will change its answers), is the change:
+ * the oracle is a frozen copy of the parent, and a deliberate change differs from it by design. The rule is written in the header of the oracle.
+ */
+const TRANSITIONAL_RULE =
+  "this suite is the TRANSITIONAL proof of Session 345's cure (indexLabels answers as it did at acbc51f). If indexLabels or cellTargetContext was changed ON PURPOSE since, this is expected and no defect of the change: " +
+  "see the header of test/unit/support/s345-old-refs.ts -- re-baseline the oracle from the commit before an EXACT change, or retire the oracle, this file and their mutants for a change of ANSWERS. The first disagreements follow";
+
+/** The tally of a comparison holds no disagreement; if it holds one, the message says what the rule is for a deliberate change. */
+const expectNone = (tally: Tally): void => void expect(tally.disagreements, TRANSITIONAL_RULE).toEqual([]);
+
 describe("Session 345 -- the harness can fail: each way a live function can differ from the old one is seen", () => {
   // two labels in one document (a cell label and an image label), so that a reorder, a drop and a shift each change the answer
   const TWO = "```{python}\n#| label: fig-a\n```\n\n![c](a.png){#fig-b}\n";
@@ -161,8 +176,17 @@ describe("Session 345 -- the harness can fail: each way a live function can diff
     expect(tally.disagreements.length).toBeGreaterThanOrEqual(1);
   });
 
+  it("a disagreement fails with the rule for a deliberate change: this suite is the transitional proof of Session 345, and the file that says what to do is named", () => {
+    const tally = compareAll([TWO], ENGINES, CASES[0][1]);
+    expect(tally.disagreements.length).toBeGreaterThanOrEqual(1);
+    expect(() => expectNone(tally)).toThrow(/TRANSITIONAL proof of Session 345/);
+    expect(() => expectNone(tally)).toThrow(/test\/unit\/support\/s345-old-refs\.ts/);
+    expect(() => expectNone(tally)).toThrow(/retire/);
+    expect(() => expectNone(newTally())).not.toThrow();
+  });
+
   it("the live functions themselves leave nothing to see on the same document", () => {
-    expect(compareAll([TWO]).disagreements).toEqual([]);
+    expectNone(compareAll([TWO]));
     // the engines that read a cell's label keep both here, knitr and jupyter drop the cell's (nothing is left to show): 10 in all
     expect(compareAll([TWO]).labels).toBe(10);
   });
@@ -171,7 +195,7 @@ describe("Session 345 -- the harness can fail: each way a live function can diff
 describe("Session 345 -- indexLabels answers exactly as the old spelling did", () => {
   it("every one-cell document of the structured product (11 openers x 14 option blocks x 7 bodies x 3 closers x 6 tails), all six engines", () => {
     const tally = compareAll(structuredDocuments());
-    expect(tally.disagreements).toEqual([]);
+    expectNone(tally);
     expect(tally.texts).toBe(19404);
     expect(tally.compared).toBe(19404 * ENGINES.length);
     expect(tally.threw).toBe(0);
@@ -183,7 +207,7 @@ describe("Session 345 -- indexLabels answers exactly as the old spelling did", (
 
   it("every front-matter variant against every cell and tail (12 x 6 x 6), all six engines", () => {
     const tally = compareAll(frontMatterDocuments());
-    expect(tally.disagreements).toEqual([]);
+    expectNone(tally);
     expect(tally.texts).toBe(432);
     expect(tally.withLabels).toBeGreaterThanOrEqual(350);
     expect(tally.engineSensitive).toBeGreaterThanOrEqual(90);
@@ -191,7 +215,7 @@ describe("Session 345 -- indexLabels answers exactly as the old spelling did", (
 
   it("every sequence of up to three line shapes (14,425), all six engines", () => {
     const tally = compareAll(shapeDocuments());
-    expect(tally.disagreements).toEqual([]);
+    expectNone(tally);
     expect(tally.texts).toBe(14425);
     expect(tally.withLabels).toBeGreaterThanOrEqual(3000);
     expect(tally.engineSensitive).toBeGreaterThanOrEqual(10);
@@ -199,7 +223,7 @@ describe("Session 345 -- indexLabels answers exactly as the old spelling did", (
 
   it(`3,000 whole documents from the seed ${SEED}, each with a terminator, a prefix and every fifth cut short`, () => {
     const tally = compareAll(seededDocuments(3000));
-    expect(tally.disagreements).toEqual([]);
+    expectNone(tally);
     expect(tally.texts).toBe(3000);
     expect(tally.withLabels).toBeGreaterThanOrEqual(1600);
     expect(tally.engineSensitive).toBeGreaterThanOrEqual(50);
@@ -210,7 +234,7 @@ describe("Session 345 -- indexLabels answers exactly as the old spelling did", (
     const base = [...structuredDocuments()].filter((_, i) => i % 400 === 0);
     const tally = compareAll(writtenEveryWay(base));
     expect(base.length).toBe(49);
-    expect(tally.disagreements).toEqual([]);
+    expectNone(tally);
     expect(tally.texts).toBe(49 * 6 * 7);
     expect(tally.withLabels).toBeGreaterThanOrEqual(450);
     expect(tally.engineSensitive).toBeGreaterThanOrEqual(15);
@@ -218,21 +242,21 @@ describe("Session 345 -- indexLabels answers exactly as the old spelling did", (
 
   it("the empty text and the texts that are a terminator and nothing else", () => {
     const tally = compareAll(["", "\n", "\r\n", "\r", "\u2028", "\u2029", "\f", "\n\n\n", BOM_ONLY, "---", "---\n", "```{python}", "```{python}\n#| label: fig-a"]);
-    expect(tally.disagreements).toEqual([]);
+    expectNone(tally);
     expect(tally.texts).toBe(13);
   });
 
   it("a header holding a 12 MB string (the shape that once overflowed the option reader's regex stack, hunt3 robust-perf f26): the same answer or the same error", () => {
     const header = ["```{r label=\"fig-x\", \"" + "A".repeat(12_000_000) + "\", eval=FALSE}", '#| fig-cap: "Cap"', "plot(1)", "```"].join("\n");
     const tally = compareAll([header, "```{python}\n#| label: fig-y\n#| fig-cap: " + "'" + "A".repeat(12_000_000) + "'\n```\n"]);
-    expect(tally.disagreements).toEqual([]);
+    expectNone(tally);
     expect(tally.texts).toBe(2);
   });
 
   it("every tracked .qmd, .md and .Rmd file of the repository (none over 300,000 characters), all six engines", () => {
     const documents = trackedDocuments();
     const tally = compareAll(documents.map(([, text]) => text));
-    expect(tally.disagreements).toEqual([]);
+    expectNone(tally);
     expect(tally.texts).toBe(documents.length);
     // ⚠ THE FLOORS ARE SMALL ON PURPOSE (Learning 929 asks that a loop which drew nothing be seen, and nothing more). What the repository holds today (130 documents, five of them with labels, all in test/fixtures) is the
     // repository's and not this file's: a fixture that is deleted, trimmed or moved must not red an equivalence test, because no behaviour has moved. What shows that the HARNESS can see labels, and can fail, is not
