@@ -270,5 +270,37 @@
   "to": "    if (false) {",
   "expect": "killed",
   "why": "every disagreement would pass unseen; killed by the harness-teeth rows (the thirteen perturbed live functions)"
+ },
+ {
+  "name": "R22 indexLabels: the grouping of the memo is entered only for a cell that has an entry",
+  "file": "src/core/refs.ts",
+  "from": "if (own === undefined) {",
+  "to": "if (own !== undefined) {",
+  "expect": "killed",
+  "why": "the grouping throws on its first option line (a push on nothing), the guard catches it and every cell is read through cellOptionLinesOf: the answers stay the old ones and only the count rows see that the memo was never used"
+ },
+ {
+  "name": "R23 indexLabels: the memo that was built is thrown away",
+  "file": "src/core/refs.ts",
+  "from": "optionLinesByCell = grouped;",
+  "to": "optionLinesByCell = undefined;",
+  "expect": "killed",
+  "why": "every cell goes through its own read: the old answers and the parent's calls; killed by the count rows"
+ },
+ {
+  "name": "R24 indexLabels: the memo is the engine-AWARE list of a knitr document",
+  "file": "src/core/refs.ts",
+  "from": "for (const option of findCellOptionLines(text)) {",
+  "to": "for (const option of findCellOptionLines(text, \"knitr\")) {",
+  "expect": "killed",
+  "why": "the aware list of another cache key drops the cells a stray fence hides, which `findAllCells(text)` still returns; killed by the 'asks for the engine-blind list' row (the arguments of the ask)"
+ },
+ {
+  "name": "R25 indexLabels: the memo is asked for with a render mode the blind list ignores",
+  "file": "src/core/refs.ts",
+  "from": "for (const option of findCellOptionLines(text)) {",
+  "to": "for (const option of findCellOptionLines(text, undefined, \"no-execute\")) {",
+  "expect": "killed",
+  "why": "the same list (the mode is read for knitr only, so the cache key is the same), asked with other arguments; killed by the 'asks for the engine-blind list' row alone, so this is a kill of that row's strictness and not of an answer"
  }
 ]

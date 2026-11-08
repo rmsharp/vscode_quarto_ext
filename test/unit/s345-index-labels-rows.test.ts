@@ -15,7 +15,7 @@ import { attributeBlockReader, cellOptionLinesOf, cellTargetContext, findAllCell
 // inside its module and not seen). Measured at the parent `acbc51f` on a 60-cell document (62 cells with the two at its end), one call warm: knitr / jupyter 5 splits of the text, 2 of them `attributeBlockReader`'s (its own and
 // the one in `quartoYamlRegions`, which it hands the lines joined again); every other engine 3, and 5 when a `sec-` cell label asks `canWriteAtRunTime` (which builds the whole context for itself). `cellTargetContext(text)` 2,
 // `plainFrontMatter(text)` 1. 62 `cellOptionLinesOf` calls, one for each cell. After the cure: 3 splits (the call's own and P1's two), `cellTargetContext(text)` 1, no `cellOptionLinesOf` call for a cell read as it stands.
-const asked = vi.hoisted(() => ({ on: false, optionLines: 0, optionLineCalls: 0, failMemo: false }));
+const asked = vi.hoisted(() => ({ on: false, optionLines: 0, optionLineCalls: 0, failMemo: false, optionLineArgs: [] as unknown[][] }));
 vi.mock("../../src/core/qmd/model", async (importOriginal) => {
   const real = await importOriginal<typeof import("../../src/core/qmd/model")>();
   return {
@@ -25,7 +25,10 @@ vi.mock("../../src/core/qmd/model", async (importOriginal) => {
       return real.cellOptionLinesOf(...args);
     },
     findCellOptionLines: (...args: Parameters<typeof real.findCellOptionLines>) => {
-      if (asked.on) asked.optionLineCalls++;
+      if (asked.on) {
+        asked.optionLineCalls++;
+        asked.optionLineArgs.push(args);
+      }
       if (asked.failMemo) throw new RangeError("the scan's list could not be built");
       return real.findCellOptionLines(...args);
     },
@@ -71,6 +74,7 @@ function countWholeJoins(text: string, run: () => void): number {
 function askedOf(run: () => void): { cellOptionLinesOf: number; findCellOptionLines: number } {
   asked.optionLines = 0;
   asked.optionLineCalls = 0;
+  asked.optionLineArgs = [];
   asked.on = true;
   try {
     run();
@@ -259,6 +263,15 @@ describe("Session 345 -- indexLabels reads the option lines of a column-0 cell f
       expect(labels).toEqual(oldIndexLabels(text, engine));
       expect(made.findCellOptionLines).toBe(1); // asked once, failed, and not asked again
       expect(made.cellOptionLinesOf).toBe(32); // every cell (30 and the two at the end) by its own read, as at the parent
+    }
+  });
+
+  it("it asks for the engine-BLIND list, the one `findAllCells(text)` makes its cells from, whatever the engine of the document", () => {
+    const { text } = documentOf(12, 4);
+    for (const engine of [undefined, "knitr", "jupyter", "markdown", "julia", "ambiguous"] as const) {
+      warm(text);
+      askedOf(() => void indexLabels(text, engine));
+      expect(asked.optionLineArgs).toEqual([[text]]);
     }
   });
 
